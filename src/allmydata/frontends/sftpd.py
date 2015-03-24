@@ -28,6 +28,7 @@ from allmydata.util import deferredutil
 
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.consumer import download_to_data
+from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.interfaces import IFileNode, IDirectoryNode, ExistingChildError, \
      NoSuchChildError, ChildOfWrongTypeError
 from allmydata.mutable.common import NotWriteableError
@@ -1979,6 +1980,9 @@ class Dispatcher:
 class SFTPServer(service.MultiService):
     def __init__(self, client, accountfile, accounturl,
                  sftp_portstr, pubkey_file, privkey_file):
+        precondition(isinstance(accountfile, unicode), accountfile)
+        precondition(isinstance(pubkey_file, unicode), pubkey_file)
+        precondition(isinstance(privkey_file, unicode), privkey_file)
         service.MultiService.__init__(self)
 
         r = Dispatcher(client)
@@ -1994,8 +1998,8 @@ class SFTPServer(service.MultiService):
             # we could leave this anonymous, with just the /uri/CAP form
             raise NeedRootcapLookupScheme("must provide an account file or URL")
 
-        pubkey = keys.Key.fromFile(pubkey_file)
-        privkey = keys.Key.fromFile(privkey_file)
+        pubkey = keys.Key.fromFile(pubkey_file.encode(get_filesystem_encoding()))
+        privkey = keys.Key.fromFile(privkey_file.encode(get_filesystem_encoding()))
         class SSHFactory(factory.SSHFactory):
             publicKeys = {pubkey.sshType(): pubkey}
             privateKeys = {privkey.sshType(): privkey}

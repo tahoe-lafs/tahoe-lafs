@@ -203,6 +203,20 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
         self.failUnlessReallyEqual(m.keyfile, expected)
 
+    def test_ftp_auth_keyfile(self):
+        basedir = u"client.Basic.test_ftp_auth_keyfile"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       (BASECONFIG +
+                        "[ftpd]\n"
+                        "enabled = true\n"
+                        "port = tcp:0:interface=127.0.0.1\n"
+                        "accounts.file = private/accounts\n"))
+        os.mkdir(os.path.join(basedir, "private"))
+        fileutil.write(os.path.join(basedir, "private", "accounts"), "\n")
+        c = client.Client(basedir) # just make sure it can be instantiated
+        del c
+
     def _permute(self, sb, key):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 

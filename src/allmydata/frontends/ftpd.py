@@ -10,6 +10,7 @@ from allmydata.interfaces import IDirectoryNode, ExistingChildError, \
      NoSuchChildError
 from allmydata.immutable.upload import FileHandle
 from allmydata.util.fileutil import EncryptedTemporaryFile
+from allmydata.util.assertutil import precondition
 
 class ReadFile:
     implements(ftp.IReadFile)
@@ -288,6 +289,7 @@ class Dispatcher:
 
 class FTPServer(service.MultiService):
     def __init__(self, client, accountfile, accounturl, ftp_portstr):
+        precondition(isinstance(accountfile, unicode), accountfile)
         service.MultiService.__init__(self)
 
         r = Dispatcher(client)
