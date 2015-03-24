@@ -4,6 +4,7 @@ from twisted.application import service
 
 import allmydata
 from allmydata.node import Node, OldConfigError, OldConfigOptionError, MissingConfigEntry, UnescapedHashError
+from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.manhole import AuthorizedKeysManhole
@@ -202,6 +203,44 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         abs_basedir = fileutil.abspath_expanduser_unicode(basedir)
         expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
         self.failUnlessReallyEqual(m.keyfile, expected)
+
+    # TODO: also test config options for SFTP.
+
+    def test_ftp_auth_keyfile(self):
+        basedir = u"client.Basic.test_ftp_auth_keyfile"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       (BASECONFIG +
+                        "[ftpd]\n"
+                        "enabled = true\n"
+                        "port = tcp:0:interface=127.0.0.1\n"
+                        "accounts.file = private/accounts\n"))
+        os.mkdir(os.path.join(basedir, "private"))
+        fileutil.write(os.path.join(basedir, "private", "accounts"), "\n")
+        c = client.Client(basedir) # just make sure it can be instantiated
+        del c
+
+    def test_ftp_auth_url(self):
+        basedir = u"client.Basic.test_ftp_auth_url"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       (BASECONFIG +
+                        "[ftpd]\n"
+                        "enabled = true\n"
+                        "port = tcp:0:interface=127.0.0.1\n"
+                        "accounts.url = http://0.0.0.0/\n"))
+        c = client.Client(basedir) # just make sure it can be instantiated
+        del c
+
+    def test_ftp_auth_no_accountfile_or_url(self):
+        basedir = u"client.Basic.test_ftp_auth_no_accountfile_or_url"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       (BASECONFIG +
+                        "[ftpd]\n"
+                        "enabled = true\n"
+                        "port = tcp:0:interface=127.0.0.1\n"))
+        self.failUnlessRaises(NeedRootcapLookupScheme, client.Client, basedir)
 
     def _permute(self, sb, key):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]

@@ -1,4 +1,6 @@
 
+from types import NoneType
+
 from zope.interface import implements
 from twisted.application import service, strports
 from twisted.internet import defer
@@ -10,6 +12,7 @@ from allmydata.interfaces import IDirectoryNode, ExistingChildError, \
      NoSuchChildError
 from allmydata.immutable.upload import FileHandle
 from allmydata.util.fileutil import EncryptedTemporaryFile
+from allmydata.util.assertutil import precondition
 
 class ReadFile:
     implements(ftp.IReadFile)
@@ -288,7 +291,7 @@ class Dispatcher:
 
 class FTPServer(service.MultiService):
     def __init__(self, client, accountfile, accounturl, ftp_portstr):
-        precondition(isinstance(accountfile, unicode), accountfile)
+        precondition(isinstance(accountfile, (unicode, NoneType)), accountfile)
         service.MultiService.__init__(self)
 
         r = Dispatcher(client)
