@@ -35,7 +35,7 @@ build:
 # Build OS X pkg packages.
 .PHONY: build-osx-pkg test-osx-pkg upload-osx-pkg
 build-osx-pkg: build
-	misc/build_helpers/build-osx-pkg.sh $(APPNAME) $(shell sh -c "cat src/allmydata/_version.py | grep verstr | head -n 1 | cut -d' ' -f 3")
+	misc/build_helpers/build-osx-pkg.sh $(APPNAME)
 
 test-osx-pkg:
 	$(PYTHON) misc/build_helpers/test-osx-pkg.py
