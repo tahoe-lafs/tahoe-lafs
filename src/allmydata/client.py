@@ -15,7 +15,8 @@ from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, pollmixin, log, keyutil, idlib
-from allmydata.util.encodingutil import get_filesystem_encoding
+from allmydata.util.encodingutil import get_filesystem_encoding, \
+     from_utf8_or_none
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
@@ -458,7 +459,10 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_ftp_server(self):
         if self.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = from_utf8_or_none(self.get_config("ftpd", "accounts.file", None))
+            accountfile = from_utf8_or_none(
+                self.get_config("ftpd", "accounts.file", None))
+            if accountfile:
+                accountfile = abspath_expanduser_unicode(accountfile, base=self.basedir)
             accounturl = self.get_config("ftpd", "accounts.url", None)
             ftp_portstr = self.get_config("ftpd", "port", "8021")
 
@@ -468,7 +472,10 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_sftp_server(self):
         if self.get_config("sftpd", "enabled", False, boolean=True):
-            accountfile = from_utf8_or_none(self.get_config("sftpd", "accounts.file", None))
+            accountfile = from_utf8_or_none(
+                self.get_config("sftpd", "accounts.file", None))
+            if accountfile:
+                accountfile = abspath_expanduser_unicode(accountfile, base=self.basedir)
             accounturl = self.get_config("sftpd", "accounts.url", None)
             sftp_portstr = self.get_config("sftpd", "port", "8022")
             pubkey_file = from_utf8_or_none(self.get_config("sftpd", "host_pubkey_file"))
