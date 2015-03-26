@@ -3437,7 +3437,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     def setUp(self):
         GridTestMixin.setUp(self)
         self.basedir = self.mktemp()
-        self.set_up_grid()
+        self.set_up_grid(num_servers=13)
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
         self.data = "testdata " * 100000 # about 900 KiB; MDMF
