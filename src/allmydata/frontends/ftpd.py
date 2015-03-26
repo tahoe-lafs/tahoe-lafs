@@ -6,6 +6,7 @@ from twisted.application import service, strports
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
 from twisted.cred import portal
+from twisted.python import filepath
 from twisted.protocols import ftp
 
 from allmydata.interfaces import IDirectoryNode, ExistingChildError, \
@@ -60,6 +61,19 @@ class WriteFile:
 
 class NoParentError(Exception):
     pass
+
+if hasattr(filepath, "Permissions"):
+    # filepath.Permissions was added in Twisted-11.1.0, but we're compatible
+    # back to 11.0.0 (on windows). Fortunately we don't really need to
+    # provide anything more than an int until Twisted-15.0.0 .
+    class IntishPermissions(filepath.Permissions):
+        def __init__(self, statModeInt):
+            self.statModeInt = statModeInt
+            filepath.Permissions.__init__(self, statModeInt)
+        def __and__(self, other):
+            return self.statModeInt & other
+else:
+    IntishPermissions = lambda statModeInt: statModeInt
 
 class Handler:
     implements(ftp.IFTPShell)
@@ -200,7 +214,11 @@ class Handler:
             elif key == "directory":
                 value = isdir
             elif key == "permissions":
-                value = 0600
+                # Twisted-14.0.2 expected an int, and used it in a rendering
+                # function that did (mode & NUMBER). Twisted-15.0.0 expects a
+                # twisted.python.filepath.Permissions , and calls its
+                # .shorthand() method. Try to provide both.
+                value = IntishPermissions(0600)
             elif key == "hardlinks":
                 value = 1
             elif key == "modified":
