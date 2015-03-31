@@ -110,10 +110,12 @@ if sys.platform == "win32":
         #   which includes the fix to <https://twistedmatrix.com/trac/ticket/411>.
         # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
         #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
+        # * The FTP frontend depends on Twisted >=11.1.0 for
+        #   filepath.Permissions
         # * We don't want Twisted >= 12.2.0 to avoid a dependency of its endpoints
         #   code on pywin32. <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2028>
         #
-        "Twisted >= 11.0.0, <= 12.1.0",
+        "Twisted >= 11.1.0, <= 12.1.0",
 
         # * We need Nevow >= 0.9.33 to avoid a bug in Nevow's setup.py
         #   which imported twisted at setup time.
