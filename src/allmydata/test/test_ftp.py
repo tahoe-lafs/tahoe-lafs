@@ -79,6 +79,11 @@ class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):
                                        actual_list, expected_list))
         for (a, b) in zip(actual_list, expected_list):
            (name, meta) = a
+           # convert meta.permissions to int for comparison. When we run
+           # against many (but not all) versions of Twisted, this is a
+           # filepath.Permissions object, not an int
+           meta = list(meta)
+           meta[2] = meta[2] & 0xffffffff
            (expected_name, expected_meta) = b
            self.failUnlessReallyEqual(name, expected_name)
            self.failUnlessReallyEqual(meta, expected_meta)
