@@ -62,18 +62,16 @@ class WriteFile:
 class NoParentError(Exception):
     pass
 
-if hasattr(filepath, "Permissions"):
-    # filepath.Permissions was added in Twisted-11.1.0, but we're compatible
-    # back to 11.0.0 (on windows). Fortunately we don't really need to
-    # provide anything more than an int until Twisted-15.0.0 .
-    class IntishPermissions(filepath.Permissions):
-        def __init__(self, statModeInt):
-            self.statModeInt = statModeInt
-            filepath.Permissions.__init__(self, statModeInt)
-        def __and__(self, other):
-            return self.statModeInt & other
-else:
-    IntishPermissions = lambda statModeInt: statModeInt
+# filepath.Permissions was added in Twisted-11.1.0, which we require. Twisted
+# <15.0.0 expected an int, and only does '&' on it. Twisted >=15.0.0 expects
+# a filepath.Permissions. This satisfies both.
+
+class IntishPermissions(filepath.Permissions):
+    def __init__(self, statModeInt):
+        self._tahoe_statModeInt = statModeInt
+        filepath.Permissions.__init__(self, statModeInt)
+    def __and__(self, other):
+        return self._tahoe_statModeInt & other
 
 class Handler:
     implements(ftp.IFTPShell)
@@ -214,10 +212,11 @@ class Handler:
             elif key == "directory":
                 value = isdir
             elif key == "permissions":
-                # Twisted-14.0.2 expected an int, and used it in a rendering
-                # function that did (mode & NUMBER). Twisted-15.0.0 expects a
+                # Twisted-14.0.2 (and earlier) expected an int, and used it
+                # in a rendering function that did (mode & NUMBER).
+                # Twisted-15.0.0 expects a
                 # twisted.python.filepath.Permissions , and calls its
-                # .shorthand() method. Try to provide both.
+                # .shorthand() method. This provides both both.
                 value = IntishPermissions(0600)
             elif key == "hardlinks":
                 value = 1
