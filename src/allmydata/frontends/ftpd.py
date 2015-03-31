@@ -216,7 +216,7 @@ class Handler:
                 # in a rendering function that did (mode & NUMBER).
                 # Twisted-15.0.0 expects a
                 # twisted.python.filepath.Permissions , and calls its
-                # .shorthand() method. This provides both both.
+                # .shorthand() method. This provides both.
                 value = IntishPermissions(0600)
             elif key == "hardlinks":
                 value = 1
