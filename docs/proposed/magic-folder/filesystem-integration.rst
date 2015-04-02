@@ -12,6 +12,11 @@ be updated to account for those features in later Objectives. Objective 3
 may require modifying the database schema or operation, and Objective 5
 may modify the User interface.
 
+Tickets on the Tahoe-LAFS trac with the `otf-magic-folder-objective2`_
+keyword are within the scope of the local filesystem integration for
+Objective 2.
+
+.. _otf-magic-folder-objective2: https://tahoe-lafs.org/trac/tahoe-lafs/query?status=!closed&keywords=~otf-magic-folder-objective2
 
 *Local scanning and database*
 
