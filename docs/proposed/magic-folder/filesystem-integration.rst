@@ -72,6 +72,14 @@ Win32 API. The prototype implementation simulates a Python interface to
 the inotify API in terms of ``ReadDirectoryChangesW``, allowing most of
 the code to be shared across platforms.
 
+The alternative of using `NTFS Change Journals`_ for Windows was
+considered, but appears to be more complicated and does not provide any
+additional functionality over the scanning approach described above.
+The Change Journal mechanism is also only available for NTFS filesystems,
+but FAT32 filesystems are still common in user installations of Windows.
+
+.. _`NTFS Change Journals`: https://msdn.microsoft.com/en-us/library/aa363803%28VS.85%29.aspx
+
 When we detect the creation of a new directory below the local Magic
 Folder directory, we create it in the Tahoe-LAFS filesystem, and also
 scan the new local directory for new files. This scan is necessary to
