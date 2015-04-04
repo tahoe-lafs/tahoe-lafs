@@ -1536,7 +1536,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET(self.public_url + "/foo", followRedirect=True)
         def _check(html):
             # Check if encoded entries are there
-            self.failUnlessIn('@@named=/' + self._htmlname_urlencoded + '">'
+            self.failUnlessIn('@@named=/' + self._htmlname_urlencoded + '" rel="noreferrer">'
                               + self._htmlname_escaped + '</a>', html)
             self.failUnlessIn('value="' + self._htmlname_escaped_attr + '"', html)
             self.failIfIn(self._htmlname_escaped_double, html)
@@ -1568,7 +1568,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                        (ROOT, urllib.quote(self._bar_txt_uri)))
             get_bar = "".join([r'<td>FILE</td>',
                                r'\s+<td>',
-                               r'<a href="%s">bar.txt</a>' % bar_url,
+                               r'<a href="%s" rel="noreferrer">bar.txt</a>' % bar_url,
                                r'</td>',
                                r'\s+<td align="right">%d</td>' % len(self.BAR_CONTENTS),
                                ])
@@ -1631,7 +1631,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check5(res):
             self.failUnlessIn('(immutable)', res)
             self.failUnless(re.search('<td>FILE</td>'
-                                      r'\s+<td><a href="[\.\/]+/file/URI%3ALIT%3Akrugkidfnzsc4/@@named=/short">short</a></td>', res), res)
+                                      r'\s+<td><a href="[\.\/]+/file/URI%3ALIT%3Akrugkidfnzsc4/@@named=/short" rel="noreferrer">short</a></td>', res), res)
         d.addCallback(_check5)
         return d
 
@@ -5020,7 +5020,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failIfIn("URI:SSK", res)
             get_lonely = "".join([r'<td>FILE</td>',
                                   r'\s+<td>',
-                                  r'<a href="[^"]+%s[^"]+">lonely</a>' % (urllib.quote(lonely_uri),),
+                                  r'<a href="[^"]+%s[^"]+" rel="noreferrer">lonely</a>' % (urllib.quote(lonely_uri),),
                                   r'</td>',
                                   r'\s+<td align="right">%d</td>' % len("one"),
                                   ])
