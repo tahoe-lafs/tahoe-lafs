@@ -10,7 +10,7 @@ Tahoe-LAFS Architecture
 4.  `Capabilities`_
 5.  `Server Selection`_
 6.  `Swarming Download, Trickling Upload`_
-7.  `The Filesystem Layer`_
+7.  `The File Store Layer`_
 8.  `Leases, Refreshing, Garbage Collection`_
 9.  `File Repairer`_
 10. `Security`_
@@ -22,7 +22,7 @@ Overview
 
 (See the `docs/specifications directory`_ for more details.)
 
-There are three layers: the key-value store, the filesystem, and the
+There are three layers: the key-value store, the file store, and the
 application.
 
 The lowest layer is the key-value store. The keys are "capabilities" -- short
@@ -33,19 +33,19 @@ values, but there may be performance issues with extremely large values (just
 due to the limitation of network bandwidth). In practice, values as small as
 a few bytes and as large as tens of gigabytes are in common use.
 
-The middle layer is the decentralized filesystem: a directed graph in which
+The middle layer is the decentralized file store: a directed graph in which
 the intermediate nodes are directories and the leaf nodes are files. The leaf
 nodes contain only the data -- they contain no metadata other than the length
 in bytes. The edges leading to leaf nodes have metadata attached to them
 about the file they point to. Therefore, the same file may be associated with
 different metadata if it is referred to through different edges.
 
-The top layer consists of the applications using the filesystem.
+The top layer consists of the applications using the file store.
 Allmydata.com used it for a backup service: the application periodically
-copies files from the local disk onto the decentralized filesystem. We later
+copies files from the local disk onto the decentralized file store. We later
 provide read-only access to those files, allowing users to recover them.
 There are several other applications built on top of the Tahoe-LAFS
-filesystem (see the RelatedProjects_ page of the wiki for a list).
+file store (see the RelatedProjects_ page of the wiki for a list).
 
 .. _docs/specifications directory: specifications
 .. _RelatedProjects: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
@@ -157,7 +157,7 @@ The "key-value store" layer doesn't include human-meaningful names.
 Capabilities sit on the "global+secure" edge of `Zooko's Triangle`_. They are
 self-authenticating, meaning that nobody can trick you into accepting a file
 that doesn't match the capability you used to refer to that file. The
-filesystem layer (described below) adds human-meaningful names atop the
+file store layer (described below) adds human-meaningful names atop the
 key-value layer.
 
 .. _`Zooko's Triangle`: https://en.wikipedia.org/wiki/Zooko%27s_triangle
@@ -321,15 +321,15 @@ See helper.rst_ for details about the upload helper.
 .. _helper.rst: helper.rst
 
 
-The Filesystem Layer
+The File Store Layer
 ====================
 
-The "filesystem" layer is responsible for mapping human-meaningful pathnames
+The "file store" layer is responsible for mapping human-meaningful pathnames
 (directories and filenames) to pieces of data. The actual bytes inside these
-files are referenced by capability, but the filesystem layer is where the
+files are referenced by capability, but the file store layer is where the
 directory names, file names, and metadata are kept.
 
-The filesystem layer is a graph of directories. Each directory contains a
+The file store layer is a graph of directories. Each directory contains a
 table of named children. These children are either other directories or
 files. All children are referenced by their capability.
 
@@ -355,11 +355,11 @@ that are globally visible.
 Leases, Refreshing, Garbage Collection
 ======================================
 
-When a file or directory in the virtual filesystem is no longer referenced,
-the space that its shares occupied on each storage server can be freed,
-making room for other shares. Tahoe-LAFS uses a garbage collection ("GC")
-mechanism to implement this space-reclamation process. Each share has one or
-more "leases", which are managed by clients who want the file/directory to be
+When a file or directory in the file store is no longer referenced, the space
+that its shares occupied on each storage server can be freed, making room for
+other shares. Tahoe-LAFS uses a garbage collection ("GC") mechanism to
+implement this space-reclamation process. Each share has one or more
+"leases", which are managed by clients who want the file/directory to be
 retained. The storage server accepts each share for a pre-defined period of
 time, and is allowed to delete the share if all of the leases are cancelled
 or allowed to expire.
@@ -383,7 +383,7 @@ Shares may go away because the storage server hosting them has suffered a
 failure: either temporary downtime (affecting availability of the file), or a
 permanent data loss (affecting the preservation of the file). Hard drives
 crash, power supplies explode, coffee spills, and asteroids strike. The goal
-of a robust distributed filesystem is to survive these setbacks.
+of a robust distributed file store is to survive these setbacks.
 
 To work against this slow, continual loss of shares, a File Checker is used
 to periodically count the number of shares still available for any given
@@ -491,12 +491,7 @@ validate-capability, but not vice versa). These capabilities may be expressly
 delegated (irrevocably) by simply transferring the relevant secrets.
 
 The application layer can provide whatever access model is desired, built on
-top of this capability access model. The first big user of this system so far
-is allmydata.com. The allmydata.com access model currently works like a
-normal web site, using username and password to give a user access to her
-"virtual drive". In addition, allmydata.com users can share individual files
-(using a file sharing interface built on top of the immutable file read
-capabilities).
+top of this capability access model.
 
 
 Reliability

@@ -435,7 +435,7 @@ if version:
     setup_args["version"] = version
 
 setup(name=APPNAME,
-      description='secure, decentralized, fault-tolerant filesystem',
+      description='secure, decentralized, fault-tolerant file store',
       long_description=open('README.rst', 'rU').read(),
       author='the Tahoe-LAFS project',
       author_email='tahoe-dev@tahoe-lafs.org',

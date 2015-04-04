@@ -1,4 +1,4 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.10
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.10
 
 The Tahoe-LAFS team is pleased to announce the immediate
 availability of version 1.10.0 of Tahoe-LAFS, an extremely
@@ -26,9 +26,9 @@ details.
 
 WHAT IS IT GOOD FOR?
 
-With Tahoe-LAFS, you distribute your filesystem across
+With Tahoe-LAFS, you distribute your file store across
 multiple servers, and even if some of the servers fail or are
-taken over by an attacker, the entire filesystem continues to
+taken over by an attacker, the entire file store continues to
 work correctly, and continues to preserve your privacy and
 security. You can easily share specific files and directories
 with other people.

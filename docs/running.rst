@@ -102,10 +102,10 @@ The CLI
 
 Prefer the command-line? Run “``tahoe --help``” (the same command-line tool
 that is used to start and stop nodes serves to navigate and use the
-decentralized filesystem). To get started, create a new directory and mark it
+decentralized file store). To get started, create a new directory and mark it
 as the 'tahoe:' alias by running “``tahoe create-alias tahoe``”. Once you've
 done that, you can do “``tahoe ls tahoe:``” and “``tahoe cp LOCALFILE
-tahoe:foo.txt``” to work with your filesystem. The Tahoe-LAFS CLI uses
+tahoe:foo.txt``” to work with your file store. The Tahoe-LAFS CLI uses
 similar syntax to the well-known scp and rsync tools. See CLI.rst_ for more
 details.
 

@@ -399,10 +399,10 @@ Client Configuration
 Frontend Configuration
 ======================
 
-The Tahoe client process can run a variety of frontend file-access protocols.
-You will use these to create and retrieve files from the virtual filesystem.
-Configuration details for each are documented in the following
-protocol-specific guides:
+The Tahoe-LAFS client process can run a variety of frontend file access
+protocols. You will use these to create and retrieve files from the
+Tahoe-LAFS file store. Configuration details for each are documented in
+the following protocol-specific guides:
 
 HTTP
 
@@ -418,7 +418,7 @@ HTTP
 CLI
 
     The main "bin/tahoe" executable includes subcommands for manipulating the
-    filesystem, uploading/downloading files, and creating/running Tahoe
+    file store, uploading/downloading files, and creating/running Tahoe-LAFS
     nodes. See CLI.rst_ for details.
 
 SFTP, FTP

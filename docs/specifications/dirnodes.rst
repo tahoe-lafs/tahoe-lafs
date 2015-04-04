@@ -8,17 +8,17 @@ As explained in the architecture docs, Tahoe-LAFS can be roughly viewed as
 a collection of three layers. The lowest layer is the key-value store: it
 provides operations that accept files and upload them to the grid, creating
 a URI in the process which securely references the file's contents.
-The middle layer is the filesystem, creating a structure of directories and
-filenames resembling the traditional unix/windows filesystems. The top layer
-is the application layer, which uses the lower layers to provide useful
+The middle layer is the file store, creating a structure of directories and
+filenames resembling the traditional Unix or Windows filesystems. The top
+layer is the application layer, which uses the lower layers to provide useful
 services to users, like a backup application, or a way to share files with
 friends.
 
-This document examines the middle layer, the "filesystem".
+This document examines the middle layer, the "file store".
 
 1.  `Key-value Store Primitives`_
-2.  `Filesystem goals`_
-3.  `Dirnode goals`_
+2.  `File Store Goals`_
+3.  `Dirnode Goals`_
 4.  `Dirnode secret values`_
 5.  `Dirnode storage format`_
 6.  `Dirnode sizes, mutable-file initial read sizes`_
@@ -53,10 +53,10 @@ contents of a pre-existing slot, and the third retrieves the contents::
  replace(mutable_uri, new_data)
  data = get(mutable_uri)
 
-Filesystem Goals
+File Store Goals
 ================
 
-The main goal for the middle (filesystem) layer is to give users a way to
+The main goal for the middle (file store) layer is to give users a way to
 organize the data that they have uploaded into the grid. The traditional way
 to do this in computer filesystems is to put this data into files, give those
 files names, and collect these names into directories.
@@ -114,7 +114,7 @@ dirnodes is such that read-only access is transitive: i.e. if you grant Bob
 read-only access to a parent directory, then Bob will get read-only access
 (and *not* read-write access) to its children.
 
-Relative to the previous "vdrive-server" based scheme, the current
+Relative to the previous "vdrive server"-based scheme, the current
 distributed dirnode approach gives better availability, but cannot guarantee
 updateness quite as well, and requires far more network traffic for each
 retrieval and update. Mutable files are somewhat less available than
@@ -292,7 +292,7 @@ shorter than read-caps and write-caps, the attacker can use the length of the
 ciphertext to guess the number of children of each node, and might be able to
 guess the length of the child names (or at least their sum). From this, the
 attacker may be able to build up a graph with the same shape as the plaintext
-filesystem, but with unlabeled edges and unknown file contents.
+file store, but with unlabeled edges and unknown file contents.
 
 
 Integrity failures in the storage servers
@@ -342,11 +342,11 @@ directory-creation effort to a bare minimum (picking a random number instead
 of generating two random primes).
 
 When a backup program is run for the first time, it needs to copy a large
-amount of data from a pre-existing filesystem into reliable storage. This
-means that a large and complex directory structure needs to be duplicated in
-the dirnode layer. With the one-object-per-dirnode approach described here,
-this requires as many operations as there are edges in the imported
-filesystem graph.
+amount of data from a pre-existing local filesystem into reliable storage.
+This means that a large and complex directory structure needs to be
+duplicated in the dirnode layer. With the one-object-per-dirnode approach
+described here, this requires as many operations as there are edges in the
+imported filesystem graph.
 
 Another approach would be to aggregate multiple directories into a single
 storage object. This object would contain a serialized graph rather than a
@@ -407,7 +407,7 @@ storage index, but do *not* include the readkeys or writekeys, so the
 repairer does not get to read the files or directories that it is helping to
 keep alive.
 
-After each change to the user's vdrive, the client creates a manifest and
+After each change to the user's file store, the client creates a manifest and
 looks for differences from their previous version. Anything which was removed
 prompts the client to send out lease-cancellation messages, allowing the data
 to be deleted.
@@ -425,27 +425,29 @@ Mounting and Sharing Directories
 ================================
 
 The biggest benefit of this dirnode approach is that sharing individual
-directories is almost trivial. Alice creates a subdirectory that she wants to
-use to share files with Bob. This subdirectory is attached to Alice's
-filesystem at "~alice/share-with-bob". She asks her filesystem for the
-read-write directory URI for that new directory, and emails it to Bob. When
-Bob receives the URI, he asks his own local vdrive to attach the given URI,
-perhaps at a place named "~bob/shared-with-alice". Every time either party
-writes a file into this directory, the other will be able to read it. If
-Alice prefers, she can give a read-only URI to Bob instead, and then Bob will
-be able to read files but not change the contents of the directory. Neither
-Alice nor Bob will get access to any files above the mounted directory: there
-are no 'parent directory' pointers. If Alice creates a nested set of
-directories, "~alice/share-with-bob/subdir2", and gives a read-only URI to
-share-with-bob to Bob, then Bob will be unable to write to either
-share-with-bob/ or subdir2/.
+directories is almost trivial. Alice creates a subdirectory that she wants
+to use to share files with Bob. This subdirectory is attached to Alice's
+file store at "alice:shared-with-bob". She asks her file store for the
+read-only directory URI for that new directory, and emails it to Bob. When
+Bob receives the URI, he attaches the given URI into one of his own
+directories, perhaps at a place named "bob:shared-with-alice". Every time
+Alice writes a file into this directory, Bob will be able to read it.
+(It is also possible to share read-write URIs between users, but that makes
+it difficult to follow the `Prime Coordination Directive`_ .) Neither
+Alice nor Bob will get access to any files above the mounted directory:
+there are no 'parent directory' pointers. If Alice creates a nested set of
+directories, "alice:shared-with-bob/subdir2", and gives a read-only URI to
+shared-with-bob to Bob, then Bob will be unable to write to either
+shared-with-bob/ or subdir2/.
+
+.. _`Prime Coordination Directive`: ../write_coordination.rst
 
 A suitable UI needs to be created to allow users to easily perform this
-sharing action: dragging a folder their vdrive to an IM or email user icon,
-for example. The UI will need to give the sending user an opportunity to
-indicate whether they want to grant read-write or read-only access to the
-recipient. The recipient then needs an interface to drag the new folder into
-their vdrive and give it a home.
+sharing action: dragging a folder from their file store to an IM or email
+user icon, for example. The UI will need to give the sending user an
+opportunity to indicate whether they want to grant read-write or read-only
+access to the recipient. The recipient then needs an interface to drag the
+new folder into their file store and give it a home.
 
 Revocation
 ==========
