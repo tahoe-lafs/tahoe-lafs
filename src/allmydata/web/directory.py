@@ -732,7 +732,7 @@ class DirectoryAsHTML(rend.Page):
             # page that doesn't know about the directory at all
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
 
-            ctx.fillSlots("filename", T.a(href=dlurl)[name])
+            ctx.fillSlots("filename", T.a(href=dlurl, rel="noreferrer")[name])
             ctx.fillSlots("type", "SSK")
 
             ctx.fillSlots("size", "?")
@@ -742,7 +742,7 @@ class DirectoryAsHTML(rend.Page):
         elif IImmutableFileNode.providedBy(target):
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
 
-            ctx.fillSlots("filename", T.a(href=dlurl)[name])
+            ctx.fillSlots("filename", T.a(href=dlurl, rel="noreferrer")[name])
             ctx.fillSlots("type", "FILE")
 
             ctx.fillSlots("size", target.get_size())
