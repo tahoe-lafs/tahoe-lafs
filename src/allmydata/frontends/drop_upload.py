@@ -2,6 +2,7 @@
 import sys
 
 from twisted.internet import defer
+from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.application import service
 from foolscap.api import eventually
@@ -11,14 +12,14 @@ from allmydata.interfaces import IDirectoryNode
 from allmydata.util.encodingutil import quote_output, get_filesystem_encoding
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import FileName
+from allmydata.scripts import backupdb, tahoe_backup
 
 
 class DropUploader(service.MultiService):
     name = 'drop-upload'
 
-    def __init__(self, client, upload_dircap, local_dir_utf8, inotify=None):
+    def __init__(self, client, upload_dircap, local_dir_utf8, dbfile, inotify=None):
         service.MultiService.__init__(self)
-
         try:
             local_dir_u = abspath_expanduser_unicode(local_dir_utf8.decode('utf-8'))
             if sys.platform == "win32":
@@ -34,6 +35,7 @@ class DropUploader(service.MultiService):
         self._stats_provider = client.stats_provider
         self._convergence = client.convergence
         self._local_path = FilePath(local_dir)
+        self._dbfile = dbfile
 
         if inotify is None:
             from twisted.internet import inotify
@@ -62,7 +64,46 @@ class DropUploader(service.MultiService):
         mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
         self._notifier.watch(self._local_path, mask=mask, callbacks=[self._notify])
 
+    def _check_db_file(self, childpath):
+        """_check_db_file returns True if the file must be uploaded.
+        """
+        assert self._db != None
+        use_timestamps = True
+        r = self._db.check_file(childpath, use_timestamps)
+        # XXX call r.should_check() ?
+        return !r.was_uploaded()
+
+    def _scan(self, localpath):
+        quoted_path = quote_local_unicode_path(localpath)
+
+        try:
+            children = listdir_unicode(localpath)
+        except EnvironmentError:
+            raise(Exception("WARNING: magic folder: permission denied on directory %s" % (quoted_path,)))
+        except FilenameEncodingError:
+            raise(Esception("WARNING: magic folder: could not list directory %s due to a filename encoding error" % (quoted_path,)))
+
+        for child in children:
+            assert isinstance(child, unicode), child
+            childpath = os.path.join(localpath, child)
+            # note: symlinks to directories are both islink() and isdir()
+            if os.path.isdir(childpath) and not os.path.islink(childpath):
+                metadata = tahoe_backup.get_local_metadata(childpath)
+                # recurse on the child directory
+                self.process(childpath)
+            elif os.path.isfile(childpath) and not os.path.islink(childpath):
+                try:
+                    must_upload = self.check_db_file(childpath)
+                    if must_upload:
+                        
+
+
     def startService(self):
+        self._db = backupdb.get_backupdb(self._dbfile, stderr)
+        if not self.backupdb:
+            # XXX or raise an exception?
+            return Failure(Exception('ERROR: Unable to load magic folder db.'))
+
         service.MultiService.startService(self)
         d = self._notifier.startReading()
         self._stats_provider.count('drop_upload.dirs_monitored', 1)
