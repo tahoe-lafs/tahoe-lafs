@@ -1,7 +1,7 @@
 #!/bin/sh
 
 APPNAME=$1
-VERSION=`sh -c "cat src/allmydata/_version.py | grep verstr | head -n 1 | cut -d' ' -f 3"`
+VERSION=`sh -c "cat src/allmydata/_version.py | grep verstr | head -n 1 | cut -d' ' -f 3" | sed "s/'//g"`
 PWD=`pwd`
 
 # The editing of allmydata-tahoe.egg-link and easy-install.pth files
