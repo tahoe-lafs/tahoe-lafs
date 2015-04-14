@@ -1,5 +1,6 @@
 
 import sys
+import os
 
 from twisted.internet import defer
 from twisted.python.failure import Failure
@@ -13,6 +14,10 @@ from allmydata.util.encodingutil import quote_output, get_filesystem_encoding
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import FileName
 from allmydata.scripts import backupdb, tahoe_backup
+
+from allmydata.util.encodingutil import listdir_unicode, quote_output, \
+     quote_local_unicode_path, to_str, FilenameEncodingError, unicode_to_url
+
 
 
 class DropUploader(service.MultiService):
@@ -35,6 +40,7 @@ class DropUploader(service.MultiService):
         self._stats_provider = client.stats_provider
         self._convergence = client.convergence
         self._local_path = FilePath(local_dir)
+        self._local_dir = unicode(local_dir, 'UTF-8')
         self._dbfile = dbfile
 
         if inotify is None:
@@ -69,11 +75,10 @@ class DropUploader(service.MultiService):
         assert self._db != None
         use_timestamps = True
         r = self._db.check_file(childpath, use_timestamps)
-        return !r.was_uploaded()
+        return not r.was_uploaded()
 
     def _scan(self, localpath):
         quoted_path = quote_local_unicode_path(localpath)
-
         try:
             children = listdir_unicode(localpath)
         except EnvironmentError:
@@ -89,25 +94,29 @@ class DropUploader(service.MultiService):
                 # recurse on the child directory
                 self._scan(childpath)
             elif os.path.isfile(childpath) and not os.path.islink(childpath):
-                try:
-                    must_upload = self._check_db_file(childpath)
-                    if must_upload:
-                        self._add_to_dequeue(childpath)
+                must_upload = self._check_db_file(childpath)
+                if must_upload:
+                    self._add_to_dequeue(childpath)
+            else:
+                if os.path.islink(childpath):
+                    self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
+                else:
+                    self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
 
     def startService(self):
-        self._db = backupdb.get_backupdb(self._dbfile, stderr)
-        if not self.backupdb:
-            # XXX or raise an exception?
+        self._db = backupdb.get_backupdb(self._dbfile)
+        if self._db is None:
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
-
-        self._scan(self._local_path)
 
         service.MultiService.startService(self)
         d = self._notifier.startReading()
+
+        self._scan(self._local_dir)
+
         self._stats_provider.count('drop_upload.dirs_monitored', 1)
         return d
 
-    def _add_to_dequeue(self, path, events_mask):
+    def _add_to_dequeue(self, path):
         # XXX stub function. fix me later.
         print "adding file to upload queue %s" % (path,)
 
