@@ -65,12 +65,10 @@ class DropUploader(service.MultiService):
         self._notifier.watch(self._local_path, mask=mask, callbacks=[self._notify])
 
     def _check_db_file(self, childpath):
-        """_check_db_file returns True if the file must be uploaded.
-        """
+        # returns True if the file must be uploaded.
         assert self._db != None
         use_timestamps = True
         r = self._db.check_file(childpath, use_timestamps)
-        # XXX call r.should_check() ?
         return !r.was_uploaded()
 
     def _scan(self, localpath):
@@ -88,15 +86,13 @@ class DropUploader(service.MultiService):
             childpath = os.path.join(localpath, child)
             # note: symlinks to directories are both islink() and isdir()
             if os.path.isdir(childpath) and not os.path.islink(childpath):
-                metadata = tahoe_backup.get_local_metadata(childpath)
                 # recurse on the child directory
-                self.process(childpath)
+                self._scan(childpath)
             elif os.path.isfile(childpath) and not os.path.islink(childpath):
                 try:
-                    must_upload = self.check_db_file(childpath)
+                    must_upload = self._check_db_file(childpath)
                     if must_upload:
-                        
-
+                        self._add_to_dequeue(childpath)
 
     def startService(self):
         self._db = backupdb.get_backupdb(self._dbfile, stderr)
@@ -104,10 +100,16 @@ class DropUploader(service.MultiService):
             # XXX or raise an exception?
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
 
+        self._scan(self._local_path)
+
         service.MultiService.startService(self)
         d = self._notifier.startReading()
         self._stats_provider.count('drop_upload.dirs_monitored', 1)
         return d
+
+    def _add_to_dequeue(self, path, events_mask):
+        # XXX stub function. fix me later.
+        print "adding file to upload queue %s" % (path,)
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
