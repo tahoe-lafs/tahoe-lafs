@@ -81,9 +81,10 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir.encode('utf-8'),
                                          "magicfolderdb.sqlite", inotify=self.inotify)
             self.uploader.setServiceParent(self.client)
-            self.uploader.startService()
+            d = self.uploader.startService()
             self.uploader.upload_ready()
-            return None
+            return d
+
         d.addCallback(_made_upload_dir)
 
         # Write something short enough for a LIT file.
