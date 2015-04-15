@@ -17,7 +17,7 @@ class DropUploader(service.MultiService):
     name = 'drop-upload'
 
     def __init__(self, client, upload_dircap, local_dir_utf8, inotify=None,
-                 deque_max_len=100, pending_delay=1.0):
+                 pending_delay=1.0):
         service.MultiService.__init__(self)
 
         try:
@@ -37,7 +37,7 @@ class DropUploader(service.MultiService):
         self._convergence = client.convergence
         self._local_path = FilePath(local_dir)
 
-        self._upload_deque = deque(maxlen=deque_max_len)
+        self._upload_deque = deque()
         self.is_upload_ready = False
 
         if inotify is None:
@@ -106,7 +106,6 @@ class DropUploader(service.MultiService):
         self._stats_provider.count('drop_upload.files_queued', 1)
         if path not in self._pending:
             self._append_to_deque(self._process, path, events_mask)
-            self._pending.add(path)
 
     def _process(self, path, events_mask):
         d = defer.succeed(None)
@@ -119,8 +118,8 @@ class DropUploader(service.MultiService):
             if sys.platform != "win32":
                 name = name.decode(get_filesystem_encoding())
 
-            u = FileName(path.path, self._convergence)
             self._pending.remove(path)
+            u = FileName(path.path, self._convergence)
             return self._parent.add_file(name, u)
         d.addCallback(_add_file)
 
