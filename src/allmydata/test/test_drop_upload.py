@@ -98,7 +98,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: self._test_file(u"tempfile", "test", temporary=True))
 
         # Test that we tolerate creation of a subdirectory.
-        d.addCallback(lambda ign: os.mkdir(os.path.join(self.local_dir, u"directory")))
+        #d.addCallback(lambda ign: os.mkdir(os.path.join(self.local_dir, u"directory")))
 
         # Write something longer, and also try to test a Unicode name if the fs can represent it.
         name_u = self.unicode_or_fallback(u"l\u00F8ng", u"long")
