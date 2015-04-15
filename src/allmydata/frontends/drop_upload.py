@@ -119,8 +119,8 @@ class DropUploader(service.MultiService):
             if sys.platform != "win32":
                 name = name.decode(get_filesystem_encoding())
 
-            u = FileName(path.path, self._convergence)
             self._pending.remove(path)
+            u = FileName(path.path, self._convergence)
             return self._parent.add_file(name, u)
         d.addCallback(_add_file)
 
