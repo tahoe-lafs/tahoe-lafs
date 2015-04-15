@@ -111,6 +111,7 @@ class FileNotifyInformation(object):
 
     def read_changes(self, hDirectory, recursive, filter):
         bytes_returned = DWORD(0)
+        print "here"
         r = ReadDirectoryChangesW(hDirectory,
                                   self.buffer,
                                   self.size,
@@ -245,6 +246,7 @@ class INotify(PollMixin):
                 self._state = STARTED
                 fni.read_changes(self._hDirectory, self._recursive, self._filter)
                 for info in fni:
+                    print info
                     if self._state == STOPPING:
                         hDirectory = self._hDirectory
                         self._callbacks = None
