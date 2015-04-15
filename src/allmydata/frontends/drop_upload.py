@@ -158,7 +158,6 @@ class DropUploader(service.MultiService):
         self._stats_provider.count('drop_upload.files_queued', 1)
         if path not in self._pending:
             self._append_to_deque(self._process, path, events_mask)
-            self._pending.add(path)
 
     def _process(self, path, events_mask):
         d = defer.succeed(None)
