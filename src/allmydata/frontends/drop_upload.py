@@ -17,7 +17,7 @@ class DropUploader(service.MultiService):
     name = 'drop-upload'
 
     def __init__(self, client, upload_dircap, local_dir_utf8, inotify=None,
-                 deque_max_len=100, pending_delay=1.0):
+                 pending_delay=1.0):
         service.MultiService.__init__(self)
 
         try:
@@ -37,7 +37,7 @@ class DropUploader(service.MultiService):
         self._convergence = client.convergence
         self._local_path = FilePath(local_dir)
 
-        self._upload_deque = deque(maxlen=deque_max_len)
+        self._upload_deque = deque()
         self.is_upload_ready = False
 
         if inotify is None:
