@@ -8,20 +8,20 @@ if [[ "$#" -eq 0 ]]; then
     exit 0
 fi
 
-temp="$(mktemp -d)"
+temp="$(pwd)/temp"
 declare -a res=(16 32 64 128 256 512 1024)
 for f in "$*"; do
     name="`basename -s .svg "$f"`"
     iconset="$temp/${name}.iconset"
     mkdir -p "$iconset"
     for r in "${res[@]}"; do
-        inkscape -z -e "$iconset/${name}${r}x${r}.png" -w "$r" -h "$r" "$f"
+        inkscape -z -e "$iconset/icon_${r}x${r}.png" -w "$r" -h "$r" "$f"
     done
-    ln "$iconset/${name}32x32.png" "$iconset/${name}16x16@2x.png"
-    mv "$iconset/${name}64x64.png" "$iconset/${name}32x32@2x.png"
-    ln "$iconset/${name}256x256.png" "$iconset/${name}128x128@2x.png"
-    ln "$iconset/${name}512x512.png" "$iconset/${name}256x256@2x.png"
-    mv "$iconset/${name}1024x1024.png" "$iconset/${name}512x512@2x.png"
+    ln "$iconset/icon_32x32.png" "$iconset/icon_16x16@2x.png"
+    mv "$iconset/icon_64x64.png" "$iconset/icon_32x32@2x.png"
+    ln "$iconset/icon_256x256.png" "$iconset/icon_128x128@2x.png"
+    ln "$iconset/icon_512x512.png" "$iconset/icon_256x256@2x.png"
+    mv "$iconset/icon_1024x1024.png" "$iconset/icon_512x512@2x.png"
     iconutil -c icns -o "${name}.icns" "$iconset"
 done
 rm -rf "$temp"
