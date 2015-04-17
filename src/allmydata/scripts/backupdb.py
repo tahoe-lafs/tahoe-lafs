@@ -6,6 +6,8 @@ from allmydata.util.hashutil import backupdb_dirhash
 from allmydata.util import base32
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import to_str
+from allmydata.util.dbutil import get_db, DBError
+
 
 DAY = 24*60*60
 MONTH = 30*DAY
@@ -58,47 +60,22 @@ UPDATE_v1_to_v2 = TABLE_DIRECTORY + """
 UPDATE version SET version=2;
 """
 
+UPDATERS = {
+    2: UPDATE_v1_to_v2,
+}
 
 def get_backupdb(dbfile, stderr=sys.stderr,
                  create_version=(SCHEMA_v2, 2), just_create=False):
     # open or create the given backupdb file. The parent directory must
     # exist.
-    import sqlite3
-
-    must_create = not os.path.exists(dbfile)
     try:
-        db = sqlite3.connect(dbfile)
-    except (EnvironmentError, sqlite3.OperationalError), e:
-        print >>stderr, "Unable to create/open backupdb file %s: %s" % (dbfile, e)
-        return None
-
-    c = db.cursor()
-    if must_create:
-        schema, version = create_version
-        c.executescript(schema)
-        c.execute("INSERT INTO version (version) VALUES (?)", (version,))
-        db.commit()
-
-    try:
-        c.execute("SELECT version FROM version")
-        version = c.fetchone()[0]
-    except sqlite3.DatabaseError, e:
-        # this indicates that the file is not a compatible database format.
-        # Perhaps it was created with an old version, or it might be junk.
-        print >>stderr, "backupdb file is unusable: %s" % e
-        return None
-
-    if just_create: # for tests
-        return True
-
-    if version == 1:
-        c.executescript(UPDATE_v1_to_v2)
-        db.commit()
-        version = 2
-    if version == 2:
+        (sqlite3, db) = get_db(dbfile, stderr, create_version, updaters=UPDATERS,
+                               just_create=just_create, dbname="backupdb")
         return BackupDB_v2(sqlite3, db)
-    print >>stderr, "Unable to handle backupdb version %s" % version
-    return None
+    except DBError, e:
+        print >>stderr, e
+        return None
+
 
 class FileResult:
     def __init__(self, bdb, filecap, should_check,
