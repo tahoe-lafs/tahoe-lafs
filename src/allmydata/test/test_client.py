@@ -303,11 +303,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         class MockDropUploader(service.MultiService):
             name = 'drop-upload'
 
-            def __init__(self, client, upload_dircap, local_dir_utf8, inotify=None):
+            def __init__(self, client, upload_dircap, local_dir_utf8, dbfile, inotify=None,
+                         pending_delay=1.0):
                 service.MultiService.__init__(self)
                 self.client = client
                 self.upload_dircap = upload_dircap
                 self.local_dir_utf8 = local_dir_utf8
+                self.dbfile = dbfile
                 self.inotify = inotify
 
         mock_drop_uploader.side_effect = MockDropUploader
