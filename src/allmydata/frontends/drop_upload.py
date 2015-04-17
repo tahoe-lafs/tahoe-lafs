@@ -2,7 +2,7 @@
 import sys, os
 from collections import deque
 
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.application import service
@@ -141,7 +141,7 @@ class DropUploader(service.MultiService):
         self._upload_deque.append(path)
         self._pending.add(path)
         if self.is_upload_ready:
-            self._process_deque()
+            reactor.callLater(0, self._process_deque)
 
     def _process_deque(self):
         while True:
