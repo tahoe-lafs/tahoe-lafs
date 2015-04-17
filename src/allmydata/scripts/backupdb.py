@@ -66,7 +66,7 @@ UPDATERS = {
 
 def get_backupdb(dbfile, stderr=sys.stderr,
                  create_version=(SCHEMA_v2, 2), just_create=False):
-    # open or create the given backupdb file. The parent directory must
+    # Open or create the given backupdb file. The parent directory must
     # exist.
     try:
         (sqlite3, db) = get_db(dbfile, stderr, create_version, updaters=UPDATERS,
@@ -104,6 +104,7 @@ class FileResult:
     def did_check_healthy(self, results):
         self.bdb.did_check_file_healthy(self.filecap, results)
 
+
 class DirectoryResult:
     def __init__(self, bdb, dirhash, dircap, should_check):
         self.bdb = bdb
@@ -124,6 +125,7 @@ class DirectoryResult:
 
     def did_check_healthy(self, results):
         self.bdb.did_check_directory_healthy(self.dircap, results)
+
 
 class BackupDB_v2:
     VERSION = 2
@@ -157,7 +159,7 @@ class BackupDB_v2:
         is not healthy, please upload the file and call r.did_upload(filecap)
         when you're done.
 
-        I use_timestamps=True (the default), I will compare ctime and mtime
+        If use_timestamps=True (the default), I will compare ctime and mtime
         of the local file against an entry in my database, and consider the
         file to be unchanged if ctime, mtime, and filesize are all the same
         as the earlier version. If use_timestamps=False, I will not trust the
