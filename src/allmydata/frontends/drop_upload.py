@@ -158,12 +158,11 @@ class DropUploader(service.MultiService):
         # FIXME (ticket #1712): if this already exists as a mutable file, we replace the
         # directory entry, but we should probably modify the file (as the SFTP frontend does).
         def _add_file(ign):
+            self._pending.remove(path)
             name = path.basename()
             # on Windows the name is already Unicode
             if sys.platform != "win32":
                 name = name.decode(get_filesystem_encoding())
-
-            self._pending.remove(path)
             u = FileName(path.path, self._convergence)
             return self._parent.add_file(name, u)
         d.addCallback(_add_file)
