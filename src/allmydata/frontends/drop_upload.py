@@ -118,7 +118,8 @@ class DropUploader(service.MultiService):
 
     def _add_to_dequeue(self, path):
         # XXX stub function. fix me later.
-        print "adding file to upload queue %s" % (path,)
+        #print "adding file to upload queue %s" % (path,)
+        pass
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
