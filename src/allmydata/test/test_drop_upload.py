@@ -185,10 +185,8 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
                             DropUploader, client, upload_dircap, '\xFF', 'magicfolderdb', inotify=fake_inotify)
             self.shouldFail(AssertionError, 'nonexistent local.directory', 'there is no directory',
                             DropUploader, client, upload_dircap, os.path.join(self.basedir, "Laputa"), 'magicfolderdb', inotify=fake_inotify)
-
             self.shouldFail(AssertionError, 'non-directory local.directory', 'is not a directory',
                             DropUploader, client, upload_dircap, not_a_dir, 'magicfolderdb', inotify=fake_inotify)
-
             self.shouldFail(AssertionError, 'bad upload.dircap', 'does not refer to a directory',
                             DropUploader, client, 'bad', errors_dir, 'magicfolderdb', inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory upload.dircap', 'does not refer to a directory',

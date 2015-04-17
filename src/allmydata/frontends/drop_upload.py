@@ -105,7 +105,7 @@ class DropUploader(service.MultiService):
             elif os.path.isfile(childpath) and not os.path.islink(childpath):
                 must_upload = self._check_db_file(childpath)
                 if must_upload:
-                    self._add_to_dequeue(childpath)
+                    self._append_to_deque(self._process, childpath, None) # XXX which event mask?
             else:
                 if os.path.islink(childpath):
                     self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
