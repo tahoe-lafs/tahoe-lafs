@@ -206,7 +206,6 @@ class DropUploader(service.MultiService):
             else:
                 self._log("drop-upload: notified object %r disappeared "
                           "(this is normal for temporary objects): %r" % (path.path, f))
-                self._stats_provider.count('drop_upload.objects_disappeared', 1)
                 return None
 
         d.addCallbacks(_succeeded, _failed)
