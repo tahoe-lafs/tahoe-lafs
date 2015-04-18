@@ -34,7 +34,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.failUnlessEqual(bdb.VERSION, 2)
         return bdb
 
-    def _made_upload_dir(n):
+    def _made_upload_dir(self, n):
         self.failUnless(IDirectoryNode.providedBy(n))
         self.upload_dirnode = n
         self.upload_dircap = n.get_uri()
@@ -80,17 +80,19 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.mkdir_nonascii(self.local_dir)
 
         self.client = self.g.clients[0]
+        self.stats_provider = self.client.stats_provider
+
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
 
         def testMoveEmptyTree(res):
+            print "moving tree into %s" % self.local_dir
             tree_dir = os.path.join(self.basedir, 'apple_tree')
             os.mkdir(tree_dir)
-            shutil.move(tree_dir, self.local_dir)
+            os.rename(tree_dir, os.path.join(self.local_dir, 'apple_tree'))
             d = defer.Deferred()
             self.uploader.set_uploaded_callback(d.callback)
             return d
-
         d.addCallback(testMoveEmptyTree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
@@ -101,22 +103,56 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             tree_dir = os.path.join(self.basedir, 'creepy_tree')
             os.mkdir(tree_dir)
             os.path.join(tree_dir, u"tree_frog")
-            f = open(path.path, "wb")
+            f = open(os.path.join(tree_dir, 'what'), "wb")
             f.write("meow")
             f.close()
-            shutil.move(tree_dir, self.local_dir)
+            os.rename(tree_dir, os.path.join(self.local_dir,'creepy_tree'))
             d = defer.Deferred()
             self.uploader.set_uploaded_callback(d.callback)
             return d
         d.addCallback(testMoveSmallTree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 2))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
 
         d.addBoth(self._cleanup)
         return d
 
+    def _test_persistence(self):
+        self.uploader = None
+        self.set_up_grid()
+        self.local_dir = os.path.join(self.basedir, u"test_persistence")
+        self.mkdir_nonascii(self.local_dir)
+
+        self.client = self.g.clients[0]
+        self.stats_provider = self.client.stats_provider
+
+        d = self.client.create_dirnode()
+        d.addCallback(self._made_upload_dir)
+        d.addCallback(lambda ign: self.uploader.Pause())
+        def create_file(val):
+            print "creating file..."
+            myFile = os.path.join(self.local_dir, "what")
+            f = open(myFile, "wb")
+            f.write("meow")
+            f.close()
+            return None
+        d.addCallback(create_file)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+
+        def resume_uploader(val):
+            self.uploader.Resume()
+            d = defer.Deferred()
+            self.uploader.set_uploaded_callback(d.callback)
+            return d
+        d.addCallback(resume_uploader)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
+
+        d.addBoth(self._cleanup)
+        return d
+        
     def _test(self):
         self.uploader = None
         self.set_up_grid()
@@ -246,14 +282,19 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
 
     def test_uploader_start_service(self):
         self.inotify = fake_inotify
-        self.basedir = "drop_upload.MockTest._test_uploader_start_service"
+        self.basedir = "drop_upload.MockTest.test_uploader_start_service"
         return self._test_uploader_start_service()
 
     def test_move_tree(self):
         self.inotify = fake_inotify
-        self.basedir = "drop_upload.MockTest._test_move_tree"
+        self.basedir = "drop_upload.MockTest.test_move_tree"
         return self._test_move_tree()
 
+    def test_persistence(self):
+        self.inotify = fake_inotify
+        self.basedir = "drop_upload.MockTest.test_persistence"
+        return self._test_persistence()
+    
 class RealTest(DropUploadTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
 
@@ -286,3 +327,8 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
         self.inotify = None
         self.basedir = "drop_upload.RealTest._test_move_tree"
         return self._test_move_tree()
+
+    def test_persistence(self):
+        self.inotify = None
+        self.basedir = "drop_upload.RealTest.test_persistence"
+        return self._test_persistence()
