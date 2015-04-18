@@ -118,8 +118,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         return d
 
     def _test_file(self, name_u, data, temporary=False):
-        previously_uploaded = self._get_count('drop_upload.files_uploaded')
-        previously_disappeared = self._get_count('drop_upload.files_disappeared')
+        previously_uploaded = self._get_count('drop_upload.objects_uploaded')
+        previously_disappeared = self._get_count('drop_upload.objects_disappeared')
 
         d = defer.Deferred()
 
@@ -150,16 +150,16 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         if temporary:
             d.addCallback(lambda ign: self.shouldFail(NoSuchChildError, 'temp file not uploaded', None,
                                                       self.upload_dirnode.get, name_u))
-            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_disappeared'),
+            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_disappeared'),
                                                                  previously_disappeared + 1))
         else:
             d.addCallback(lambda ign: self.upload_dirnode.get(name_u))
             d.addCallback(download_to_data)
             d.addCallback(lambda actual_data: self.failUnlessReallyEqual(actual_data, data))
-            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'),
+            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'),
                                                                  previously_uploaded + 1))
 
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         return d
 
 
