@@ -1,5 +1,6 @@
 
 import os, sys
+import shutil
 
 from twisted.trial import unittest
 from twisted.python import filepath, runtime
@@ -27,7 +28,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     def _get_count(self, name):
         return self.stats_provider.get_stats()["counters"].get(name, 0)
 
-    def create(self, dbfile):
+    def _createdb(self, dbfile):
         bdb = backupdb.get_backupdb(dbfile)
         self.failUnless(bdb, "unable to create backupdb from %r" % (dbfile,))
         self.failUnlessEqual(bdb.VERSION, 2)
@@ -41,13 +42,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
                                          "magicfolderdb.sqlite", inotify=self.inotify, pending_delay=0.2)
         self.uploader.setServiceParent(self.client)
         d = self.uploader.startService()
-
-        # XXX
         self.uploader.upload_ready()
-
-        # XXX
         self.failUnlessEqual(self.uploader._db.VERSION, 2)
-
         return d
 
     # Prevent unclean reactor errors.
@@ -61,7 +57,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     def _test_db_basic(self):
         fileutil.make_dirs(self.basedir)
         dbfile = os.path.join(self.basedir, "dbfile")
-        bdb = self.create(dbfile)
+        bdb = self._createdb(dbfile)
 
     def _test_uploader_start_service(self):
         self.uploader = None
@@ -69,6 +65,30 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.client = self.g.clients[0]
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
+        d.addBoth(self._cleanup)
+        return d
+
+    def _test_move_tree(self):
+        self.uploader = None
+        self.set_up_grid()
+
+        self.local_dir = os.path.join(self.basedir, u"local_dir")
+        self.mkdir_nonascii(self.local_dir)
+
+        self.client = self.g.clients[0]
+        d = self.client.create_dirnode()
+        d.addCallback(self._made_upload_dir)
+
+        def testMoveEmptyTree(res):
+            tree_dir = os.path.join(self.basedir, 'apple_tree')
+            os.mkdir(tree_dir)
+            shutil.move(tree_dir, self.local_dir)
+            d = defer.Deferred()
+            self.uploader.set_uploaded_callback(d.callback)
+            return d
+
+        d.addCallback(testMoveEmptyTree)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
         d.addBoth(self._cleanup)
         return d
 
@@ -88,9 +108,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         # Write something short enough for a LIT file.
         d.addCallback(lambda ign: self._test_file(u"short", "test"))
 
-        # XXX FIX ME
         # Write to the same file again with different data.
-        #d.addCallback(lambda ign: self._test_file(u"short", "different"))
+        d.addCallback(lambda ign: self._test_file(u"short", "different"))
 
         # Test that temporary files are not uploaded.
         d.addCallback(lambda ign: self._test_file(u"tempfile", "test", temporary=True))
@@ -157,6 +176,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 class MockTest(DropUploadTestMixin, unittest.TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
 
+    def notify_close_write(self, path):
+        self.uploader._notifier.event(path, self.inotify.IN_CLOSE_WRITE)
+
     def test_errors(self):
         self.basedir = "drop_upload.MockTest.test_errors"
         self.set_up_grid()
@@ -204,9 +226,10 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
         self.basedir = "drop_upload.MockTest._test_uploader_start_service"
         return self._test_uploader_start_service()
 
-    def notify_close_write(self, path):
-        self.uploader._notifier.event(path, self.inotify.IN_CLOSE_WRITE)
-
+    def test_move_tree(self):
+        self.inotify = fake_inotify
+        self.basedir = "drop_upload.MockTest._test_move_tree"
+        return self._test_move_tree()
 
 class RealTest(DropUploadTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
@@ -234,3 +257,8 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
         self.inotify = None
         self.basedir = "drop_upload.RealTest._test_uploader_start_service"
         return self._test_uploader_start_service()
+
+    def test_move_tree(self):
+        self.inotify = None
+        self.basedir = "drop_upload.RealTest._test_move_tree"
+        return self._test_move_tree()
