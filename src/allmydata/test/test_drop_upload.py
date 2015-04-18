@@ -63,9 +63,13 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.uploader = None
         self.set_up_grid()
         self.client = self.g.clients[0]
+        self.stats_provider = self.client.stats_provider
+
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.dirs_monitored'), 1))
         d.addBoth(self._cleanup)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.dirs_monitored'), 0))
         return d
 
     def _test_move_tree(self):
