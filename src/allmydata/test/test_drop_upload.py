@@ -27,11 +27,36 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     def _get_count(self, name):
         return self.stats_provider.get_stats()["counters"].get(name, 0)
 
-
     def create(self, dbfile):
         bdb = backupdb.get_backupdb(dbfile)
         self.failUnless(bdb, "unable to create backupdb from %r" % (dbfile,))
+        self.failUnlessEqual(bdb.VERSION, 2)
         return bdb
+
+    def _made_upload_dir(n):
+        self.failUnless(IDirectoryNode.providedBy(n))
+        self.upload_dirnode = n
+        self.upload_dircap = n.get_uri()
+        self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir.encode('utf-8'),
+                                         "magicfolderdb.sqlite", inotify=self.inotify, pending_delay=0.2)
+        self.uploader.setServiceParent(self.client)
+        d = self.uploader.startService()
+
+        # XXX
+        self.uploader.upload_ready()
+
+        # XXX
+        self.failUnlessEqual(self.uploader._db.VERSION, 2)
+
+        return d
+
+    # Prevent unclean reactor errors.
+    def _cleanup(self, res):
+        d = defer.succeed(None)
+        if self.uploader is not None:
+            d.addCallback(lambda ign: self.uploader.finish(for_tests=True))
+            d.addCallback(lambda ign: res)
+        return d
 
     def _test_db_basic(self):
         fileutil.make_dirs(self.basedir)
@@ -42,26 +67,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.uploader = None
         self.set_up_grid()
         self.client = self.g.clients[0]
-
         d = self.client.create_dirnode()
-        def _made_upload_dir(n):
-            self.failUnless(IDirectoryNode.providedBy(n))
-            self.upload_dirnode = n
-            self.upload_dircap = n.get_uri()
-            self.uploader = DropUploader(self.client, self.upload_dircap, self.basedir.encode('utf-8'),
-                                         "magicfolderdb.sqlite", inotify=self.inotify)
-            self.uploader.startService()
-            self.failUnlessEqual(self.uploader._db.VERSION, 2)
-        d.addCallback(_made_upload_dir)
-
-        # Prevent unclean reactor errors.
-        def _cleanup(res):
-            d = defer.succeed(None)
-            if self.uploader is not None:
-                d.addCallback(lambda ign: self.uploader.finish(for_tests=True))
-            d.addCallback(lambda ign: res)
-            return d
-        d.addBoth(_cleanup)
+        d.addCallback(self._made_upload_dir)
+        d.addBoth(self._cleanup)
         return d
 
     def _test(self):
@@ -74,18 +82,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.stats_provider = self.client.stats_provider
 
         d = self.client.create_dirnode()
-        def _made_upload_dir(n):
-            self.failUnless(IDirectoryNode.providedBy(n))
-            self.upload_dirnode = n
-            self.upload_dircap = n.get_uri()
-            self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir.encode('utf-8'),
-                                         "magicfolderdb.sqlite", inotify=self.inotify, pending_delay=0.2)
-            self.uploader.setServiceParent(self.client)
-            d = self.uploader.startService()
-            self.uploader.upload_ready()
-            return d
 
-        d.addCallback(_made_upload_dir)
+        d.addCallback(self._made_upload_dir)
 
         # Write something short enough for a LIT file.
         d.addCallback(lambda ign: self._test_file(u"short", "test"))
@@ -107,14 +105,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         # TODO: test that causes an upload failure.
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_failed'), 0))
 
-        # Prevent unclean reactor errors.
-        def _cleanup(res):
-            d = defer.succeed(None)
-            if self.uploader is not None:
-                d.addCallback(lambda ign: self.uploader.finish(for_tests=True))
-            d.addCallback(lambda ign: res)
-            return d
-        d.addBoth(_cleanup)
+        d.addBoth(self._cleanup)
         return d
 
     def _test_file(self, name_u, data, temporary=False):
