@@ -188,9 +188,11 @@ class DropUploader(service.MultiService):
 
             if os.path.isdir(path.path):
                 d.addCallback(_add_dir)
+                self._stats_provider.count('drop_upload.directories_created', 1)
                 return None
             elif os.path.isfile(path.path):
                 d.addCallback(_add_file)
+                self._stats_provider.count('drop_upload.files_uploaded', 1)
                 return None
             else:
                 self._log("operator ERROR: non-directory/non-regular file not being processed.")
