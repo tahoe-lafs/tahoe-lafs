@@ -89,6 +89,27 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         d.addCallback(testMoveEmptyTree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
+
+        def testMoveSmallTree(res):
+            tree_dir = os.path.join(self.basedir, 'creepy_tree')
+            os.mkdir(tree_dir)
+            os.path.join(tree_dir, u"tree_frog")
+            f = open(path.path, "wb")
+            f.write("meow")
+            f.close()
+            shutil.move(tree_dir, self.local_dir)
+            d = defer.Deferred()
+            self.uploader.set_uploaded_callback(d.callback)
+            return d
+        d.addCallback(testMoveSmallTree)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
+
         d.addBoth(self._cleanup)
         return d
 
