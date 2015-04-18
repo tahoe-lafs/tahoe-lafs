@@ -17,6 +17,8 @@ from allmydata.scripts import backupdb, tahoe_backup
 from allmydata.util.encodingutil import listdir_unicode, quote_output, \
      quote_local_unicode_path, to_str, FilenameEncodingError, unicode_to_url
 
+from allmydata.interfaces import NoSuchChildError
+from twisted.python import failure
 
 
 class DropUploader(service.MultiService):
@@ -77,7 +79,7 @@ class DropUploader(service.MultiService):
         # be an IN_CLOSE_WRITE after an IN_CREATE (I think).
         # TODO: what about IN_MOVE_SELF or IN_UNMOUNT?
         mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
-        self._notifier.watch(self._local_path, mask=mask, callbacks=[self._notify])
+        self._notifier.watch(self._local_path, mask=mask, callbacks=[self._notify], autoAdd=True, recursive=True)
 
     def _check_db_file(self, childpath):
         # returns True if the file must be uploaded.
@@ -105,7 +107,7 @@ class DropUploader(service.MultiService):
             elif os.path.isfile(childpath) and not os.path.islink(childpath):
                 must_upload = self._check_db_file(childpath)
                 if must_upload:
-                    self._add_to_dequeue(childpath)
+                    self._append_to_deque(childpath)
             else:
                 if os.path.islink(childpath):
                     self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
@@ -132,9 +134,8 @@ class DropUploader(service.MultiService):
         self.is_upload_ready = True
         self._process_deque()
 
-    def _append_to_deque(self, func, path, event_mask):
-        thunk = (func, path, event_mask)
-        self._upload_deque.append(thunk)
+    def _append_to_deque(self, path):
+        self._upload_deque.append(path)
         self._pending.add(path)
         if self.is_upload_ready:
             self._process_deque()
@@ -142,50 +143,74 @@ class DropUploader(service.MultiService):
     def _process_deque(self):
         while True:
             try:
-                fields = self._upload_deque.pop()
-                func = fields[0]
-                func(*fields[1:])
+                path = self._upload_deque.pop()
+                self._process(path)
             except IndexError:
                 break
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
-        self._stats_provider.count('drop_upload.files_queued', 1)
+        self._stats_provider.count('drop_upload.objects_queued', 1)
         if path not in self._pending:
-            self._append_to_deque(self._process, path, events_mask)
+            self._append_to_deque(path)
 
-    def _process(self, path, events_mask):
+    def _process(self, path):
         d = defer.succeed(None)
 
         # FIXME (ticket #1712): if this already exists as a mutable file, we replace the
         # directory entry, but we should probably modify the file (as the SFTP frontend does).
-        def _add_file(ign):
+        def _add_file(ignore):
+            self._pending.remove(path)
             name = path.basename()
             # on Windows the name is already Unicode
             if sys.platform != "win32":
                 name = name.decode(get_filesystem_encoding())
-
-            self._pending.remove(path)
             u = FileName(path.path, self._convergence)
             return self._parent.add_file(name, u)
-        d.addCallback(_add_file)
+
+        def _add_dir(ignore):
+             return self._parent.create_subdirectory(name)
+
+        def _maybe_upload(val):
+            if not os.path.exists(path.path):
+                self._log("uploader: not uploading non-existent file.")
+                self._stats_provider.count('drop_upload.objects_disappeared', 1)
+                return NoSuchChildError("not uploading non-existent file")
+            elif os.path.islink(path.path):
+                self._log("operator ERROR: symlink not being processed.")
+                return failure.Failure()
+
+            if os.path.isdir(path.path):
+                d.addCallback(_add_dir)
+                return None
+            elif os.path.isfile(path.path):
+                d.addCallback(_add_file)
+                return None
+            else:
+                self._log("operator ERROR: non-directory/non-regular file not being processed.")
+                return failure.Failure()
+
+        d.addCallback(_maybe_upload)
 
         def _succeeded(ign):
-            self._stats_provider.count('drop_upload.files_queued', -1)
-            self._stats_provider.count('drop_upload.files_uploaded', 1)
+            self._stats_provider.count('drop_upload.objects_queued', -1)
+            self._stats_provider.count('drop_upload.objects_uploaded', 1)
+
         def _failed(f):
-            self._stats_provider.count('drop_upload.files_queued', -1)
+            self._stats_provider.count('drop_upload.objects_queued', -1)
             if path.exists():
                 self._log("drop-upload: %r failed to upload due to %r" % (path.path, f))
-                self._stats_provider.count('drop_upload.files_failed', 1)
+                self._stats_provider.count('drop_upload.objects_failed', 1)
                 return f
             else:
-                self._log("drop-upload: notified file %r disappeared "
-                          "(this is normal for temporary files): %r" % (path.path, f))
-                self._stats_provider.count('drop_upload.files_disappeared', 1)
+                self._log("drop-upload: notified object %r disappeared "
+                          "(this is normal for temporary objects): %r" % (path.path, f))
+                self._stats_provider.count('drop_upload.objects_disappeared', 1)
                 return None
+
         d.addCallbacks(_succeeded, _failed)
         d.addBoth(self._uploaded_callback)
+
         return d
 
     def set_uploaded_callback(self, callback):
