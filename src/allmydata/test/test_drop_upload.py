@@ -1,6 +1,7 @@
 
 import os, sys
 import shutil
+import time
 
 from twisted.trial import unittest
 from twisted.python import filepath, runtime
@@ -100,18 +101,17 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
 
         def testMoveSmallTree(res):
-            tree_dir = os.path.join(self.basedir, 'creepy_tree')
+            tree_name = 'small_tree'
+            tree_dir = os.path.join(self.basedir, tree_name)
             os.mkdir(tree_dir)
-            os.path.join(tree_dir, u"tree_frog")
             f = open(os.path.join(tree_dir, 'what'), "wb")
             f.write("meow")
             f.close()
-            os.rename(tree_dir, os.path.join(self.local_dir,'creepy_tree'))
-            d = defer.Deferred()
-            self.uploader.set_uploaded_callback(d.callback)
-            return d
+            os.rename(tree_dir, os.path.join(self.local_dir, tree_name))
+            return res
+
         d.addCallback(testMoveSmallTree)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 3))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 2))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
@@ -131,6 +131,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
         d.addCallback(lambda ign: self.uploader.Pause())
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 0))
         def create_file(val):
             print "creating file..."
             myFile = os.path.join(self.local_dir, "what")
@@ -139,8 +140,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             f.close()
             return None
         d.addCallback(create_file)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-
         def resume_uploader(val):
             self.uploader.Resume()
             d = defer.Deferred()
