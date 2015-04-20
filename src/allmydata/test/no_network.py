@@ -174,6 +174,9 @@ class NoNetworkStorageBroker:
         return None
 
 class NoNetworkClient(Client):
+
+    def disownParentService(self):
+        pass
     def create_tub(self):
         pass
     def init_introducer_client(self):
