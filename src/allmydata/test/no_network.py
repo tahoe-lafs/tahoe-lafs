@@ -175,8 +175,8 @@ class NoNetworkStorageBroker:
 
 class NoNetworkClient(Client):
 
-    def disownParentService(self):
-        pass
+    def disownServiceParent(self):
+        self.disownServiceParent()
     def create_tub(self):
         pass
     def init_introducer_client(self):
