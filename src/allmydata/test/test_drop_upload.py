@@ -156,7 +156,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         d.addBoth(self._cleanup)
         return d
-        
+
     def _test(self):
         self.uploader = None
         self.set_up_grid()
