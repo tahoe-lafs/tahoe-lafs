@@ -4,7 +4,8 @@ import shutil
 import time
 
 from twisted.trial import unittest
-from twisted.python import filepath, runtime
+from twisted.python import runtime
+from twisted.python.filepath import FilePath
 from twisted.internet import defer
 
 from allmydata.interfaces import IDirectoryNode, NoSuchChildError
@@ -89,11 +90,15 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         def testMoveEmptyTree(res):
             print "moving tree into %s" % self.local_dir
             tree_dir = os.path.join(self.basedir, 'apple_tree')
+            tree_dir_fp = FilePath(tree_dir)
+            d2 = defer.Deferred()
+            self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
+
             os.mkdir(tree_dir)
+            self.notify_close_write(tree_dir_fp)
             os.rename(tree_dir, os.path.join(self.local_dir, 'apple_tree'))
-            d = defer.Deferred()
-            self.uploader.set_uploaded_callback(d.callback)
-            return d
+            self.notify_close_write(tree_dir_fp)
+            return d2
         d.addCallback(testMoveEmptyTree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
@@ -199,9 +204,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         path_u = os.path.join(self.local_dir, name_u)
         if sys.platform == "win32":
-            path = filepath.FilePath(path_u)
+            path = FilePath(path_u)
         else:
-            path = filepath.FilePath(path_u.encode(get_filesystem_encoding()))
+            path = FilePath(path_u.encode(get_filesystem_encoding()))
 
         # We don't use FilePath.setContent() here because it creates a temporary file that
         # is renamed into place, which causes events that the test is not expecting.
