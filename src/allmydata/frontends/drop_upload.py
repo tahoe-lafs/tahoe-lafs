@@ -209,7 +209,6 @@ class DropUploader(service.MultiService):
                 #dirname = path.decode(get_filesystem_encoding())
                 dirname = path
 
-            reactor.callLater(0, self._scan, dirname)
             return self._parent.create_subdirectory(name)
 
         def _maybe_upload(val):
