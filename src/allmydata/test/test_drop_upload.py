@@ -47,10 +47,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir.encode('utf-8'),
                                          "magicfolderdb.sqlite", inotify=self.inotify, pending_delay=0.2)
         self.uploader.setServiceParent(self.client)
-        d = self.uploader.startService()
         self.uploader.upload_ready()
         self.failUnlessEqual(self.uploader._db.VERSION, 2)
-        return d
 
     # Prevent unclean reactor errors.
     def _cleanup(self, res):
