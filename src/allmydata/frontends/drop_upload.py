@@ -104,18 +104,21 @@ class DropUploader(service.MultiService):
             assert isinstance(child, unicode), child
             childpath = os.path.join(localpath, child)
             # note: symlinks to directories are both islink() and isdir()
-            if os.path.isdir(childpath) and not os.path.islink(childpath):
+            isdir = os.path.isdir(childpath)
+            isfile = os.path.isfile(childpath)
+            islink = os.path.islink(childpath)
+
+            if islink:
+                self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
+            elif isdir:
                 # recurse on the child directory
                 self._scan(childpath)
-            elif os.path.isfile(childpath) and not os.path.islink(childpath):
+            elif isfile:
                 must_upload = self._check_db_file(childpath)
                 if must_upload:
                     self._append_to_deque(childpath)
             else:
-                if os.path.islink(childpath):
-                    self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
-                else:
-                    self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
+                self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
 
     def startService(self):
         self._db = backupdb.get_backupdb(self._dbfile)
