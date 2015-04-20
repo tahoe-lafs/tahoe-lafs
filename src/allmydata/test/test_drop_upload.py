@@ -100,6 +100,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             self.notify_close_write(tree_dir_fp)
             return d2
         d.addCallback(testMoveEmptyTree)
+        def _print(ign):
+            print "in _print"
+        d.addCallback(_print)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))

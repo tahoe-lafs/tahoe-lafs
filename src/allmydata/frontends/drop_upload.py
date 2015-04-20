@@ -203,6 +203,7 @@ class DropUploader(service.MultiService):
             return self._parent.create_subdirectory(name)
 
         def _maybe_upload(val):
+            print "in _maybe_upload"
             if not os.path.exists(path):
                 self._log("uploader: not uploading non-existent file.")
                 self._stats_provider.count('drop_upload.objects_disappeared', 1)
