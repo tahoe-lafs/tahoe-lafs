@@ -137,43 +137,41 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     def _test_persistence(self):
         self.uploader = None
         self.dir_node = None
-
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, u"test_persistence")
         self.mkdir_nonascii(self.local_dir)
-
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
-
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
-        d.addCallback(lambda ign: self.uploader.Pause())
+        d.addCallback(self._cleanup)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: self.client.removeService(self.uploader))
+
+        def msg(val):
+            print "old uploader removed"
+            return None
+        d.addCallback(msg)
+        
         def create_file(val):
             myFile = os.path.join(self.local_dir, "what")
             f = open(myFile, "wb")
             f.write("meow")
             f.close()
-            # XXX
-            #self.notify_close_write(FilePath(myFile))
+            print "test file created"
             return None
         d.addCallback(create_file)
-        d.addCallback(self._cleanup)
-        #d.addCallback(lambda ign: self.client.stopService())
-        #d.addCallback(lambda ign: self.client.disownParentService(self))
-        #d.addCallback(lambda ign: self.client.startService())
+        
         d.addCallback(self._made_upload_dir)
-
         def resume_uploader(val):
-            self.uploader.Resume()
+            print "created new uploader"
             d = defer.Deferred()
             self.uploader.set_uploaded_callback(d.callback)
             return d
         d.addCallback(resume_uploader)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
-
         d.addBoth(self._cleanup)
         return d
 

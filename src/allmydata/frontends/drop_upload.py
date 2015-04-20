@@ -38,6 +38,8 @@ class DropUploader(service.MultiService):
                                  "could not be represented in the filesystem encoding."
                                  % quote_output(local_dir_utf8))
 
+        self._objid = None
+        self._classname = 'DropUploader'
         self._pending = set()
         self._client = client
         self._stats_provider = client.stats_provider
@@ -91,6 +93,7 @@ class DropUploader(service.MultiService):
         return not r.was_uploaded()
 
     def _scan(self, localpath):
+        print "_scan"
         if not os.path.isdir(localpath):
             raise AssertionError("Programmer error: _scan() must be passed a directory path.")
         quoted_path = quote_local_unicode_path(localpath)
@@ -112,12 +115,14 @@ class DropUploader(service.MultiService):
             if islink:
                 self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
             elif isdir:
+                print "isdir"
                 # recurse on the child directory
                 self._scan(childpath)
                 must_upload = self._check_db_file(childpath)
                 if must_upload:
                     self._append_to_deque(childpath)
             elif isfile:
+                print "isfile"
                 must_upload = self._check_db_file(childpath)
                 if must_upload:
                     self._append_to_deque(childpath)
@@ -153,6 +158,7 @@ class DropUploader(service.MultiService):
         self._turn_deque()
 
     def _append_to_deque(self, path):
+        print "_append_to_deque"
         self._upload_deque.append(path)
         self._pending.add(path)
         self._stats_provider.count('drop_upload.objects_queued', 1)
