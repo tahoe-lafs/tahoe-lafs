@@ -78,7 +78,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.uploader = None
         self.set_up_grid()
 
-        self.local_dir = os.path.join(self.basedir, u"local_dir")
+        self.local_dir = os.path.join(self.basedir, u"l\u00F8cal_dir")
         self.mkdir_nonascii(self.local_dir)
 
         self.client = self.g.clients[0]
