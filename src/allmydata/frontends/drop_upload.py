@@ -79,7 +79,8 @@ class DropUploader(service.MultiService):
         # be an IN_CLOSE_WRITE after an IN_CREATE (I think).
         # TODO: what about IN_MOVE_SELF or IN_UNMOUNT?
         mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
-        self._notifier.watch(self._local_path, mask=mask, callbacks=[self._notify], autoAdd=True)
+        self._notifier.watch(self._local_path, mask=mask, callbacks=[self._notify],
+                             autoAdd=True, recursive=True)
 
     def _check_db_file(self, childpath):
         # returns True if the file must be uploaded.
