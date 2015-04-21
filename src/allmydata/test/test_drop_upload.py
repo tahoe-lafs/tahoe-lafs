@@ -275,7 +275,7 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
 
         client = self.g.clients[0]
         d = client.create_dirnode()
-        def _made_upload_dir(n):
+        def _check_errors(n):
             self.failUnless(IDirectoryNode.providedBy(n))
             upload_dircap = n.get_uri()
             readonly_dircap = n.get_readonly_uri()
@@ -292,7 +292,7 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
                             DropUploader, client, 'URI:LIT:foo', errors_dir, 'magicfolderdb', inotify=fake_inotify)
             self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
                             DropUploader, client, readonly_dircap, errors_dir, 'magicfolderdb', inotify=fake_inotify)
-        d.addCallback(_made_upload_dir)
+        d.addCallback(_check_errors)
         return d
 
     def test_drop_upload(self):
