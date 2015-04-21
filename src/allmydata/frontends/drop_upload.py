@@ -123,9 +123,10 @@ class DropUploader(service.MultiService):
                 if must_upload:
                     self._append_to_deque(childpath)
             elif isfile:
-                print "isfile"
+                print "isfile %s" % (childpath,)
                 must_upload = self._check_db_file(childpath)
                 if must_upload:
+                    print "must_upload"
                     self._append_to_deque(childpath)
             else:
                 self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
@@ -205,8 +206,8 @@ class DropUploader(service.MultiService):
             if sys.platform != "win32":
                 name = name.decode(get_filesystem_encoding())
                 # XXX
-                #dirname = path.decode(get_filesystem_encoding())
-                dirname = path
+                dirname = path.decode(get_filesystem_encoding())
+                #dirname = path
 
             return self._parent.create_subdirectory(name)
 
@@ -225,6 +226,20 @@ class DropUploader(service.MultiService):
                 return None
             elif os.path.isfile(path):
                 d.addCallback(_add_file)
+                def add_db_entry(val):
+                    filecap = val.get_uri()
+                    print "filename %s filecap %s" % (path, filecap)
+                    s = os.stat(path)
+                    self._db.did_upload_file(filecap, path.decode('UTF-8'), s.st_mtime, s.st_ctime, s.st_size)
+
+                    #r = self._db.check_file(path.decode('UTF-8'))
+                    #was_uploaded = r.was_uploaded()
+                    #if was_uploaded:
+                    #    print "was_uploaded true"
+                    #else:
+                    #    print "was_uploaded false"
+
+                d.addCallback(add_db_entry)
                 self._stats_provider.count('drop_upload.files_uploaded', 1)
                 return None
             else:
