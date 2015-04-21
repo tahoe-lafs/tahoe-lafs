@@ -235,7 +235,8 @@ class DropUploader(service.MultiService):
                     filecap = filenode.get_uri()
                     print "filename %s filecap %s" % (path, filecap)
                     s = os.stat(path)
-                    self._db.did_upload_file(filecap, path.decode('UTF-8'), s.st_mtime, s.st_ctime, s.st_size)
+                    self._db.did_upload_file(filecap, path.decode('UTF-8'),
+                                             s.st_mtime, s.st_ctime, s.st_size)
 
                     #r = self._db.check_file(path.decode('UTF-8'))
                     #was_uploaded = r.was_uploaded()
