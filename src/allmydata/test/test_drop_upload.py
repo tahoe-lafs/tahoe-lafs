@@ -142,35 +142,27 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.stats_provider = self.client.stats_provider
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
-        d.addCallback(self._cleanup)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-        d.addCallback(lambda ign: self.client.removeService(self.uploader))
-
-        def msg(val):
-            print "old uploader removed"
-            return None
-        d.addCallback(msg)
         
         def create_file(val):
+            d2 = defer.Deferred()
+            self.uploader.set_uploaded_callback(d2.callback)
             myFile = os.path.join(self.local_dir, "what")
             f = open(myFile, "wb")
             f.write("meow")
             f.close()
-            print "test file created"
-            return None
+            self.notify_close_write(FilePath(myFile))
+            return d2
         d.addCallback(create_file)
-        
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(self._cleanup)
+        d.addCallback(lambda ign: self.client.removeService(self.uploader))
+
         d.addCallback(self._made_upload_dir)
-        def resume_uploader(val):
-            print "created new uploader"
-            d = defer.Deferred()
-            self.uploader.set_uploaded_callback(d.callback)
-            return d
-        d.addCallback(resume_uploader)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
         d.addBoth(self._cleanup)
+
         return d
 
     def _test(self):
