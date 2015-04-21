@@ -40,7 +40,7 @@ class DropUploader(service.MultiService):
 
         self._objid = None
         self._classname = 'DropUploader'
-        self._upload_lazy_tail = None
+        self._upload_lazy_tail = defer.succeed(None)
         self._pending = set()
         self._client = client
         self._stats_provider = client.stats_provider
@@ -178,12 +178,9 @@ class DropUploader(service.MultiService):
             path = self._upload_deque.pop()
         except IndexError:
             self._log("magic folder upload deque is now empty")
-            self._upload_lazy_tail = None
+            self._upload_lazy_tail = defer.succeed(None)
             return
-        if self._upload_lazy_tail is not None:
-            self._upload_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._process, path))
-        else:
-            self._upload_lazy_tail = task.deferLater(reactor, 0, self._process, path)
+        self._upload_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._process, path))
         self._upload_lazy_tail.addCallback(lambda ign: self._turn_deque())
 
     def _notify(self, opaque, path, events_mask):
