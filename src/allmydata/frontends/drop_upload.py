@@ -119,11 +119,12 @@ class DropUploader(service.MultiService):
                 self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
             elif isdir:
                 print "isdir"
-                # recurse on the child directory
-                self._scan(childpath)
                 must_upload = self._check_db_file(childpath.decode('UTF-8'))
                 if must_upload:
                     self._append_to_deque(childpath)
+
+                # recurse on the child directory
+                self._scan(childpath)
             elif isfile:
                 print "isfile %s" % (childpath,)
                 must_upload = self._check_db_file(childpath.decode('UTF-8'))
