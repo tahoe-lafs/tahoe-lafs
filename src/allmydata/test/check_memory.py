@@ -378,15 +378,9 @@ this file are ignored.
         print
         print "uploading %s" % name
         if self.mode in ("upload", "upload-self"):
-            files[name] = self.create_data(name, size)
-            d = self.control_rref.callRemote("upload_from_file_to_uri",
-                                             files[name].encode("utf-8"),
+            d = self.control_rref.callRemote("upload_random_data_from_file",
+                                             size,
                                              convergence="check-memory")
-            def _done(uri):
-                os.remove(files[name])
-                del files[name]
-                return uri
-            d.addCallback(_done)
         elif self.mode == "upload-POST":
             data = "a" * size
             url = "/uri"
@@ -425,8 +419,8 @@ this file are ignored.
         uri = uris[name]
 
         if self.mode == "download":
-            d = self.control_rref.callRemote("download_from_uri_to_file",
-                                             uri, "dummy.out")
+            d = self.control_rref.callRemote("download_to_tempfile_and_delete",
+                                             uri)
         elif self.mode == "download-GET":
             url = "/uri/%s" % uri
             d = self.GET_discard(urllib.quote(url), stall=False)

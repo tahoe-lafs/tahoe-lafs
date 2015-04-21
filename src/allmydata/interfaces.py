@@ -2631,6 +2631,12 @@ class RIControlClient(RemoteInterface):
 
     # debug stuff
 
+    def upload_random_data_from_file(size=int, convergence=str):
+        return str
+
+    def download_to_tempfile_and_delete(uri=str):
+        return None
+
     def get_memory_usage():
         """Return a dict describes the amount of memory currently in use. The
         keys are 'VmPeak', 'VmSize', and 'VmData'. The values are integers,

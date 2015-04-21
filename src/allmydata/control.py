@@ -1,5 +1,5 @@
 
-import os, time
+import os, time, tempfile
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
@@ -59,6 +59,40 @@ class ControlServer(Referenceable, service.Service):
 
     def remote_wait_for_client_connections(self, num_clients):
         return self.parent.debug_wait_for_client_connections(num_clients)
+
+    def remote_upload_random_data_from_file(self, size, convergence):
+        filename = tempfile.NamedTemporaryFile(delete=False).name
+        f = open(filename, "wb")
+        block = "a" * 8192
+        while size > 0:
+            l = min(size, 8192)
+            f.write(block[:l])
+            size -= l
+        f.close()
+        uploader = self.parent.getServiceNamed("uploader")
+        u = upload.FileName(filename, convergence=convergence)
+        d = uploader.upload(u)
+        d.addCallback(lambda results: results.get_uri())
+        def _done(uri):
+            os.remove(filename)
+            return uri
+        d.addCallback(_done)
+        return d
+
+    def remote_download_to_tempfile_and_delete(self, uri):
+        tempdir = tempfile.mkdtemp()
+        filename = os.path.join(tempdir, "data")
+        filenode = self.parent.create_node_from_uri(uri, name=filename)
+        if not IFileNode.providedBy(filenode):
+            raise AssertionError("The URI does not reference a file.")
+        c = FileWritingConsumer(filename)
+        d = filenode.read(c)
+        def _done(res):
+            os.remove(filename)
+            os.rmdir(tempdir)
+            return None
+        d.addCallback(_done)
+        return d
 
     def remote_speed_test(self, count, size, mutable):
         assert size > 8
