@@ -487,7 +487,25 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
         # adapted from <http://svn.python.org/view/python/branches/release26-maint/Lib/test/test_posixpath.py?view=markup&pathrev=78279#test_abspath>
 
-        self.failUnlessIn(u"foo", fileutil.abspath_expanduser_unicode(u"foo"))
+        foo = fileutil.abspath_expanduser_unicode(u"foo")
+        self.failUnless(foo.endswith(u"\\foo"), foo)
+
+        foobar = fileutil.abspath_expanduser_unicode(u"bar", base=foo)
+        self.failUnless(foobar.endswith(u"\\foo\\bar"), foobar)
+
+        if sys.platform == "win32":
+            # This is checking that a drive letter is added for a path without one.
+            baz = fileutil.abspath_expanduser_unicode(u"\\baz")
+            self.failUnless(baz.startswith(u"\\\\?\\"), baz)
+            self.failUnlessReallyEqual(baz[5 :], u":\\baz")
+
+            bar = fileutil.abspath_expanduser_unicode(u"\\bar", base=baz)
+            self.failUnless(bar.startswith(u"\\\\?\\"), bar)
+            self.failUnlessReallyEqual(bar[5 :], u":\\bar")
+            # not u":\\baz\\bar", because \bar is absolute on the current drive.
+
+            self.failUnlessReallyEqual(baz[4], bar[4])  # same drive
+
         self.failIfIn(u"~", fileutil.abspath_expanduser_unicode(u"~"))
 
         cwds = ['cwd']

@@ -318,10 +318,14 @@ def abspath_expanduser_unicode(path, base=None):
     path = expanduser(path)
 
     if _getfullpathname:
-        # On Windows, os.path.isabs will return True for paths without a drive letter,
+        # On Windows, os.path.isabs will incorrectly return True
+        # for paths without a drive letter (that are not UNC paths),
         # e.g. "\\". See <http://bugs.python.org/issue1669539>.
         try:
-            path = _getfullpathname(path or u".")
+            if base is None:
+                path = _getfullpathname(path or u".")
+            else:
+                path = _getfullpathname(os.path.join(base, path))
         except OSError:
             pass
 
