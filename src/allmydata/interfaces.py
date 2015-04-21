@@ -2629,25 +2629,6 @@ class RIControlClient(RemoteInterface):
         storage servers.
         """
 
-    def upload_from_file_to_uri(filename=str,
-                                convergence=ChoiceOf(None,
-                                                     StringConstraint(2**20))):
-        """Upload a file to the grid. This accepts a filename (which must be
-        absolute) that points to a file on the node's local disk. The node will
-        read the contents of this file, upload it to the grid, then return the
-        URI at which it was uploaded.  If convergence is None then a random
-        encryption key will be used, else the plaintext will be hashed, then
-        that hash will be mixed together with the "convergence" string to form
-        the encryption key.
-        """
-        return URI
-
-    def download_from_uri_to_file(uri=URI, filename=str):
-        """Download a file from the grid, placing it on the node's local disk
-        at the given filename (which must be absolute[?]). Returns the
-        absolute filename where the file was written."""
-        return str
-
     # debug stuff
 
     def get_memory_usage():
