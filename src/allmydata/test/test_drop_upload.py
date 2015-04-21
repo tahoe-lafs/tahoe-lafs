@@ -319,10 +319,10 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
         self.inotify = fake_inotify
         self.basedir = "drop_upload.MockTest.test_persistence"
         return self._test_persistence()
-    
+
+
 class RealTest(DropUploadTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
-
 
     def test_drop_upload(self):
         # We should always have runtime.platform.supportsINotify, because we're using
