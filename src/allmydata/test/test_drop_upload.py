@@ -162,8 +162,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             print "stopped and removed uploader service."
         d.addCallback(msg)
         d.addCallback(self._made_upload_dir)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: time.sleep(3))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         d.addBoth(self._cleanup)
         return d
 
