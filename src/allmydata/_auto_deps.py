@@ -46,6 +46,11 @@ install_requires = [
 
     # pycryptopp-0.6.0 includes ed25519
     "pycryptopp >= 0.6.0",
+
+    "service-identity",         # this is needed to suppress complaints about being unable to verify certs
+    "characteristic >= 14.0.0", # latest service-identity depends on this version
+    "pyasn1 >= 0.1.4",          # latest pyasn1-modules depends on this version
+    "pyasn1-modules >= 0.0.5",  # service-identity depends on this
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.
@@ -65,6 +70,9 @@ package_imports = [
     ('pycrypto',         'Crypto'),
     ('pyasn1',           'pyasn1'),
     ('mock',             'mock'),
+    ('service-identity', 'service_identity'),
+    ('characteristic',   'characteristic'),
+    ('pyasn1-modules',   'pyasn1_modules'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
@@ -72,7 +80,6 @@ not_import_versionable = [
     'zope.interface',
     'mock',
     'pyasn1',
-    'pyasn1-modules',
 ]
 
 # Dependencies reported by pkg_resources that we can safely ignore.
@@ -124,9 +131,6 @@ if sys.platform == "win32":
         #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2291>
         #
         "Nevow >= 0.9.33, <= 0.10",
-
-        # pyasn1 is needed by twisted.conch in Twisted >= 9.0.
-        "pyasn1 >= 0.0.8a",
     ]
 else:
     install_requires += [
@@ -143,17 +147,6 @@ else:
 
         # Nevow >= 0.11.1 can be installed using pip.
         "Nevow >= 0.11.1",
-
-        "service-identity",         # this is needed to suppress complaints about being unable to verify certs
-        "characteristic >= 14.0.0", # latest service-identity depends on this version
-        "pyasn1 >= 0.1.4",          # latest pyasn1-modules depends on this version
-        "pyasn1-modules",           # service-identity depends on this
-    ]
-
-    package_imports += [
-        ('service-identity', 'service_identity'),
-        ('characteristic',   'characteristic'),
-        ('pyasn1-modules',   'pyasn1_modules'),
     ]
 
 
