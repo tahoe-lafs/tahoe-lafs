@@ -60,22 +60,6 @@ class ControlServer(Referenceable, service.Service):
     def remote_wait_for_client_connections(self, num_clients):
         return self.parent.debug_wait_for_client_connections(num_clients)
 
-    def remote_upload_from_file_to_uri(self, filename, convergence):
-        uploader = self.parent.getServiceNamed("uploader")
-        u = upload.FileName(filename, convergence=convergence)
-        d = uploader.upload(u)
-        d.addCallback(lambda results: results.get_uri())
-        return d
-
-    def remote_download_from_uri_to_file(self, uri, filename):
-        filenode = self.parent.create_node_from_uri(uri, name=filename)
-        if not IFileNode.providedBy(filenode):
-            raise AssertionError("The URI does not reference a file.")
-        c = FileWritingConsumer(filename)
-        d = filenode.read(c)
-        d.addCallback(lambda res: filename)
-        return d
-
     def remote_speed_test(self, count, size, mutable):
         assert size > 8
         log.msg("speed_test: count=%d, size=%d, mutable=%s" % (count, size,
