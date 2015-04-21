@@ -89,9 +89,11 @@ class DropUploader(service.MultiService):
     def _check_db_file(self, childpath):
         # returns True if the file must be uploaded.
         assert self._db != None
-        use_timestamps = True
-        r = self._db.check_file(childpath, use_timestamps)
-        return not r.was_uploaded()
+        r = self._db.check_file(childpath)
+        filecap = r.was_uploaded()
+        print "uploaded filecap %s" % (filecap,)
+        if filecap is False:
+            return True
 
     def _scan(self, localpath):
         print "_scan"
@@ -119,12 +121,12 @@ class DropUploader(service.MultiService):
                 print "isdir"
                 # recurse on the child directory
                 self._scan(childpath)
-                must_upload = self._check_db_file(childpath)
+                must_upload = self._check_db_file(childpath.decode('UTF-8'))
                 if must_upload:
                     self._append_to_deque(childpath)
             elif isfile:
                 print "isfile %s" % (childpath,)
-                must_upload = self._check_db_file(childpath)
+                must_upload = self._check_db_file(childpath.decode('UTF-8'))
                 if must_upload:
                     print "must_upload"
                     self._append_to_deque(childpath)
