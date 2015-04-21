@@ -44,6 +44,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.failUnless(IDirectoryNode.providedBy(n))
         self.upload_dirnode = n
         self.upload_dircap = n.get_uri()
+
+    def _create_uploader(self, ign):
         self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir.encode('utf-8'),
                                          "magicfolderdb.sqlite", inotify=self.inotify, pending_delay=0.2)
         self.uploader.setServiceParent(self.client)
@@ -71,6 +73,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
+        d.addCallback(self._create_uploader)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.dirs_monitored'), 1))
         d.addBoth(self._cleanup)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.dirs_monitored'), 0))
@@ -88,6 +91,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
+        d.addCallback(self._create_uploader)
 
         def testMoveEmptyTree(res):
             tree_name = 'empty_tree'
@@ -138,11 +142,13 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, u"test_persistence")
         self.mkdir_nonascii(self.local_dir)
+
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
-        
+        d.addCallback(self._create_uploader)
+
         def create_file(val):
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback)
@@ -156,13 +162,16 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         d.addCallback(self._cleanup)
-        d.addCallback(lambda ign: self.client.removeService(self.uploader))
-        def msg(val):
-            print "stopped and removed uploader service."
-        d.addCallback(msg)
-        d.addCallback(self._made_upload_dir)
+
+        def _restart(ign):
+            print "in _restart"
+            self.set_up_grid()
+            self.client = self.g.clients[0]
+            self.stats_provider = self.client.stats_provider
+        d.addCallback(_restart)
+        d.addCallback(self._create_uploader)
         d.addCallback(lambda ign: time.sleep(3))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         d.addBoth(self._cleanup)
         return d
@@ -180,6 +189,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d = self.client.create_dirnode()
 
         d.addCallback(self._made_upload_dir)
+        d.addCallback(self._create_uploader)
 
         # Write something short enough for a LIT file.
         d.addCallback(lambda ign: self._test_file(u"short", "test"))
