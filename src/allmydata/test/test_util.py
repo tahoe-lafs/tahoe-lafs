@@ -488,10 +488,10 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         # adapted from <http://svn.python.org/view/python/branches/release26-maint/Lib/test/test_posixpath.py?view=markup&pathrev=78279#test_abspath>
 
         foo = fileutil.abspath_expanduser_unicode(u"foo")
-        self.failUnless(foo.endswith(u"\\foo"), foo)
+        self.failUnless(foo.endswith(u"%sfoo" % (os.path.sep,)), foo)
 
         foobar = fileutil.abspath_expanduser_unicode(u"bar", base=foo)
-        self.failUnless(foobar.endswith(u"\\foo\\bar"), foobar)
+        self.failUnless(foobar.endswith(u"%sfoo%sbar" % (os.path.sep, os.path.sep)), foobar)
 
         if sys.platform == "win32":
             # This is checking that a drive letter is added for a path without one.
