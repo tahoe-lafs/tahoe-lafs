@@ -19,6 +19,7 @@ from allmydata.test.common import ShouldFailMixin
 
 from allmydata.frontends.drop_upload import DropUploader
 from allmydata.scripts import backupdb
+from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
 class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
@@ -64,6 +65,57 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         fileutil.make_dirs(self.basedir)
         dbfile = os.path.join(self.basedir, "dbfile")
         bdb = self._createdb(dbfile)
+
+    def _test_db_persistence(self):
+        """Test that a file upload creates an entry in the database.
+        """
+        fileutil.make_dirs(self.basedir)
+        path = os.path.join(self.basedir, u"myFile")
+        path = abspath_expanduser_unicode(path)
+
+        dbfile = os.path.join(self.basedir, "dbfile")
+        db = self._createdb(dbfile)
+        db.did_upload_file('URI:LIT:meow', path, 0, 0, 1234)
+
+        c = db.cursor
+        c.execute("SELECT size,mtime,ctime,fileid"
+                  " FROM local_files"
+                  " WHERE path=?",
+                  (path,))
+        row = db.cursor.fetchone()
+        self.failIfEqual(row, None)
+
+        ##
+        # Test that a file upload AND a check_file results in a database entry
+        # declaring the file previously uploaded.
+        ##
+        path = os.path.join(self.basedir, u"file123")
+        f = open(path,"wb")
+        f.write("say something")
+        f.close()
+
+        abspath = abspath_expanduser_unicode(path)
+        print "\n\nabspath %s" % (abspath,)
+        s = os.stat(abspath)
+        #print "stat output: path %s mtime %s ctime %s size %s" % (abspath, s.st_mtime, s.st_ctime, s.st_size)
+        db.did_upload_file('URI:LIT:mruwmztfojsw45a', abspath, s.st_mtime, s.st_ctime, s.st_size)
+
+        r = db.check_file(abspath)
+        print "r %s" % (r,)
+        was_uploaded = r.was_uploaded()
+        print "was_uploaded %s" % (was_uploaded,)
+
+        c.execute("SELECT path,size,mtime,ctime,fileid"
+                  " FROM local_files")
+                  #" FROM local_files"
+                  #" WHERE path=?",
+                  #(abspath,))
+        row = db.cursor.fetchone()
+        print "row %s" % (row,)
+        row = db.cursor.fetchone()
+        print "row %s" % (row,)
+
+        self.failUnlessReallyEqual(was_uploaded, True)
 
     def _test_uploader_start_service(self):
         self.uploader = None
@@ -137,6 +189,11 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         return d
 
     def _test_persistence(self):
+        """ Perform an upload of a given file and then stop the client.
+        Start a new client and uploader... and verify that the file is NOT uploaded
+        a second time. This test is meant to test the database persistence along with
+        the startup and shutdown code paths of the uploader.
+        """
         self.uploader = None
         self.dir_node = None
         self.set_up_grid()
@@ -305,6 +362,11 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
         self.basedir = "drop_upload.MockTest.test_basic_db"
         return self._test_db_basic()
 
+    def test_db_persistence(self):
+        self.inotify = fake_inotify
+        self.basedir = "drop_upload.MockTest.test_db_persistence"
+        return self._test_db_persistence()
+
     def test_uploader_start_service(self):
         self.inotify = fake_inotify
         self.basedir = "drop_upload.MockTest.test_uploader_start_service"
@@ -342,6 +404,11 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
         self.inotify = None
         self.basedir = "drop_upload.RealTest.test_basic_db"
         return self._test_db_basic()
+
+    def test_db_persistence(self):
+        self.inotify = None
+        self.basedir = "drop_upload.RealTest.test_db_persistence"
+        return self._test_db_persistence()
 
     def test_uploader_start_service(self):
         self.inotify = None
