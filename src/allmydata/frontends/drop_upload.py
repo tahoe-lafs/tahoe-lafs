@@ -38,8 +38,6 @@ class DropUploader(service.MultiService):
                                  "could not be represented in the filesystem encoding."
                                  % quote_output(local_dir_utf8))
 
-        self._objid = None
-        self._classname = 'DropUploader'
         self._upload_lazy_tail = defer.succeed(None)
         self._pending = set()
         self._client = client
