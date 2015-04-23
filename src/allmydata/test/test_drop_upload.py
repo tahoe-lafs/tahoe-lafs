@@ -1,7 +1,5 @@
 
-import os, sys
-import shutil
-import time
+import os, sys, stat, time
 
 from twisted.trial import unittest
 from twisted.python import runtime
@@ -70,12 +68,12 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         """Test that a file upload creates an entry in the database.
         """
         fileutil.make_dirs(self.basedir)
-        path = os.path.join(self.basedir, u"myFile")
-        path = abspath_expanduser_unicode(path)
-
         dbfile = os.path.join(self.basedir, "dbfile")
         db = self._createdb(dbfile)
-        db.did_upload_file('URI:LIT:meow', path, 0, 0, 1234)
+
+        path = os.path.join(self.basedir, u"myFile1")
+        path = abspath_expanduser_unicode(path)
+        db.did_upload_file('URI:LIT:1', path, 0, 0, 33)
 
         c = db.cursor
         c.execute("SELECT size,mtime,ctime,fileid"
@@ -84,38 +82,22 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
                   (path,))
         row = db.cursor.fetchone()
         self.failIfEqual(row, None)
-
         ##
-        # Test that a file upload AND a check_file results in a database entry
-        # declaring the file previously uploaded.
-        ##
-        path = os.path.join(self.basedir, u"file123")
-        f = open(path,"wb")
-        f.write("say something")
+        # 2nd test uses db.check_file instead of SQL query directly
+        # to confirm the previous upload entry in the db.
+        relative_path = os.path.join(self.basedir, u"myFile2")
+        path = abspath_expanduser_unicode(relative_path)
+        f = open(path, "wb")
+        f.write("meow\n")
         f.close()
-
-        abspath = abspath_expanduser_unicode(path)
-        print "\n\nabspath %s" % (abspath,)
-        s = os.stat(abspath)
-        #print "stat output: path %s mtime %s ctime %s size %s" % (abspath, s.st_mtime, s.st_ctime, s.st_size)
-        db.did_upload_file('URI:LIT:mruwmztfojsw45a', abspath, s.st_mtime, s.st_ctime, s.st_size)
-
-        r = db.check_file(abspath)
-        print "r %s" % (r,)
+        s = os.stat(path)
+        size = s[stat.ST_SIZE]
+        ctime = s[stat.ST_CTIME]
+        mtime = s[stat.ST_MTIME]
+        db.did_upload_file('URI:LIT:2', path, mtime, ctime, size)
+        r = db.check_file(relative_path)
         was_uploaded = r.was_uploaded()
-        print "was_uploaded %s" % (was_uploaded,)
-
-        c.execute("SELECT path,size,mtime,ctime,fileid"
-                  " FROM local_files")
-                  #" FROM local_files"
-                  #" WHERE path=?",
-                  #(abspath,))
-        row = db.cursor.fetchone()
-        print "row %s" % (row,)
-        row = db.cursor.fetchone()
-        print "row %s" % (row,)
-
-        self.failUnlessReallyEqual(was_uploaded, True)
+        self.failIfEqual(was_uploaded, False)
 
     def _test_uploader_start_service(self):
         self.uploader = None
