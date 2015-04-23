@@ -203,7 +203,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(self._cleanup)
 
         def _restart(ign):
-            print "in _restart"
             self.set_up_grid()
             self.client = self.g.clients[0]
             self.stats_provider = self.client.stats_provider

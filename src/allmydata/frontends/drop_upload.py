@@ -1,5 +1,5 @@
 
-import sys, os
+import sys, os, stat
 from collections import deque
 
 from twisted.internet import defer, reactor, task
@@ -89,12 +89,10 @@ class DropUploader(service.MultiService):
         assert self._db != None
         r = self._db.check_file(childpath)
         filecap = r.was_uploaded()
-        print "uploaded filecap %s" % (filecap,)
         if filecap is False:
             return True
 
     def _scan(self, localpath):
-        print "_scan"
         if not os.path.isdir(localpath):
             raise AssertionError("Programmer error: _scan() must be passed a directory path.")
         quoted_path = quote_local_unicode_path(localpath)
@@ -116,7 +114,6 @@ class DropUploader(service.MultiService):
             if islink:
                 self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
             elif isdir:
-                print "isdir"
                 must_upload = self._check_db_file(childpath.decode('UTF-8'))
                 if must_upload:
                     self._append_to_deque(childpath)
@@ -124,10 +121,8 @@ class DropUploader(service.MultiService):
                 # recurse on the child directory
                 self._scan(childpath)
             elif isfile:
-                print "isfile %s" % (childpath,)
                 must_upload = self._check_db_file(childpath.decode('UTF-8'))
                 if must_upload:
-                    print "must_upload"
                     self._append_to_deque(childpath)
             else:
                 self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
@@ -226,18 +221,12 @@ class DropUploader(service.MultiService):
                 d.addCallback(_add_file)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
-                    print "filename %s filecap %s" % (path, filecap)
                     s = os.stat(path)
+                    size = s[stat.ST_SIZE]
+                    ctime = s[stat.ST_CTIME]
+                    mtime = s[stat.ST_MTIME]
                     self._db.did_upload_file(filecap, path.decode('UTF-8'),
-                                             s.st_mtime, s.st_ctime, s.st_size)
-
-                    #r = self._db.check_file(path.decode('UTF-8'))
-                    #was_uploaded = r.was_uploaded()
-                    #if was_uploaded:
-                    #    print "was_uploaded true"
-                    #else:
-                    #    print "was_uploaded false"
-
+                                             mtime, ctime, size)
                 d.addCallback(add_db_entry)
                 self._stats_provider.count('drop_upload.files_uploaded', 1)
                 return None
