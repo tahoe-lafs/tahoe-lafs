@@ -115,7 +115,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         return d
 
     def _test_move_tree(self):
+        print "_test_move_tree"
         self.uploader = None
+        self.dir_node = None
         self.set_up_grid()
 
         self.local_dir = os.path.join(self.basedir, u"l\u00F8cal_dir")
@@ -126,16 +128,15 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
+
         d.addCallback(self._create_uploader)
 
         def testMoveEmptyTree(res):
-            tree_name = 'empty_tree'
+            tree_name = u'empty_tree'
             tree_dir = os.path.join(self.basedir, tree_name)
-            os.mkdir(tree_dir)
-
+            self.mkdir_nonascii(tree_dir)
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
-
             new_tree_dir = os.path.join(self.local_dir, tree_name)
             os.rename(tree_dir, new_tree_dir)
             self.notify_close_write(FilePath(new_tree_dir))
@@ -151,23 +152,19 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             tree_dir = os.path.join(self.basedir, tree_name)
             os.mkdir(tree_dir)
             f = open(os.path.join(tree_dir, 'what'), "wb")
-            f.write("meow")
+            f.write("say when")
             f.close()
-
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=1)
-
             new_tree_dir = os.path.join(self.local_dir, tree_name)
             os.rename(tree_dir, new_tree_dir)
             self.notify_close_write(FilePath(new_tree_dir))
             return d2
-
         d.addCallback(testMoveSmallTree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 3))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 2))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-
         d.addBoth(self._cleanup)
         return d
 

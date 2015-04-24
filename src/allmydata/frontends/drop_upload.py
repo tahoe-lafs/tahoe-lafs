@@ -204,9 +204,7 @@ class DropUploader(service.MultiService):
             if sys.platform != "win32":
                 name = name.decode(get_filesystem_encoding())
                 # XXX
-                dirname = path.decode(get_filesystem_encoding())
-                #dirname = path
-
+                dirname = path
             return self._parent.create_subdirectory(name)
 
         def _maybe_upload(val):
