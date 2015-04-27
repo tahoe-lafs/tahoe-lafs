@@ -26,6 +26,11 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     with the real INotify.
     """
 
+    def setUp(self):
+        GridTestMixin.setUp(self)
+        self.uploader = None
+        self.dir_node = None
+
     def _get_count(self, name):
         return self.stats_provider.get_stats()["counters"].get(name, 0)
 
@@ -100,7 +105,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.failIfEqual(was_uploaded, False)
 
     def _test_uploader_start_service(self):
-        self.uploader = None
         self.set_up_grid()
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
@@ -115,8 +119,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
     def _test_move_tree(self):
         print "_test_move_tree"
-        self.uploader = None
-        self.dir_node = None
         self.set_up_grid()
 
         self.local_dir = os.path.join(self.basedir, u"l\u00F8cal_dir")
@@ -173,8 +175,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         a second time. This test is meant to test the database persistence along with
         the startup and shutdown code paths of the uploader.
         """
-        self.uploader = None
-        self.dir_node = None
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, u"test_persistence")
         self.mkdir_nonascii(self.local_dir)
@@ -212,8 +212,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         return d
 
     def _test(self):
-        self.uploader = None
-        self.dir_node = None
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
         self.mkdir_nonascii(self.local_dir)
