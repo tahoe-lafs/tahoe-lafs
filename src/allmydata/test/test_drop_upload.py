@@ -3,12 +3,11 @@ import os, sys, stat, time
 
 from twisted.trial import unittest
 from twisted.python import runtime
-from twisted.python.filepath import FilePath
 from twisted.internet import defer
 
 from allmydata.interfaces import IDirectoryNode, NoSuchChildError
 from allmydata.util import fileutil, fake_inotify
-from allmydata.util.encodingutil import get_filesystem_encoding
+from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
@@ -27,6 +26,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
     def setUp(self):
         GridTestMixin.setUp(self)
+        temp = self.mktemp()
+        self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.uploader = None
         self.dir_node = None
 
@@ -49,8 +50,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.upload_dircap = n.get_uri()
 
     def _create_uploader(self, ign):
-        self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir.encode('utf-8'),
-                                         "magicfolderdb.sqlite", inotify=self.inotify, pending_delay=0.2)
+        dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
+        self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir,
+                                     dbfile, inotify=self.inotify, pending_delay=0.2)
         self.uploader.setServiceParent(self.client)
         self.uploader.upload_ready()
         self.failUnlessEqual(self.uploader._db.VERSION, 2)
@@ -63,20 +65,20 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: res)
         return d
 
-    def _test_db_basic(self):
+    def test_db_basic(self):
         fileutil.make_dirs(self.basedir)
-        dbfile = os.path.join(self.basedir, "dbfile")
+        dbfile = abspath_expanduser_unicode(u"dbfile", base=self.basedir)
         self._createdb(dbfile)
 
-    def _test_db_persistence(self):
+    def test_db_persistence(self):
         """Test that a file upload creates an entry in the database.
         """
+        self.maybe_skip_test()
         fileutil.make_dirs(self.basedir)
-        dbfile = os.path.join(self.basedir, "dbfile")
+        dbfile = abspath_expanduser_unicode(u"dbfile", base=self.basedir)
         db = self._createdb(dbfile)
 
-        path = os.path.join(self.basedir, u"myFile1")
-        path = abspath_expanduser_unicode(path)
+        path = abspath_expanduser_unicode(u"myFile1", base=self.basedir)
         db.did_upload_file('URI:LIT:1', path, 0, 0, 33)
 
         c = db.cursor
@@ -89,11 +91,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         ##
         # 2nd test uses db.check_file instead of SQL query directly
         # to confirm the previous upload entry in the db.
-        relative_path = os.path.join(self.basedir, u"myFile2")
-        path = abspath_expanduser_unicode(relative_path)
-        f = open(path, "wb")
-        f.write("meow\n")
-        f.close()
+        relative_path = abspath_expanduser_unicode(u"myFile2", base=self.basedir)
+        fileutil.write(path, "meow\n")
         s = os.stat(path)
         size = s[stat.ST_SIZE]
         ctime = s[stat.ST_CTIME]
@@ -103,7 +102,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         was_uploaded = r.was_uploaded()
         self.failIfEqual(was_uploaded, False)
 
-    def _test_uploader_start_service(self):
+    def test_uploader_start_service(self):
+        self.maybe_skip_test()
         self.set_up_grid()
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
@@ -116,11 +116,12 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.dirs_monitored'), 0))
         return d
 
-    def _test_move_tree(self):
+    def test_move_tree(self):
         print "_test_move_tree"
+        self.maybe_skip_test()
         self.set_up_grid()
 
-        self.local_dir = os.path.join(self.basedir, u"l\u00F8cal_dir")
+        self.local_dir = abspath_expanduser_unicode(u"l\u00F8cal_dir", base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
 
         self.client = self.g.clients[0]
@@ -133,13 +134,13 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         def testMoveEmptyTree(res):
             tree_name = u'empty_tree'
-            tree_dir = os.path.join(self.basedir, tree_name)
+            tree_dir = abspath_expanduser_unicode(tree_name, base=self.basedir)
             self.mkdir_nonascii(tree_dir)
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
-            new_tree_dir = os.path.join(self.local_dir, tree_name)
+            new_tree_dir = abspath_expanduser_unicode(tree_name, base=self.local_dir)
             os.rename(tree_dir, new_tree_dir)
-            self.notify_close_write(FilePath(new_tree_dir))
+            self.notify_close_write(to_filepath(new_tree_dir))
             return d2
         d.addCallback(testMoveEmptyTree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
@@ -149,16 +150,14 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         def testMoveSmallTree(res):
             tree_name = 'small_tree'
-            tree_dir = os.path.join(self.basedir, tree_name)
+            tree_dir = abspath_expanduser_unicode(tree_name, base=self.basedir)
             os.mkdir(tree_dir)
-            f = open(os.path.join(tree_dir, 'what'), "wb")
-            f.write("say when")
-            f.close()
+            fileutil.write(abspath_expanduser_unicode(u"what", base=tree_dir), "say when")
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=1)
-            new_tree_dir = os.path.join(self.local_dir, tree_name)
+            new_tree_dir = abspath_expanduser_unicode(tree_name, base=self.local_dir)
             os.rename(tree_dir, new_tree_dir)
-            self.notify_close_write(FilePath(new_tree_dir))
+            self.notify_close_write(to_filepath(new_tree_dir))
             return d2
         d.addCallback(testMoveSmallTree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 3))
@@ -168,14 +167,15 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addBoth(self._cleanup)
         return d
 
-    def _test_persistence(self):
+    def test_persistence(self):
         """ Perform an upload of a given file and then stop the client.
         Start a new client and uploader... and verify that the file is NOT uploaded
         a second time. This test is meant to test the database persistence along with
         the startup and shutdown code paths of the uploader.
         """
+        self.maybe_skip_test()
         self.set_up_grid()
-        self.local_dir = os.path.join(self.basedir, u"test_persistence")
+        self.local_dir = abspath_expanduser_unicode(u"test_persistence", base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
 
         self.client = self.g.clients[0]
@@ -187,11 +187,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         def create_file(val):
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback)
-            myFile = os.path.join(self.local_dir, "what")
-            f = open(myFile, "wb")
-            f.write("meow")
-            f.close()
-            self.notify_close_write(FilePath(myFile))
+            myFile = abspath_expanduser_unicode(u"what", base=self.local_dir)
+            fileutil.write(myFile, "meow")
+            self.notify_close_write(to_filepath(myFile))
             return d2
         d.addCallback(create_file)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
@@ -210,7 +208,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addBoth(self._cleanup)
         return d
 
-    def _test(self):
+    def test_drop_upload(self):
+        self.maybe_skip_test()
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
         self.mkdir_nonascii(self.local_dir)
@@ -255,24 +254,21 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
         self.uploader.set_uploaded_callback(d.callback)
 
-        path_u = os.path.join(self.local_dir, name_u)
-        if sys.platform == "win32":
-            path = FilePath(path_u)
-        else:
-            path = FilePath(path_u.encode(get_filesystem_encoding()))
+        path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
+        path = to_filepath(path_u)
 
         # We don't use FilePath.setContent() here because it creates a temporary file that
         # is renamed into place, which causes events that the test is not expecting.
-        f = open(path.path, "wb")
+        f = open(path_u, "wb")
         try:
             if temporary and sys.platform != "win32":
-                os.unlink(path.path)
+                os.unlink(path_u)
             f.write(data)
         finally:
             f.close()
         if temporary and sys.platform == "win32":
-            os.unlink(path.path)
-        fileutil.flush_volume(path.path)
+            os.unlink(path_u)
+        fileutil.flush_volume(path_u)
         self.notify_close_write(path)
 
         if temporary:
@@ -298,11 +294,13 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
         DropUploadTestMixin.setUp(self)
         self.inotify = fake_inotify
 
+    def maybe_skip_test(self):
+        pass
+
     def notify_close_write(self, path):
         self.uploader._notifier.event(path, self.inotify.IN_CLOSE_WRITE)
 
     def test_errors(self):
-        self.basedir = "drop_upload.MockTest.test_errors"
         self.set_up_grid()
 
         basedir = abspath_expanduser_unicode(unicode(self.basedir))
@@ -333,30 +331,6 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
         d.addCallback(_check_errors)
         return d
 
-    def test_drop_upload(self):
-        self.basedir = "drop_upload.MockTest.test_drop_upload"
-        return self._test()
-
-    def test_basic_db(self):
-        self.basedir = "drop_upload.MockTest.test_basic_db"
-        return self._test_db_basic()
-
-    def test_db_persistence(self):
-        self.basedir = "drop_upload.MockTest.test_db_persistence"
-        return self._test_db_persistence()
-
-    def test_uploader_start_service(self):
-        self.basedir = "drop_upload.MockTest.test_uploader_start_service"
-        return self._test_uploader_start_service()
-
-    def test_move_tree(self):
-        self.basedir = "drop_upload.MockTest.test_move_tree"
-        return self._test_move_tree()
-
-    def test_persistence(self):
-        self.basedir = "drop_upload.MockTest.test_persistence"
-        return self._test_persistence()
-
 
 class RealTest(DropUploadTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
@@ -365,35 +339,12 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
         DropUploadTestMixin.setUp(self)
         self.inotify = None
 
-    def test_drop_upload(self):
+    def maybe_skip_test(self):
         # We should always have runtime.platform.supportsINotify, because we're using
         # Twisted >= 10.1.
         if sys.platform != "win32" and not runtime.platform.supportsINotify():
             raise unittest.SkipTest("Drop-upload support can only be tested for-real on an OS that supports inotify or equivalent.")
 
-        self.basedir = "drop_upload.RealTest.test_drop_upload"
-        return self._test()
-
     def notify_close_write(self, path):
         # Writing to the file causes the notification.
         pass
-
-    def test_basic_db(self):
-        self.basedir = "drop_upload.RealTest.test_basic_db"
-        return self._test_db_basic()
-
-    def test_db_persistence(self):
-        self.basedir = "drop_upload.RealTest.test_db_persistence"
-        return self._test_db_persistence()
-
-    def test_uploader_start_service(self):
-        self.basedir = "drop_upload.RealTest._test_uploader_start_service"
-        return self._test_uploader_start_service()
-
-    def test_move_tree(self):
-        self.basedir = "drop_upload.RealTest._test_move_tree"
-        return self._test_move_tree()
-
-    def test_persistence(self):
-        self.basedir = "drop_upload.RealTest.test_persistence"
-        return self._test_persistence()
