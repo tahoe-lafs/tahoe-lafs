@@ -55,7 +55,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d = defer.succeed(None)
         if self.uploader is not None:
             d.addCallback(lambda ign: self.uploader.finish(for_tests=True))
-            d.addCallback(lambda ign: res)
+        d.addCallback(lambda ign: res)
         return d
 
     def _test_db_basic(self):
