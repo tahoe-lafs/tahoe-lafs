@@ -4,47 +4,32 @@ from collections import deque
 
 from twisted.internet import defer, reactor, task
 from twisted.python.failure import Failure
-from twisted.python.filepath import FilePath
 from twisted.application import service
 
-from allmydata.interfaces import IDirectoryNode
+from allmydata.interfaces import IDirectoryNode, NoSuchChildError
 
-from allmydata.util.encodingutil import quote_output, get_filesystem_encoding
-from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
+from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
+     unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
 from allmydata.immutable.upload import FileName
-from allmydata.scripts import backupdb, tahoe_backup
-
-from allmydata.util.encodingutil import listdir_unicode, quote_output, \
-     quote_local_unicode_path, to_str, FilenameEncodingError, unicode_to_url
-
-from allmydata.interfaces import NoSuchChildError
-from twisted.python import failure
+from allmydata.scripts import backupdb
 
 
 class DropUploader(service.MultiService):
     name = 'drop-upload'
 
-    def __init__(self, client, upload_dircap, local_dir_utf8, dbfile, inotify=None,
+    def __init__(self, client, upload_dircap, local_dir, dbfile, inotify=None,
                  pending_delay=1.0):
-        service.MultiService.__init__(self)
-        try:
-            local_dir_u = abspath_expanduser_unicode(local_dir_utf8.decode('utf-8'))
-            if sys.platform == "win32":
-                local_dir = local_dir_u
-            else:
-                local_dir = local_dir_u.encode(get_filesystem_encoding())
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            raise AssertionError("The '[drop_upload] local.directory' parameter %s was not valid UTF-8 or "
-                                 "could not be represented in the filesystem encoding."
-                                 % quote_output(local_dir_utf8))
+        precondition_abspath(local_dir)
 
+        service.MultiService.__init__(self)
+        self._local_dir = abspath_expanduser_unicode(local_dir)
         self._upload_lazy_tail = defer.succeed(None)
         self._pending = set()
         self._client = client
         self._stats_provider = client.stats_provider
         self._convergence = client.convergence
-        self._local_path = FilePath(local_dir)
-        self._local_dir = unicode(local_dir, 'UTF-8')
+        self._local_path = to_filepath(self._local_dir)
         self._dbfile = dbfile
 
         self._upload_deque = deque()
@@ -58,9 +43,13 @@ class DropUploader(service.MultiService):
         self._inotify = inotify
 
         if not self._local_path.exists():
-            raise AssertionError("The '[drop_upload] local.directory' parameter was %s but there is no directory at that location." % quote_output(local_dir_u))
+            raise AssertionError("The '[drop_upload] local.directory' parameter was %s "
+                                 "but there is no directory at that location."
+                                 % quote_local_unicode_path(local_dir))
         if not self._local_path.isdir():
-            raise AssertionError("The '[drop_upload] local.directory' parameter was %s but the thing at that location is not a directory." % quote_output(local_dir_u))
+            raise AssertionError("The '[drop_upload] local.directory' parameter was %s "
+                                 "but the thing at that location is not a directory."
+                                 % quote_local_unicode_path(local_dir))
 
         # TODO: allow a path rather than a cap URI.
         self._parent = self._client.create_node_from_uri(upload_dircap)
@@ -179,49 +168,44 @@ class DropUploader(service.MultiService):
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
-        if path.path not in self._pending:
-            self._append_to_deque(path.path)
+        path_u = unicode_from_filepath(path)
+        if path_u not in self._pending:
+            self._append_to_deque(path_u)
 
     def _process(self, path):
         d = defer.succeed(None)
 
         # FIXME (ticket #1712): if this already exists as a mutable file, we replace the
         # directory entry, but we should probably modify the file (as the SFTP frontend does).
-        def _add_file(ignore):
-            self._pending.remove(path)
-            name = os.path.basename(path)
-            # on Windows the name is already Unicode
-            if sys.platform != "win32":
-                name = name.decode(get_filesystem_encoding())
+        def _add_file(ignore, name):
             u = FileName(path, self._convergence)
             return self._parent.add_file(name, u)
 
-        def _add_dir(ignore):
-            self._pending.remove(path)
-            name = os.path.basename(path)
-            dirname = path
-            # on Windows the name is already Unicode
-            if sys.platform != "win32":
-                name = name.decode(get_filesystem_encoding())
-                # XXX
-                dirname = path
-            return self._parent.create_subdirectory(name)
+        def _add_dir(ignore, name):
+            d2 = self._parent.create_subdirectory(name)
+            d2.addCallback(lambda ign: self._log("created subdirectory %r" % (path,)))
+            d2.addCallback(lambda ign: self._scan(path))
+            return d2
 
         def _maybe_upload(val):
+            print "_maybe_upload", path
+            self._pending.remove(path)
+            name = os.path.basename(path)
+
             if not os.path.exists(path):
                 self._log("uploader: not uploading non-existent file.")
                 self._stats_provider.count('drop_upload.objects_disappeared', 1)
                 return NoSuchChildError("not uploading non-existent file")
             elif os.path.islink(path):
                 self._log("operator ERROR: symlink not being processed.")
-                return failure.Failure()
+                return Failure()
 
             if os.path.isdir(path):
-                d.addCallback(_add_dir)
+                d.addCallback(_add_dir, name)
                 self._stats_provider.count('drop_upload.directories_created', 1)
                 return None
             elif os.path.isfile(path):
-                d.addCallback(_add_file)
+                d.addCallback(_add_file, name)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
                     s = os.stat(path)
@@ -235,7 +219,7 @@ class DropUploader(service.MultiService):
                 return None
             else:
                 self._log("operator ERROR: non-directory/non-regular file not being processed.")
-                return failure.Failure()
+                return Failure()
 
         d.addCallback(_maybe_upload)
 
