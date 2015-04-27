@@ -298,6 +298,10 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 class MockTest(DropUploadTestMixin, unittest.TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
 
+    def setUp(self):
+        DropUploadTestMixin.setUp(self)
+        self.inotify = fake_inotify
+
     def notify_close_write(self, path):
         self.uploader._notifier.event(path, self.inotify.IN_CLOSE_WRITE)
 
@@ -334,32 +338,26 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
         return d
 
     def test_drop_upload(self):
-        self.inotify = fake_inotify
         self.basedir = "drop_upload.MockTest.test_drop_upload"
         return self._test()
 
     def test_basic_db(self):
-        self.inotify = fake_inotify
         self.basedir = "drop_upload.MockTest.test_basic_db"
         return self._test_db_basic()
 
     def test_db_persistence(self):
-        self.inotify = fake_inotify
         self.basedir = "drop_upload.MockTest.test_db_persistence"
         return self._test_db_persistence()
 
     def test_uploader_start_service(self):
-        self.inotify = fake_inotify
         self.basedir = "drop_upload.MockTest.test_uploader_start_service"
         return self._test_uploader_start_service()
 
     def test_move_tree(self):
-        self.inotify = fake_inotify
         self.basedir = "drop_upload.MockTest.test_move_tree"
         return self._test_move_tree()
 
     def test_persistence(self):
-        self.inotify = fake_inotify
         self.basedir = "drop_upload.MockTest.test_persistence"
         return self._test_persistence()
 
@@ -367,13 +365,16 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
 class RealTest(DropUploadTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
 
+    def setUp(self):
+        DropUploadTestMixin.setUp(self)
+        self.inotify = None
+
     def test_drop_upload(self):
         # We should always have runtime.platform.supportsINotify, because we're using
         # Twisted >= 10.1.
         if sys.platform != "win32" and not runtime.platform.supportsINotify():
             raise unittest.SkipTest("Drop-upload support can only be tested for-real on an OS that supports inotify or equivalent.")
 
-        self.inotify = None  # use the appropriate inotify for the platform
         self.basedir = "drop_upload.RealTest.test_drop_upload"
         return self._test()
 
@@ -382,26 +383,21 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
         pass
 
     def test_basic_db(self):
-        self.inotify = None
         self.basedir = "drop_upload.RealTest.test_basic_db"
         return self._test_db_basic()
 
     def test_db_persistence(self):
-        self.inotify = None
         self.basedir = "drop_upload.RealTest.test_db_persistence"
         return self._test_db_persistence()
 
     def test_uploader_start_service(self):
-        self.inotify = None
         self.basedir = "drop_upload.RealTest._test_uploader_start_service"
         return self._test_uploader_start_service()
 
     def test_move_tree(self):
-        self.inotify = None
         self.basedir = "drop_upload.RealTest._test_move_tree"
         return self._test_move_tree()
 
     def test_persistence(self):
-        self.inotify = None
         self.basedir = "drop_upload.RealTest.test_persistence"
         return self._test_persistence()
