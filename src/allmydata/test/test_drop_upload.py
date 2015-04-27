@@ -225,20 +225,20 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(self._create_uploader)
 
         # Write something short enough for a LIT file.
-        d.addCallback(lambda ign: self._test_file(u"short", "test"))
+        d.addCallback(lambda ign: self._check_file(u"short", "test"))
 
         # Write to the same file again with different data.
-        d.addCallback(lambda ign: self._test_file(u"short", "different"))
+        d.addCallback(lambda ign: self._check_file(u"short", "different"))
 
         # Test that temporary files are not uploaded.
-        d.addCallback(lambda ign: self._test_file(u"tempfile", "test", temporary=True))
+        d.addCallback(lambda ign: self._check_file(u"tempfile", "test", temporary=True))
 
         # Test that we tolerate creation of a subdirectory.
         d.addCallback(lambda ign: os.mkdir(os.path.join(self.local_dir, u"directory")))
 
         # Write something longer, and also try to test a Unicode name if the fs can represent it.
         name_u = self.unicode_or_fallback(u"l\u00F8ng", u"long")
-        d.addCallback(lambda ign: self._test_file(name_u, "test"*100))
+        d.addCallback(lambda ign: self._check_file(name_u, "test"*100))
 
         # TODO: test that causes an upload failure.
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_failed'), 0))
@@ -246,7 +246,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addBoth(self._cleanup)
         return d
 
-    def _test_file(self, name_u, data, temporary=False):
+    def _check_file(self, name_u, data, temporary=False):
         previously_uploaded = self._get_count('drop_upload.objects_uploaded')
         previously_disappeared = self._get_count('drop_upload.objects_disappeared')
 
