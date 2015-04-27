@@ -5,7 +5,6 @@ from twisted.trial import unittest
 from twisted.python import runtime
 from twisted.python.filepath import FilePath
 from twisted.internet import defer
-from twisted.application import service
 
 from allmydata.interfaces import IDirectoryNode, NoSuchChildError
 from allmydata.util import fileutil, fake_inotify
@@ -62,7 +61,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     def _test_db_basic(self):
         fileutil.make_dirs(self.basedir)
         dbfile = os.path.join(self.basedir, "dbfile")
-        bdb = self._createdb(dbfile)
+        self._createdb(dbfile)
 
     def _test_db_persistence(self):
         """Test that a file upload creates an entry in the database.
