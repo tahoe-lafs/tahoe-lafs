@@ -246,7 +246,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
-        sb = StorageFarmBroker(None, True)
+        sb = StorageFarmBroker(None, True, 0, None)
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
                    "permutation-seed-base32": base32.b2a(k) }
