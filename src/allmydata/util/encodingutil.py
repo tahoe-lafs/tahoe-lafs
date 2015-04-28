@@ -8,6 +8,7 @@ from types import NoneType
 
 from allmydata.util.assertutil import precondition
 from twisted.python import usage
+from twisted.python.filepath import FilePath
 from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
@@ -35,9 +36,10 @@ def check_encoding(encoding):
 filesystem_encoding = None
 io_encoding = None
 is_unicode_platform = False
+use_unicode_filepath = False
 
 def _reload():
-    global filesystem_encoding, io_encoding, is_unicode_platform
+    global filesystem_encoding, io_encoding, is_unicode_platform, use_unicode_filepath
 
     filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
     check_encoding(filesystem_encoding)
@@ -60,6 +62,8 @@ def _reload():
     check_encoding(io_encoding)
 
     is_unicode_platform = sys.platform in ["win32", "darwin"]
+
+    use_unicode_filepath = sys.platform == "win32" or hasattr(FilePath, '_asTextPath')
 
 _reload()
 
@@ -248,6 +252,23 @@ def quote_local_unicode_path(path, quotemarks=True):
             path = u"\\\\" + path[4 :]
 
     return quote_output(path, quotemarks=quotemarks, quote_newlines=True)
+
+def to_filepath(path):
+    precondition(isinstance(path, basestring), path=path)
+
+    if isinstance(path, unicode) and not use_unicode_filepath:
+        path = path.encode(filesystem_encoding)
+
+    return FilePath(path)
+
+def unicode_from_filepath(fp):
+    precondition(isinstance(fp, FilePath), fp=fp)
+
+    path = fp.path
+    if isinstance(path, bytes):
+        path = path.decode(filesystem_encoding)
+
+    return path
 
 
 def unicode_platform():
