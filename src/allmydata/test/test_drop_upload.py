@@ -74,7 +74,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     def test_db_persistence(self):
         """Test that a file upload creates an entry in the database.
         """
-        self.maybe_skip_test()
         fileutil.make_dirs(self.basedir)
         dbfile = abspath_expanduser_unicode(u"dbfile", base=self.basedir)
         db = self._createdb(dbfile)
@@ -104,7 +103,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.failIfEqual(was_uploaded, False)
 
     def test_uploader_start_service(self):
-        self.maybe_skip_test()
         self.set_up_grid()
 
         self.local_dir = abspath_expanduser_unicode(u"l\u00F8cal_dir", base=self.basedir)
@@ -122,7 +120,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         return d
 
     def test_move_tree(self):
-        self.maybe_skip_test()
         self.set_up_grid()
 
         self.local_dir = abspath_expanduser_unicode(u"l\u00F8cal_dir", base=self.basedir)
@@ -177,7 +174,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         a second time. This test is meant to test the database persistence along with
         the startup and shutdown code paths of the uploader.
         """
-        self.maybe_skip_test()
         self.set_up_grid()
         self.local_dir = abspath_expanduser_unicode(u"test_persistence", base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
@@ -213,7 +209,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         return d
 
     def test_drop_upload(self):
-        self.maybe_skip_test()
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
         self.mkdir_nonascii(self.local_dir)
@@ -298,9 +293,6 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
         DropUploadTestMixin.setUp(self)
         self.inotify = fake_inotify
 
-    def maybe_skip_test(self):
-        pass
-
     def notify_close_write(self, path):
         self.uploader._notifier.event(path, self.inotify.IN_CLOSE_WRITE)
 
@@ -343,12 +335,9 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
         DropUploadTestMixin.setUp(self)
         self.inotify = None
 
-    def maybe_skip_test(self):
-        # We should always have runtime.platform.supportsINotify, because we're using
-        # Twisted >= 10.1.
-        if sys.platform != "win32" and not runtime.platform.supportsINotify():
-            raise unittest.SkipTest("Drop-upload support can only be tested for-real on an OS that supports inotify or equivalent.")
-
     def notify_close_write(self, path):
         # Writing to the file causes the notification.
         pass
+
+if sys.platform != "win32" and not runtime.platform.supportsINotify():
+    RealTest.skip = "Drop-upload support can only be tested for-real on an OS that supports inotify or equivalent."
