@@ -114,6 +114,9 @@ class DropUploader(service.MultiService):
             elif isdir:
                 # recurse on the child directory
                 self._scan(childpath)
+                must_upload = self._check_db_file(childpath)
+                if must_upload:
+                    self._append_to_deque(childpath)
             elif isfile:
                 must_upload = self._check_db_file(childpath)
                 if must_upload:
@@ -157,6 +160,7 @@ class DropUploader(service.MultiService):
     def _append_to_deque(self, path):
         self._upload_deque.append(path)
         self._pending.add(path)
+        self._stats_provider.count('drop_upload.objects_queued', 1)
         if self.is_upload_ready:
             reactor.callLater(0, self._turn_deque)
 
@@ -171,7 +175,6 @@ class DropUploader(service.MultiService):
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
-        self._stats_provider.count('drop_upload.objects_queued', 1)
         if path.path not in self._pending:
             self._append_to_deque(path.path)
 
@@ -190,20 +193,20 @@ class DropUploader(service.MultiService):
             return self._parent.add_file(name, u)
 
         def _add_dir(ignore):
-            print "_add_dir %s" % (path,)
             self._pending.remove(path)
             name = os.path.basename(path)
             dirname = path
             # on Windows the name is already Unicode
             if sys.platform != "win32":
                 name = name.decode(get_filesystem_encoding())
-                dirname = path.decode(get_filesystem_encoding())
+                # XXX
+                #dirname = path.decode(get_filesystem_encoding())
+                dirname = path
 
             reactor.callLater(0, self._scan, dirname)
             return self._parent.create_subdirectory(name)
 
         def _maybe_upload(val):
-            print "in _maybe_upload"
             if not os.path.exists(path):
                 self._log("uploader: not uploading non-existent file.")
                 self._stats_provider.count('drop_upload.objects_disappeared', 1)
@@ -246,7 +249,6 @@ class DropUploader(service.MultiService):
         return d
 
     def _do_upload_callback(self, res):
-        print "in _do_upload_callback"
         if self._ignore_count == 0:
             self._uploaded_callback(res)
         else:
@@ -266,6 +268,9 @@ class DropUploader(service.MultiService):
             return self._notifier.wait_until_stopped()
         else:
             return defer.succeed(None)
+
+    def remove_service(self):
+        return service.MultiService.disownServiceParent(self)
 
     def _log(self, msg):
         self._client.log(msg)

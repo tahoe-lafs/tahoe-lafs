@@ -7,6 +7,7 @@ from twisted.trial import unittest
 from twisted.python import runtime
 from twisted.python.filepath import FilePath
 from twisted.internet import defer
+from twisted.application import service
 
 from allmydata.interfaces import IDirectoryNode, NoSuchChildError
 
@@ -37,6 +38,10 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         return bdb
 
     def _made_upload_dir(self, n):
+        if self.dir_node == None:
+            self.dir_node = n
+        else:
+            n = self.dir_node
         self.failUnless(IDirectoryNode.providedBy(n))
         self.upload_dirnode = n
         self.upload_dircap = n.get_uri()
@@ -88,21 +93,18 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(self._made_upload_dir)
 
         def testMoveEmptyTree(res):
-            print "moving tree into %s" % self.local_dir
-            tree_dir = os.path.join(self.basedir, 'apple_tree')
-            tree_dir_fp = FilePath(tree_dir)
+            tree_name = 'empty_tree'
+            tree_dir = os.path.join(self.basedir, tree_name)
+            os.mkdir(tree_dir)
+
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
 
-            os.mkdir(tree_dir)
-            self.notify_close_write(tree_dir_fp)
-            os.rename(tree_dir, os.path.join(self.local_dir, 'apple_tree'))
-            self.notify_close_write(tree_dir_fp)
+            new_tree_dir = os.path.join(self.local_dir, tree_name)
+            os.rename(tree_dir, new_tree_dir)
+            self.notify_close_write(FilePath(new_tree_dir))
             return d2
         d.addCallback(testMoveEmptyTree)
-        def _print(ign):
-            print "in _print"
-        d.addCallback(_print)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
@@ -115,8 +117,14 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             f = open(os.path.join(tree_dir, 'what'), "wb")
             f.write("meow")
             f.close()
-            os.rename(tree_dir, os.path.join(self.local_dir, tree_name))
-            return res
+
+            d2 = defer.Deferred()
+            self.uploader.set_uploaded_callback(d2.callback, ignore_count=1)
+
+            new_tree_dir = os.path.join(self.local_dir, tree_name)
+            os.rename(tree_dir, new_tree_dir)
+            self.notify_close_write(FilePath(new_tree_dir))
+            return d2
 
         d.addCallback(testMoveSmallTree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 3))
@@ -129,6 +137,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
     def _test_persistence(self):
         self.uploader = None
+        self.dir_node = None
+
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, u"test_persistence")
         self.mkdir_nonascii(self.local_dir)
@@ -140,14 +150,22 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(self._made_upload_dir)
         d.addCallback(lambda ign: self.uploader.Pause())
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         def create_file(val):
-            print "creating file..."
             myFile = os.path.join(self.local_dir, "what")
             f = open(myFile, "wb")
             f.write("meow")
             f.close()
+            # XXX
+            #self.notify_close_write(FilePath(myFile))
             return None
         d.addCallback(create_file)
+        d.addCallback(self._cleanup)
+        #d.addCallback(lambda ign: self.client.stopService())
+        #d.addCallback(lambda ign: self.client.disownParentService(self))
+        #d.addCallback(lambda ign: self.client.startService())
+        d.addCallback(self._made_upload_dir)
+
         def resume_uploader(val):
             self.uploader.Resume()
             d = defer.Deferred()
@@ -162,6 +180,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
     def _test(self):
         self.uploader = None
+        self.dir_node = None
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
         self.mkdir_nonascii(self.local_dir)
