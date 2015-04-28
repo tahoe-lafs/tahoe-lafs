@@ -18,7 +18,8 @@ from allmydata.scripts import backupdb
 class DropUploader(service.MultiService):
     name = 'drop-upload'
 
-    def __init__(self, client, upload_dircap, local_dir, dbfile, inotify=None):
+    def __init__(self, client, upload_dircap, local_dir, dbfile, inotify=None,
+                 pending_delay=1.0):
         precondition_abspath(local_dir)
 
         service.MultiService.__init__(self)
@@ -32,7 +33,10 @@ class DropUploader(service.MultiService):
         self.is_upload_ready = False
 
         if inotify is None:
-            from twisted.internet import inotify
+            if sys.platform == "win32":
+                from allmydata.windows import inotify
+            else:
+                from twisted.internet import inotify
         self._inotify = inotify
 
         if not self._local_path.exists():
@@ -54,6 +58,8 @@ class DropUploader(service.MultiService):
         self._uploaded_callback = lambda ign: None
 
         self._notifier = inotify.INotify()
+        if hasattr(self._notifier, 'set_pending_delay'):
+            self._notifier.set_pending_delay(pending_delay)
 
         # We don't watch for IN_CREATE, because that would cause us to read and upload a
         # possibly-incomplete file before the application has closed it. There should always
