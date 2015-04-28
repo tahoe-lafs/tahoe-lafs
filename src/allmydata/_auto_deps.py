@@ -34,7 +34,10 @@ install_requires = [
     # * foolscap < 0.6 is incompatible with Twisted 10.2.0.
     # * foolscap 0.6.1 quiets a DeprecationWarning.
     # * foolscap < 0.6.3 is incompatible with Twisted 11.1.0 and newer.
-    "foolscap >= 0.6.3",
+    # * foolscap 0.8.0 generates 2048-bit RSA-with-SHA-256 signatures,
+    #   rather than 1024-bit RSA-with-MD5. This also allows us to work
+    #   with a FIPS build of OpenSSL.
+    "foolscap >= 0.8.0",
 
     # Needed for SFTP.
     # pycrypto 2.2 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/620253>
