@@ -6,7 +6,7 @@ from twisted.internet import defer, reactor, task
 from twisted.python.failure import Failure
 from twisted.application import service
 
-from allmydata.interfaces import IDirectoryNode, NoSuchChildError
+from allmydata.interfaces import IDirectoryNode, NoSuchChildError, ExistingChildError
 
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
@@ -103,9 +103,8 @@ class DropUploader(service.MultiService):
             if islink:
                 self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
             elif isdir:
-                must_upload = self._check_db_file(childpath)
-                if must_upload:
-                    self._append_to_deque(childpath)
+                # process directories unconditionally
+                self._append_to_deque(childpath)
 
                 # recurse on the child directory
                 self._scan(childpath)
@@ -183,8 +182,15 @@ class DropUploader(service.MultiService):
 
         def _add_dir(ignore, name):
             self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
-            d2 = self._parent.create_subdirectory(name)
-            d2.addCallback(lambda ign: self._log("created subdirectory %r" % (path,)))
+            d2 = self._parent.create_subdirectory(name, overwrite=False)
+            def _err(f):
+                f.trap(ExistingChildError)
+                self._log("subdirectory %r already exists" % (path,))
+            d2.addCallbacks(lambda ign: self._log("created subdirectory %r" % (path,)), _err)
+            def _failed(f):
+                self._log("failed to create subdirectory %r due to %r" % (path, f))
+                self._stats_provider.count('drop_upload.objects_failed', 1)
+            d2.addCallback(_failed)
             d2.addCallback(lambda ign: self._scan(path))
             return d2
 
