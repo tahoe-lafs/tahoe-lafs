@@ -122,7 +122,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         return d
 
     def test_move_tree(self):
-        print "_test_move_tree"
         self.maybe_skip_test()
         self.set_up_grid()
 
