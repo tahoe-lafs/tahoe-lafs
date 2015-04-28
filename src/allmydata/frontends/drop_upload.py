@@ -117,8 +117,6 @@ class DropUploader(service.MultiService):
         if self._db is None:
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
 
-        self._scan(self._local_path)
-
         service.MultiService.startService(self)
         d = self._notifier.startReading()
 
