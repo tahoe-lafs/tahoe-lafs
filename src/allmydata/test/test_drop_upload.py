@@ -2,19 +2,20 @@
 import os, sys
 
 from twisted.trial import unittest
-from twisted.python import filepath, runtime
+from twisted.python import runtime
 from twisted.internet import defer
 
 from allmydata.interfaces import IDirectoryNode, NoSuchChildError
 
-from allmydata.util import fake_inotify
-from allmydata.util.encodingutil import get_filesystem_encoding
+from allmydata.util import fake_inotify, fileutil
+from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
 
 from allmydata.frontends.drop_upload import DropUploader
+from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
 class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
@@ -23,6 +24,10 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     with the real INotify.
     """
 
+    def setUp(self):
+        GridTestMixin.setUp(self)
+        temp = self.mktemp()
+        self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
     def _get_count(self, name):
         return self.stats_provider.get_stats()["counters"].get(name, 0)
 
@@ -84,23 +89,21 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
         self.uploader.set_uploaded_callback(d.callback)
 
-        path_u = os.path.join(self.local_dir, name_u)
-        if sys.platform == "win32":
-            path = filepath.FilePath(path_u)
-        else:
-            path = filepath.FilePath(path_u.encode(get_filesystem_encoding()))
+        path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
+        path = to_filepath(path_u)
 
         # We don't use FilePath.setContent() here because it creates a temporary file that
         # is renamed into place, which causes events that the test is not expecting.
-        f = open(path.path, "wb")
+        f = open(path_u, "wb")
         try:
             if temporary and sys.platform != "win32":
-                os.unlink(path.path)
+                os.unlink(path_u)
             f.write(data)
         finally:
             f.close()
         if temporary and sys.platform == "win32":
-            os.unlink(path.path)
+            os.unlink(path_u)
+        fileutil.flush_volume(path_u)
         self.notify_close_write(path)
 
         if temporary:
@@ -123,10 +126,14 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
 
     def test_errors(self):
-        self.basedir = "drop_upload.MockTest.test_errors"
         self.set_up_grid()
-        errors_dir = os.path.join(self.basedir, "errors_dir")
+
+        errors_dir = abspath_expanduser_unicode(u"errors_dir", base=self.basedir)
         os.mkdir(errors_dir)
+        not_a_dir = abspath_expanduser_unicode(u"NOT_A_DIR", base=self.basedir)
+        fileutil.write(not_a_dir, "")
+        magicfolderdb = abspath_expanduser_unicode(u"magicfolderdb", base=self.basedir)
+        doesnotexist  = abspath_expanduser_unicode(u"doesnotexist", base=self.basedir)
 
         client = self.g.clients[0]
         d = client.create_dirnode()
@@ -135,16 +142,10 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
             upload_dircap = n.get_uri()
             readonly_dircap = n.get_readonly_uri()
 
-            self.shouldFail(AssertionError, 'invalid local.directory', 'could not be represented',
-                            DropUploader, client, upload_dircap, '\xFF', inotify=fake_inotify)
             self.shouldFail(AssertionError, 'nonexistent local.directory', 'there is no directory',
-                            DropUploader, client, upload_dircap, os.path.join(self.basedir, "Laputa"), inotify=fake_inotify)
-
-            fp = filepath.FilePath(self.basedir).child('NOT_A_DIR')
-            fp.touch()
+                            DropUploader, client, upload_dircap, doesnotexist, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory local.directory', 'is not a directory',
-                            DropUploader, client, upload_dircap, fp.path, inotify=fake_inotify)
-
+                            DropUploader, client, upload_dircap, not_a_dir, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'bad upload.dircap', 'does not refer to a directory',
                             DropUploader, client, 'bad', errors_dir, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory upload.dircap', 'does not refer to a directory',
