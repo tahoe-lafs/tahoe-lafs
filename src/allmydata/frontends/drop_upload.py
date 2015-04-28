@@ -47,9 +47,9 @@ class DropUploader(service.MultiService):
         # TODO: allow a path rather than a cap URI.
         self._parent = self._client.create_node_from_uri(upload_dircap)
         if not IDirectoryNode.providedBy(self._parent):
-            raise AssertionError("The '[drop_upload] upload.dircap' parameter does not refer to a directory.")
+            raise AssertionError("The URI in 'private/drop_upload_dircap' does not refer to a directory.")
         if self._parent.is_unknown() or self._parent.is_readonly():
-            raise AssertionError("The '[drop_upload] upload.dircap' parameter is not a writecap to a directory.")
+            raise AssertionError("The URI in 'private/drop_upload_dircap' is not a writecap to a directory.")
 
         self._uploaded_callback = lambda ign: None
 
