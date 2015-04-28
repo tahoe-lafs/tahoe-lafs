@@ -96,7 +96,7 @@ class DropUploader(service.MultiService):
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
 
-        self._stats_provider.count('drop_upload.files_queued', 1)
+        self._stats_provider.count('drop_upload.objects_queued', 1)
         eventually(self._process, opaque, path, events_mask)
 
     def _process(self, opaque, path, events_mask):
@@ -115,18 +115,18 @@ class DropUploader(service.MultiService):
         d.addCallback(_add_file)
 
         def _succeeded(ign):
-            self._stats_provider.count('drop_upload.files_queued', -1)
-            self._stats_provider.count('drop_upload.files_uploaded', 1)
+            self._stats_provider.count('drop_upload.objects_queued', -1)
+            self._stats_provider.count('drop_upload.objects_uploaded', 1)
+
         def _failed(f):
-            self._stats_provider.count('drop_upload.files_queued', -1)
-            if path.exists():
-                self._log("drop-upload: %r failed to upload due to %r" % (path.path, f))
-                self._stats_provider.count('drop_upload.files_failed', 1)
+            self._stats_provider.count('drop_upload.objects_queued', -1)
+            if os.path.exists(path):
+                self._log("drop-upload: %r failed to upload due to %r" % (path, f))
+                self._stats_provider.count('drop_upload.objects_failed', 1)
                 return f
             else:
-                self._log("drop-upload: notified file %r disappeared "
-                          "(this is normal for temporary files): %r" % (path.path, f))
-                self._stats_provider.count('drop_upload.files_disappeared', 1)
+                self._log("drop-upload: notified object %r disappeared "
+                          "(this is normal for temporary objects): %r" % (path, f))
                 return None
 
         d.addCallbacks(_succeeded, _failed)
