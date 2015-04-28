@@ -132,6 +132,12 @@ class DropUploader(service.MultiService):
         #print "adding file to upload queue %s" % (path,)
         pass
 
+    def Pause(self):
+        self.is_upload_ready = False
+
+    def Resume(self):
+        self.is_upload_ready = True
+
     def upload_ready(self):
         """upload_ready is used to signal us to start
         processing the upload items...
@@ -175,7 +181,17 @@ class DropUploader(service.MultiService):
             return self._parent.add_file(name, u)
 
         def _add_dir(ignore):
-             return self._parent.create_subdirectory(name)
+            print "_add_dir %s" % (path.path,)
+            self._pending.remove(path)
+            name = path.basename()
+            dirname = path.path
+            # on Windows the name is already Unicode
+            if sys.platform != "win32":
+                name = name.decode(get_filesystem_encoding())
+                dirname = path.path.decode(get_filesystem_encoding())
+
+            self._scan(dirname)
+            return self._parent.create_subdirectory(name)
 
         def _maybe_upload(val):
             if not os.path.exists(path.path):
@@ -206,7 +222,7 @@ class DropUploader(service.MultiService):
 
         def _failed(f):
             self._stats_provider.count('drop_upload.objects_queued', -1)
-            if path.exists():
+            if os.path.exists(path.path):
                 self._log("drop-upload: %r failed to upload due to %r" % (path.path, f))
                 self._stats_provider.count('drop_upload.objects_failed', 1)
                 return f
