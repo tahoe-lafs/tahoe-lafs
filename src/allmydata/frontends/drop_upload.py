@@ -23,7 +23,7 @@ class DropUploader(service.MultiService):
     name = 'drop-upload'
 
     def __init__(self, client, upload_dircap, local_dir_utf8, dbfile, inotify=None,
-                 deque_max_len=100, pending_delay=1.0):
+                 pending_delay=1.0):
         service.MultiService.__init__(self)
         try:
             local_dir_u = abspath_expanduser_unicode(local_dir_utf8.decode('utf-8'))
@@ -44,7 +44,7 @@ class DropUploader(service.MultiService):
         self._local_dir = unicode(local_dir, 'UTF-8')
         self._dbfile = dbfile
 
-        self._upload_deque = deque(maxlen=deque_max_len)
+        self._upload_deque = deque()
         self.is_upload_ready = False
 
         if inotify is None:
