@@ -93,7 +93,7 @@ class DropUploader(service.MultiService):
         except EnvironmentError:
             raise(Exception("WARNING: magic folder: permission denied on directory %s" % (quoted_path,)))
         except FilenameEncodingError:
-            raise(Esception("WARNING: magic folder: could not list directory %s due to a filename encoding error" % (quoted_path,)))
+            raise(Exception("WARNING: magic folder: could not list directory %s due to a filename encoding error" % (quoted_path,)))
 
         for child in children:
             assert isinstance(child, unicode), child
@@ -116,6 +116,8 @@ class DropUploader(service.MultiService):
         self._db = backupdb.get_backupdb(self._dbfile)
         if self._db is None:
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
+
+        self._scan(self._local_path)
 
         service.MultiService.startService(self)
         d = self._notifier.startReading()
