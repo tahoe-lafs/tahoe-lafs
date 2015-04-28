@@ -130,6 +130,7 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
+        self.upload_ready_d = defer.Deferred()
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
@@ -344,7 +345,12 @@ class Client(node.Node, pollmixin.PollMixin):
     def init_client_storage_broker(self):
         # create a StorageFarmBroker object, for use by Uploader/Downloader
         # (and everybody else who wants to use storage servers)
-        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True)
+
+        connection_threshold = min(self.encoding_params["k"],
+                                   self.encoding_params["happy"] + 1)
+
+        sb = storage_client.StorageFarmBroker(self.tub, True, connection_threshold,
+                                              self.upload_ready_d)
         self.storage_broker = sb
 
         # load static server specifications from tahoe.cfg, if any.
@@ -502,6 +508,9 @@ class Client(node.Node, pollmixin.PollMixin):
                 s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8, dbfile)
                 s.setServiceParent(self)
                 s.startService()
+
+                # start processing the upload queue when we've connected to enough servers
+                self.upload_ready_d.addCallback(s.upload_ready)
             except Exception, e:
                 self.log("couldn't start drop-uploader: %r", args=(e,))
 

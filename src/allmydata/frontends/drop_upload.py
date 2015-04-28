@@ -43,6 +43,8 @@ class DropUploader(service.MultiService):
         self._local_dir = unicode(local_dir, 'UTF-8')
         self._dbfile = dbfile
 
+        self.is_upload_ready = False
+
         if inotify is None:
             from twisted.internet import inotify
         self._inotify = inotify
@@ -120,6 +122,12 @@ class DropUploader(service.MultiService):
         # XXX stub function. fix me later.
         #print "adding file to upload queue %s" % (path,)
         pass
+
+    def upload_ready(self):
+        """upload_ready is used to signal us to start
+        processing the upload items...
+        """
+        self.is_upload_ready = True
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
