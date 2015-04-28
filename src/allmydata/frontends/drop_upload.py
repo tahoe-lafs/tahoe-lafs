@@ -12,12 +12,13 @@ from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abs
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
      unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
 from allmydata.immutable.upload import FileName
+from allmydata.scripts import backupdb
 
 
 class DropUploader(service.MultiService):
     name = 'drop-upload'
 
-    def __init__(self, client, upload_dircap, local_dir, inotify=None):
+    def __init__(self, client, upload_dircap, local_dir, dbfile, inotify=None):
         precondition_abspath(local_dir)
 
         service.MultiService.__init__(self)
@@ -26,6 +27,7 @@ class DropUploader(service.MultiService):
         self._stats_provider = client.stats_provider
         self._convergence = client.convergence
         self._local_path = to_filepath(self._local_dir)
+        self._dbfile = dbfile
 
         if inotify is None:
             from twisted.internet import inotify
@@ -58,7 +60,19 @@ class DropUploader(service.MultiService):
         mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
         self._notifier.watch(self._local_path, mask=mask, callbacks=[self._notify])
 
+    def _check_db_file(self, childpath):
+        # returns True if the file must be uploaded.
+        assert self._db != None
+        r = self._db.check_file(childpath)
+        filecap = r.was_uploaded()
+        if filecap is False:
+            return True
+
     def startService(self):
+        self._db = backupdb.get_backupdb(self._dbfile)
+        if self._db is None:
+            return Failure(Exception('ERROR: Unable to load magic folder db.'))
+
         service.MultiService.startService(self)
         d = self._notifier.startReading()
         self._stats_provider.count('drop_upload.dirs_monitored', 1)
