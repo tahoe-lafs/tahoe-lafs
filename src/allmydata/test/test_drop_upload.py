@@ -307,10 +307,14 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
     def test_errors(self):
         self.basedir = "drop_upload.MockTest.test_errors"
         self.set_up_grid()
-        errors_dir = os.path.join(self.basedir, "errors_dir")
+
+        basedir = abspath_expanduser_unicode(unicode(self.basedir))
+        errors_dir = abspath_expanduser_unicode(u"errors_dir", base=basedir)
         os.mkdir(errors_dir)
-        not_a_dir = os.path.join(self.basedir, 'NOT_A_DIR')
+        not_a_dir = abspath_expanduser_unicode(u"NOT_A_DIR", base=basedir)
         fileutil.write(not_a_dir, "")
+        magicfolderdb = abspath_expanduser_unicode(u"magicfolderdb", base=basedir)
+        doesnotexist  = abspath_expanduser_unicode(u"doesnotexist", base=basedir)
 
         client = self.g.clients[0]
         d = client.create_dirnode()
@@ -319,20 +323,16 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
             upload_dircap = n.get_uri()
             readonly_dircap = n.get_readonly_uri()
 
-            self.shouldFail(AssertionError, 'invalid local.directory', 'could not be represented',
-                            DropUploader, client, upload_dircap, '\xFF', 'magicfolderdb', inotify=fake_inotify)
             self.shouldFail(AssertionError, 'nonexistent local.directory', 'there is no directory',
-                            DropUploader, client, upload_dircap, os.path.join(self.basedir, "Laputa"), 'magicfolderdb', inotify=fake_inotify)
-
+                            DropUploader, client, upload_dircap, doesnotexist, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory local.directory', 'is not a directory',
-                            DropUploader, client, upload_dircap, not_a_dir, 'magicfolderdb', inotify=fake_inotify)
-
+                            DropUploader, client, upload_dircap, not_a_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'bad upload.dircap', 'does not refer to a directory',
-                            DropUploader, client, 'bad', errors_dir, 'magicfolderdb', inotify=fake_inotify)
+                            DropUploader, client, 'bad', errors_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory upload.dircap', 'does not refer to a directory',
-                            DropUploader, client, 'URI:LIT:foo', errors_dir, 'magicfolderdb', inotify=fake_inotify)
+                            DropUploader, client, 'URI:LIT:foo', errors_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
-                            DropUploader, client, readonly_dircap, errors_dir, 'magicfolderdb', inotify=fake_inotify)
+                            DropUploader, client, readonly_dircap, errors_dir, magicfolderdb, inotify=fake_inotify)
         d.addCallback(_check_errors)
         return d
 
