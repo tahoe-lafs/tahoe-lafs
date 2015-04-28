@@ -6,5 +6,5 @@ graft docs
 graft misc
 graft static
 
-graft setuptools-0.6c16dev5.egg
+graft setuptools-0.6c16dev6.egg
 global-exclude *~ *.pyc
