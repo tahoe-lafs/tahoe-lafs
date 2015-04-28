@@ -35,7 +35,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     def _get_count(self, name):
         return self.stats_provider.get_stats()["counters"].get(name, 0)
 
-    def _createdb(self, dbfile):
+    def _createdb(self):
+        dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
         bdb = backupdb.get_backupdb(dbfile)
         self.failUnless(bdb, "unable to create backupdb from %r" % (dbfile,))
         self.failUnlessEqual(bdb.VERSION, 2)
@@ -68,15 +69,13 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
     def test_db_basic(self):
         fileutil.make_dirs(self.basedir)
-        dbfile = abspath_expanduser_unicode(u"dbfile", base=self.basedir)
-        self._createdb(dbfile)
+        self._createdb()
 
     def test_db_persistence(self):
         """Test that a file upload creates an entry in the database."""
 
         fileutil.make_dirs(self.basedir)
-        dbfile = abspath_expanduser_unicode(u"dbfile", base=self.basedir)
-        db = self._createdb(dbfile)
+        db = self._createdb()
 
         path = abspath_expanduser_unicode(u"myFile1", base=self.basedir)
         db.did_upload_file('URI:LIT:1', path, 0, 0, 33)
@@ -99,8 +98,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         mtime = s[stat.ST_MTIME]
         db.did_upload_file('URI:LIT:2', path, mtime, ctime, size)
         r = db.check_file(path)
-        was_uploaded = r.was_uploaded()
-        self.failIfEqual(was_uploaded, False)
+        self.failUnless(r.was_uploaded())
 
     def test_uploader_start_service(self):
         self.set_up_grid()
