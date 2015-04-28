@@ -183,7 +183,6 @@ class DropUploader(service.MultiService):
             return d2
 
         def _maybe_upload(val):
-            print "_maybe_upload", path
             self._pending.remove(path)
             name = os.path.basename(path)
 
