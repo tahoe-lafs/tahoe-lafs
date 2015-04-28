@@ -116,7 +116,7 @@ class AssistedUpload(unittest.TestCase):
     timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def setUp(self):
         self.s = FakeClient()
-        self.s.storage_broker = StorageFarmBroker(None, True)
+        self.s.storage_broker = StorageFarmBroker(None, True, 0, None)
         self.s.secret_holder = client.SecretHolder("lease secret", "converge")
         self.s.startService()
 
