@@ -220,40 +220,6 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
 class RealTest(DropUploadTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
 
-    def test_db_basic(self):
-        self.basedir = basedir = os.path.join("dropupload", "basic")
-        fileutil.make_dirs(basedir)
-        dbfile = os.path.join(basedir, "dbfile")
-        bdb = self.create(dbfile)
-
-    def test_uploader_startService(self):
-        self.uploader = None
-        self.inotify = None  # use the appropriate inotify for the platform
-        self.basedir = "drop_upload.RealTest.test_uploader_startService"
-        self.set_up_grid()
-        self.client = self.g.clients[0]
-
-        d = self.client.create_dirnode()
-        def _made_upload_dir(n):
-            self.failUnless(IDirectoryNode.providedBy(n))
-            self.upload_dirnode = n
-            self.upload_dircap = n.get_uri()
-            self.uploader = DropUploader(self.client, self.upload_dircap, self.basedir.encode('utf-8'),
-                                         "magicfolderdb.sqlite", inotify=self.inotify)
-            self.uploader.startService()
-            self.failUnlessEqual(self.uploader._db.VERSION, 2)
-        d.addCallback(_made_upload_dir)
-
-        # Prevent unclean reactor errors.
-        def _cleanup(res):
-            d = defer.succeed(None)
-            if self.uploader is not None:
-                d.addCallback(lambda ign: self.uploader.finish(for_tests=True))
-            d.addCallback(lambda ign: res)
-            return d
-        d.addBoth(_cleanup)
-        return d
-
     def test_drop_upload(self):
         # We should always have runtime.platform.supportsINotify, because we're using
         # Twisted >= 10.1.
