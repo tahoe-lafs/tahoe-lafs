@@ -1291,7 +1291,8 @@ class IDirectoryNode(IFilesystemNode):
         is a file, or if must_be_file is True and the child is a directory,
         I raise ChildOfWrongTypeError."""
 
-    def create_subdirectory(name, initial_children={}, overwrite=True, metadata=None):
+    def create_subdirectory(name, initial_children={}, overwrite=True,
+                            mutable=True, mutable_version=None, metadata=None):
         """I create and attach a directory at the given name. The new
         directory can be empty, or it can be populated with children
         according to 'initial_children', which takes a dictionary in the same
