@@ -318,11 +318,12 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         class MockDropUploader(service.MultiService):
             name = 'drop-upload'
 
-            def __init__(self, client, upload_dircap, local_dir_utf8, inotify=None):
+            def __init__(self, client, upload_dircap, local_dir, dbfile, inotify=None):
                 service.MultiService.__init__(self)
                 self.client = client
                 self.upload_dircap = upload_dircap
-                self.local_dir_utf8 = local_dir_utf8
+                self.local_dir = local_dir
+                self.dbfile = dbfile
                 self.inotify = inotify
 
         self.patch(allmydata.frontends.drop_upload, 'DropUploader', MockDropUploader)
