@@ -61,7 +61,8 @@ class ControlServer(Referenceable, service.Service):
         return self.parent.debug_wait_for_client_connections(num_clients)
 
     def remote_upload_random_data_from_file(self, size, convergence):
-        filename = tempfile.NamedTemporaryFile(delete=False).name
+        tempdir = tempfile.mkdtemp()
+        filename = os.path.join(tempdir, "data")
         f = open(filename, "wb")
         block = "a" * 8192
         while size > 0:
@@ -75,6 +76,7 @@ class ControlServer(Referenceable, service.Service):
         d.addCallback(lambda results: results.get_uri())
         def _done(uri):
             os.remove(filename)
+            os.rmdir(tempdir)
             return uri
         d.addCallback(_done)
         return d
