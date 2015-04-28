@@ -91,20 +91,24 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         ##
         # 2nd test uses db.check_file instead of SQL query directly
         # to confirm the previous upload entry in the db.
-        relative_path = abspath_expanduser_unicode(u"myFile2", base=self.basedir)
+        path = abspath_expanduser_unicode(u"myFile2", base=self.basedir)
         fileutil.write(path, "meow\n")
         s = os.stat(path)
         size = s[stat.ST_SIZE]
         ctime = s[stat.ST_CTIME]
         mtime = s[stat.ST_MTIME]
         db.did_upload_file('URI:LIT:2', path, mtime, ctime, size)
-        r = db.check_file(relative_path)
+        r = db.check_file(path)
         was_uploaded = r.was_uploaded()
         self.failIfEqual(was_uploaded, False)
 
     def test_uploader_start_service(self):
         self.maybe_skip_test()
         self.set_up_grid()
+
+        self.local_dir = abspath_expanduser_unicode(u"l\u00F8cal_dir", base=self.basedir)
+        self.mkdir_nonascii(self.local_dir)
+
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
 
@@ -149,7 +153,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
 
         def testMoveSmallTree(res):
-            tree_name = 'small_tree'
+            tree_name = u'small_tree'
             tree_dir = abspath_expanduser_unicode(tree_name, base=self.basedir)
             os.mkdir(tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=tree_dir), "say when")
