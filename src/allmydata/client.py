@@ -495,11 +495,12 @@ class Client(node.Node, pollmixin.PollMixin):
                                            "put the cap in a 'private/drop_upload_dircap' file, and delete this option.")
 
             upload_dircap = self.get_or_create_private_config("drop_upload_dircap")
-            local_dir_utf8 = self.get_config("drop_upload", "local.directory")
+            local_dir_config = self.get_config("drop_upload", "local.directory").decode("utf-8")
+            local_dir = abspath_expanduser_unicode(local_dir_config, base=self.basedir)
 
             try:
                 from allmydata.frontends import drop_upload
-                s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8)
+                s = drop_upload.DropUploader(self, upload_dircap, local_dir)
                 s.setServiceParent(self)
                 s.startService()
             except Exception, e:
