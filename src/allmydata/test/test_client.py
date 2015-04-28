@@ -303,17 +303,20 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         class MockDropUploader(service.MultiService):
             name = 'drop-upload'
 
-            def __init__(self, client, upload_dircap, local_dir_utf8, inotify=None):
+            def __init__(self, client, upload_dircap, local_dir, dbfile, inotify=None,
+                         pending_delay=1.0):
                 service.MultiService.__init__(self)
                 self.client = client
                 self.upload_dircap = upload_dircap
-                self.local_dir_utf8 = local_dir_utf8
+                self.local_dir = local_dir
+                self.dbfile = dbfile
                 self.inotify = inotify
 
         mock_drop_uploader.side_effect = MockDropUploader
 
         upload_dircap = "URI:DIR2:blah"
-        local_dir_utf8 = u"loc\u0101l_dir".encode('utf-8')
+        local_dir_u = u"loc\u0101l_dir"
+        local_dir_utf8 = local_dir_u.encode('utf-8')
         config = (BASECONFIG +
                   "[storage]\n" +
                   "enabled = false\n" +
@@ -341,7 +344,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(isinstance(uploader, MockDropUploader), uploader)
         self.failUnlessReallyEqual(uploader.client, c1)
         self.failUnlessReallyEqual(uploader.upload_dircap, upload_dircap)
-        self.failUnlessReallyEqual(uploader.local_dir_utf8, local_dir_utf8)
+        self.failUnlessReallyEqual(os.path.basename(uploader.local_dir), local_dir_u)
         self.failUnless(uploader.inotify is None, uploader.inotify)
         self.failUnless(uploader.running)
 

@@ -499,13 +499,14 @@ class Client(node.Node, pollmixin.PollMixin):
                                            "put the cap in a 'private/drop_upload_dircap' file, and delete this option.")
 
             upload_dircap = self.get_or_create_private_config("drop_upload_dircap")
-            local_dir_utf8 = self.get_config("drop_upload", "local.directory")
+            local_dir_config = self.get_config("drop_upload", "local.directory").decode("utf-8")
+            local_dir = abspath_expanduser_unicode(local_dir_config, base=self.basedir)
 
             try:
                 from allmydata.frontends import drop_upload
                 dbfile = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
                 dbfile = abspath_expanduser_unicode(dbfile)
-                s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8, dbfile)
+                s = drop_upload.DropUploader(self, upload_dircap, local_dir, dbfile)
                 s.setServiceParent(self)
                 s.startService()
 
