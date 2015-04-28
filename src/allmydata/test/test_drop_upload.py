@@ -72,8 +72,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self._createdb(dbfile)
 
     def test_db_persistence(self):
-        """Test that a file upload creates an entry in the database.
-        """
+        """Test that a file upload creates an entry in the database."""
+
         fileutil.make_dirs(self.basedir)
         dbfile = abspath_expanduser_unicode(u"dbfile", base=self.basedir)
         db = self._createdb(dbfile)
@@ -88,8 +88,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
                   (path,))
         row = db.cursor.fetchone()
         self.failIfEqual(row, None)
-        ##
-        # 2nd test uses db.check_file instead of SQL query directly
+
+        # Second test uses db.check_file instead of SQL query directly
         # to confirm the previous upload entry in the db.
         path = abspath_expanduser_unicode(u"myFile2", base=self.basedir)
         fileutil.write(path, "meow\n")
@@ -184,7 +184,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         return d
 
     def test_persistence(self):
-        """ Perform an upload of a given file and then stop the client.
+        """
+        Perform an upload of a given file and then stop the client.
         Start a new client and uploader... and verify that the file is NOT uploaded
         a second time. This test is meant to test the database persistence along with
         the startup and shutdown code paths of the uploader.
