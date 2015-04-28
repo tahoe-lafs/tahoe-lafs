@@ -56,6 +56,7 @@ class DropUploader(service.MultiService):
             raise AssertionError("The URI in 'private/drop_upload_dircap' is not a writecap to a directory.")
 
         self._uploaded_callback = lambda ign: None
+        self._ignore_count = 0
 
         self._notifier = inotify.INotify()
         if hasattr(self._notifier, 'set_pending_delay'):
@@ -127,13 +128,23 @@ class DropUploader(service.MultiService):
                           "(this is normal for temporary files): %r" % (path.path, f))
                 self._stats_provider.count('drop_upload.files_disappeared', 1)
                 return None
+
         d.addCallbacks(_succeeded, _failed)
-        d.addBoth(self._uploaded_callback)
+        d.addBoth(self._do_upload_callback)
         return d
 
-    def set_uploaded_callback(self, callback):
-        """This sets a function that will be called after a file has been uploaded."""
+    def _do_upload_callback(self, res):
+        if self._ignore_count == 0:
+            self._uploaded_callback(res)
+        else:
+            self._ignore_count -= 1
+
+    def set_uploaded_callback(self, callback, ignore_count=0):
+        """
+        This sets a function that will be called after a file has been uploaded.
+        """
         self._uploaded_callback = callback
+        self._ignore_count = ignore_count
 
     def finish(self, for_tests=False):
         self._notifier.stopReading()
