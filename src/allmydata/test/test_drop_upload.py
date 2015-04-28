@@ -168,11 +168,6 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
 
     def test_drop_upload(self):
-        # We should always have runtime.platform.supportsINotify, because we're using
-        # Twisted >= 10.1.
-        if not runtime.platform.supportsINotify():
-            raise unittest.SkipTest("Drop-upload support can only be tested for-real on an OS that supports inotify or equivalent.")
-
         self.inotify = None  # use the appropriate inotify for the platform
         self.basedir = "drop_upload.RealTest.test_drop_upload"
         return self._test()
@@ -180,3 +175,6 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
     def notify_close_write(self, path):
         # Writing to the file causes the notification.
         pass
+
+if sys.platform != "win32" and not runtime.platform.supportsINotify():
+    RealTest.skip = "Drop-upload support can only be tested for-real on an OS that supports inotify or equivalent."
