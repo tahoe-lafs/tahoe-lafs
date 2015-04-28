@@ -8,32 +8,24 @@ from foolscap.api import eventually
 
 from allmydata.interfaces import IDirectoryNode
 
-from allmydata.util.encodingutil import quote_output, get_filesystem_encoding
-from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
+from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
+     unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
 from allmydata.immutable.upload import FileName
 
 
 class DropUploader(service.MultiService):
     name = 'drop-upload'
 
-    def __init__(self, client, upload_dircap, local_dir_utf8, inotify=None):
+    def __init__(self, client, upload_dircap, local_dir, inotify=None):
+        precondition_abspath(local_dir)
+
         service.MultiService.__init__(self)
-
-        try:
-            local_dir_u = abspath_expanduser_unicode(local_dir_utf8.decode('utf-8'))
-            if sys.platform == "win32":
-                local_dir = local_dir_u
-            else:
-                local_dir = local_dir_u.encode(get_filesystem_encoding())
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            raise AssertionError("The '[drop_upload] local.directory' parameter %s was not valid UTF-8 or "
-                                 "could not be represented in the filesystem encoding."
-                                 % quote_output(local_dir_utf8))
-
+        self._local_dir = abspath_expanduser_unicode(local_dir)
         self._client = client
         self._stats_provider = client.stats_provider
         self._convergence = client.convergence
-        self._local_path = FilePath(local_dir)
+        self._local_path = to_filepath(self._local_dir)
 
         self.is_upload_ready = False
 
@@ -42,9 +34,13 @@ class DropUploader(service.MultiService):
         self._inotify = inotify
 
         if not self._local_path.exists():
-            raise AssertionError("The '[drop_upload] local.directory' parameter was %s but there is no directory at that location." % quote_output(local_dir_u))
+            raise AssertionError("The '[drop_upload] local.directory' parameter was %s "
+                                 "but there is no directory at that location."
+                                 % quote_local_unicode_path(local_dir))
         if not self._local_path.isdir():
-            raise AssertionError("The '[drop_upload] local.directory' parameter was %s but the thing at that location is not a directory." % quote_output(local_dir_u))
+            raise AssertionError("The '[drop_upload] local.directory' parameter was %s "
+                                 "but the thing at that location is not a directory."
+                                 % quote_local_unicode_path(local_dir))
 
         # TODO: allow a path rather than a cap URI.
         self._parent = self._client.create_node_from_uri(upload_dircap)
