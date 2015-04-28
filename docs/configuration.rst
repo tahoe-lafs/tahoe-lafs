@@ -430,9 +430,9 @@ SFTP, FTP
 
 Drop-Upload
 
-    As of Tahoe-LAFS v1.9.0, a node running on Linux can be configured to
-    automatically upload files that are created or changed in a specified
-    local directory. See drop-upload.rst_ for details.
+    A node running on Linux or Windows can be configured to automatically
+    upload files that are created or changed in a specified local directory.
+    See `drop-upload.rst`_ for details.
 
 .. _download-status.rst: frontends/download-status.rst
 .. _CLI.rst: frontends/CLI.rst
