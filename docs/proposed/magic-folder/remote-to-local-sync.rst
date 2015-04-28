@@ -174,7 +174,7 @@ collapsed into the same DMD, which could get quite large. In practice a
 single DMD can easily handle the number of files expected to be written
 by a client, so this is unlikely to be a significant issue.
 
-123‒ ‒ ‒: In these designs, the set of files in a Magic Folder is
+123‒ ‒: In these designs, the set of files in a Magic Folder is
 represented as the union of the files in all client DMDs. However,
 when a file is modified by more than one client, it will be linked
 from multiple client DMDs. We therefore need a mechanism, such as a
@@ -231,7 +231,7 @@ leave some corner cases of the write coordination problem unsolved.
 +------------------------------------------------+------+------+------+------+------+------+
 | Can result in large DMDs                       |‒     |      |      |      |      |      |
 +------------------------------------------------+------+------+------+------+------+------+
-| Need version number to determine priority      |‒     |‒     |‒     |      |      |      |
+| Need version number to determine priority      |‒ ‒   |‒ ‒   |‒ ‒   |      |      |      |
 +------------------------------------------------+------+------+------+------+------+------+
 | Must traverse immutable directory structure    |      |      |‒ ‒   |      |‒ ‒   |      |
 +------------------------------------------------+------+------+------+------+------+------+
@@ -350,6 +350,9 @@ remote change has been initially classified as an overwrite.
 
 .. _`Fire Dragons`: #fire-dragons-distinguishing-conflicts-from-overwrites
 
+Note that writing a file that does not already have an entry in
+the `magic folder db`_ is initially classed as an overwrite.
+
 A *write/download collision* occurs when another program writes
 to ``foo`` in the local filesystem, concurrently with the new
 version being written by the Magic Folder client. We need to
@@ -384,11 +387,16 @@ To reclassify as a conflict, attempt to rename ``.foo.tmp`` to
 The implementation of file replacement differs between Unix
 and Windows. On Unix, it can be implemented as follows:
 
-* 4a. Set the permissions of the replacement file to be the
-  same as the replaced file, bitwise-or'd with octal 600
-  (``rw-------``).
+* 4a. Stat the replaced path, and set the permissions of the
+  replacement file to be the same as the replaced file,
+  bitwise-or'd with octal 600 (``rw-------``). If the replaced
+  file does not exist, set the permissions according to the
+  user's umask. If there is a directory at the replaced path,
+  fail.
 * 4b. Attempt to move the replaced file (``foo``) to the
-  backup filename (``foo.backup``).
+  backup filename (``foo.backup``). If an ``ENOENT`` error
+  occurs because the replaced file does not exist, ignore this
+  error and continue with steps 4c and 4d.
 * 4c. Attempt to create a hard link at the replaced filename
   (``foo``) pointing to the replacement file (``.foo.tmp``).
 * 4d. Attempt to unlink the replacement file (``.foo.tmp``),
@@ -396,24 +404,30 @@ and Windows. On Unix, it can be implemented as follows:
 
 Note that, if there is no conflict, the entry for ``foo``
 recorded in the `magic folder db`_ will reflect the ``mtime``
-set in step 3. The link operation in step 4c will cause an
-``IN_CREATE`` event for ``foo``, but this will not trigger an
-upload, because the metadata recorded in the database entry
-will exactly match the metadata for the file's inode on disk.
-(The two hard links — ``foo`` and, while it still exists,
-``.foo.tmp`` — share the same inode and therefore the same
-metadata.)
+set in step 3. The move operation in step 4b will cause a
+``MOVED_FROM`` event for ``foo``, and the link operation in
+step 4c will cause an ``IN_CREATE`` event for ``foo``.
+However, these events will not trigger an upload, because they
+are guaranteed to be processed only after the file replacement
+has finished, at which point the metadata recorded in the
+database entry will exactly match the metadata for the file's
+inode on disk. (The two hard links — ``foo`` and,  while it
+still exists, ``.foo.tmp`` — share the same inode and
+therefore the same metadata.)
 
 .. _`magic folder db`: filesystem_integration.rst#local-scanning-and-database
 
-On Windows, file replacement can be implemented as a single
-call to the `ReplaceFileW`_ API (with the
-``REPLACEFILE_IGNORE_MERGE_ERRORS`` flag).
+On Windows, file replacement can be implemented by a call to
+the `ReplaceFileW`_ API (with the
+``REPLACEFILE_IGNORE_MERGE_ERRORS`` flag). If an error occurs
+because the replaced file does not exist, then we ignore this
+error and attempt to move the replacement file to the replaced
+file.
 
 Similar to the Unix case, the `ReplaceFileW`_ operation will
-cause a change notification for ``foo``. The replaced ``foo``
-has the same ``mtime`` as the replacement file, and so this
-notification will not trigger an unwanted upload.
+cause one or more change notifications for ``foo``. The replaced
+``foo`` has the same ``mtime`` as the replacement file, and so any
+such notification(s) will not trigger an unwanted upload.
 
 .. _`ReplaceFileW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx
 
@@ -425,7 +439,7 @@ operations performed by the Magic Folder client and the other process.
 (Note that atomic operations on a directory are totally ordered.)
 The set of possible interleavings differs between Windows and Unix.
 
-On Unix, we have:
+On Unix, for the case where the replaced file already exists, we have:
 
 * Interleaving A: the other process' rename precedes our rename in
   step 4b, and we get an ``IN_MOVED_TO`` event for its rename by
@@ -457,6 +471,14 @@ On Unix, we have:
   Therefore, an upload will be triggered for ``foo`` after its
   change, which is correct and avoids data loss.
 
+If the replaced file did not already exist, an ``ENOENT`` error
+occurs at step 4b, and we continue with steps 4c and 4d. The other
+process' rename races with our link operation in step 4c. If the
+other process wins the race then the effect is similar to
+Interleaving C, and if we win the race this it is similar to
+Interleaving D. Either case avoids data loss.
+
+
 On Windows, the internal implementation of `ReplaceFileW`_ is similar
 to what we have described above for Unix; it works like this:
 
@@ -477,7 +499,11 @@ step 4c′. (If there is a failure at steps 4c′ after step 4b′ has
 completed, the `ReplaceFileW`_ call will fail with return code
 ``ERROR_UNABLE_TO_MOVE_REPLACEMENT_2``. However, it is still
 preferable to use this API over two `MoveFileExW`_ calls, because
-it retains the attributes and ACLs of ``foo`` where possible.)
+it retains the attributes and ACLs of ``foo`` where possible.
+Also note that if the `ReplaceFileW`_ call fails with
+``ERROR_FILE_NOT_FOUND`` because the replaced file does not exist,
+then the replacment operation ignores this error and continues with
+the equivalent of step 4c′, as on Unix.)
 
 However, on Windows the other application will not be able to
 directly rename ``foo.other`` onto ``foo`` (which would fail because
@@ -486,7 +512,10 @@ the destination already exists); it will have to rename or delete
 deleted. This complicates the interleaving analysis, because we
 have two operations done by the other process interleaving with
 three done by the magic folder process (rather than one operation
-interleaving with four as on Unix). The cases are:
+interleaving with four as on Unix).
+
+So on Windows, for the case where the replaced file already exists,
+we have:
 
 * Interleaving A′: the other process' deletion of ``foo`` and its
   rename of ``foo.other`` to ``foo`` both precede our rename in
@@ -504,10 +533,14 @@ interleaving with four as on Unix). The cases are:
   our rename of ``foo`` to ``foo.backup`` done by `ReplaceFileW`_,
   but its rename of ``foo.other`` to ``foo`` does not, so we get
   an ``ERROR_FILE_NOT_FOUND`` error from `ReplaceFileW`_ indicating
-  that the replaced file does not exist. Then we reclassify as a
-  conflict; the other process' changes end up at ``foo`` (after
-  it has renamed ``foo.other`` to ``foo``) and our changes end up
-  at ``foo.conflicted``. This avoids data loss.
+  that the replaced file does not exist. We ignore this error and
+  attempt to move ``foo.tmp`` to ``foo``, racing with the other
+  process which is attempting to move ``foo.other`` to ``foo``.
+  If we win the race, then our changes end up at ``foo``, and the
+  other process' move fails. If the other process wins the race,
+  then its changes end up at ``foo``, our move fails, and we
+  reclassify as a conflict, so that our changes end up at
+  ``foo.conflicted``. Either possibility avoids data loss.
 
 * Interleaving D′: the other process' deletion and/or rename happen
   during the call to `ReplaceFileW`_, causing the latter to fail.
@@ -539,6 +572,11 @@ interleaving with four as on Unix). The cases are:
   after its change, which is correct and avoids data loss.
 
 .. _`MoveFileExW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365240%28v=vs.85%29.aspx
+
+If the replaced file did not already exist, we get an
+``ERROR_FILE_NOT_FOUND`` error from `ReplaceFileW`_, and attempt to
+move ``foo.tmp`` to ``foo``. This is similar to Interleaving C, and
+either possibility for the resulting race avoids data loss.
 
 We also need to consider what happens if another process opens ``foo``
 and writes to it directly, rather than renaming another file onto it:
@@ -662,8 +700,9 @@ must not bother the user.
 For example, suppose that Alice's Magic Folder client sees a change
 to ``foo`` in Bob's DMD. If the version it downloads from Bob's DMD
 is "based on" the version currently in Alice's local filesystem at
-the time Alice's client attempts to write the downloaded file, then
-it is an overwrite. Otherwise it is initially classified as a
+the time Alice's client attempts to write the downloaded file ‒or if
+there is no existing version in Alice's local filesystem at that time‒
+then it is an overwrite. Otherwise it is initially classified as a
 conflict.
 
 This initial classification is used by the procedure for writing a
@@ -748,9 +787,9 @@ may be absent). Then the algorithm is:
   * the *last-uploaded statinfo*, if any (this is the size in
     bytes, ``mtime``, and ``ctime`` stored in the ``local_files``
     table when the file was last uploaded);
-  * the ``filecap`` field of the ``caps`` table for this file,
-    which is the URI under which the file was last uploaded.
-    Call this ``last_uploaded_uri``.
+  * the ``last_uploaded_uri`` field of the ``local_files`` table
+    for this file, which is the URI under which the file was last
+    uploaded.
 
 * 2d. If any of the following are true, then classify as a conflict:
 
@@ -857,10 +896,20 @@ take this as a signal to rename their copies to the backup filename.
 Note that the entry for this zero-length file has a version number as
 usual, and later versions may restore the file.
 
+When the downloader deletes a file (or renames it to a filename
+ending in ``.backup``) in response to a remote change, a local
+filesystem notification will occur, and we must make sure that this
+is not treated as a local change. To do this we have the downloader
+set the ``size`` field in the magic folder db to ``None`` (SQL NULL)
+just before deleting the file, and suppress notifications for which
+the local file does not exist, and the recorded ``size`` field is
+``None``.
+
 When a Magic Folder client restarts, we can detect files that had
 been downloaded but were deleted while it was not running, because
 their paths will have last-downloaded records in the magic folder db
-without any corresponding local file.
+with a ``size`` other than ``None``, and without any corresponding
+local file.
 
 Deletion of a directory
 ~~~~~~~~~~~~~~~~~~~~~~~
