@@ -1,12 +1,12 @@
 
-import sys
+import sys, os, stat
+from collections import deque
 
-from twisted.internet import defer
-from twisted.python.filepath import FilePath
+from twisted.internet import defer, reactor, task
+from twisted.python.failure import Failure
 from twisted.application import service
-from foolscap.api import eventually
 
-from allmydata.interfaces import IDirectoryNode
+from allmydata.interfaces import IDirectoryNode, NoSuchChildError
 
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
@@ -24,12 +24,15 @@ class DropUploader(service.MultiService):
 
         service.MultiService.__init__(self)
         self._local_dir = abspath_expanduser_unicode(local_dir)
+        self._upload_lazy_tail = defer.succeed(None)
+        self._pending = set()
         self._client = client
         self._stats_provider = client.stats_provider
         self._convergence = client.convergence
         self._local_path = to_filepath(self._local_dir)
         self._dbfile = dbfile
 
+        self._upload_deque = deque()
         self.is_upload_ready = False
 
         if inotify is None:
@@ -66,8 +69,9 @@ class DropUploader(service.MultiService):
         # possibly-incomplete file before the application has closed it. There should always
         # be an IN_CLOSE_WRITE after an IN_CREATE (I think).
         # TODO: what about IN_MOVE_SELF or IN_UNMOUNT?
-        mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
-        self._notifier.watch(self._local_path, mask=mask, callbacks=[self._notify])
+        self.mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
+        self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
+                             autoAdd=True, recursive=True)
 
     def _check_db_file(self, childpath):
         # returns True if the file must be uploaded.
@@ -77,6 +81,41 @@ class DropUploader(service.MultiService):
         if filecap is False:
             return True
 
+    def _scan(self, localpath):
+        if not os.path.isdir(localpath):
+            raise AssertionError("Programmer error: _scan() must be passed a directory path.")
+        quoted_path = quote_local_unicode_path(localpath)
+        try:
+            children = listdir_unicode(localpath)
+        except EnvironmentError:
+            raise(Exception("WARNING: magic folder: permission denied on directory %s" % (quoted_path,)))
+        except FilenameEncodingError:
+            raise(Exception("WARNING: magic folder: could not list directory %s due to a filename encoding error" % (quoted_path,)))
+
+        for child in children:
+            assert isinstance(child, unicode), child
+            childpath = os.path.join(localpath, child)
+            # note: symlinks to directories are both islink() and isdir()
+            isdir = os.path.isdir(childpath)
+            isfile = os.path.isfile(childpath)
+            islink = os.path.islink(childpath)
+
+            if islink:
+                self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
+            elif isdir:
+                must_upload = self._check_db_file(childpath)
+                if must_upload:
+                    self._append_to_deque(childpath)
+
+                # recurse on the child directory
+                self._scan(childpath)
+            elif isfile:
+                must_upload = self._check_db_file(childpath)
+                if must_upload:
+                    self._append_to_deque(childpath)
+            else:
+                self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
+
     def startService(self):
         self._db = backupdb.get_backupdb(self._dbfile)
         if self._db is None:
@@ -84,35 +123,104 @@ class DropUploader(service.MultiService):
 
         service.MultiService.startService(self)
         d = self._notifier.startReading()
+
+        self._scan(self._local_dir)
+
         self._stats_provider.count('drop_upload.dirs_monitored', 1)
         return d
+
+    def _add_to_dequeue(self, path):
+        # XXX stub function. fix me later.
+        #print "adding file to upload queue %s" % (path,)
+        pass
+
+    def Pause(self):
+        self.is_upload_ready = False
+
+    def Resume(self):
+        self.is_upload_ready = True
+        # XXX
+        self._turn_deque()
 
     def upload_ready(self):
         """upload_ready is used to signal us to start
         processing the upload items...
         """
         self.is_upload_ready = True
+        self._turn_deque()
+
+    def _append_to_deque(self, path):
+        self._upload_deque.append(path)
+        self._pending.add(path)
+        self._stats_provider.count('drop_upload.objects_queued', 1)
+        if self.is_upload_ready:
+            reactor.callLater(0, self._turn_deque)
+
+    def _turn_deque(self):
+        try:
+            path = self._upload_deque.pop()
+        except IndexError:
+            self._log("magic folder upload deque is now empty")
+            self._upload_lazy_tail = defer.succeed(None)
+            return
+        self._upload_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._process, path))
+        self._upload_lazy_tail.addCallback(lambda ign: self._turn_deque())
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
+        path_u = unicode_from_filepath(path)
+        if path_u not in self._pending:
+            self._append_to_deque(path_u)
 
-        self._stats_provider.count('drop_upload.objects_queued', 1)
-        eventually(self._process, opaque, path, events_mask)
-
-    def _process(self, opaque, path, events_mask):
+    def _process(self, path):
         d = defer.succeed(None)
 
-        # FIXME: if this already exists as a mutable file, we replace the directory entry,
-        # but we should probably modify the file (as the SFTP frontend does).
-        def _add_file(ign):
-            name = path.basename()
-            # on Windows the name is already Unicode
-            if not isinstance(name, unicode):
-                name = name.decode(get_filesystem_encoding())
-
-            u = FileName(path.path, self._convergence)
+        # FIXME (ticket #1712): if this already exists as a mutable file, we replace the
+        # directory entry, but we should probably modify the file (as the SFTP frontend does).
+        def _add_file(ignore, name):
+            u = FileName(path, self._convergence)
             return self._parent.add_file(name, u)
-        d.addCallback(_add_file)
+
+        def _add_dir(ignore, name):
+            self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], autoAdd=True, recursive=True)
+            d2 = self._parent.create_subdirectory(name)
+            d2.addCallback(lambda ign: self._log("created subdirectory %r" % (path,)))
+            d2.addCallback(lambda ign: self._scan(path))
+            return d2
+
+        def _maybe_upload(val):
+            self._pending.remove(path)
+            name = os.path.basename(path)
+
+            if not os.path.exists(path):
+                self._log("uploader: not uploading non-existent file.")
+                self._stats_provider.count('drop_upload.objects_disappeared', 1)
+                return NoSuchChildError("not uploading non-existent file")
+            elif os.path.islink(path):
+                self._log("operator ERROR: symlink not being processed.")
+                return Failure()
+
+            if os.path.isdir(path):
+                d.addCallback(_add_dir, name)
+                self._stats_provider.count('drop_upload.directories_created', 1)
+                return None
+            elif os.path.isfile(path):
+                d.addCallback(_add_file, name)
+                def add_db_entry(filenode):
+                    filecap = filenode.get_uri()
+                    s = os.stat(path)
+                    size = s[stat.ST_SIZE]
+                    ctime = s[stat.ST_CTIME]
+                    mtime = s[stat.ST_MTIME]
+                    self._db.did_upload_file(filecap, path, mtime, ctime, size)
+                d.addCallback(add_db_entry)
+                self._stats_provider.count('drop_upload.files_uploaded', 1)
+                return None
+            else:
+                self._log("operator ERROR: non-directory/non-regular file not being processed.")
+                return Failure()
+
+        d.addCallback(_maybe_upload)
 
         def _succeeded(ign):
             self._stats_provider.count('drop_upload.objects_queued', -1)
@@ -153,6 +261,9 @@ class DropUploader(service.MultiService):
             return self._notifier.wait_until_stopped()
         else:
             return defer.succeed(None)
+
+    def remove_service(self):
+        return service.MultiService.disownServiceParent(self)
 
     def _log(self, msg):
         self._client.log(msg)
