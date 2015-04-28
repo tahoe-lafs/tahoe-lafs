@@ -71,7 +71,7 @@ class DropUploader(service.MultiService):
         # TODO: what about IN_MOVE_SELF or IN_UNMOUNT?
         self.mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
         self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
-                             autoAdd=True, recursive=True)
+                             recursive=True)
 
     def _check_db_file(self, childpath):
         # returns True if the file must be uploaded.
@@ -182,7 +182,7 @@ class DropUploader(service.MultiService):
             return self._parent.add_file(name, u)
 
         def _add_dir(ignore, name):
-            self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], autoAdd=True, recursive=True)
+            self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
             d2 = self._parent.create_subdirectory(name)
             d2.addCallback(lambda ign: self._log("created subdirectory %r" % (path,)))
             d2.addCallback(lambda ign: self._scan(path))
