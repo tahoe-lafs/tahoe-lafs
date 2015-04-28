@@ -79,7 +79,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             self.upload_dirnode = n
             self.upload_dircap = n.get_uri()
             self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir.encode('utf-8'),
-                                         "magicfolderdb.sqlite", inotify=self.inotify)
+                                         "magicfolderdb.sqlite", inotify=self.inotify, pending_delay=0.2)
             self.uploader.setServiceParent(self.client)
             d = self.uploader.startService()
             self.uploader.upload_ready()
@@ -144,6 +144,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             f.close()
         if temporary and sys.platform == "win32":
             os.unlink(path.path)
+        fileutil.flush_volume(path.path)
         self.notify_close_write(path)
 
         if temporary:
@@ -170,6 +171,8 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
         self.set_up_grid()
         errors_dir = os.path.join(self.basedir, "errors_dir")
         os.mkdir(errors_dir)
+        not_a_dir = os.path.join(self.basedir, 'NOT_A_DIR')
+        fileutil.write(not_a_dir, "")
 
         client = self.g.clients[0]
         d = client.create_dirnode()
@@ -183,10 +186,8 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
             self.shouldFail(AssertionError, 'nonexistent local.directory', 'there is no directory',
                             DropUploader, client, upload_dircap, os.path.join(self.basedir, "Laputa"), 'magicfolderdb', inotify=fake_inotify)
 
-            fp = filepath.FilePath(self.basedir).child('NOT_A_DIR')
-            fp.touch()
             self.shouldFail(AssertionError, 'non-directory local.directory', 'is not a directory',
-                            DropUploader, client, upload_dircap, fp.path, 'magicfolderdb', inotify=fake_inotify)
+                            DropUploader, client, upload_dircap, not_a_dir, 'magicfolderdb', inotify=fake_inotify)
 
             self.shouldFail(AssertionError, 'bad upload.dircap', 'does not refer to a directory',
                             DropUploader, client, 'bad', errors_dir, 'magicfolderdb', inotify=fake_inotify)
@@ -223,7 +224,7 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
     def test_drop_upload(self):
         # We should always have runtime.platform.supportsINotify, because we're using
         # Twisted >= 10.1.
-        if not runtime.platform.supportsINotify():
+        if sys.platform != "win32" and not runtime.platform.supportsINotify():
             raise unittest.SkipTest("Drop-upload support can only be tested for-real on an OS that supports inotify or equivalent.")
 
         self.inotify = None  # use the appropriate inotify for the platform

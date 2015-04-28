@@ -22,7 +22,8 @@ from allmydata.util.encodingutil import listdir_unicode, quote_output, \
 class DropUploader(service.MultiService):
     name = 'drop-upload'
 
-    def __init__(self, client, upload_dircap, local_dir_utf8, dbfile, inotify=None, deque_max_len=100):
+    def __init__(self, client, upload_dircap, local_dir_utf8, dbfile, inotify=None,
+                 deque_max_len=100, pending_delay=1.0):
         service.MultiService.__init__(self)
         try:
             local_dir_u = abspath_expanduser_unicode(local_dir_utf8.decode('utf-8'))
@@ -47,7 +48,10 @@ class DropUploader(service.MultiService):
         self.is_upload_ready = False
 
         if inotify is None:
-            from twisted.internet import inotify
+            if sys.platform == "win32":
+                from allmydata.windows import inotify
+            else:
+                from twisted.internet import inotify
         self._inotify = inotify
 
         if not self._local_path.exists():
@@ -58,13 +62,15 @@ class DropUploader(service.MultiService):
         # TODO: allow a path rather than a cap URI.
         self._parent = self._client.create_node_from_uri(upload_dircap)
         if not IDirectoryNode.providedBy(self._parent):
-            raise AssertionError("The '[drop_upload] upload.dircap' parameter does not refer to a directory.")
+            raise AssertionError("The URI in 'private/drop_upload_dircap' does not refer to a directory.")
         if self._parent.is_unknown() or self._parent.is_readonly():
-            raise AssertionError("The '[drop_upload] upload.dircap' parameter is not a writecap to a directory.")
+            raise AssertionError("The URI in 'private/drop_upload_dircap' is not a writecap to a directory.")
 
         self._uploaded_callback = lambda ign: None
 
         self._notifier = inotify.INotify()
+        if hasattr(self._notifier, 'set_pending_delay'):
+            self._notifier.set_pending_delay(pending_delay)
 
         # We don't watch for IN_CREATE, because that would cause us to read and upload a
         # possibly-incomplete file before the application has closed it. There should always
@@ -157,12 +163,12 @@ class DropUploader(service.MultiService):
     def _process(self, path, events_mask):
         d = defer.succeed(None)
 
-        # FIXME: if this already exists as a mutable file, we replace the directory entry,
-        # but we should probably modify the file (as the SFTP frontend does).
+        # FIXME (ticket #1712): if this already exists as a mutable file, we replace the
+        # directory entry, but we should probably modify the file (as the SFTP frontend does).
         def _add_file(ign):
             name = path.basename()
             # on Windows the name is already Unicode
-            if not isinstance(name, unicode):
+            if sys.platform != "win32":
                 name = name.decode(get_filesystem_encoding())
 
             u = FileName(path.path, self._convergence)

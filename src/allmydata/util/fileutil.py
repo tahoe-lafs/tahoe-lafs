@@ -525,3 +525,48 @@ def get_available_space(whichdir, reserved_space):
     except EnvironmentError:
         log.msg("OS call to get disk statistics failed")
         return 0
+
+
+if sys.platform == "win32":
+    from ctypes import WINFUNCTYPE, windll, WinError
+    from ctypes.wintypes import BOOL, HANDLE, DWORD, LPCWSTR, LPVOID
+
+    # <http://msdn.microsoft.com/en-us/library/aa363858%28v=vs.85%29.aspx>
+    CreateFileW = WINFUNCTYPE(HANDLE, LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE) \
+                      (("CreateFileW", windll.kernel32))
+
+    GENERIC_WRITE        = 0x40000000
+    FILE_SHARE_READ      = 0x00000001
+    FILE_SHARE_WRITE     = 0x00000002
+    OPEN_EXISTING        = 3
+    INVALID_HANDLE_VALUE = 0xFFFFFFFF
+
+    # <http://msdn.microsoft.com/en-us/library/aa364439%28v=vs.85%29.aspx>
+    FlushFileBuffers = WINFUNCTYPE(BOOL, HANDLE)(("FlushFileBuffers", windll.kernel32))
+
+    # <http://msdn.microsoft.com/en-us/library/ms724211%28v=vs.85%29.aspx>
+    CloseHandle = WINFUNCTYPE(BOOL, HANDLE)(("CloseHandle", windll.kernel32))
+
+    # <http://social.msdn.microsoft.com/forums/en-US/netfxbcl/thread/4465cafb-f4ed-434f-89d8-c85ced6ffaa8/>
+    def flush_volume(path):
+        drive = os.path.splitdrive(os.path.realpath(path))[0]
+
+        hVolume = CreateFileW(u"\\\\.\\" + drive,
+                              GENERIC_WRITE,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE,
+                              None,
+                              OPEN_EXISTING,
+                              0,
+                              None
+                             )
+        if hVolume == INVALID_HANDLE_VALUE:
+            raise WinError()
+
+        if FlushFileBuffers(hVolume) == 0:
+            raise WinError()
+
+        CloseHandle(hVolume)
+else:
+    def flush_volume(path):
+        # use sync()?
+        pass
