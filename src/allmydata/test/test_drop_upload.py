@@ -127,20 +127,25 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
 
+        empty_tree_name = u"empty_tr\u00EAe"
+        empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
+        new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
+
+        small_tree_name = u"small_tr\u00EAe"
+        small_tree_dir = abspath_expanduser_unicode(small_tree_name, base=self.basedir)
+        new_small_tree_dir = abspath_expanduser_unicode(small_tree_name, base=self.local_dir)
+
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
 
         d.addCallback(self._create_uploader)
 
         def testMoveEmptyTree(res):
-            tree_name = u'empty_tree'
-            tree_dir = abspath_expanduser_unicode(tree_name, base=self.basedir)
-            self.mkdir_nonascii(tree_dir)
+            self.mkdir_nonascii(empty_tree_dir)
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
-            new_tree_dir = abspath_expanduser_unicode(tree_name, base=self.local_dir)
-            os.rename(tree_dir, new_tree_dir)
-            self.notify_close_write(to_filepath(new_tree_dir))
+            os.rename(empty_tree_dir, new_empty_tree_dir)
+            self.notify_close_write(to_filepath(new_empty_tree_dir))
             return d2
         d.addCallback(testMoveEmptyTree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
@@ -149,15 +154,12 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
 
         def testMoveSmallTree(res):
-            tree_name = u'small_tree'
-            tree_dir = abspath_expanduser_unicode(tree_name, base=self.basedir)
-            os.mkdir(tree_dir)
-            fileutil.write(abspath_expanduser_unicode(u"what", base=tree_dir), "say when")
+            self.mkdir_nonascii(small_tree_dir)
+            fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=1)
-            new_tree_dir = abspath_expanduser_unicode(tree_name, base=self.local_dir)
-            os.rename(tree_dir, new_tree_dir)
-            self.notify_close_write(to_filepath(new_tree_dir))
+            os.rename(small_tree_dir, new_small_tree_dir)
+            self.notify_close_write(to_filepath(new_small_tree_dir))
             return d2
         d.addCallback(testMoveSmallTree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 3))
