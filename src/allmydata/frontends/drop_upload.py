@@ -121,11 +121,12 @@ class DropUploader(service.MultiService):
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
 
         service.MultiService.startService(self)
-        d = self._notifier.startReading()
 
-        self._scan(self._local_dir)
-
+        # startReading can be asynchronous [Windows] or synchronous [Twisted's INotify].
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self._notifier.startReading())
         self._stats_provider.count('drop_upload.dirs_monitored', 1)
+        self._scan(self._local_dir)
         return d
 
     def _add_to_dequeue(self, path):
