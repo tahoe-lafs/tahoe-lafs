@@ -74,7 +74,10 @@ class DropUploader(service.MultiService):
 
     def startService(self):
         service.MultiService.startService(self)
-        d = self._notifier.startReading()
+
+        # startReading can be asynchronous [Windows] or synchronous [Twisted's INotify].
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self._notifier.startReading())
         self._stats_provider.count('drop_upload.dirs_monitored', 1)
         return d
 
