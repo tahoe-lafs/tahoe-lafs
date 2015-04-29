@@ -63,6 +63,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     def _cleanup(self, res):
         d = defer.succeed(None)
         if self.uploader is not None:
+            print "XXX"
             d.addCallback(lambda ign: self.uploader.finish(for_tests=True))
         d.addCallback(lambda ign: res)
         return d
