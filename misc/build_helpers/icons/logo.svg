@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:h="http://www.w3.org/1999/xhtml"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="256"
+   height="256"
+   preserveAspectRatio="xMidYMid"
+   viewBox="-180 -180 256 256"
+   id="svg3480"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="logo.svg">
+  <metadata
+     id="metadata3511">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title>Tahoe-LAFS logo</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="784"
+     inkscape:window-height="765"
+     id="namedview3509"
+     showgrid="false"
+     inkscape:zoom="0.921875"
+     inkscape:cx="128"
+     inkscape:cy="128"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg3480" />
+  <style
+     type="text/css"
+     id="style3482">
+  .storage {
+    fill: black;
+    stroke: none;
+  }
+  .arrow {
+    stroke: black;
+    stroke-width: 2;
+    marker-end: url(#arrowhead);
+  }
+</style>
+  <title
+     id="title3484">Tahoe-LAFS logo</title>
+  <desc
+     id="desc3486">
+    <h:p>A proposed logo for the Tahoe-LAFS Project.</h:p>
+    <h:p><h:a
+   rel="license"
+   href="http://creativecommons.org/licenses/by/3.0/">
+  <h:img
+     alt="Creative Commons License"
+     style="border-width:0"
+     src="http://i.creativecommons.org/l/by/3.0/88x31.png" />
+</h:a>
+<h:br />
+<h:span
+   href="http://purl.org/dc/dcmitype/StillImage"
+   property="dct:title"
+   rel="dct:type">Tahoe-LAFS Logo</h:span>
+ by <h:a
+   href="http://switchb.org/kpreid/2009/tahoe/"
+   property="cc:attributionName"
+   rel="cc:attributionURL">Kevin Reid</h:a>
+ is licensed under a <h:a
+   rel="license"
+   href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 Unported License</h:a>
+.</h:p>
+  </desc>
+  <defs
+     id="defs3488">
+    <marker
+       id="arrowhead"
+       viewBox="0 -5 10 10"
+       refX="2"
+       refY="0"
+       markerUnits="userSpaceOnUse"
+       markerWidth="10"
+       markerHeight="10"
+       orient="auto">
+      <path
+         d="M 0 -3 L 9 0 L 0 3 z"
+         id="path3491" />
+    </marker>
+  </defs>
+  <g
+     transform="translate(-48 28) scale(3.4)"
+     id="g3493">
+    <line
+       class="arrow"
+       x1="0"
+       y1="0"
+       x2="0"
+       y2="-35"
+       id="line3495" />
+    <line
+       class="arrow"
+       x1="0"
+       y1="0"
+       x2="-8"
+       y2="-21"
+       id="line3497" />
+    <line
+       class="arrow"
+       x1="0"
+       y1="0"
+       x2="8"
+       y2="-21"
+       id="line3499" />
+    <circle
+       fill="red"
+       r="10"
+       id="circle3501"
+       d="M 10,0 C 10,5.5228475 5.5228475,10 0,10 -5.5228475,10 -10,5.5228475 -10,0 c 0,-5.5228475 4.4771525,-10 10,-10 5.5228475,0 10,4.4771525 10,10 z" />
+    <circle
+       class="storage"
+       r="8"
+       cy="-50"
+       id="circle3503"
+       d="m 8,-50 c 0,4.418278 -3.581722,8 -8,8 -4.418278,0 -8,-3.581722 -8,-8 0,-4.418278 3.581722,-8 8,-8 4.418278,0 8,3.581722 8,8 z" />
+    <circle
+       class="storage"
+       r="8"
+       cy="-35"
+       cx="-14"
+       id="circle3505"
+       d="m -6,-35 c 0,4.418278 -3.581722,8 -8,8 -4.418278,0 -8,-3.581722 -8,-8 0,-4.418278 3.581722,-8 8,-8 4.418278,0 8,3.581722 8,8 z" />
+    <circle
+       class="storage"
+       r="8"
+       cy="-35"
+       cx="14"
+       id="circle3507"
+       d="m 22,-35 c 0,4.418278 -3.581722,8 -8,8 -4.418278,0 -8,-3.581722 -8,-8 0,-4.418278 3.581722,-8 8,-8 4.418278,0 8,3.581722 8,8 z" />
+  </g>
+</svg>
