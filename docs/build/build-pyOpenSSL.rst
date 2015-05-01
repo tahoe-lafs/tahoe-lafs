@@ -21,6 +21,12 @@ simpler.
 So, the first step is to download and install the C++ compiler from Microsoft
 from `this link`_.
 
+Find the location where it installed the ``vcvarsall.bat`` file; depending on
+the version of Windows it could be either
+``"%USERPROFILE%\AppData\Local\Programs\Common\Microsoft\Visual C++ for Python\9.0"``
+or ``"%CommonProgramFiles%\Microsoft\Visual C++ for Python\9.0"``, for example.
+We'll call this ``%VCDIR%`` below.
+
 .. _the Python documentation: https://docs.python.org/2/extending/windows.html
 .. _this link: https://www.microsoft.com/en-us/download/details.aspx?id=44266
 
@@ -42,20 +48,32 @@ Download and install the latest OpenSSL version
 * Download the latest OpenSSL from `the OpenSSL source download page`_ and untar it.
   At the time of writing, the latest version was OpenSSL 1.0.1m.
 
-* Set up the build environment::
+* Set up the build environment. For 64-bit Windows::
 
-    "%USERPROFILE%\AppData\Local\Programs\Common\Microsoft\Visual C++ for Python\9.0\vcvarsall.bat" amd64
+    "%VCDIR%\vcvarsall.bat" amd64
 
-* Go to the untar'ed OpenSSL source base directory and run the following commands::
+  or for 32-bit Windows::
+
+    "%VCDIR%\vcvarsall.bat" x86
+
+* Go to the untar'ed OpenSSL source base directory. For 64-bit Windows, run::
 
     mkdir c:\dist
-    perl Configure VC-WIN64A --prefix=c:\dist\openssl64 no-asm enable-tlsext
+    perl Configure VC-WIN64A --prefix=c:\dist\openssl no-asm enable-tlsext
     ms\do_win64a.bat
     nmake -f ms\ntdll.mak
     nmake -f ms\ntdll.mak install
 
+  or for 32-bit Windows, run::
 
-To check that it is working, run ``c:\dist\openssl64\bin\openssl version``.
+    mkdir c:\dist
+    perl Configure VC-WIN32 --prefix=c:\dist\openssl no-asm enable-tlsext
+    ms\do_ms.bat
+    nmake -f ms\ntdll.mak
+    nmake -f ms\ntdll.mak install
+
+
+To check that it is working, run ``c:\dist\openssl\bin\openssl version``.
 
 .. _the OpenSSL source download page: https://www.openssl.org/source/
 
@@ -67,15 +85,14 @@ Building PyOpenSSL
   currently use this version). The MD5 hash of pyOpenSSL-0.13.1.tar.gz is
   e27a3b76734c39ea03952ca94cc56715.
 
-* Set up the build environment::
-
-    "%USERPROFILE%\AppData\Local\Programs\Common\Microsoft\Visual C++ for Python\9.0\vcvarsall.bat" amd64
+* Set up the build environment by running ``vcvarsall.bat`` as for building
+  OpenSSL above.
 
 * Set OpenSSL ``LIB``, ``INCLUDE`` and ``PATH``::
 
-    set LIB=c:\dist\openssl64\lib;%LIB%
-    set INCLUDE=c:\dist\openssl64\include;%INCLUDE%
-    set PATH=c:\dist\openssl64\bin;%PATH%
+    set LIB=c:\dist\openssl\lib;%LIB%
+    set INCLUDE=c:\dist\openssl\include;%INCLUDE%
+    set PATH=c:\dist\openssl\bin;%PATH%
 
 * A workaround is needed to ensure that the setuptools ``bdist_egg`` command
   is available. Edit pyOpenSSL's ``setup.py`` around line 13 as follows::
