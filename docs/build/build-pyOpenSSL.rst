@@ -1,11 +1,11 @@
-Building pyOpenSSL on Windows-7 (64-bit)
-========================================
+Building pyOpenSSL on Windows
+=============================
 
 This document details the steps to build an pyOpenSSL egg with embedded
 OpenSSL library, for use by Tahoe-LAFS on Windows.
 
-The instructions were tried on Windows-7 64-bit. Building on a 32-bit machine
-shouldn't be too different.
+The instructions were tried on Windows 7 64-bit and Windows XP 32-bit.
+They should work on other versions of Windows, maybe with minor variations.
 
 
 Download and install Microsoft Visual C++ compiler for Python 2.7
