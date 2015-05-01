@@ -151,6 +151,7 @@ class LocalDirectoryTarget:
 
     def get_child_target(self, name):
         precondition(isinstance(name, unicode), name)
+        precondition(len(name), name) # don't want ""
         if self.children is None:
             self.populate(recurse=False)
         if name in self.children:
@@ -637,6 +638,8 @@ class Copier:
             url = self.nodeurl + "uri/%s" % urllib.quote(rootcap)
             name = None
             if path:
+                if path.endswith("/"):
+                    path = path[:-1]
                 url += "/" + escape_path(path)
                 last_slash = path.rfind(u"/")
                 name = path
@@ -659,13 +662,6 @@ class Copier:
                 writecap = to_str(d.get("rw_uri"))
                 readcap = to_str(d.get("ro_uri"))
                 mutable = d.get("mutable", False) # older nodes don't provide it
-
-                last_slash = source_spec.rfind(u"/")
-                if last_slash != -1:
-                    # TODO: this looks funny and redundant with the 'name'
-                    # assignment above. cf #2329
-                    name = source_spec[last_slash+1:]
-
                 t = TahoeFileSource(self.nodeurl, mutable, writecap, readcap, name)
         return t
 

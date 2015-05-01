@@ -658,7 +658,9 @@ starting copy, 2 files, 1 directories
 
 # these test cases come from ticket #2329 comment 40
 # trailing slash on target *directory* should not matter, test both
-# trailing slash on files should cause error
+# trailing slash on target files should cause error
+# trailing slash on source directory should not matter, test a few
+# ignore trailing slash on source file, that's easiest
 
 COPYOUT_TESTCASES = """
 cp    $FILECAP          to/existing-file : to/existing-file
@@ -680,16 +682,22 @@ cp    $FILECAP $DIRCAP  to/existing-file/ : E4-NEED-R
 cp -r $FILECAP $DIRCAP  to/existing-file/ : E7-BADSLASH
 
 # single source to a (present) target directory
-cp    $FILECAP       to : E2-DESTNAME
-cp -r $FILECAP       to : E2-DESTNAME
-cp    $DIRCAP/file   to : to/file
-cp -r $DIRCAP/file   to : to/file
-cp    $PARENTCAP/dir to : E4-NEED-R
-cp -r $PARENTCAP/dir to : to/dir/file
-cp    $DIRCAP        to : E4-NEED-R
-cp -r $DIRCAP        to : to/file
-cp    $DIRALIAS      to : E4-NEED-R
-cp -r $DIRALIAS      to : to/file
+cp    $FILECAP        to : E2-DESTNAME
+cp -r $FILECAP        to : E2-DESTNAME
+cp    $DIRCAP/file    to : to/file
+cp -r $DIRCAP/file    to : to/file
+# these two should behave like the two above: ignore trailing slash
+cp    $DIRCAP/file/   to : to/file
+cp -r $DIRCAP/file/   to : to/file
+cp    $PARENTCAP/dir  to : E4-NEED-R
+cp -r $PARENTCAP/dir  to : to/dir/file
+# these two should ignore the trailing source slash too
+cp    $PARENTCAP/dir/ to : E4-NEED-R
+cp -r $PARENTCAP/dir/ to : to/dir/file
+cp    $DIRCAP         to : E4-NEED-R
+cp -r $DIRCAP         to : to/file
+cp    $DIRALIAS       to : E4-NEED-R
+cp -r $DIRALIAS       to : to/file
 
 cp    $FILECAP       to/ : E2-DESTNAME
 cp -r $FILECAP       to/ : E2-DESTNAME
