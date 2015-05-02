@@ -121,12 +121,25 @@ if not hasattr(sys, 'frozen'):
 # already installed.
 # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2028>
 #
+# When the fallback is used we also need to work around the fact
+# that Nevow imports itself when building, which causes Twisted
+# and zope.interface to be imported; therefore, we need to set
+# setup_requires to make sure that the versions of Twisted and
+# zope.interface used at build time satisfy Nevow's requirements.
+#
 # In cases where this fallback isn't needed, we prefer Nevow >= 0.11.1
 # which can be installed using pip, and Twisted >= 13.0.0 which
-# Nevow 0.11.1 depends on.
+# Nevow 0.11.1 depends on. In this case we should *not* use the
+# setup_requires hack, because if we do then the build will break
+# when Twisted < 13.0.0 is already installed (even though it could
+# have succeeded by building a later version under support/ ).
+#
 # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2032>
 # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2249>
 # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2291>
+# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2286>
+
+setup_requires = []
 
 _use_old_Twisted_and_Nevow = False
 if sys.platform == "win32":
@@ -140,6 +153,8 @@ if _use_old_Twisted_and_Nevow:
         "Twisted >= 11.1.0, <= 12.1.0",
         "Nevow >= 0.9.33, <= 0.10",
     ]
+    setup_requires += [req for req in install_requires if req.startswith('Twisted')
+                                                       or req.startswith('zope.interface')]
 else:
     install_requires += [
         "Twisted >= 13.0.0",
