@@ -110,7 +110,14 @@ if not hasattr(sys, 'frozen'):
 # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2249> and
 # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2028>.
 
+_use_old_Twisted_and_Nevow = False
 if sys.platform == "win32":
+    try:
+        import win32api
+    except ImportError:
+        _use_old_Twisted_and_Nevow = True
+
+if _use_old_Twisted_and_Nevow:
     install_requires += [
         # * On Windows we need at least Twisted 9.0 to avoid an indirect
         #   dependency on pywin32.
