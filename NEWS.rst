@@ -73,6 +73,43 @@ PRs noted as closed: 62 48 57 61 62 63 64 69 73 81 82 84 85 87 91 94 95 96
 103 56 32 50 107 109 114 112 120 122 125 126 133
 
 
+Compatibility and Dependency Updates
+------------------------------------
+
+- Twisted >= 13.0.0
+- Nevow >= 0.11.1
+- foolscap >= 0.8.0
+- service-identity
+- characteristic >= 14.0.0
+- pyasn1 >= 0.1.4
+- pyasn1-modules >= 0.0.5
+
+On Windows, if pywin32 is not installed then the dependencies on Twisted
+and Nevow become:
+
+- Twisted >= 11.1.0, <= 12.1.0
+- Nevow >= 0.9.33, <= 0.10
+
+On all platforms, if pyOpenSSL >= 0.14 is installed, then it will be used,
+but if not then only pyOpenSSL >= 0.13, <= 0.13.1 will be built when directly
+invoking `setup.py build` or `setup.py install`.
+
+We strongly advise OS packagers to take the option of making a tahoe-lafs
+package depend on pyOpenSSL >= 0.14. In order for that to work, the following
+additional Python dependencies are needed:
+
+- cryptography
+- cffi >= 0.8
+- six >= 1.4.1
+- enum34
+- pyparser
+
+as well as libffi (for Debian/Ubuntu, the name of the needed OS package is
+`libffi6`).
+
+Tahoe-LAFS is now compatible with setuptools version 8 and pip version 6
+or later.
+
 
 Release 1.10.0 (2013-05-01)
 '''''''''''''''''''''''''''
