@@ -59,7 +59,7 @@ closed during this time, even minor non-user-visible ones.
 - improve version-number reporting #2340
 - add per-server "(space) Available" column to welcome page #648
 - add public-key auth to SFTP server #1411
-
+- "tahoe cp -r" changes w.r.t. unnamed directories #2329
 
 all tickets noted as closed: 1953 1960 1974 1972 1717 1381 898 1707 1918 1807
 740 1842 1992 2165 1847 2086 2208 2048 2128 2245 1336 2248 2067 712 1800 1966
@@ -71,6 +71,54 @@ all tickets referenced (fixed? not fixed?): 1834 1969 1742 1988 982 1064 1536
 
 PRs noted as closed: 62 48 57 61 62 63 64 69 73 81 82 84 85 87 91 94 95 96
 103 56 32 50 107 109 114 112 120 122 125 126 133
+
+- "tahoe cp" changes:
+
+There are many "cp"-like tools in the unix world (POSIX /bin/cp, the "scp"
+provided by SSH, rsync). They each behave slightly differently in unusual
+circumstances, generally dealing with copying whole directories at a time,
+into a target which may or may not exist already. The usual question is
+whether the user is referring to the source directory as a whole, or to its
+contents. For example, should "cp -r foodir bardir" create a new directory
+named "bardir/foodir"? Or should it behave more like "cp -r foodir/* bardir"?
+Some tools use the presence of a trailing slash to indicate which behavior
+you want. Others ignore trailing slashes.
+
+"tahoe cp" is no exception to having exceptional cases. This release fixes
+some bad behavior and attempts to establish a consistent rationale for its
+behavior.
+
+The new rule is:
+
+- if the thing being copied is a directory, and it has a name (e.g. it's not
+  a raw tahoe directorycap), then you are referring to the directory itself
+- if the thing being copied is an unnamed directory (e.g. raw dircap or
+  alias), then you are referring to the contents
+- trailing slashes do not affect the behavior of the copy (although putting a
+  trailing slash on a file-like target is an error)
+- the "-r" (--recursive) flag does not affect the behavior of the copy
+  (although omitting -r when the source is a directory is an error)
+- if the target refers to something that does not yet exist:
+  - and if the source is a single file, then create a new file
+  - otherwise, create a directory
+
+There are two main cases where tahoe-1.10.1's behavior differs from that of
+the 1.10 release:
+
+- "cp DIRCAP/file.txt ./local/missing" , where "./local" is a directory but
+  "./local/missing" does not exist. The implication is that you want tahoe to
+  create a new file named "./local/missing" and fill it with the contents of
+  the tahoe-side DIRCAP/file.txt. In 1.10, a plain "cp" would do just this,
+  but "cp -r" would do "mkdir ./local/missing" and then create a file named
+  "./local/missing/file.txt". In 1.10.1, both "cp" and "cp -r" create a file
+  named "./local/missing".
+- "cp -r PARENTCAP/dir ./local/missing", where PARENTCAP/dir/ contains
+  "file.txt", and again "./local" is a directory but "./local/missing" does
+  not exist. In both 1.10 and 1.10.1, this first does "mkdir
+  ./local/missing". In 1.10, it would then copy the contents of the source
+  directory into the new directory, resulting in "./local/missing/file.txt".
+  In 1.10.1, following the new rule of "a named directory source refers to
+  the directory itself", the tool creates "./local/missing/dir/file.txt".
 
 
 
