@@ -106,49 +106,43 @@ if not hasattr(sys, 'frozen'):
     package_imports.append(('setuptools', 'setuptools'))
 
 
-# Splitting the dependencies for Windows and non-Windows helps to fix
-# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2249> and
-# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2028>.
+# * On Linux we need at least Twisted 10.1.0 for inotify support
+#   used by the drop-upload frontend.
+# * We also need Twisted 10.1.0 for the FTP frontend in order for
+#   Twisted's FTP server to support asynchronous close.
+# * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
+#   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
+# * The FTP frontend depends on Twisted >= 11.1.0 for
+#   filepath.Permissions
+#
+# On Windows, Twisted >= 12.2.0 has a dependency on pywin32.
+# Since pywin32 can only be installed manually, we fall back to
+# requiring earlier versions of Twisted and Nevow if it is not
+# already installed.
+# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2028>
+#
+# In cases where this fallback isn't needed, we prefer Nevow >= 0.11.1
+# which can be installed using pip, and Twisted >= 13.0.0 which
+# Nevow 0.11.1 depends on.
+# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2032>
+# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2249>
+# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2291>
 
+_use_old_Twisted_and_Nevow = False
 if sys.platform == "win32":
-    install_requires += [
-        # * On Windows we need at least Twisted 9.0 to avoid an indirect
-        #   dependency on pywin32.
-        # * We also need Twisted 10.1 for the FTP frontend in order for
-        #   Twisted's FTP server to support asynchronous close.
-        # * When the cloud backend lands, it will depend on Twisted 10.2.0
-        #   which includes the fix to <https://twistedmatrix.com/trac/ticket/411>.
-        # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
-        #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
-        # * The FTP frontend depends on Twisted >=11.1.0 for
-        #   filepath.Permissions
-        # * We don't want Twisted >= 12.2.0 to avoid a dependency of its endpoints
-        #   code on pywin32. <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2028>
-        #
-        "Twisted >= 11.1.0, <= 12.1.0",
+    try:
+        import win32
+    except ImportError:
+        _use_old_Twisted_and_Nevow = True
 
-        # * We need Nevow >= 0.9.33 to avoid a bug in Nevow's setup.py
-        #   which imported twisted at setup time.
-        # * We don't want Nevow 0.11 because that requires Twisted >= 13.0
-        #   which conflicts with the Twisted requirement above.
-        #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2291>
-        #
+if _use_old_Twisted_and_Nevow:
+    install_requires += [
+        "Twisted >= 11.1.0, <= 12.1.0",
         "Nevow >= 0.9.33, <= 0.10",
     ]
 else:
     install_requires += [
-        # * On Linux we need at least Twisted 10.1.0 for inotify support
-        #   used by the drop-upload frontend.
-        # * Nevow 0.11.1 requires Twisted >= 13.0.0 so we might as well
-        #   require it directly; this helps to work around
-        #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2286>.
-        #   This also satisfies the requirements for the FTP and SFTP
-        #   frontends and cloud backend mentioned in the Windows section
-        #   above.
-        #
         "Twisted >= 13.0.0",
-
-        # Nevow >= 0.11.1 can be installed using pip.
         "Nevow >= 0.11.1",
     ]
 
