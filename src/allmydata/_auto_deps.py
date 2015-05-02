@@ -139,6 +139,8 @@ if not hasattr(sys, 'frozen'):
 # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2291>
 # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2286>
 
+setup_requires = []
+
 _use_old_Twisted_and_Nevow = False
 if sys.platform == "win32":
     try:
@@ -151,14 +153,13 @@ if _use_old_Twisted_and_Nevow:
         "Twisted >= 11.1.0, <= 12.1.0",
         "Nevow >= 0.9.33, <= 0.10",
     ]
-    setup_requires = [req for req in install_requires if req.startswith('Twisted')
-                                                      or req.startswith('zope.interface')]
+    setup_requires += [req for req in install_requires if req.startswith('Twisted')
+                                                       or req.startswith('zope.interface')]
 else:
     install_requires += [
         "Twisted >= 13.0.0",
         "Nevow >= 0.11.1",
     ]
-    setup_requires = []
 
 
 # * pyOpenSSL is required in order for foolscap to provide secure connections.

@@ -64,6 +64,7 @@ else:
 adglobals = {}
 execfile('src/allmydata/_auto_deps.py', adglobals)
 install_requires = adglobals['install_requires']
+setup_requires = adglobals['setup_requires']
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
     del sys.argv[1]
