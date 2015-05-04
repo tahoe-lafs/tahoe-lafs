@@ -455,6 +455,21 @@ Command Examples
  all source arguments which are directories will be copied into new
  subdirectories of the target.
 
+ The behavior of ``tahoe cp``, like the regular UNIX ``/bin/cp``, is subtly
+ different depending upon the exact form of the arguments. In particular:
+
+* Trailing slashes indicate directories, but are not required.
+* If the target object does not already exist:
+  * and if the source is a single file, it will be copied into the target;
+  * otherwise, the target will be created as a directory.
+* If there are multiple sources, the target must be a directory.
+* If the target is a pre-existing file, the source must be a single file.
+* If the target is a directory, each source must be a named file, a named
+  directory, or an unnamed directory. It is not possible to copy an unnamed
+  file (e.g. a raw filecap) into a directory, as there is no way to know what
+  the new file should be named.
+
+
 ``tahoe unlink uploaded.txt``
 
 ``tahoe unlink tahoe:uploaded.txt``
