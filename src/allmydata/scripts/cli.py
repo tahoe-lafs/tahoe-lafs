@@ -252,13 +252,14 @@ class CpOptions(FilesystemOptions):
 
     This command still has some limitations: symlinks and special files
     (device nodes, named pipes) are not handled very well. Arguments should
-    not have trailing slashes, although they are generally ignored. When
-    copying directories, it can be unclear whether you mean to copy the
-    contents of a source directory, or the source directory itself (i.e.
-    whether the output goes under the target directory, or one directory
-    lower). Tahoe's rule is that source directories with names are referring
-    to the directory as a whole, and source directories without names (e.g. a
-    raw dircap) are referring to the contents.
+    not have trailing slashes (they are ignored for directory arguments, but
+    trigger errors for file arguments). When copying directories, it can be
+    unclear whether you mean to copy the contents of a source directory, or
+    the source directory itself (i.e. whether the output goes under the
+    target directory, or one directory lower). Tahoe's rule is that source
+    directories with names are referring to the directory as a whole, and
+    source directories without names (e.g. a raw dircap) are referring to the
+    contents.
     """
 
 class UnlinkOptions(FilesystemOptions):
