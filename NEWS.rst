@@ -102,8 +102,8 @@ The new rule is:
   - and if the source is a single file, then create a new file;
   - otherwise, create a directory.
 
-There are two main cases where tahoe-1.10.1's behavior differs from that of
-the 1.10.0 release:
+There are two main cases where the behavior of tahoe-1.10.1 differs from that
+of the 1.10.0 release:
 
 - "cp DIRCAP/file.txt ./local/missing" , where "./local" is a directory but
   "./local/missing" does not exist. The implication is that you want tahoe to
