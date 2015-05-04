@@ -949,7 +949,8 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
                     return set(["E6-MANYONE"])
                 if err == "target is not a directory, but ends with a slash":
                     return set(["E7-BADSLASH"])
-                if err == "source is not a directory, but ends with a slash":
+                if (err.startswith("source ") and
+                    "is not a directory, but ends with a slash" in err):
                     return set(["E8-BADSLASH"])
             self.fail("unrecognized error ('%s') %s" % (case, res))
         d.addCallback(_check)

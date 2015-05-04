@@ -24,6 +24,10 @@ class FilenameWithTrailingSlashError(TahoeError):
     def __init__(self, name, quotefn=quote_output):
         TahoeError.__init__(self, "source '%s' is not a directory, but ends with a slash" % quotefn(name))
 
+class WeirdSourceError(TahoeError):
+    def __init__(self, absname):
+        quoted = quote_local_unicode_path(absname)
+        TahoeError.__init__(self, "source '%s' is neither a file nor a directory, I can't handle it" % quoted)
 
 def GET_to_file(url):
     resp = do_http("GET", url)
@@ -507,8 +511,8 @@ class Copier:
         for ss in source_specs:
             try:
                 si = self.get_source_info(ss)
-            except FilenameWithTrailingSlashError:
-                self.to_stderr("source is not a directory, but ends with a slash")
+            except FilenameWithTrailingSlashError as e:
+                self.to_stderr(str(e))
                 return 1
             precondition(isinstance(si, FileSources + DirectorySources), si)
             sources.append(si)
@@ -643,8 +647,10 @@ class Copier:
                 t = LocalDirectorySource(self.progress, pathname, name)
             else:
                 if had_trailing_slash:
-                    raise FilenameWithTrailingSlashError(source_spec)
-                assert os.path.isfile(pathname)
+                    raise FilenameWithTrailingSlashError(source_spec,
+                                                         quotefn=quote_local_unicode_path)
+                if not os.path.isfile(pathname):
+                    raise WeirdSourceError(pathname)
                 t = LocalFileSource(pathname, name) # non-empty
         else:
             # this is a tahoe object
