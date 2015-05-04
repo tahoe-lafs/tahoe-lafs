@@ -20,6 +20,14 @@ class MissingSourceError(TahoeError):
     def __init__(self, name, quotefn=quote_output):
         TahoeError.__init__(self, "No such file or directory %s" % quotefn(name))
 
+class FilenameWithTrailingSlashError(TahoeError):
+    def __init__(self, name, quotefn=quote_output):
+        TahoeError.__init__(self, "source '%s' is not a directory, but ends with a slash" % quotefn(name))
+
+class WeirdSourceError(TahoeError):
+    def __init__(self, absname):
+        quoted = quote_local_unicode_path(absname)
+        TahoeError.__init__(self, "source '%s' is neither a file nor a directory, I can't handle it" % quoted)
 
 def GET_to_file(url):
     resp = do_http("GET", url)
@@ -151,6 +159,7 @@ class LocalDirectoryTarget:
 
     def get_child_target(self, name):
         precondition(isinstance(name, unicode), name)
+        precondition(len(name), name) # don't want ""
         if self.children is None:
             self.populate(recurse=False)
         if name in self.children:
@@ -500,7 +509,11 @@ class Copier:
 
         sources = [] # list of source objects
         for ss in source_specs:
-            si = self.get_source_info(ss)
+            try:
+                si = self.get_source_info(ss)
+            except FilenameWithTrailingSlashError as e:
+                self.to_stderr(str(e))
+                return 1
             precondition(isinstance(si, FileSources + DirectorySources), si)
             sources.append(si)
 
@@ -621,6 +634,9 @@ class Copier:
         precondition(isinstance(source_spec, unicode), source_spec)
         rootcap, path_utf8 = get_alias(self.aliases, source_spec, None)
         path = path_utf8.decode("utf-8")
+        # any trailing slash is removed in abspath_expanduser_unicode(), so
+        # make a note of it here, to throw an error later
+        had_trailing_slash = path.endswith("/")
         if rootcap == DefaultAliasMarker:
             # no alias, so this is a local file
             pathname = abspath_expanduser_unicode(path)
@@ -630,13 +646,19 @@ class Copier:
             if os.path.isdir(pathname):
                 t = LocalDirectorySource(self.progress, pathname, name)
             else:
-                assert os.path.isfile(pathname)
+                if had_trailing_slash:
+                    raise FilenameWithTrailingSlashError(source_spec,
+                                                         quotefn=quote_local_unicode_path)
+                if not os.path.isfile(pathname):
+                    raise WeirdSourceError(pathname)
                 t = LocalFileSource(pathname, name) # non-empty
         else:
             # this is a tahoe object
             url = self.nodeurl + "uri/%s" % urllib.quote(rootcap)
             name = None
             if path:
+                if path.endswith("/"):
+                    path = path[:-1]
                 url += "/" + escape_path(path)
                 last_slash = path.rfind(u"/")
                 name = path
@@ -656,16 +678,11 @@ class Copier:
                                          self.progress, name)
                 t.init_from_parsed(parsed)
             else:
+                if had_trailing_slash:
+                    raise FilenameWithTrailingSlashError(source_spec)
                 writecap = to_str(d.get("rw_uri"))
                 readcap = to_str(d.get("ro_uri"))
                 mutable = d.get("mutable", False) # older nodes don't provide it
-
-                last_slash = source_spec.rfind(u"/")
-                if last_slash != -1:
-                    # TODO: this looks funny and redundant with the 'name'
-                    # assignment above. cf #2329
-                    name = source_spec[last_slash+1:]
-
                 t = TahoeFileSource(self.nodeurl, mutable, writecap, readcap, name)
         return t
 

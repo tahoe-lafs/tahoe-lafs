@@ -658,7 +658,9 @@ starting copy, 2 files, 1 directories
 
 # these test cases come from ticket #2329 comment 40
 # trailing slash on target *directory* should not matter, test both
-# trailing slash on files should cause error
+# trailing slash on target files should cause error
+# trailing slash on source directory should not matter, test a few
+# trailing slash on source files should cause error
 
 COPYOUT_TESTCASES = """
 cp    $FILECAP          to/existing-file : to/existing-file
@@ -680,16 +682,22 @@ cp    $FILECAP $DIRCAP  to/existing-file/ : E4-NEED-R
 cp -r $FILECAP $DIRCAP  to/existing-file/ : E7-BADSLASH
 
 # single source to a (present) target directory
-cp    $FILECAP       to : E2-DESTNAME
-cp -r $FILECAP       to : E2-DESTNAME
-cp    $DIRCAP/file   to : to/file
-cp -r $DIRCAP/file   to : to/file
-cp    $PARENTCAP/dir to : E4-NEED-R
-cp -r $PARENTCAP/dir to : to/dir/file
-cp    $DIRCAP        to : E4-NEED-R
-cp -r $DIRCAP        to : to/file
-cp    $DIRALIAS      to : E4-NEED-R
-cp -r $DIRALIAS      to : to/file
+cp    $FILECAP        to : E2-DESTNAME
+cp -r $FILECAP        to : E2-DESTNAME
+cp    $DIRCAP/file    to : to/file
+cp -r $DIRCAP/file    to : to/file
+# these two are errors
+cp    $DIRCAP/file/   to : E8-BADSLASH
+cp -r $DIRCAP/file/   to : E8-BADSLASH
+cp    $PARENTCAP/dir  to : E4-NEED-R
+cp -r $PARENTCAP/dir  to : to/dir/file
+# but these two should ignore the trailing source slash
+cp    $PARENTCAP/dir/ to : E4-NEED-R
+cp -r $PARENTCAP/dir/ to : to/dir/file
+cp    $DIRCAP         to : E4-NEED-R
+cp -r $DIRCAP         to : to/file
+cp    $DIRALIAS       to : E4-NEED-R
+cp -r $DIRALIAS       to : to/file
 
 cp    $FILECAP       to/ : E2-DESTNAME
 cp -r $FILECAP       to/ : E2-DESTNAME
@@ -941,6 +949,9 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
                     return set(["E6-MANYONE"])
                 if err == "target is not a directory, but ends with a slash":
                     return set(["E7-BADSLASH"])
+                if (err.startswith("source ") and
+                    "is not a directory, but ends with a slash" in err):
+                    return set(["E8-BADSLASH"])
             self.fail("unrecognized error ('%s') %s" % (case, res))
         d.addCallback(_check)
         return d
