@@ -32,6 +32,9 @@ class DropUploader(service.MultiService):
         self._local_path = to_filepath(self._local_dir)
         self._dbfile = dbfile
 
+        # On Windows, a single recursive watch covers all subdirectories.
+        self._need_subdirectory_watches = sys.platform != "win32"
+
         self._upload_deque = deque()
         self.is_upload_ready = False
 
@@ -182,7 +185,10 @@ class DropUploader(service.MultiService):
             return self._parent.add_file(name, u)
 
         def _add_dir(ignore, name):
-            self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
+            if self._need_subdirectory_watches:
+                self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify],
+                                     recursive=True)
+
             d2 = self._parent.create_subdirectory(name, overwrite=False)
             def _err(f):
                 f.trap(ExistingChildError)
