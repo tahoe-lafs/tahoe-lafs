@@ -204,7 +204,7 @@ The Tahoe-LAFS CLI commands use the same path syntax as ``scp`` and
 filename. Some commands (like "``tahoe cp``") use the lack of an alias to
 mean that you want to refer to a local file, instead of something from the
 Tahoe-LAFS filesystem. Another way to indicate this is to start the
-pathname with a dot, slash, or tilde.
+pathname with "./", "~/", "~username/", or "/".
 
 When you're dealing a single starting directory, the ``tahoe:`` alias is
 all you need. But when you want to refer to something that isn't yet
