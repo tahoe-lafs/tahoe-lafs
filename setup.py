@@ -64,6 +64,7 @@ else:
 adglobals = {}
 execfile('src/allmydata/_auto_deps.py', adglobals)
 install_requires = adglobals['install_requires']
+setup_requires = adglobals['setup_requires']
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
     del sys.argv[1]
@@ -112,23 +113,6 @@ trove_classifiers=[
     "Topic :: System :: Archiving",
     ]
 
-
-setup_requires = []
-
-# Nevow imports itself when building, which causes Twisted and zope.interface
-# to be imported. We need to make sure that the versions of Twisted and
-# zope.interface used at build time satisfy Nevow's requirements. If not
-# then there are two problems:
-#  - prior to Nevow v0.9.33, Nevow didn't declare its dependency on Twisted
-#    in a way that enabled setuptools to satisfy that requirement at
-#    build time.
-#  - some versions of zope.interface, e.g. v3.6.4, are incompatible with
-#    Nevow, and we need to avoid those both at build and run-time.
-#
-# This only matters when compatible versions of Twisted and zope.interface
-# are not already installed. Retire this hack when
-# https://bugs.launchpad.net/nevow/+bug/812537 has been fixed.
-setup_requires += [req for req in install_requires if req.startswith('Twisted') or req.startswith('zope.interface')]
 
 # We no longer have any requirements specific to tests.
 tests_require=[]
