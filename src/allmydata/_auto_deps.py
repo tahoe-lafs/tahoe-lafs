@@ -145,6 +145,7 @@ _use_old_Twisted_and_Nevow = False
 if sys.platform == "win32":
     try:
         import win32api
+        [win32api]
     except ImportError:
         _use_old_Twisted_and_Nevow = True
 
