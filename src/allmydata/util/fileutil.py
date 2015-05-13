@@ -396,18 +396,28 @@ def expanduser(path):
 def windows_expanduser(path):
     if not path.startswith('~'):
         return path
-    home_drive = windows_getenv(u'HOMEDRIVE')
-    home_path = windows_getenv(u'HOMEPATH')
+
+    home_dir = windows_getenv(u'USERPROFILE')
+    if home_dir is None:
+        home_drive = windows_getenv(u'HOMEDRIVE')
+        home_path = windows_getenv(u'HOMEPATH')
+        if home_drive is None or home_path is None:
+            raise OSError("Could not find home directory: neither %USERPROFILE% nor (%HOMEDRIVE% and %HOMEPATH%) are set.")
+        home_dir = os.path.join(home_drive, home_path)
+
     if path == '~':
-        return os.path.join(home_drive, home_path)
+        return home_dir
     elif path.startswith('~/') or path.startswith('~\\'):
-        return os.path.join(home_drive, home_path, path[2 :])
+        return os.path.join(home_dir, path[2 :])
     else:
         return path
 
+# <https://msdn.microsoft.com/en-us/library/windows/desktop/ms681382%28v=vs.85%29.aspx>
+ERROR_ENVVAR_NOT_FOUND = 203
+
 def windows_getenv(name):
     # Based on <http://stackoverflow.com/questions/2608200/problems-with-umlauts-in-python-appdata-environvent-variable/2608368#2608368>,
-    # with improved error handling.
+    # with improved error handling. Returns None if there is no enivronment variable of the given name.
     if not isinstance(name, unicode):
         raise AssertionError("name must be Unicode")
 
@@ -415,6 +425,8 @@ def windows_getenv(name):
     # GetEnvironmentVariableW returns DWORD, so n cannot be negative.
     if n == 0:
         err = GetLastError()
+        if err == ERROR_ENVVAR_NOT_FOUND:
+            return None
         raise OSError("Windows error %d attempting to read size of environment variable %r"
                       % (err, name))
     if n == 1:
@@ -426,6 +438,8 @@ def windows_getenv(name):
     retval = GetEnvironmentVariableW(name, buf, n)
     if retval == 0:
         err = GetLastError()
+        if err == ERROR_ENVVAR_NOT_FOUND:
+            return None
         raise OSError("Windows error %d attempting to read environment variable %r"
                       % (err, name))
     if retval >= n:

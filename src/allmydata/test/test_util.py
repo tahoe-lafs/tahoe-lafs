@@ -539,10 +539,11 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         _cleanup()
         self.failIf(os.path.exists(long_path))
 
-    def test_windows_expanduser(self):
+    def _test_windows_expanduser(self, userprofile=None, homedrive=None, homepath=None):
         def call_windows_getenv(name):
-            if name == u"HOMEDRIVE": return u"C:"
-            if name == u"HOMEPATH": return u"\\Documents and Settings\\\u0100"
+            if name == u"USERPROFILE": return userprofile
+            if name == u"HOMEDRIVE":   return homedrive
+            if name == u"HOMEPATH":    return homepath
             self.fail("unexpected argument to call_windows_getenv")
         self.patch(fileutil, 'windows_getenv', call_windows_getenv)
 
@@ -552,6 +553,12 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a"), u"a")
         self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a~"), u"a~")
         self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a\\~\\foo"), u"a\\~\\foo")
+
+    def test_windows_expanduser_xp(self):
+        return self._test_windows_expanduser(homedrive=u"C:", homepath=u"\\Documents and Settings\\\u0100")
+
+    def test_windows_expanduser_win7(self):
+        return self._test_windows_expanduser(userprofile=os.path.join(u"C:", u"\\Documents and Settings\\\u0100"))
 
     def test_disk_stats(self):
         avail = fileutil.get_available_space('.', 2**14)
