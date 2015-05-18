@@ -149,7 +149,7 @@ class Notification(object):
         self.filename = filename
 
     def __repr__(self):
-        return "Notification(%r, %r)" % (_action_to_string.get(self.action, self.action), self.filename)
+        return "Notification(%s, %r)" % (_action_to_string.get(self.action, repr(self.action)), self.filename)
 
 
 # WARNING: ROCKET SCIENCE!
@@ -256,10 +256,10 @@ class FileNotifier(object):
             raise StoppedException()
 
         print "hereq1"
-        bytes_read = DWORD()
+        bytes_returned = DWORD()
         r = GetOverlappedResult(self._hDirectory,
                                 self._overlapped,
-                                byref(bytes_read),
+                                byref(bytes_returned),
                                 TRUE)
         if r == 0:
             err = get_last_error()
@@ -269,21 +269,21 @@ class FileNotifier(object):
         print "hereq2"
         
         data = self._buffer.raw[:bytes_returned.value]
-        print data
+        print repr(data)
 
         pos = 0
         while True:
-            bytes = _read_dword(data, pos+8)
+            bytes = self._read_dword(data, pos+8)
             try:
                 path_u = data[pos+12 : pos+12+bytes].decode('utf-16-le')
             except UnicodeDecodeError as e:
                 log.err(e)
             else:
-                s = Notification(_read_dword(data, pos+4), path_u)
+                s = Notification(self._read_dword(data, pos+4), path_u)
                 print s
                 yield s
 
-            next_entry_offset = _read_dword(data, pos)
+            next_entry_offset = self._read_dword(data, pos)
             if next_entry_offset == 0:
                 break
             pos = pos + next_entry_offset
