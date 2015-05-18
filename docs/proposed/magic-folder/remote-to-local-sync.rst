@@ -188,7 +188,7 @@ subfolders than design 1. It only gains over design 1 on the ability to
 share directory readcaps to the Magic Folder (or subfolders) which was
 not a requirement, and IMHO could be better satisfied by design 6 in
 future.
-* design 6 is an unsolved research problem and should be considered out
+* design 6 is an unsolved design problem and should be considered out
 of scope for the time being. We can benefit from experience with design 1
 when switching to design 6 later.]
 
@@ -225,7 +225,7 @@ foo to foo.old and then foo.new to foo
 the file is locked for writing. We should probably handle that case as a
 conflict.)
 
-TODO: on Unix, what happens wrt inotify events if we rename a file while
+TODO: on Unix, what happens with reference to inotify events if we rename a file while
 it is open? Does the filename for the CLOSE_WRITE event reflect the new
 name?
 
@@ -235,7 +235,7 @@ did the notification event for the local change precede the write?
 air dragons: write/upload collisions
 
 we can't read a file atomically. therefore, when we read a file in order
-to upload it, we may read an inconsistent version if it was also bring
+to upload it, we may read an inconsistent version if it was also being
 written locally.
 
 the magic folder is still eventually consistent, but inconsistent
