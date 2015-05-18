@@ -363,23 +363,27 @@ def to_windows_long_path(path):
 
 have_GetDiskFreeSpaceExW = False
 if sys.platform == "win32":
-    from ctypes import WINFUNCTYPE, windll, POINTER, byref, c_ulonglong, create_unicode_buffer
+    from ctypes import WINFUNCTYPE, windll, POINTER, byref, c_ulonglong, create_unicode_buffer, \
+        get_last_error
     from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR
 
-    # <http://msdn.microsoft.com/en-us/library/ms679360%28v=VS.85%29.aspx>
-    GetLastError = WINFUNCTYPE(DWORD)(("GetLastError", windll.kernel32))
-
     # <http://msdn.microsoft.com/en-us/library/windows/desktop/ms683188%28v=vs.85%29.aspx>
-    GetEnvironmentVariableW = WINFUNCTYPE(DWORD, LPCWSTR, LPWSTR, DWORD)(
-        ("GetEnvironmentVariableW", windll.kernel32))
+    GetEnvironmentVariableW = WINFUNCTYPE(
+        DWORD,
+          LPCWSTR, LPWSTR, DWORD,
+        use_last_error=True
+      )(("GetEnvironmentVariableW", windll.kernel32))
 
     try:
         # <http://msdn.microsoft.com/en-us/library/aa383742%28v=VS.85%29.aspx>
         PULARGE_INTEGER = POINTER(c_ulonglong)
 
         # <http://msdn.microsoft.com/en-us/library/aa364937%28VS.85%29.aspx>
-        GetDiskFreeSpaceExW = WINFUNCTYPE(BOOL, LPCWSTR, PULARGE_INTEGER, PULARGE_INTEGER, PULARGE_INTEGER)(
-            ("GetDiskFreeSpaceExW", windll.kernel32))
+        GetDiskFreeSpaceExW = WINFUNCTYPE(
+            BOOL,
+              LPCWSTR, PULARGE_INTEGER, PULARGE_INTEGER, PULARGE_INTEGER,
+            use_last_error=True
+          )(("GetDiskFreeSpaceExW", windll.kernel32))
 
         have_GetDiskFreeSpaceExW = True
     except Exception:
@@ -424,7 +428,7 @@ def windows_getenv(name):
     n = GetEnvironmentVariableW(name, None, 0)
     # GetEnvironmentVariableW returns DWORD, so n cannot be negative.
     if n == 0:
-        err = GetLastError()
+        err = get_last_error()
         if err == ERROR_ENVVAR_NOT_FOUND:
             return None
         raise OSError("Windows error %d attempting to read size of environment variable %r"
@@ -437,7 +441,7 @@ def windows_getenv(name):
     buf = create_unicode_buffer(u'\0'*n)
     retval = GetEnvironmentVariableW(name, buf, n)
     if retval == 0:
-        err = GetLastError()
+        err = get_last_error()
         if err == ERROR_ENVVAR_NOT_FOUND:
             return None
         raise OSError("Windows error %d attempting to read environment variable %r"
@@ -484,7 +488,7 @@ def get_disk_stats(whichdir, reserved_space=0):
                                                byref(n_free_for_root))
         if retval == 0:
             raise OSError("Windows error %d attempting to get disk statistics for %r"
-                          % (GetLastError(), whichdir))
+                          % (get_last_error(), whichdir))
         free_for_nonroot = n_free_for_nonroot.value
         total            = n_total.value
         free_for_root    = n_free_for_root.value
