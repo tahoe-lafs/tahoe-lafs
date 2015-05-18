@@ -202,7 +202,7 @@ class DropUploader(service.MultiService):
             def _failed(f):
                 self._log("failed to create subdirectory %r due to %r" % (path, f))
                 self._stats_provider.count('drop_upload.objects_failed', 1)
-            d2.addCallback(_failed)
+            d2.addErrback(_failed)
             d2.addCallback(lambda ign: self._scan(path))
             return d2
 
