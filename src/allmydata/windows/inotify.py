@@ -351,7 +351,7 @@ class INotify(PollMixin):
         return self.poll(_try_to_stop)
 
     def watch(self, path, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
-        precondition(not self._started_reading, "watch() can only be called before startReading()")
+        precondition(not self._called_startReading, "watch() can only be called before startReading()")
         precondition(self._notifier is None, "only one watch is supported")
         precondition(isinstance(autoAdd, bool), autoAdd=autoAdd)
         precondition(isinstance(recursive, bool), recursive=recursive)
