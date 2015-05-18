@@ -175,7 +175,12 @@ class DropUploader(service.MultiService):
         if path_u not in self._pending:
             self._append_to_deque(path_u)
 
+    def _print(self, res, msg):
+        print msg
+        return res
+
     def _process(self, path):
+        print "herez1"
         d = defer.succeed(None)
 
         # FIXME (ticket #1712): if this already exists as a mutable file, we replace the
@@ -236,10 +241,12 @@ class DropUploader(service.MultiService):
         d.addCallback(_maybe_upload)
 
         def _succeeded(ign):
+            d.addCallback(self._print, "herez2")
             self._stats_provider.count('drop_upload.objects_queued', -1)
             self._stats_provider.count('drop_upload.objects_uploaded', 1)
 
         def _failed(f):
+            d.addCallback(self._print, "herez3")
             self._stats_provider.count('drop_upload.objects_queued', -1)
             if os.path.exists(path):
                 self._log("drop-upload: %r failed to upload due to %r" % (path, f))
@@ -251,10 +258,12 @@ class DropUploader(service.MultiService):
                 return None
 
         d.addCallbacks(_succeeded, _failed)
+        d.addCallback(self._print, "herez4")
         d.addBoth(self._do_upload_callback)
         return d
 
     def _do_upload_callback(self, res):
+        print "herey"
         if self._ignore_count == 0:
             self._uploaded_callback(res)
         else:
@@ -264,6 +273,7 @@ class DropUploader(service.MultiService):
         """
         This sets a function that will be called after a file has been uploaded.
         """
+        print "herex", ignore_count
         self._uploaded_callback = callback
         self._ignore_count = ignore_count
 
@@ -279,5 +289,6 @@ class DropUploader(service.MultiService):
         return service.MultiService.disownServiceParent(self)
 
     def _log(self, msg):
+        print msg
         self._client.log(msg)
         #open("events", "ab+").write(msg)

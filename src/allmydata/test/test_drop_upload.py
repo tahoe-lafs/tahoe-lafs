@@ -228,6 +228,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     def test_drop_upload(self):
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
+        print "local_dir = %r" % (self.local_dir,)
         self.mkdir_nonascii(self.local_dir)
 
         self.client = self.g.clients[0]
@@ -238,25 +239,35 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(self._made_upload_dir)
         d.addCallback(self._create_uploader)
 
+        def _print(res, msg):
+            print msg
+            return res
         # Write something short enough for a LIT file.
+        d.addCallback(_print, "here1")
         d.addCallback(lambda ign: self._check_file(u"short", "test"))
 
         # Write to the same file again with different data.
+        d.addCallback(_print, "here2")
         d.addCallback(lambda ign: self._check_file(u"short", "different"))
 
         # Test that temporary files are not uploaded.
+        d.addCallback(_print, "here3")
         d.addCallback(lambda ign: self._check_file(u"tempfile", "test", temporary=True))
 
         # Test that we tolerate creation of a subdirectory.
+        d.addCallback(_print, "here4")
         d.addCallback(lambda ign: os.mkdir(os.path.join(self.local_dir, u"directory")))
 
         # Write something longer, and also try to test a Unicode name if the fs can represent it.
         name_u = self.unicode_or_fallback(u"l\u00F8ng", u"long")
+        d.addCallback(_print, "here5")
         d.addCallback(lambda ign: self._check_file(name_u, "test"*100))
 
         # TODO: test that causes an upload failure.
+        d.addCallback(_print, "here6")
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_failed'), 0))
 
+        d.addCallback(_print, "here7")
         d.addBoth(self._cleanup)
         return d
 
@@ -287,15 +298,23 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         fileutil.flush_volume(path_u)
         self.notify_close_write(path)
 
+        def _print(res, msg):
+            print msg
+            return res
         if temporary:
+            d.addCallback(_print, "here8")
             d.addCallback(lambda ign: self.shouldFail(NoSuchChildError, 'temp file not uploaded', None,
                                                       self.upload_dirnode.get, name_u))
             d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_disappeared'),
                                                                  previously_disappeared + 1))
         else:
+            d.addCallback(_print, "here9")
             d.addCallback(lambda ign: self.upload_dirnode.get(name_u))
+            d.addCallback(_print, "here10")
             d.addCallback(download_to_data)
+            d.addCallback(_print, "here11")
             d.addCallback(lambda actual_data: self.failUnlessReallyEqual(actual_data, data))
+            d.addCallback(_print, "here12")
             d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'),
                                                                  previously_uploaded + 1))
 
