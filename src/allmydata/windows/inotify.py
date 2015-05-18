@@ -280,7 +280,6 @@ class FileNotifier(object):
                 log.err(e)
             else:
                 s = Notification(self._read_dword(data, pos+4), path_u)
-                print s
                 yield s
 
             next_entry_offset = self._read_dword(data, pos)
@@ -382,13 +381,13 @@ class INotify(PollMixin):
             # <http://twistedmatrix.com/documents/current/core/howto/threading.html>.
 
             while True:
-                # We must set _started to True *after* calling read_notifications, so that
+                # We must callback self._started_d *after* calling read_notifications, so that
                 # the caller of startReading() can tell when we've actually started reading.
 
                 self._notifier.read_notifications()
                 if not started:
-                    reactor.callFromThread(self._started_d.callback, None)
                     started = True
+                    reactor.callFromThread(self._started_d.callback, None)
 
                 for info in self._notifier.get_notifications():
                     print info
