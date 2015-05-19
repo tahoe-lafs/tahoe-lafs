@@ -244,17 +244,37 @@ each file encodes the full subpath of that file relative to the Magic
 Folder.
 
 
-*Conflict detection*
+Conflict Detection and Resolution
+---------------------------------
 
-there are several kinds of dragon [*]
+In our discussion of design issues for conflict detection and resolution,
+we classified various problems as "dragons", which as a convenient
+mnemonic we have named after the five classical Greek elements
+(Earth, Air, Water, Fire and Aether).
 
-earth dragons: write/download and read/download collisions
+*Glossary*
 
-alice changes 'foo' locally while alice's gateway is writing 'foo'
-locally (in response to a remote change)
+Write:    a modification to a local filesystem object by a client
+Read:     a read from a local filesystem object by a client
+Upload:   an upload of a local object to the Tahoe-LAFS file store
+Download: a download from the Tahoe-LAFS file store to a local object
+Pending notification: a local filesystem change that has been detected
+but not yet processed.
 
-alice's gateway
-* writes a temporary file foo.tmp
+*Earth Dragons: write/download and read/download collisions*
+
+Suppose that Alice changes the file ``foo`` locally, concurrently
+with Alice's Magic Folder client writing a version of ``foo`` that
+it has downloaded in response to a remote change.
+
+An important constraint on the design is that on Windows, it is
+not possible to rename a file to the same name as an existing
+file in that directory.
+
+Without this constraint, it would be possible to use the following
+common technique for implementing "atomic" writes on Unix:
+
+* Alice's Magic Folder client writes a temporary file ``foo.tmp``
 * if 'foo' is clean, i.e. there are no pending notifications, it moves
 foo.tmp over foo [FIXME: if we want to preserve old versions then it
 should rename the old version first; see below]
