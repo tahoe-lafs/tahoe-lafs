@@ -113,19 +113,35 @@ Key:
 --   major disadvantage
 ---  showstopper
 
-
-Compatible with garbage collection               123456+
-Does not break old clients                       123456+
-Allows direct sharing                               456+
-Efficient use of bandwidth                       1 3 5 +
-No repeated changes                              123  6+
-
-Can result in large DMDs                         1     -
-Must traverse immutable directory structure        3 5 -
-Must traverse mutable directory structure         2 4  -
-Must suppress duplicate representation changes      45 -
-"Out of sync" problem                               45 -
-Unsolved design problems                              6-
++------------------------------------------------+-----------------------+
+| Design Property                                | Designs Proposed      |
++================================================+===+===+===+===+===+===+
+| **advantages**                                 | 1 | 2 | 3 | 4 | 5 | 6 |
++------------------------------------------------+---+---+---+---+---+---+
+| Compatible with garbage collection             |\+ |\+ |\+ |\+ |\+ |\+ |
++------------------------------------------------+---+---+---+---+---+---+
+| Does not break old clients                     |\+ |\+ |\+ |\+ |\+ |\+ |
++------------------------------------------------+---+---+---+---+---+---+
+| Allows direct sharing                          |   |   |   |\+ |\+ |\+ |
++------------------------------------------------+---+---+---+---+---+---+
+| Efficient use of bandwidth                     |\+ |   |\+ |   |\+ |   |
++------------------------------------------------+---+---+---+---+---+---+
+| No repeated changes                            |\+ |\+ |\+ |   |   |\+ |
++------------------------------------------------+---+---+---+---+---+---+
+| **disadvantages**                              | 1 | 2 | 3 | 4 | 5 | 6 |
++------------------------------------------------+---+---+---+---+---+---+
+| Can result in large DMDs                       |\- |   |   |   |   |   |
++------------------------------------------------+---+---+---+---+---+---+
+| Must traverse immutable directory structure    |   |   |\- |   |\- |   |
++------------------------------------------------+---+---+---+---+---+---+
+| Must traverse mutable directory structure      |   |\- |   |\- |   |   |
++------------------------------------------------+---+---+---+---+---+---+
+| Must suppress duplicate representation changes |   |   |   |\- |\- |   |
++------------------------------------------------+---+---+---+---+---+---+
+| "Out of sync" problem                          |   |   |   |\- |\- |   |
++------------------------------------------------+---+---+---+---+---+---+
+| Unsolved design problems                       |   |   |   |   |   |\- |
++------------------------------------------------+---+---+---+---+---+---+
 
 
 123456+: All designs have the property that a recursive add-lease
