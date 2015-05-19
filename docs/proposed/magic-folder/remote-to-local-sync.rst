@@ -27,12 +27,14 @@ design.
 
 *Glossary*
 
-Folder
-DMD: distributed mutable directory
-Descendant: a direct or indirect child in a directory or folder tree
-Subpath
-Subfolder
 Object: a file or directory
+DMD: distributed mutable directory
+Folder: an abstract directory that is synchronized between clients.
+  (A folder is not the same as the directory corresponding to it on
+  any particular client, nor is it the same as a DMD.)
+Descendant: a direct or indirect child in a directory or folder tree
+Subfolder: a folder that is a descendant of a magic folder
+Subpath: the path from a magic folder to one of its descendants
 
 
 *Detecting remote changes*
