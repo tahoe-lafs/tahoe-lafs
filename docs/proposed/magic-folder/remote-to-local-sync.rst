@@ -57,17 +57,14 @@ outstanding write or update request for a given file or directory at a
 time.  One convenient way to accomplish this is to make a different file
 or directory for each person or process that wants to write.
 
-.. _`write coordination directive`:
-https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/
-write_coordination.rst
+.. _`write coordination directive`: https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/write_coordination.rst
 
-So, in order to achieve the goal of allowing multiple users to write to a
-Magic Folder, we cannot implement the Magic Folder as a single Tahoe-LAFS
-DMD. [FIXME reword to allow for design 6.]
-[In designs 1 to 5 inclusive] Instead, we create one DMD per client. The
-contents of the Magic Folder will be represented by the union of these
-client DMDs. Each client polls the other client DMDs in order to detect
-remote changes.
+Since it is a goal to allow multiple users to write to a Magic Folder,
+if the write coordination directive remains the same as above, then we
+will not be able to implement the Magic Folder as a single Tahoe-LAFS
+DMD. In general therefore, we will have multiple DMDs --spread across
+clients-- that together represent the Magic Folder. Each client polls
+the other clients' DMDs in order to detect remote changes.
 
 Six possible designs were considered for the representation of subfolders
 of the Magic Folder:
@@ -116,6 +113,21 @@ Key:
 --   major disadvantage
 ---  showstopper
 
+
+Compatible with garbage collection               123456+
+Does not break old clients                       123456+
+Allows direct sharing                               456+
+Efficient use of bandwidth                       1 3 5 +
+No repeated changes                              123  6+
+
+Can result in large DMDs                         1     -
+Must traverse immutable directory structure        3 5 -
+Must traverse mutable directory structure         2 4  -
+Must suppress duplicate representation changes      45 -
+"Out of sync" problem                               45 -
+Unsolved design problems                              6-
+
+
 123456+: All designs have the property that a recursive add-lease
 operation starting from the parent Tahoe-LAFS DMD will find all of the
 files and directories used in the Magic Folder representation. Therefore
@@ -128,13 +140,14 @@ pre-Magic-Folder client does the lease marking.
 a directory or file that is part of the representation.
 
 456++: Only these designs allow a readcap to one of the client
-directories --or one of their subdirectories-- to be shared with other
-Tahoe-LAFS clients (not necessarily Magic Folder clients), so that such a
-client sees all of the contents of the Magic Folder. Note that this was
-not a requirement of the OTF proposal, although it is useful.
+directories --or one of their subdirectories-- to be directly shared
+with other Tahoe-LAFS clients (not necessarily Magic Folder clients),
+so that such a client sees all of the contents of the Magic Folder.
+Note that this was not a requirement of the OTF proposal, although it
+is useful.
 
 135+: A Magic Folder client has only one mutable Tahoe-LAFS object to
-monitor per other client. This minimises communication bandwidth for
+monitor per other client. This minimizes communication bandwidth for
 polling, or alternatively the latency possible for a given polling
 bandwidth.
 
@@ -163,7 +176,7 @@ contents, and must suppress the duplicates. This is particularly
 problematic for design 4 where it interacts with the preceding issue.
 
 1236+: A client does not need to make changes to its own DMD that repeat
-changesthat another Magic Folder client had previously made. This reduces
+changes that another Magic Folder client had previously made. This reduces
 write bandwidth and complexity.
 
 4---, 5--: There is the potential for client DMDs to get "out of sync"
@@ -355,8 +368,10 @@ Windows and Unix: on Windows, it might not be possible to rename the
 folder at all if it contains open files, while on Unix, open file handles
 will stay open but operations involving the old path will fail. either
 way the behaviour is likely to be confusing.
+
 * for conflict detection, it is unclear whether existing entries in the
 magic folder db under the old path should be updated to their new path.
+
 * another possibility is treat the rename like a copy, i.e. all clients
 end up with a copy of the directory under both names. effectively we
 treat the move event as a directory creation, and also pretend that there
