@@ -1,7 +1,8 @@
 Magic Folder design for remote-to-local sync
 ============================================
 
-*Scope*
+Scope
+-----
 
 In this Objective we will design remote-to-local synchronization:
 
@@ -25,6 +26,10 @@ design.
 
 .. _otf-magic-folder-objective4: https://tahoe-lafs.org/trac/tahoe-lafs/query?status=!closed&keywords=~otf-magic-folder-objective4
 
+
+Representing the Magic Folder in Tahoe-LAFS
+-------------------------------------------
+
 *Glossary*
 
 Object: a file or directory
@@ -35,9 +40,6 @@ Folder: an abstract directory that is synchronized between clients.
 Descendant: a direct or indirect child in a directory or folder tree
 Subfolder: a folder that is a descendant of a magic folder
 Subpath: the path from a magic folder to one of its descendants
-
-
-*Detecting remote changes*
 
 Unlike the local case where we use inotify or ReadDirectoryChangesW to
 detect filesystem changes, we have no mechanism to register a monitor for
