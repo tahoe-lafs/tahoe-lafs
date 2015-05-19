@@ -208,22 +208,34 @@ could not otherwise happen.
 application to Tahoe-LAFS requires significant design work, and may still
 leave some corner cases of the write coordination problem unsolved.
 
-[Daira:
-* designs 2 and 3 have no significant advantages over design 1, while
+
+*Evaluation of designs*
+
+Designs 2 and 3 have no significant advantages over design 1, while
 requiring higher polling bandwidth and greater complexity due to the need
-to create subdirectories. They should be rejected.
-* design 4 should be rejected due to the out-of-sync problem, which is
-severe and possibly unsolvable for mutable structures.
-* for design 5, the out-of-sync problem is still present but possibly
+to create subdirectories. These designs were therefore rejected.
+
+Design 4 was rejected due to the out-of-sync problem, which is severe
+and possibly unsolvable for mutable structures.
+
+For design 5, the out-of-sync problem is still present but possibly
 solvable. However, design 5 is substantially more complex, less efficient
 in bandwidth/latency, and less scalable in number of clients and
 subfolders than design 1. It only gains over design 1 on the ability to
-share directory readcaps to the Magic Folder (or subfolders) which was
-not a requirement, and IMHO could be better satisfied by design 6 in
-future.
-* design 6 is an unsolved design problem and should be considered out
-of scope for the time being. We can benefit from experience with design 1
-when switching to design 6 later.]
+share directory readcaps to the Magic Folder (or subfolders), which was
+not a requirement. It would be possible to implement this feature in
+future by switching to design 6.
+
+For the time being, however, design 6 was considered out-of-scope for
+this project.
+
+Therefore, design 1 was chosen. That is:
+
+All subfolders written by a given Magic Folder client are collapsed
+into a single client DMD, containing immutable files. The child name of
+each file encodes the full subpath of that file relative to the Magic
+Folder.
+
 
 *Conflict detection*
 
