@@ -9,6 +9,7 @@ from twisted.application import service
 
 from allmydata.interfaces import IDirectoryNode, NoSuchChildError, ExistingChildError
 
+from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
      unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
@@ -26,8 +27,8 @@ def get_inotify_module():
             raise NotImplementedError("filesystem notification needed for drop-upload is not supported.\n"
                                       "This currently requires Linux or Windows.")
         return inotify
-    except ImportError as e:
-        self.log(e)
+    except (ImportError, AttributeError) as e:
+        log.msg(e)
         if sys.platform == "win32":
             raise NotImplementedError("filesystem notification needed for drop-upload is not supported.\n"
                                       "Windows support requires at least Vista, and has only been tested on Windows 7.")
