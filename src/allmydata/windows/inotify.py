@@ -74,10 +74,10 @@ ReadDirectoryChangesW = WINFUNCTYPE(
 FILE_NOTIFY_CHANGE_FILE_NAME     = 0x00000001
 FILE_NOTIFY_CHANGE_DIR_NAME      = 0x00000002
 FILE_NOTIFY_CHANGE_ATTRIBUTES    = 0x00000004
-#FILE_NOTIFY_CHANGE_SIZE         = 0x00000008
+FILE_NOTIFY_CHANGE_SIZE          = 0x00000008
 FILE_NOTIFY_CHANGE_LAST_WRITE    = 0x00000010
 FILE_NOTIFY_CHANGE_LAST_ACCESS   = 0x00000020
-#FILE_NOTIFY_CHANGE_CREATION     = 0x00000040
+FILE_NOTIFY_CHANGE_CREATION      = 0x00000040
 FILE_NOTIFY_CHANGE_SECURITY      = 0x00000100
 
 # <https://msdn.microsoft.com/en-us/library/windows/desktop/aa364391%28v=vs.85%29.aspx>
@@ -339,9 +339,9 @@ class INotify(PollMixin):
         self._called_stopReading = True
 
         # This is tricky. We don't know where the notifier thread is in its loop,
-        # so it could block in get_notifications *after* any pending I/O has been
-        # cancelled. Therefore, we need to continue interrupting until we see
-        # that the thread has actually stopped.
+        # so it could block in get_notifications *after* any pending I/O from a previous
+        # call to get_notifications has been cancelled. Therefore, we need to continue
+        # interrupting until we see that the thread has actually stopped.
         def _try_to_stop():
             if self._stopped:
                 return True
