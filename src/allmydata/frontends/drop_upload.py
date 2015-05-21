@@ -118,7 +118,7 @@ class DropUploader(service.MultiService):
             islink = os.path.islink(childpath)
 
             if islink:
-                self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
+                self.warn("WARNING: magic folder: cannot upload symlink %s" % quote_local_unicode_path(childpath))
             elif isdir:
                 # process directories unconditionally
                 self._append_to_deque(childpath)
@@ -130,7 +130,7 @@ class DropUploader(service.MultiService):
                 if must_upload:
                     self._append_to_deque(childpath)
             else:
-                self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
+                self.warn("WARNING: magic folder: cannot upload special file %s" % quote_local_unicode_path(childpath))
 
     def startService(self):
         self._db = backupdb.get_backupdb(self._dbfile)
