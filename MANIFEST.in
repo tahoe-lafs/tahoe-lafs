@@ -1,10 +1,13 @@
+include README.rst
 include COPYING.GPL COPYING.TGPPL.rst CREDITS Makefile NEWS.rst Tahoe.home
 include relnotes.txt
 include bin/tahoe-script.template
-recursive-include src *.xhtml *.js *.png *.css
+include Dockerfile
+recursive-include src *.xhtml *.js *.png *.css *.svg *.txt
 graft docs
 graft misc
 graft static
+graft Contents
 
 graft setuptools-0.6c16dev6.egg
 global-exclude *~ *.pyc
