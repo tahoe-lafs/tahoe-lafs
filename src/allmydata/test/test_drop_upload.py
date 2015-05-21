@@ -359,6 +359,12 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
                             DropUploader, client, 'URI:LIT:foo', errors_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
                             DropUploader, client, readonly_dircap, errors_dir, magicfolderdb, inotify=fake_inotify)
+
+            def _not_implemented():
+                raise NotImplementedError("blah")
+            self.patch(drop_upload, 'get_inotify_module', _not_implemented)
+            self.shouldFail(NotImplementedError, 'unsupported', 'blah',
+                            DropUploader, client, upload_dircap, errors_dir, magicfolderdb)
         d.addCallback(_check_errors)
         return d
 
