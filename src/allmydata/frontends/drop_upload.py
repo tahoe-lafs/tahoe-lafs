@@ -4,6 +4,7 @@ from collections import deque
 
 from twisted.internet import defer, reactor, task
 from twisted.python.failure import Failure
+from twisted.python import runtime
 from twisted.application import service
 
 from allmydata.interfaces import IDirectoryNode, NoSuchChildError, ExistingChildError
@@ -13,6 +14,24 @@ from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
      unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
 from allmydata.immutable.upload import FileName
 from allmydata.scripts import backupdb
+
+
+def get_inotify_module():
+    try:
+        if sys.platform == "win32":
+            from allmydata.windows import inotify
+        elif runtime.platform.supportsINotify():
+            from twisted.internet import inotify
+        else:
+            raise NotImplementedError("filesystem notification needed for drop-upload is not supported.\n"
+                                      "This currently requires Linux or Windows.")
+        return inotify
+    except ImportError as e:
+        self.log(e)
+        if sys.platform == "win32":
+            raise NotImplementedError("filesystem notification needed for drop-upload is not supported.\n"
+                                      "Windows support requires at least Vista, and has only been tested on Windows 7.")
+        raise
 
 
 class DropUploader(service.MultiService):
@@ -38,12 +57,7 @@ class DropUploader(service.MultiService):
         self._upload_deque = deque()
         self.is_upload_ready = False
 
-        if inotify is None:
-            if sys.platform == "win32":
-                from allmydata.windows import inotify
-            else:
-                from twisted.internet import inotify
-        self._inotify = inotify
+        self._inotify = inotify or get_inotify_module()
 
         if not self._local_path.exists():
             raise AssertionError("The '[drop_upload] local.directory' parameter was %s "
