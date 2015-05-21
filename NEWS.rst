@@ -7,8 +7,8 @@ User-Visible Changes in Tahoe-LAFS
 Release 1.10.1 (XXXX-XX-XX)
 '''''''''''''''''''''''''''
 
-Unedited list of all changes after 1.10.0 and before 0d935e8 06-Jan-2015.
-This list is not yet limited to user-visible ones. It *should* include all
+Unedited list of all changes after 1.10.0 and up-to 143af61 17-May-2015. This
+list is not yet limited to user-visible ones. It (hopefully) includes all
 tickets closed during this time, even minor non-user-visible ones.
 
 - show git branch in version output #1953
@@ -60,17 +60,41 @@ tickets closed during this time, even minor non-user-visible ones.
 - add per-server "(space) Available" column to welcome page #648
 - add public-key auth to SFTP server #1411
 - `tahoe cp -r` changes w.r.t. unnamed directories #2329
+- tolerate PEP440 semantics in dependency specifications #2354
+- replace WUI icons with distinct shapes for accessibility #1961
+- hush DeprecationWarning with twisted.web #2312
+- fix race condition during mutable upload
+- fix handling of long paths on windows #2235 #1674 #2027
+- fix MANIFEST.in warnings #2380
+- use "AUTO" in tahoe.cfg/node/tub.location to mean autodetect IP addresses.
+  Can be combined with static addresses, or turned off entirely. #754
+- 'tahoe cp -r': fix exception #2329
+- put version string into name of OS-X package: #2393
+- improve unicode handling of arguments to (S)FTPServer #2388
+- improve tests of test_mutable #2034
+- fix ftp 'ls' to work with Twisted-15.0.0 #2394
+- add docs/proposed/magic-folder
+- remove named-path upload/download from control-port #1737
+- unicode handling on windows something #2398
+- depend on foolscap >= 0.8.0, which makes better keys #2400
+- zetuptoolz: tolerate single-string requirespec #2242
+- add icon for OS-X/windows #2323
+- initial Docker support PR#165
+- accept newer Twisted (>=13) on windows if pywin32 is manually installed #2416
+- windows: find home directory on multiple versions of windows #2417
+- improve fileutil something #1531
 
 all tickets noted as closed: 1953 1960 1974 1972 1717 1381 898 1707 1918 1807
 740 1842 1992 2165 1847 2086 2208 2048 2128 2245 1336 2248 2067 712 1800 1966
 2008 2282 2281 2290 2023 2121? 2305 1901 2249 2193 1634 1159 2340 1146 648
-1411
+1411 2354 1961 2380 754 2393 2394 1737 2398 2400 2242 2416 2415 2417
 
 all tickets referenced (fixed? not fixed?): 1834 1969 1742 1988 982 1064 1536
-1935 666 1784 2105 2209 2280 623 2249 1931 1698 2028 2005 1258 182
+1935 666 1784 2105 2209 2280 623 2249 1931 1698 2028 2005 1258 182 2312 2235
+1674 2027 2034 2323 2286 1531
 
 PRs noted as closed: 62 48 57 61 62 63 64 69 73 81 82 84 85 87 91 94 95 96
-103 56 32 50 107 109 114 112 120 122 125 126 133
+103 56 32 50 107 109 114 112 120 122 125 126 133 135 136 137 142 146 149 152 165
 
 - "tahoe cp" changes:
 
