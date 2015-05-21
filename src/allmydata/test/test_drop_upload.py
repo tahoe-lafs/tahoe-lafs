@@ -254,9 +254,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(_print, "here3")
         d.addCallback(lambda ign: self._check_file(u"tempfile", "test", temporary=True))
 
-        # Test that we tolerate creation of a subdirectory.
+        # Test that we can create a subdirectory.
         d.addCallback(_print, "here4")
-        d.addCallback(lambda ign: os.mkdir(os.path.join(self.local_dir, u"directory")))
+        d.addCallback(lambda ign: self._check_directory(u"directory"))
 
         # Write something longer, and also try to test a Unicode name if the fs can represent it.
         name_u = self.unicode_or_fallback(u"l\u00F8ng", u"long")
@@ -272,6 +272,12 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         return d
 
     def _check_file(self, name_u, data, temporary=False):
+        return self._check(name_u, data=data, temporary=temporary)
+
+    def _check_directory(self, name_u):
+        return self._check(name_u, directory=True)
+
+    def _check(self, name_u, data=None, temporary=False, directory=False):
         previously_uploaded = self._get_count('drop_upload.objects_uploaded')
         previously_disappeared = self._get_count('drop_upload.objects_disappeared')
 
@@ -284,17 +290,23 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
         path = to_filepath(path_u)
 
-        # We don't use FilePath.setContent() here because it creates a temporary file that
-        # is renamed into place, which causes events that the test is not expecting.
-        f = open(path_u, "wb")
-        try:
-            if temporary and sys.platform != "win32":
+        if directory:
+            d.addCallback(lambda ign: os.mkdir(os.path.join(self.local_dir, u"directory")))
+            mask = self.inotify.IN_CREATE
+        else:
+            # We don't use FilePath.setContent() here because it creates a temporary file that
+            # is renamed into place, which causes events that the test is not expecting.
+            f = open(path_u, "wb")
+            try:
+                if temporary and sys.platform != "win32":
+                    os.unlink(path_u)
+                f.write(data)
+            finally:
+                f.close()
+            if temporary and sys.platform == "win32":
                 os.unlink(path_u)
-            f.write(data)
-        finally:
-            f.close()
-        if temporary and sys.platform == "win32":
-            os.unlink(path_u)
+            mask = self.inotify.IN_CLOSE_WRITE
+
         fileutil.flush_volume(path_u)
         self.notify(path, self.inotify.IN_CLOSE_WRITE)
 
@@ -310,14 +322,19 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         else:
             d.addCallback(_print, "here9")
             d.addCallback(lambda ign: self.upload_dirnode.get(name_u))
-            d.addCallback(_print, "here10")
-            d.addCallback(download_to_data)
-            d.addCallback(_print, "here11")
-            d.addCallback(lambda actual_data: self.failUnlessReallyEqual(actual_data, data))
-            d.addCallback(_print, "here12")
-            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'),
-                                                                 previously_uploaded + 1))
+            if directory:
+                d.addCallback(_print, "here10a")
+                d.addCallback(lambda node: isinstance(node, IDirectoryNode))
+            else:
+                d.addCallback(_print, "here10b")
+                d.addCallback(download_to_data)
+                d.addCallback(_print, "here11")
+                d.addCallback(lambda actual_data: self.failUnlessReallyEqual(actual_data, data))
+                d.addCallback(_print, "here12")
+                d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'),
+                                                                     previously_uploaded + 1))
 
+        d.addCallback(_print, "here13")
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         return d
 
