@@ -397,12 +397,11 @@ operations performed by the Magic Folder client and the other process.
 (Note that atomic operations on a directory are totally ordered.)
 
 * Interleaving 1a: the other process' rename precedes our rename in
-  step b, and we get an ``IN_MOVED_TO`` event for its rename before
-  we do ours. Then we reclassify as a conflict; its changes end up
-  at ``foo`` and ours end up at ``foo.conflicted``. This avoids
-  data loss.
+  step b, and we get an ``IN_MOVED_TO`` event for its rename by step 2.
+  Then we reclassify as a conflict; its changes end up at ``foo``
+  and ours end up at ``foo.conflicted``. This avoids data loss.
 * Interleaving 1b: its rename precedes ours in step b, and we do
-  not get an ``IN_MOVED_TO`` event for its rename before ours. Its
+  not get an ``IN_MOVED_TO`` event for its rename by step 2. Its
   changes end up at ``foo.old`` and ours end up at ``foo``. This
   avoids data loss.
 * Interleaving 2: its rename happens between our rename in step b,
@@ -427,6 +426,8 @@ Note that it is possible that another process tries to open the file
 between steps b and c. In this case the open will fail because ``foo``
 does not exist. Nevertheless, no data will be lost. (Probably, the user
 will be able to retry the operation.)
+
+On Windows, [TODO interleavings of rename vs ReplaceFileW].
 
 Above we have considered only interleavings with a single other process,
 and only the most common possibilities for the other process' interaction
