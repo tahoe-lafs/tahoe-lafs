@@ -27,19 +27,37 @@ design.
 .. _otf-magic-folder-objective4: https://tahoe-lafs.org/trac/tahoe-lafs/query?status=!closed&keywords=~otf-magic-folder-objective4
 
 
-Representing the Magic Folder in Tahoe-LAFS
--------------------------------------------
-
-*Glossary*
+Glossary
+''''''''
 
 Object: a file or directory
+
 DMD: distributed mutable directory
+
 Folder: an abstract directory that is synchronized between clients.
-  (A folder is not the same as the directory corresponding to it on
-  any particular client, nor is it the same as a DMD.)
+(A folder is not the same as the directory corresponding to it on
+any particular client, nor is it the same as a DMD.)
+
 Descendant: a direct or indirect child in a directory or folder tree
+
 Subfolder: a folder that is a descendant of a magic folder
+
 Subpath: the path from a magic folder to one of its descendants
+
+Write: a modification to a local filesystem object by a client
+
+Read: a read from a local filesystem object by a client
+
+Upload: an upload of a local object to the Tahoe-LAFS file store
+
+Download: a download from the Tahoe-LAFS file store to a local object
+
+Pending notification: a local filesystem change that has been detected
+but not yet processed.
+
+
+Representing the Magic Folder in Tahoe-LAFS
+-------------------------------------------
 
 Unlike the local case where we use inotify or ReadDirectoryChangesW to
 detect filesystem changes, we have no mechanism to register a monitor for
@@ -51,21 +69,21 @@ coordination directive`_", which prohibits concurrent writes by different
 storage clients to the same mutable object:
 
     Tahoe does not provide locking of mutable files and directories. If
-there is more than one simultaneous attempt to change a mutable file or
-directory, then an UncoordinatedWriteError may result. This might, in
-rare cases, cause the file or directory contents to be accidentally
-deleted.  The user is expected to ensure that there is at most one
-outstanding write or update request for a given file or directory at a
-time.  One convenient way to accomplish this is to make a different file
-or directory for each person or process that wants to write.
+    there is more than one simultaneous attempt to change a mutable file
+    or directory, then an UncoordinatedWriteError may result. This might,
+    in rare cases, cause the file or directory contents to be accidentally
+    deleted.  The user is expected to ensure that there is at most one
+    outstanding write or update request for a given file or directory at
+    a time.  One convenient way to accomplish this is to make a different
+    file or directory for each person or process that wants to write.
 
-.. _`write coordination directive`: https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/write_coordination.rst
+.. _`write coordination directive`: ../../write_coordination.rst
 
 Since it is a goal to allow multiple users to write to a Magic Folder,
 if the write coordination directive remains the same as above, then we
 will not be able to implement the Magic Folder as a single Tahoe-LAFS
-DMD. In general therefore, we will have multiple DMDs --spread across
-clients-- that together represent the Magic Folder. Each client polls
+DMD. In general therefore, we will have multiple DMDs —spread across
+clients— that together represent the Magic Folder. Each client polls
 the other clients' DMDs in order to detect remote changes.
 
 Six possible designs were considered for the representation of subfolders
@@ -103,54 +121,21 @@ written by all clients.
 
 .. _`two-phase commit`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1755
 
-Here is a summary of advantages and disadvantages of each design: [TODO:
-express this as a table with the properties as rows and the designs as
-columns. It may be useful to simplify/merge some of the properties and
-use footnotes for more detailed explanation.]
+Here is a summary of advantages and disadvantages of each design:
 
-+---------------------------+
-| Key                       |
-+======+====================+
-|\+\+  | major advantage    |
-+------+--------------------+
-|\+    | minor advantage    |
-+------+--------------------+
-|\-    | minor disadvantage |
-+------+--------------------+
-|\-\-  | major disadvantage |
-+------+--------------------+
-|\-\-\-| showstopper        |
-+------+--------------------+
-
-+------------------------------------------------+-----------------------------------------+
-| Design Property                                | Designs Proposed                        |
-+================================================+======+======+======+======+======+======+
-| **advantages**                                 | 1    | 2    | 3    | 4    | 5    | 6    |
-+------------------------------------------------+------+------+------+------+------+------+
-| Compatible with garbage collection             |\+    |\+    |\+    |\+    |\+    |\+    |
-+------------------------------------------------+------+------+------+------+------+------+
-| Does not break old clients                     |\+    |\+    |\+    |\+    |\+    |\+    |
-+------------------------------------------------+------+------+------+------+------+------+
-| Allows direct sharing                          |      |      |      |\+\+  |\+\+  |\+\+  |
-+------------------------------------------------+------+------+------+------+------+------+
-| Efficient use of bandwidth                     |\+    |      |\+    |      |\+    |      |
-+------------------------------------------------+------+------+------+------+------+------+
-| No repeated changes                            |\+    |\+    |\+    |      |      |\+    |
-+------------------------------------------------+------+------+------+------+------+------+
-| **disadvantages**                              | 1    | 2    | 3    | 4    | 5    | 6    |
-+------------------------------------------------+------+------+------+------+------+------+
-| Can result in large DMDs                       |\-    |      |      |      |      |      |
-+------------------------------------------------+------+------+------+------+------+------+
-| Must traverse immutable directory structure    |      |      |\-    |      |\-    |      |
-+------------------------------------------------+------+------+------+------+------+------+
-| Must traverse mutable directory structure      |      |\-    |      |\-    |      |      |
-+------------------------------------------------+------+------+------+------+------+------+
-| Must suppress duplicate representation changes |      |      |      |\-    |\-    |      |
-+------------------------------------------------+------+------+------+------+------+------+
-| "Out of sync" problem                          |      |      |      |\-    |\-    |      |
-+------------------------------------------------+------+------+------+------+------+------+
-| Unsolved design problems                       |      |      |      |      |      |\-\-\-|
-+------------------------------------------------+------+------+------+------+------+------+
++----------------------------+
+| Key                        |
++=======+====================+
+| \+\+  | major advantage    |
++-------+--------------------+
+| \+    | minor advantage    |
++-------+--------------------+
+| ‒     | minor disadvantage |
++-------+--------------------+
+| ‒ ‒   | major disadvantage |
++-------+--------------------+
+| ‒ ‒ ‒ | showstopper        |
++-------+--------------------+
 
 
 123456+: All designs have the property that a recursive add-lease
@@ -165,7 +150,7 @@ pre-Magic-Folder client does the lease marking.
 a directory or file that is part of the representation.
 
 456++: Only these designs allow a readcap to one of the client
-directories --or one of their subdirectories-- to be directly shared
+directories —or one of their subdirectories— to be directly shared
 with other Tahoe-LAFS clients (not necessarily Magic Folder clients),
 so that such a client sees all of the contents of the Magic Folder.
 Note that this was not a requirement of the OTF proposal, although it
@@ -176,17 +161,21 @@ monitor per other client. This minimizes communication bandwidth for
 polling, or alternatively the latency possible for a given polling
 bandwidth.
 
-1-: If the Magic Folder has many subfolders, their files will all be
+1236+: A client does not need to make changes to its own DMD that repeat
+changes that another Magic Folder client had previously made. This reduces
+write bandwidth and complexity.
+
+1‒: If the Magic Folder has many subfolders, their files will all be
 collapsed into the same DMD, which could get quite large. In practice a
 single DMD can easily handle the number of files expected to be written
 by a client, so this is unlikely to be a significant issue.
 
-35--: When a Magic Folder client detects a remote change, it must
+35‒ ‒: When a Magic Folder client detects a remote change, it must
 traverse an immutable directory structure to see what has changed.
 Completely unchanged subtrees will have the same URI, allowing some of
 this traversal to be shortcutted.
 
-24---: When a Magic Folder client detects a remote change, it must
+24‒ ‒ ‒: When a Magic Folder client detects a remote change, it must
 traverse a mutable directory structure to see what has changed. This is
 more complex and less efficient than traversing an immutable structure,
 because shortcutting is not possible (each DMD retains the same URI even
@@ -194,29 +183,57 @@ if a descendant object has changed), and because the structure may change
 while it is being traversed. Also the traversal needs to be robust
 against cycles, which can only occur in mutable structures.
 
-45--: When a change occurs in one Magic Folder client, it will propagate
+45‒ ‒: When a change occurs in one Magic Folder client, it will propagate
 to all the other clients. Each client will therefore see multiple
 representation changes for a single logical change to the Magic Folder
 contents, and must suppress the duplicates. This is particularly
 problematic for design 4 where it interacts with the preceding issue.
 
-1236+: A client does not need to make changes to its own DMD that repeat
-changes that another Magic Folder client had previously made. This reduces
-write bandwidth and complexity.
-
-4---, 5--: There is the potential for client DMDs to get "out of sync"
+4‒ ‒ ‒, 5‒ ‒: There is the potential for client DMDs to get "out of sync"
 with each other, potentially for long periods if errors occur. Thus each
 client must be able to "repair" its client directory (and its
 subdirectory structure) concurrently with performing its own writes. This
 is a significant complexity burden and may introduce failure modes that
 could not otherwise happen.
 
-6---: While two-phase commit is a well-established protocol, its
+6‒ ‒ ‒: While two-phase commit is a well-established protocol, its
 application to Tahoe-LAFS requires significant design work, and may still
 leave some corner cases of the write coordination problem unsolved.
 
 
-*Evaluation of designs*
++------------------------------------------------+-----------------------------------------+
+| Design Property                                | Designs Proposed                        |
++================================================+======+======+======+======+======+======+
+| **advantages**                                 | *1*  | *2*  | *3*  | *4*  | *5*  | *6*  |
++------------------------------------------------+------+------+------+------+------+------+
+| Compatible with garbage collection             |\+    |\+    |\+    |\+    |\+    |\+    |
++------------------------------------------------+------+------+------+------+------+------+
+| Does not break old clients                     |\+    |\+    |\+    |\+    |\+    |\+    |
++------------------------------------------------+------+------+------+------+------+------+
+| Allows direct sharing                          |      |      |      |\+\+  |\+\+  |\+\+  |
++------------------------------------------------+------+------+------+------+------+------+
+| Efficient use of bandwidth                     |\+    |      |\+    |      |\+    |      |
++------------------------------------------------+------+------+------+------+------+------+
+| No repeated changes                            |\+    |\+    |\+    |      |      |\+    |
++------------------------------------------------+------+------+------+------+------+------+
+| **disadvantages**                              | *1*  | *2*  | *3*  | *4*  | *5*  | *6*  |
++------------------------------------------------+------+------+------+------+------+------+
+| Can result in large DMDs                       |‒     |      |      |      |      |      |
++------------------------------------------------+------+------+------+------+------+------+
+| Must traverse immutable directory structure    |      |      |‒ ‒   |      |‒ ‒   |      |
++------------------------------------------------+------+------+------+------+------+------+
+| Must traverse mutable directory structure      |      |‒ ‒   |      |‒ ‒   |      |      |
++------------------------------------------------+------+------+------+------+------+------+
+| Must suppress duplicate representation changes |      |      |      |‒ ‒   |‒ ‒   |      |
++------------------------------------------------+------+------+------+------+------+------+
+| "Out of sync" problem                          |      |      |      |‒ ‒ ‒ |‒ ‒   |      |
++------------------------------------------------+------+------+------+------+------+------+
+| Unsolved design problems                       |      |      |      |      |      |‒ ‒ ‒ |
++------------------------------------------------+------+------+------+------+------+------+
+
+
+Evaluation of designs
+'''''''''''''''''''''
 
 Designs 2 and 3 have no significant advantages over design 1, while
 requiring higher polling bandwidth and greater complexity due to the need
@@ -253,17 +270,8 @@ mnemonic we have named after the five classical Greek elements
 (Earth, Air, Water, Fire and Aether).
 
 
-*Glossary*
-
-Write:    a modification to a local filesystem object by a client
-Read:     a read from a local filesystem object by a client
-Upload:   an upload of a local object to the Tahoe-LAFS file store
-Download: a download from the Tahoe-LAFS file store to a local object
-Pending notification: a local filesystem change that has been detected
-but not yet processed.
-
-
-*Earth Dragons: Write/download and read/download collisions*
+Earth Dragons: Write/download and read/download collisions
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Suppose that Alice's Magic Folder client is about to write a
 version of ``foo`` that it has downloaded in response to a remote
@@ -275,7 +283,7 @@ that the remote change has been tentatively classified as an
 overwrite. (As we will see below, it may be reclassified in some
 circumstances.)
 
-.. _`Fire Dragons`: `Fire Dragons: Distinguishing conflicts from overwrites`_
+.. _`Fire Dragons`: #fire-dragons-distinguishing-conflicts-from-overwrites
 
 An "write/download" conflict occurs when another program writes
 to ``foo`` in the local filesystem, concurrently with the new
@@ -340,11 +348,11 @@ set in step a. The link in step c will cause an ``IN_CREATE``
 event for ``foo``, but this will not trigger an upload,
 because the metadata recorded in the database entry will
 exactly match the metadata for the file's inode on disk.
-(The two hard links -- ``foo`` and, while it still exists,
-``.foo.tmp`` -- share the same inode and therefore the same
+(The two hard links — ``foo`` and, while it still exists,
+``.foo.tmp`` — share the same inode and therefore the same
 metadata.)
 
-.. _`magic folder db`: `filesystem_integration.rst#Local scanning and database`_
+.. _`magic folder db`: filesystem_integration.rst#local-scanning-and-database
 
 [TODO: on Unix, what happens with reference to inotify events if we
 rename a file while it is open? Does the filename for the ``CLOSE_WRITE``
@@ -362,11 +370,13 @@ open for writing:
   flags specified by the other process when it opened its file handle
   included ``FILE_SHARE_DELETE``. (This flag covers both deletion and
   rename operations.)
+
   i.  If the sharing flags *do not* allow deletion/renaming, the
       `ReplaceFileW`_ operation will fail without renaming ``foo``.
       In this case we will end up with ``foo`` changed by the other
       process, and the downloaded file still in ``foo.tmp``.
       This avoids data loss.
+
   ii. If the sharing flags *do* allow deletion/renaming, then
       data loss or corruption may occur. This is unavoidable and
       can be attributed to other process making a poor choice of
@@ -428,7 +438,8 @@ much rarer.
 [TODO: discuss read/download collisions]
 
 
-*Air Dragons: write/upload collisions*
+Air Dragons: Write/upload collisions
+''''''''''''''''''''''''''''''''''''
 
 we can't read a file atomically. therefore, when we read a file in order
 to upload it, we may read an inconsistent version if it was also being
@@ -456,7 +467,8 @@ we have implemented the pending delay but we will not implement the
 abort/re-upload for the OTF grant
 
 
-*Fire Dragons: Distinguishing conflicts from overwrites*
+Fire Dragons: Distinguishing conflicts from overwrites
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 alice sees a change by bob to 'foo' and needs to know whether that change
 is an overwrite or a conflict
@@ -492,7 +504,8 @@ filesystem notifications for filenames that match the conflicted pattern
 are ignored
 
 
-*Water Dragons: Resolving conflict loops*
+Water Dragons: Resolving conflict loops
+'''''''''''''''''''''''''''''''''''''''
 
 suppose that we've detected a remote write to file 'foo' that conflicts
 with a local write
@@ -538,29 +551,30 @@ conflict loop
 that alice has seen it)
 
 
-*Aether Dragons: Handling renames*
+Aether Dragons: Handling renames
+''''''''''''''''''''''''''''''''
 
 suppose that a subfolder of the Magic Folder is renamed on one of the
 Magic Folder clients. it is not clear how to handle this at all:
 
 * if the folder is renamed automatically on other clients, then apps that
-were using files in that folder may break. The behavior differs between
-Windows and Unix: on Windows, it might not be possible to rename the
-folder at all if it contains open files, while on Unix, open file handles
-will stay open but operations involving the old path will fail. either
-way the behaviour is likely to be confusing.
+  were using files in that folder may break. The behavior differs between
+  Windows and Unix: on Windows, it might not be possible to rename the
+  folder at all if it contains open files, while on Unix, open file handles
+  will stay open but operations involving the old path will fail. either
+  way the behaviour is likely to be confusing.
 
 * for conflict detection, it is unclear whether existing entries in the
-magic folder db under the old path should be updated to their new path.
+  magic folder db under the old path should be updated to their new path.
 
 * another possibility is treat the rename like a copy, i.e. all clients
-end up with a copy of the directory under both names. effectively we
-treat the move event as a directory creation, and also pretend that there
-has been a modification of the directory at the old name by all other
-Magic Folder clients. this is the easiest option to implement.
+  end up with a copy of the directory under both names. effectively we
+  treat the move event as a directory creation, and also pretend that there
+  has been a modification of the directory at the old name by all other
+  Magic Folder clients. this is the easiest option to implement.
 
 
-*Other design issues*
+Other design issues
+'''''''''''''''''''
 
-* choice of conflicted filenames (e.g.
-foo.by_bob_at_YYYYMMDD_HHMMSS[v].type)
+* choice of conflicted filenames (e.g. ``foo.by_bob_at_YYYYMMDD_HHMMSS[v].type``)
