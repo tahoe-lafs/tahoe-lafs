@@ -1,7 +1,8 @@
 Magic Folder local filesystem integration design
 ================================================
 
-*Scope*
+Scope
+-----
 
 This document describes how to integrate the local filesystem with Magic
 Folder in an efficient and reliable manner. For now we ignore Remote to
@@ -18,7 +19,9 @@ Objective 2.
 
 .. _otf-magic-folder-objective2: https://tahoe-lafs.org/trac/tahoe-lafs/query?status=!closed&keywords=~otf-magic-folder-objective2
 
-*Local scanning and database*
+
+Local scanning and database
+---------------------------
 
 When a Magic-Folder-enabled node starts up, it scans all directories
 under the local directory and adds every file to a first-in first-out
@@ -47,7 +50,8 @@ time, and a user would not be able to tell when backups are possible
 because Magic Folder would acquire a lock at arbitrary times.)
 
 
-*Eventual consistency property*
+Eventual consistency property
+-----------------------------
 
 During the process of reading a file in order to upload it, it is not
 possible to prevent further local writes. Such writes will result in
@@ -58,7 +62,8 @@ is, a consistent snapshot will be achieved eventually when local writes
 to the target folder cease for a sufficiently long period of time.
 
 
-*Detecting filesystem changes*
+Detecting filesystem changes
+----------------------------
 
 For the Linux implementation, we will use the inotify Linux kernel
 subsystem to gather events on the local Magic Folder directory tree. This
@@ -88,7 +93,8 @@ can be watched, and to correctly handle cases where an existing directory
 is moved to be under the local Magic Folder directory.
 
 
-*User interface*
+User interface
+--------------
 
 The Magic Folder local filesystem integration will initially have a
 provisional configuration file-based interface that may not be ideal from
