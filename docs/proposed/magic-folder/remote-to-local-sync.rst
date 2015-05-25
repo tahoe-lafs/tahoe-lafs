@@ -267,7 +267,9 @@ Conflict Detection and Resolution
 In our discussion of design issues for conflict detection and resolution,
 we classified various problems as "dragons", which as a convenient
 mnemonic we have named after the five classical Greek elements
-(Earth, Air, Water, Fire and Aether).
+(Earth, Air, Water, Fire and Aether). The example communication actors
+Alice and Bob are also the users of corresponding software processes
+designated by `alice` and `bob` respectively.
 
 Note: all filenames used in the following sections are examples,
 and the filename patterns we use in the actual implementation may
