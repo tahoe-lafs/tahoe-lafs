@@ -698,8 +698,16 @@ conflict loop
 that alice has seen it)
 
 
-Aether Dragons: Handling renames
-''''''''''''''''''''''''''''''''
+Aether Dragons: Handling deletion and renames
+'''''''''''''''''''''''''''''''''''''''''''''
+
+*Deletion*
+
+deletion of a file is like overwriting it with a "deleted" marker
+
+[TODO: deletion of a directory?]
+
+*Renames*
 
 suppose that a subfolder of the Magic Folder is renamed on one of the
 Magic Folder clients. it is not clear how to handle this at all:
