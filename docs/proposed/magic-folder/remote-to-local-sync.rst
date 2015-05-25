@@ -269,6 +269,10 @@ we classified various problems as "dragons", which as a convenient
 mnemonic we have named after the five classical Greek elements
 (Earth, Air, Water, Fire and Aether).
 
+Note: all filenames used in the following sections are examples,
+and the filename patterns we use in the actual implementation may
+differ.
+
 
 Earth Dragons: Write/download and read/download collisions
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -314,63 +318,174 @@ Our proposed design is as follows:
 The implementation of file replacement differs between
 Windows and Unix. On Unix, it can be implemented as follows:
 
-a. Set the permissions of the replacement file to be the
-   same as the replaced file, bitwise-or'd with octal 600
-   (``rw-------``).
-b. Attempt to move the replaced file (``foo``) to the
-   backup filename (``foo.old``).
-c. Attempt to create a hard link at the replaced filename
-   (``foo``) pointing to the replacement file (``.foo.tmp``).
-d. Attempt to unlink the replacement file (``.foo.tmp``),
-   suppressing errors.
+4a. Set the permissions of the replacement file to be the
+    same as the replaced file, bitwise-or'd with octal 600
+    (``rw-------``).
+4b. Attempt to move the replaced file (``foo``) to the
+    backup filename (``foo.old``).
+4c. Attempt to create a hard link at the replaced filename
+    (``foo``) pointing to the replacement file (``.foo.tmp``).
+4d. Attempt to unlink the replacement file (``.foo.tmp``),
+    suppressing errors.
 
 To reclassify as a conflict, attempt to rename ``.foo.tmp`` to
 ``foo.conflicted``, suppressing errors.
 
 Note that, if there is no conflict, the entry for ``foo``
 recorded in the `magic folder db`_ will reflect the ``mtime``
-set in step 3. The link in step c will cause an ``IN_CREATE``
-event for ``foo``, but this will not trigger an upload,
-because the metadata recorded in the database entry will
-exactly match the metadata for the file's inode on disk.
+set in step 3. The link operation in step 4c will cause an
+``IN_CREATE`` event for ``foo``, but this will not trigger an
+upload, because the metadata recorded in the database entry
+will exactly match the metadata for the file's inode on disk.
 (The two hard links — ``foo`` and, while it still exists,
 ``.foo.tmp`` — share the same inode and therefore the same
 metadata.)
 
 .. _`magic folder db`: filesystem_integration.rst#local-scanning-and-database
 
+[TODO: on Unix, what happens with reference to inotify events if we
+rename a file while it is open? Does the path for the ``CLOSE_WRITE``
+event reflect the new name?]
+
 On Windows, file replacement can be implemented as a single
 call to the `ReplaceFileW`_ API (with the
 ``REPLACEFILE_IGNORE_MERGE_ERRORS`` flag).
 
 Similar to the Unix case, the `ReplaceFileW`_ operation will
-cause a change notification for ``foo``. The replaced ``foo``
-has the same ``mtime`` as the replacement file, and so this
-notification will not trigger an upload.
-
-Note that ReplaceFileW is not atomic. The effect of this call
-is to first move ``foo`` to ``foo.old``, then move ``.foo.tmp``
-to ``foo``. It is possible for there to be a failure between
-these two moves, in which case the call will fail with return
-code ``ERROR_UNABLE_TO_MOVE_REPLACEMENT_2``. However, it is
-still preferable to use this API over two `MoveFileExW`_ calls,
-because it retains the attributes and ACLs of ``foo`` where
-possible.
+cause a change notification for ``foo`` [TODO: check which
+notifications we actually get]. The replaced ``foo`` has the
+same ``mtime`` as the replacement file, and so this notification
+will not trigger an unwanted upload.
 
 .. _`ReplaceFileW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx
-.. _`MoveFileExW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365240%28v=vs.85%29.aspx
-
-[TODO: on Unix, what happens with reference to inotify events if we
-rename a file while it is open? Does the filename for the ``CLOSE_WRITE``
-event reflect the new name?]
 
 To determine whether this procedure adequately protects against data
-loss, we need to consider what happens if another process has ``foo``
-open for writing:
+loss, we need to consider what happens if another process attempts to
+update ``foo``, for example by renaming ``foo.other`` to ``foo``.
+This differs between Windows and Unix.
 
-* On Unix, open file handles refer to inodes, not paths. When the other
-  program closes the file, changes will have been written to the file
-  at the same inode, now linked at ``foo.old``. This avoids data loss.
+On Unix, we need to consider all possible interleavings between the
+operations performed by the Magic Folder client and the other process.
+(Note that atomic operations on a directory are totally ordered.)
+
+* Interleaving A: the other process' rename precedes our rename in
+  step 4b, and we get an ``IN_MOVED_TO`` event for its rename by
+  step 2. Then we reclassify as a conflict; its changes end up at
+  ``foo`` and ours end up at ``foo.conflicted``. This avoids data
+  loss.
+
+* Interleaving B: its rename precedes ours in step 4b, and we do
+  not get an event for its rename by step 2. Its changes end up at
+  ``foo.old``, and ours end up at ``foo`` after being linked there
+  in step 4c. This avoids data loss.
+
+* Interleaving C: its rename happens between our rename in step 4b,
+  and our link operation in step 4c of the file replacement. The
+  latter fails with an ``EEXIST`` error because ``foo`` already
+  exists. We reclassify as a conflict; the old version ends up at
+  ``foo.old``, the other process' changes end up at ``foo``, and
+  ours at ``foo.conflicted``. This avoids data loss.
+
+* Interleaving D: its rename happens after our link in step 4c,
+  and causes an ``IN_MOVED_TO`` event for ``foo``. Its rename also
+  changes the ``mtime`` for ``foo`` so that it is different from
+  the ``mtime`` calculated in step 3, and therefore different
+  from the metadata recorded for ``foo`` in the magic folder db.
+  (Assuming no system clock changes, its rename will set an ``mtime``
+  timestamp corresponding to a time after step 4c, which is not
+  equal to the timestamp *T* seconds before step 4a, provided that
+  *T* seconds is sufficiently greater than the timestamp granularity.)
+  Therefore, an upload will be triggered for ``foo`` after its
+  change, which is correct and avoids data loss.
+
+On Windows, the internal implementation of `ReplaceFileW`_ is similar
+to what we have described above for Unix; it works like this:
+
+4a′. Copy metadata (which does not include ``mtime``) from the
+     replaced file (``foo``) to the replacement file (``.foo.tmp``).
+4b′. Attempt to move the replaced file (``foo``) onto the
+     backup filename (``foo.old``), deleting the latter if it
+     already exists.
+4c′. Attempt to move the replacement file (``.foo.tmp``) to the
+     replaced filename (``foo``); fail if the destination already
+     exists.
+
+Notice that this is essentially the same as the algorithm we use
+for Unix, but steps 4c and 4d on Unix are combined into a single
+step 4c′. (If there is a failure at steps 4c′ after step 4b′ has
+completed, the `ReplaceFileW`_ call will fail with return code
+``ERROR_UNABLE_TO_MOVE_REPLACEMENT_2``. However, it is still
+preferable to use this API over two `MoveFileExW`_ calls, because
+it retains the attributes and ACLs of ``foo`` where possible.)
+
+However, on Windows the other application will not be able to
+directly rename ``foo.other`` onto ``foo`` (which would fail because
+the destination already exists); it will have to rename or delete
+``foo`` first. Without loss of generality, let's say ``foo`` is
+deleted. This complicates the interleaving analysis, because we
+have two operations done by the other process interleaving with
+three done by the magic folder process (rather than one operation
+interleaving with four as on Unix). The cases are:
+
+* Interleaving A′: the other process' deletion of ``foo`` and its
+  rename of ``foo.other`` to ``foo`` both precede our rename in
+  step 4b. We get an event corresponding to its rename by step 2.
+  Then we reclassify as a conflict; its changes end up at ``foo``
+  and ours end up at ``foo.conflicted``. This avoids data loss.
+
+* Interleaving B′: the other process' deletion of ``foo`` and its
+  rename of ``foo.other`` to ``foo`` both precede our rename in
+  step 4b. We do not get an event for its rename by step 2.
+  Its changes end up at ``foo.old``, and ours end up at ``foo``
+  after being linked there in step 4c. This avoids data loss.
+
+* Interleaving X′: the other process' deletion of ``foo`` precedes
+  our rename of ``foo`` to ``foo.old`` done by `ReplaceFileW`_,
+  but its rename of ``foo.other`` to ``foo`` does not, so we get
+  an ``ERROR_FILE_NOT_FOUND`` error from `ReplaceFileW`_ indicating
+  that the replaced file does not exist. Then we reclassify as a
+  conflict; the other process' changes end up at ``foo`` (after
+  it has renamed ``foo.other`` to ``foo``) and our changes end up
+  at ``foo.conflicted``. This avoids data loss.
+
+* Interleaving C′: its deletion happens during the call to
+  `ReplaceFileW`_, causing the latter to fail with an ... error.
+  We reclassify as a conflict; the old version ends up at
+  ``foo.old``, the other process' changes end up at ``foo``, and
+  ours at ``foo.conflicted``. This avoids data loss.
+
+* Interleaving D′: its rename happens after all internal operations
+  of `ReplaceFileW`_ have completed, and causes a corresponding event
+  for ``foo``. Its rename also changes the ``mtime`` for ``foo`` so
+  that it is different from the ``mtime`` calculated in step 3, and
+  therefore different from the metadata recorded for ``foo`` in the
+  magic folder db. (Assuming no system clock changes, its rename will
+  set an ``mtime`` timestamp corresponding to a time after the
+  internal operations of `ReplaceFileW`_ have completed, which is not
+  equal to the timestamp *T* seconds before `ReplaceFileW`_ is called,
+  provided that *T* seconds is sufficiently greater than the timestamp
+  granularity.) Therefore, an upload will be triggered for ``foo``
+  after its change, which is correct and avoids data loss.
+
+[FIXME probably wrong
+Because the steps on Windows correspond to those on Unix except
+for combining two steps, the set of possible interleavings is a
+subset of that on Unix. Therefore, the possible outcomes are also
+a subset of those on Unix. (The possibility of ending up with two
+links at ``foo`` and ``.foo.tmp`` is excluded. Also there is an
+additional failure case where 4b′ fails because ``foo.old`` already
+exists; this does not cause data loss.)]
+
+.. _`MoveFileExW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365240%28v=vs.85%29.aspx
+
+We also need to consider what happens if another process opens ``foo``
+and writes to it directly, rather than renaming another file onto it:
+
+* On Unix, open file handles refer to inodes, not paths. If the other
+  process opens ``foo`` before it has been renamed to ``foo.old``,
+  and then closes the file, changes will have been written to the file
+  at the same inode, even if that inode is now linked at ``foo.old``.
+  This avoids data loss.
 
 * On Windows, we have two subcases, depending on whether the sharing
   flags specified by the other process when it opened its file handle
@@ -391,49 +506,14 @@ open for writing:
 
 .. _`CreateFile`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858%28v=vs.85%29.aspx
 
+Note that it is possible that another process tries to open the file
+between steps 4b and 4c (or 4b′ and 4c′ on Windows). In this case the
+open will fail because ``foo`` does not exist. Nevertheless, no data
+will be lost, and in many cases the user will be able to retry the
+operation.
+
 [TODO: on Windows, what is the default sharing of a file opened for
 writing by _open/_wopen?]
-
-We also need to consider what happens if another process attempts to
-update ``foo`` by renaming another file, say ``foo.other``, onto it.
-Again this differs between Windows and Unix:
-
-On Unix, we need to consider all possible interleavings between the
-operations performed by the Magic Folder client and the other process.
-(Note that atomic operations on a directory are totally ordered.)
-
-* Interleaving 1a: the other process' rename precedes our rename in
-  step b, and we get an ``IN_MOVED_TO`` event for its rename by step 2.
-  Then we reclassify as a conflict; its changes end up at ``foo``
-  and ours end up at ``foo.conflicted``. This avoids data loss.
-* Interleaving 1b: its rename precedes ours in step b, and we do
-  not get an ``IN_MOVED_TO`` event for its rename by step 2. Its
-  changes end up at ``foo.old`` and ours end up at ``foo``. This
-  avoids data loss.
-* Interleaving 2: its rename happens between our rename in step b,
-  and our link operation in step c of the file replacement. The
-  latter fails with an ``EEXIST`` error because ``foo`` already
-  exists. We reclassify as a conflict; the old version ends up at
-  ``foo.old``, the other process' changes end up at ``foo``, and
-  ours at ``foo.conflicted``. This avoids data loss.
-* Interleaving 3: its rename happens after our link in step c, and
-  causes an ``IN_MOVED_TO`` event for ``foo``. Its rename also changes
-  the ``mtime`` for ``foo`` so that it is different from the ``mtime``
-  calculated in step a, and therefore different from the metadata
-  recorded for ``foo`` in the magic folder db. (Assuming no system
-  clock changes, its rename will set an ``mtime`` timestamp
-  corresponding to a time after step c, which is not equal to the
-  timestamp *T* seconds before step a, provided that *T* seconds
-  is sufficiently greater than the timestamp granularity.)
-  Therefore, an upload will be triggered for ``foo`` after its change,
-  which is correct and avoids data loss.
-
-Note that it is possible that another process tries to open the file
-between steps b and c. In this case the open will fail because ``foo``
-does not exist. Nevertheless, no data will be lost, and in many cases
-the user will be able to retry the operation.
-
-On Windows, [TODO interleavings of rename vs ReplaceFileW].
 
 
 A *read/download collision* occurs when another program reads
