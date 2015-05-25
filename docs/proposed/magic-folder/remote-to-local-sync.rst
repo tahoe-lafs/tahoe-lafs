@@ -557,7 +557,7 @@ context), there is no way to *read* the whole contents of a file
 atomically. Therefore, when we read a file in order to upload it, we
 may read an inconsistent version if it was also being written locally.
 
-.. _`shadow copies`: https://technet.microsoft.com/en-us/library/ee923636%28v=ws.10%29.aspx
+.. _`shadow copy service`: https://technet.microsoft.com/en-us/library/ee923636%28v=ws.10%29.aspx
 
 A well-behaved application can avoid this problem for its writes:
 
@@ -605,13 +605,16 @@ Note however that we cannot guarantee that the delays will be long
 enough to prevent inconsistency in any particular case. Also, the
 stability delay would potentially affect performance significantly
 because (unlike the pending delay) it is not overlapped when there
-are multiple files on the upload queue.
+are multiple files on the upload queue. This performance impact
+could be mitigated by uploading files in parallel where possible
+(Tahoe-LAFS ticket `#1459`_).
 
 We have not yet decided whether to implement the stability delay, and
 it is not planned to be implemented for the OTF objective 4 milestone.
-Ticket `#xxxx`_ has been opened to track this idea.
+Ticket `#2431`_ has been opened to track this idea.
 
-.. _`#xxxx`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/xxxx
+.. _`#1459`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1459
+.. _`#2431`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2431
 
 
 Fire Dragons: Distinguishing conflicts from overwrites
