@@ -264,8 +264,13 @@ Folder.
 Conflict Detection and Resolution
 ---------------------------------
 
-In our discussion of design issues for conflict detection and resolution,
-we classified various problems as "dragons", which as a convenient
+The combination of local filesystems and distributed objects is
+an example of shared state concurrency, which is highly error-prone
+and can result in race conditions that are complex to analyse.
+Unfortunately we have no option but to use shared state in this
+situation.
+
+We call the resulting design issues "dragons", which as a convenient
 mnemonic we have named after the five classical Greek elements
 (Earth, Air, Water, Fire and Aether).
 
@@ -439,7 +444,7 @@ interleaving with four as on Unix). The cases are:
   Its changes end up at ``foo.old``, and ours end up at ``foo``
   after being linked there in step 4c. This avoids data loss.
 
-* Interleaving X′: the other process' deletion of ``foo`` precedes
+* Interleaving C′: the other process' deletion of ``foo`` precedes
   our rename of ``foo`` to ``foo.old`` done by `ReplaceFileW`_,
   but its rename of ``foo.other`` to ``foo`` does not, so we get
   an ``ERROR_FILE_NOT_FOUND`` error from `ReplaceFileW`_ indicating
@@ -448,15 +453,22 @@ interleaving with four as on Unix). The cases are:
   it has renamed ``foo.other`` to ``foo``) and our changes end up
   at ``foo.conflicted``. This avoids data loss.
 
-* Interleaving C′: its deletion happens during the call to
-  `ReplaceFileW`_, causing the latter to fail with an ... error.
-  We reclassify as a conflict; the old version ends up at
-  ``foo.old``, the other process' changes end up at ``foo``, and
-  ours at ``foo.conflicted``. This avoids data loss.
+* Interleaving D′: the other process' deletion and/or rename happen
+  during the call to `ReplaceFileW`_, causing the latter to fail.
+  There are two subcases:
+  * if the error is ``ERROR_UNABLE_TO_MOVE_REPLACEMENT_2``, then
+    ``foo`` is renamed to ``foo.old`` and ``.foo.tmp`` remains
+    at its original name after the call.
+  * for all other errors, ``foo`` and ``.foo.tmp`` both remain at
+    their original names after the call.
+  In both cases, we reclassify as a conflict and rename ``.foo.tmp``
+  to ``foo.conflicted``. This avoids data loss.
 
-* Interleaving D′: its rename happens after all internal operations
-  of `ReplaceFileW`_ have completed, and causes a corresponding event
-  for ``foo``. Its rename also changes the ``mtime`` for ``foo`` so
+* Interleaving E′: the other process' deletion of ``foo`` and attempt
+  to rename ``foo.other`` to ``foo`` both happen after all internal
+  operations of `ReplaceFileW`_ have completed. This causes an event
+  for ``foo`` (the deletion and rename events are merged due to the
+  pending delay). The rename also changes the ``mtime`` for ``foo`` so
   that it is different from the ``mtime`` calculated in step 3, and
   therefore different from the metadata recorded for ``foo`` in the
   magic folder db. (Assuming no system clock changes, its rename will
@@ -466,15 +478,6 @@ interleaving with four as on Unix). The cases are:
   provided that *T* seconds is sufficiently greater than the timestamp
   granularity.) Therefore, an upload will be triggered for ``foo``
   after its change, which is correct and avoids data loss.
-
-[FIXME probably wrong
-Because the steps on Windows correspond to those on Unix except
-for combining two steps, the set of possible interleavings is a
-subset of that on Unix. Therefore, the possible outcomes are also
-a subset of those on Unix. (The possibility of ending up with two
-links at ``foo`` and ``.foo.tmp`` is excluded. Also there is an
-additional failure case where 4b′ fails because ``foo.old`` already
-exists; this does not cause data loss.)]
 
 .. _`MoveFileExW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365240%28v=vs.85%29.aspx
 
