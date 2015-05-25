@@ -285,7 +285,7 @@ circumstances.)
 
 .. _`Fire Dragons`: #fire-dragons-distinguishing-conflicts-from-overwrites
 
-An "write/download" conflict occurs when another program writes
+A *write/download collision* occurs when another program writes
 to ``foo`` in the local filesystem, concurrently with the new
 version being written by the Magic Folder client. We need to
 ensure that this does not cause data loss, as far as possible.
@@ -304,34 +304,19 @@ Our proposed design is as follows:
    ``.foo.tmp``.
 2. If there are pending notifications of changes to ``foo``,
    reclassify as a conflict and stop.
-3. Perform a ''file replacement'' operation (see below)
+3. Set the ``mtime`` of the replacement file to be *T* seconds
+   before the current time (see below for further explanation).
+4. Perform a ''file replacement'' operation (see below)
    with backup filename ``foo.old``, replaced file ``foo``,
    and replacement file ``.foo.tmp``. If any step of this
    operation fails, reclassify as a conflict and stop.
 
 The implementation of file replacement differs between
-Windows and Unix. On Windows, it can be implemented as a
-single call to the `ReplaceFileW`_ API (with the
-``REPLACEFILE_IGNORE_MERGE_ERRORS`` flag).
-
-Note that ReplaceFileW is not atomic. The effect of this call
-is to first move ``foo`` to ``foo.old``, then move ``.foo.tmp``
-to ``foo``. It is possible for there to be a failure between
-these two moves, in which case the call will fail with return
-code ``ERROR_UNABLE_TO_MOVE_REPLACEMENT_2``. However, it is
-still preferable to use this API over two `MoveFileExW`_ calls,
-because it retains the attributes and ACLs of ``foo`` where
-possible.
-
-.. _`ReplaceFileW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx
-.. _`MoveFileExW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365240%28v=vs.85%29.aspx
-
-On Unix, file replacement can be implemented as follows:
+Windows and Unix. On Unix, it can be implemented as follows:
 
 a. Set the permissions of the replacement file to be the
    same as the replaced file, bitwise-or'd with octal 600
-   (``rw-------``), and set its ``mtime`` to be *T* seconds
-   before the current time (see below for further explanation).
+   (``rw-------``).
 b. Attempt to move the replaced file (``foo``) to the
    backup filename (``foo.old``).
 c. Attempt to create a hard link at the replaced filename
@@ -344,7 +329,7 @@ To reclassify as a conflict, attempt to rename ``.foo.tmp`` to
 
 Note that, if there is no conflict, the entry for ``foo``
 recorded in the `magic folder db`_ will reflect the ``mtime``
-set in step a. The link in step c will cause an ``IN_CREATE``
+set in step 3. The link in step c will cause an ``IN_CREATE``
 event for ``foo``, but this will not trigger an upload,
 because the metadata recorded in the database entry will
 exactly match the metadata for the file's inode on disk.
@@ -353,6 +338,27 @@ exactly match the metadata for the file's inode on disk.
 metadata.)
 
 .. _`magic folder db`: filesystem_integration.rst#local-scanning-and-database
+
+On Windows, file replacement can be implemented as a single
+call to the `ReplaceFileW`_ API (with the
+``REPLACEFILE_IGNORE_MERGE_ERRORS`` flag).
+
+Similar to the Unix case, the `ReplaceFileW`_ operation will
+cause a change notification for ``foo``. The replaced ``foo``
+has the same ``mtime`` as the replacement file, and so this
+notification will not trigger an upload.
+
+Note that ReplaceFileW is not atomic. The effect of this call
+is to first move ``foo`` to ``foo.old``, then move ``.foo.tmp``
+to ``foo``. It is possible for there to be a failure between
+these two moves, in which case the call will fail with return
+code ``ERROR_UNABLE_TO_MOVE_REPLACEMENT_2``. However, it is
+still preferable to use this API over two `MoveFileExW`_ calls,
+because it retains the attributes and ACLs of ``foo`` where
+possible.
+
+.. _`ReplaceFileW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx
+.. _`MoveFileExW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365240%28v=vs.85%29.aspx
 
 [TODO: on Unix, what happens with reference to inotify events if we
 rename a file while it is open? Does the filename for the ``CLOSE_WRITE``
@@ -424,48 +430,105 @@ operations performed by the Magic Folder client and the other process.
 
 Note that it is possible that another process tries to open the file
 between steps b and c. In this case the open will fail because ``foo``
-does not exist. Nevertheless, no data will be lost. (Probably, the user
-will be able to retry the operation.)
+does not exist. Nevertheless, no data will be lost, and in many cases
+the user will be able to retry the operation.
 
 On Windows, [TODO interleavings of rename vs ReplaceFileW].
+
+
+A *read/download collision* occurs when another program reads
+from ``foo`` in the local filesystem, concurrently with the new
+version being written by the Magic Folder client. We want to
+ensure that any successful attempt to read the file by the other
+program obtains a consistent view of its contents.
+
+On Unix, the above procedure for writing downloads is sufficient
+to achieve this. There are three cases:
+
+* The other process opens ``foo`` for reading before it is
+  renamed to ``foo.old``. Then the file handle will continue to
+  refer to the old file across the rename, and the other process
+  will read the old contents.
+* The other process attempts to open ``foo`` after it has been
+  renamed to ``foo.old``, and before it is linked in step c.
+  The open call fails, which is acceptable.
+* The other process opens ``foo`` after it has been linked to
+  the new file. Then it will read the new contents.
+
+On Windows, [TODO].
 
 Above we have considered only interleavings with a single other process,
 and only the most common possibilities for the other process' interaction
 with the file. If multiple other processes are involved, or if a process
 performs operations other than those considered, then we cannot say much
 about the outcome in general; however, we believe that such cases will be
-much rarer.
-
-[TODO: discuss read/download collisions]
+much less common.
 
 
 Air Dragons: Write/upload collisions
 ''''''''''''''''''''''''''''''''''''
 
-we can't read a file atomically. therefore, when we read a file in order
-to upload it, we may read an inconsistent version if it was also being
-written locally.
+Short of filesystem-specific features on Unix or the `shadow copy service`_
+on Windows (which is per-volume and therefore difficult to use in this
+context), there is no way to *read* the whole contents of a file
+atomically. Therefore, when we read a file in order to upload it, we
+may read an inconsistent version if it was also being written locally.
 
-the magic folder is still eventually consistent, but inconsistent
-versions may be visible to other users' clients,
-and may interact with conflict/overwrite detection for those users
-the queuing of notification events helps because it means that if files
-are written more quickly than the
-pending delay and less frequently than the pending delay, we shouldn't
-encounter this dragon at all.
+.. _`shadow copies`: https://technet.microsoft.com/en-us/library/ee923636%28v=ws.10%29.aspx
 
-also, a well-behaved app will give us enough information to detect this
-case in principle, because if we get a notification
-of a rename-to while we're reading the file but before we commit the
-write to the Tahoe directory, then we can abort that write and requeue
-the file to read/upload
-(there is another potential race condition here due to the latency in
-responding to the notification. We can make it very unlikely by pausing
-after reading the file and before uploading it, to allow time to detect
-any notification that occurred as a result of a write-during-read)
+A well-behaved application can avoid this problem for its writes:
 
-we have implemented the pending delay but we will not implement the
-abort/re-upload for the OTF grant
+* On Unix, if another process modifies a file by renaming a temporary
+  file onto it, then we will consistently read either the old contents
+  or the new contents.
+* On Windows, if the other process uses sharing flags to deny reads
+  while it is writing a file, then we will consistently read either
+  the old contents or the new contents, unless a sharing error occurs.
+  In the case of a sharing error we should retry later, up to a
+  maximum number of retries.
+
+In the case of a not-so-well-behaved application writing to a file
+at the same time we read from it, the magic folder will still be
+eventually consistent, but inconsistent versions may be visible to
+other users' clients. This may also interfere with conflict/overwrite
+detection for those users [TODO EXPLAIN].
+
+In Objective 2 we implemented a delay, called the *pending delay*,
+after the notification of a filesystem change and before the file is
+read in order to upload it (Tahoe-LAFS ticket `#1440`_). If another
+change notification occurs within the pending delay time, the delay
+is restarted. This helps to some extent because it means that if
+files are written more quickly than the pending delay and less
+frequently than the pending delay, we shouldn't encounter this
+inconsistency.
+
+.. _`#1440`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1440
+
+The likelihood of inconsistency could be further reduced, even for
+writes by not-so-well-behaved applications, by delaying the actual
+upload for a further period —called the *stability delay*— after the
+file has finished being read. If a notification occurs between the
+end of the pending delay and the end of the stability delay, then
+the read would be aborted and the notification requeued.
+
+This would have the effect of ensuring that no write notifications
+have been received for the file during a time window that brackets
+the period when it was being read, with margin before and after
+this period defined by the pending and stability delays. The delays
+are intended to account for asynchronous notification of events, and
+caching in the filesystem.
+
+Note however that we cannot guarantee that the delays will be long
+enough to prevent inconsistency in any particular case. Also, the
+stability delay would potentially affect performance significantly
+because (unlike the pending delay) it is not overlapped when there
+are multiple files on the upload queue.
+
+We have not yet decided whether to implement the stability delay, and
+it is not planned to be implemented for the OTF objective 4 milestone.
+Ticket `#xxxx`_ has been opened to track this idea.
+
+.. _`#xxxx`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/xxxx
 
 
 Fire Dragons: Distinguishing conflicts from overwrites
