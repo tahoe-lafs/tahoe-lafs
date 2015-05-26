@@ -17,6 +17,8 @@ from allmydata.immutable.upload import FileName, Data
 from allmydata import backupdb, magicpath
 
 
+IN_EXCL_UNLINK = 0x04000000L
+
 def get_inotify_module():
     try:
         if sys.platform == "win32":
@@ -89,7 +91,9 @@ class DropUploader(service.MultiService):
         # possibly-incomplete file before the application has closed it. There should always
         # be an IN_CLOSE_WRITE after an IN_CREATE (I think).
         # TODO: what about IN_MOVE_SELF or IN_UNMOUNT?
-        self.mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
+        #self.mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
+        #self.mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_MOVED_FROM | inotify.IN_ONLYDIR | IN_EXCL_UNLINK
+        self.mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR | IN_EXCL_UNLINK | inotify.IN_DELETE
         self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
