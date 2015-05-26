@@ -12,7 +12,7 @@ def GROUP(s):
     # Usage.parseOptions compares argv[1] against command[0], so it will
     # effectively ignore any "subcommand" that starts with a newline. We use
     # these to insert section headers into the --help output.
-    return [("\n" + s, None, None, None)]
+    return [("\n(%s)" % s, None, None, None)]
 
 
 _default_nodedir = get_default_nodedir()
