@@ -3,25 +3,34 @@ import os, sys, signal, time
 from allmydata.scripts.common import BasedirOptions
 from twisted.scripts import twistd
 from twisted.python import usage
+from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util import fileutil
 from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 
 
 class StartOptions(BasedirOptions):
     subcommand_name = "start"
+    optParameters = [
+        ("basedir", "C", None,
+         "Specify which Tahoe base directory should be used."
+         " This has the same effect as the global --node-directory option."
+         " [default: %s]" % quote_local_unicode_path(_default_nodedir)),
+        ]
 
     def parseArgs(self, basedir=None, *twistd_args):
         # This can't handle e.g. 'tahoe start --nodaemon', since '--nodaemon'
-        # looks like an option to the tahoe subcommand, not to twistd.
-        # So you can either use 'tahoe start' or 'tahoe start NODEDIR --TWISTD-OPTIONS'.
-        # Note that 'tahoe --node-directory=NODEDIR start --TWISTD-OPTIONS' also
-        # isn't allowed, unfortunately.
+        # looks like an option to the tahoe subcommand, not to twistd. So you
+        # can either use 'tahoe start' or 'tahoe start NODEDIR
+        # --TWISTD-OPTIONS'. Note that 'tahoe --node-directory=NODEDIR start
+        # --TWISTD-OPTIONS' also isn't allowed, unfortunately.
 
         BasedirOptions.parseArgs(self, basedir)
         self.twistd_args = twistd_args
 
     def getSynopsis(self):
-        return "Usage:  %s [global-opts] %s [options] [NODEDIR [twistd-options]]" % (self.command_name, self.subcommand_name)
+        return ("Usage:  %s [global-options] %s [options]"
+                " [NODEDIR [twistd-options]]"
+                % (self.command_name, self.subcommand_name))
 
     def getUsage(self, width=None):
         t = BasedirOptions.getUsage(self, width) + "\n"
@@ -40,7 +49,8 @@ class StopOptions(BasedirOptions):
         BasedirOptions.parseArgs(self, basedir)
 
     def getSynopsis(self):
-        return "Usage:  %s [global-opts] stop [options] [NODEDIR]" % (self.command_name,)
+        return ("Usage:  %s [global-options] stop [options] [NODEDIR]"
+                % (self.command_name,))
 
 class RestartOptions(StartOptions):
     subcommand_name = "restart"
@@ -230,9 +240,9 @@ def restart(config, stdout, stderr):
 
 def run(config, stdout, stderr):
     config.twistd_args = config.twistd_args + ("--nodaemon",)
-    # Previously we would do the equivalent of adding ("--logfile", "tahoesvc.log"),
-    # but that redirects stdout/stderr which is often unhelpful, and the user can
-    # add that option explicitly if they want.
+    # Previously we would do the equivalent of adding ("--logfile",
+    # "tahoesvc.log"), but that redirects stdout/stderr which is often
+    # unhelpful, and the user can add that option explicitly if they want.
 
     return start(config, stdout, stderr)
 

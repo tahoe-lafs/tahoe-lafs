@@ -3,8 +3,6 @@ from twisted.python import usage
 from allmydata.scripts.common import BaseOptions
 
 class GenerateKeypairOptions(BaseOptions):
-    def getSynopsis(self):
-        return "Usage: tahoe [global-opts] admin generate-keypair"
 
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
@@ -26,7 +24,7 @@ class DerivePubkeyOptions(BaseOptions):
         self.privkey = privkey
 
     def getSynopsis(self):
-        return "Usage: tahoe [global-opts] admin derive-pubkey PRIVKEY"
+        return "Usage: tahoe [global-options] admin derive-pubkey PRIVKEY"
 
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
@@ -57,7 +55,7 @@ class AdminCommand(BaseOptions):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a subcommand")
     def getSynopsis(self):
-        return "Usage: tahoe [global-opts] admin SUBCOMMAND"
+        return "Usage: tahoe [global-options] admin SUBCOMMAND"
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
         t += """

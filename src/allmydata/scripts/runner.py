@@ -12,7 +12,7 @@ def GROUP(s):
     # Usage.parseOptions compares argv[1] against command[0], so it will
     # effectively ignore any "subcommand" that starts with a newline. We use
     # these to insert section headers into the --help output.
-    return [("\n" + s, None, None, None)]
+    return [("\n(%s)" % s, None, None, None)]
 
 
 _default_nodedir = get_default_nodedir()
@@ -66,11 +66,15 @@ class Options(usage.Options):
         print >>self.stdout, allmydata.get_package_versions_string(show_paths=True, debug=True)
         self.no_command_needed = True
 
-    def getSynopsis(self):
-        return "\nUsage: tahoe [global-opts] <command> [command-options]"
+    def __str__(self):
+        return ("\nUsage: tahoe [global-options] <command> [command-options]\n"
+                + self.getUsage())
+
+    synopsis = "\nUsage: tahoe [global-options]" # used only for subcommands
 
     def getUsage(self, **kwargs):
         t = usage.Options.getUsage(self, **kwargs)
+        t = t.replace("Options:", "\nGlobal options:", 1)
         return t + "\nPlease run 'tahoe <command> --help' for more details on each command.\n"
 
     def postOptions(self):
