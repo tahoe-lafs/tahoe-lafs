@@ -255,10 +255,37 @@ this project.
 
 Therefore, design 1 was chosen. That is:
 
-All subfolders written by a given Magic Folder client are collapsed
-into a single client DMD, containing immutable files. The child name of
-each file encodes the full subpath of that file relative to the Magic
-Folder.
+    All subfolders written by a given Magic Folder client are collapsed
+    into a single client DMD, containing immutable files. The child name
+    of each file encodes the full subpath of that file relative to the
+    Magic Folder.
+
+We want to enable dynamic configuration of the set of clients subscribed
+to a Magic Folder, without having to reconfigure or restart each client
+when another client joins or leaves. To support this, we have a single
+parent DMD that links to all of the client DMDs, named by their client
+nicknames. Then it is possible to change the contents of the parent DMD
+in order to add or remove clients.
+
+A client needs to be able to write to its own DMD, and read from other DMDs.
+To be consistent with the `Principle of Least Authority`_, each client's
+reference to its own DMD is a write capability, whereas its reference
+to the parent DMD is a read capability. The latter transitively grants
+read access to all of the other client DMDs and the files linked from
+them, as required.
+
+.. _`Principle of Least Authority`: http://www.eros-os.org/papers/secnotsep.pdf
+
+Design and implementation of the user interface for maintaining this
+DMD structure and configuration will be addressed in Objectives 5 and 6.
+
+During operation, each client will poll for changes on other clients
+at a predetermined frequency. On each poll, it will reread the parent DMD
+(to allow for added or removed clients), and then read each client DMD
+linked from the parent.
+
+[TODO: discuss how magic folder db is used -- or should this go in the
+Fire Dragon section?]
 
 
 Conflict Detection and Resolution
@@ -619,6 +646,14 @@ Ticket `#2431`_ has been opened to track this idea.
 
 Fire Dragons: Distinguishing conflicts from overwrites
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+It is also necessary to distinguish between overwrites, in which the
+remote side was aware of your most recent version and overwrote it with a
+new version, and conflicts, in which the remote side was unaware of your
+most recent version when it published its new version. Those two cases
+have to be handled differently — the latter needs to be raised to the
+user as an issue the user will have to resolve and the former must not
+bother the user.
 
 alice sees a change by bob to 'foo' and needs to know whether that change
 is an overwrite or a conflict
