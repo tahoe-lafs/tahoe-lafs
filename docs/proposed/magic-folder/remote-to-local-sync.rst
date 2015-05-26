@@ -284,30 +284,27 @@ at a predetermined frequency. On each poll, it will reread the parent DMD
 (to allow for added or removed clients), and then read each client DMD
 linked from the parent.
 
-[TODO: discuss how magic folder db is used -- or should this go in the
-Fire Dragon section?]
-
 
 Conflict Detection and Resolution
 ---------------------------------
 
 The combination of local filesystems and distributed objects is
 an example of shared state concurrency, which is highly error-prone
-and can result in race conditions that are complex to analyse.
+and can result in race conditions that are complex to analyze.
 Unfortunately we have no option but to use shared state in this
 situation.
 
-We call the resulting design issues "dragons", which as a convenient
-mnemonic we have named after the five classical Greek elements
-(Earth, Air, Water, Fire and Aether).
+We call the resulting design issues "dragons" (as in "Here be dragons"),
+which as a convenient mnemonic we have named after the five classical
+Greek elements: Earth, Air, Fire, Water, and Aether.
 
 Note: all filenames used in the following sections are examples,
 and the filename patterns we use in the actual implementation may
 differ.
 
 
-Earth Dragons: Write/download and read/download collisions
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Earth Dragons: Collisions between local filesystem operations and downloads
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Suppose that Alice's Magic Folder client is about to write a
 version of ``foo`` that it has downloaded in response to a remote
@@ -321,6 +318,9 @@ circumstances.)
 
 .. _`Fire Dragons`: #fire-dragons-distinguishing-conflicts-from-overwrites
 
+Write/download collisions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
 A *write/download collision* occurs when another program writes
 to ``foo`` in the local filesystem, concurrently with the new
 version being written by the Magic Folder client. We need to
@@ -329,26 +329,29 @@ ensure that this does not cause data loss, as far as possible.
 An important constraint on the design is that on Windows, it is
 not possible to rename a file to the same name as an existing
 file in that directory. Also, on Windows it may not be possible to
-delete or rename a file that has been opened by another program
-(depending on the sharing flags specified by that program).
+delete or rename a file that has been opened by another process
+(depending on the sharing flags specified by that process).
 Therefore we need to consider carefully how to handle failure
 conditions.
 
-Our proposed design is as follows:
+In our proposed design, Alice's Magic Folder client follows
+this procedure for each download in response to a remote change:
 
-1. Alice's Magic Folder client writes a temporary file, say
-   ``.foo.tmp``.
+1. Write a temporary file, say ``.foo.tmp``.
 2. If there are pending notifications of changes to ``foo``,
    reclassify as a conflict and stop.
 3. Set the ``mtime`` of the replacement file to be *T* seconds
-   before the current time (see below for further explanation).
-4. Perform a ''file replacement'' operation (see below)
+   before the current time.
+4. Perform a ''file replacement'' operation (explained below)
    with backup filename ``foo.old``, replaced file ``foo``,
    and replacement file ``.foo.tmp``. If any step of this
    operation fails, reclassify as a conflict and stop.
 
-The implementation of file replacement differs between
-Windows and Unix. On Unix, it can be implemented as follows:
+To reclassify as a conflict, attempt to rename ``.foo.tmp`` to
+``foo.conflicted``, suppressing errors.
+
+The implementation of file replacement differs between Unix
+and Windows. On Unix, it can be implemented as follows:
 
 4a. Set the permissions of the replacement file to be the
     same as the replaced file, bitwise-or'd with octal 600
@@ -360,8 +363,10 @@ Windows and Unix. On Unix, it can be implemented as follows:
 4d. Attempt to unlink the replacement file (``.foo.tmp``),
     suppressing errors.
 
-To reclassify as a conflict, attempt to rename ``.foo.tmp`` to
-``foo.conflicted``, suppressing errors.
+[TODO: this is the first reference to the magic folder db in
+this doc, and we haven't adequately explained how we are using
+it or any schema changes relative to the design from Objective 1.
+(This part doesn't actually rely on any schema changes though.)]
 
 Note that, if there is no conflict, the entry for ``foo``
 recorded in the `magic folder db`_ will reflect the ``mtime``
@@ -375,30 +380,26 @@ metadata.)
 
 .. _`magic folder db`: filesystem_integration.rst#local-scanning-and-database
 
-[TODO: on Unix, what happens with reference to inotify events if we
-rename a file while it is open? Does the path for the ``CLOSE_WRITE``
-event reflect the new name?]
-
 On Windows, file replacement can be implemented as a single
 call to the `ReplaceFileW`_ API (with the
 ``REPLACEFILE_IGNORE_MERGE_ERRORS`` flag).
 
 Similar to the Unix case, the `ReplaceFileW`_ operation will
-cause a change notification for ``foo`` [TODO: check which
-notifications we actually get]. The replaced ``foo`` has the
-same ``mtime`` as the replacement file, and so this notification
-will not trigger an unwanted upload.
+cause a change notification for ``foo``. The replaced ``foo``
+has the same ``mtime`` as the replacement file, and so this
+notification will not trigger an unwanted upload.
 
 .. _`ReplaceFileW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx
 
 To determine whether this procedure adequately protects against data
 loss, we need to consider what happens if another process attempts to
 update ``foo``, for example by renaming ``foo.other`` to ``foo``.
-This differs between Windows and Unix.
-
-On Unix, we need to consider all possible interleavings between the
+This requires us to analyze all possible interleavings between the
 operations performed by the Magic Folder client and the other process.
 (Note that atomic operations on a directory are totally ordered.)
+The set of possible interleavings differs between Windows and Unix.
+
+On Unix, we have:
 
 * Interleaving A: the other process' rename precedes our rename in
   step 4b, and we get an ``IN_MOVED_TO`` event for its rename by
@@ -488,21 +489,22 @@ interleaving with four as on Unix). The cases are:
     at its original name after the call.
   * for all other errors, ``foo`` and ``.foo.tmp`` both remain at
     their original names after the call.
-  In both cases, we reclassify as a conflict and rename ``.foo.tmp``
+  In both subcases, we reclassify as a conflict and rename ``.foo.tmp``
   to ``foo.conflicted``. This avoids data loss.
 
 * Interleaving E′: the other process' deletion of ``foo`` and attempt
   to rename ``foo.other`` to ``foo`` both happen after all internal
-  operations of `ReplaceFileW`_ have completed. This causes an event
-  for ``foo`` (the deletion and rename events are merged due to the
-  pending delay). The rename also changes the ``mtime`` for ``foo`` so
-  that it is different from the ``mtime`` calculated in step 3, and
-  therefore different from the metadata recorded for ``foo`` in the
-  magic folder db. (Assuming no system clock changes, its rename will
-  set an ``mtime`` timestamp corresponding to a time after the
-  internal operations of `ReplaceFileW`_ have completed, which is not
-  equal to the timestamp *T* seconds before `ReplaceFileW`_ is called,
-  provided that *T* seconds is sufficiently greater than the timestamp
+  operations of `ReplaceFileW`_ have completed. This causes deletion
+  and rename events for ``foo`` (which will in practice be merged due
+  to the pending delay, although we don't rely on that for correctness).
+  The rename also changes the ``mtime`` for ``foo`` so that it is
+  different from the ``mtime`` calculated in step 3, and therefore
+  different from the metadata recorded for ``foo`` in the magic folder
+  db. (Assuming no system clock changes, its rename will set an
+  ``mtime`` timestamp corresponding to a time after the internal
+  operations of `ReplaceFileW`_ have completed, which is not equal to
+  the timestamp *T* seconds before `ReplaceFileW`_ is called, provided
+  that *T* seconds is sufficiently greater than the timestamp
   granularity.) Therefore, an upload will be triggered for ``foo``
   after its change, which is correct and avoids data loss.
 
@@ -542,9 +544,9 @@ open will fail because ``foo`` does not exist. Nevertheless, no data
 will be lost, and in many cases the user will be able to retry the
 operation.
 
-[TODO: on Windows, what is the default sharing of a file opened for
-writing by _open/_wopen?]
 
+Read/download collisions
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 A *read/download collision* occurs when another program reads
 from ``foo`` in the local filesystem, concurrently with the new
@@ -555,28 +557,54 @@ program obtains a consistent view of its contents.
 On Unix, the above procedure for writing downloads is sufficient
 to achieve this. There are three cases:
 
-* The other process opens ``foo`` for reading before it is
-  renamed to ``foo.old``. Then the file handle will continue to
-  refer to the old file across the rename, and the other process
-  will read the old contents.
-* The other process attempts to open ``foo`` after it has been
-  renamed to ``foo.old``, and before it is linked in step c.
-  The open call fails, which is acceptable.
-* The other process opens ``foo`` after it has been linked to
-  the new file. Then it will read the new contents.
+A. The other process opens ``foo`` for reading before it is
+   renamed to ``foo.old``. Then the file handle will continue to
+   refer to the old file across the rename, and the other process
+   will read the old contents.
 
-On Windows, [TODO].
+B. The other process attempts to open ``foo`` after it has been
+   renamed to ``foo.old``, and before it is linked in step c.
+   The open call fails, which is acceptable.
 
-Above we have considered only interleavings with a single other process,
-and only the most common possibilities for the other process' interaction
-with the file. If multiple other processes are involved, or if a process
-performs operations other than those considered, then we cannot say much
-about the outcome in general; however, we believe that such cases will be
-much less common.
+C. The other process opens ``foo`` after it has been linked to
+   the new file. Then it will read the new contents.
+
+On Windows, the analysis is very similar, but case A′ needs to
+be split into two subcases, depending on the sharing mode the other
+process uses when opening the file for reading:
+
+A′. The other process opens ``foo`` before the Magic Folder
+    client's attempt to rename ``foo`` to ``foo.old`` (as part of
+    the implementation of `ReplaceFileW`_). The subcases are:
+
+    i.  The other process uses sharing flags that deny deletion and
+        renames. The `ReplaceFileW`_ call fails, and the download is
+        reclassified as a conflict. The downloaded file ends up at
+        ``foo.conflicted``, which is correct.
+
+    ii. The other process uses sharing flags that allow deletion
+        and renames. The `ReplaceFileW`_ call succeeds, and the
+        other process reads inconsistent data. This can be attributed
+        to a poor choice of sharing flags by the other process.
+
+B′. The other process attempts to open ``foo`` at the point
+    during the `ReplaceFileW`_ call where it does not exist.
+    The open call fails, which is acceptable.
+
+C′. The other process opens ``foo`` after it has been linked to
+    the new file. Then it will read the new contents.
 
 
-Air Dragons: Write/upload collisions
-''''''''''''''''''''''''''''''''''''
+Above we have considered only interleavings with a single other
+process, and only the most common possibilities for the other
+process' interaction with the file. If multiple other processes
+are involved, or if a process performs operations other than those
+considered, then we cannot say much about the outcome in general;
+however, we believe that such cases will be much less common.
+
+
+Air Dragons: Collisions between local writes and uploads
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Short of filesystem-specific features on Unix or the `shadow copy service`_
 on Windows (which is per-volume and therefore difficult to use in this
@@ -643,23 +671,32 @@ Ticket `#2431`_ has been opened to track this idea.
 .. _`#1459`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1459
 .. _`#2431`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2431
 
+Note that the situation of both a local process and the Magic Folder
+client reading a file at the same time cannot cause any inconsistency.
+
 
 Fire Dragons: Distinguishing conflicts from overwrites
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-It is also necessary to distinguish between overwrites, in which the
-remote side was aware of your most recent version and overwrote it with a
-new version, and conflicts, in which the remote side was unaware of your
-most recent version when it published its new version. Those two cases
-have to be handled differently — the latter needs to be raised to the
-user as an issue the user will have to resolve and the former must not
-bother the user.
+It is necessary to distinguish between overwrites, in which the
+remote side was aware of your most recent version and overwrote it
+with a new version, and conflicts, in which the remote side was
+unaware of your most recent version when it published its new version.
+Those two cases have to be handled differently — the latter needs to
+be raised to the user as an issue the user will have to resolve and
+the former must not bother the user.
 
-alice sees a change by bob to 'foo' and needs to know whether that change
-is an overwrite or a conflict
-i.e. is it "based on" the version that alice already had
-for the definition of "based on", we build on the solution to the earth
-dragon
+For example, suppose that Alice's Magic Folder client sees a change
+to ``foo`` in Bob's DMD. If the version it downloads from Bob's DMD
+is "based on" the version currently in Alice's local filesystem at
+the time Alice's client attempts to perform the write of the
+downloaded file, then it is an overwrite. Otherwise it is initially
+classified as a conflict. Note that, as explained in the
+`Earth Dragons`_ section, we may reclassify an overwrite as a
+conflict if an error occurs during the write procedure.
+
+.. _`Earth Dragons`: #earth-dragons-collisions-between-local-filesystem-operations-and-downloads
+
 
 when any client uploads a file, it includes Tahoe-side metadata giving
 the URI of the last remote version that it saved
