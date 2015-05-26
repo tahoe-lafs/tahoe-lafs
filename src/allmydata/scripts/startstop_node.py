@@ -3,12 +3,17 @@ import os, sys, signal, time
 from allmydata.scripts.common import BasedirOptions
 from twisted.scripts import twistd
 from twisted.python import usage
+from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util import fileutil
 from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 
 
 class StartOptions(BasedirOptions):
     subcommand_name = "start"
+    optParameters = [
+        ("basedir", "C", None, "Specify which Tahoe base directory should be used. This has the same effect as the global --node-directory option. [default: %s]"
+         % quote_local_unicode_path(_default_nodedir)),
+        ]
 
     def parseArgs(self, basedir=None, *twistd_args):
         # This can't handle e.g. 'tahoe start --nodaemon', since '--nodaemon'
