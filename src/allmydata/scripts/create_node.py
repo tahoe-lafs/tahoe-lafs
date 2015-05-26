@@ -27,18 +27,18 @@ class _CreateBaseOptions(BasedirOptions):
 
 class CreateClientOptions(_CreateBaseOptions):
     synopsis = "[options] [NODEDIR]"
-    description = "Create a client-only tahoe node (no storage server)."
+    description = "Create a client-only Tahoe-LAFS node (no storage server)."
 
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
         ]
     synopsis = "[options] [NODEDIR]"
-    description = "Create a full tahoe node (client+server)."
+    description = "Create a full Tahoe-LAFS node (client+server)."
 
 class CreateIntroducerOptions(NoDefaultBasedirOptions):
     subcommand_name = "create-introducer"
-    description = "Create a tahoe introducer."
+    description = "Create a Tahoe-LAFS introducer."
 
 
 client_tac = """
