@@ -147,7 +147,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
             os.rename(empty_tree_dir, new_empty_tree_dir)
-            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_CLOSE_WRITE) # XXX
+            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
         d.addCallback(_check_move_empty_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
@@ -161,7 +161,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=1)
             os.rename(small_tree_dir, new_small_tree_dir)
-            self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_CLOSE_WRITE)
+            self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
         d.addCallback(_check_move_small_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 3))
@@ -244,7 +244,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
             os.rename(empty_tree_dir, new_empty_tree_dir)
-            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_CLOSE_WRITE) # XXX
+            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
         d.addCallback(_check_move_empty_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
@@ -254,7 +254,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         def _move_dir_away(ign):
             os.rename(new_empty_tree_dir, empty_tree_dir)
-            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_CLOSE_WRITE) # XXX
+            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_FROM)
 
         d.addCallback(_move_dir_away)
         def create_file(val):
@@ -266,7 +266,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             return d2
         d.addCallback(create_file)
         def sleep_a_while(ign):
-            time.sleep(3)
+            print "\ncalling time.sleep(5) to give the upload a chance..."
+            time.sleep(5)
         d.addCallback(sleep_a_while)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
@@ -293,7 +294,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         # Write to the same file again with different data.
         d.addCallback(lambda ign: self._check_file(u"short", "different"))
-
+        
         # Test that temporary files are not uploaded.
         d.addCallback(lambda ign: self._check_file(u"tempfile", "test", temporary=True))
 
@@ -334,12 +335,13 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             f.close()
         if temporary and sys.platform == "win32":
             os.unlink(path_u)
+            self.notify(path, self.inotify.IN_DELETE)
         fileutil.flush_volume(path_u)
         self.notify(path, self.inotify.IN_CLOSE_WRITE)
 
         if temporary:
             d.addCallback(lambda ign: self.shouldFail(NoSuchChildError, 'temp file not uploaded', None,
-                                                      self.upload_dirnode.get, name_u))
+            self.upload_dirnode.get, name_u))
             d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_disappeared'),
                                                                  previously_disappeared + 1))
         else:
