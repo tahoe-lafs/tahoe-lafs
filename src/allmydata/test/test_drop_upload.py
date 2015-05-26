@@ -254,8 +254,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         def _move_dir_away(ign):
             os.rename(new_empty_tree_dir, empty_tree_dir)
-            # XXX mock notify event
-            #self.notify_close_write(to_filepath(new_empty_tree_dir))
+            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_CLOSE_WRITE) # XXX
 
         d.addCallback(_move_dir_away)
         def create_file(val):
@@ -263,8 +262,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             self.uploader.set_uploaded_callback(d2.callback)
             test_file = abspath_expanduser_unicode(u"what", base=empty_tree_dir)
             fileutil.write(test_file, "meow")
-            # XXX
-            #self.notify_close_write(to_filepath(test_file))
+            self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
             return d2
         d.addCallback(create_file)
         def sleep_a_while(ign):
