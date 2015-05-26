@@ -224,6 +224,54 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addBoth(self._cleanup)
         return d
 
+    def test_remove_watch(self):
+        self.set_up_grid()
+        self.local_dir = abspath_expanduser_unicode(self.unicode_or_fallback(u"l\u00F8cal_dir", u"local_dir"),
+                                                    base=self.basedir)
+        self.mkdir_nonascii(self.local_dir)
+        self.client = self.g.clients[0]
+        self.stats_provider = self.client.stats_provider
+
+        empty_tree_name = self.unicode_or_fallback(u"empty_tr\u00EAe", u"empty_tree")
+        empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
+        new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
+        d = self.client.create_dirnode()
+        d.addCallback(self._made_upload_dir)
+        d.addCallback(self._create_uploader)        
+        def _check_move_empty_tree(res):
+            self.mkdir_nonascii(empty_tree_dir)
+            d2 = defer.Deferred()
+            self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
+            os.rename(empty_tree_dir, new_empty_tree_dir)
+            self.notify_close_write(to_filepath(new_empty_tree_dir))
+            return d2
+        d.addCallback(_check_move_empty_tree)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
+
+        def _move_dir_away():
+            os.rename(new_empty_tree_dir, empty_tree_dir)
+            # XXX mock notify event
+            #self.notify_close_write(to_filepath(new_empty_tree_dir))
+
+        d.addCallback(_move_dir_away)
+        def create_file(val):
+            d2 = defer.Deferred()
+            self.uploader.set_uploaded_callback(d2.callback)
+            test_file = abspath_expanduser_unicode(u"what", base=empty_tree_dir)
+            fileutil.write(test_file, "meow")
+            # XXX
+            #self.notify_close_write(to_filepath(test_file))
+            return d2
+        d.addCallback(create_file)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
+        return d
+        
     def test_drop_upload(self):
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
