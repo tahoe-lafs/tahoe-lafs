@@ -431,18 +431,6 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         fileutil.write_atomically(fn, "two", mode="") # non-binary
         self.failUnlessEqual(fileutil.read(fn), "two")
 
-    def test_NamedTemporaryDirectory(self):
-        basedir = "util/FileUtil/test_NamedTemporaryDirectory"
-        fileutil.make_dirs(basedir)
-        td = fileutil.NamedTemporaryDirectory(dir=basedir)
-        name = td.name
-        self.failUnless(basedir in name)
-        self.failUnless(basedir in repr(td))
-        self.failUnless(os.path.isdir(name))
-        del td
-        # it is conceivable that we need to force gc here, but I'm not sure
-        self.failIf(os.path.isdir(name))
-
     def test_rename(self):
         basedir = "util/FileUtil/test_rename"
         fileutil.make_dirs(basedir)

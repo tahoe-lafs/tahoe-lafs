@@ -87,34 +87,6 @@ class ReopenableNamedTemporaryFile:
     def shutdown(self):
         remove(self.name)
 
-class NamedTemporaryDirectory:
-    """
-    This calls tempfile.mkdtemp(), stores the name of the dir in
-    self.name, and rmrf's the dir when it gets garbage collected or
-    "shutdown()".
-    """
-    def __init__(self, cleanup=True, *args, **kwargs):
-        """ If cleanup, then the directory will be rmrf'ed when the object is shutdown. """
-        self.cleanup = cleanup
-        self.name = tempfile.mkdtemp(*args, **kwargs)
-
-    def __repr__(self):
-        return "<%s instance at %x %s>" % (self.__class__.__name__, id(self), self.name)
-
-    def __str__(self):
-        return self.__repr__()
-
-    def __del__(self):
-        try:
-            self.shutdown()
-        except:
-            import traceback
-            traceback.print_exc()
-
-    def shutdown(self):
-        if self.cleanup and hasattr(self, 'name'):
-            rm_dir(self.name)
-
 class EncryptedTemporaryFile:
     # not implemented: next, readline, readlines, xreadlines, writelines
 
