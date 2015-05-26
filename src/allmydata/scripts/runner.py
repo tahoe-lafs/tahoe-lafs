@@ -68,7 +68,7 @@ class Options(usage.Options):
 
     def __str__(self):
         return ("\nUsage: tahoe [global-options] <command> [command-options]\n"
-                + self.getUsage(width=None))
+                + self.getUsage())
 
     synopsis = "\nUsage: tahoe [global-options]" # used only for subcommands
 
