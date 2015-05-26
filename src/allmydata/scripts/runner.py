@@ -70,7 +70,7 @@ class Options(usage.Options):
         return ("\nUsage: tahoe [global-options] <command> [command-options]\n"
                 + self.getUsage(width=None))
 
-    synopsis = "\nUsage: tahoe [global-opts]" # used only for subcommands
+    synopsis = "\nUsage: tahoe [global-options]" # used only for subcommands
 
     def getUsage(self, **kwargs):
         t = usage.Options.getUsage(self, **kwargs)

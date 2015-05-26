@@ -21,7 +21,7 @@ class StartOptions(BasedirOptions):
         self.twistd_args = twistd_args
 
     def getSynopsis(self):
-        return "Usage:  %s [global-opts] %s [options] [NODEDIR [twistd-options]]" % (self.command_name, self.subcommand_name)
+        return "Usage:  %s [global-options] %s [options] [NODEDIR [twistd-options]]" % (self.command_name, self.subcommand_name)
 
     def getUsage(self, width=None):
         t = BasedirOptions.getUsage(self, width) + "\n"
@@ -40,7 +40,7 @@ class StopOptions(BasedirOptions):
         BasedirOptions.parseArgs(self, basedir)
 
     def getSynopsis(self):
-        return "Usage:  %s [global-opts] stop [options] [NODEDIR]" % (self.command_name,)
+        return "Usage:  %s [global-options] stop [options] [NODEDIR]" % (self.command_name,)
 
 class RestartOptions(StartOptions):
     subcommand_name = "restart"
