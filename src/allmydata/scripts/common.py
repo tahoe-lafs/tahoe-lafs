@@ -1,5 +1,5 @@
 
-import os, sys, urllib
+import os, sys, urllib, textwrap
 import codecs
 from twisted.python import usage
 from allmydata.util.assertutil import precondition
@@ -10,6 +10,14 @@ from allmydata.scripts.default_nodedir import _default_nodedir
 def get_default_nodedir():
     return _default_nodedir
 
+def wrap_paragraphs(text, width):
+    # like textwrap.wrap(), but preserve paragraphs (delimited by double
+    # newlines) and leading whitespace, and remove internal whitespace.
+    text = textwrap.dedent(text)
+    if text.startswith("\n"):
+        text = text[1:]
+    return "\n\n".join([textwrap.fill(paragraph, width=width)
+                        for paragraph in text.split("\n\n")])
 
 class BaseOptions(usage.Options):
     def __init__(self):
@@ -21,6 +29,24 @@ class BaseOptions(usage.Options):
     # Only allow "tahoe --version", not e.g. "tahoe start --version"
     def opt_version(self):
         raise usage.UsageError("--version not allowed on subcommands")
+
+    description = None
+    description_unwrapped = None
+
+    def __str__(self):
+        width = int(os.environ.get('COLUMNS', '80'))
+        s = (self.getSynopsis() + '\n' +
+             "(use 'tahoe --help' to view global options)\n" +
+             '\n' +
+             self.getUsage())
+        if self.description:
+            s += '\n' + wrap_paragraphs(self.description, width) + '\n'
+        if self.description_unwrapped:
+            du = textwrap.dedent(self.description_unwrapped)
+            if du.startswith("\n"):
+                du = du[1:]
+            s += '\n' + du + '\n'
+        return s
 
 class BasedirOptions(BaseOptions):
     default_nodedir = _default_nodedir
