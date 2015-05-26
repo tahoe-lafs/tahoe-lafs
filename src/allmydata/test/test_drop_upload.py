@@ -251,7 +251,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
 
-        def _move_dir_away():
+        def _move_dir_away(ign):
             os.rename(new_empty_tree_dir, empty_tree_dir)
             # XXX mock notify event
             #self.notify_close_write(to_filepath(new_empty_tree_dir))
@@ -266,6 +266,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             #self.notify_close_write(to_filepath(test_file))
             return d2
         d.addCallback(create_file)
+        def sleep_a_while(ign):
+            time.sleep(3)
+        d.addCallback(sleep_a_while)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
