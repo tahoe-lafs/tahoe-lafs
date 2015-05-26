@@ -1003,7 +1003,7 @@ class FlogtoolOptions(foolscap_cli.Options):
         self.subCommands = map(fixOptionsClass, self.subCommands)
 
     def getSynopsis(self):
-        return "Usage: tahoe [global-options] debug flogtool COMMAND"
+        return "Usage: tahoe [global-options] debug flogtool COMMAND [flogtool-options]"
 
     def parseOptions(self, all_subargs, *a, **kw):
         self.flogtool_args = list(all_subargs)
