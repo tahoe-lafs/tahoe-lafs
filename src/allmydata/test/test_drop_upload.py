@@ -14,6 +14,7 @@ from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
 
+from allmydata.frontends import drop_upload
 from allmydata.frontends.drop_upload import DropUploader
 from allmydata import backupdb
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -146,7 +147,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
             os.rename(empty_tree_dir, new_empty_tree_dir)
-            self.notify_close_write(to_filepath(new_empty_tree_dir))
+            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_CLOSE_WRITE) # XXX
             return d2
         d.addCallback(_check_move_empty_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
@@ -160,7 +161,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=1)
             os.rename(small_tree_dir, new_small_tree_dir)
-            self.notify_close_write(to_filepath(new_small_tree_dir))
+            self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_CLOSE_WRITE)
             return d2
         d.addCallback(_check_move_small_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 3))
@@ -172,7 +173,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
-            self.notify_close_write(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)))
+            self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
             return d2
         d.addCallback(_check_moved_tree_is_watched)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 4))
@@ -205,7 +206,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             self.uploader.set_uploaded_callback(d2.callback)
             test_file = abspath_expanduser_unicode(u"what", base=self.local_dir)
             fileutil.write(test_file, "meow")
-            self.notify_close_write(to_filepath(test_file))
+            self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
             return d2
         d.addCallback(create_file)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
@@ -243,7 +244,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             d2 = defer.Deferred()
             self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
             os.rename(empty_tree_dir, new_empty_tree_dir)
-            self.notify_close_write(to_filepath(new_empty_tree_dir))
+            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_CLOSE_WRITE) # XXX
             return d2
         d.addCallback(_check_move_empty_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
@@ -335,7 +336,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         if temporary and sys.platform == "win32":
             os.unlink(path_u)
         fileutil.flush_volume(path_u)
-        self.notify_close_write(path)
+        self.notify(path, self.inotify.IN_CLOSE_WRITE)
 
         if temporary:
             d.addCallback(lambda ign: self.shouldFail(NoSuchChildError, 'temp file not uploaded', None,
@@ -359,7 +360,6 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
     def setUp(self):
         DropUploadTestMixin.setUp(self)
         self.inotify = fake_inotify
-
 
     def notify(self, path, mask):
         self.uploader._notifier.event(path, mask)
@@ -391,7 +391,13 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
                             DropUploader, client, 'URI:LIT:foo', errors_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
                             DropUploader, client, readonly_dircap, errors_dir, magicfolderdb, inotify=fake_inotify)
-        d.addCallback(_check_errors)
+
+            def _not_implemented():
+                raise NotImplementedError("blah")
+            self.patch(drop_upload, 'get_inotify_module', _not_implemented)
+            self.shouldFail(NotImplementedError, 'unsupported', 'blah',
+                            DropUploader, client, upload_dircap, errors_dir, magicfolderdb)
+            d.addCallback(_check_errors)
         return d
 
 
@@ -400,11 +406,13 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
 
     def setUp(self):
         DropUploadTestMixin.setUp(self)
-        self.inotify = None
+        self.inotify = drop_upload.get_inotify_module()
 
     def notify(self, path, mask):
         # Writing to the filesystem causes the notification.
         pass
 
-if sys.platform != "win32" and not runtime.platform.supportsINotify():
+try:
+    drop_upload.get_inotify_module()
+except NotImplementedError:
     RealTest.skip = "Drop-upload support can only be tested for-real on an OS that supports inotify or equivalent."
