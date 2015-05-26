@@ -3,8 +3,6 @@ from twisted.python import usage
 from allmydata.scripts.common import BaseOptions
 
 class GenerateKeypairOptions(BaseOptions):
-    def getSynopsis(self):
-        return "Usage: tahoe [global-opts] admin generate-keypair"
 
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
