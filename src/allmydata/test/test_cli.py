@@ -561,6 +561,11 @@ class CLI(CLITestMixin, unittest.TestCase):
 
 
 class Help(unittest.TestCase):
+    def failUnlessInNormalized(self, x, y):
+        # helper function to deal with the --help output being wrapped to
+        # various widths, depending on the $COLUMNS environment variable
+        self.failUnlessIn(x.replace("\n", " "), y.replace("\n", " "))
+
     def test_get(self):
         help = str(cli.GetOptions())
         self.failUnlessIn("[options] REMOTE_FILE LOCAL_FILE", help)
@@ -586,22 +591,22 @@ class Help(unittest.TestCase):
     def test_mv(self):
         help = str(cli.MvOptions())
         self.failUnlessIn("[options] FROM TO", help)
-        self.failUnlessIn("Use 'tahoe mv' to move files", help)
+        self.failUnlessInNormalized("Use 'tahoe mv' to move files", help)
 
     def test_cp(self):
         help = str(cli.CpOptions())
         self.failUnlessIn("[options] FROM.. TO", help)
-        self.failUnlessIn("Use 'tahoe cp' to copy files", help)
+        self.failUnlessInNormalized("Use 'tahoe cp' to copy files", help)
 
     def test_ln(self):
         help = str(cli.LnOptions())
         self.failUnlessIn("[options] FROM_LINK TO_LINK", help)
-        self.failUnlessIn("Use 'tahoe ln' to duplicate a link", help)
+        self.failUnlessInNormalized("Use 'tahoe ln' to duplicate a link", help)
 
     def test_mkdir(self):
         help = str(cli.MakeDirectoryOptions())
         self.failUnlessIn("[options] [REMOTE_DIR]", help)
-        self.failUnlessIn("Create a new directory", help)
+        self.failUnlessInNormalized("Create a new directory", help)
 
     def test_backup(self):
         help = str(cli.BackupOptions())
@@ -670,13 +675,13 @@ class Help(unittest.TestCase):
     def test_debug_trial(self):
         help = str(debug.TrialOptions())
         self.failUnlessIn(" [global-options] debug trial [options] [[file|package|module|TestCase|testmethod]...]", help)
-        self.failUnlessIn("The 'tahoe debug trial' command uses the correct imports", help)
+        self.failUnlessInNormalized("The 'tahoe debug trial' command uses the correct imports", help)
 
     def test_debug_flogtool(self):
         options = debug.FlogtoolOptions()
         help = str(options)
         self.failUnlessIn(" [global-options] debug flogtool ", help)
-        self.failUnlessIn("The 'tahoe debug flogtool' command uses the correct imports", help)
+        self.failUnlessInNormalized("The 'tahoe debug flogtool' command uses the correct imports", help)
 
         for (option, shortcut, oClass, desc) in options.subCommands:
             subhelp = str(oClass())
