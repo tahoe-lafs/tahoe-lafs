@@ -360,8 +360,9 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
         DropUploadTestMixin.setUp(self)
         self.inotify = fake_inotify
 
-    def notify_close_write(self, path):
-        self.uploader._notifier.event(path, self.inotify.IN_CLOSE_WRITE)
+
+    def notify(self, path, mask):
+        self.uploader._notifier.event(path, mask)
 
     def test_errors(self):
         self.set_up_grid()
@@ -401,8 +402,8 @@ class RealTest(DropUploadTestMixin, unittest.TestCase):
         DropUploadTestMixin.setUp(self)
         self.inotify = None
 
-    def notify_close_write(self, path):
-        # Writing to the file causes the notification.
+    def notify(self, path, mask):
+        # Writing to the filesystem causes the notification.
         pass
 
 if sys.platform != "win32" and not runtime.platform.supportsINotify():
