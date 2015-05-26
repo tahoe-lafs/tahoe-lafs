@@ -966,13 +966,10 @@ class TrialOptions(twisted_trial.Options):
         if not nonoption_args:
             self.trial_args.append(DEFAULT_TESTSUITE)
 
-    def getUsage(self, width=None):
-        t = twisted_trial.Options.getUsage(self, width)
-        t += """
-The 'tahoe debug trial' command uses the correct imports for this instance of
-Tahoe-LAFS. The default test suite is '%s'.
-""" % (DEFAULT_TESTSUITE,)
-        return t
+    longdesc = twisted_trial.Options.longdesc + "\n\n" + (
+        "The 'tahoe debug trial' command uses the correct imports for this "
+        "instance of Tahoe-LAFS. The default test suite is '%s'."
+        % DEFAULT_TESTSUITE)
 
 def trial(config):
     sys.argv = ['trial'] + config.trial_args
@@ -1006,7 +1003,7 @@ class FlogtoolOptions(foolscap_cli.Options):
         self.subCommands = map(fixOptionsClass, self.subCommands)
 
     def getSynopsis(self):
-        return "Usage: tahoe [global-options] debug flogtool (%s) [command options]" % ("|".join([x[0] for x in self.subCommands]))
+        return "Usage: tahoe [global-options] debug flogtool COMMAND"
 
     def parseOptions(self, all_subargs, *a, **kw):
         self.flogtool_args = list(all_subargs)
@@ -1018,7 +1015,7 @@ class FlogtoolOptions(foolscap_cli.Options):
 The 'tahoe debug flogtool' command uses the correct imports for this instance
 of Tahoe-LAFS.
 
-Please run 'tahoe debug flogtool SUBCOMMAND --help' for more details on each
+Please run 'tahoe debug flogtool COMMAND --help' for more details on each
 subcommand.
 """
         return t
