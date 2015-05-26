@@ -1,11 +1,12 @@
 
 import os, sys
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
+from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_output
+from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_output, quote_local_unicode_path
 import allmydata
 
-class CreateClientOptions(BasedirOptions):
+class _CreateBaseOptions(BasedirOptions):
     optParameters = [
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
@@ -14,28 +15,30 @@ class CreateClientOptions(BasedirOptions):
         ("introducer", "i", None, "Specify the introducer FURL to use."),
         ("webport", "p", "tcp:3456:interface=127.0.0.1",
          "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
+        ("basedir", "C", None, "Specify which Tahoe base directory should be used. This has the same effect as the global --node-directory option. [default: %s]"
+         % quote_local_unicode_path(_default_nodedir)),
+
         ]
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] create-client [options] [NODEDIR]" % (self.command_name,)
-
-    # This is overridden in order to ensure we get a "Wrong number of arguments."
-    # error when more than one argument is given.
+    # This is overridden in order to ensure we get a "Wrong number of
+    # arguments." error when more than one argument is given.
     def parseArgs(self, basedir=None):
         BasedirOptions.parseArgs(self, basedir)
 
+class CreateClientOptions(_CreateBaseOptions):
+    synopsis = "[options] [NODEDIR]"
+    description = "Create a client-only Tahoe-LAFS node (no storage server)."
 
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
         ]
-
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] create-node [options] [NODEDIR]" % (self.command_name,)
-
+    synopsis = "[options] [NODEDIR]"
+    description = "Create a full Tahoe-LAFS node (client+server)."
 
 class CreateIntroducerOptions(NoDefaultBasedirOptions):
     subcommand_name = "create-introducer"
+    description = "Create a Tahoe-LAFS introducer."
 
 
 client_tac = """
