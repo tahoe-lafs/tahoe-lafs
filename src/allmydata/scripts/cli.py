@@ -57,10 +57,8 @@ class MakeDirectoryOptions(FilesystemOptions):
             if self['format'].upper() not in ("SDMF", "MDMF"):
                 raise usage.UsageError("%s is an invalid format" % self['format'])
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] mkdir [options] [REMOTE_DIR]" % (self.command_name,)
-
-    longdesc = """Create a new directory, either unlinked or as a subdirectory."""
+    synopsis = "[options] [REMOTE_DIR]"
+    description = """Create a new directory, either unlinked or as a subdirectory."""
 
 class AddAliasOptions(FilesystemOptions):
     def parseArgs(self, alias, cap):
@@ -69,10 +67,8 @@ class AddAliasOptions(FilesystemOptions):
             self.alias = self.alias[:-1]
         self.cap = cap
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] add-alias [options] ALIAS[:] DIRCAP" % (self.command_name,)
-
-    longdesc = """Add a new alias for an existing directory."""
+    synopsis = "[options] ALIAS[:] DIRCAP"
+    description = """Add a new alias for an existing directory."""
 
 class CreateAliasOptions(FilesystemOptions):
     def parseArgs(self, alias):
@@ -80,16 +76,12 @@ class CreateAliasOptions(FilesystemOptions):
         if self.alias.endswith(u':'):
             self.alias = self.alias[:-1]
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] create-alias [options] ALIAS[:]" % (self.command_name,)
-
-    longdesc = """Create a new directory and add an alias for it."""
+    synopsis = "[options] ALIAS[:]"
+    description = """Create a new directory and add an alias for it."""
 
 class ListAliasesOptions(FilesystemOptions):
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] list-aliases [options]" % (self.command_name,)
-
-    longdesc = """Display a table of all configured aliases."""
+    synopsis = "[options]"
+    description = """Display a table of all configured aliases."""
 
 class ListOptions(FilesystemOptions):
     optFlags = [
@@ -102,10 +94,9 @@ class ListOptions(FilesystemOptions):
     def parseArgs(self, where=""):
         self.where = argv_to_unicode(where)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] ls [options] [PATH]" % (self.command_name,)
+    synopsis = "[options] [PATH]"
 
-    longdesc = """
+    description = """
     List the contents of some portion of the grid.
 
     If PATH is omitted, "tahoe:" is assumed.
@@ -113,7 +104,7 @@ class ListOptions(FilesystemOptions):
     When the -l or --long option is used, each line is shown in the
     following format:
 
-    drwx <size> <date/time> <name in this directory>
+     drwx <size> <date/time> <name in this directory>
 
     where each of the letters on the left may be replaced by '-'.
     If 'd' is present, it indicates that the object is a directory.
@@ -146,24 +137,20 @@ class GetOptions(FilesystemOptions):
         self.from_file = argv_to_unicode(arg1)
         self.to_file   = None if arg2 is None else argv_to_abspath(arg2)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] get [options] REMOTE_FILE LOCAL_FILE" % (self.command_name,)
+    synopsis = "[options] REMOTE_FILE LOCAL_FILE"
 
-    longdesc = """
+    description = """
     Retrieve a file from the grid and write it to the local filesystem. If
     LOCAL_FILE is omitted or '-', the contents of the file will be written to
     stdout."""
 
-    def getUsage(self, width=None):
-        t = FilesystemOptions.getUsage(self, width)
-        t += """
-Examples:
- % tahoe get FOO |less            # write to stdout
- % tahoe get tahoe:FOO |less      # same
- % tahoe get FOO bar              # write to local file
- % tahoe get tahoe:FOO bar        # same
-"""
-        return t
+    description_unwrapped = """
+    Examples:
+     % tahoe get FOO |less            # write to stdout
+     % tahoe get tahoe:FOO |less      # same
+     % tahoe get FOO bar              # write to local file
+     % tahoe get tahoe:FOO bar        # same
+    """
 
 class PutOptions(FilesystemOptions):
     optFlags = [
@@ -186,33 +173,30 @@ class PutOptions(FilesystemOptions):
             if self['format'].upper() not in ("SDMF", "MDMF", "CHK"):
                 raise usage.UsageError("%s is an invalid format" % self['format'])
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] put [options] LOCAL_FILE REMOTE_FILE" % (self.command_name,)
+    synopsis = "[options] LOCAL_FILE REMOTE_FILE"
 
-    longdesc = """
+    description = """
     Put a file into the grid, copying its contents from the local filesystem.
     If REMOTE_FILE is missing, upload the file but do not link it into a
     directory; also print the new filecap to stdout. If LOCAL_FILE is missing
     or '-', data will be copied from stdin. REMOTE_FILE is assumed to start
     with tahoe: unless otherwise specified.
 
-    If the destination file already exists and is mutable, it will be modified
-    in-place, whether or not --mutable is specified. (--mutable only affects
-    creation of new files.)"""
+    If the destination file already exists and is mutable, it will be
+    modified in-place, whether or not --mutable is specified. (--mutable only
+    affects creation of new files.)
+    """
 
-    def getUsage(self, width=None):
-        t = FilesystemOptions.getUsage(self, width)
-        t += """
-Examples:
- % cat FILE | tahoe put                # create unlinked file from stdin
- % cat FILE | tahoe put -              # same
- % tahoe put bar                       # create unlinked file from local 'bar'
- % cat FILE | tahoe put - FOO          # create tahoe:FOO from stdin
- % tahoe put bar FOO                   # copy local 'bar' to tahoe:FOO
- % tahoe put bar tahoe:FOO             # same
- % tahoe put bar MUTABLE-FILE-WRITECAP # modify the mutable file in-place
-"""
-        return t
+    description_unwrapped = """
+    Examples:
+     % cat FILE | tahoe put                # create unlinked file from stdin
+     % cat FILE | tahoe put -              # same
+     % tahoe put bar                       # create unlinked file from local 'bar'
+     % cat FILE | tahoe put - FOO          # create tahoe:FOO from stdin
+     % tahoe put bar FOO                   # copy local 'bar' to tahoe:FOO
+     % tahoe put bar tahoe:FOO             # same
+     % tahoe put bar MUTABLE-FILE-WRITECAP # modify the mutable file in-place
+    """
 
 class CpOptions(FilesystemOptions):
     optFlags = [
@@ -229,10 +213,9 @@ class CpOptions(FilesystemOptions):
         self.sources = map(argv_to_unicode, args[:-1])
         self.destination = argv_to_unicode(args[-1])
 
-    def getSynopsis(self):
-        return "Usage: %s [global-opts] cp [options] FROM.. TO" % (self.command_name,)
+    synopsis = "[options] FROM.. TO"
 
-    longdesc = """
+    description = """
     Use 'tahoe cp' to copy files between a local filesystem and a Tahoe grid.
     Any FROM/TO arguments that begin with an alias indicate Tahoe-side
     files or non-file arguments. Directories will be copied recursively.
@@ -240,15 +223,15 @@ class CpOptions(FilesystemOptions):
     you have previously set up an alias 'home' with 'tahoe create-alias home',
     here are some examples:
 
-    tahoe cp ~/foo.txt home:  # creates tahoe-side home:foo.txt
+     tahoe cp ~/foo.txt home:  # creates tahoe-side home:foo.txt
 
-    tahoe cp ~/foo.txt /tmp/bar.txt home:  # copies two files to home:
+     tahoe cp ~/foo.txt /tmp/bar.txt home:  # copies two files to home:
 
-    tahoe cp ~/Pictures home:stuff/my-pictures  # copies directory recursively
+     tahoe cp ~/Pictures home:stuff/my-pictures  # copies directory recursively
 
     You can also use a dircap as either FROM or TO target:
 
-    tahoe cp URI:DIR2-RO:ixqhc4kdbjxc7o65xjnveoewym:5x6lwoxghrd5rxhwunzavft2qygfkt27oj3fbxlq4c6p45z5uneq/blog.html ./   # copy Zooko's wiki page to a local file
+     tahoe cp URI:DIR2-RO:ixqhc4kdbjxc7o65xjnveoewym:5x6lwoxghrd5rxhwunzavft2qygfkt27oj3fbxlq4c6p45z5uneq/blog.html ./   # copy Zooko's wiki page to a local file
 
     This command still has some limitations: symlinks and special files
     (device nodes, named pipes) are not handled very well. Arguments should
@@ -266,22 +249,21 @@ class UnlinkOptions(FilesystemOptions):
     def parseArgs(self, where):
         self.where = argv_to_unicode(where)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] unlink [options] REMOTE_FILE" % (self.command_name,)
+    synopsis = "[options] REMOTE_FILE"
+    description = "Remove a named file from its parent directory."
 
 class RmOptions(UnlinkOptions):
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] rm [options] REMOTE_FILE" % (self.command_name,)
+    synopsis = "[options] REMOTE_FILE"
+    description = "Remove a named file from its parent directory."
 
 class MvOptions(FilesystemOptions):
     def parseArgs(self, frompath, topath):
         self.from_file = argv_to_unicode(frompath)
         self.to_file = argv_to_unicode(topath)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] mv [options] FROM TO" % (self.command_name,)
+    synopsis = "[options] FROM TO"
 
-    longdesc = """
+    description = """
     Use 'tahoe mv' to move files that are already on the grid elsewhere on
     the grid, e.g., 'tahoe mv alias:some_file alias:new_file'.
 
@@ -298,10 +280,9 @@ class LnOptions(FilesystemOptions):
         self.from_file = argv_to_unicode(frompath)
         self.to_file = argv_to_unicode(topath)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] ln [options] FROM_LINK TO_LINK" % (self.command_name,)
+    synopsis = "[options] FROM_LINK TO_LINK"
 
-    longdesc = """
+    description = """
     Use 'tahoe ln' to duplicate a link (directory entry) already on the grid
     to elsewhere on the grid. For example 'tahoe ln alias:some_file
     alias:new_file'. causes 'alias:new_file' to point to the same object that
@@ -345,8 +326,7 @@ class BackupOptions(FilesystemOptions):
         self.from_dir = argv_to_abspath(localdir)
         self.to_dir = argv_to_unicode(topath)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] backup [options] FROM ALIAS:TO" % (self.command_name,)
+    synopsis = "[options] FROM ALIAS:TO"
 
     def opt_exclude(self, pattern):
         """Ignore files matching a glob pattern. You may give multiple
@@ -388,7 +368,7 @@ class BackupOptions(FilesystemOptions):
             else:
                 yield filename
 
-    longdesc = """
+    description = """
     Add a versioned backup of the local FROM directory to a timestamped
     subdirectory of the TO/Archives directory on the grid, sharing as many
     files and directories as possible with earlier backups. Create TO/Latest
@@ -403,10 +383,10 @@ class WebopenOptions(FilesystemOptions):
     def parseArgs(self, where=''):
         self.where = argv_to_unicode(where)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] webopen [options] [ALIAS:PATH]" % (self.command_name,)
+    synopsis = "[options] [ALIAS:PATH]"
 
-    longdesc = """Open a web browser to the contents of some file or
+    description = """
+    Open a web browser to the contents of some file or
     directory on the grid. When run without arguments, open the Welcome
     page."""
 
@@ -420,11 +400,10 @@ class ManifestOptions(FilesystemOptions):
     def parseArgs(self, where=''):
         self.where = argv_to_unicode(where)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] manifest [options] [ALIAS:PATH]" % (self.command_name,)
-
-    longdesc = """Print a list of all files and directories reachable from
-    the given starting point."""
+    synopsis = "[options] [ALIAS:PATH]"
+    description = """
+    Print a list of all files and directories reachable from the given
+    starting point."""
 
 class StatsOptions(FilesystemOptions):
     optFlags = [
@@ -433,11 +412,10 @@ class StatsOptions(FilesystemOptions):
     def parseArgs(self, where=''):
         self.where = argv_to_unicode(where)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] stats [options] [ALIAS:PATH]" % (self.command_name,)
-
-    longdesc = """Print statistics about of all files and directories
-    reachable from the given starting point."""
+    synopsis = "[options] [ALIAS:PATH]"
+    description = """
+    Print statistics about of all files and directories reachable from the
+    given starting point."""
 
 class CheckOptions(FilesystemOptions):
     optFlags = [
@@ -449,10 +427,8 @@ class CheckOptions(FilesystemOptions):
     def parseArgs(self, *locations):
         self.locations = map(argv_to_unicode, locations)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] check [options] [ALIAS:PATH]" % (self.command_name,)
-
-    longdesc = """
+    synopsis = "[options] [ALIAS:PATH]"
+    description = """
     Check a single file or directory: count how many shares are available and
     verify their hashes. Optionally repair the file if any problems were
     found."""
@@ -468,10 +444,8 @@ class DeepCheckOptions(FilesystemOptions):
     def parseArgs(self, *locations):
         self.locations = map(argv_to_unicode, locations)
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] deep-check [options] [ALIAS:PATH]" % (self.command_name,)
-
-    longdesc = """
+    synopsis = "[options] [ALIAS:PATH]"
+    description = """
     Check all files and directories reachable from the given starting point
     (which must be a directory), like 'tahoe check' but for multiple files.
     Optionally repair any problems found."""

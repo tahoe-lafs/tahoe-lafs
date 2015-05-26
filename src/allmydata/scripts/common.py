@@ -93,7 +93,7 @@ class NoDefaultBasedirOptions(BasedirOptions):
         BasedirOptions.parseArgs(self, basedir)
 
     def getSynopsis(self):
-        return "Usage:  %s [global-opts] %s [options] NODEDIR" % (self.command_name, self.subcommand_name)
+        return "Usage:  %s [global-options] %s [options] NODEDIR" % (self.command_name, self.subcommand_name)
 
 
 DEFAULT_ALIAS = u"tahoe"
