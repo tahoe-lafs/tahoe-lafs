@@ -432,7 +432,7 @@ Therefore we need to consider carefully how to handle failure
 conditions.
 
 In our proposed design, Alice's Magic Folder client follows
-this procedure for each download in response to a remote change:
+this procedure for an overwrite in response to a remote change:
 
 1. Write a temporary file, say ``.foo.tmp``.
 2. If there are pending notifications of changes to ``foo``,
@@ -640,6 +640,18 @@ between steps 4b and 4c (or 4b′ and 4c′ on Windows). In this case the
 open will fail because ``foo`` does not exist. Nevertheless, no data
 will be lost, and in many cases the user will be able to retry the
 operation.
+
+Above we only described the case where the download was initially
+classified as an overwrite. If it was classed as a conflict, the
+procedure is the same except that we choose a unique filename
+for the conflicted file (say, ``foo.conflicted_unique``). We write
+the new contents to ``.foo.tmp`` and then rename it to
+``foo.conflicted_unique`` in such a way that the rename will fail
+if the destination already exists. (On Windows this is a simple
+rename; on Unix it can be implemented as a link operation followed
+by an unlink, similar to steps 4c and 4d above.) If this fails
+because another process wrote ``foo.conflicted_unique`` after we
+chose the filename, then we retry with a different filename.
 
 
 Read/download collisions
