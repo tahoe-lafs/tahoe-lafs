@@ -303,23 +303,120 @@ and the filename patterns we use in the actual implementation may
 differ.
 
 
+Fire Dragons: Distinguishing conflicts from overwrites
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+It is necessary to distinguish between overwrites, in which the
+remote side was aware of your most recent version and overwrote it
+with a new version, and conflicts, in which the remote side was
+unaware of your most recent version when it published its new version.
+Those two cases have to be handled differently — the latter needs to
+be raised to the user as an issue the user will have to resolve and
+the former must not bother the user.
+
+For example, suppose that Alice's Magic Folder client sees a change
+to ``foo`` in Bob's DMD. If the version it downloads from Bob's DMD
+is "based on" the version currently in Alice's local filesystem at
+the time Alice's client attempts to perform the write of the
+downloaded file, then it is an overwrite. Otherwise it is initially
+classified as a conflict. Note that, as explained below in the
+`Earth Dragons`_ section, we may reclassify an overwrite as a
+conflict if an error occurs during the write procedure.
+
+.. _`Earth Dragons`: #earth-dragons-collisions-between-local-filesystem-operations-and-downloads
+
+
+when any client uploads a file, it includes Tahoe-side metadata giving
+the URI of the last remote version that it saved
+before the notification of the local write that caused the upload
+the metadata also includes the length of time between the last save and
+the notification; if this is very short,
+then we are uncertain about whether the writing app took into account the
+last save (and we can use that information
+to be conservative about treating changes as conflicts).
+so, when alice sees bob's change, it can compare the URI in the metadata
+for the downloaded file, with the URI that
+is alice's magic folder db.
+(if alice had that version but had not recorded the URI, we count that as
+a conflict.
+
+this is justified because bob could not have learnt an URI matching
+alice's version unless [alice created that version
+and had uploaded it] or [someone else created that version and alice had
+downloaded it])
+
+alice does this comparison only when it is about to write bob's change.
+if it is a conflict, then it just creates a
+new file for the conflicted copy (and doesn't update its own copy at the
+bare filename, nor does it change its
+magic folder db)
+filesystem notifications for filenames that match the conflicted pattern
+are ignored
+
+
+Water Dragons: Resolving conflict loops
+'''''''''''''''''''''''''''''''''''''''
+
+suppose that we've detected a remote write to file 'foo' that conflicts
+with a local write
+(alice is the local user that has detected the conflict, and bob is the
+user who did the remote write)
+
+alice's gateway creates a 'foo.conflict_by_bob_at_timestamp' file
+alice-the-human at some point notices the conflict and updates hir copy
+of 'foo' to take into account bob's writes
+
+but, there is no way to know whether that update actually took into
+account 'foo.conflict_by_bob_at_timestamp' or not
+alice could have failed to notice 'foo.conflict_by_bob_at_timestamp' at
+all, and just saved hir copy of 'foo' again
+so, when there is another remote write, how do we know whether it should
+be treated as a conflict or not?
+well, alice could delete or rename 'foo.conflict_by_bob_at_timestamp' in
+order to indicate that ze'd taken it into account. but I'm not sure about
+the usability properties of that
+the issue is whether, after 'foo.conflict_by_bob_at_timestamp' has been
+written, alice's magic folder db should be updated to indicate (for the
+purpose of conflict detection) that ze has seen bob's version of 'foo'
+so, I think that alice's magic folder db should *not* be updated to
+indicate ze has seen bob's version of 'foo'. in that case, when ze
+updates hir local copy of 'foo' (with no suffix), the metadata of the
+copy of 'foo' that hir client uploads will indicate only that it was
+based on the previous version of 'foo'. then when bob gets that copy, it
+will be treated as a conflict and called
+'foo.conflict_by_alice_at_timestamp2'
+which I think is the desired behaviour
+oh, but then how do alice and bob exit the conflict loop? that's the
+usability issue I was worried about [...]
+if alice's client does update hir magic folder db, then bob will see hir
+update as an overwrite
+even though ze didn't necessarily take into account bob's changes
+which seems wrong :-(
+(bob's changes haven't been lost completely; they are still on alice's
+filesystem. but they have been overwritten in bob's filesystem!)
+so maybe we need alice to delete 'foo.conflict_by_bob_at_timestamp', and
+use that as the signal that ze has seen bob's changes and to break the
+conflict loop
+(or rename it; actually any change to that file is sufficient to indicate
+that alice has seen it)
+
+
 Earth Dragons: Collisions between local filesystem operations and downloads
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Write/download collisions
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Suppose that Alice's Magic Folder client is about to write a
 version of ``foo`` that it has downloaded in response to a remote
 change.
 
 The criteria for distinguishing overwrites from conflicts are
-described later in the `Fire Dragons`_ section. For now, suppose
-that the remote change has been tentatively classified as an
-overwrite. (As we will see below, it may be reclassified in some
-circumstances.)
+described above in the `Fire Dragons`_ section. Suppose that the
+remote change has been initially classified as an overwrite.
+(As we will see below, it may be reclassified in some circumstances.)
 
 .. _`Fire Dragons`: #fire-dragons-distinguishing-conflicts-from-overwrites
-
-Write/download collisions
-~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A *write/download collision* occurs when another program writes
 to ``foo`` in the local filesystem, concurrently with the new
@@ -673,104 +770,6 @@ Ticket `#2431`_ has been opened to track this idea.
 
 Note that the situation of both a local process and the Magic Folder
 client reading a file at the same time cannot cause any inconsistency.
-
-
-Fire Dragons: Distinguishing conflicts from overwrites
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-It is necessary to distinguish between overwrites, in which the
-remote side was aware of your most recent version and overwrote it
-with a new version, and conflicts, in which the remote side was
-unaware of your most recent version when it published its new version.
-Those two cases have to be handled differently — the latter needs to
-be raised to the user as an issue the user will have to resolve and
-the former must not bother the user.
-
-For example, suppose that Alice's Magic Folder client sees a change
-to ``foo`` in Bob's DMD. If the version it downloads from Bob's DMD
-is "based on" the version currently in Alice's local filesystem at
-the time Alice's client attempts to perform the write of the
-downloaded file, then it is an overwrite. Otherwise it is initially
-classified as a conflict. Note that, as explained in the
-`Earth Dragons`_ section, we may reclassify an overwrite as a
-conflict if an error occurs during the write procedure.
-
-.. _`Earth Dragons`: #earth-dragons-collisions-between-local-filesystem-operations-and-downloads
-
-
-when any client uploads a file, it includes Tahoe-side metadata giving
-the URI of the last remote version that it saved
-before the notification of the local write that caused the upload
-the metadata also includes the length of time between the last save and
-the notification; if this is very short,
-then we are uncertain about whether the writing app took into account the
-last save (and we can use that information
-to be conservative about treating changes as conflicts).
-so, when alice sees bob's change, it can compare the URI in the metadata
-for the downloaded file, with the URI that
-is alice's magic folder db.
-(if alice had that version but had not recorded the URI, we count that as
-a conflict.
-
-this is justified because bob could not have learnt an URI matching
-alice's version unless [alice created that version
-and had uploaded it] or [someone else created that version and alice had
-downloaded it])
-
-alice does this comparison only when it is about to write bob's change.
-if it is a conflict, then it just creates a
-new file for the conflicted copy (and doesn't update its own copy at the
-bare filename, nor does it change its
-magic folder db)
-filesystem notifications for filenames that match the conflicted pattern
-are ignored
-
-
-Water Dragons: Resolving conflict loops
-'''''''''''''''''''''''''''''''''''''''
-
-suppose that we've detected a remote write to file 'foo' that conflicts
-with a local write
-(alice is the local user that has detected the conflict, and bob is the
-user who did the remote write)
-
-alice's gateway creates a 'foo.conflict_by_bob_at_timestamp' file
-alice-the-human at some point notices the conflict and updates hir copy
-of 'foo' to take into account bob's writes
-
-but, there is no way to know whether that update actually took into
-account 'foo.conflict_by_bob_at_timestamp' or not
-alice could have failed to notice 'foo.conflict_by_bob_at_timestamp' at
-all, and just saved hir copy of 'foo' again
-so, when there is another remote write, how do we know whether it should
-be treated as a conflict or not?
-well, alice could delete or rename 'foo.conflict_by_bob_at_timestamp' in
-order to indicate that ze'd taken it into account. but I'm not sure about
-the usability properties of that
-the issue is whether, after 'foo.conflict_by_bob_at_timestamp' has been
-written, alice's magic folder db should be updated to indicate (for the
-purpose of conflict detection) that ze has seen bob's version of 'foo'
-so, I think that alice's magic folder db should *not* be updated to
-indicate ze has seen bob's version of 'foo'. in that case, when ze
-updates hir local copy of 'foo' (with no suffix), the metadata of the
-copy of 'foo' that hir client uploads will indicate only that it was
-based on the previous version of 'foo'. then when bob gets that copy, it
-will be treated as a conflict and called
-'foo.conflict_by_alice_at_timestamp2'
-which I think is the desired behaviour
-oh, but then how do alice and bob exit the conflict loop? that's the
-usability issue I was worried about [...]
-if alice's client does update hir magic folder db, then bob will see hir
-update as an overwrite
-even though ze didn't necessarily take into account bob's changes
-which seems wrong :-(
-(bob's changes haven't been lost completely; they are still on alice's
-filesystem. but they have been overwritten in bob's filesystem!)
-so maybe we need alice to delete 'foo.conflict_by_bob_at_timestamp', and
-use that as the signal that ze has seen bob's changes and to break the
-conflict loop
-(or rename it; actually any change to that file is sufficient to indicate
-that alice has seen it)
 
 
 Aether Dragons: Handling deletion and renames
