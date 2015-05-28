@@ -573,6 +573,68 @@ because another process wrote ``foo.conflicted_unique`` after we
 chose the filename, then we retry with a different filename.
 
 
+Read/download collisions
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+A *read/download collision* occurs when another program reads
+from ``foo`` in the local filesystem, concurrently with the new
+version being written by the Magic Folder client. We want to
+ensure that any successful attempt to read the file by the other
+program obtains a consistent view of its contents.
+
+On Unix, the above procedure for writing downloads is sufficient
+to achieve this. There are three cases:
+
+A
+   The other process opens ``foo`` for reading before it is
+   renamed to ``foo.backup``. Then the file handle will continue to
+   refer to the old file across the rename, and the other process
+   will read the old contents.
+B
+   The other process attempts to open ``foo`` after it has been
+   renamed to ``foo.backup``, and before it is linked in step c.
+   The open call fails, which is acceptable.
+C
+   The other process opens ``foo`` after it has been linked to
+   the new file. Then it will read the new contents.
+
+On Windows, the analysis is very similar, but case A′ needs to
+be split into two subcases, depending on the sharing mode the other
+process uses when opening the file for reading:
+
+A′.
+    The other process opens ``foo`` before the Magic Folder
+    client's attempt to rename ``foo`` to ``foo.backup`` (as part
+    of the implementation of `ReplaceFileW`_). The subcases are:
+
+    i.  The other process uses sharing flags that deny deletion and
+        renames. The `ReplaceFileW`_ call fails, and the download is
+        reclassified as a conflict. The downloaded file ends up at
+        ``foo.conflicted``, which is correct.
+
+    ii. The other process uses sharing flags that allow deletion
+        and renames. The `ReplaceFileW`_ call succeeds, and the
+        other process reads inconsistent data. This can be attributed
+        to a poor choice of sharing flags by the other process.
+B′.
+    The other process attempts to open ``foo`` at the point
+    during the `ReplaceFileW`_ call where it does not exist.
+    The open call fails, which is acceptable.
+C′.
+    The other process opens ``foo`` after it has been linked to
+    the new file. Then it will read the new contents.
+
+
+For both write/download and read/download collisions, we have
+considered only interleavings with a single other process, and
+only the most common possibilities for the other process'
+interaction with the file. If multiple other processes are
+involved, or if a process performs operations other than those
+considered, then we cannot say much about the outcome in general;
+however, we believe that such cases will be much less common.
+
+
+
 Fire Dragons: Distinguishing conflicts from overwrites
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -729,66 +791,6 @@ use that as the signal that ze has seen bob's changes and to break the
 conflict loop
 (or rename it; actually any change to that file is sufficient to indicate
 that alice has seen it)
-
-
-Read/download collisions
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-A *read/download collision* occurs when another program reads
-from ``foo`` in the local filesystem, concurrently with the new
-version being written by the Magic Folder client. We want to
-ensure that any successful attempt to read the file by the other
-program obtains a consistent view of its contents.
-
-On Unix, the above procedure for writing downloads is sufficient
-to achieve this. There are three cases:
-
-A
-   The other process opens ``foo`` for reading before it is
-   renamed to ``foo.backup``. Then the file handle will continue to
-   refer to the old file across the rename, and the other process
-   will read the old contents.
-B
-   The other process attempts to open ``foo`` after it has been
-   renamed to ``foo.backup``, and before it is linked in step c.
-   The open call fails, which is acceptable.
-C
-   The other process opens ``foo`` after it has been linked to
-   the new file. Then it will read the new contents.
-
-On Windows, the analysis is very similar, but case A′ needs to
-be split into two subcases, depending on the sharing mode the other
-process uses when opening the file for reading:
-
-A′.
-    The other process opens ``foo`` before the Magic Folder
-    client's attempt to rename ``foo`` to ``foo.backup`` (as part
-    of the implementation of `ReplaceFileW`_). The subcases are:
-
-    i.  The other process uses sharing flags that deny deletion and
-        renames. The `ReplaceFileW`_ call fails, and the download is
-        reclassified as a conflict. The downloaded file ends up at
-        ``foo.conflicted``, which is correct.
-
-    ii. The other process uses sharing flags that allow deletion
-        and renames. The `ReplaceFileW`_ call succeeds, and the
-        other process reads inconsistent data. This can be attributed
-        to a poor choice of sharing flags by the other process.
-B′.
-    The other process attempts to open ``foo`` at the point
-    during the `ReplaceFileW`_ call where it does not exist.
-    The open call fails, which is acceptable.
-C′.
-    The other process opens ``foo`` after it has been linked to
-    the new file. Then it will read the new contents.
-
-
-Above we have considered only interleavings with a single other
-process, and only the most common possibilities for the other
-process' interaction with the file. If multiple other processes
-are involved, or if a process performs operations other than those
-considered, then we cannot say much about the outcome in general;
-however, we believe that such cases will be much less common.
 
 
 Air Dragons: Collisions between local writes and uploads
