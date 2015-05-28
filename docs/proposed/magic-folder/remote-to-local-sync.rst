@@ -512,17 +512,20 @@ To reclassify as a conflict, attempt to rename ``.foo.tmp`` to
 ``foo.conflicted``, suppressing errors.
 
 The implementation of file replacement differs between Unix
-and Windows. On Unix, it can be implemented as follows:
+and Windows. On Unix, it can be implemented as follows::
 
-4a. Set the permissions of the replacement file to be the
+4a.
+    Set the permissions of the replacement file to be the
     same as the replaced file, bitwise-or'd with octal 600
     (``rw-------``).
-4b. Attempt to move the replaced file (``foo``) to the
+4b.
+    Attempt to move the replaced file (``foo``) to the
     backup filename (``foo.backup``).
-4c. Attempt to create a hard link at the replaced filename
+4c.
+    Attempt to create a hard link at the replaced filename
     (``foo``) pointing to the replacement file (``.foo.tmp``).
-4d. Attempt to unlink the replacement file (``.foo.tmp``),
-    suppressing errors.
+4d.
+    Attempt to unlink the replacement file (``.foo.tmp``), suppressing errors.
 
 [TODO: this is the first reference to the magic folder db in
 this doc, and we haven't adequately explained how we are using
@@ -595,14 +598,19 @@ On Unix, we have:
 On Windows, the internal implementation of `ReplaceFileW`_ is similar
 to what we have described above for Unix; it works like this:
 
-4a′. Copy metadata (which does not include ``mtime``) from the
-     replaced file (``foo``) to the replacement file (``.foo.tmp``).
-4b′. Attempt to move the replaced file (``foo``) onto the
-     backup filename (``foo.backup``), deleting the latter if it
-     already exists.
-4c′. Attempt to move the replacement file (``.foo.tmp``) to the
-     replaced filename (``foo``); fail if the destination already
-     exists.
+4a′.
+    Copy metadata (which does not include ``mtime``) from the
+    replaced file (``foo``) to the replacement file (``.foo.tmp``).
+
+4b′.
+    Attempt to move the replaced file (``foo``) onto the
+    backup filename (``foo.backup``), deleting the latter if it
+    already exists.
+
+4c′.
+    Attempt to move the replacement file (``.foo.tmp``) to the
+    replaced filename (``foo``); fail if the destination already
+    exists.
 
 Notice that this is essentially the same as the algorithm we use
 for Unix, but steps 4c and 4d on Unix are combined into a single
@@ -730,23 +738,25 @@ program obtains a consistent view of its contents.
 On Unix, the above procedure for writing downloads is sufficient
 to achieve this. There are three cases:
 
-A. The other process opens ``foo`` for reading before it is
+A
+   The other process opens ``foo`` for reading before it is
    renamed to ``foo.backup``. Then the file handle will continue to
    refer to the old file across the rename, and the other process
    will read the old contents.
-
-B. The other process attempts to open ``foo`` after it has been
+B
+   The other process attempts to open ``foo`` after it has been
    renamed to ``foo.backup``, and before it is linked in step c.
    The open call fails, which is acceptable.
-
-C. The other process opens ``foo`` after it has been linked to
+C
+   The other process opens ``foo`` after it has been linked to
    the new file. Then it will read the new contents.
 
 On Windows, the analysis is very similar, but case A′ needs to
 be split into two subcases, depending on the sharing mode the other
 process uses when opening the file for reading:
 
-A′. The other process opens ``foo`` before the Magic Folder
+A′.
+    The other process opens ``foo`` before the Magic Folder
     client's attempt to rename ``foo`` to ``foo.backup`` (as part
     of the implementation of `ReplaceFileW`_). The subcases are:
 
@@ -759,12 +769,12 @@ A′. The other process opens ``foo`` before the Magic Folder
         and renames. The `ReplaceFileW`_ call succeeds, and the
         other process reads inconsistent data. This can be attributed
         to a poor choice of sharing flags by the other process.
-
-B′. The other process attempts to open ``foo`` at the point
+B′.
+    The other process attempts to open ``foo`` at the point
     during the `ReplaceFileW`_ call where it does not exist.
     The open call fails, which is acceptable.
-
-C′. The other process opens ``foo`` after it has been linked to
+C′.
+    The other process opens ``foo`` after it has been linked to
     the new file. Then it will read the new contents.
 
 
