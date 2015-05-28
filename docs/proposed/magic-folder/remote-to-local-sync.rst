@@ -346,8 +346,8 @@ this procedure for an overwrite in response to a remote change:
 1. Write a temporary file, say ``.foo.tmp``.
 2. Use the procedure described in the `Fire Dragons_` section
    to obtain an initial classification as an overwrite or a
-   conflict. (This takes as input the *download metadata* from
-   the directory entry of the changed ``foo``.)
+   conflict. (This takes as input the ``last_downloaded_uri``
+   field from the directory entry of the changed ``foo``.)
 3. Set the ``mtime`` of the replacement file to be *T* seconds
    before the current local time.
 4. Perform a ''file replacement'' operation (explained below)
