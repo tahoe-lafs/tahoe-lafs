@@ -471,7 +471,7 @@ this procedure for an overwrite in response to a remote change:
 3. Set the ``mtime`` of the replacement file to be *T* seconds
    before the current time.
 4. Perform a ''file replacement'' operation (explained below)
-   with backup filename ``foo.old``, replaced file ``foo``,
+   with backup filename ``foo.backup``, replaced file ``foo``,
    and replacement file ``.foo.tmp``. If any step of this
    operation fails, reclassify as a conflict and stop.
 
@@ -485,7 +485,7 @@ and Windows. On Unix, it can be implemented as follows:
     same as the replaced file, bitwise-or'd with octal 600
     (``rw-------``).
 4b. Attempt to move the replaced file (``foo``) to the
-    backup filename (``foo.old``).
+    backup filename (``foo.backup``).
 4c. Attempt to create a hard link at the replaced filename
     (``foo``) pointing to the replacement file (``.foo.tmp``).
 4d. Attempt to unlink the replacement file (``.foo.tmp``),
@@ -537,14 +537,14 @@ On Unix, we have:
 
 * Interleaving B: its rename precedes ours in step 4b, and we do
   not get an event for its rename by step 2. Its changes end up at
-  ``foo.old``, and ours end up at ``foo`` after being linked there
+  ``foo.backup``, and ours end up at ``foo`` after being linked there
   in step 4c. This avoids data loss.
 
 * Interleaving C: its rename happens between our rename in step 4b,
   and our link operation in step 4c of the file replacement. The
   latter fails with an ``EEXIST`` error because ``foo`` already
   exists. We reclassify as a conflict; the old version ends up at
-  ``foo.old``, the other process' changes end up at ``foo``, and
+  ``foo.backup``, the other process' changes end up at ``foo``, and
   ours at ``foo.conflicted``. This avoids data loss.
 
 * Interleaving D: its rename happens after our link in step 4c,
@@ -565,7 +565,7 @@ to what we have described above for Unix; it works like this:
 4a′. Copy metadata (which does not include ``mtime``) from the
      replaced file (``foo``) to the replacement file (``.foo.tmp``).
 4b′. Attempt to move the replaced file (``foo``) onto the
-     backup filename (``foo.old``), deleting the latter if it
+     backup filename (``foo.backup``), deleting the latter if it
      already exists.
 4c′. Attempt to move the replacement file (``.foo.tmp``) to the
      replaced filename (``foo``); fail if the destination already
@@ -597,11 +597,11 @@ interleaving with four as on Unix). The cases are:
 * Interleaving B′: the other process' deletion of ``foo`` and its
   rename of ``foo.other`` to ``foo`` both precede our rename in
   step 4b. We do not get an event for its rename by step 2.
-  Its changes end up at ``foo.old``, and ours end up at ``foo``
+  Its changes end up at ``foo.backup``, and ours end up at ``foo``
   after being linked there in step 4c. This avoids data loss.
 
 * Interleaving C′: the other process' deletion of ``foo`` precedes
-  our rename of ``foo`` to ``foo.old`` done by `ReplaceFileW`_,
+  our rename of ``foo`` to ``foo.backup`` done by `ReplaceFileW`_,
   but its rename of ``foo.other`` to ``foo`` does not, so we get
   an ``ERROR_FILE_NOT_FOUND`` error from `ReplaceFileW`_ indicating
   that the replaced file does not exist. Then we reclassify as a
@@ -613,7 +613,7 @@ interleaving with four as on Unix). The cases are:
   during the call to `ReplaceFileW`_, causing the latter to fail.
   There are two subcases:
   * if the error is ``ERROR_UNABLE_TO_MOVE_REPLACEMENT_2``, then
-    ``foo`` is renamed to ``foo.old`` and ``.foo.tmp`` remains
+    ``foo`` is renamed to ``foo.backup`` and ``.foo.tmp`` remains
     at its original name after the call.
   * for all other errors, ``foo`` and ``.foo.tmp`` both remain at
     their original names after the call.
@@ -642,9 +642,9 @@ We also need to consider what happens if another process opens ``foo``
 and writes to it directly, rather than renaming another file onto it:
 
 * On Unix, open file handles refer to inodes, not paths. If the other
-  process opens ``foo`` before it has been renamed to ``foo.old``,
+  process opens ``foo`` before it has been renamed to ``foo.backup``,
   and then closes the file, changes will have been written to the file
-  at the same inode, even if that inode is now linked at ``foo.old``.
+  at the same inode, even if that inode is now linked at ``foo.backup``.
   This avoids data loss.
 
 * On Windows, we have two subcases, depending on whether the sharing
@@ -698,12 +698,12 @@ On Unix, the above procedure for writing downloads is sufficient
 to achieve this. There are three cases:
 
 A. The other process opens ``foo`` for reading before it is
-   renamed to ``foo.old``. Then the file handle will continue to
+   renamed to ``foo.backup``. Then the file handle will continue to
    refer to the old file across the rename, and the other process
    will read the old contents.
 
 B. The other process attempts to open ``foo`` after it has been
-   renamed to ``foo.old``, and before it is linked in step c.
+   renamed to ``foo.backup``, and before it is linked in step c.
    The open call fails, which is acceptable.
 
 C. The other process opens ``foo`` after it has been linked to
@@ -714,8 +714,8 @@ be split into two subcases, depending on the sharing mode the other
 process uses when opening the file for reading:
 
 A′. The other process opens ``foo`` before the Magic Folder
-    client's attempt to rename ``foo`` to ``foo.old`` (as part of
-    the implementation of `ReplaceFileW`_). The subcases are:
+    client's attempt to rename ``foo`` to ``foo.backup`` (as part
+    of the implementation of `ReplaceFileW`_). The subcases are:
 
     i.  The other process uses sharing flags that deny deletion and
         renames. The `ReplaceFileW`_ call fails, and the download is
