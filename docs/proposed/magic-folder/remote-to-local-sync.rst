@@ -325,15 +325,46 @@ conflict if an error occurs during the write procedure.
 
 .. _`Earth Dragons`: #earth-dragons-collisions-between-local-filesystem-operations-and-downloads
 
+In order to implement this policy, we need to specify how the
+"based on" relation between file versions is recorded and updated.
 
-when any client uploads a file, it includes Tahoe-side metadata giving
-the URI of the last remote version that it saved
-before the notification of the local write that caused the upload
-the metadata also includes the length of time between the last save and
-the notification; if this is very short,
-then we are uncertain about whether the writing app took into account the
-last save (and we can use that information
-to be conservative about treating changes as conflicts).
+We propose to record this information:
+ * in the `magic folder db`_, for local files;
+ * in the Tahoe-LAFS directory metadata, for files stored in the
+   Magic Folder.
+
+In the magic folder db we will add a *last-downloaded record*,
+consisting of ``last_downloaded_uri`` and ``last_downloaded_timestamp``
+fields, for each path stored in the database. Whenever a Magic Folder
+client downloads a file to that path, it stores the downloaded
+version's URI and the current local timestamp in this record. (Since
+only immutable files are used, the URI will be an immutable file URI,
+which is deterministically and uniquely derived from the file contents
+and the Tahoe-LAFS node's `convergence secret`_.)
+
+.. _`convergence secret`: https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/convergence-secret.rst
+
+Later, in response to a local filesystem change at a given path, the
+Magic Folder client reads the last-downloaded record associated with
+that path (if any) from the database and then uploads the current file.
+When it links the uploaded file into its client DMD, it includes
+metadata containing the fields of the last-downloaded record in the
+directory entry, overwriting any existing such metadata. If there was
+no last-downloaded record associated with the path, these fields are
+omitted.
+
+Note that ``last_downloaded_uri`` field does *not* record the URI of
+the uploaded file (which would be redundant); it records the URI of
+the last download before the change that caused the upload. Both
+last-downloaded fields will be absent if the file has only ever been
+changed by the client that first created it.
+
+The purpose of including the timestamp is to allow calculating the
+length of time between the last download and the upload. If this is
+very short, then we are uncertain about whether the process that
+wrote the local file took into account the last download; we can use
+that information to be conservative about treating changes as conflicts.
+
 so, when alice sees bob's change, it can compare the URI in the metadata
 for the downloaded file, with the URI that
 is alice's magic folder db.
