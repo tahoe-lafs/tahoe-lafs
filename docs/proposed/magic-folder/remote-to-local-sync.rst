@@ -696,9 +696,10 @@ field is omitted.
 
 Note that ``last_downloaded_uri`` field does *not* record the URI of
 the uploaded file (which would be redundant); it records the URI of
-the last download before the change that caused the upload. The field
-will be absent if the file has only ever been changed by the client
-that first created it.
+the last download before the local change that caused the upload.
+The field will be absent if the file has never been downloaded by
+this client (i.e. if it was created on this client and no change
+by any other client has been detected).
 
 A possible refinement also takes into account the
 ``last_downloaded_timestamp`` field from the magic folder db, and
