@@ -305,7 +305,9 @@ Greek elements: Earth, Air, Fire, Water, and Aether.
 
 Note: all filenames used in the following sections are examples,
 and the filename patterns we use in the actual implementation may
-differ.
+differ. The actual patterns will probably include timestamps, and
+for conflicted files, the nickname of the client that last changed
+the file.
 
 
 Earth Dragons: Collisions between local filesystem operations and downloads
@@ -319,9 +321,9 @@ version of ``foo`` that it has downloaded in response to a remote
 change.
 
 The criteria for distinguishing overwrites from conflicts are
-described above in the `Fire Dragons`_ section. Suppose that the
+described later in the `Fire Dragons`_ section. Suppose that the
 remote change has been initially classified as an overwrite.
-(As we will see below, it may be reclassified in some circumstances.)
+(As we will see, it may be reclassified in some circumstances.)
 
 .. _`Fire Dragons`: #fire-dragons-distinguishing-conflicts-from-overwrites
 
@@ -344,10 +346,10 @@ this procedure for an overwrite in response to a remote change:
 1. Write a temporary file, say ``.foo.tmp``.
 2. Use the procedure described in the `Fire Dragons_` section
    to obtain an initial classification as an overwrite or a
-   conflict. If there are pending notifications of changes to
-   ``foo``, reclassify as a conflict and stop.
+   conflict. (This takes as input the *download metadata* from
+   the directory entry of the changed ``foo``.)
 3. Set the ``mtime`` of the replacement file to be *T* seconds
-   before the current time.
+   before the current local time.
 4. Perform a ''file replacement'' operation (explained below)
    with backup filename ``foo.backup``, replaced file ``foo``,
    and replacement file ``.foo.tmp``. If any step of this
