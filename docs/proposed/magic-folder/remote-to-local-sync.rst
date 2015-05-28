@@ -284,6 +284,9 @@ at a predetermined frequency. On each poll, it will reread the parent DMD
 (to allow for added or removed clients), and then read each client DMD
 linked from the parent.
 
+Files with names matching the patterns used for backup, temporary, and
+conflicted files will be ignored, i.e. not synchronized in either direction.
+
 
 Conflict Detection and Resolution
 ---------------------------------
