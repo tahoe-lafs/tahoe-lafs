@@ -284,8 +284,10 @@ at a predetermined frequency. On each poll, it will reread the parent DMD
 (to allow for added or removed clients), and then read each client DMD
 linked from the parent.
 
-Files with names matching the patterns used for backup, temporary, and
-conflicted files will be ignored, i.e. not synchronized in either direction.
+"Hidden" files, and files with names matching the patterns used for backup,
+temporary, and conflicted files, will be ignored, i.e. not synchronized
+in either direction. A file is hidden if it has a filename beginning with
+"." (on any platform), or has the hidden or system attribute on Windows.
 
 
 Conflict Detection and Resolution
@@ -339,11 +341,15 @@ We propose to record this information:
 In the magic folder db we will add a *last-downloaded record*,
 consisting of ``last_downloaded_uri`` and ``last_downloaded_timestamp``
 fields, for each path stored in the database. Whenever a Magic Folder
-client downloads a file to that path, it stores the downloaded
-version's URI and the current local timestamp in this record. (Since
-only immutable files are used, the URI will be an immutable file URI,
-which is deterministically and uniquely derived from the file contents
-and the Tahoe-LAFS node's `convergence secret`_.)
+client downloads a file and writes it to that path as a successful
+overwrite, it stores the downloaded version's URI and the current
+local timestamp in this record. (Since only immutable files are used,
+the URI will be an immutable file URI, which is deterministically
+and uniquely derived from the file contents and the Tahoe-LAFS node's
+`convergence secret`_.)
+
+When a download is a conflict, the client does not create a
+last-downloaded record in its magic folder db.
 
 .. _`convergence secret`: https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/convergence-secret.rst
 
@@ -362,30 +368,52 @@ the last download before the change that caused the upload. Both
 last-downloaded fields will be absent if the file has only ever been
 changed by the client that first created it.
 
-The purpose of including the timestamp is to allow calculating the
-length of time between the last download and the upload. If this is
-very short, then we are uncertain about whether the process that
-wrote the local file took into account the last download; we can use
-that information to be conservative about treating changes as conflicts.
+We first describe a slightly simplified variant of the proposed
+design:
 
-so, when alice sees bob's change, it can compare the URI in the metadata
-for the downloaded file, with the URI that
-is alice's magic folder db.
-(if alice had that version but had not recorded the URI, we count that as
-a conflict.
+    When Alice's Magic Folder client sees a remote change, say under
+    the DMD for Bob's client, it compares the ``last_downloaded_uri``
+    in the metadata for the downloaded file, with the URI that Alice's
+    client last uploaded (in the ``filecap`` field of the ``caps`` table
+    of the magic folder db).
 
-this is justified because bob could not have learnt an URI matching
-alice's version unless [alice created that version
-and had uploaded it] or [someone else created that version and alice had
-downloaded it])
+    If Alice has no local copy of the file, then this download is
+    initially classified as an overwrite.
 
-alice does this comparison only when it is about to write bob's change.
-if it is a conflict, then it just creates a
-new file for the conflicted copy (and doesn't update its own copy at the
-bare filename, nor does it change its
-magic folder db)
-filesystem notifications for filenames that match the conflicted pattern
-are ignored
+    Otherwise, if there is no ``last_downloaded_uri`` field in the
+    metadata, then this download is initially classified as a conflict.
+
+    Otherwise, suppose that these URIs are the same, *and* there has
+    been no local change to the file in Alice's filesystem since her
+    client's last upload. In that case, we know that Bob's Magic Folder
+    client had written Alice's current version of the file to Bob's
+    filesystem before Bob's change. Therefore, the download by Alice's
+    client is initially classified as an overwrite.
+
+    In all other cases, the download is initially classed as a
+    conflict.
+
+The full variant also takes into account the ``last_downloaded_timestamp``
+field:
+
+    The purpose of including the timestamp is to allow calculating the
+    length of time between the last download (in this case by Bob's client)
+    and the upload. If this is very short, then we are uncertain about
+    whether the process (on Bob's system) that wrote the local file took
+    into account the last download; we can use that information to be
+    conservative about treating changes as conflicts.
+
+    Specifically, when a Magic Folder client detects a local change for
+    a given path and reads the corresponding last-downloaded record, and
+    the ``last_downloaded_timestamp`` shows that the download was more
+    recent than a given threshold (perhaps controlled by a configuration
+    parameter), then it omits the last-downloaded fields from the metadata.
+    This will cause any other client to treat the change as a conflict
+    if it already had a copy of the file.
+
+The `Earth Dragons`_ section below describes how to write a downloaded
+file to the local filesystem, given an initial classification of the
+download as an overwrite or conflict.
 
 
 Water Dragons: Resolving conflict loops
@@ -469,8 +497,10 @@ In our proposed design, Alice's Magic Folder client follows
 this procedure for an overwrite in response to a remote change:
 
 1. Write a temporary file, say ``.foo.tmp``.
-2. If there are pending notifications of changes to ``foo``,
-   reclassify as a conflict and stop.
+2. Use the procedure described in the `Fire Dragons_` section
+   to obtain an initial classification as an overwrite or a
+   conflict. If there are pending notifications of changes to
+   ``foo``, reclassify as a conflict and stop.
 3. Set the ``mtime`` of the replacement file to be *T* seconds
    before the current time.
 4. Perform a ''file replacement'' operation (explained below)
