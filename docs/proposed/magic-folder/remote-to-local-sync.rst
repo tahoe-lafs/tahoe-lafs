@@ -308,161 +308,6 @@ and the filename patterns we use in the actual implementation may
 differ.
 
 
-Fire Dragons: Distinguishing conflicts from overwrites
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-It is necessary to distinguish between overwrites, in which the
-remote side was aware of your most recent version and overwrote it
-with a new version, and conflicts, in which the remote side was
-unaware of your most recent version when it published its new version.
-Those two cases have to be handled differently — the latter needs to
-be raised to the user as an issue the user will have to resolve and
-the former must not bother the user.
-
-For example, suppose that Alice's Magic Folder client sees a change
-to ``foo`` in Bob's DMD. If the version it downloads from Bob's DMD
-is "based on" the version currently in Alice's local filesystem at
-the time Alice's client attempts to perform the write of the
-downloaded file, then it is an overwrite. Otherwise it is initially
-classified as a conflict. Note that, as explained below in the
-`Earth Dragons`_ section, we may reclassify an overwrite as a
-conflict if an error occurs during the write procedure.
-
-.. _`Earth Dragons`: #earth-dragons-collisions-between-local-filesystem-operations-and-downloads
-
-In order to implement this policy, we need to specify how the
-"based on" relation between file versions is recorded and updated.
-
-We propose to record this information:
- * in the `magic folder db`_, for local files;
- * in the Tahoe-LAFS directory metadata, for files stored in the
-   Magic Folder.
-
-In the magic folder db we will add a *last-downloaded record*,
-consisting of ``last_downloaded_uri`` and ``last_downloaded_timestamp``
-fields, for each path stored in the database. Whenever a Magic Folder
-client downloads a file and writes it to that path as a successful
-overwrite, it stores the downloaded version's URI and the current
-local timestamp in this record. (Since only immutable files are used,
-the URI will be an immutable file URI, which is deterministically
-and uniquely derived from the file contents and the Tahoe-LAFS node's
-`convergence secret`_.)
-
-When a download is a conflict, the client does not create a
-last-downloaded record in its magic folder db.
-
-.. _`convergence secret`: https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/convergence-secret.rst
-
-Later, in response to a local filesystem change at a given path, the
-Magic Folder client reads the last-downloaded record associated with
-that path (if any) from the database and then uploads the current file.
-When it links the uploaded file into its client DMD, it includes
-metadata containing the fields of the last-downloaded record in the
-directory entry, overwriting any existing such metadata. If there was
-no last-downloaded record associated with the path, these fields are
-omitted.
-
-Note that ``last_downloaded_uri`` field does *not* record the URI of
-the uploaded file (which would be redundant); it records the URI of
-the last download before the change that caused the upload. Both
-last-downloaded fields will be absent if the file has only ever been
-changed by the client that first created it.
-
-We first describe a slightly simplified variant of the proposed
-design:
-
-    When Alice's Magic Folder client sees a remote change, say under
-    the DMD for Bob's client, it compares the ``last_downloaded_uri``
-    in the metadata for the downloaded file, with the URI that Alice's
-    client last uploaded (in the ``filecap`` field of the ``caps`` table
-    of the magic folder db).
-
-    If Alice has no local copy of the file, then this download is
-    initially classified as an overwrite.
-
-    Otherwise, if there is no ``last_downloaded_uri`` field in the
-    metadata, then this download is initially classified as a conflict.
-
-    Otherwise, suppose that these URIs are the same, *and* there has
-    been no local change to the file in Alice's filesystem since her
-    client's last upload. In that case, we know that Bob's Magic Folder
-    client had written Alice's current version of the file to Bob's
-    filesystem before Bob's change. Therefore, the download by Alice's
-    client is initially classified as an overwrite.
-
-    In all other cases, the download is initially classed as a
-    conflict.
-
-The full variant also takes into account the ``last_downloaded_timestamp``
-field:
-
-    The purpose of including the timestamp is to allow calculating the
-    length of time between the last download (in this case by Bob's client)
-    and the upload. If this is very short, then we are uncertain about
-    whether the process (on Bob's system) that wrote the local file took
-    into account the last download; we can use that information to be
-    conservative about treating changes as conflicts.
-
-    Specifically, when a Magic Folder client detects a local change for
-    a given path and reads the corresponding last-downloaded record, and
-    the ``last_downloaded_timestamp`` shows that the download was more
-    recent than a given threshold (perhaps controlled by a configuration
-    parameter), then it omits the last-downloaded fields from the metadata.
-    This will cause any other client to treat the change as a conflict
-    if it already had a copy of the file.
-
-The `Earth Dragons`_ section below describes how to write a downloaded
-file to the local filesystem, given an initial classification of the
-download as an overwrite or conflict.
-
-
-Water Dragons: Resolving conflict loops
-'''''''''''''''''''''''''''''''''''''''
-
-suppose that we've detected a remote write to file 'foo' that conflicts
-with a local write
-(alice is the local user that has detected the conflict, and bob is the
-user who did the remote write)
-
-alice's gateway creates a 'foo.conflict_by_bob_at_timestamp' file
-alice-the-human at some point notices the conflict and updates hir copy
-of 'foo' to take into account bob's writes
-
-but, there is no way to know whether that update actually took into
-account 'foo.conflict_by_bob_at_timestamp' or not
-alice could have failed to notice 'foo.conflict_by_bob_at_timestamp' at
-all, and just saved hir copy of 'foo' again
-so, when there is another remote write, how do we know whether it should
-be treated as a conflict or not?
-well, alice could delete or rename 'foo.conflict_by_bob_at_timestamp' in
-order to indicate that ze'd taken it into account. but I'm not sure about
-the usability properties of that
-the issue is whether, after 'foo.conflict_by_bob_at_timestamp' has been
-written, alice's magic folder db should be updated to indicate (for the
-purpose of conflict detection) that ze has seen bob's version of 'foo'
-so, I think that alice's magic folder db should *not* be updated to
-indicate ze has seen bob's version of 'foo'. in that case, when ze
-updates hir local copy of 'foo' (with no suffix), the metadata of the
-copy of 'foo' that hir client uploads will indicate only that it was
-based on the previous version of 'foo'. then when bob gets that copy, it
-will be treated as a conflict and called
-'foo.conflict_by_alice_at_timestamp2'
-which I think is the desired behaviour
-oh, but then how do alice and bob exit the conflict loop? that's the
-usability issue I was worried about [...]
-if alice's client does update hir magic folder db, then bob will see hir
-update as an overwrite
-even though ze didn't necessarily take into account bob's changes
-which seems wrong :-(
-(bob's changes haven't been lost completely; they are still on alice's
-filesystem. but they have been overwritten in bob's filesystem!)
-so maybe we need alice to delete 'foo.conflict_by_bob_at_timestamp', and
-use that as the signal that ze has seen bob's changes and to break the
-conflict loop
-(or rename it; actually any change to that file is sufficient to indicate
-that alice has seen it)
-
-
 Earth Dragons: Collisions between local filesystem operations and downloads
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -724,6 +569,164 @@ rename; on Unix it can be implemented as a link operation followed
 by an unlink, similar to steps 4c and 4d above.) If this fails
 because another process wrote ``foo.conflicted_unique`` after we
 chose the filename, then we retry with a different filename.
+
+
+Fire Dragons: Distinguishing conflicts from overwrites
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+When synchronizing a file that has changed remotely, the Magic Folder
+client needs to distinguish between overwrites, in which the remote
+side was aware of your most recent version and overwrote it with a
+new version, and conflicts, in which the remote side was unaware of
+your most recent version when it published its new version. Those two
+cases have to be handled differently — the latter needs to be raised
+to the user as an issue the user will have to resolve and the former
+must not bother the user.
+
+For example, suppose that Alice's Magic Folder client sees a change
+to ``foo`` in Bob's DMD. If the version it downloads from Bob's DMD
+is "based on" the version currently in Alice's local filesystem at
+the time Alice's client attempts to write the downloaded file, then
+it is an overwrite. Otherwise it is initially classified as a
+conflict.
+
+This initial classification is used by the procedure for writing a
+file described in the `Earth Dragons`_ section above. As explained
+in that section, we may reclassify an overwrite as a conflict if an
+error occurs during the write procedure.
+
+.. _`Earth Dragons`: #earth-dragons-collisions-between-local-filesystem-operations-and-downloads
+
+In order to implement this policy, we need to specify how the
+"based on" relation between file versions is recorded and updated.
+
+We propose to record this information:
+ * in the `magic folder db`_, for local files;
+ * in the Tahoe-LAFS directory metadata, for files stored in the
+   Magic Folder.
+
+In the magic folder db we will add a *last-downloaded record*,
+consisting of ``last_downloaded_uri`` and ``last_downloaded_timestamp``
+fields, for each path stored in the database. Whenever a Magic Folder
+client downloads a file and writes it to that path as a successful
+overwrite, it stores the downloaded version's URI and the current
+local timestamp in this record. (Since only immutable files are used,
+the URI will be an immutable file URI, which is deterministically
+and uniquely derived from the file contents and the Tahoe-LAFS node's
+`convergence secret`_.)
+
+When a download is a conflict (either initially or by reclassification),
+the client does not create a last-downloaded record in its magic
+folder db.
+
+.. _`convergence secret`: https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/convergence-secret.rst
+
+Later, in response to a local filesystem change at a given path, the
+Magic Folder client reads the last-downloaded record associated with
+that path (if any) from the database and then uploads the current
+file. When it links the uploaded file into its client DMD, it
+includes the ``last_downloaded_uri`` field in the metadata of the
+directory entry, overwriting any existing field of that name. If
+there was no last-downloaded record associated with the path, this
+field is omitted.
+
+Note that ``last_downloaded_uri`` field does *not* record the URI of
+the uploaded file (which would be redundant); it records the URI of
+the last download before the change that caused the upload. The field
+will be absent if the file has only ever been changed by the client
+that first created it.
+
+A possible refinement also takes into account the
+``last_downloaded_timestamp`` field from the magic folder db, and
+compares it to the timestamp of the change that caused the upload
+(which should be later, assuming no system clock changes).
+If the duration between these timestamps is very short, then we
+are uncertain about whether the process on Bob's system that wrote
+the local file could have taken into account the last download.
+We can use this information to be conservative about treating
+changes as conflicts. So, if the duration is less than a configured
+threshold, we omit the ``last_downloaded_uri`` field from the
+metadata. This will have the effect of making other clients treat
+this change as a conflict whenever they already have a copy of the
+file.
+
+Now we are ready to describe the algorithm for determining whether a
+download for the file ``foo`` is an overwrite or a conflict (refining
+step 2 of the procedure from the `Earth Dragons`_ section).
+
+Let ``last_downloaded_uri`` be the field of that name obtained from
+the directory entry metadata for ``foo`` in Bob's DMD (this field
+may be absent). Then the algorithm is:
+
+2a. If Alice has no local copy of ``foo``, classify as an overwrite.
+
+2b. Otherwise, "stat" ``foo`` to get its *current statinfo* (size
+    in bytes, ``mtime``, and ``ctime``).
+
+2c. Read the following information for the path ``foo`` from the
+    local magic folder db:
+    * the *last-uploaded statinfo*, if any (this is the size in
+      bytes, ``mtime``, and ``ctime`` stored in the ``local_files``
+      table when the file was last uploaded);
+    * the ``filecap`` field of the ``caps`` table for this file,
+      which is the URI under which the file was last uploaded.
+      Call this ``last_uploaded_uri``.
+
+2d. If any of the following are true, then classify as a conflict:
+    * there are pending notifications of changes to ``foo``;
+    * the last-uploaded statinfo is either absent, or different
+      from the current statinfo;
+    * either ``last_downloaded_uri`` or ``last_uploaded_uri``
+      (or both) are absent, or they are different.
+
+    Otherwise, classify as an overwrite.
+
+
+Water Dragons: Resolving conflict loops
+'''''''''''''''''''''''''''''''''''''''
+
+suppose that we've detected a remote write to file 'foo' that conflicts
+with a local write
+(alice is the local user that has detected the conflict, and bob is the
+user who did the remote write)
+
+alice's gateway creates a 'foo.conflict_by_bob_at_timestamp' file
+alice-the-human at some point notices the conflict and updates hir copy
+of 'foo' to take into account bob's writes
+
+but, there is no way to know whether that update actually took into
+account 'foo.conflict_by_bob_at_timestamp' or not
+alice could have failed to notice 'foo.conflict_by_bob_at_timestamp' at
+all, and just saved hir copy of 'foo' again
+so, when there is another remote write, how do we know whether it should
+be treated as a conflict or not?
+well, alice could delete or rename 'foo.conflict_by_bob_at_timestamp' in
+order to indicate that ze'd taken it into account. but I'm not sure about
+the usability properties of that
+the issue is whether, after 'foo.conflict_by_bob_at_timestamp' has been
+written, alice's magic folder db should be updated to indicate (for the
+purpose of conflict detection) that ze has seen bob's version of 'foo'
+so, I think that alice's magic folder db should *not* be updated to
+indicate ze has seen bob's version of 'foo'. in that case, when ze
+updates hir local copy of 'foo' (with no suffix), the metadata of the
+copy of 'foo' that hir client uploads will indicate only that it was
+based on the previous version of 'foo'. then when bob gets that copy, it
+will be treated as a conflict and called
+'foo.conflict_by_alice_at_timestamp2'
+which I think is the desired behaviour
+oh, but then how do alice and bob exit the conflict loop? that's the
+usability issue I was worried about [...]
+if alice's client does update hir magic folder db, then bob will see hir
+update as an overwrite
+even though ze didn't necessarily take into account bob's changes
+which seems wrong :-(
+(bob's changes haven't been lost completely; they are still on alice's
+filesystem. but they have been overwritten in bob's filesystem!)
+so maybe we need alice to delete 'foo.conflict_by_bob_at_timestamp', and
+use that as the signal that ze has seen bob's changes and to break the
+conflict loop
+(or rename it; actually any change to that file is sufficient to indicate
+that alice has seen it)
 
 
 Read/download collisions
