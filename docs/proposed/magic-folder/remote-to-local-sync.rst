@@ -170,6 +170,13 @@ collapsed into the same DMD, which could get quite large. In practice a
 single DMD can easily handle the number of files expected to be written
 by a client, so this is unlikely to be a significant issue.
 
+123‒ ‒ ‒: In these designs, the set of files in a Magic Folder is
+represented as the union of the files in all client DMDs. However,
+when a file is modified by more than one client, it will be linked
+from multiple client DMDs. We therefore need a mechanism, such as a
+version number or a monotonically increasing timestamp, to determine
+which copy takes priority.
+
 35‒ ‒: When a Magic Folder client detects a remote change, it must
 traverse an immutable directory structure to see what has changed.
 Completely unchanged subtrees will have the same URI, allowing some of
@@ -220,6 +227,8 @@ leave some corner cases of the write coordination problem unsolved.
 +------------------------------------------------+------+------+------+------+------+------+
 | Can result in large DMDs                       |‒     |      |      |      |      |      |
 +------------------------------------------------+------+------+------+------+------+------+
+| Need version number to determine priority      |‒     |‒     |‒     |      |      |      |
++------------------------------------------------+------+------+------+------+------+------+
 | Must traverse immutable directory structure    |      |      |‒ ‒   |      |‒ ‒   |      |
 +------------------------------------------------+------+------+------+------+------+------+
 | Must traverse mutable directory structure      |      |‒ ‒   |      |‒ ‒   |      |      |
@@ -259,6 +268,10 @@ Therefore, design 1 was chosen. That is:
     into a single client DMD, containing immutable files. The child name
     of each file encodes the full subpath of that file relative to the
     Magic Folder.
+
+Each directory entry in a DMD also stores a version number, so that the
+latest version of a file is well-defined when it has been modified by
+multiple clients.
 
 We want to enable dynamic configuration of the set of clients subscribed
 to a Magic Folder, without having to reconfigure or restart each client
