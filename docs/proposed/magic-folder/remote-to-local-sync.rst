@@ -864,7 +864,10 @@ Magic Folder clients. it is not clear how to handle this at all:
   Magic Folder clients. this is the easiest option to implement.
 
 
-Other design issues
-'''''''''''''''''''
+Summary
+-------
 
-* choice of conflicted filenames (e.g. ``foo.by_bob_at_YYYYMMDD_HHMMSS[v].type``)
+This completes the design of remote-to-local synchronization.
+We realize that it may seem very complicated. Anecdotally, proprietory
+synchronization designs we are aware of, such as Dropbox, are said
+to incur similar or greater design complexity.
