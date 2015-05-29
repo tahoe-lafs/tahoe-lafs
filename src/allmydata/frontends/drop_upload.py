@@ -193,7 +193,24 @@ class DropUploader(service.MultiService):
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
+
+        # IN_Q_OVERFLOW, IN_IGNORED and IN_UNMOUNT can be sent to any watch.
+
+        if events_mask & IN_Q_OVERFLOW != 0:
+            self.log("queue overflow")
+            # FIXME should rescan
+            return
+
         path_u = unicode_from_filepath(path)
+        if events_mask & IN_IGNORED != 0:
+            if abspath_expanduser_unicode(path_u) == self._local_dir:
+                self.log("watch removed, directory deleted, or filesystem unmounted")
+                # FIXME what to do here?
+            return
+        if events_mask & IN_UNMOUNT != 0:
+            # ignore this; we'll also get an IN_IGNORED event.
+            return
+
         if path_u not in self._pending:
             self._append_to_deque(path_u)
 
