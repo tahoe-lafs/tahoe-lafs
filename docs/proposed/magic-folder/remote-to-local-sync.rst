@@ -889,6 +889,6 @@ Summary
 -------
 
 This completes the design of remote-to-local synchronization.
-We realize that it may seem very complicated. Anecdotally, proprietory
-synchronization designs we are aware of, such as Dropbox, are said
-to incur similar or greater design complexity.
+We realize that it may seem very complicated. Anecdotally, proprietary
+filesystem synchronization designs we are aware of, such as Dropbox,
+are said to incur similar or greater design complexity.
