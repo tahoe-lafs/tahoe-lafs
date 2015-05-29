@@ -387,11 +387,6 @@ and Windows. On Unix, it can be implemented as follows::
 4d.
     Attempt to unlink the replacement file (``.foo.tmp``), suppressing errors.
 
-[TODO: this is the first reference to the magic folder db in
-this doc, and we haven't adequately explained how we are using
-it or any schema changes relative to the design from Objective 1.
-(This part doesn't actually rely on any schema changes though.)]
-
 Note that, if there is no conflict, the entry for ``foo``
 recorded in the `magic folder db`_ will reflect the ``mtime``
 set in step 3. The link operation in step 4c will cause an
@@ -786,8 +781,7 @@ A well-behaved application can avoid this problem for its writes:
 In the case of a not-so-well-behaved application writing to a file
 at the same time we read from it, the magic folder will still be
 eventually consistent, but inconsistent versions may be visible to
-other users' clients. This may also interfere with conflict/overwrite
-detection for those users [TODO EXPLAIN].
+other users' clients.
 
 In Objective 2 we implemented a delay, called the *pending delay*,
 after the notification of a filesystem change and before the file is
