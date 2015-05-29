@@ -273,6 +273,10 @@ Each directory entry in a DMD also stores a version number, so that the
 latest version of a file is well-defined when it has been modified by
 multiple clients.
 
+To enable representing empty directories, a client that creates a
+directory should link a corresponding zero-length file in its DMD,
+at a name that ends with the encoded directory separator character.
+
 We want to enable dynamic configuration of the set of clients subscribed
 to a Magic Folder, without having to reconfigure or restart each client
 when another client joins or leaves. To support this, we have a single
