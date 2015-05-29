@@ -740,6 +740,7 @@ may be absent). Then the algorithm is:
 
 * 2c. Read the following information for the path ``foo`` from the
   local magic folder db:
+
   * the *last-uploaded statinfo*, if any (this is the size in
     bytes, ``mtime``, and ``ctime`` stored in the ``local_files``
     table when the file was last uploaded);
@@ -748,6 +749,7 @@ may be absent). Then the algorithm is:
     Call this ``last_uploaded_uri``.
 
 * 2d. If any of the following are true, then classify as a conflict:
+
   * there are pending notifications of changes to ``foo``;
   * the last-uploaded statinfo is either absent, or different
     from the current statinfo;
