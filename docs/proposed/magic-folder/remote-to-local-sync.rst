@@ -112,8 +112,8 @@ client DMD.
 5. *Each* client DMD contains a ``tahoe backup`` structure containing
 immutable snapshots of all files and folders written by *any* Magic
 Folder client. Thus each client must also create another snapshot in its
-own client DMD when changes are made by other . (It can potentially batch
-changes, subject to latency requirements.)
+own client DMD when changes are made by another client. (It can potentially
+batch changes, subject to latency requirements.)
 
 6. The write coordination problem is solved by implementing `two-phase
 commit`_. Then, the representation consists of a single DMD tree which is
@@ -378,20 +378,17 @@ To reclassify as a conflict, attempt to rename ``.foo.tmp`` to
 ``foo.conflicted``, suppressing errors.
 
 The implementation of file replacement differs between Unix
-and Windows. On Unix, it can be implemented as follows::
+and Windows. On Unix, it can be implemented as follows:
 
-4a.
-    Set the permissions of the replacement file to be the
-    same as the replaced file, bitwise-or'd with octal 600
-    (``rw-------``).
-4b.
-    Attempt to move the replaced file (``foo``) to the
-    backup filename (``foo.backup``).
-4c.
-    Attempt to create a hard link at the replaced filename
-    (``foo``) pointing to the replacement file (``.foo.tmp``).
-4d.
-    Attempt to unlink the replacement file (``.foo.tmp``), suppressing errors.
+* 4a. Set the permissions of the replacement file to be the
+  same as the replaced file, bitwise-or'd with octal 600
+  (``rw-------``).
+* 4b. Attempt to move the replaced file (``foo``) to the
+  backup filename (``foo.backup``).
+* 4c. Attempt to create a hard link at the replaced filename
+  (``foo``) pointing to the replacement file (``.foo.tmp``).
+* 4d. Attempt to unlink the replacement file (``.foo.tmp``),
+  suppressing errors.
 
 Note that, if there is no conflict, the entry for ``foo``
 recorded in the `magic folder db`_ will reflect the ``mtime``
@@ -459,19 +456,16 @@ On Unix, we have:
 On Windows, the internal implementation of `ReplaceFileW`_ is similar
 to what we have described above for Unix; it works like this:
 
-4a′.
-    Copy metadata (which does not include ``mtime``) from the
-    replaced file (``foo``) to the replacement file (``.foo.tmp``).
+* 4a′. Copy metadata (which does not include ``mtime``) from the
+  replaced file (``foo``) to the replacement file (``.foo.tmp``).
 
-4b′.
-    Attempt to move the replaced file (``foo``) onto the
-    backup filename (``foo.backup``), deleting the latter if it
-    already exists.
+* 4b′. Attempt to move the replaced file (``foo``) onto the
+  backup filename (``foo.backup``), deleting the latter if it
+  already exists.
 
-4c′.
-    Attempt to move the replacement file (``.foo.tmp``) to the
-    replaced filename (``foo``); fail if the destination already
-    exists.
+* 4c′. Attempt to move the replacement file (``.foo.tmp``) to the
+  replaced filename (``foo``); fail if the destination already
+  exists.
 
 Notice that this is essentially the same as the algorithm we use
 for Unix, but steps 4c and 4d on Unix are combined into a single
@@ -599,44 +593,42 @@ program obtains a consistent view of its contents.
 On Unix, the above procedure for writing downloads is sufficient
 to achieve this. There are three cases:
 
-A
-   The other process opens ``foo`` for reading before it is
-   renamed to ``foo.backup``. Then the file handle will continue to
-   refer to the old file across the rename, and the other process
-   will read the old contents.
-B
-   The other process attempts to open ``foo`` after it has been
-   renamed to ``foo.backup``, and before it is linked in step c.
-   The open call fails, which is acceptable.
-C
-   The other process opens ``foo`` after it has been linked to
-   the new file. Then it will read the new contents.
+* A. The other process opens ``foo`` for reading before it is
+  renamed to ``foo.backup``. Then the file handle will continue to
+  refer to the old file across the rename, and the other process
+  will read the old contents.
+
+* B. The other process attempts to open ``foo`` after it has been
+  renamed to ``foo.backup``, and before it is linked in step c.
+  The open call fails, which is acceptable.
+
+* C. The other process opens ``foo`` after it has been linked to
+  the new file. Then it will read the new contents.
 
 On Windows, the analysis is very similar, but case A′ needs to
 be split into two subcases, depending on the sharing mode the other
 process uses when opening the file for reading:
 
-A′.
-    The other process opens ``foo`` before the Magic Folder
-    client's attempt to rename ``foo`` to ``foo.backup`` (as part
-    of the implementation of `ReplaceFileW`_). The subcases are:
+* A′. The other process opens ``foo`` before the Magic Folder
+  client's attempt to rename ``foo`` to ``foo.backup`` (as part
+  of the implementation of `ReplaceFileW`_). The subcases are:
 
-    i.  The other process uses sharing flags that deny deletion and
-        renames. The `ReplaceFileW`_ call fails, and the download is
-        reclassified as a conflict. The downloaded file ends up at
-        ``foo.conflicted``, which is correct.
+  i.  The other process uses sharing flags that deny deletion and
+      renames. The `ReplaceFileW`_ call fails, and the download is
+      reclassified as a conflict. The downloaded file ends up at
+      ``foo.conflicted``, which is correct.
 
-    ii. The other process uses sharing flags that allow deletion
-        and renames. The `ReplaceFileW`_ call succeeds, and the
-        other process reads inconsistent data. This can be attributed
-        to a poor choice of sharing flags by the other process.
-B′.
-    The other process attempts to open ``foo`` at the point
-    during the `ReplaceFileW`_ call where it does not exist.
-    The open call fails, which is acceptable.
-C′.
-    The other process opens ``foo`` after it has been linked to
-    the new file. Then it will read the new contents.
+  ii. The other process uses sharing flags that allow deletion
+      and renames. The `ReplaceFileW`_ call succeeds, and the
+      other process reads inconsistent data. This can be attributed
+      to a poor choice of sharing flags by the other process.
+
+* B′. The other process attempts to open ``foo`` at the point
+  during the `ReplaceFileW`_ call where it does not exist.
+  The open call fails, which is acceptable.
+
+* C′. The other process opens ``foo`` after it has been linked to
+  the new file. Then it will read the new contents.
 
 
 For both write/download and read/download collisions, we have
@@ -679,9 +671,9 @@ In order to implement this policy, we need to specify how the
 "based on" relation between file versions is recorded and updated.
 
 We propose to record this information:
- * in the `magic folder db`_, for local files;
- * in the Tahoe-LAFS directory metadata, for files stored in the
-   Magic Folder.
+* in the `magic folder db`_, for local files;
+* in the Tahoe-LAFS directory metadata, for files stored in the
+  Magic Folder.
 
 In the magic folder db we will add a *last-downloaded record*,
 consisting of ``last_downloaded_uri`` and ``last_downloaded_timestamp``
@@ -738,28 +730,28 @@ Let ``last_downloaded_uri`` be the field of that name obtained from
 the directory entry metadata for ``foo`` in Bob's DMD (this field
 may be absent). Then the algorithm is:
 
-2a. If Alice has no local copy of ``foo``, classify as an overwrite.
+* 2a. If Alice has no local copy of ``foo``, classify as an overwrite.
 
-2b. Otherwise, "stat" ``foo`` to get its *current statinfo* (size
-    in bytes, ``mtime``, and ``ctime``).
+* 2b. Otherwise, "stat" ``foo`` to get its *current statinfo* (size
+  in bytes, ``mtime``, and ``ctime``).
 
-2c. Read the following information for the path ``foo`` from the
-    local magic folder db:
-    * the *last-uploaded statinfo*, if any (this is the size in
-      bytes, ``mtime``, and ``ctime`` stored in the ``local_files``
-      table when the file was last uploaded);
-    * the ``filecap`` field of the ``caps`` table for this file,
-      which is the URI under which the file was last uploaded.
-      Call this ``last_uploaded_uri``.
+* 2c. Read the following information for the path ``foo`` from the
+  local magic folder db:
+  * the *last-uploaded statinfo*, if any (this is the size in
+    bytes, ``mtime``, and ``ctime`` stored in the ``local_files``
+    table when the file was last uploaded);
+  * the ``filecap`` field of the ``caps`` table for this file,
+    which is the URI under which the file was last uploaded.
+    Call this ``last_uploaded_uri``.
 
-2d. If any of the following are true, then classify as a conflict:
-    * there are pending notifications of changes to ``foo``;
-    * the last-uploaded statinfo is either absent, or different
-      from the current statinfo;
-    * either ``last_downloaded_uri`` or ``last_uploaded_uri``
-      (or both) are absent, or they are different.
+* 2d. If any of the following are true, then classify as a conflict:
+  * there are pending notifications of changes to ``foo``;
+  * the last-uploaded statinfo is either absent, or different
+    from the current statinfo;
+  * either ``last_downloaded_uri`` or ``last_uploaded_uri``
+    (or both) are absent, or they are different.
 
-    Otherwise, classify as an overwrite.
+  Otherwise, classify as an overwrite.
 
 
 Air Dragons: Collisions between local writes and uploads
