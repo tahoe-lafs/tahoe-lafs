@@ -673,6 +673,7 @@ In order to implement this policy, we need to specify how the
 "based on" relation between file versions is recorded and updated.
 
 We propose to record this information:
+
 * in the `magic folder db`_, for local files;
 * in the Tahoe-LAFS directory metadata, for files stored in the
   Magic Folder.
