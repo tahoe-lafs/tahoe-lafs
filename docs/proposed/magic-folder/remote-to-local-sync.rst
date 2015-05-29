@@ -494,7 +494,7 @@ interleaving with four as on Unix). The cases are:
   rename of ``foo.other`` to ``foo`` both precede our rename in
   step 4b. We do not get an event for its rename by step 2.
   Its changes end up at ``foo.backup``, and ours end up at ``foo``
-  after being linked there in step 4c. This avoids data loss.
+  after being moved there in step 4c′. This avoids data loss.
 
 * Interleaving C′: the other process' deletion of ``foo`` precedes
   our rename of ``foo`` to ``foo.backup`` done by `ReplaceFileW`_,
@@ -508,11 +508,13 @@ interleaving with four as on Unix). The cases are:
 * Interleaving D′: the other process' deletion and/or rename happen
   during the call to `ReplaceFileW`_, causing the latter to fail.
   There are two subcases:
+
   * if the error is ``ERROR_UNABLE_TO_MOVE_REPLACEMENT_2``, then
     ``foo`` is renamed to ``foo.backup`` and ``.foo.tmp`` remains
     at its original name after the call.
   * for all other errors, ``foo`` and ``.foo.tmp`` both remain at
     their original names after the call.
+
   In both subcases, we reclassify as a conflict and rename ``.foo.tmp``
   to ``foo.conflicted``. This avoids data loss.
 
