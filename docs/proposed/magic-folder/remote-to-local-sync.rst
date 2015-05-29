@@ -836,32 +836,56 @@ client reading a file at the same time cannot cause any inconsistency.
 Water Dragons: Handling deletion and renames
 ''''''''''''''''''''''''''''''''''''''''''''
 
-*Deletion*
+Deletion of a file
+~~~~~~~~~~~~~~~~~~
 
-deletion of a file is like overwriting it with a "deleted" marker
+When a file is deleted from the filesystem of a Magic Folder client,
+the most intuitive behavior is for it also to be deleted under that
+name from other clients. To avoid data loss, the other clients should
+actually rename their copies to a backup (``*.old``) filename.
 
-[TODO: deletion of a directory?]
+It would not be sufficient for a Magic Folder client that deletes
+a file to implement this simply by removing the directory entry from
+its DMD. Indeed, the entry may not exist in the client's DMD if it
+has never previously changed the file.
 
-*Renames*
+Instead, the client links a zero-length file into its DMD and sets
+``deleted: true`` in the directory entry metadata. Other clients
+take this as a signal to rename their copies to the backup filename.
 
-suppose that a subfolder of the Magic Folder is renamed on one of the
-Magic Folder clients. it is not clear how to handle this at all:
+Note that the entry for this zero-length file has a version number as
+usual, and later versions may restore the file.
 
-* if the folder is renamed automatically on other clients, then apps that
-  were using files in that folder may break. The behavior differs between
-  Windows and Unix: on Windows, it might not be possible to rename the
-  folder at all if it contains open files, while on Unix, open file handles
-  will stay open but operations involving the old path will fail. either
-  way the behaviour is likely to be confusing.
+When a Magic Folder client restarts, we can detect files that had
+been downloaded but were deleted while it was not running, because
+their paths will have last-downloaded records in the magic folder db
+without any corresponding local file.
 
-* for conflict detection, it is unclear whether existing entries in the
-  magic folder db under the old path should be updated to their new path.
+Deletion of a directory
+~~~~~~~~~~~~~~~~~~~~~~~
 
-* another possibility is treat the rename like a copy, i.e. all clients
-  end up with a copy of the directory under both names. effectively we
-  treat the move event as a directory creation, and also pretend that there
-  has been a modification of the directory at the old name by all other
-  Magic Folder clients. this is the easiest option to implement.
+Local filesystems (unlike a Tahoe-LAFS filesystem) normally cannot
+unlink a directory that has any remaining children. Therefore a
+Magic Folder client cannot delete local copies of directories in
+general, because they will typically contain backup files. This must
+be done manually on each client if desired.
+
+Nevertheless, a Magic Folder client that deletes a directory should
+set ``deleted: true`` on the metadata entry for the corresponding
+zero-length file. This avoids the directory being recreated after
+it has been manually deleted from a client.
+
+Renaming
+~~~~~~~~
+
+It is sufficient to handle renaming of a file by treating it as a
+deletion and an addition under the new name.
+
+This also applies to directories, although users may find the
+resulting behavior unintuitive: all of the files under the old name
+will be renamed to backup filenames, and a new directory structure
+created under the new name. We believe this is the best that can be
+done without imposing unreasonable implementation complexity.
 
 
 Summary
