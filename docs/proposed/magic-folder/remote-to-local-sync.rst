@@ -279,10 +279,12 @@ at a name that ends with the encoded directory separator character.
 
 We want to enable dynamic configuration of the set of clients subscribed
 to a Magic Folder, without having to reconfigure or restart each client
-when another client joins or leaves. To support this, we have a single
-parent DMD that links to all of the client DMDs, named by their client
-nicknames. Then it is possible to change the contents of the parent DMD
-in order to add or remove clients.
+when another client joins. To support this, we have a single parent DMD
+that links to all of the client DMDs, named by their client nicknames.
+Then it is possible to change the contents of the parent DMD in order to
+add clients. Note that a client DMD should not be unlinked from the
+parent directory unless all of its files are first copied to some other
+client DMD.
 
 A client needs to be able to write to its own DMD, and read from other DMDs.
 To be consistent with the `Principle of Least Authority`_, each client's
