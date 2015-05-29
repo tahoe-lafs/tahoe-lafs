@@ -839,7 +839,7 @@ Deletion of a file
 When a file is deleted from the filesystem of a Magic Folder client,
 the most intuitive behavior is for it also to be deleted under that
 name from other clients. To avoid data loss, the other clients should
-actually rename their copies to a backup (``*.old``) filename.
+actually rename their copies to a backup filename.
 
 It would not be sufficient for a Magic Folder client that deletes
 a file to implement this simply by removing the directory entry from
