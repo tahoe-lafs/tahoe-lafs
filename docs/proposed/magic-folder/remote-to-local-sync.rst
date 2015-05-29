@@ -313,8 +313,8 @@ Unfortunately we have no option but to use shared state in this
 situation.
 
 We call the resulting design issues "dragons" (as in "Here be dragons"),
-which as a convenient mnemonic we have named after the five classical
-Greek elements: Earth, Air, Fire, Water, and Aether.
+which as a convenient mnemonic we have named after the classical
+Greek elements Earth, Fire, Air, and Water.
 
 Note: all filenames used in the following sections are examples,
 and the filename patterns we use in the actual implementation may
@@ -685,16 +685,17 @@ We propose to record this information:
 In the magic folder db we will add a *last-downloaded record*,
 consisting of ``last_downloaded_uri`` and ``last_downloaded_timestamp``
 fields, for each path stored in the database. Whenever a Magic Folder
-client downloads a file and writes it to that path as a successful
-overwrite, it stores the downloaded version's URI and the current
-local timestamp in this record. (Since only immutable files are used,
-the URI will be an immutable file URI, which is deterministically
-and uniquely derived from the file contents and the Tahoe-LAFS node's
-`convergence secret`_.)
+client downloads a file, it stores the downloaded version's URI and
+the current local timestamp in this record. Since only immutable
+files are used, the URI will be an immutable file URI, which is
+deterministically and uniquely derived from the file contents and
+the Tahoe-LAFS node's `convergence secret`_.
 
-When a download is a conflict (either initially or by reclassification),
-the client does not create a last-downloaded record in its magic
-folder db.
+(Note that the last-downloaded record is updated regardless of
+whether the download is an overwrite or a conflict. The rationale
+for this to avoid "conflict loops" between clients, where every
+new version after the first conflict would be considered as another
+conflict.)
 
 .. _`convergence secret`: https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/convergence-secret.rst
 
@@ -758,53 +759,6 @@ may be absent). Then the algorithm is:
       (or both) are absent, or they are different.
 
     Otherwise, classify as an overwrite.
-
-
-Water Dragons: Resolving conflict loops
-'''''''''''''''''''''''''''''''''''''''
-
-suppose that we've detected a remote write to file 'foo' that conflicts
-with a local write
-(alice is the local user that has detected the conflict, and bob is the
-user who did the remote write)
-
-alice's gateway creates a 'foo.conflict_by_bob_at_timestamp' file
-alice-the-human at some point notices the conflict and updates hir copy
-of 'foo' to take into account bob's writes
-
-but, there is no way to know whether that update actually took into
-account 'foo.conflict_by_bob_at_timestamp' or not
-alice could have failed to notice 'foo.conflict_by_bob_at_timestamp' at
-all, and just saved hir copy of 'foo' again
-so, when there is another remote write, how do we know whether it should
-be treated as a conflict or not?
-well, alice could delete or rename 'foo.conflict_by_bob_at_timestamp' in
-order to indicate that ze'd taken it into account. but I'm not sure about
-the usability properties of that
-the issue is whether, after 'foo.conflict_by_bob_at_timestamp' has been
-written, alice's magic folder db should be updated to indicate (for the
-purpose of conflict detection) that ze has seen bob's version of 'foo'
-so, I think that alice's magic folder db should *not* be updated to
-indicate ze has seen bob's version of 'foo'. in that case, when ze
-updates hir local copy of 'foo' (with no suffix), the metadata of the
-copy of 'foo' that hir client uploads will indicate only that it was
-based on the previous version of 'foo'. then when bob gets that copy, it
-will be treated as a conflict and called
-'foo.conflict_by_alice_at_timestamp2'
-which I think is the desired behaviour
-oh, but then how do alice and bob exit the conflict loop? that's the
-usability issue I was worried about [...]
-if alice's client does update hir magic folder db, then bob will see hir
-update as an overwrite
-even though ze didn't necessarily take into account bob's changes
-which seems wrong :-(
-(bob's changes haven't been lost completely; they are still on alice's
-filesystem. but they have been overwritten in bob's filesystem!)
-so maybe we need alice to delete 'foo.conflict_by_bob_at_timestamp', and
-use that as the signal that ze has seen bob's changes and to break the
-conflict loop
-(or rename it; actually any change to that file is sufficient to indicate
-that alice has seen it)
 
 
 Air Dragons: Collisions between local writes and uploads
@@ -879,8 +833,8 @@ Note that the situation of both a local process and the Magic Folder
 client reading a file at the same time cannot cause any inconsistency.
 
 
-Aether Dragons: Handling deletion and renames
-'''''''''''''''''''''''''''''''''''''''''''''
+Water Dragons: Handling deletion and renames
+''''''''''''''''''''''''''''''''''''''''''''
 
 *Deletion*
 
