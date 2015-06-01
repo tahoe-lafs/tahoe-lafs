@@ -93,6 +93,7 @@ class DropUploader(service.MultiService):
         #self.mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
         #self.mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_MOVED_FROM | inotify.IN_ONLYDIR | IN_EXCL_UNLINK
         self.mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR | IN_EXCL_UNLINK | inotify.IN_DELETE
+        #self.mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR | IN_EXCL_UNLINK
         self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
@@ -204,7 +205,10 @@ class DropUploader(service.MultiService):
             return self._parent.add_file(name, u)
 
         def _add_dir(ignore, name):
-            self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
+            # XXX
+            #self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
+            print name
+            print self._local_dir
             d2 = self._parent.create_subdirectory(name, overwrite=False)
             def _err(f):
                 f.trap(ExistingChildError)
@@ -296,4 +300,5 @@ class DropUploader(service.MultiService):
 
     def _log(self, msg):
         self._client.log(msg)
+        print "_log:", msg
         #open("events", "ab+").write(msg)
