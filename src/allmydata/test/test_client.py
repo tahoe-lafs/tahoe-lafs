@@ -331,6 +331,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"), config)
         fileutil.write(os.path.join(basedir1, "private", "drop_upload_dircap"), "URI:DIR2:blah")
+        fileutil.write(os.path.join(basedir1, "private", "magic_folder_parent_dircap"), "URI:DIR2:meow")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir1)
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
@@ -361,6 +362,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                        "enabled = true\n" +
                        "local.directory = " + local_dir_utf8 + "\n")
         fileutil.write(os.path.join(basedir2, "private", "drop_upload_dircap"), "URI:DIR2:blah")
+        fileutil.write(os.path.join(basedir2, "private", "magic_folder_parent_dircap"), "URI:DIR2:meow")
         c2 = client.Client(basedir2)
         self.failUnlessRaises(KeyError, c2.getServiceNamed, 'drop-upload')
         self.failUnless([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg)],
