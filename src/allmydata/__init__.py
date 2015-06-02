@@ -152,6 +152,28 @@ def normalized_version(verstr, what=None):
         raise PackagingError, ("could not parse %s due to %s: %s"
                                % (what or repr(verstr), cls.__name__, value)), trace
 
+def get_openssl_version():
+    try:
+        from OpenSSL import SSL
+        return extract_openssl_version(SSL)
+    except Exception:
+        return ("unknown", None, None)
+
+def extract_openssl_version(ssl_module):
+    openssl_version = ssl_module.SSLeay_version(ssl_module.SSLEAY_VERSION)
+    if openssl_version.startswith('OpenSSL '):
+        openssl_version = openssl_version[8 :]
+
+    (version, _, comment) = openssl_version.partition(' ')
+
+    try:
+        openssl_cflags = ssl_module.SSLeay_version(ssl_module.SSLEAY_CFLAGS)
+        if '-DOPENSSL_NO_HEARTBEATS' in openssl_cflags.split(' '):
+            comment += ", no heartbeats"
+    except Exception:
+        pass
+
+    return (version, None, comment if comment else None)
 
 def get_package_versions_and_locations():
     import warnings
@@ -221,6 +243,8 @@ def get_package_versions_and_locations():
             packages.append( (pkgname, (platform.python_version(), sys.executable, None)) )
         elif pkgname == 'platform':
             packages.append( (pkgname, (get_platform(), None, None)) )
+        elif pkgname == 'OpenSSL':
+            packages.append( (pkgname, get_openssl_version()) )
 
     return packages
 
@@ -297,7 +321,7 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     from _auto_deps import not_import_versionable, ignorable
 
     errors = []
-    not_pkg_resourceable = ['python', 'platform', __appname__.lower()]
+    not_pkg_resourceable = ['python', 'platform', __appname__.lower(), 'openssl']
 
     for name, (imp_ver, imp_loc, imp_comment) in imported_vers_and_locs_list:
         name = name.lower()

@@ -3,10 +3,25 @@ from pkg_resources import Requirement
 
 from twisted.trial import unittest
 
-from allmydata import check_requirement, cross_check, PackagingError
+from allmydata import check_requirement, cross_check, extract_openssl_version, PackagingError
 from allmydata.util.verlib import NormalizedVersion as V, \
                                   IrrationalVersionError, \
                                   suggest_normalized_version as suggest
+
+
+class MockSSL(object):
+    SSLEAY_VERSION = 0
+    SSLEAY_CFLAGS = 2
+
+    def __init__(self, version, compiled_without_heartbeats=False):
+        self.opts = {
+            self.SSLEAY_VERSION: version,
+            self.SSLEAY_CFLAGS: compiled_without_heartbeats and 'compiler: gcc -DOPENSSL_NO_HEARTBEATS'
+                                                             or 'compiler: gcc',
+        }
+
+    def SSLeay_version(self, which):
+        return self.opts[which]
 
 
 class CheckRequirement(unittest.TestCase):
@@ -117,6 +132,18 @@ class CheckRequirement(unittest.TestCase):
         res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere_different", None))])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("but version '2.0'", res[0])
+
+    def test_extract_openssl_version(self):
+        self.failUnlessEqual(extract_openssl_version(MockSSL("")),
+                                                     ("", None, None))
+        self.failUnlessEqual(extract_openssl_version(MockSSL("NotOpenSSL a.b.c foo")),
+                                                     ("NotOpenSSL", None, "a.b.c foo"))
+        self.failUnlessEqual(extract_openssl_version(MockSSL("OpenSSL a.b.c")),
+                                                     ("a.b.c", None, None))
+        self.failUnlessEqual(extract_openssl_version(MockSSL("OpenSSL 1.0.1e 11 Feb 2013")),
+                                                     ("1.0.1e", None, "11 Feb 2013"))
+        self.failUnlessEqual(extract_openssl_version(MockSSL("OpenSSL 1.0.1e 11 Feb 2013", compiled_without_heartbeats=True)),
+                                                     ("1.0.1e", None, "11 Feb 2013, no heartbeats"))
 
 
 # based on https://bitbucket.org/tarek/distutilsversion/src/17df9a7d96ef/test_verlib.py

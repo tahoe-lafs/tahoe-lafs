@@ -69,6 +69,7 @@ package_imports = [
     ('python',           None),
     ('platform',         None),
     ('pyOpenSSL',        'OpenSSL'),
+    ('OpenSSL',          None),
     ('simplejson',       'simplejson'),
     ('pycrypto',         'Crypto'),
     ('pyasn1',           'pyasn1'),
@@ -169,7 +170,8 @@ else:
 #   not *directly* depend on pyOpenSSL.
 #
 # * pyOpenSSL >= 0.13 is needed in order to avoid
-#   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2005>.
+#   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2005>, and also to check the
+#   version of OpenSSL that pyOpenSSL is using.
 #
 # * pyOpenSSL >= 0.14 is built on the 'cryptography' package which depends
 #   on 'cffi' (and indirectly several other packages). Unfortunately cffi
