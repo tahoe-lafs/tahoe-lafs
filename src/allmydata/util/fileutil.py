@@ -3,7 +3,6 @@ Futz with files like a pro.
 """
 
 import sys, exceptions, os, stat, tempfile, time, binascii
-from errno import EEXIST
 
 from twisted.python import log
 
