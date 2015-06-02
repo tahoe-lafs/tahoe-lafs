@@ -625,6 +625,8 @@ else:
         precondition_abspath(replacement_path)
         precondition_abspath(backup_path)
 
+        if not os.path.exists(replacement_path):
+            raise ConflictError("Replacement file not found: %r" % (replacement_path,))
         try:
             os.rename(replaced_path, backup_path)
             rename_no_overwrite(replacement_path, replaced_path)
