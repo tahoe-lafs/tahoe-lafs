@@ -82,8 +82,6 @@ package_imports = [
 # Dependencies for which we don't know how to get a version number at run-time.
 not_import_versionable = [
     'zope.interface',
-    'mock',
-    'pyasn1',
 ]
 
 # Dependencies reported by pkg_resources that we can safely ignore.
