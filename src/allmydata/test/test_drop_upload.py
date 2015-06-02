@@ -58,7 +58,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
                                      dbfile, inotify=self.inotify, pending_delay=0.2)
         self.uploader.setServiceParent(self.client)
         self.uploader.upload_ready()
-        self.failUnlessEqual(self.uploader._db.VERSION, 2)
 
     # Prevent unclean reactor errors.
     def _cleanup(self, res):
@@ -181,6 +180,22 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 2))
 
+        # Files that are moved out of the upload directory should no longer be watched.
+        def _move_dir_away(ign):
+            os.rename(new_empty_tree_dir, empty_tree_dir)
+            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_FROM)
+        d.addCallback(_move_dir_away)
+        def create_file(val):
+            test_file = abspath_expanduser_unicode(u"what", base=empty_tree_dir)
+            fileutil.write(test_file, "meow")
+            return
+        d.addCallback(create_file)
+        d.addCallback(lambda ign: time.sleep(1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 4))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 2))
+
         d.addBoth(self._cleanup)
         return d
 
@@ -222,57 +237,6 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: time.sleep(3))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-        d.addBoth(self._cleanup)
-        return d
-
-    def test_remove_watch(self):
-        self.set_up_grid()
-        self.local_dir = abspath_expanduser_unicode(self.unicode_or_fallback(u"l\u00F8cal_dir", u"local_dir"),
-                                                    base=self.basedir)
-        self.mkdir_nonascii(self.local_dir)
-        self.client = self.g.clients[0]
-        self.stats_provider = self.client.stats_provider
-
-        empty_tree_name = self.unicode_or_fallback(u"empty_tr\u00EAe", u"empty_tree")
-        empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
-        new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
-        d = self.client.create_dirnode()
-        d.addCallback(self._made_upload_dir)
-        d.addCallback(self._create_uploader)        
-        def _check_move_empty_tree(res):
-            self.mkdir_nonascii(empty_tree_dir)
-            d2 = defer.Deferred()
-            self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
-            os.rename(empty_tree_dir, new_empty_tree_dir)
-            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
-            return d2
-        d.addCallback(_check_move_empty_tree)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
-
-        def _move_dir_away(ign):
-            os.rename(new_empty_tree_dir, empty_tree_dir)
-            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_FROM)
-
-        d.addCallback(_move_dir_away)
-        def create_file(val):
-            d2 = defer.Deferred()
-            self.uploader.set_uploaded_callback(d2.callback)
-            test_file = abspath_expanduser_unicode(u"what", base=empty_tree_dir)
-            fileutil.write(test_file, "meow")
-            self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
-            return d2
-        d.addCallback(create_file)
-        def sleep_a_while(ign):
-            print "\ncalling time.sleep(5) to give the upload a chance..."
-            time.sleep(5)
-        d.addCallback(sleep_a_while)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
         d.addBoth(self._cleanup)
         return d
 
