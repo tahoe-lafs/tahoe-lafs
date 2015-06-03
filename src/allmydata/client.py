@@ -507,10 +507,9 @@ class Client(node.Node, pollmixin.PollMixin):
                 dbfile = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
                 dbfile = abspath_expanduser_unicode(dbfile)
 
-                magic_folder_parent_dircap = os.path.join(self.basedir, "private", "magic_folder_parent_dircap")
-                magic_folder_parent_dircap = abspath_expanduser_unicode(magic_folder_parent_dircap)
-                fh = open(magic_folder_parent_dircap, "r")
-                parent_dircap = fh.read().strip()
+                parent_dircap_path = os.path.join(self.basedir, "private", "magic_folder_parent_dircap")
+                parent_dircap_path = abspath_expanduser_unicode(magic_folder_parent_dircap)
+                parent_dircap = fileutil.read(parent_dircap_path).strip()
 
                 s = drop_upload.DropUploader(self, upload_dircap, parent_dircap, local_dir, dbfile)
                 s.setServiceParent(self)
