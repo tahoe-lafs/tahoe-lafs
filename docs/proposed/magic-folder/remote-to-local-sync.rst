@@ -38,6 +38,8 @@ Folder: an abstract directory that is synchronized between clients.
 (A folder is not the same as the directory corresponding to it on
 any particular client, nor is it the same as a DMD.)
 
+Collective: the set of clients subscribed to a given Magic Folder.
+
 Descendant: a direct or indirect child in a directory or folder tree
 
 Subfolder: a folder that is a descendant of a magic folder
@@ -83,8 +85,9 @@ Since it is a goal to allow multiple users to write to a Magic Folder,
 if the write coordination directive remains the same as above, then we
 will not be able to implement the Magic Folder as a single Tahoe-LAFS
 DMD. In general therefore, we will have multiple DMDs —spread across
-clients— that together represent the Magic Folder. Each client polls
-the other clients' DMDs in order to detect remote changes.
+clients— that together represent the Magic Folder. Each client in a
+Magic Folder collective polls the other clients' DMDs in order to detect
+remote changes.
 
 Six possible designs were considered for the representation of subfolders
 of the Magic Folder:
@@ -139,10 +142,11 @@ Here is a summary of advantages and disadvantages of each design:
 
 
 123456+: All designs have the property that a recursive add-lease
-operation starting from the parent Tahoe-LAFS DMD will find all of the
-files and directories used in the Magic Folder representation. Therefore
-the representation is compatible with `garbage collection`_, even when a
-pre-Magic-Folder client does the lease marking.
+operation starting from a *collective directory* containing all of
+the client DMDs, will find all of the files and directories used in
+the Magic Folder representation. Therefore the representation is
+compatible with `garbage collection`_, even when a pre-Magic-Folder
+client does the lease marking.
 
 .. _`garbage collection`: https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/docs/garbage-collection.rst
 
@@ -277,21 +281,21 @@ To enable representing empty directories, a client that creates a
 directory should link a corresponding zero-length file in its DMD,
 at a name that ends with the encoded directory separator character.
 
-We want to enable dynamic configuration of the set of clients subscribed
-to a Magic Folder, without having to reconfigure or restart each client
-when another client joins. To support this, we have a single parent DMD
-that links to all of the client DMDs, named by their client nicknames.
-Then it is possible to change the contents of the parent DMD in order to
-add clients. Note that a client DMD should not be unlinked from the
-parent directory unless all of its files are first copied to some other
-client DMD.
+We want to enable dynamic configuration of the membership of a Magic
+Folder collective, without having to reconfigure or restart each client
+when another client joins. To support this, we have a single collective
+directory that links to all of the client DMDs, named by their client
+nicknames. If the collective directory is mutable, then it is possible
+to change its contents in order to add clients. Note that a client DMD
+should not be unlinked from the collective directory unless all of its
+files are first copied to some other client DMD.
 
 A client needs to be able to write to its own DMD, and read from other DMDs.
 To be consistent with the `Principle of Least Authority`_, each client's
 reference to its own DMD is a write capability, whereas its reference
-to the parent DMD is a read capability. The latter transitively grants
-read access to all of the other client DMDs and the files linked from
-them, as required.
+to the collective directory is a read capability. The latter transitively
+grants read access to all of the other client DMDs and the files linked
+from them, as required.
 
 .. _`Principle of Least Authority`: http://www.eros-os.org/papers/secnotsep.pdf
 
@@ -299,9 +303,9 @@ Design and implementation of the user interface for maintaining this
 DMD structure and configuration will be addressed in Objectives 5 and 6.
 
 During operation, each client will poll for changes on other clients
-at a predetermined frequency. On each poll, it will reread the parent DMD
-(to allow for added or removed clients), and then read each client DMD
-linked from the parent.
+at a predetermined frequency. On each poll, it will reread the collective
+directory (to allow for added or removed clients), and then read each
+client DMD linked from it.
 
 "Hidden" files, and files with names matching the patterns used for backup,
 temporary, and conflicted files, will be ignored, i.e. not synchronized
