@@ -1,6 +1,6 @@
 FROM python:2.7
 
-ADD ../.. /tahoe-lafs
+ADD . /tahoe-lafs
 RUN \
   cd /tahoe-lafs && \
   make && \
