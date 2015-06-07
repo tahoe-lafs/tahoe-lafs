@@ -1,5 +1,6 @@
 
 import sys, os, stat
+import os.path
 from collections import deque
 
 from twisted.internet import defer, reactor, task
@@ -11,9 +12,8 @@ from allmydata.interfaces import IDirectoryNode, NoSuchChildError, ExistingChild
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
      unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
-from allmydata.immutable.upload import FileName
-
-from allmydata import backupdb
+from allmydata.immutable.upload import FileName, Data
+from allmydata import backupdb, magicpath
 
 
 class DropUploader(service.MultiService):
@@ -183,7 +183,9 @@ class DropUploader(service.MultiService):
 
         def _add_dir(ignore, name):
             self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
-            d2 = self._parent.create_subdirectory(name, overwrite=False)
+            u = Data("", self._convergence)
+            name += "@_"
+            d2 = self._parent.add_file(name, u)
             def _err(f):
                 f.trap(ExistingChildError)
                 self._log("subdirectory %r already exists" % (path,))
@@ -197,7 +199,10 @@ class DropUploader(service.MultiService):
 
         def _maybe_upload(val):
             self._pending.remove(path)
-            name = os.path.basename(path)
+            relpath = os.path.relpath(path, self._local_dir)
+            name = magicpath.path2magic(relpath)
+            # XXX
+            #name = os.path.basename(path)
 
             if not os.path.exists(path):
                 self._log("uploader: not uploading non-existent file.")
