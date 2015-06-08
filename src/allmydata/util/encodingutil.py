@@ -63,7 +63,11 @@ def _reload():
 
     is_unicode_platform = sys.platform in ["win32", "darwin"]
 
-    use_unicode_filepath = sys.platform == "win32" or hasattr(FilePath, '_asTextPath')
+    # Despite the Unicode-mode FilePath support added to Twisted in
+    # <https://twistedmatrix.com/trac/ticket/7805>, we can't yet use
+    # Unicode-mode FilePaths with INotify on non-Windows platforms
+    # due to <https://twistedmatrix.com/trac/ticket/7928>.
+    use_unicode_filepath = sys.platform == "win32"
 
 _reload()
 
