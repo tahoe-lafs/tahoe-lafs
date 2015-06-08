@@ -95,6 +95,7 @@ class DropUploader(service.MultiService):
         #
         self.mask = ( inotify.IN_CLOSE_WRITE
                     | inotify.IN_MOVED_TO
+                    | inotify.IN_MOVED_FROM
                     | inotify.IN_DELETE
                     | inotify.IN_ONLYDIR
                     | IN_EXCL_UNLINK
