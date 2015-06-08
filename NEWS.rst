@@ -8,9 +8,7 @@ Release 1.10.1 (XXXX-XX-XX)
 '''''''''''''''''''''''''''
 
 Partially-edited list of all changes after 1.10.0 and up-to cf9b3828
-07-Jun-2015. This list is not yet limited to user-visible ones. It
-(hopefully) includes all tickets closed during this time, even minor
-non-user-visible ones.
+07-Jun-2015.
 
 UI / Configuration Changes
 --------------------------
@@ -35,45 +33,6 @@ The web-based user interface ("WUI") Directory and Welcome pages have been
 redesigned, with improved CSS for narrow windows and more-accessible icons
 (using distinctive shapes instead of just colors). #1931 #1961 #1966 #1972
 #1901
-
-Minor Changes
--------------
-
-- Welcome page: add per-server "(space) Available" column #648
-- check/deep-check learned to accept multiple location args #740
-- Checker reports: remove needs-rebalancing, add count-happiness #1784 #2105
-- Fix handling of long paths on windows #2235 #1674 #2027
-- CLI --help: cite (but don't list) global options on each command #2233
-- Add OpenSSL version to 'tahoe --version' #2215
-- Show git branch in version output #1953
-- Improve version-number reporting #2340
-- Improve user feedback when filing an Incident Report #1974
-- Various docs cleanups/improvements
-- WAPI: do not report 'size' metadata when unknown #1634
-- Improve packaging under pip #2209
-- Hush warnings during dep-checking, stop complaining about missing
-  "service_identity" dep #2248
-- Stop using contents of .tac files #1159
-- fix race condition during mutable upload
-- fix ftp 'ls' to work with Twisted-15.0.0 #2394
-
-unknown / needs-more-research:
-- packaging fixes #1969 #1960
-- mutable/retrieve: raise NotEnoughSharesError earlier when the sharemap says
-  it's useless, and improve the error message #1742
-- improve what-is-my-ipv4 on windows/cygwin #1381
-
-
-Roughly 75 tickets were closed in this release: 1953 1960 1974 1972 1717 1381
-898 1707 1918 1807 740 1842 1992 2165 1847 2086 2208 2048 2128 2245 1336 2248
-2067 712 1800 1966 2008 2282 2281 2290 2023 2121? 2305 1901 2249 2193 1634
-1159 2340 1146 648 1411 2354 1961 2380 754 2393 2394 1737 2398 2400 2242 2416
-2415 2417 1969 1988 1784 2105 2209 2280 623 2249 1698 2028 2005 2312 2235
-1674 2027 2034 2323 2433 2233. Another dozen were referenced but not closed:
-1834 1742 982 1064 1536 1935 666 1931 1258 182 2286 1531. Roughly 40 GitHub
-pull-requests were closed: 62 48 57 61 62 63 64 69 73 81 82 84 85 87 91 94 95
-96 103 56 32 50 107 109 114 112 120 122 125 126 133 135 136 137 142 146 149
-152 165.
 
 "tahoe cp" changes
 ------------------
@@ -184,6 +143,46 @@ Tahoe-LAFS now depends upon foolscap-0.8.0, which creates better private keys
 and certificates than previous versions (2048-bit RSA keys and SHA256-based
 certificates). To benefit from the improved keys, you must re-generate your
 Tahoe nodes (which changes their TubIDs and FURLs). #2400
+
+Minor Changes
+-------------
+
+- Welcome page: add per-server "(space) Available" column #648
+- check/deep-check learned to accept multiple location args #740
+- Checker reports: remove needs-rebalancing, add count-happiness #1784 #2105
+- Fix handling of long paths on windows #2235 #1674 #2027
+- CLI --help: cite (but don't list) global options on each command #2233
+- Add OpenSSL version to 'tahoe --version' #2215
+- Show git branch in version output #1953
+- Improve version-number reporting #2340
+- Improve user feedback when filing an Incident Report #1974
+- Various docs cleanups/improvements
+- WAPI: do not report 'size' metadata when unknown #1634
+- Improve packaging under pip #2209
+- Hush warnings during dep-checking, stop complaining about missing
+  "service_identity" dep #2248
+- Stop using contents of .tac files #1159
+- fix race condition during mutable upload
+- fix ftp 'ls' to work with Twisted-15.0.0 #2394
+
+unknown / needs-more-research:
+- packaging fixes #1969 #1960
+- mutable/retrieve: raise NotEnoughSharesError earlier when the sharemap says
+  it's useless, and improve the error message #1742
+- improve what-is-my-ipv4 on windows/cygwin #1381
+
+
+Roughly 75 tickets were closed in this release: 1953 1960 1974 1972 1717 1381
+898 1707 1918 1807 740 1842 1992 2165 1847 2086 2208 2048 2128 2245 1336 2248
+2067 712 1800 1966 2008 2282 2281 2290 2023 2121? 2305 1901 2249 2193 1634
+1159 2340 1146 648 1411 2354 1961 2380 754 2393 2394 1737 2398 2400 2242 2416
+2415 2417 1969 1988 1784 2105 2209 2280 623 2249 1698 2028 2005 2312 2235
+1674 2027 2034 2323 2433 2233. Another dozen were referenced but not closed:
+1834 1742 982 1064 1536 1935 666 1931 1258 182 2286 1531. Roughly 40 GitHub
+pull-requests were closed: 62 48 57 61 62 63 64 69 73 81 82 84 85 87 91 94 95
+96 103 56 32 50 107 109 114 112 120 122 125 126 133 135 136 137 142 146 149
+152 165.
+
 
 Release 1.10.0 (2013-05-01)
 '''''''''''''''''''''''''''
