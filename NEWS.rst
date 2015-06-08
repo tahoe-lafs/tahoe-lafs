@@ -54,45 +54,8 @@ Minor Changes
 - Hush warnings during dep-checking, stop complaining about missing
   "service_identity" dep #2248
 - Stop using contents of .tac files #1159
-
-not user-visible:
-- remove unused 'human encoding' URI methods #1807
-- tests warn if tree is dirty #1992
-- Travis-CI turned on #2249
-- add 'distclean', don't remove egg-info during 'make clean' #2092
-- add "UTF-8 BOM" to all docs #1948
-- improve safety of timing_safe_compare() #2165
-- remove old darcs tooling
-- minor comments #1874 #2086
-- improve test #2048
-- switch to unminified d3/jquery JS files #2208
-- reject furlfiles with "#" #2128
-- rename exit-trigger/self-destruct test feature #1336
-- add coverage.io test-coverage reporting #623
-- dedup license info in about.rst/README.txt #2067
-- log roothash in base32 not binary #1800
-- improve upload tests #2008
-- add --coverage to setup.py test #1698, remove old coverage uploaders
-- remove trialcoverage plugin #2281
-- tolerate disk-space-used=0 for travis boxes #2290
-- tolerate python subprocess bug #2023
-- remove old build_helpers tools #2305
-- update zetuptoolz
-- hack windows/OpenSSL deps on windows #2249 #2193
-- tolerate PEP440 semantics in dependency specifications #2354
-- hush DeprecationWarning with twisted.web #2312
 - fix race condition during mutable upload
-- fix MANIFEST.in warnings #2380
-- improve unicode handling of arguments to (S)FTPServer #2388
-- improve tests of test_mutable #2034
 - fix ftp 'ls' to work with Twisted-15.0.0 #2394
-- add docs/proposed/magic-folder
-- remove named-path upload/download from control-port #1737
-- unicode handling on windows something #2398
-- zetuptoolz: tolerate single-string requirespec #2242
-- accept newer Twisted (>=13) on windows if pywin32 is manually installed #2416
-- windows: find home directory on multiple versions of windows #2417
-- improve fileutil something #1531
 
 unknown / needs-more-research:
 - packaging fixes #1969 #1960
@@ -213,8 +176,9 @@ additional Python dependencies are needed:
 as well as libffi (for Debian/Ubuntu, the name of the needed OS package is
 `libffi6`).
 
-Tahoe-LAFS is now compatible with setuptools version 8 and pip version 6
-or later.
+Tahoe-LAFS is now compatible with setuptools version 8 and pip version 6 or
+later. A bug which prevented use on Ubuntu 15.04(?) was fixed (tolerate
+PEP440 semantics in dependency specifications, #2354? #2242?)
 
 Tahoe-LAFS now depends upon foolscap-0.8.0, which creates better private keys
 and certificates than previous versions (2048-bit RSA keys and SHA256-based
