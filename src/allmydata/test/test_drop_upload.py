@@ -50,10 +50,11 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.failUnless(IDirectoryNode.providedBy(n))
         self.upload_dirnode = n
         self.upload_dircap = n.get_uri()
+        self.parent_dircap = "abc123"
 
     def _create_uploader(self, ign):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
-        self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir,
+        self.uploader = DropUploader(self.client, self.upload_dircap, self.parent_dircap, self.local_dir,
                                      dbfile, inotify=self.inotify, pending_delay=0.2)
         self.uploader.setServiceParent(self.client)
         self.uploader.upload_ready()
@@ -347,22 +348,22 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
             readonly_dircap = n.get_readonly_uri()
 
             self.shouldFail(AssertionError, 'nonexistent local.directory', 'there is no directory',
-                            DropUploader, client, upload_dircap, doesnotexist, magicfolderdb, inotify=fake_inotify)
+                            DropUploader, client, upload_dircap, '', doesnotexist, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory local.directory', 'is not a directory',
-                            DropUploader, client, upload_dircap, not_a_dir, magicfolderdb, inotify=fake_inotify)
+                            DropUploader, client, upload_dircap, '', not_a_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'bad upload.dircap', 'does not refer to a directory',
-                            DropUploader, client, 'bad', errors_dir, magicfolderdb, inotify=fake_inotify)
+                            DropUploader, client, 'bad', '', errors_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory upload.dircap', 'does not refer to a directory',
-                            DropUploader, client, 'URI:LIT:foo', errors_dir, magicfolderdb, inotify=fake_inotify)
+                            DropUploader, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
-                            DropUploader, client, readonly_dircap, errors_dir, magicfolderdb, inotify=fake_inotify)
+                            DropUploader, client, readonly_dircap, '', errors_dir, magicfolderdb, inotify=fake_inotify)
 
             def _not_implemented():
                 raise NotImplementedError("blah")
             self.patch(drop_upload, 'get_inotify_module', _not_implemented)
             self.shouldFail(NotImplementedError, 'unsupported', 'blah',
                             DropUploader, client, upload_dircap, errors_dir, magicfolderdb)
-            d.addCallback(_check_errors)
+        d.addCallback(_check_errors)
         return d
 
 

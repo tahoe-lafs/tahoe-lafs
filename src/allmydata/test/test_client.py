@@ -306,7 +306,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         class MockDropUploader(service.MultiService):
             name = 'drop-upload'
 
-            def __init__(self, client, upload_dircap, local_dir, dbfile, inotify=None,
+            def __init__(self, client, upload_dircap, parent_dircap, local_dir, dbfile, inotify=None,
                          pending_delay=1.0):
                 service.MultiService.__init__(self)
                 self.client = client
