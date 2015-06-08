@@ -14,7 +14,7 @@ from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import hashutil, base32, pollmixin, log, keyutil, idlib
+from allmydata.util import fileutil, hashutil, base32, pollmixin, log, keyutil, idlib
 from allmydata.util.encodingutil import get_filesystem_encoding, \
      from_utf8_or_none
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -508,7 +508,7 @@ class Client(node.Node, pollmixin.PollMixin):
                 dbfile = abspath_expanduser_unicode(dbfile)
 
                 parent_dircap_path = os.path.join(self.basedir, "private", "magic_folder_parent_dircap")
-                parent_dircap_path = abspath_expanduser_unicode(magic_folder_parent_dircap)
+                parent_dircap_path = abspath_expanduser_unicode(parent_dircap_path)
                 parent_dircap = fileutil.read(parent_dircap_path).strip()
 
                 s = drop_upload.DropUploader(self, upload_dircap, parent_dircap, local_dir, dbfile)

@@ -328,6 +328,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         basedir1 = "test_client.Basic.test_create_drop_uploader1"
         os.mkdir(basedir1)
+
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
                        config + "local.directory = " + local_dir_utf8 + "\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir1)
