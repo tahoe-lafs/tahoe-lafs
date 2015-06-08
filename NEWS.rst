@@ -11,48 +11,26 @@ Unedited list of all changes after 1.10.0 and up-to cf9b3828 07-Jun-2015. This
 list is not yet limited to user-visible ones. It (hopefully) includes all
 tickets closed during this time, even minor non-user-visible ones.
 
-- show git branch in version output #1953
-- packaging fixes #1969 #1960
-- mutable/retrieve: raise NotEnoughSharesError earlier when the sharemap says
-  it's useless, and improve the error message #1742
-- improve user feedback when filing an Incident Report #1974
-- add page-rendering timestamp to WUI #1972
-- improve what-is-my-ipv4 on windows/cygwin #1381
-- remove unused 'human encoding' URI methods #1807
-- check/deep-check learned to accept multiple location args #740
-- tests warn if tree is dirty #1992
-- Travis-CI turned on #2249
+Significant user-visible:
 - py2.6 is now unsupported on windows
-- add 'distclean', don't remove egg-info during 'make clean' #2092
-- add "UTF-8 BOM" to all docs #1948
-- various docs cleanups/improvements
-- improve safety of timing_safe_compare() #2165
-- checker reports: remove needs-rebalancing, add count-happiness #1784 #2105
-- improve packaging under pip #2209
-- remove old darcs tooling
-- minor comments #1874 #2086
-- switch to unminified d3/jquery JS files #2208
-- improve test #2048
-- reject furlfiles with "#" #2128
-- rename exit-trigger/self-destruct test feature #1336
-- add coverage.io test-coverage reporting #623
-- hush warnings during dep-checking, stop complaining about missing
-  "service_identity" dep #2248
-- dedup license info in about.rst/README.txt #2067
 - 'tahoe cp -r' copies the top-level directory into new dir #712
-- log roothash in base32 not binary #1800
 - improve welcome page CSS for narrow windows #1931
 - redesign WUI directory pages #1966
-- improve upload tests #2008
-- remove obsolete debian packaging tools #2282
-- add --coverage to setup.py test #1698, remove old coverage uploaders
-- remove trialcoverage plugin #2281
-- tolerate disk-space-used=0 for travis boxes #2290
-- tolerate python subprocess bug #2023
-- remove old build_helpers tools #2305
+- use "AUTO" in tahoe.cfg/node/tub.location to mean autodetect IP addresses.
+  Can be combined with static addresses, or turned off entirely. #754
+- 'tahoe cp -r': fix exception #2329
+
+not-so significant user-visible:
+- show git branch in version output #1953
+- improve user feedback when filing an Incident Report #1974
+- add page-rendering timestamp to WUI #1972
+- check/deep-check learned to accept multiple location args #740
+- various docs cleanups/improvements
+- checker reports: remove needs-rebalancing, add count-happiness #1784 #2105
+- improve packaging under pip #2209
+- hush warnings during dep-checking, stop complaining about missing
+  "service_identity" dep #2248
 - fix "Download" button on welcome page #1901
-- update zetuptoolz
-- hack windows/OpenSSL deps on windows #2249 #2193
 - WAPI: do not report 'size' metadata when unknown #1634
 - new OS-X packaging #182
 - stop using contents of .tac files #1159
@@ -60,15 +38,42 @@ tickets closed during this time, even minor non-user-visible ones.
 - add per-server "(space) Available" column to welcome page #648
 - add public-key auth to SFTP server #1411
 - `tahoe cp -r` changes w.r.t. unnamed directories #2329
-- tolerate PEP440 semantics in dependency specifications #2354
 - replace WUI icons with distinct shapes for accessibility #1961
+- fix handling of long paths on windows #2235 #1674 #2027
+- depend on foolscap >= 0.8.0, which makes better keys #2400
+- initial Docker support PR#165
+- CLI --help rendering: cite (but do not list) global options on each command. #2233
+- add OpenSSL version to 'tahoe --version' #2215
+
+not user-visible:
+- remove unused 'human encoding' URI methods #1807
+- tests warn if tree is dirty #1992
+- Travis-CI turned on #2249
+- add 'distclean', don't remove egg-info during 'make clean' #2092
+- add "UTF-8 BOM" to all docs #1948
+- improve safety of timing_safe_compare() #2165
+- remove old darcs tooling
+- minor comments #1874 #2086
+- improve test #2048
+- switch to unminified d3/jquery JS files #2208
+- reject furlfiles with "#" #2128
+- rename exit-trigger/self-destruct test feature #1336
+- add coverage.io test-coverage reporting #623
+- dedup license info in about.rst/README.txt #2067
+- log roothash in base32 not binary #1800
+- improve upload tests #2008
+- remove obsolete debian packaging tools #2282
+- add --coverage to setup.py test #1698, remove old coverage uploaders
+- remove trialcoverage plugin #2281
+- tolerate disk-space-used=0 for travis boxes #2290
+- tolerate python subprocess bug #2023
+- remove old build_helpers tools #2305
+- update zetuptoolz
+- hack windows/OpenSSL deps on windows #2249 #2193
+- tolerate PEP440 semantics in dependency specifications #2354
 - hush DeprecationWarning with twisted.web #2312
 - fix race condition during mutable upload
-- fix handling of long paths on windows #2235 #1674 #2027
 - fix MANIFEST.in warnings #2380
-- use "AUTO" in tahoe.cfg/node/tub.location to mean autodetect IP addresses.
-  Can be combined with static addresses, or turned off entirely. #754
-- 'tahoe cp -r': fix exception #2329
 - put version string into name of OS-X package: #2393
 - improve unicode handling of arguments to (S)FTPServer #2388
 - improve tests of test_mutable #2034
@@ -76,15 +81,18 @@ tickets closed during this time, even minor non-user-visible ones.
 - add docs/proposed/magic-folder
 - remove named-path upload/download from control-port #1737
 - unicode handling on windows something #2398
-- depend on foolscap >= 0.8.0, which makes better keys #2400
 - zetuptoolz: tolerate single-string requirespec #2242
 - add icon for OS-X/windows #2323
-- initial Docker support PR#165
 - accept newer Twisted (>=13) on windows if pywin32 is manually installed #2416
 - windows: find home directory on multiple versions of windows #2417
 - improve fileutil something #1531
-- CLI --help rendering: cite (but do not list) global options on each command. #2233
-- add OpenSSL version to 'tahoe --version' #2215
+
+unknown / needs-more-research:
+- packaging fixes #1969 #1960
+- mutable/retrieve: raise NotEnoughSharesError earlier when the sharemap says
+  it's useless, and improve the error message #1742
+- improve what-is-my-ipv4 on windows/cygwin #1381
+
 
 all tickets noted as closed: 1953 1960 1974 1972 1717 1381 898 1707 1918 1807
 740 1842 1992 2165 1847 2086 2208 2048 2128 2245 1336 2248 2067 712 1800 1966
