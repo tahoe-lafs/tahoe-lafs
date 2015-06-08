@@ -8,8 +8,9 @@ from twisted.python.failure import Failure
 from twisted.python import runtime
 from twisted.application import service
 
-from allmydata.interfaces import IDirectoryNode, NoSuchChildError, ExistingChildError
+from allmydata.interfaces import IDirectoryNode
 
+from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
      unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
@@ -80,7 +81,7 @@ class DropUploader(service.MultiService):
         if self._parent.is_unknown() or self._parent.is_readonly():
             raise AssertionError("The URI in 'private/drop_upload_dircap' is not a writecap to a directory.")
 
-        self._uploaded_callback = lambda ign: None
+        self._processed_callback = lambda ign: None
         self._ignore_count = 0
 
         self._notifier = inotify.INotify()
@@ -202,25 +203,22 @@ class DropUploader(service.MultiService):
     def _process(self, path):
         d = defer.succeed(None)
 
-        # FIXME (ticket #1712): if this already exists as a mutable file, we replace the
-        # directory entry, but we should probably modify the file (as the SFTP frontend does).
-        def _add_file(ignore, name):
+        def _add_file(name):
             u = FileName(path, self._convergence)
             return self._parent.add_file(name, u)
 
-        def _add_dir(ignore, name):
+        def _add_dir(name):
             self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
             u = Data("", self._convergence)
             name += "@_"
             d2 = self._parent.add_file(name, u)
-            def _err(f):
-                f.trap(ExistingChildError)
-                self._log("subdirectory %r already exists" % (path,))
-            d2.addCallbacks(lambda ign: self._log("created subdirectory %r" % (path,)), _err)
+            def _succeeded(ign):
+                self._log("created subdirectory %r" % (path,))
+                self._stats_provider.count('drop_upload.directories_created', 1)
             def _failed(f):
-                self._log("failed to create subdirectory %r due to %r" % (path, f))
-                self._stats_provider.count('drop_upload.objects_failed', 1)
-            d2.addErrback(_failed)
+                self._log("failed to create subdirectory %r" % (path,))
+                return f
+            d2.addCallbacks(_succeeded, _failed)
             d2.addCallback(lambda ign: self._scan(path))
             return d2
 
@@ -228,23 +226,19 @@ class DropUploader(service.MultiService):
             self._pending.remove(path)
             relpath = os.path.relpath(path, self._local_dir)
             name = magicpath.path2magic(relpath)
-            # XXX
-            #name = os.path.basename(path)
 
             if not os.path.exists(path):
-                self._log("uploader: not uploading non-existent file.")
+                self._log("drop-upload: notified object %r disappeared "
+                          "(this is normal for temporary objects)" % (path,))
                 self._stats_provider.count('drop_upload.objects_disappeared', 1)
-                return NoSuchChildError("not uploading non-existent file")
+                return None
             elif os.path.islink(path):
-                self._log("operator ERROR: symlink not being processed.")
-                return Failure()
+                raise Exception("symlink not being processed")
 
             if os.path.isdir(path):
-                d.addCallback(_add_dir, name)
-                self._stats_provider.count('drop_upload.directories_created', 1)
-                return None
+                return _add_dir(name)
             elif os.path.isfile(path):
-                d.addCallback(_add_file, name)
+                d2 = _add_file(name)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
                     s = os.stat(path)
@@ -252,45 +246,40 @@ class DropUploader(service.MultiService):
                     ctime = s[stat.ST_CTIME]
                     mtime = s[stat.ST_MTIME]
                     self._db.did_upload_file(filecap, path, mtime, ctime, size)
-                d.addCallback(add_db_entry)
-                self._stats_provider.count('drop_upload.files_uploaded', 1)
-                return None
+                    self._stats_provider.count('drop_upload.files_uploaded', 1)
+                d2.addCallback(add_db_entry)
+                return d2
             else:
-                self._log("operator ERROR: non-directory/non-regular file not being processed.")
-                return Failure()
+                raise Exception("non-directory/non-regular file not being processed")
 
         d.addCallback(_maybe_upload)
 
-        def _succeeded(ign):
+        def _succeeded(res):
             self._stats_provider.count('drop_upload.objects_queued', -1)
-            self._stats_provider.count('drop_upload.objects_uploaded', 1)
-
+            self._stats_provider.count('drop_upload.objects_succeeded', 1)
+            return res
         def _failed(f):
             self._stats_provider.count('drop_upload.objects_queued', -1)
-            if os.path.exists(path):
-                self._log("drop-upload: %r failed to upload due to %r" % (path, f))
-                self._stats_provider.count('drop_upload.objects_failed', 1)
-                return f
-            else:
-                self._log("drop-upload: notified object %r disappeared "
-                          "(this is normal for temporary objects): %r" % (path, f))
-                return None
-
+            self._stats_provider.count('drop_upload.objects_failed', 1)
+            self._log("%r while processing %r" % (f, path))
+            return f
         d.addCallbacks(_succeeded, _failed)
-        d.addBoth(self._do_upload_callback)
+        d.addBoth(self._do_processed_callback)
         return d
 
-    def _do_upload_callback(self, res):
+    def _do_processed_callback(self, res):
         if self._ignore_count == 0:
-            self._uploaded_callback(res)
+            self._processed_callback(res)
         else:
             self._ignore_count -= 1
+        return None  # intentionally suppress failures, which have already been logged
 
-    def set_uploaded_callback(self, callback, ignore_count=0):
+    def set_processed_callback(self, callback, ignore_count=0):
         """
-        This sets a function that will be called after a file has been uploaded.
+        This sets a function that will be called after a notification has been processed
+        (successfully or unsuccessfully).
         """
-        self._uploaded_callback = callback
+        self._processed_callback = callback
         self._ignore_count = ignore_count
 
     def finish(self, for_tests=False):
@@ -305,6 +294,6 @@ class DropUploader(service.MultiService):
         return service.MultiService.disownServiceParent(self)
 
     def _log(self, msg):
-        self._client.log(msg)
+        self._client.log("drop-upload: " + msg)
         print "_log:", msg
         #open("events", "ab+").write(msg)
