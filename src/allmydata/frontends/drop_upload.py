@@ -306,4 +306,5 @@ class DropUploader(service.MultiService):
 
     def _log(self, msg):
         self._client.log(msg)
+        print "_log:", msg
         #open("events", "ab+").write(msg)
