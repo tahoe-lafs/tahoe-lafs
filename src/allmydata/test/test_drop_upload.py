@@ -362,7 +362,7 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
                 raise NotImplementedError("blah")
             self.patch(drop_upload, 'get_inotify_module', _not_implemented)
             self.shouldFail(NotImplementedError, 'unsupported', 'blah',
-                            DropUploader, client, upload_dircap, errors_dir, magicfolderdb)
+                            DropUploader, client, upload_dircap, '', errors_dir, magicfolderdb)
         d.addCallback(_check_errors)
         return d
 
