@@ -2,7 +2,6 @@
 import os, sys, stat, time
 
 from twisted.trial import unittest
-from twisted.python import runtime
 from twisted.internet import defer
 
 from allmydata.interfaces import IDirectoryNode, NoSuchChildError
@@ -144,12 +143,12 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         def _check_move_empty_tree(res):
             self.mkdir_nonascii(empty_tree_dir)
             d2 = defer.Deferred()
-            self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
+            self.uploader.set_processed_callback(d2.callback, ignore_count=0)
             os.rename(empty_tree_dir, new_empty_tree_dir)
             self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
         d.addCallback(_check_move_empty_tree)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_succeeded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
@@ -158,24 +157,24 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             self.mkdir_nonascii(small_tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
             d2 = defer.Deferred()
-            self.uploader.set_uploaded_callback(d2.callback, ignore_count=1)
+            self.uploader.set_processed_callback(d2.callback, ignore_count=1)
             os.rename(small_tree_dir, new_small_tree_dir)
             self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
         d.addCallback(_check_move_small_tree)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 3))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_succeeded'), 3))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 2))
 
         def _check_moved_tree_is_watched(res):
             d2 = defer.Deferred()
-            self.uploader.set_uploaded_callback(d2.callback, ignore_count=0)
+            self.uploader.set_processed_callback(d2.callback, ignore_count=0)
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
             self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
             return d2
         d.addCallback(_check_moved_tree_is_watched)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_uploaded'), 4))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_succeeded'), 4))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 2))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 2))
@@ -218,7 +217,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         def create_file(val):
             d2 = defer.Deferred()
-            self.uploader.set_uploaded_callback(d2.callback)
+            self.uploader.set_processed_callback(d2.callback)
             test_file = abspath_expanduser_unicode(u"what", base=self.local_dir)
             fileutil.write(test_file, "meow")
             self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
@@ -258,7 +257,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         # Write to the same file again with different data.
         d.addCallback(lambda ign: self._check_file(u"short", "different"))
-        
+
         # Test that temporary files are not uploaded.
         d.addCallback(lambda ign: self._check_file(u"tempfile", "test", temporary=True))
 
@@ -283,7 +282,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         # Note: this relies on the fact that we only get one IN_CLOSE_WRITE notification per file
         # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
-        self.uploader.set_uploaded_callback(d.callback)
+        self.uploader.set_processed_callback(d.callback)
 
         path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
         path = to_filepath(path_u)
