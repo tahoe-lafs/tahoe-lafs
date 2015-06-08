@@ -205,13 +205,13 @@ class DropUploader(service.MultiService):
 
         def _add_file(name):
             u = FileName(path, self._convergence)
-            return self._parent.add_file(name, u)
+            return self._parent.add_file(name, u, overwrite=True)
 
         def _add_dir(name):
             self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
             u = Data("", self._convergence)
             name += "@_"
-            d2 = self._parent.add_file(name, u)
+            d2 = self._parent.add_file(name, u, overwrite=True)
             def _succeeded(ign):
                 self._log("created subdirectory %r" % (path,))
                 self._stats_provider.count('drop_upload.directories_created', 1)
