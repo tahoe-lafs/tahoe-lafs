@@ -153,19 +153,6 @@ class DropUploader(service.MultiService):
         self._stats_provider.count('drop_upload.dirs_monitored', 1)
         return d
 
-    def _add_to_dequeue(self, path):
-        # XXX stub function. fix me later.
-        #print "adding file to upload queue %s" % (path,)
-        pass
-
-    def Pause(self):
-        self.is_upload_ready = False
-
-    def Resume(self):
-        self.is_upload_ready = True
-        # XXX
-        self._turn_deque()
-
     def upload_ready(self):
         """upload_ready is used to signal us to start
         processing the upload items...
