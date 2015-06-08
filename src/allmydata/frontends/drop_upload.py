@@ -58,12 +58,7 @@ class DropUploader(service.MultiService):
         self._upload_deque = deque()
         self.is_upload_ready = False
 
-        if inotify is None:
-            if sys.platform == "win32":
-                from allmydata.windows import inotify
-            else:
-                from twisted.internet import inotify
-        self._inotify = inotify
+        self._inotify = inotify or get_inotify_module()
 
         if not self._local_path.exists():
             raise AssertionError("The '[drop_upload] local.directory' parameter was %s "
