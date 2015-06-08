@@ -506,7 +506,7 @@ class Client(node.Node, pollmixin.PollMixin):
                 from allmydata.frontends import drop_upload
                 dbfile = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
                 dbfile = abspath_expanduser_unicode(dbfile)
-                s = drop_upload.DropUploader(self, upload_dircap, local_dir, dbfile)
+                s = drop_upload.DropUploader(self, upload_dircap, '', local_dir, dbfile)
                 s.setServiceParent(self)
                 s.startService()
 
