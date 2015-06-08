@@ -7,7 +7,7 @@ User-Visible Changes in Tahoe-LAFS
 Release 1.10.1 (XXXX-XX-XX)
 '''''''''''''''''''''''''''
 
-Unedited list of all changes after 1.10.0 and up-to 143af61 17-May-2015. This
+Unedited list of all changes after 1.10.0 and up-to cf9b3828 07-Jun-2015. This
 list is not yet limited to user-visible ones. It (hopefully) includes all
 tickets closed during this time, even minor non-user-visible ones.
 
@@ -83,13 +83,15 @@ tickets closed during this time, even minor non-user-visible ones.
 - accept newer Twisted (>=13) on windows if pywin32 is manually installed #2416
 - windows: find home directory on multiple versions of windows #2417
 - improve fileutil something #1531
+- CLI --help rendering: cite (but do not list) global options on each command. #2233
+- add OpenSSL version to 'tahoe --version' #2215
 
 all tickets noted as closed: 1953 1960 1974 1972 1717 1381 898 1707 1918 1807
 740 1842 1992 2165 1847 2086 2208 2048 2128 2245 1336 2248 2067 712 1800 1966
 2008 2282 2281 2290 2023 2121? 2305 1901 2249 2193 1634 1159 2340 1146 648
 1411 2354 1961 2380 754 2393 2394 1737 2398 2400 2242 2416 2415 2417 1969
 1988 1784 2105 2209 2280 623 2249 1698 2028 2005 2312 2235 1674 2027 2034
-2323
+2323 2433 2233
 
 tickets referenced but not closed: 1834 1742 982 1064 1536 1935 666 1931 1258
 182 2286 1531
