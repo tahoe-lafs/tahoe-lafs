@@ -37,6 +37,7 @@ redesigned, with improved CSS for narrow windows and more-accessible icons
 .. _`#1901`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1901
 .. _`#1931`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1931
 .. _`#1961`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1961
+.. _`#1966`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1966
 .. _`#1972`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1972
 .. _`#2329`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2329
 .. _`configuration.rst`: docs/configuration.rst
