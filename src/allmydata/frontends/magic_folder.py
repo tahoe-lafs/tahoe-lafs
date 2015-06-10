@@ -98,8 +98,9 @@ class MagicFolder(service.MultiService):
         self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
-    def _check_db_file(self, childpath):
-        # returns True if the file must be uploaded.
+    def _db_file_is_uploaded(self, childpath):
+        """_db_file_is_uploaded returns true if the file was previously uploaded
+        """ 
         assert self._db != None
         r = self._db.check_file(childpath)
         filecap = r.was_uploaded()
@@ -134,8 +135,8 @@ class MagicFolder(service.MultiService):
                 # recurse on the child directory
                 self._scan(childpath)
             elif isfile:
-                must_upload = self._check_db_file(childpath)
-                if must_upload:
+                is_uploaded = self._db_file_is_uploaded(childpath)
+                if not is_uploaded: 
                     self._append_to_deque(childpath)
             else:
                 self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
@@ -214,10 +215,26 @@ class MagicFolder(service.MultiService):
                 self._log("drop-upload: notified object %r disappeared "
                           "(this is normal for temporary objects)" % (path,))
                 self._stats_provider.count('magic_folder.objects_disappeared', 1)
-                return None
+
+                # XXX todo: check if file exists in magic folder db
+                # ...
+                if not self._db_file_is_uploaded(path):
+                    return NoSuchChildError("not uploading non-existent file")
+                else:
+                    # XXX ...
+                    u = Data("", self._convergence)
+                    d2 = self._parent.add_file(name, u, overwrite=True)
+                    def get_metadata(d):
+                        return self._parent.get_metadata_for(name)
+                    def set_deleted(metadata):
+                        metadata['version'] += 1
+                        metadata['deleted'] = True
+                        return self._parent.set_metadata_for(name, metadata)
+                    d2.addCallback(get_metadata)
+                    d2.addCallback(set_deleted)
+                    return NoSuchChildError("not uploading non-existent file")
             elif os.path.islink(path):
                 raise Exception("symlink not being processed")
-
             if os.path.isdir(path):
                 return _add_dir(name)
             elif os.path.isfile(path):
