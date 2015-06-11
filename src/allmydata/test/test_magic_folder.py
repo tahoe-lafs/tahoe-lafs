@@ -305,8 +305,6 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         self.notify(path, self.inotify.IN_CLOSE_WRITE)
 
         if temporary:
-            d.addCallback(lambda ign: self.shouldFail(NoSuchChildError, 'temp file not uploaded', None,
-            self.upload_dirnode.get, name_u))
             d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_disappeared'),
                                                                  previously_disappeared + 1))
         else:
