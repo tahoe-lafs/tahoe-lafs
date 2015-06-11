@@ -218,21 +218,20 @@ class MagicFolder(service.MultiService):
 
                 # XXX todo: check if file exists in magic folder db
                 # ...
-                if not self._db_file_is_uploaded(path):
-                    return NoSuchChildError("not uploading non-existent file")
+                if not self._db.check_file_db_exists(path):
+                    return None
                 else:
-                    # XXX ...
                     u = Data("", self._convergence)
-                    d2 = self._parent.add_file(name, u, overwrite=True)
+                    d2 = defer.Succeed(None)
                     def get_metadata(d):
                         return self._parent.get_metadata_for(name)
+                    d2.addCallback(get_metadata)
                     def set_deleted(metadata):
                         metadata['version'] += 1
                         metadata['deleted'] = True
-                        return self._parent.set_metadata_for(name, metadata)
-                    d2.addCallback(get_metadata)
+                        return self._parent.add_file(name, u, overwrite=True, metadata=metadata)
                     d2.addCallback(set_deleted)
-                    return NoSuchChildError("not uploading non-existent file")
+                    return d2
             elif os.path.islink(path):
                 raise Exception("symlink not being processed")
             if os.path.isdir(path):
