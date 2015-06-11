@@ -137,6 +137,21 @@ class BackupDB_v2:
         self.connection = connection
         self.cursor = connection.cursor()
 
+    def check_file_db_exists(self, path):
+        """I will tell you if a given file has an entry in my database or not
+        by returning True or False.
+        """
+        c = self.cursor
+        c.execute("SELECT size,mtime,ctime,fileid"
+                  " FROM local_files"
+                  " WHERE path=?",
+                  (path,))
+        row = self.cursor.fetchone()
+        if not row:
+            return False
+        else:
+            return True
+
     def check_file(self, path, use_timestamps=True):
         """I will tell you if a given local file needs to be uploaded or not,
         by looking in a database and seeing if I have a record of this file
