@@ -142,6 +142,7 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         d.addCallback(self._create_magicfolder)
 
         def _check_move_empty_tree(res):
+            print "MEOW 0"
             self.mkdir_nonascii(empty_tree_dir)
             d2 = defer.Deferred()
             self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
@@ -153,14 +154,16 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 1))
-
+        
         def _check_move_small_tree(res):
+            print "MEOW 1"
             self.mkdir_nonascii(small_tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
             d2 = defer.Deferred()
             self.magicfolder.set_processed_callback(d2.callback, ignore_count=1)
             os.rename(small_tree_dir, new_small_tree_dir)
             self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
+            print "end of MEOW 1"
             return d2
         d.addCallback(_check_move_small_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 3))
@@ -169,6 +172,7 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 2))
 
         def _check_moved_tree_is_watched(res):
+            print "MEOW 2"
             d2 = defer.Deferred()
             self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
