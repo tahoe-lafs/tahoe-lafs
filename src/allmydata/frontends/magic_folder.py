@@ -192,6 +192,7 @@ class MagicFolder(service.MultiService):
             return self._upload_dirnode.add_file(name, u, overwrite=True)
 
         def _add_dir(name):
+            print "MEOWMEOW!"
             self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
             u = Data("", self._convergence)
             name += "@_"
@@ -216,22 +217,21 @@ class MagicFolder(service.MultiService):
                           "(this is normal for temporary objects)" % (path,))
                 self._stats_provider.count('magic_folder.objects_disappeared', 1)
 
-                # XXX todo: check if file exists in magic folder db
-                # ...
+                d2 = defer.Succeed(None)
                 if not self._db.check_file_db_exists(path):
-                    return None
+                    pass
                 else:
-                    u = Data("", self._convergence)
-                    d2 = defer.Succeed(None)
                     def get_metadata(d):
-                        return self._parent.get_metadata_for(name)
+                        self._parent.get_metadata_for(name)
                     d2.addCallback(get_metadata)
                     def set_deleted(metadata):
                         metadata['version'] += 1
                         metadata['deleted'] = True
-                        return self._parent.add_file(name, u, overwrite=True, metadata=metadata)
+                        emptyUploadable = Data("", self._convergence)
+                        self._parent.add_file(name, emptyUploadable, overwrite=True, metadata=metadata)
                     d2.addCallback(set_deleted)
-                    return d2
+                d2.addCallback(lambda x: Exception("file does not exist"))
+                return d2
             elif os.path.islink(path):
                 raise Exception("symlink not being processed")
             if os.path.isdir(path):
@@ -294,4 +294,5 @@ class MagicFolder(service.MultiService):
 
     def _log(self, msg):
         self._client.log("drop-upload: " + msg)
+        print "_log %s" % (msg,)
         #open("events", "ab+").write(msg)
