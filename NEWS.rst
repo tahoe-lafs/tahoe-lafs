@@ -4,7 +4,7 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.10.1 (XXXX-XX-XX)
+Release 1.10.1 (2015-06-15)
 '''''''''''''''''''''''''''
 
 User Interface / Configuration Changes

@@ -44,9 +44,9 @@ directory).
 Get Tahoe-LAFS
 --------------
 
-Download the latest stable release, `Tahoe-LAFS v1.10.0`_.
+Download the latest stable release, `Tahoe-LAFS v1.10.1`_.
 
-.. _Tahoe-LAFS v1.10.0: https://tahoe-lafs.org/source/tahoe-lafs/releases/allmydata-tahoe-1.10.0.zip
+.. _Tahoe-LAFS v1.10.1: https://tahoe-lafs.org/source/tahoe-lafs/releases/allmydata-tahoe-1.10.1.zip
 
 Set Up Tahoe-LAFS
 -----------------
