@@ -9,7 +9,9 @@
     allmydata-tahoe-X.Y.Z.zip source code file, or else to point to a
     directory which contains only allmydata-tahoe-X.Y.Z.* source code files
   - [ ] git pull
-  - [ ] git tag allmydata-tahoe-X.Y.Z
+  - [ ] git tag -s -u 68666A7A allmydata-tahoe-X.Y.Z
+    - produces a "signed tag"
+    - tag body: allmydata-tahoe-X.Y.Z
   - [ ] build locally to make sure the release is reporting itself as the
     intended version
   - [ ] make sure buildbot is green
