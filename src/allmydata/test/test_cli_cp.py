@@ -788,10 +788,10 @@ cp -r $PARENTCAP/dir4 to  : to/dir4/emptydir/
 cp -r $PARENTCAP/dir4 to/ : to/dir4/emptydir/
 
 # name collisions: ensure files are copied in order
-cp -r $PARENTCAP/dir6/dir $PARENTCAP/dir5/dir to : to/dir/collide=5
-cp -r $PARENTCAP/dir5/dir $PARENTCAP/dir6/dir to : to/dir/collide=6
-cp -r $DIRCAP6 $DIRCAP5 to : to/dir/collide=5
-cp -r $DIRCAP5 $DIRCAP6 to : to/dir/collide=6
+cp -r $PARENTCAP/dir6/dir $PARENTCAP/dir5/dir to : E9-COLLIDING-TARGETS
+cp -r $PARENTCAP/dir5/dir $PARENTCAP/dir6/dir to : E9-COLLIDING-TARGETS
+cp -r $DIRCAP6 $DIRCAP5 to : E9-COLLIDING-TARGETS
+cp -r $DIRCAP5 $DIRCAP6 to : E9-COLLIDING-TARGETS
 
 """
 
@@ -949,6 +949,8 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
                     return set(["E6-MANYONE"])
                 if err == "target is not a directory, but ends with a slash":
                     return set(["E7-BADSLASH"])
+                if err == "cannot copy multiple files with the same name from different source directories into the same target directory":
+                    return set(["E9-COLLIDING-TARGETS"])
                 if (err.startswith("source ") and
                     "is not a directory, but ends with a slash" in err):
                     return set(["E8-BADSLASH"])
