@@ -287,6 +287,9 @@ test-desert-island:
 	$(MAKE) 2>&1 | tee make.out
 	$(PYTHON) misc/build_helpers/check-build.py make.out no-downloads
 
+.PHONY: test-pip-install
+test-pip-install:
+	$(PYTHON) misc/build_helpers/test-pip-install.py
 
 # TARBALL GENERATION
 .PHONY: tarballs
