@@ -16,7 +16,10 @@ class CreateOptions(BasedirOptions):
     synopsis = "MAGIC_ALIAS: [NICKNAME LOCALDIR]"
 
 def create(options):
-    pass
+    from allmydata.scripts import tahoe_add_alias
+    rc = tahoe_add_alias.create_alias(options)
+    #print "node dir %s" % (options['node-directory'],)
+    return rc
 
 class InviteOptions(BasedirOptions):
     pass
