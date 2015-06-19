@@ -13,10 +13,7 @@ from .test_cli import CLITestMixin
 
 class CreateMagicFolder(GridTestMixin, CLITestMixin, unittest.TestCase):
 
-    def test_create(self):
-        self.basedir = "cli/MagicFolder/create"
-        self.set_up_grid()
-
+    def _create_magic_folder(self):
         d = self.do_cli("magic-folder", "create", "my_magic_folder")
         def _done((rc,stdout,stderr)):
             self.failUnless("Alias 'my_magic_folder' created" in stdout)
@@ -26,4 +23,19 @@ class CreateMagicFolder(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(aliases["my_magic_folder"].startswith("URI:DIR2:"))
         d.addCallback(_done)
         return d
-# XXX more stuff ...
+
+    def test_create(self):
+        self.basedir = "cli/MagicFolder/create"
+        self.set_up_grid()
+        return self._create_magic_folder()
+
+    def _invite(self, ignore):
+        d = self.do_cli("magic-folder", "invite", "magicFolder1", "Nicki")
+        return d
+
+    def test_invite(self):
+        self.basedir = "cli/MagicFolder/invite"
+        self.set_up_grid()
+        d = self._create_magic_folder()
+        d.addCallback(self._invite)
+        return d
