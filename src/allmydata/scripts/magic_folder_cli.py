@@ -3,7 +3,8 @@ import os
 
 from twisted.python import usage, failure
 from allmydata.scripts.common import BaseOptions
-from .common import BaseOptions, BasedirOptions
+from .common import BaseOptions, BasedirOptions, get_aliases
+from .cli import MakeDirectoryOptions
 
 class CreateOptions(BasedirOptions):
     nickname = None
@@ -25,10 +26,32 @@ def create(options):
     return rc
 
 class InviteOptions(BasedirOptions):
-    pass
+    nickname = None
+    synopsis = "MAGIC_ALIAS: NICKNAME"
+    def parseArgs(self, alias, nickname=None):
+        BasedirOptions.parseArgs(self)
+        print "InviteOptions parseArgs() alias %s nickname %s" % (alias, nickname,)
+        self.alias = alias
+        self.nickname = nickname
+        node_url_file = os.path.join(self['node-directory'], "node.url")
+        self['node-url'] = open(node_url_file, "r").read().strip()
+
+        aliases = get_aliases(self['node-directory'])
+        print "ALIASES %s" % (aliases,)
+        self.aliases = aliases
 
 def invite(options):
-    pass
+    from allmydata.scripts import tahoe_mkdir
+    mkdirOptions = MakeDirectoryOptions()
+    mkdirOptions.where = options.nickname
+    mkdirOptions.stdout = options.stdout
+    mkdirOptions.stdin = options.stdin
+    mkdirOptions.stderr = options.stderr
+    mkdirOptions['node-url'] = options['node-url']
+    mkdirOptions.aliases = options.aliases
+    mkdirOptions['node-directory'] = options['node-directory']
+    rc = tahoe_mkdir.mkdir(mkdirOptions)
+    return rc
 
 class JoinOptions(BasedirOptions):
     pass
