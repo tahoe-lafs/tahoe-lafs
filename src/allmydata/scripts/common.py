@@ -80,6 +80,7 @@ class BasedirOptions(BaseOptions):
         else:
             raise usage.UsageError("No default basedir available, you must provide one with --node-directory, --basedir, or a basedir argument")
         self['basedir'] = b
+        self['node-directory'] = b
 
     def postOptions(self):
         if not self['basedir']:
