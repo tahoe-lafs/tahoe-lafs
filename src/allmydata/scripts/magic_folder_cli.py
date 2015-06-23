@@ -29,6 +29,34 @@ class CreateOptions(BasedirOptions):
 def create(options):
     from allmydata.scripts import tahoe_add_alias
     rc = tahoe_add_alias.create_alias(options)
+
+    if options.nickname is not None:
+        invite_options = InviteOptions()
+        invite_options.aliases = get_aliases(options['node-directory'])
+        invite_options["node-url"] = options["node-url"]
+        invite_options["node-directory"] = options["node-directory"]
+        invite_options.alias = options.alias
+        invite_options.nickname = options.nickname
+        invite_options.stdin = StringIO("")
+        invite_options.stdout = StringIO()
+        invite_options.strerr = StringIO()
+        rc = invite(invite_options)
+        if rc != 0:
+            print >>options.stderr, "magic-folder: failed to invite after create\n"
+            return -1
+        invite_code = invite_options.stdout.getvalue().strip()
+
+        join_options = JoinOptions()
+        join_options.alias = options.alias
+        join_options.aliases = get_aliases(options['node-directory'])
+        join_options["node-url"] = options["node-url"]
+        join_options["node-directory"] = options["node-directory"]
+        join_options.invite_code = invite_code
+        join_options.local_dir = options.localdir
+        rc = join(join_options)
+        if rc != 0:
+            print >>options.stderr, "magic-folder: failed to invite after create\n"
+            return -1
     return rc
 
 def diminish_readonly(write_cap, node_url):
