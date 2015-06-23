@@ -17,6 +17,7 @@ class CreateMagicFolder(GridTestMixin, CLITestMixin, unittest.TestCase):
     def _create_magic_folder(self):
         d = self.do_cli("magic-folder", "create", "magic")
         def _done((rc,stdout,stderr)):
+            self.failUnless(rc == 0)
             self.failUnless("Alias 'magic' created" in stdout)
             self.failIf(stderr)
             aliases = get_aliases(self.get_clientdir())
@@ -27,11 +28,20 @@ class CreateMagicFolder(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def _invite(self, ignore):
         d = self.do_cli("magic-folder", "invite", u"magic", u"Alice")
+        def _done((rc,stdout,stderr)):
+            self.failUnless(rc == 0)
+            return (rc,stdout,stderr)
+        d.addCallback(_done)
         return d
 
     def _join(self, result):
         invite_code = result[1].strip()
         d = self.do_cli("magic-folder", "join", invite_code, u"Alice_local_magic")
+        def _done((rc,stdout,stderr)):
+            print "_join rc %s" % (rc,)
+            self.failUnless(rc == 0)
+            return (rc,stdout,stderr)
+        d.addCallback(_done)
         return d
 
     def _check_config(self, result):
@@ -53,4 +63,8 @@ class CreateMagicFolder(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         magic_local_dir = os.path.join(self.basedir, "magic")
         d = self.do_cli("magic-folder", "create", u"magic", u"Alice", magic_local_dir)
+        def _done((rc,stdout,stderr)):
+            self.failUnless(rc == 0)
+            return (rc,stdout,stderr)
+        d.addCallback(_done)
         return d
