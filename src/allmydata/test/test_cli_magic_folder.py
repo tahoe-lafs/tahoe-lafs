@@ -1,5 +1,6 @@
 import os.path
 import urllib
+import re
 
 from twisted.trial import unittest
 
@@ -30,8 +31,13 @@ class CreateMagicFolder(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def _join(self, result):
         invite_code = result[1].strip()
-        d = self.do_cli("magic-folder", "join", invite_code, u"LOCAL_DIR")
+        d = self.do_cli("magic-folder", "join", invite_code, u"Alice_local_magic")
         return d
+
+    def _check_config(self, result):
+        client_config = fileutil.read(os.path.join(self.get_clientdir(), "tahoe.cfg"))
+        ret = re.search(r'\[magic_folder\]\nenabled = True\nlocal.directory = Alice_local_magic', client_config)
+        self.failIf(ret is None)
 
     def test_create_and_then_invite_join(self):
         self.basedir = "cli/MagicFolder/create-and-then-invite-join"
@@ -39,6 +45,7 @@ class CreateMagicFolder(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self._create_magic_folder()
         d.addCallback(self._invite)
         d.addCallback(self._join)
+        d.addCallback(self._check_config)
         return d
 
     def test_create_invite_join(self):
