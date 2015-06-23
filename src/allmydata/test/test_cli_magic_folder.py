@@ -28,9 +28,15 @@ class CreateMagicFolder(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("magic-folder", "invite", u"magic", u"Alice")
         return d
 
+    def _join(self, result):
+        invite_code = result[1].strip()
+        d = self.do_cli("magic-folder", "join", invite_code, u"LOCAL_DIR")
+        return d
+
     def test_create_invite_join(self):
         self.basedir = "cli/MagicFolder/create-invite-join"
         self.set_up_grid()
         d = self._create_magic_folder()
         d.addCallback(self._invite)
+        d.addCallback(self._join)
         return d
