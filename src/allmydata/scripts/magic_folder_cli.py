@@ -157,7 +157,7 @@ def join(options):
     fileutil.write(collective_readcap_file, magic_readonly_cap)
 
     c = open(os.path.join(options["node-directory"], "tahoe.cfg"), "a")
-    c.write("[magic_folder]\nenabled = True\n[magic_folder]\nlocal.directory = %s\n" % (options.local_dir,))
+    c.write("[magic_folder]\nenabled = True\nlocal.directory = %s\n" % (options.local_dir,))
     c.close()
 
 
