@@ -57,7 +57,7 @@ def create(options):
         if rc != 0:
             print >>options.stderr, "magic-folder: failed to invite after create\n"
             return -1
-    return rc
+    return 0
 
 def diminish_readonly(write_cap, node_url):
     """
@@ -109,7 +109,7 @@ def invite(options):
     if rc != 0:
         # XXX failure
         print >>options.stderr, "magic-folder: failed to mkdir\n"
-        return rc
+        return -1
     dmd_write_cap = mkdir_options.stdout.getvalue().strip()
     dmd_readonly_cap = diminish_readonly(dmd_write_cap, options["node-url"])
     if dmd_readonly_cap is None:
@@ -136,7 +136,7 @@ def invite(options):
         return -1
 
     print >>options.stdout, "%s%s%s" % (magic_readonly_cap, INVITE_SEPERATOR, dmd_write_cap)
-    return rc
+    return 0
 
 class JoinOptions(BasedirOptions):
     synopsis = "INVITE_CODE LOCAL_DIR"
