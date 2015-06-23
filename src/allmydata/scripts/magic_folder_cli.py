@@ -128,8 +128,10 @@ def join(options):
     collective_readcap_file = os.path.join(options["node-directory"], "private/collective_dircap")
     fileutil.write(collective_readcap_file, magic_readonly_cap)
 
-    # Edit the client's tahoe.cfg to set [magic_folder] enabled = True and [magic_folder] local.directory = LOCAL_DIR.
-    # ...
+    c = open(os.path.join(options["node-directory"], "tahoe.cfg"), "a")
+    c.write("[magic_folder]\nenabled = True\n[magic_folder]\nlocal.directory = %s\n" % (options.local_dir,))
+    c.close()
+
 
 class MagicFolderCommand(BaseOptions):
     subCommands = [
