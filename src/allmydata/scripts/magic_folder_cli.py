@@ -148,18 +148,15 @@ class JoinOptions(BasedirOptions):
 def join(options):
     fields = options.invite_code.split(INVITE_SEPERATOR)
     assert len(fields) == 2
+
     magic_readonly_cap, dmd_write_cap = fields
-
     dmd_cap_file = os.path.join(options["node-directory"], "private/magic_folder_dircap")
-    fileutil.write(dmd_cap_file, dmd_write_cap)
-
     collective_readcap_file = os.path.join(options["node-directory"], "private/collective_dircap")
+
+    fileutil.write(dmd_cap_file, dmd_write_cap)
     fileutil.write(collective_readcap_file, magic_readonly_cap)
-
-    c = open(os.path.join(options["node-directory"], "tahoe.cfg"), "a")
-    c.write("[magic_folder]\nenabled = True\nlocal.directory = %s\n" % (options.local_dir,))
-    c.close()
-
+    fileutil.write(os.path.join(options["node-directory"], "tahoe.cfg"), "[magic_folder]\nenabled = True\nlocal.directory = %s\n" % (options.local_dir,))
+    return 0
 
 class MagicFolderCommand(BaseOptions):
     subCommands = [
