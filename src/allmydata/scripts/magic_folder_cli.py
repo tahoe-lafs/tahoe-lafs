@@ -8,6 +8,7 @@ from .common import BaseOptions, BasedirOptions, get_aliases
 from .cli import MakeDirectoryOptions, ListOptions, LnOptions
 import tahoe_ls, tahoe_mv
 from allmydata.util import fileutil
+from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
 INVITE_SEPERATOR = "~"
@@ -155,7 +156,7 @@ def join(options):
 
     fileutil.write(dmd_cap_file, dmd_write_cap)
     fileutil.write(collective_readcap_file, magic_readonly_cap)
-    fileutil.write(os.path.join(options["node-directory"], "tahoe.cfg"), "[magic_folder]\nenabled = True\nlocal.directory = %s\n" % (options.local_dir,))
+    fileutil.write(os.path.join(options["node-directory"], "tahoe.cfg"), "[magic_folder]\nenabled = True\nlocal.directory = %s\n" % (options.local_dir.encode('utf-8'),), mode="ab")
     return 0
 
 class MagicFolderCommand(BaseOptions):
