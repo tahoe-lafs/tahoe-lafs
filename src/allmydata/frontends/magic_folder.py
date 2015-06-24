@@ -105,7 +105,7 @@ class MagicFolder(service.MultiService):
         r = self._db.check_file(childpath)
         filecap = r.was_uploaded()
         if filecap is False:
-            return True
+            return False
 
     def _scan(self, localpath):
         if not os.path.isdir(localpath):
@@ -136,7 +136,7 @@ class MagicFolder(service.MultiService):
                 self._scan(childpath)
             elif isfile:
                 is_uploaded = self._db_file_is_uploaded(childpath)
-                if not is_uploaded: 
+                if not is_uploaded:
                     self._append_to_deque(childpath)
             else:
                 self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
@@ -192,7 +192,6 @@ class MagicFolder(service.MultiService):
             return self._upload_dirnode.add_file(name, u, overwrite=True)
 
         def _add_dir(name):
-            print "MEOWMEOW!"
             self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
             u = Data("", self._convergence)
             name += "@_"
