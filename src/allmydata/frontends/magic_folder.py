@@ -217,7 +217,7 @@ class MagicFolder(service.MultiService):
                           "(this is normal for temporary objects)" % (path,))
                 self._stats_provider.count('magic_folder.objects_disappeared', 1)
 
-                d2 = defer.Succeed(None)
+                d2 = defer.succeed(None)
                 if not self._db.check_file_db_exists(path):
                     pass
                 else:
