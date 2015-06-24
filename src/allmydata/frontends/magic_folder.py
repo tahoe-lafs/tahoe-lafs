@@ -222,13 +222,13 @@ class MagicFolder(service.MultiService):
                     pass
                 else:
                     def get_metadata(d):
-                        self._parent.get_metadata_for(name)
+                        return self._parent.get_metadata_for(name)
                     d2.addCallback(get_metadata)
                     def set_deleted(metadata):
                         metadata['version'] += 1
                         metadata['deleted'] = True
                         emptyUploadable = Data("", self._convergence)
-                        self._parent.add_file(name, emptyUploadable, overwrite=True, metadata=metadata)
+                        return self._parent.add_file(name, emptyUploadable, overwrite=True, metadata=metadata)
                     d2.addCallback(set_deleted)
                 d2.addCallback(lambda x: Exception("file does not exist"))
                 return d2
