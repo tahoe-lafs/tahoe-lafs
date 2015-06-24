@@ -76,8 +76,7 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin, ShouldFailMixin, ReallyE
 
     def _check_config(self, result):
         client_config = fileutil.read(os.path.join(self.get_clientdir(), "tahoe.cfg"))
-        print "CLIENT CONFIG", client_config
-        # XXX utf-8
+        # XXX utf-8?
         ret = re.search("\[magic_folder\]\nenabled = True\nlocal.directory = %s" % (self.local_dir.encode('utf-8'),), client_config)
         self.failIf(ret is None)
         return result
@@ -191,7 +190,6 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin, ShouldFailMixin, ReallyE
         d.addCallback(self._create_magicfolder)
 
         def _check_move_empty_tree(res):
-            print "MEOW 0"
             self.mkdir_nonascii(empty_tree_dir)
             d2 = defer.Deferred()
             self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
@@ -205,14 +203,12 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin, ShouldFailMixin, ReallyE
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 1))
         
         def _check_move_small_tree(res):
-            print "MEOW 1"
             self.mkdir_nonascii(small_tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
             d2 = defer.Deferred()
             self.magicfolder.set_processed_callback(d2.callback, ignore_count=1)
             os.rename(small_tree_dir, new_small_tree_dir)
             self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
-            print "end of MEOW 1"
             return d2
         d.addCallback(_check_move_small_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 3))
@@ -221,7 +217,6 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin, ShouldFailMixin, ReallyE
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 2))
 
         def _check_moved_tree_is_watched(res):
-            print "MEOW 2"
             d2 = defer.Deferred()
             self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
@@ -266,29 +261,33 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin, ShouldFailMixin, ReallyE
 
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
-        d = self.client.create_dirnode()
-        d.addCallback(self._made_upload_dir)
+        d = self._create_invite_join_magic_folder()
         d.addCallback(self._create_magicfolder)
 
-        def create_file(val):
+        def create_test_file(result):
             d2 = defer.Deferred()
-            self.magicfolder.set_processed_callback(d2.callback)
+            self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
             test_file = abspath_expanduser_unicode(u"what", base=self.local_dir)
             fileutil.write(test_file, "meow")
             self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
             return d2
-        d.addCallback(create_file)
+        d.addCallback(create_test_file)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
-        d.addCallback(self._cleanup)
 
         def _restart(ign):
-            self.set_up_grid()
+            tahoe_config_file = os.path.join(self.get_clientdir(), "tahoe.cfg")
+            tahoe_config = fileutil.read(tahoe_config_file)
+            def write_config(client_node_dir):
+                fileutil.write(os.path.join(client_node_dir, "tahoe.cfg"), tahoe_config)
+            self.set_up_grid(client_config_hooks={0: write_config})
             self.client = self.g.clients[0]
             self.stats_provider = self.client.stats_provider
+            d.addCallback(self._create_magicfolder)
+            d.addCallback(lambda x: time.sleep(1))
+
+        d.addCallback(self._cleanup)
         d.addCallback(_restart)
-        d.addCallback(self._create_magicfolder)
-        d.addCallback(lambda ign: time.sleep(3))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         d.addBoth(self._cleanup)
