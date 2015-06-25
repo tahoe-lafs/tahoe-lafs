@@ -13,6 +13,7 @@ from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
 from allmydata.test.test_cli import CLITestMixin
+from allmydata.test.test_cli_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
 from allmydata.frontends.magic_folder import MagicFolder
@@ -20,7 +21,7 @@ from allmydata import backupdb
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
-class MagicFolderTestMixin(CLITestMixin, GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
+class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
     """
     These tests will be run both with a mock notifier, and (on platforms that support it)
     with the real INotify.
@@ -42,55 +43,6 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin, ShouldFailMixin, ReallyE
         self.failUnless(bdb, "unable to create backupdb from %r" % (dbfile,))
         self.failUnlessEqual(bdb.VERSION, 2)
         return bdb
-
-    def _diminish(self, write_cap):
-        d = self.do_cli("ls", "--json", write_cap)
-        def get_readonly_cap((rc,stdout,stderr)):
-            self.failUnless(rc == 0)
-            readonly_cap = json.loads(stdout)[1][u"ro_uri"]
-            return readonly_cap
-        d.addCallback(get_readonly_cap)
-        return d
-
-    def _try_joined_config(self, result):
-        collective_readonly_cap = fileutil.read(os.path.join(self.get_clientdir(), "private/collective_dircap"))
-        d = self.do_cli("ls", "--json", collective_readonly_cap)
-        def _done((rc,stdout,stderr)):
-            self.failUnless(rc == 0)
-            return (rc,stdout,stderr)
-        d.addCallback(_done)
-        def test_joined_magic_folder((rc,stdout,stderr)):
-            d2 = self._diminish(self.upload_dircap)
-            def fail_unless_dmd_readonly_exists(readonly_cap):
-                s = re.search(readonly_cap, stdout)
-                self.failUnless(s is not None)
-            d2.addCallback(fail_unless_dmd_readonly_exists)
-            return d2
-        d.addCallback(test_joined_magic_folder)
-        return d
-
-    def _get_caps_from_files(self, result):
-        self.collective_dircap = fileutil.read(os.path.join(self.get_clientdir(), "private/collective_dircap"))
-        self.upload_dircap = fileutil.read(os.path.join(self.get_clientdir(), "private/magic_folder_dircap"))
-        self.failIf(self.collective_dircap is None or self.upload_dircap is None)
-
-    def _check_config(self, result):
-        client_config = fileutil.read(os.path.join(self.get_clientdir(), "tahoe.cfg"))
-        # XXX utf-8?
-        ret = re.search("\[magic_folder\]\nenabled = True\nlocal.directory = %s" % (self.local_dir.encode('utf-8'),), client_config)
-        self.failIf(ret is None)
-        return result
-
-    def _create_invite_join_magic_folder(self):
-        d = self.do_cli("magic-folder", "create", u"magic", u"Alice", self.local_dir)
-        def _done((rc,stdout,stderr)):
-            self.failUnless(rc == 0)
-            return (rc,stdout,stderr)
-        d.addCallback(_done)
-        d.addCallback(self._get_caps_from_files)
-        d.addCallback(self._try_joined_config)
-        d.addCallback(self._check_config)
-        return d
 
     def _made_upload_dir(self, n):
         if self.dir_node == None:
@@ -186,7 +138,7 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin, ShouldFailMixin, ReallyE
         small_tree_dir = abspath_expanduser_unicode(small_tree_name, base=self.basedir)
         new_small_tree_dir = abspath_expanduser_unicode(small_tree_name, base=self.local_dir)
 
-        d = self._create_invite_join_magic_folder()
+        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._create_magicfolder)
 
         def _check_move_empty_tree(res):
@@ -261,7 +213,7 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin, ShouldFailMixin, ReallyE
 
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
-        d = self._create_invite_join_magic_folder()
+        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._create_magicfolder)
 
         def create_test_file(result):
