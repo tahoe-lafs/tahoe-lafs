@@ -71,6 +71,14 @@ class MagicFolder(service.MultiService):
 
         # TODO: allow a path rather than a cap URI.
         self._upload_dirnode = self._client.create_node_from_uri(upload_dircap)
+        if collective_dircap != "":
+            # XXX this condition used for some unit tests
+            self._collective_dirnode = self._client.create_node_from_uri(collective_dircap)
+            if not IDirectoryNode.providedBy(self._collective_dirnode):
+                raise AssertionError("The URI in 'private/collective_dircap' does not refer to a directory.")
+            if self._collective_dirnode.is_unknown() or not self._collective_dirnode.is_readonly():
+                raise AssertionError("The URI in 'private/collective_dircap' is not a readonly cap to a directory.")
+
         if not IDirectoryNode.providedBy(self._upload_dirnode):
             raise AssertionError("The URI in 'private/magic_folder_dircap' does not refer to a directory.")
         if self._upload_dirnode.is_unknown() or self._upload_dirnode.is_readonly():
@@ -98,6 +106,9 @@ class MagicFolder(service.MultiService):
         self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
+    def _scan_remote_collective(self):
+        return self._collective_dirnode.list()
+        
     def _db_file_is_uploaded(self, childpath):
         """_db_file_is_uploaded returns true if the file was previously uploaded
         """ 
