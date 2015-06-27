@@ -62,12 +62,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.magicfolder.upload_ready()
 
     # Prevent unclean reactor errors.
-    def _cleanup(self, res):
-        d = defer.succeed(None)
-        if self.magicfolder is not None:
-            d.addCallback(lambda ign: self.magicfolder.finish(for_tests=True))
-        d.addCallback(lambda ign: res)
-        return d
 
     def test_db_basic(self):
         fileutil.make_dirs(self.basedir)
@@ -321,22 +315,8 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         return d
 
-    def test_remote_scan(self):
-        self.set_up_grid()
-        self.local_dir = abspath_expanduser_unicode(self.unicode_or_fallback(u"l\u00F8cal_dir", u"local_dir"),
-                                                    base=self.basedir)
-        self.mkdir_nonascii(self.local_dir)
-        self.client = self.g.clients[0]
-        self.stats_provider = self.client.stats_provider
-        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
-        d.addCallback(self._create_magicfolder)
-        d.addCallback(lambda x: self.magicfolder._scan_remote_collective())
-        def display_list(results):
-            print "LIST ", results
-        d.addCallback(display_list)
-        d.addBoth(self._cleanup)
-        return d
-
+    def test_alice_bob(self):
+        self.setup_alice_and_bob()
 
 class MockTest(MagicFolderTestMixin, unittest.TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
