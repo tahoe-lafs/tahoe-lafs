@@ -361,6 +361,9 @@ class GridTestMixin:
     def get_clientdir(self, i=0):
         return self.g.clients[i].basedir
 
+    def get_client(self, i=0):
+        return self.g.clients[i]
+
     def get_serverdir(self, i):
         return self.g.servers_by_number[i].storedir
 
