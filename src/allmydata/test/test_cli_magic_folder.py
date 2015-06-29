@@ -4,6 +4,7 @@ import re
 import json
 
 from twisted.trial import unittest
+from twisted.internet import defer
 
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
@@ -95,10 +96,10 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
             return (rc,stdout,stderr)
         d.addCallback(_done)
         def get_alice_caps(x):
-            alice_collective_dircap, alice_upload_dircap = self.get_caps_from_files(0)
+            self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
         d.addCallback(get_alice_caps)
-        d.addCallback(lambda x: self.check_joined_config(0, alice_upload_dircap))
-        d.addCallback(lambda x: self.check_config(1, alice_magic_dir))
+        d.addCallback(lambda x: self.check_joined_config(0, self.upload_dircap))
+        d.addCallback(lambda x: self.check_config(0, local_dir))
         return d
 
     def cleanup(self, res):
