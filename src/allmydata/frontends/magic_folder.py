@@ -304,5 +304,5 @@ class MagicFolder(service.MultiService):
 
     def _log(self, msg):
         self._client.log("drop-upload: " + msg)
-        print "_log %s" % (msg,)
+        #print "_log %s" % (msg,)
         #open("events", "ab+").write(msg)
