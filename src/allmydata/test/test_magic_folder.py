@@ -110,7 +110,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(self._made_upload_dir)
         d.addCallback(self._create_magicfolder)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.dirs_monitored'), 1))
-        d.addBoth(self._cleanup)
+        d.addBoth(self.cleanup)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.dirs_monitored'), 0))
         return d
 
@@ -191,7 +191,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 2))
 
-        d.addBoth(self._cleanup)
+        d.addBoth(self.cleanup)
         return d
 
     def test_persistence(self):
@@ -232,11 +232,11 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             d.addCallback(self._create_magicfolder)
             d.addCallback(lambda x: time.sleep(1))
 
-        d.addCallback(self._cleanup)
+        d.addCallback(self.cleanup)
         d.addCallback(_restart)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
-        d.addBoth(self._cleanup)
+        d.addBoth(self.cleanup)
         return d
 
     def test_magic_folder(self):
@@ -271,7 +271,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         # TODO: test that causes an upload failure.
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_failed'), 0))
 
-        d.addBoth(self._cleanup)
+        d.addBoth(self.cleanup)
         return d
 
     def _check_file(self, name_u, data, temporary=False):
