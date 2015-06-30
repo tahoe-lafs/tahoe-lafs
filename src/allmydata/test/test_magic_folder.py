@@ -316,7 +316,20 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         return d
 
     def test_alice_bob(self):
-        self.setup_alice_and_bob()
+        d = self.setup_alice_and_bob()
+        def get_results(result):
+            # XXX
+            self.alice_collective_dir, self.alice_upload_dircap, self.alice_magicfolder, self.bob_collective_dircap, self.bob_upload_dircap, self.bob_magicfolder = result
+        d.addCallback(get_results)
+
+        def cleanup_Alice_and_Bob(result):
+            d = defer.succeed(None)
+            d.addCallback(lambda ign: self.alice_magicfolder.finish(for_tests=True))
+            d.addCallback(lambda ign: self.bob_magicfolder.finish(for_tests=True))
+            d.addCallback(lambda ign: result)
+            return d
+        d.addCallback(cleanup_Alice_and_Bob)
+        return d
 
 class MockTest(MagicFolderTestMixin, unittest.TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
