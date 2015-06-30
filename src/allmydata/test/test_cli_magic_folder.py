@@ -163,6 +163,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(prepare_result)
         return d
 
+
 class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
     def test_create_and_then_invite_join(self):
