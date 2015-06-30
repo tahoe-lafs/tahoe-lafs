@@ -14,6 +14,7 @@ from allmydata.util.encodingutil import quote_output, get_io_encoding
 from .test_cli import CLITestMixin
 from allmydata.scripts import magic_folder_cli
 from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.frontends.magic_folder import MagicFolder
 
 
 class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
@@ -39,6 +40,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return d
 
     def join(self, client_num, local_dir, invite_code):
+        print "INVITE CODE ", invite_code
         magic_readonly_cap, dmd_write_cap = invite_code.split(magic_folder_cli.INVITE_SEPERATOR)
         d = self.do_cli_n(client_num, "magic-folder", "join", invite_code, local_dir)
         def _done((rc,stdout,stderr)):
@@ -128,36 +130,37 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         bob_magic_dir = abspath_expanduser_unicode(u"Bob-magic", base=self.basedir)
         self.mkdir_nonascii(bob_magic_dir)
         d = self.create_magic_folder(0)
-        d.addCallback(lambda x: self.invite_n(0, x))
-        d.addCallback(lambda x: self.join(0, alice_magic_dir, x))
+        d.addCallback(lambda x: self.invite(0, u"Alice"))
+        def get_invitecode(result):
+            self.invitecode = result[1].strip()
+        d.addCallback(get_invitecode)
+        d.addCallback(lambda x: self.join(0, alice_magic_dir, self.invitecode))
         def get_alice_caps(x):
-            alice_collective_dircap, alice_upload_dircap = self.get_caps_from_files(0)
+            self.alice_collective_dircap, self.alice_upload_dircap = self.get_caps_from_files(0)
         d.addCallback(get_alice_caps)
-        d.addCallback(lambda x: self.check_joined_config(0, alice_upload_dircap))
+        d.addCallback(lambda x: self.check_joined_config(0, self.alice_upload_dircap))
         d.addCallback(lambda x: self.check_config(0, alice_magic_dir))
         def get_Alice_magicfolder(result):
-            self.alice_magicfolder = self.init_magicfolder(0, alice_upload_dircap, alice_collective_dircap, alice_magic_dir)
+            self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap, self.alice_collective_dircap, alice_magic_dir)
             return result
         d.addCallback(get_Alice_magicfolder)
-        d.addCallback(lambda x: self.invite_n(0, u"Bob"))
-        d.addCallback(lambda x: self.join(1, bob_magic_dir, x))
+        d.addCallback(lambda x: self.invite(0, u"Bob"))
+        def get_invitecode(result):
+            self.invitecode = result[1].strip()
+        d.addCallback(get_invitecode)
+        d.addCallback(lambda x: self.join(1, bob_magic_dir, self.invitecode))
         def get_bob_caps(x):
-            bob_collective_dircap, bob_upload_dircap = self.get_caps_from_files(1)
+            self.bob_collective_dircap, self.bob_upload_dircap = self.get_caps_from_files(1)
         d.addCallback(get_bob_caps)
-        d.addCallback(lambda x: self.check_joined_config(1, bob_upload_dircap))
+        d.addCallback(lambda x: self.check_joined_config(1, self.bob_upload_dircap))
         d.addCallback(lambda x: self.check_config(1, bob_magic_dir))
         def get_Bob_magicfolder(result):
-            self.bob_magicfolder = self.init_magicfolder(1, bob_upload_dircap, bob_collective_dircap, bob_magic_dir)
+            self.bob_magicfolder = self.init_magicfolder(1, self.bob_upload_dircap, self.bob_collective_dircap, bob_magic_dir)
             return result
         d.addCallback(get_Bob_magicfolder)
-
-        def cleanup_Alice_and_Bob(result):
-            d = defer.succeed(None)
-            d.addCallback(lambda ign: self.alice_magicfolder.finish(for_tests=True))
-            d.addCallback(lambda ign: self.bob_magicfolder.finish(for_tests=True))
-            d.addCallback(lambda ign: result)
-            return d
-        d.addCallback(cleanup_Alice_and_Bob)
+        def prepare_result(result):
+            return self.alice_collective_dircap, self.alice_upload_dircap, self.alice_magicfolder, self.bob_collective_dircap, self.bob_upload_dircap, self.bob_magicfolder
+        d.addCallback(prepare_result)
         return d
 
 class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
