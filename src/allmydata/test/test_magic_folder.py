@@ -19,7 +19,7 @@ from allmydata.frontends import magic_folder
 from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import backupdb
 from allmydata.util.fileutil import abspath_expanduser_unicode
-
+from allmydata.util import fileutil
 
 class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
     """
@@ -321,6 +321,25 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             # XXX
             self.alice_collective_dir, self.alice_upload_dircap, self.alice_magicfolder, self.bob_collective_dircap, self.bob_upload_dircap, self.bob_magicfolder = result
         d.addCallback(get_results)
+
+        def write_a_file(result):
+            file_path = os.path.join(self.alice_magicfolder._local_dir, "file1")
+            fileutil.write(file_path, "meow, meow meow. meow? meow meow! meow.")
+            # XXX fix me --> self.notify(file_path, self.inotify.IN_CLOSE_WRITE)
+        d.addCallback(write_a_file)
+
+        def wait_for_upload(result):
+            d2 = defer.Deferred()
+            self.alice_magicfolder.set_processed_callback(d2.callback, ignore_count=0)
+            return d2
+        d.addCallback(wait_for_upload)
+        def prepare_for_stats(result):
+            self.stats_provider = self.alice_magicfolder._client.stats_provider
+        d.addCallback(prepare_for_stats)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 0))
 
         def cleanup_Alice_and_Bob(result):
             d = defer.succeed(None)
