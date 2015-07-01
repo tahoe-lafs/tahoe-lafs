@@ -47,7 +47,7 @@ class MagicFolder(service.MultiService):
         service.MultiService.__init__(self)
         self._local_dir = abspath_expanduser_unicode(local_dir)
         self._upload_lazy_tail = defer.succeed(None)
-        self._pending = set()
+        self._upload_pending = set()
         self._client = client
         self._stats_provider = client.stats_provider
         self._convergence = client.convergence
@@ -166,14 +166,14 @@ class MagicFolder(service.MultiService):
                 self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
             elif isdir:
                 # process directories unconditionally
-                self._append_to_deque(childpath)
+                self._append_to_upload_deque(childpath)
 
                 # recurse on the child directory
                 self._scan(childpath)
             elif isfile:
                 is_uploaded = self._db_file_is_uploaded(childpath)
                 if not is_uploaded:
-                    self._append_to_deque(childpath)
+                    self._append_to_upload_deque(childpath)
             else:
                 self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
 
@@ -195,16 +195,16 @@ class MagicFolder(service.MultiService):
         processing the upload items...
         """
         self.is_upload_ready = True
-        self._turn_deque()
+        self._turn_upload_deque()
 
-    def _append_to_deque(self, path):
+    def _append_to_upload_deque(self, path):
         self._upload_deque.append(path)
-        self._pending.add(path)
+        self._upload_pending.add(path)
         self._stats_provider.count('magic_folder.objects_queued', 1)
         if self.is_upload_ready:
-            reactor.callLater(0, self._turn_deque)
+            reactor.callLater(0, self._turn_upload_deque)
 
-    def _turn_deque(self):
+    def _turn_upload_deque(self):
         try:
             path = self._upload_deque.pop()
         except IndexError:
@@ -212,13 +212,13 @@ class MagicFolder(service.MultiService):
             self._upload_lazy_tail = defer.succeed(None)
             return
         self._upload_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._process, path))
-        self._upload_lazy_tail.addCallback(lambda ign: self._turn_deque())
+        self._upload_lazy_tail.addCallback(lambda ign: self._turn_upload_deque())
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
         path_u = unicode_from_filepath(path)
-        if path_u not in self._pending:
-            self._append_to_deque(path_u)
+        if path_u not in self._upload_pending:
+            self._append_to_upload_deque(path_u)
 
     def _process(self, path):
         d = defer.succeed(None)
@@ -243,7 +243,7 @@ class MagicFolder(service.MultiService):
             return d2
 
         def _maybe_upload(val):
-            self._pending.remove(path)
+            self._upload_pending.remove(path)
             relpath = os.path.relpath(path, self._local_dir)
             name = magicpath.path2magic(relpath)
 
