@@ -85,7 +85,9 @@ class MagicFolder(service.MultiService):
             raise AssertionError("The URI in 'private/magic_folder_dircap' is not a writecap to a directory.")
 
         self._processed_callback = lambda ign: None
+        self._download_callback = lambda ign: None
         self._ignore_count = 0
+        self._download_ignore_count = 0
 
         self._notifier = inotify.INotify()
         if hasattr(self._notifier, 'set_pending_delay'):
@@ -283,10 +285,19 @@ class MagicFolder(service.MultiService):
             self._ignore_count -= 1
         return None  # intentionally suppress failures, which have already been logged
 
+    def set_download_callback(self, callback, ignore_count=0):
+        """
+        set_download_callback sets a function that will be called after a
+        remote filesystem notification has been processed (successfully or unsuccessfully).
+        """
+        self._download_callback = callback
+        self._download_ignore_count = ignore_count
+
+
     def set_processed_callback(self, callback, ignore_count=0):
         """
-        This sets a function that will be called after a notification has been processed
-        (successfully or unsuccessfully).
+        set_processed_callback sets a function that will be called after a
+        local filesystem notification has been processed (successfully or unsuccessfully).
         """
         self._processed_callback = callback
         self._ignore_count = ignore_count
