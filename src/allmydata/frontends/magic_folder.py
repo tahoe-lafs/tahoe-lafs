@@ -9,7 +9,6 @@ from twisted.python import runtime
 from twisted.application import service
 
 from allmydata.interfaces import IDirectoryNode
-
 from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
@@ -108,8 +107,32 @@ class MagicFolder(service.MultiService):
         self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
+
     def _scan_remote_collective(self):
-        return self._collective_dirnode.list()
+        upload_readonly_dircap = self._upload_dirnode.get_readonly_uri()
+        collective_dirmap_d = self._collective_dirnode.list()
+        def do_filter(result):
+            def not_mine(x):
+                return result[x][0].get_readonly_uri() != upload_readonly_dircap
+            others = filter(not_mine, result.keys())
+            return result, others
+        collective_dirmap_d.addCallback(do_filter)
+        def do_scans(result):
+            d = defer.succeed(None)
+            collective_dirmap, others = result
+            for dir_name in others:
+                d.addCallback(self._scan_remote(collective_dirmap[dir_name][0]))
+            return d
+        collective_dirmap_d.addCallback(do_scans)
+        return collective_dirmap_d
+
+    def _scan_remote(self, dirnode):
+        listing_d = dirnode.list()
+        def display_listing(result):
+            return result.keys()
+        listing_d.addCallback(display_listing)
+        # XXX ...
+        return listing_d
         
     def _db_file_is_uploaded(self, childpath):
         """_db_file_is_uploaded returns true if the file was previously uploaded
