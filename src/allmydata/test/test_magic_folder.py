@@ -59,7 +59,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.magicfolder = MagicFolder(self.client, self.upload_dircap, self.collective_dircap, self.local_dir,
                                        dbfile, inotify=self.inotify, pending_delay=0.2)
         self.magicfolder.setServiceParent(self.client)
-        self.magicfolder.upload_ready()
+        self.magicfolder.ready()
 
     # Prevent unclean reactor errors.
 
@@ -349,7 +349,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         def prepare_for_bob_stats(result):
             self.stats_provider = self.bob_magicfolder._client.stats_provider
         d.addCallback(prepare_for_bob_stats)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_downloaded'), 1))
 
         def cleanup_Alice_and_Bob(result):
             d = defer.succeed(None)
