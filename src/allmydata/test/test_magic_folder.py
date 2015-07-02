@@ -39,9 +39,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
     def _createdb(self):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
-        bdb = backupdb.get_backupdb(dbfile)
+        bdb = backupdb.get_backupdb(dbfile, create_version=(backupdb.SCHEMA_v3, 3))
         self.failUnless(bdb, "unable to create backupdb from %r" % (dbfile,))
-        self.failUnlessEqual(bdb.VERSION, 2)
+        self.failUnlessEqual(bdb.VERSION, 3)
         return bdb
 
     def _made_upload_dir(self, n):
