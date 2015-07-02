@@ -237,7 +237,7 @@ class MagicFolder(service.MultiService):
                 self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
 
     def startService(self):
-        self._db = backupdb.get_backupdb(self._dbfile)
+        self._db = backupdb.get_backupdb(self._dbfile, create_version=(backupdb.SCHEMA_v3, 3))
         if self._db is None:
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
 
@@ -307,44 +307,53 @@ class MagicFolder(service.MultiService):
     def _process(self, path):
         d = defer.succeed(None)
 
-        def _add_file(name):
+        def _add_file(name, version):
             u = FileName(path, self._convergence)
-            return self._upload_dirnode.add_file(name, u, metadata={"version":1}, overwrite=True)
+            return self._upload_dirnode.add_file(name, u, metadata={"version":version}, overwrite=True)
 
         def _add_dir(name):
             self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
             u = Data("", self._convergence)
             name += "@_"
-            d2 = self._upload_dirnode.add_file(name, u, metadata={"version":1}, overwrite=True)
+            upload_d = self._upload_dirnode.add_file(name, u, metadata={"version":1}, overwrite=True)
             def _succeeded(ign):
                 self._log("created subdirectory %r" % (path,))
                 self._stats_provider.count('magic_folder.directories_created', 1)
             def _failed(f):
                 self._log("failed to create subdirectory %r" % (path,))
                 return f
-            d2.addCallbacks(_succeeded, _failed)
-            d2.addCallback(lambda ign: self._scan(path))
-            return d2
+            upload_d.addCallbacks(_succeeded, _failed)
+            upload_d.addCallback(lambda ign: self._scan(path))
+            return upload_d
 
         def _maybe_upload(val):
             self._upload_pending.remove(path)
             relpath = os.path.relpath(path, self._local_dir)
             name = magicpath.path2magic(relpath)
 
+            def get_metadata(result):
+                try:
+                    metadata_d = self._parent.get_metadata_for(name)
+                except KeyError:
+                    return failure.Failure()
+                return metadata_d
+
+            def get_local_version(path):
+                v = self._db.get_local_file_version(path)
+                if v is None:
+                    return 1
+                else:
+                    return v
+
             if not os.path.exists(path):
                 self._log("drop-upload: notified object %r disappeared "
                           "(this is normal for temporary objects)" % (path,))
                 self._stats_provider.count('magic_folder.objects_disappeared', 1)
-
                 d2 = defer.succeed(None)
-                if not self._db.check_file_db_exists(path):
-                    pass
-                else:
-                    def get_metadata(d):
-                        return self._parent.get_metadata_for(name)
+                if self._db.check_file_db_exists(path):
                     d2.addCallback(get_metadata)
                     def set_deleted(metadata):
-                        metadata['version'] += 1
+                        metadata['version'] = get_local_version(path) + 1
                         metadata['deleted'] = True
                         emptyUploadable = Data("", self._convergence)
                         return self._parent.add_file(name, emptyUploadable, overwrite=True, metadata=metadata)
@@ -356,7 +365,8 @@ class MagicFolder(service.MultiService):
             if os.path.isdir(path):
                 return _add_dir(name)
             elif os.path.isfile(path):
-                d2 = _add_file(name)
+                version = get_local_version(path)
+                d2 = _add_file(name, version)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
                     s = os.stat(path)
