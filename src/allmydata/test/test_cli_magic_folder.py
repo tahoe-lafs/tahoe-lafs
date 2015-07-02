@@ -116,7 +116,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         magicfolder = MagicFolder(self.get_client(client_num), upload_dircap, collective_dircap, local_magic_dir,
                                        dbfile, inotify=self.inotify, pending_delay=0.2)
         magicfolder.setServiceParent(self.get_client(client_num))
-        magicfolder.upload_ready()
+        magicfolder.ready()
         return magicfolder
 
     def setup_alice_and_bob(self):
