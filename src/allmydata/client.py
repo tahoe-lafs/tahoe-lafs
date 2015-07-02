@@ -520,7 +520,7 @@ class Client(node.Node, pollmixin.PollMixin):
                 s.startService()
 
                 # start processing the upload queue when we've connected to enough servers
-                self.upload_ready_d.addCallback(s.upload_ready)
+                self.upload_ready_d.addCallback(s.ready)
             except Exception, e:
                 self.log("couldn't start Magic Folder: %r", args=(e,))
 
