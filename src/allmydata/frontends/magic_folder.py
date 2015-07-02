@@ -46,7 +46,7 @@ class MagicFolder(service.MultiService):
 
         service.MultiService.__init__(self)
         self._stopped = False
-        self._remote_scan_delay = 3 # XXX
+        self._remote_scan_delay = 10 # XXX
         self._local_dir = abspath_expanduser_unicode(local_dir)
         self._upload_lazy_tail = defer.succeed(None)
         self._upload_pending = set()
@@ -122,11 +122,18 @@ class MagicFolder(service.MultiService):
         We check the remote metadata version against our magic-folder db version number;
         latest version wins.
         """
-        # XXX todo
-        return True
+        v = self._db.get_local_file_version(path)
+        if v is None:
+            return True
+        else:
+            if v < remote_version:
+                return True
+            else:
+                return False
 
     def _scan_remote(self, nickname, dirnode):
         listing_d = dirnode.list()
+        self._download_scan_batch = {}
         def scan_listing(listing_map):
             for name in listing_map.keys():
                 file_node, metadata = listing_map[name]
@@ -150,11 +157,12 @@ class MagicFolder(service.MultiService):
             d = defer.succeed(None)
             collective_dirmap, others_list = result
             for dir_name in others_list:
+                # XXX this is broken
                 d.addCallback(lambda x: self._scan_remote(dir_name, collective_dirmap[dir_name][0]))
+                collective_dirmap_d.addCallback(self._filter_scan_batch)
+                collective_dirmap_d.addCallback(self._add_batch_to_download_queue)
             return d
         collective_dirmap_d.addCallback(scan_collective)
-        collective_dirmap_d.addCallback(self._filter_scan_batch)
-        collective_dirmap_d.addCallback(self._add_batch_to_download_queue)
         return collective_dirmap_d
 
     def _add_batch_to_download_queue(self, result):
@@ -165,29 +173,26 @@ class MagicFolder(service.MultiService):
         extension = []
         for name in self._download_scan_batch.keys():
             if name in self._download_pending:
-                # XXX
                 continue
-            if len(self._download_scan_batch[name]) == 1:
-                filename, file_node, metadata = self._download_scan_batch[name][0]
+            for item in self._download_scan_batch[name]:
+                (nickname, file_node, metadata) = item
                 if self._should_download(name, metadata['version']):
                     extension += [(name, file_node, metadata)]
-            else:
-                for item in self._download_scan_batch:
-                    nickname, file_node, metadata = item
-                    if self._should_download(name, metadata['version']):
-                        extension += [(name, file_node, metadata)]
         return extension
 
     def _download_file(self, name, file_node):
-        print "_download_file"
         d = file_node.download_best_version()
         def succeeded(res):
             d.addCallback(lambda result: self._write_downloaded_file(name, result))
             self._stats_provider.count('magic_folder.objects_downloaded', +1)
+            return None
         def failed(f):
-            pass
+            return failure.Failure("download failed")
+        def remove_from_pending(result):
+            self._download_pending = self._download_pending.difference(set([name]))
         d.addCallbacks(succeeded, failed)
         d.addBoth(self._do_download_callback)
+        d.addBoth(remove_from_pending)
         return d
 
     def _write_downloaded_file(self, name, file_contents):
@@ -256,18 +261,8 @@ class MagicFolder(service.MultiService):
         self.is_ready = True
         self._turn_upload_deque()
         self._turn_download_deque()
-        self._scan_remote_collective()
-
-    def _append_to_download_deque(self, name, file_node):
-        if name in self._download_pending:
-            return
-        self._download_deque.append(file_node) # XXX
-        self._download_pending.add(name)
-        self._stats_provider.count('magic_folder.objects_queued_for_download', 1)
-        reactor.callLater(0, self._turn_download_deque)
 
     def _turn_download_deque(self):
-        print "_turn_download_deque"
         if self._stopped:
             return
         try:
@@ -275,7 +270,8 @@ class MagicFolder(service.MultiService):
         except IndexError:
             self._log("magic folder upload deque is now empty")
             self._download_lazy_tail = defer.succeed(None)
-            self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, self._remote_scan_delay, self._turn_download_deque))
+            self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, self._remote_scan_delay, self._scan_remote_collective))
+            self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._turn_download_deque))
             return
         self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._download_file, file_path, file_node))
         self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, self._remote_scan_delay, self._turn_download_deque))
@@ -333,17 +329,10 @@ class MagicFolder(service.MultiService):
 
             def get_metadata(result):
                 try:
-                    metadata_d = self._parent.get_metadata_for(name)
+                    metadata_d = self._upload_dirnode.get_metadata_for(name)
                 except KeyError:
                     return failure.Failure()
                 return metadata_d
-
-            def get_local_version(path):
-                v = self._db.get_local_file_version(path)
-                if v is None:
-                    return 1
-                else:
-                    return v
 
             if not os.path.exists(path):
                 self._log("drop-upload: notified object %r disappeared "
@@ -353,10 +342,12 @@ class MagicFolder(service.MultiService):
                 if self._db.check_file_db_exists(path):
                     d2.addCallback(get_metadata)
                     def set_deleted(metadata):
-                        metadata['version'] = get_local_version(path) + 1
+                        current_version = self._db.get_local_file_version(path) + 1
+                        print "current version ", current_version
+                        metadata['version'] = current_version
                         metadata['deleted'] = True
                         emptyUploadable = Data("", self._convergence)
-                        return self._parent.add_file(name, emptyUploadable, overwrite=True, metadata=metadata)
+                        return self._upload_dirnode.add_file(name, emptyUploadable, overwrite=True, metadata=metadata)
                     d2.addCallback(set_deleted)
                 d2.addCallback(lambda x: Exception("file does not exist"))
                 return d2
@@ -365,7 +356,11 @@ class MagicFolder(service.MultiService):
             if os.path.isdir(path):
                 return _add_dir(name)
             elif os.path.isfile(path):
-                version = get_local_version(path)
+                version = self._db.get_local_file_version(path)
+                if version is None:
+                    version = 1
+                else:
+                    version += 1
                 d2 = _add_file(name, version)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
@@ -373,7 +368,7 @@ class MagicFolder(service.MultiService):
                     size = s[stat.ST_SIZE]
                     ctime = s[stat.ST_CTIME]
                     mtime = s[stat.ST_MTIME]
-                    self._db.did_upload_file(filecap, path, mtime, ctime, size)
+                    self._db.did_upload_file(filecap, path, version, mtime, ctime, size)
                     self._stats_provider.count('magic_folder.files_uploaded', 1)
                 d2.addCallback(add_db_entry)
                 return d2
