@@ -417,3 +417,24 @@ class BackupDB_v3(BackupDB_v2):
             return None
         else:
             return row[0]
+
+    def did_upload_file(self, filecap, path, version, mtime, ctime, size):
+        now = time.time()
+        fileid = self.get_or_allocate_fileid_for_cap(filecap)
+        try:
+            self.cursor.execute("INSERT INTO last_upload VALUES (?,?,?)",
+                                (fileid, now, now))
+        except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
+            self.cursor.execute("UPDATE last_upload"
+                                " SET last_uploaded=?, last_checked=?"
+                                " WHERE fileid=?",
+                                (now, now, fileid))
+        try:
+            self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?)",
+                                (path, size, mtime, ctime, fileid, version))
+        except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
+            self.cursor.execute("UPDATE local_files"
+                                " SET size=?, mtime=?, ctime=?, fileid=?, version=?"
+                                " WHERE path=?",
+                                (size, mtime, ctime, fileid, path, version))
+        self.connection.commit()
