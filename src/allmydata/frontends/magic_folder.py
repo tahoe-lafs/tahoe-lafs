@@ -46,7 +46,7 @@ class MagicFolder(service.MultiService):
 
         service.MultiService.__init__(self)
         self._stopped = False
-        self._remote_scan_delay = 10 # XXX
+        self._remote_scan_delay = 3 # XXX
         self._local_dir = abspath_expanduser_unicode(local_dir)
         self._upload_lazy_tail = defer.succeed(None)
         self._upload_pending = set()
@@ -207,6 +207,8 @@ class MagicFolder(service.MultiService):
         filecap = r.was_uploaded()
         if filecap is False:
             return False
+        else:
+            return True
 
     def _scan(self, localpath):
         if not os.path.isdir(localpath):
@@ -272,7 +274,7 @@ class MagicFolder(service.MultiService):
             self._log("magic folder upload deque is now empty")
             self._download_lazy_tail = defer.succeed(None)
             self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, self._remote_scan_delay, self._scan_remote_collective))
-            #self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._turn_download_deque))
+            self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._turn_download_deque))
             return
         self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._download_file, file_path, file_node))
         self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, self._remote_scan_delay, self._turn_download_deque))
@@ -344,7 +346,6 @@ class MagicFolder(service.MultiService):
                     d2.addCallback(get_metadata)
                     def set_deleted(metadata):
                         current_version = self._db.get_local_file_version(path) + 1
-                        print "current version ", current_version
                         metadata['version'] = current_version
                         metadata['deleted'] = True
                         emptyUploadable = Data("", self._convergence)
