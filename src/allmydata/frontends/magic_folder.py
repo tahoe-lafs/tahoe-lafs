@@ -53,6 +53,7 @@ class MagicFolder(service.MultiService):
         self._download_scan_batch = {}
         self._download_lazy_tail = defer.succeed(None)
         self._download_pending = set()
+        self._collective_dirnode = None
         self._client = client
         self._stats_provider = client.stats_provider
         self._convergence = client.convergence
@@ -114,8 +115,6 @@ class MagicFolder(service.MultiService):
                              recursive=True)
 
 
-        self._scan_remote_collective()
-
     def _should_download(self, path, remote_version):
         """
         _should_download returns a bool indicating whether or not a remote object should be downloaded.
@@ -145,6 +144,8 @@ class MagicFolder(service.MultiService):
         return listing_d
 
     def _scan_remote_collective(self):
+        if self._collective_dirnode is None:
+            return
         upload_readonly_dircap = self._upload_dirnode.get_readonly_uri()
         collective_dirmap_d = self._collective_dirnode.list()
         def do_filter(result):
@@ -271,7 +272,7 @@ class MagicFolder(service.MultiService):
             self._log("magic folder upload deque is now empty")
             self._download_lazy_tail = defer.succeed(None)
             self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, self._remote_scan_delay, self._scan_remote_collective))
-            self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._turn_download_deque))
+            #self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._turn_download_deque))
             return
         self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._download_file, file_path, file_node))
         self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, self._remote_scan_delay, self._turn_download_deque))
