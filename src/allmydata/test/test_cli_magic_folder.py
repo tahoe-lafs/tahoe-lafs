@@ -107,7 +107,10 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
     def cleanup(self, res):
         d = defer.succeed(None)
         if self.magicfolder is not None:
+            print "CLEANUP"
             d.addCallback(lambda ign: self.magicfolder.finish(for_tests=True))
+        else:
+            print "cannot CLEANUP self.magicfolder is None"
         d.addCallback(lambda ign: res)
         return d
 

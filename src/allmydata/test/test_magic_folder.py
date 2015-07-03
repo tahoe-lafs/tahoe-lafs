@@ -74,7 +74,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         db = self._createdb()
 
         path = abspath_expanduser_unicode(u"myFile1", base=self.basedir)
-        db.did_upload_file('URI:LIT:1', path, 0, 0, 33)
+        db.did_upload_file('URI:LIT:1', path, 1, 0, 0, 33)
 
         c = db.cursor
         c.execute("SELECT size,mtime,ctime,fileid"
@@ -92,7 +92,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         size = s[stat.ST_SIZE]
         ctime = s[stat.ST_CTIME]
         mtime = s[stat.ST_MTIME]
-        db.did_upload_file('URI:LIT:2', path, mtime, ctime, size)
+        db.did_upload_file('URI:LIT:2', path, 1, mtime, ctime, size)
         r = db.check_file(path)
         self.failUnless(r.was_uploaded())
 
@@ -207,9 +207,10 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
+        self.collective_dircap = ""
+
         d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._create_magicfolder)
-
         def create_test_file(result):
             d2 = defer.Deferred()
             self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
@@ -220,20 +221,22 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(create_test_file)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
-
-        def _restart(ign):
+        
+        def restart(ignore):
             tahoe_config_file = os.path.join(self.get_clientdir(), "tahoe.cfg")
             tahoe_config = fileutil.read(tahoe_config_file)
+            d3 = defer.succeed(None)
             def write_config(client_node_dir):
                 fileutil.write(os.path.join(client_node_dir, "tahoe.cfg"), tahoe_config)
-            self.set_up_grid(client_config_hooks={0: write_config})
-            self.client = self.g.clients[0]
-            self.stats_provider = self.client.stats_provider
-            d.addCallback(self._create_magicfolder)
-            d.addCallback(lambda x: time.sleep(1))
-
-        d.addCallback(self.cleanup)
-        d.addCallback(_restart)
+            def setup_stats(result):
+                self.set_up_grid(client_config_hooks={0: write_config})
+                self.client = self.g.clients[0]
+                self.stats_provider = self.client.stats_provider
+            d3.addBoth(self.cleanup)
+            d3.addCallback(setup_stats)
+            d3.addCallback(self._create_magicfolder)
+            return d3
+        d.addCallback(restart)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         d.addBoth(self.cleanup)
@@ -250,6 +253,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d = self.client.create_dirnode()
 
         d.addCallback(self._made_upload_dir)
+        self.collective_dircap = ""
         d.addCallback(self._create_magicfolder)
 
         # Write something short enough for a LIT file.
