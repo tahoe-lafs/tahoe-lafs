@@ -328,9 +328,11 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         def Alice_write_a_file(result):
             print "Alice writes a file\n"
-            self.file_path = os.path.join(self.alice_magicfolder._local_dir, "file1")
+            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder._local_dir)
             fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
-            # XXX fix me --> self.notify(file_path, self.inotify.IN_CLOSE_WRITE)
+            self.magicfolder = self.alice_magicfolder
+            self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
+
         d.addCallback(Alice_write_a_file)
 
         def Alice_wait_for_upload(result):
@@ -362,7 +364,8 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         def Alice_delete_file(result):
             print "Alice deletes the file!\n"
             os.unlink(self.file_path)
-            self.notify(self.file_path, self.inotify.IN_DELETE)
+            self.notify(to_filepath(self.file_path), self.inotify.IN_DELETE)
+
             return None
         d.addCallback(Alice_delete_file)
         d.addCallback(Alice_wait_for_upload)
