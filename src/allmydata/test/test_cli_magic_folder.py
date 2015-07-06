@@ -40,7 +40,6 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return d
 
     def join(self, client_num, local_dir, invite_code):
-        print "INVITE CODE ", invite_code
         magic_readonly_cap, dmd_write_cap = invite_code.split(magic_folder_cli.INVITE_SEPERATOR)
         d = self.do_cli_n(client_num, "magic-folder", "join", invite_code, local_dir)
         def _done((rc,stdout,stderr)):
@@ -107,10 +106,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
     def cleanup(self, res):
         d = defer.succeed(None)
         if self.magicfolder is not None:
-            print "CLEANUP"
             d.addCallback(lambda ign: self.magicfolder.finish(for_tests=True))
-        else:
-            print "cannot CLEANUP self.magicfolder is None"
         d.addCallback(lambda ign: res)
         return d
 
