@@ -106,10 +106,8 @@ def get_backupdb(dbfile, stderr=sys.stderr,
         (sqlite3, db) = get_db(dbfile, stderr, create_version, updaters=UPDATERS,
                                just_create=just_create, dbname="backupdb")
         if create_version[1] == 2:
-            print "ver 2!"
             return BackupDB_v2(sqlite3, db)
         elif create_version[1] == 3:
-            print "ver 3!"
             return BackupDB_v3(sqlite3, db)
         else:
             print >>stderr, "invalid db schema version specified"
