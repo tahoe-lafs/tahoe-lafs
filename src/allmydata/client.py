@@ -498,31 +498,23 @@ class Client(node.Node, pollmixin.PollMixin):
                                        "See docs/frontends/magic-folder.rst for more information.")
 
         if self.get_config("magic_folder", "enabled", False, boolean=True):
-            upload_dircap = self.get_or_create_private_config("magic_folder_dircap")
-            upload_dircap is not None
-            # XXX correcto?
-            #local_dir_config = self.get_config("magic_folder", "local.directory").decode("utf-8")
+            upload_dircap = self.get_private_config("magic_folder_dircap")
+            collective_dircap = self.get_private_config("collective_dircap")
+
             local_dir_config = self.get_config("magic_folder", "local.directory").decode("utf-8")
             local_dir = abspath_expanduser_unicode(local_dir_config, base=self.basedir)
 
-            try:
-                from allmydata.frontends import magic_folder
-                dbfile = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
-                dbfile = abspath_expanduser_unicode(dbfile)
+            dbfile = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
+            dbfile = abspath_expanduser_unicode(dbfile)
 
-                collective_dircap_path = os.path.join(self.basedir, "private", "collective_dircap")
-                collective_dircap_path = abspath_expanduser_unicode(collective_dircap_path)
-                collective_dircap = fileutil.read(collective_dircap_path).strip()
-                assert collective_dircap is not None
+            from allmydata.frontends import magic_folder
 
-                s = magic_folder.MagicFolder(self, upload_dircap, collective_dircap, local_dir, dbfile)
-                s.setServiceParent(self)
-                s.startService()
+            s = magic_folder.MagicFolder(self, upload_dircap, collective_dircap, local_dir, dbfile)
+            s.setServiceParent(self)
+            s.startService()
 
-                # start processing the upload queue when we've connected to enough servers
-                self.upload_ready_d.addCallback(s.ready)
-            except Exception, e:
-                self.log("couldn't start Magic Folder: %r", args=(e,))
+            # start processing the upload queue when we've connected to enough servers
+            self.upload_ready_d.addCallback(s.ready)
 
     def _check_exit_trigger(self, exit_trigger_file):
         if os.path.exists(exit_trigger_file):
