@@ -7,8 +7,10 @@ from twisted.python import failure
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from foolscap.api import eventually, fireEventually, DeadReferenceError, \
      RemoteException
+
 from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError, \
      DownloadStopped, MDMF_VERSION, SDMF_VERSION
+from allmydata.util.assertutil import _assert
 from allmydata.util import hashutil, log, mathutil, deferredutil
 from allmydata.util.dictutil import DictOfSets
 from allmydata import hashtree, codec
@@ -408,7 +410,9 @@ class Retrieve:
             # offset we were given.
             start = self._offset // self._segment_size
 
-            assert start < self._num_segments
+            _assert(start < self._num_segments,
+                    start=start, num_segments=self._num_segments,
+                    offset=self._offset, segment_size=self._segment_size)
             self._start_segment = start
             self.log("got start segment: %d" % self._start_segment)
         else:
@@ -429,7 +433,10 @@ class Retrieve:
                 # but the one before it.
                 end = (end_data - 1) // self._segment_size
 
-                assert end < self._num_segments
+                _assert(end < self._num_segments,
+                        end=end, num_segments=self._num_segments,
+                        end_data=end_data, offset=self._offset, read_length=self._read_length,
+                        segment_size=self._segment_size)
                 self._last_segment = end
             else:
                 self._last_segment = self._start_segment
