@@ -3068,7 +3068,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
         self.data = "test data" * 100000 # about 900 KiB; MDMF
-        self.small_data = "test data" * 10 # about 90 B; SDMF
+        self.small_data = "test data" * 10 # 90 B; SDMF
 
 
     def do_upload_mdmf(self):
@@ -3082,8 +3082,10 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(_then)
         return d
 
-    def do_upload_sdmf(self):
-        d = self.nm.create_mutable_file(MutableData(self.small_data))
+    def do_upload_sdmf(self, data=None):
+        if data is None:
+            data = self.small_data
+        d = self.nm.create_mutable_file(MutableData(data))
         def _then(n):
             assert isinstance(n, MutableFileNode)
             assert n._protocol_version == SDMF_VERSION
@@ -3359,45 +3361,80 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
 
-    def test_partial_read(self):
-        d = self.do_upload_mdmf()
-        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
-        modes = [("start_on_segment_boundary",
-                  mathutil.next_multiple(128 * 1024, 3), 50),
-                 ("ending_one_byte_after_segment_boundary",
-                  mathutil.next_multiple(128 * 1024, 3)-50, 51),
-                 ("zero_length_at_start", 0, 0),
-                 ("zero_length_in_middle", 50, 0),
-                 ("zero_length_at_segment_boundary",
-                  mathutil.next_multiple(128 * 1024, 3), 0),
-                 ]
+    def _test_partial_read(self, node, expected, modes, step):
+        d = node.get_best_readable_version()
         for (name, offset, length) in modes:
-            d.addCallback(self._do_partial_read, name, offset, length)
+            d.addCallback(self._do_partial_read, name, expected, offset, length)
         # then read only a few bytes at a time, and see that the results are
         # what we expect.
         def _read_data(version):
             c = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
-            for i in xrange(0, len(self.data), 10000):
-                d2.addCallback(lambda ignored, i=i: version.read(c, i, 10000))
+            for i in xrange(0, len(expected), step):
+                d2.addCallback(lambda ignored, i=i: version.read(c, i, step))
             d2.addCallback(lambda ignored:
-                self.failUnlessEqual(self.data, "".join(c.chunks)))
+                self.failUnlessEqual(expected, "".join(c.chunks)))
             return d2
         d.addCallback(_read_data)
         return d
-    def _do_partial_read(self, version, name, offset, length):
+
+    def _do_partial_read(self, version, name, expected, offset, length):
         c = consumer.MemoryConsumer()
         d = version.read(c, offset, length)
-        expected = self.data[offset:offset+length]
+        expected_range = expected[offset:offset+length]
         d.addCallback(lambda ignored: "".join(c.chunks))
         def _check(results):
-            if results != expected:
-                print
+            if results != expected_range:
                 print "got: %s ... %s" % (results[:20], results[-20:])
-                print "exp: %s ... %s" % (expected[:20], expected[-20:])
-                self.fail("results[%s] != expected" % name)
+                print "exp: %s ... %s" % (expected_range[:20], expected_range[-20:])
+                self.fail("results[%s] != expected_range" % name)
             return version # daisy-chained to next call
         d.addCallback(_check)
+        return d
+
+    def test_partial_read_mdmf(self):
+        segment_boundary = mathutil.next_multiple(128 * 1024, 3)
+        modes = [("start_on_segment_boundary",              segment_boundary, 50),
+                 ("ending_one_byte_after_segment_boundary", segment_boundary-50, 51),
+                 ("zero_length_at_start",                   0, 0),
+                 ("zero_length_in_middle",                  50, 0),
+                 ("zero_length_at_segment_boundary",        segment_boundary, 0),
+                 ("complete_file",                          0, len(self.data)),
+                 ("complete_file_past_end",                 0, len(self.data)+1),
+                 ]
+        d = self.do_upload_mdmf()
+        d.addCallback(self._test_partial_read, self.data, modes, 10000)
+        return d
+
+    def test_partial_read_sdmf_90(self):
+        modes = [("start_at_middle",           50, 40),
+                 ("zero_length_at_start",      0, 0),
+                 ("zero_length_in_middle",     50, 0),
+                 ("complete_file",             0, 90),
+                 ]
+        d = self.do_upload_sdmf()
+        d.addCallback(self._test_partial_read, self.small_data, modes, 10)
+        return d
+
+    def test_partial_read_sdmf_100(self):
+        data = "test data "*10
+        modes = [("start_at_middle",           50, 50),
+                 ("zero_length_at_start",      0, 0),
+                 ("zero_length_in_middle",     50, 0),
+                 ("complete_file",             0, 100),
+                 ]
+        d = self.do_upload_sdmf(data=data)
+        d.addCallback(self._test_partial_read, data, modes, 10)
+        return d
+
+    def test_partial_read_sdmf_2(self):
+        data = "hi"
+        modes = [("one_byte",                  0, 1),
+                 ("last_byte",                 1, 1),
+                 ("complete_file",             0, 2),
+                 ]
+        d = self.do_upload_sdmf(data=data)
+        d.addCallback(self._test_partial_read, data, modes, 1)
         return d
 
 
@@ -3441,7 +3478,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
         self.data = "testdata " * 100000 # about 900 KiB; MDMF
-        self.small_data = "test data" * 10 # about 90 B; SDMF
+        self.small_data = "test data" * 10 # 90 B; SDMF
 
 
     def do_upload_sdmf(self):
