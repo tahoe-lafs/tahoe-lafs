@@ -1,10 +1,10 @@
 
-import os, sys, stat, time, json, re
+import os, sys, stat, time
 
 from twisted.trial import unittest
 from twisted.internet import defer
 
-from allmydata.interfaces import IDirectoryNode, NoSuchChildError
+from allmydata.interfaces import IDirectoryNode
 
 from allmydata.util import fake_inotify, fileutil
 from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
@@ -12,14 +12,12 @@ from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
-from allmydata.test.test_cli import CLITestMixin
 from allmydata.test.test_cli_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
 from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import backupdb
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util import fileutil
 
 class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
     """
@@ -147,7 +145,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 1))
-        
+
         def _check_move_small_tree(res):
             self.mkdir_nonascii(small_tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
@@ -221,7 +219,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(create_test_file)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
-        
+
         def restart(ignore):
             tahoe_config_file = os.path.join(self.get_clientdir(), "tahoe.cfg")
             tahoe_config = fileutil.read(tahoe_config_file)
