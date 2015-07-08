@@ -95,7 +95,9 @@ class MagicFolder(service.MultiService):
         self._ignore_count = 0
         self._download_ignore_count = 0
 
-        self._notifier = inotify.INotify()
+        # XXX correct?
+        self._notifier = self._inotify.INotify()
+
         if hasattr(self._notifier, 'set_pending_delay'):
             self._notifier.set_pending_delay(pending_delay)
 
@@ -104,11 +106,11 @@ class MagicFolder(service.MultiService):
         # be an IN_CLOSE_WRITE after an IN_CREATE (I think).
         # TODO: what about IN_MOVE_SELF, IN_MOVED_FROM, or IN_UNMOUNT?
         #
-        self.mask = ( inotify.IN_CLOSE_WRITE
-                    | inotify.IN_MOVED_TO
-                    | inotify.IN_MOVED_FROM
-                    | inotify.IN_DELETE
-                    | inotify.IN_ONLYDIR
+        self.mask = ( self._inotify.IN_CLOSE_WRITE
+                    | self._inotify.IN_MOVED_TO
+                    | self._inotify.IN_MOVED_FROM
+                    | self._inotify.IN_DELETE
+                    | self._inotify.IN_ONLYDIR
                     | IN_EXCL_UNLINK
                     )
         self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
@@ -439,5 +441,5 @@ class MagicFolder(service.MultiService):
 
     def _log(self, msg):
         self._client.log("drop-upload: " + msg)
-        #print "_log %s" % (msg,)
+        print "_log %s" % (msg,)
         #open("events", "ab+").write(msg)
