@@ -1,14 +1,12 @@
 
 import os, json
 from cStringIO import StringIO
-from twisted.python import usage, failure
+from twisted.python import usage
 
-from allmydata.scripts.common import BaseOptions
 from .common import BaseOptions, BasedirOptions, get_aliases
 from .cli import MakeDirectoryOptions, ListOptions, LnOptions
 import tahoe_ls, tahoe_mv
 from allmydata.util import fileutil
-from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
 INVITE_SEPERATOR = "~"

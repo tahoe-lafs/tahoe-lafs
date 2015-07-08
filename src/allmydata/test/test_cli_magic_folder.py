@@ -1,5 +1,4 @@
 import os.path
-import urllib
 import re
 import json
 
@@ -8,9 +7,7 @@ from twisted.internet import defer
 
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
-from allmydata.scripts import cli, runner
 from allmydata.test.no_network import GridTestMixin
-from allmydata.util.encodingutil import quote_output, get_io_encoding
 from .test_cli import CLITestMixin
 from allmydata.scripts import magic_folder_cli
 from allmydata.util.fileutil import abspath_expanduser_unicode
