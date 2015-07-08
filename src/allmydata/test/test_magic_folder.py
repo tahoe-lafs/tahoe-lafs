@@ -221,18 +221,24 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
 
         def restart(ignore):
+            print "restart"
             tahoe_config_file = os.path.join(self.get_clientdir(), "tahoe.cfg")
             tahoe_config = fileutil.read(tahoe_config_file)
             d3 = defer.succeed(None)
             def write_config(client_node_dir):
+                print "write_config"
                 fileutil.write(os.path.join(client_node_dir, "tahoe.cfg"), tahoe_config)
             def setup_stats(result):
+                print "setup_stats"
+                self.client = None
                 self.set_up_grid(client_config_hooks={0: write_config})
                 self.client = self.g.clients[0]
                 self.stats_provider = self.client.stats_provider
+                self.magicfolder = self.client.getServiceNamed("magic-folder")
+
             d3.addBoth(self.cleanup)
             d3.addCallback(setup_stats)
-            d3.addCallback(self._create_magicfolder)
+            #d3.addCallback(self._create_magicfolder)
             return d3
         d.addCallback(restart)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 0))
@@ -280,7 +286,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         previously_uploaded = self._get_count('magic_folder.objects_succeeded')
         previously_disappeared = self._get_count('magic_folder.objects_disappeared')
 
-        d = defer.Deferred()
 
         # Note: this relies on the fact that we only get one IN_CLOSE_WRITE notification per file
         # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
