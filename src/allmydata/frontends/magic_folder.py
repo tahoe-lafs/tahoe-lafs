@@ -158,8 +158,7 @@ class MagicFolder(service.MultiService):
             d = defer.succeed(None)
             collective_dirmap, others_list = result
             for dir_name in others_list:
-                # XXX this is broken
-                d.addCallback(lambda x: self._scan_remote(dir_name, collective_dirmap[dir_name][0]))
+                d.addCallback(lambda x, dir_name=dir_name: self._scan_remote(dir_name, collective_dirmap[dir_name][0]))
                 collective_dirmap_d.addCallback(self._filter_scan_batch)
                 collective_dirmap_d.addCallback(self._add_batch_to_download_queue)
             return d
@@ -188,7 +187,7 @@ class MagicFolder(service.MultiService):
             self._stats_provider.count('magic_folder.objects_downloaded', +1)
             return None
         def failed(f):
-            return failure.Failure("download failed")
+            return Failure("download failed")
         def remove_from_pending(result):
             self._download_pending = self._download_pending.difference(set([name]))
         d.addCallbacks(succeeded, failed)
@@ -201,7 +200,7 @@ class MagicFolder(service.MultiService):
 
     def _db_file_is_uploaded(self, childpath):
         """_db_file_is_uploaded returns true if the file was previously uploaded
-        """ 
+        """
         assert self._db != None
         r = self._db.check_file(childpath)
         filecap = r.was_uploaded()
@@ -334,7 +333,7 @@ class MagicFolder(service.MultiService):
                 try:
                     metadata_d = self._upload_dirnode.get_metadata_for(name)
                 except KeyError:
-                    return failure.Failure()
+                    return Failure()
                 return metadata_d
 
             if not os.path.exists(path):
