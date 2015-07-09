@@ -299,7 +299,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @mock.patch('allmydata.util.log.msg')
     @mock.patch('allmydata.frontends.magic_folder.MagicFolder')
-    def test_create_drop_uploader(self, mock_magic_folder, mock_log_msg):
+    def test_create_magic_folder_service(self, mock_magic_folder, mock_log_msg):
         class MockMagicFolder(service.MultiService):
             name = 'magic-folder'
 
@@ -327,7 +327,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                   "[magic_folder]\n" +
                   "enabled = true\n")
 
-        basedir1 = "test_client.Basic.test_create_magic_folder1"
+        basedir1 = "test_client.Basic.test_create_magic_folder_service1"
         os.mkdir(basedir1)
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
@@ -358,7 +358,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
             pass
         mock_magic_folder.side_effect = Boom()
 
-        basedir2 = "test_client.Basic.test_create_magic_folder2"
+        basedir2 = "test_client.Basic.test_create_magic_folder_service2"
         os.mkdir(basedir2)
         os.mkdir(os.path.join(basedir2, "private"))
         fileutil.write(os.path.join(basedir2, "tahoe.cfg"),
@@ -368,10 +368,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                        "local.directory = " + local_dir_utf8 + "\n")
         fileutil.write(os.path.join(basedir2, "private", "magic_folder_dircap"), "URI:DIR2:blah")
         fileutil.write(os.path.join(basedir2, "private", "collective_dircap"), "URI:DIR2:meow")
-        c2 = client.Client(basedir2)
-        self.failUnlessRaises(KeyError, c2.getServiceNamed, 'magic-folder')
-        self.failUnless([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg)],
-                        mock_log_msg.call_args_list)
+        self.failUnlessRaises(Boom, client.Client, basedir2)
 
 
 def flush_but_dont_ignore(res):
