@@ -286,9 +286,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         previously_uploaded = self._get_count('magic_folder.objects_succeeded')
         previously_disappeared = self._get_count('magic_folder.objects_disappeared')
 
-
         # Note: this relies on the fact that we only get one IN_CLOSE_WRITE notification per file
         # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
+        d = defer.Deferred()
         self.magicfolder.set_processed_callback(d.callback)
 
         path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
