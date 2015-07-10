@@ -492,10 +492,6 @@ Storage Server Configuration
 
 ``expire.cutoff_date =``
 
-``expire.immutable =``
-
-``expire.mutable =``
-
     These settings control garbage collection, in which the server will
     delete shares that no longer have an up-to-date lease on them. Please see
     :doc:`garbage-collection` for full details.

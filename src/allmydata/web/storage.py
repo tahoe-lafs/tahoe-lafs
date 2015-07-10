@@ -151,9 +151,6 @@ class StorageStatus(rend.Page):
             isoutcdate = time_format.iso_utc_date(lc.cutoff_date)
             ctx.tag["Leases created or last renewed before %s (%s) UTC "
                     "will be considered expired." % (isoutcdate, localizedutcdate, )]
-        if len(lc.mode) > 2:
-            ctx.tag[" The following sharetypes will be expired: ",
-                    " ".join(sorted(lc.sharetypes_to_expire)), "."]
         return ctx.tag
 
     def format_recovered(self, sr, a):
