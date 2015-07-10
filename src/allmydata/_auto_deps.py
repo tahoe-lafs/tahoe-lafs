@@ -92,6 +92,7 @@ install_requires = [
 
     # needed for cloud backend
     "txAWS == 0.2.1.post5",
+    "oauth2client == 1.1.0",
     "python-dateutil",
 ]
 
@@ -121,6 +122,7 @@ package_imports = [
     ('enum34',           'enum'),
     ('pycparser',        'pycparser'),
     ('txAWS',            'txaws'),
+    ('oauth2client',     'oauth2client'),
     ('python-dateutil',  'dateutil'),
 ]
 
