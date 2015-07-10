@@ -7,8 +7,7 @@ class GenerateKeypairOptions(BaseOptions):
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
         t += """
-Generate a public/private keypair, dumped to stdout as two lines of ASCII..
-
+Generate a public/private keypair, dumped to stdout as two lines of ASCII.
 """
         return t
 
@@ -31,7 +30,6 @@ class DerivePubkeyOptions(BaseOptions):
         t += """
 Given a private (signing) key that was previously generated with
 generate-keypair, derive the public key and print it to stdout.
-
 """
         return t
 

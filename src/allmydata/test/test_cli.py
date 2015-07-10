@@ -17,10 +17,10 @@ import allmydata.scripts.common_http
 from pycryptopp.publickey import ed25519
 
 # Test that the scripts can be imported.
-from allmydata.scripts import create_node, debug, keygen, startstop_node, \
+from allmydata.scripts import create_node, admin, debug, keygen, startstop_node, \
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls, \
     tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen
-_hush_pyflakes = [create_node, debug, keygen, startstop_node,
+_hush_pyflakes = [create_node, admin, debug, keygen, startstop_node,
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls,
     tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen]
 
@@ -620,6 +620,18 @@ class Help(unittest.TestCase):
         for (option, shortcut, oClass, desc) in options.subCommands:
             subhelp = str(oClass())
             self.failUnlessIn(" [global-options] debug flogtool %s " % (option,), subhelp)
+
+    def test_create_admin(self):
+        help = str(admin.AdminCommand())
+        self.failUnlessIn(" [global-opts] admin SUBCOMMAND", help)
+
+    def test_create_admin_generate_keypair(self):
+        help = str(admin.GenerateKeypairOptions())
+        self.failUnlessIn(" [global-opts] admin generate-keypair", help)
+
+    def test_create_admin_derive_pubkey(self):
+        help = str(admin.DerivePubkeyOptions())
+        self.failUnlessIn(" [global-opts] admin derive-pubkey", help)
 
 
 class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
