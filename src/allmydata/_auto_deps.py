@@ -124,11 +124,14 @@ package_imports = [
     ('txAWS',            'txaws'),
     ('oauth2client',     'oauth2client'),
     ('python-dateutil',  'dateutil'),
+    ('httplib2',         'httplib2'),
+    ('python-gflags',    'gflags'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
 not_import_versionable = [
     'zope.interface',
+    'python-gflags',
 ]
 
 # Dependencies reported by pkg_resources that we can safely ignore.
