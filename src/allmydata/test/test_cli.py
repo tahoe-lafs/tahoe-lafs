@@ -637,6 +637,10 @@ class Help(unittest.TestCase):
         help = str(admin.CreateContainerOptions())
         self.failUnlessIn(" [global-options] admin create-container [NODEDIR]", help)
 
+    def test_create_admin_ls_container(self):
+        help = str(admin.ListContainerOptions())
+        self.failUnlessIn(" [global-options] admin ls-container [NODEDIR]", help)
+
 
 class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
     def _create_test_file(self):
