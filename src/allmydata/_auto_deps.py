@@ -89,6 +89,10 @@ install_requires = [
     # * pyOpenSSL >= 0.14 is needed in order to avoid
     #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2474>.
     "pyOpenSSL >= 0.14",
+
+    # needed for cloud backend
+    "txAWS == 0.2.1.post5",
+    "python-dateutil",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.
@@ -116,6 +120,8 @@ package_imports = [
     ('six',              'six'),
     ('enum34',           'enum'),
     ('pycparser',        'pycparser'),
+    ('txAWS',            'txaws'),
+    ('python-dateutil',  'dateutil'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
