@@ -97,6 +97,9 @@ class CloudBackend(Backend):
         # TODO: query space usage of container if supported.
         return 2**64
 
+    def create_container(self):
+        return self._container.create()
+
 
 class CloudShareSet(ShareSet):
     implements(IShareSet)

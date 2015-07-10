@@ -623,15 +623,19 @@ class Help(unittest.TestCase):
 
     def test_create_admin(self):
         help = str(admin.AdminCommand())
-        self.failUnlessIn(" [global-opts] admin SUBCOMMAND", help)
+        self.failUnlessIn(" [global-options] admin SUBCOMMAND", help)
 
     def test_create_admin_generate_keypair(self):
         help = str(admin.GenerateKeypairOptions())
-        self.failUnlessIn(" [global-opts] admin generate-keypair", help)
+        self.failUnlessIn(" [global-options] admin generate-keypair", help)
 
     def test_create_admin_derive_pubkey(self):
         help = str(admin.DerivePubkeyOptions())
-        self.failUnlessIn(" [global-opts] admin derive-pubkey", help)
+        self.failUnlessIn(" [global-options] admin derive-pubkey", help)
+
+    def test_create_admin_create_container(self):
+        help = str(admin.CreateContainerOptions())
+        self.failUnlessIn(" [global-options] admin create-container [NODEDIR]", help)
 
 
 class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
