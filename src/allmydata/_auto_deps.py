@@ -13,7 +13,7 @@
 #   * >= X, != Y, != Z, ... where X < Y < Z...
 #
 # (In addition, check_requirement in allmydata/__init__.py only supports
-# >=, <= and != operators.)
+# >=, <=, ==, and != operators.)
 
 install_requires = [
     # we don't need much out of setuptools, but the __init__.py stuff does
