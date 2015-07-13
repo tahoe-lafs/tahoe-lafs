@@ -17,7 +17,7 @@ from allmydata.frontends.magic_folder import MagicFolder
 class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
     def create_magic_folder(self, client_num):
-        d = self.do_cli_n(client_num, "magic-folder", "create", "magic")
+        d = self.do_cli("magic-folder", "create", "magic", client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
             self.failUnless("Alias 'magic' created" in stdout)
@@ -29,7 +29,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return d
 
     def invite(self, client_num, nickname):
-        d = self.do_cli_n(client_num, "magic-folder", "invite", u"magic", nickname)
+        d = self.do_cli("magic-folder", "invite", u"magic", nickname, client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
             return (rc,stdout,stderr)
@@ -38,7 +38,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
     def join(self, client_num, local_dir, invite_code):
         magic_readonly_cap, dmd_write_cap = invite_code.split(magic_folder_cli.INVITE_SEPERATOR)
-        d = self.do_cli_n(client_num, "magic-folder", "join", invite_code, local_dir)
+        d = self.do_cli("magic-folder", "join", invite_code, local_dir, client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
             return (rc,stdout,stderr)
@@ -59,7 +59,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         our upload directory.
         """
         collective_readonly_cap = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "private/collective_dircap"))
-        d = self.do_cli_n(client_num, "ls", "--json", collective_readonly_cap)
+        d = self.do_cli("ls", "--json", collective_readonly_cap, client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
             return (rc,stdout,stderr)
