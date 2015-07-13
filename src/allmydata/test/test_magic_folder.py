@@ -30,7 +30,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
-        self.dir_node = None
 
     def _get_count(self, name):
         return self.stats_provider.get_stats()["counters"].get(name, 0)
@@ -41,16 +40,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.failUnless(bdb, "unable to create backupdb from %r" % (dbfile,))
         self.failUnlessEqual(bdb.VERSION, 3)
         return bdb
-
-    def _made_upload_dir(self, n):
-        if self.dir_node == None:
-            self.dir_node = n
-        else:
-            n = self.dir_node
-        self.failUnless(IDirectoryNode.providedBy(n))
-        self.upload_dirnode = n
-        self.upload_dircap = n.get_uri()
-        self.collective_dircap = ""
 
     def _create_magicfolder(self, ign):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
@@ -104,9 +93,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
 
-        d = self.client.create_dirnode()
-        d.addCallback(self._made_upload_dir)
+        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._create_magicfolder)
+
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.dirs_monitored'), 1))
         d.addBoth(self.cleanup)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.dirs_monitored'), 0))
@@ -209,6 +198,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._create_magicfolder)
+
         def create_test_file(result):
             d2 = defer.Deferred()
             self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
@@ -254,10 +244,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
 
-        d = self.client.create_dirnode()
-
-        d.addCallback(self._made_upload_dir)
-        self.collective_dircap = ""
+        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._create_magicfolder)
 
         # Write something short enough for a LIT file.
