@@ -95,6 +95,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(_done)
         def get_alice_caps(x):
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
+            self.collective_dirnode = self.client.create_node_from_uri(self.collective_dircap)
+            self.upload_dirnode     = self.client.create_node_from_uri(self.upload_dircap)
         d.addCallback(get_alice_caps)
         d.addCallback(lambda x: self.check_joined_config(0, self.upload_dircap))
         d.addCallback(lambda x: self.check_config(0, local_dir))
