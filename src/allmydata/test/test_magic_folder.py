@@ -409,7 +409,8 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
                             MagicFolder, client, 'bad', '', errors_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory upload.dircap', 'does not refer to a directory',
                             MagicFolder, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb, inotify=fake_inotify)
-            self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
+            self.shouldFail(AssertionError, 'readonly upload.dircap',
+                        '\"The URI in \'private/collective_dircap\' does not refer to a directory.\"',
                             MagicFolder, client, readonly_dircap, '', errors_dir, magicfolderdb, inotify=fake_inotify)
 
             def _not_implemented():
