@@ -4415,7 +4415,11 @@ class IntroducerWeb(unittest.TestCase):
     def test_welcome(self):
         basedir = "web.IntroducerWeb.test_welcome"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), "[node]\nweb.port = tcp:0\n")
+        cfg = "\n".join(["[node]",
+                         "tub.location = 127.0.0.1:1",
+                         "web.port = tcp:0",
+                         ]) + "\n"
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), cfg)
         self.node = IntroducerNode(basedir)
         self.ws = self.node.getServiceNamed("webish")
 
