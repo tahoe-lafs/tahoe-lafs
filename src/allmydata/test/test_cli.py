@@ -47,28 +47,12 @@ def parse_options(basedir, command, args):
     return o
 
 class CLITestMixin(ReallyEqualMixin):
-    def do_cli_n(self, client_num, verb, *args, **kwargs):
-        """
-        do_cli_n is used to execute client CLI commands when there is more
-        than one client in the test grid... you can specify clients by number.
-        """
+    def do_cli(self, verb, *args, **kwargs):
+        # client_num is used to execute client CLI commands on a specific client.
+        client_num = kwargs.get("client_num", 0)
+
         nodeargs = [
             "--node-directory", self.get_clientdir(i=client_num),
-            ]
-        argv = nodeargs + [verb] + list(args)
-        stdin = kwargs.get("stdin", "")
-        stdout, stderr = StringIO(), StringIO()
-        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
-                                  stdin=StringIO(stdin),
-                                  stdout=stdout, stderr=stderr)
-        def _done(rc):
-            return rc, stdout.getvalue(), stderr.getvalue()
-        d.addCallback(_done)
-        return d
-
-    def do_cli(self, verb, *args, **kwargs):
-        nodeargs = [
-            "--node-directory", self.get_clientdir(),
             ]
         argv = nodeargs + [verb] + list(args)
         stdin = kwargs.get("stdin", "")
