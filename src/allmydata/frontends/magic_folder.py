@@ -132,9 +132,7 @@ class MagicFolder(service.MultiService):
         upload_readonly_dircap = self._upload_dirnode.get_readonly_uri()
         collective_dirmap_d = self._collective_dirnode.list()
         def do_filter(result):
-            def not_mine(x):
-                return result[x][0].get_readonly_uri() != upload_readonly_dircap
-            others = filter(not_mine, result.keys())
+            others = [x for x in result.keys() if result[x][0].get_readonly_uri() != upload_readonly_dircap]
             return result, others
         collective_dirmap_d.addCallback(do_filter)
         def scan_collective(result):
@@ -180,9 +178,7 @@ class MagicFolder(service.MultiService):
         upload_readonly_dircap = self._upload_dirnode.get_readonly_uri()
         collective_dirmap_d = self._collective_dirnode.list()
         def do_filter(result):
-            def not_mine(x):
-                return result[x][0].get_readonly_uri() != upload_readonly_dircap
-            others = filter(not_mine, result.keys())
+            others = [x for x in result.keys() if result[x][0].get_readonly_uri() != upload_readonly_dircap]
             return result, others
         collective_dirmap_d.addCallback(do_filter)
         def scan_collective(result):
