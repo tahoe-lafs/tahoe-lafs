@@ -360,10 +360,25 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(Alice_delete_file)
         d.addCallback(Alice_wait_for_upload)
         d.addCallback(Alice_prepare_for_alice_stats)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 2)) # XXX ?
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 2))
         d.addCallback(Bob_wait_for_download)
         d.addCallback(Bob_prepare_for_stats)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_downloaded'), 2)) # XXX ?
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_downloaded'), 2))
+
+        def Alice_rewrite_file(result):
+            print "Alice rewrites file\n"
+            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder._local_dir)
+            fileutil.write(self.file_path, "Alice suddenly sees the white rabbit running into the forest.")
+            self.magicfolder = self.alice_magicfolder
+            self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
+        d.addCallback(Alice_rewrite_file)
+
+        d.addCallback(Alice_wait_for_upload)
+        d.addCallback(Alice_prepare_for_alice_stats)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 3))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 0))
 
         def cleanup_Alice_and_Bob(result):
             d = defer.succeed(None)
