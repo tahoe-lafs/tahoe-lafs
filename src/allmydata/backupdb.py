@@ -12,62 +12,10 @@ from allmydata.util.dbutil import get_db, DBError
 DAY = 24*60*60
 MONTH = 30*DAY
 
-SCHEMA_v1 = """
-CREATE TABLE version -- added in v1
-(
- version INTEGER  -- contains one row, set to 2
-);
-
-CREATE TABLE local_files -- added in v1
-(
- path  VARCHAR(1024) PRIMARY KEY, -- index, this is an absolute UTF-8-encoded local filename
- size  INTEGER,       -- os.stat(fn)[stat.ST_SIZE]
- mtime NUMBER,        -- os.stat(fn)[stat.ST_MTIME]
- ctime NUMBER,        -- os.stat(fn)[stat.ST_CTIME]
- fileid INTEGER
-);
-
-CREATE TABLE caps -- added in v1
-(
- fileid INTEGER PRIMARY KEY AUTOINCREMENT,
- filecap VARCHAR(256) UNIQUE       -- URI:CHK:...
-);
-
-CREATE TABLE last_upload -- added in v1
-(
- fileid INTEGER PRIMARY KEY,
- last_uploaded TIMESTAMP,
- last_checked TIMESTAMP
-);
-
-"""
-
-TABLE_DIRECTORY = """
-
-CREATE TABLE directories -- added in v2
-(
- dirhash varchar(256) PRIMARY KEY,  -- base32(dirhash)
- dircap varchar(256),               -- URI:DIR2-CHK:...
- last_uploaded TIMESTAMP,
- last_checked TIMESTAMP
-);
-
-"""
-
-SCHEMA_v2 = SCHEMA_v1 + TABLE_DIRECTORY
-
-UPDATE_v1_to_v2 = TABLE_DIRECTORY + """
-UPDATE version SET version=2;
-"""
-
-UPDATERS = {
-    2: UPDATE_v1_to_v2,
-}
-
-MAIN_v3 = """
+MAIN_SCHEMA = """
 CREATE TABLE version
 (
- version INTEGER  -- contains one row, set to 3
+ version INTEGER  -- contains one row, set to %s
 );
 
 CREATE TABLE local_files
@@ -76,8 +24,7 @@ CREATE TABLE local_files
  size  INTEGER,       -- os.stat(fn)[stat.ST_SIZE]
  mtime NUMBER,        -- os.stat(fn)[stat.ST_MTIME]
  ctime NUMBER,        -- os.stat(fn)[stat.ST_CTIME]
- fileid INTEGER,
- version INTEGER
+ fileid INTEGER,%s
 );
 
 CREATE TABLE caps
@@ -95,7 +42,32 @@ CREATE TABLE last_upload
 
 """
 
-SCHEMA_v3 = MAIN_v3 + TABLE_DIRECTORY
+SCHEMA_v1 = MAIN_SCHEMA % (1, "")
+
+TABLE_DIRECTORY = """
+
+CREATE TABLE directories -- added in v2
+(
+ dirhash varchar(256) PRIMARY KEY,  -- base32(dirhash)
+ dircap varchar(256),               -- URI:DIR2-CHK:...
+ last_uploaded TIMESTAMP,
+ last_checked TIMESTAMP
+);
+
+"""
+
+SCHEMA_v2 = MAIN_SCHEMA % (2, "") + TABLE_DIRECTORY
+
+UPDATE_v1_to_v2 = TABLE_DIRECTORY + """
+UPDATE version SET version=2;
+"""
+
+UPDATERS = {
+    2: UPDATE_v1_to_v2,
+}
+
+
+SCHEMA_v3 = MAIN_SCHEMA % (3, "\nversion INTEGER\n") + TABLE_DIRECTORY
 
 
 def get_backupdb(dbfile, stderr=sys.stderr,
