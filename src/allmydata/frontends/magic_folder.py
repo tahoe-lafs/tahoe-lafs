@@ -280,15 +280,17 @@ class MagicFolder(service.MultiService):
                     # XXX upload if we didn't record our version in magicfolder db?
                     self._append_to_upload_deque(childpath)
                 else:
-                    # XXX handle case where we have a lesser version than what is in the collective directory
                     file_node, metadata = self._get_collective_latest_file(childpath)
                     if collective_version is None:
                         continue
                     if file_version > collective_version:
                         self._append_to_upload_deque(childpath)
                     elif file_version < collective_version:
-                        # XXX append file to upload queue
-                        pass
+                        # if a collective version of the file is newer than ours
+                        # we must download it and unlink the old file from our upload dirnode
+                        self._append_to_download_deque(childpath)
+                        # XXX where should we save the returned deferred?
+                        d = self._upload_dirnode.delete(childpath, must_be_file=True)
                     else:
                         # XXX same version. do nothing.
                         pass
