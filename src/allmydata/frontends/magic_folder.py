@@ -115,7 +115,6 @@ class MagicFolder(service.MultiService):
         self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
-
     def _should_download(self, path, remote_version):
         """
         _should_download returns a bool indicating whether or not a remote object should be downloaded.
@@ -130,6 +129,44 @@ class MagicFolder(service.MultiService):
                 return True
             else:
                 return False
+
+    def _get_collective_latest_file(self, filename):
+        """_get_collective_latest_file takes a file path pointing to a file managed by
+        magic-folder and returns a deferred that fires with the two tuple containing a
+        file node and metadata for the latest version of the file located in the
+        magic-folder collective directory.
+        """
+        upload_readonly_dircap = self._upload_dirnode.get_readonly_uri()
+        collective_dirmap_d = self._collective_dirnode.list()
+        def do_filter(result):
+            def not_mine(x):
+                return result[x][0].get_readonly_uri() != upload_readonly_dircap
+            others = filter(not_mine, result.keys())
+            return result, others
+        collective_dirmap_d.addCallback(do_filter)
+        def scan_collective(result):
+            list_of_deferreds = []
+            collective_dirmap, others_list = result
+            for dir_name in result:
+                # XXX make sure it's a directory
+                d = defer.succeed(None)
+                d.addCallback(lambda x, dir_name=dir_name: collective_dirmap[dir_name][0].get_child_and_metadata(filename))
+                list_of_deferreds.append(d)
+            deferList = defer.DeferredList(list_of_deferreds)
+            return deferList
+        collective_dirmap_d.addCallback(scan_collective)
+        def highest_version(deferredList):
+            max_version = 0
+            metadata = None
+            node = None
+            for success, result in deferredList:
+                if success:
+                    if result[1]['version'] > max_version:
+                        node, metadata = result
+                        max_version = result[1]['version']
+            return node, metadata
+        collective_dirmap_d.addCallback(highest_version)
+        return collective_dirmap_d
 
     def _scan_remote(self, nickname, dirnode):
         listing_d = dirnode.list()
@@ -168,7 +205,7 @@ class MagicFolder(service.MultiService):
 
     def _add_batch_to_download_queue(self, result):
         self._download_deque.extend(result)
-        self._download_pending.update(map(lambda x: x[0], result))
+        self._download_pending.update(map(lambda x: x[1], result)) # XXX x[0] or x[1]?
 
     def _filter_scan_batch(self, result):
         extension = []
@@ -238,9 +275,23 @@ class MagicFolder(service.MultiService):
                 # recurse on the child directory
                 self._scan(childpath)
             elif isfile:
-                is_uploaded = self._db_file_is_uploaded(childpath)
-                if not is_uploaded:
+                file_version = self._db.get_local_file_version(childpath)
+                if file_version is None:
+                    # XXX upload if we didn't record our version in magicfolder db?
                     self._append_to_upload_deque(childpath)
+                else:
+                    # XXX handle case where we have a lesser version than what is in the collective directory
+                    file_node, metadata = self._get_collective_latest_file(childpath)
+                    if collective_version is None:
+                        continue
+                    if file_version > collective_version:
+                        self._append_to_upload_deque(childpath)
+                    elif file_version < collective_version:
+                        # XXX append file to upload queue
+                        pass
+                    else:
+                        # XXX same version. do nothing.
+                        pass
             else:
                 self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
 
@@ -251,9 +302,6 @@ class MagicFolder(service.MultiService):
 
         service.MultiService.startService(self)
         d = self._notifier.startReading()
-
-        self._scan(self._local_dir)
-
         self._stats_provider.count('magic_folder.dirs_monitored', 1)
         return d
 
@@ -262,6 +310,8 @@ class MagicFolder(service.MultiService):
         processing the upload and download items...
         """
         self.is_ready = True
+        self._scan(self._local_dir)
+        self._scan_remote_collective()
         self._turn_upload_deque()
         self._turn_download_deque()
 
@@ -278,6 +328,15 @@ class MagicFolder(service.MultiService):
             return
         self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._download_file, file_path, file_node))
         self._download_lazy_tail.addCallback(lambda ign: task.deferLater(reactor, self._remote_scan_delay, self._turn_download_deque))
+
+    def _append_to_download_deque(self, path):
+        if path in self._download_scan_batch.keys():
+            return
+        self._download_deque.append(path)
+        self._download_pending.add(path)
+        self._stats_provider.count('magic_folder.download_objects_queued', 1)
+        if self.is_ready:
+            reactor.callLater(0, self._turn_download_deque)
 
     def _append_to_upload_deque(self, path):
         if path in self._upload_pending:
@@ -440,5 +499,5 @@ class MagicFolder(service.MultiService):
 
     def _log(self, msg):
         self._client.log("drop-upload: " + msg)
-        print "_log %s" % (msg,)
+        #print "_log %s" % (msg,)
         #open("events", "ab+").write(msg)
