@@ -368,11 +368,6 @@ class BackupDB_v2:
 class BackupDB_v3(BackupDB_v2):
     VERSION = 3 # XXX does this override the class var from parent class?
 
-    def __init__(self, sqlite_module, connection):
-        self.sqlite_module = sqlite_module
-        self.connection = connection
-        self.cursor = connection.cursor()
-
     def get_local_file_version(self, path):
         """I will tell you the version of a local file tracked by our magic folder db.
         If no db entry found then I'll return None.
