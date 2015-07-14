@@ -121,13 +121,7 @@ class MagicFolder(service.MultiService):
         latest version wins.
         """
         v = self._db.get_local_file_version(path)
-        if v is None:
-            return True
-        else:
-            if v < remote_version:
-                return True
-            else:
-                return False
+        return (v is None or v < remote_version)
 
     def _get_collective_latest_file(self, filename):
         """_get_collective_latest_file takes a file path pointing to a file managed by
