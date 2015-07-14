@@ -91,10 +91,9 @@ class MagicFolder(service.MultiService):
 
         self._processed_callback = lambda ign: None
         self._download_callback = lambda ign: None
-        self._ignore_count = 0
+        self._upload_ignore_count = 0
         self._download_ignore_count = 0
 
-        # XXX correct?
         self._notifier = self._inotify.INotify()
 
         if hasattr(self._notifier, 'set_pending_delay'):
@@ -462,10 +461,10 @@ class MagicFolder(service.MultiService):
         return None  # intentionally suppress failures, which have already been logged
 
     def _do_processed_callback(self, res):
-        if self._ignore_count == 0:
+        if self._upload_ignore_count == 0:
             self._processed_callback(res)
         else:
-            self._ignore_count -= 1
+            self._upload_ignore_count -= 1
         return None  # intentionally suppress failures, which have already been logged
 
     def set_download_callback(self, callback, ignore_count=0):
@@ -482,7 +481,7 @@ class MagicFolder(service.MultiService):
         local filesystem notification has been processed (successfully or unsuccessfully).
         """
         self._processed_callback = callback
-        self._ignore_count = ignore_count
+        self._upload_ignore_count = ignore_count
 
     def finish(self, for_tests=False):
         self._stopped = True
