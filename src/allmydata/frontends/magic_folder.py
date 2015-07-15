@@ -186,25 +186,26 @@ class MagicFolder(service.MultiService):
             collective_dirmap, others_list = result
             for dir_name in others_list:
                 d.addCallback(lambda x, dir_name=dir_name: self._scan_remote(dir_name, collective_dirmap[dir_name][0]))
-                collective_dirmap_d.addCallback(self._filter_scan_batch)
-                collective_dirmap_d.addCallback(self._add_batch_to_download_queue)
+                # XXX todo add errback
             return d
         collective_dirmap_d.addCallback(scan_collective)
+        collective_dirmap_d.addCallback(self._filter_scan_batch)
+        collective_dirmap_d.addCallback(self._add_batch_to_download_queue)
         return collective_dirmap_d
 
     def _add_batch_to_download_queue(self, result):
         self._download_deque.extend(result)
-        self._download_pending.update(map(lambda x: x[1], result)) # XXX x[0] or x[1]?
+        self._download_pending.update(map(lambda x: x[0], result))
 
     def _filter_scan_batch(self, result):
         extension = []
+        max_version_dict = {}
         for name in self._download_scan_batch.keys():
             if name in self._download_pending:
                 continue
-            for item in self._download_scan_batch[name]:
-                (nickname, file_node, metadata) = item
-                if self._should_download(name, metadata['version']):
-                    extension += [(name, file_node, metadata)]
+            name, file_node, metadata = max(self._download_scan_batch[name], key=lambda x: x[2]['version'])
+            if self._should_download(name, metadata['version']):
+                extension += [(name, file_node, metadata)]
         return extension
 
     def _download_file(self, name, file_node):
