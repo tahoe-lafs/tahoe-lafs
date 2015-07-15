@@ -116,6 +116,9 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         self.mkdir_nonascii(bob_dir)
         bob_magic_dir = abspath_expanduser_unicode(u"Bob-magic", base=self.basedir)
         self.mkdir_nonascii(bob_magic_dir)
+
+        # Alice creates a Magic Folder,
+        # invites herself then and joins.
         d = self.do_create_magic_folder(0)
         d.addCallback(lambda x: self.do_invite(0, u"Alice"))
         def get_invitecode(result):
@@ -131,6 +134,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
             self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap, self.alice_collective_dircap, alice_magic_dir)
             return result
         d.addCallback(get_Alice_magicfolder)
+
+        # Alice invites Bob. Bob joins.
         d.addCallback(lambda x: self.do_invite(0, u"Bob"))
         def get_invitecode(result):
             self.invitecode = result[1].strip()
@@ -145,6 +150,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
             self.bob_magicfolder = self.init_magicfolder(1, self.bob_upload_dircap, self.bob_collective_dircap, bob_magic_dir)
             return result
         d.addCallback(get_Bob_magicfolder)
+
         def prepare_result(result):
             return self.alice_collective_dircap, self.alice_upload_dircap, self.alice_magicfolder, self.bob_collective_dircap, self.bob_upload_dircap, self.bob_magicfolder
         d.addCallback(prepare_result)
