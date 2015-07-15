@@ -363,7 +363,7 @@ class MagicFolder(service.MultiService):
             self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
             u = Data("", self._convergence)
             name += "@_"
-            upload_d = self._upload_dirnode.add_file(name, u, metadata={"version":1}, overwrite=True)
+            upload_d = self._upload_dirnode.add_file(name, u, metadata={"version":0}, overwrite=True)
             def _succeeded(ign):
                 self._log("created subdirectory %r" % (path,))
                 self._stats_provider.count('magic_folder.directories_created', 1)
@@ -409,7 +409,7 @@ class MagicFolder(service.MultiService):
             elif os.path.isfile(path):
                 version = self._db.get_local_file_version(path)
                 if version is None:
-                    version = 1
+                    version = 0
                 else:
                     version += 1
                 print "NEW VERSION ", version
