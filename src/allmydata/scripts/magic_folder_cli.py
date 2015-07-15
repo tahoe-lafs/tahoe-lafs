@@ -53,6 +53,10 @@ def create(options):
         join_options["node-url"] = options["node-url"]
         join_options["node-directory"] = options["node-directory"]
         join_options.invite_code = invite_code
+        fields = invite_code.split(INVITE_SEPARATOR)
+        if len(fields) != 2:
+            raise usage.UsageError("Invalid invite code.")
+        join_options.magic_readonly_cap, join_options.dmd_write_cap = fields
         join_options.local_dir = options.localdir
         rc = join(join_options)
         if rc != 0:
@@ -100,7 +104,6 @@ def invite(options):
 
     magic_write_cap = get_aliases(options["node-directory"])[options.alias]
     magic_readonly_cap = unicode(uri.from_string(magic_write_cap).get_readonly().to_string(), 'utf-8')
-    print "MAGIC READONLY CAP ", magic_readonly_cap
     # tahoe ln CLIENT_READCAP COLLECTIVE_WRITECAP/NICKNAME
     ln_options = LnOptions()
     ln_options["node-url"] = options["node-url"]
@@ -121,21 +124,22 @@ def invite(options):
 
 class JoinOptions(BasedirOptions):
     synopsis = "INVITE_CODE LOCAL_DIR"
+    dmd_write_cap = ""
+    magic_readonly_cap = ""
     def parseArgs(self, invite_code, local_dir):
         BasedirOptions.parseArgs(self)
-        self.invite_code = invite_code
         self.local_dir = local_dir
+        fields = invite_code.split(INVITE_SEPARATOR)
+        if len(fields) != 2:
+            raise usage.UsageError("Invalid invite code.")
+        self.magic_readonly_cap, self.dmd_write_cap = fields
 
 def join(options):
-    fields = options.invite_code.split(INVITE_SEPARATOR)
-    assert len(fields) == 2
-
-    magic_readonly_cap, dmd_write_cap = fields
     dmd_cap_file = os.path.join(options["node-directory"], "private/magic_folder_dircap")
     collective_readcap_file = os.path.join(options["node-directory"], "private/collective_dircap")
 
-    fileutil.write(dmd_cap_file, dmd_write_cap)
-    fileutil.write(collective_readcap_file, magic_readonly_cap)
+    fileutil.write(dmd_cap_file, options.dmd_write_cap)
+    fileutil.write(collective_readcap_file, options.magic_readonly_cap)
     fileutil.write(os.path.join(options["node-directory"], "tahoe.cfg"), "[magic_folder]\nenabled = True\nlocal.directory = %s\n" % (options.local_dir.encode('utf-8'),), mode="ab")
     return 0
 
