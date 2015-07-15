@@ -19,16 +19,16 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
     def do_create_magic_folder(self, client_num):
         d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
         def _done((rc,stdout,stderr)):
-            self.failUnless(rc == 0)
-            self.failUnless("Alias 'magic' created" in stdout)
-            self.failIf(stderr)
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessIn("Alias 'magic' created", stdout)
+            self.failUnlessEqual(stderr, "")
             aliases = get_aliases(self.get_clientdir(i=client_num))
-            self.failUnless("magic" in aliases)
+            self.failUnlessIn("magic", aliases)
             self.failUnless(aliases["magic"].startswith("URI:DIR2:"))
         d.addCallback(_done)
         return d
 
-    def invite(self, client_num, nickname):
+    def do_invite(self, client_num, nickname):
         d = self.do_cli("magic-folder", "invite", u"magic:", nickname, client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
@@ -36,7 +36,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(_done)
         return d
 
-    def join(self, client_num, local_dir, invite_code):
+    def do_join(self, client_num, local_dir, invite_code):
         magic_readonly_cap, dmd_write_cap = invite_code.split(magic_folder_cli.INVITE_SEPARATOR)
         d = self.do_cli("magic-folder", "join", invite_code, local_dir, client_num=client_num)
         def _done((rc,stdout,stderr)):
@@ -117,11 +117,11 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         bob_magic_dir = abspath_expanduser_unicode(u"Bob-magic", base=self.basedir)
         self.mkdir_nonascii(bob_magic_dir)
         d = self.do_create_magic_folder(0)
-        d.addCallback(lambda x: self.invite(0, u"Alice"))
+        d.addCallback(lambda x: self.do_invite(0, u"Alice"))
         def get_invitecode(result):
             self.invitecode = result[1].strip()
         d.addCallback(get_invitecode)
-        d.addCallback(lambda x: self.join(0, alice_magic_dir, self.invitecode))
+        d.addCallback(lambda x: self.do_join(0, alice_magic_dir, self.invitecode))
         def get_alice_caps(x):
             self.alice_collective_dircap, self.alice_upload_dircap = self.get_caps_from_files(0)
         d.addCallback(get_alice_caps)
@@ -131,11 +131,11 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
             self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap, self.alice_collective_dircap, alice_magic_dir)
             return result
         d.addCallback(get_Alice_magicfolder)
-        d.addCallback(lambda x: self.invite(0, u"Bob"))
+        d.addCallback(lambda x: self.do_invite(0, u"Bob"))
         def get_invitecode(result):
             self.invitecode = result[1].strip()
         d.addCallback(get_invitecode)
-        d.addCallback(lambda x: self.join(1, bob_magic_dir, self.invitecode))
+        d.addCallback(lambda x: self.do_join(1, bob_magic_dir, self.invitecode))
         def get_bob_caps(x):
             self.bob_collective_dircap, self.bob_upload_dircap = self.get_caps_from_files(1)
         d.addCallback(get_bob_caps)
@@ -158,11 +158,11 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, "magic")
         d = self.do_create_magic_folder(0)
-        d.addCallback(lambda x: self.invite(0, u"Alice"))
+        d.addCallback(lambda x: self.do_invite(0, u"Alice"))
         def get_invite((rc,stdout,stderr)):
             self.invite_code = stdout.strip()
         d.addCallback(get_invite)
-        d.addCallback(lambda x: self.join(0, self.local_dir, self.invite_code))
+        d.addCallback(lambda x: self.do_join(0, self.local_dir, self.invite_code))
         def get_caps(x):
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
         d.addCallback(get_caps)
