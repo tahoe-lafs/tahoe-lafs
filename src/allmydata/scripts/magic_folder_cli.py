@@ -140,7 +140,9 @@ def join(options):
 
     fileutil.write(dmd_cap_file, options.dmd_write_cap)
     fileutil.write(collective_readcap_file, options.magic_readonly_cap)
-    fileutil.write(os.path.join(options["node-directory"], "tahoe.cfg"), "[magic_folder]\nenabled = True\nlocal.directory = %s\n" % (options.local_dir.encode('utf-8'),), mode="ab")
+    fileutil.write(os.path.join(options["node-directory"], "tahoe.cfg"),
+                   "[magic_folder]\nenabled = True\nlocal.directory = %s\n"
+                   % (options.local_dir.encode('utf-8'),), mode="ab")
     return 0
 
 class MagicFolderCommand(BaseOptions):
