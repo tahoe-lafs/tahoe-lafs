@@ -178,7 +178,8 @@ def do_magic_folder(options):
     return f(so)
 
 subCommands = [
-    ["magic-folder", None, MagicFolderCommand, "magic-folder subcommands: use 'tahoe magic-folder' for a list."],
+    ["magic-folder", None, MagicFolderCommand,
+     "Magic Folder subcommands: use 'tahoe magic-folder' for a list."],
 ]
 
 dispatch = {
