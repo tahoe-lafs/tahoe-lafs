@@ -37,7 +37,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return d
 
     def join(self, client_num, local_dir, invite_code):
-        magic_readonly_cap, dmd_write_cap = invite_code.split(magic_folder_cli.INVITE_SEPERATOR)
+        magic_readonly_cap, dmd_write_cap = invite_code.split(magic_folder_cli.INVITE_SEPARATOR)
         d = self.do_cli("magic-folder", "join", invite_code, local_dir, client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
