@@ -21,7 +21,7 @@ class CreateOptions(BasedirOptions):
         self.nickname = nickname
         self.localdir = localdir
         if self.nickname and not self.localdir:
-            raise usage.UsageError("must provide both")
+            raise usage.UsageError("If NICKNAME is specified then LOCALDIR must also be specified.")
         node_url_file = os.path.join(self['node-directory'], "node.url")
         self['node-url'] = open(node_url_file, "r").read().strip()
 
