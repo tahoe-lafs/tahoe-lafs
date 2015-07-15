@@ -23,7 +23,7 @@ class CreateOptions(BasedirOptions):
         if self.nickname and not self.localdir:
             raise usage.UsageError("If NICKNAME is specified then LOCALDIR must also be specified.")
         node_url_file = os.path.join(self['node-directory'], "node.url")
-        self['node-url'] = open(node_url_file, "r").read().strip()
+        self['node-url'] = fileutil.read(node_url_file).strip()
 
 def create(options):
     from allmydata.scripts import tahoe_add_alias
@@ -38,7 +38,7 @@ def create(options):
         invite_options.nickname = options.nickname
         invite_options.stdin = StringIO("")
         invite_options.stdout = StringIO()
-        invite_options.strerr = StringIO()
+        invite_options.stderr = StringIO()
         rc = invite(invite_options)
         if rc != 0:
             print >>options.stderr, "magic-folder: failed to invite after create\n"
