@@ -233,11 +233,7 @@ class MagicFolder(service.MultiService):
         """
         assert self._db != None
         r = self._db.check_file(childpath)
-        filecap = r.was_uploaded()
-        if filecap is False:
-            return False
-        else:
-            return True
+        return r.was_uploaded()
 
     def _scan(self, localpath):
         if not os.path.isdir(localpath):
