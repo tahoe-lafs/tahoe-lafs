@@ -77,17 +77,17 @@ class MagicFolder(service.MultiService):
 
         # TODO: allow a path rather than a cap URI.
         self._upload_dirnode = self._client.create_node_from_uri(upload_dircap)
-
         self._collective_dirnode = self._client.create_node_from_uri(collective_dircap)
-        if not IDirectoryNode.providedBy(self._collective_dirnode):
-            raise AssertionError("The URI in 'private/collective_dircap' does not refer to a directory.")
-        if self._collective_dirnode.is_unknown() or not self._collective_dirnode.is_readonly():
-            raise AssertionError("The URI in 'private/collective_dircap' is not a readonly cap to a directory.")
 
         if not IDirectoryNode.providedBy(self._upload_dirnode):
             raise AssertionError("The URI in 'private/magic_folder_dircap' does not refer to a directory.")
         if self._upload_dirnode.is_unknown() or self._upload_dirnode.is_readonly():
             raise AssertionError("The URI in 'private/magic_folder_dircap' is not a writecap to a directory.")
+
+        if not IDirectoryNode.providedBy(self._collective_dirnode):
+            raise AssertionError("The URI in 'private/collective_dircap' does not refer to a directory.")
+        if self._collective_dirnode.is_unknown() or not self._collective_dirnode.is_readonly():
+            raise AssertionError("The URI in 'private/collective_dircap' is not a readonly cap to a directory.")
 
         self._processed_callback = lambda ign: None
         self._download_callback = lambda ign: None
