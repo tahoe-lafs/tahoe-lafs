@@ -16,7 +16,7 @@ from allmydata import uri
 
 class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
-    def create_magic_folder(self, client_num):
+    def do_create_magic_folder(self, client_num):
         d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
@@ -116,7 +116,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         self.mkdir_nonascii(bob_dir)
         bob_magic_dir = abspath_expanduser_unicode(u"Bob-magic", base=self.basedir)
         self.mkdir_nonascii(bob_magic_dir)
-        d = self.create_magic_folder(0)
+        d = self.do_create_magic_folder(0)
         d.addCallback(lambda x: self.invite(0, u"Alice"))
         def get_invitecode(result):
             self.invitecode = result[1].strip()
@@ -157,7 +157,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         self.basedir = "cli/MagicFolder/create-and-then-invite-join"
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, "magic")
-        d = self.create_magic_folder(0)
+        d = self.do_create_magic_folder(0)
         d.addCallback(lambda x: self.invite(0, u"Alice"))
         def get_invite((rc,stdout,stderr)):
             self.invite_code = stdout.strip()
