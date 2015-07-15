@@ -215,7 +215,9 @@ class MagicFolder(service.MultiService):
             self._stats_provider.count('magic_folder.objects_downloaded', 1)
             return None
         def failed(f):
-            return Failure("download failed")
+            self._log("download failed")
+            self._stats_provider.count('magic_folder.objects_download_failed', 1)
+            return f
         def remove_from_pending(result):
             self._download_pending = self._download_pending.difference(set([name]))
         d.addCallbacks(succeeded, failed)
