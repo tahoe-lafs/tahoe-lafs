@@ -212,7 +212,7 @@ class MagicFolder(service.MultiService):
         d = file_node.download_best_version()
         def succeeded(res):
             d.addCallback(lambda result: self._write_downloaded_file(name, result))
-            self._stats_provider.count('magic_folder.objects_downloaded', +1)
+            self._stats_provider.count('magic_folder.objects_downloaded', 1)
             return None
         def failed(f):
             return Failure("download failed")
