@@ -244,7 +244,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
 
-        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
+        d = self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
         d.addCallback(self._create_magicfolder)
 
         # Write something short enough for a LIT file.
