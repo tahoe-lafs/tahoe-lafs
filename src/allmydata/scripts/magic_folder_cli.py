@@ -7,7 +7,7 @@ from .common import BaseOptions, BasedirOptions, get_aliases
 from .cli import MakeDirectoryOptions, ListOptions, LnOptions
 import tahoe_ls, tahoe_mv
 from allmydata.util import fileutil
-
+from allmydata import uri
 
 INVITE_SEPARATOR = "~"
 
@@ -58,28 +58,6 @@ def create(options):
             return -1
     return 0
 
-def diminish_readonly(write_cap, node_url):
-    """
-    given a write cap and a node url I will return the corresponding readcap
-    or I'll return None on failure
-    """
-    list_options = ListOptions()
-    list_options.where = u"%s" % (write_cap,)
-    list_options["json"] = True
-    list_options.aliases = {}
-    list_options.stdin = StringIO("")
-    list_options.stdout = StringIO()
-    list_options.stderr = StringIO()
-    list_options['node-url'] = node_url
-
-    rc = tahoe_ls.list(list_options)
-    if rc != 0:
-        return None
-
-    ls_json = list_options.stdout.getvalue()
-    readonly_cap = json.loads(ls_json)[1][u"ro_uri"]
-    return readonly_cap
-
 class InviteOptions(BasedirOptions):
     nickname = None
     synopsis = "MAGIC_ALIAS: NICKNAME"
@@ -110,15 +88,15 @@ def invite(options):
         print >>options.stderr, "magic-folder: failed to mkdir\n"
         return -1
     dmd_write_cap = mkdir_options.stdout.getvalue().strip()
-    dmd_readonly_cap = diminish_readonly(dmd_write_cap, options["node-url"])
+    dmd_readonly_cap = unicode(uri.from_string(dmd_write_cap).get_readonly().to_string(), 'utf-8')
     if dmd_readonly_cap is None:
         # XXX failure
         print >>options.stderr, "magic-folder: failed to diminish dmd write cap\n"
         return -1
 
     magic_write_cap = get_aliases(options["node-directory"])[options.alias]
-    magic_readonly_cap = diminish_readonly(magic_write_cap, options["node-url"])
-
+    magic_readonly_cap = unicode(uri.from_string(magic_write_cap).get_readonly().to_string(), 'utf-8')
+    print "MAGIC READONLY CAP ", magic_readonly_cap
     # tahoe ln CLIENT_READCAP COLLECTIVE_WRITECAP/NICKNAME
     ln_options = LnOptions()
     ln_options["node-url"] = options["node-url"]
