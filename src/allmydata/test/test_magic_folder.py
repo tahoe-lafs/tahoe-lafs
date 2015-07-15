@@ -31,7 +31,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
 
-    def _get_count(self, name):
+    def _get_count(self, name, client=None):
+        if client is not None:
+            return client.stats_provider.get_stats()["counters"].get(name, 0)
         return self.stats_provider.get_stats()["counters"].get(name, 0)
 
     def _createdb(self):
@@ -331,13 +333,10 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             self.alice_magicfolder.set_processed_callback(d2.callback)
             return d2
         d.addCallback(Alice_wait_for_upload)
-        def Alice_prepare_for_alice_stats(result):
-            self.stats_provider = self.alice_magicfolder._client.stats_provider
-        d.addCallback(Alice_prepare_for_alice_stats)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 1))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded'), 1))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded', client=self.alice_magicfolder._client), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded', client=self.alice_magicfolder._client), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued', client=self.alice_magicfolder._client), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created', client=self.alice_magicfolder._client), 0))
 
         def Bob_wait_for_download(result):
             print "Bob waits for a download\n"
@@ -345,10 +344,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             self.bob_magicfolder.set_download_callback(d2.callback)
             return d2
         d.addCallback(Bob_wait_for_download)
-        def Bob_prepare_for_stats(result):
-            self.stats_provider = self.bob_magicfolder._client.stats_provider
-        d.addCallback(Bob_prepare_for_stats)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_downloaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_downloaded', client=self.bob_magicfolder._client), 1))
 
         # test deletion of file behavior
         def Alice_delete_file(result):
@@ -359,11 +355,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             return None
         d.addCallback(Alice_delete_file)
         d.addCallback(Alice_wait_for_upload)
-        d.addCallback(Alice_prepare_for_alice_stats)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded', client=self.alice_magicfolder._client), 2))
         d.addCallback(Bob_wait_for_download)
-        d.addCallback(Bob_prepare_for_stats)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_downloaded'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_downloaded', client=self.bob_magicfolder._client), 2))
 
         def Alice_rewrite_file(result):
             print "Alice rewrites file\n"
@@ -374,11 +368,10 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(Alice_rewrite_file)
 
         d.addCallback(Alice_wait_for_upload)
-        d.addCallback(Alice_prepare_for_alice_stats)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 3))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded'), 2))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded', client=self.alice_magicfolder._client), 3))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded', client=self.alice_magicfolder._client), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued', client=self.alice_magicfolder._client), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created', client=self.alice_magicfolder._client), 0))
 
         def cleanup_Alice_and_Bob(result):
             d = defer.succeed(None)
