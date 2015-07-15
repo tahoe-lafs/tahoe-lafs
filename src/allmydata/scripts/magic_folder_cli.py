@@ -147,9 +147,9 @@ def join(options):
 
 class MagicFolderCommand(BaseOptions):
     subCommands = [
-        ["create", None, CreateOptions, "Create a Magic-Folder."],
-        ["invite", None, InviteOptions, "Invite someone to a Magic-Folder."],
-        ["join", None, JoinOptions, "Join a Magic-Folder."],
+        ["create", None, CreateOptions, "Create a Magic Folder."],
+        ["invite", None, InviteOptions, "Invite someone to a Magic Folder."],
+        ["join", None, JoinOptions, "Join a Magic Folder."],
     ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
