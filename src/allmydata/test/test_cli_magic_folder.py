@@ -12,12 +12,12 @@ from .test_cli import CLITestMixin
 from allmydata.scripts import magic_folder_cli
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.frontends.magic_folder import MagicFolder
-
+from allmydata import uri
 
 class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
     def create_magic_folder(self, client_num):
-        d = self.do_cli("magic-folder", "create", "magic", client_num=client_num)
+        d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
             self.failUnless("Alias 'magic' created" in stdout)
@@ -29,7 +29,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return d
 
     def invite(self, client_num, nickname):
-        d = self.do_cli("magic-folder", "invite", u"magic", nickname, client_num=client_num)
+        d = self.do_cli("magic-folder", "invite", u"magic:", nickname, client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
             return (rc,stdout,stderr)
@@ -45,15 +45,6 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(_done)
         return d
 
-    def diminish_readonly(self, write_cap):
-        d = self.do_cli("ls", "--json", write_cap)
-        def get_readonly_cap((rc,stdout,stderr)):
-            self.failUnless(rc == 0)
-            readonly_cap = json.loads(stdout)[1][u"ro_uri"]
-            return readonly_cap
-        d.addCallback(get_readonly_cap)
-        return d
-
     def check_joined_config(self, client_num, upload_dircap):
         """Tests that our collective directory has the readonly cap of
         our upload directory.
@@ -65,12 +56,10 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
             return (rc,stdout,stderr)
         d.addCallback(_done)
         def test_joined_magic_folder((rc,stdout,stderr)):
-            d2 = self.diminish_readonly(upload_dircap)
-            def fail_unless_dmd_readonly_exists(readonly_cap):
-                s = re.search(readonly_cap, stdout)
-                self.failUnless(s is not None)
-            d2.addCallback(fail_unless_dmd_readonly_exists)
-            return d2
+            readonly_cap = unicode(uri.from_string(upload_dircap).get_readonly().to_string(), 'utf-8')
+            s = re.search(readonly_cap, stdout)
+            self.failUnless(s is not None)
+            return None
         d.addCallback(test_joined_magic_folder)
         return d
 
@@ -88,7 +77,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         self.failIf(ret is None)
 
     def create_invite_join_magic_folder(self, nickname, local_dir):
-        d = self.do_cli("magic-folder", "create", u"magic", nickname, local_dir)
+        d = self.do_cli("magic-folder", "create", u"magic:", nickname, local_dir)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
             return (rc,stdout,stderr)
@@ -185,7 +174,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         self.basedir = "cli/MagicFolder/create-invite-join"
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, "magic")
-        d = self.do_cli("magic-folder", "create", u"magic", u"Alice", self.local_dir)
+        d = self.do_cli("magic-folder", "create", u"magic:", u"Alice", self.local_dir)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
             return (rc,stdout,stderr)
