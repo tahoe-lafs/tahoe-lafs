@@ -395,7 +395,7 @@ class MagicFolder(service.MultiService):
                     d2.addCallback(get_metadata)
                     def set_deleted(metadata):
                         current_version = self._db.get_local_file_version(path) + 1
-                        metadata['version'] = current_version + 1
+                        metadata['version'] = current_version
                         metadata['deleted'] = True
                         emptyUploadable = Data("", self._convergence)
                         return self._upload_dirnode.add_file(name, emptyUploadable, overwrite=True, metadata=metadata)
