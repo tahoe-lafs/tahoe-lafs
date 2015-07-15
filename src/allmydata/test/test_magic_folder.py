@@ -125,7 +125,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         def _check_move_empty_tree(res):
             self.mkdir_nonascii(empty_tree_dir)
             d2 = defer.Deferred()
-            self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
+            self.magicfolder.set_processed_callback(d2.callback)
             os.rename(empty_tree_dir, new_empty_tree_dir)
             self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
@@ -151,7 +151,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         def _check_moved_tree_is_watched(res):
             d2 = defer.Deferred()
-            self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
+            self.magicfolder.set_processed_callback(d2.callback)
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
             self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
             return d2
@@ -201,7 +201,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         def create_test_file(result):
             d2 = defer.Deferred()
-            self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
+            self.magicfolder.set_processed_callback(d2.callback)
             test_file = abspath_expanduser_unicode(u"what", base=self.local_dir)
             fileutil.write(test_file, "meow")
             self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
@@ -328,7 +328,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         def Alice_wait_for_upload(result):
             print "Alice waits for an upload\n"
             d2 = defer.Deferred()
-            self.alice_magicfolder.set_processed_callback(d2.callback, ignore_count=0)
+            self.alice_magicfolder.set_processed_callback(d2.callback)
             return d2
         d.addCallback(Alice_wait_for_upload)
         def Alice_prepare_for_alice_stats(result):
@@ -342,7 +342,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         def Bob_wait_for_download(result):
             print "Bob waits for a download\n"
             d2 = defer.Deferred()
-            self.bob_magicfolder.set_download_callback(d2.callback, ignore_count=0)
+            self.bob_magicfolder.set_download_callback(d2.callback)
             return d2
         d.addCallback(Bob_wait_for_download)
         def Bob_prepare_for_stats(result):
