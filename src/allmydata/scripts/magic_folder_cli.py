@@ -17,7 +17,9 @@ class CreateOptions(BasedirOptions):
     synopsis = "MAGIC_ALIAS: [NICKNAME LOCALDIR]"
     def parseArgs(self, alias, nickname=None, localdir=None):
         BasedirOptions.parseArgs(self)
-        self.alias = alias
+        if not alias.endswith(':'):
+            raise usage.UsageError("An alias must end with a ':' character.")
+        self.alias = alias[:-1]
         self.nickname = nickname
         self.localdir = localdir
         if self.nickname and not self.localdir:
@@ -64,7 +66,9 @@ class InviteOptions(BasedirOptions):
     stdin = StringIO("")
     def parseArgs(self, alias, nickname=None):
         BasedirOptions.parseArgs(self)
-        self.alias = alias
+        if not alias.endswith(':'):
+            raise usage.UsageError("An alias must end with a ':' character.")
+        self.alias = alias[:-1]
         self.nickname = nickname
         node_url_file = os.path.join(self['node-directory'], "node.url")
         self['node-url'] = open(node_url_file, "r").read().strip()
