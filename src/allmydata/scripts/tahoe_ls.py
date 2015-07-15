@@ -152,7 +152,6 @@ def list(options):
         if options["readonly-uri"]:
             line.append(quote_output(ro_uri or "-", quotemarks=False))
         rows.append((encoding_error, line))
-
     max_widths = []
     left_justifys = []
     for (encoding_error, row) in rows:
