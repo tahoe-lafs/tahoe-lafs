@@ -9,7 +9,7 @@ import tahoe_ls, tahoe_mv
 from allmydata.util import fileutil
 
 
-INVITE_SEPERATOR = "~"
+INVITE_SEPARATOR = "~"
 
 class CreateOptions(BasedirOptions):
     nickname = None
@@ -134,7 +134,7 @@ def invite(options):
         print >>options.stderr, "magic-folder: failed to create link\n"
         return -1
 
-    print >>options.stdout, "%s%s%s" % (magic_readonly_cap, INVITE_SEPERATOR, dmd_write_cap)
+    print >>options.stdout, "%s%s%s" % (magic_readonly_cap, INVITE_SEPARATOR, dmd_write_cap)
     return 0
 
 class JoinOptions(BasedirOptions):
@@ -145,7 +145,7 @@ class JoinOptions(BasedirOptions):
         self.local_dir = local_dir
 
 def join(options):
-    fields = options.invite_code.split(INVITE_SEPERATOR)
+    fields = options.invite_code.split(INVITE_SEPARATOR)
     assert len(fields) == 2
 
     magic_readonly_cap, dmd_write_cap = fields
