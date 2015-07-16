@@ -24,7 +24,7 @@ CREATE TABLE local_files
  size  INTEGER,       -- os.stat(fn)[stat.ST_SIZE]
  mtime NUMBER,        -- os.stat(fn)[stat.ST_MTIME]
  ctime NUMBER,        -- os.stat(fn)[stat.ST_CTIME]
- fileid INTEGER,%s
+ fileid INTEGER%s
 );
 
 CREATE TABLE caps
@@ -67,7 +67,7 @@ UPDATERS = {
 }
 
 
-SCHEMA_v3 = MAIN_SCHEMA % (3, "\nversion INTEGER\n") + TABLE_DIRECTORY
+SCHEMA_v3 = MAIN_SCHEMA % (3, ",\nversion INTEGER\n") + TABLE_DIRECTORY
 
 
 def get_backupdb(dbfile, stderr=sys.stderr,
@@ -77,10 +77,10 @@ def get_backupdb(dbfile, stderr=sys.stderr,
     try:
         (sqlite3, db) = get_db(dbfile, stderr, create_version, updaters=UPDATERS,
                                just_create=just_create, dbname="backupdb")
-        if create_version[1] == 2:
-            return BackupDB_v2(sqlite3, db)
+        if create_version[1] in (1, 2):
+            return BackupDB(sqlite3, db)
         elif create_version[1] == 3:
-            return BackupDB_v3(sqlite3, db)
+            return MagicFolderDB(sqlite3, db)
         else:
             print >>stderr, "invalid db schema version specified"
             return None
@@ -139,7 +139,7 @@ class DirectoryResult:
         self.bdb.did_check_directory_healthy(self.dircap, results)
 
 
-class BackupDB_v2:
+class BackupDB:
     VERSION = 2
     NO_CHECK_BEFORE = 1*MONTH
     ALWAYS_CHECK_AFTER = 2*MONTH
@@ -365,8 +365,8 @@ class BackupDB_v2:
         self.connection.commit()
 
 
-class BackupDB_v3(BackupDB_v2):
-    VERSION = 3 # XXX does this override the class var from parent class?
+class MagicFolderDB(BackupDB):
+    VERSION = 3
 
     def get_local_file_version(self, path):
         """I will tell you the version of a local file tracked by our magic folder db.
