@@ -1,6 +1,5 @@
 import os.path
 import re
-import json
 
 from twisted.trial import unittest
 from twisted.internet import defer
