@@ -1,11 +1,11 @@
 
-import os, json
+import os
 from cStringIO import StringIO
 from twisted.python import usage
 
 from .common import BaseOptions, BasedirOptions, get_aliases
-from .cli import MakeDirectoryOptions, ListOptions, LnOptions
-import tahoe_ls, tahoe_mv
+from .cli import MakeDirectoryOptions, LnOptions
+import tahoe_mv
 from allmydata.util import fileutil
 from allmydata import uri
 
