@@ -11,6 +11,7 @@ from twisted.application import service
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
+from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
      unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
 from allmydata.immutable.upload import FileName, Data
@@ -114,13 +115,13 @@ class MagicFolder(service.MultiService):
         self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
-    def _should_download(self, path, remote_version):
+    def _should_download(self, relpath_u, remote_version):
         """
         _should_download returns a bool indicating whether or not a remote object should be downloaded.
         We check the remote metadata version against our magic-folder db version number;
         latest version wins.
         """
-        v = self._db.get_local_file_version(path)
+        v = self._db.get_local_file_version(relpath_u)
         return (v is None or v < remote_version)
 
     def _get_collective_latest_file(self, filename):
@@ -132,6 +133,7 @@ class MagicFolder(service.MultiService):
         upload_readonly_dircap = self._upload_dirnode.get_readonly_uri()
         collective_dirmap_d = self._collective_dirnode.list()
         def do_filter(result):
+            print result
             others = [x for x in result.keys() if result[x][0].get_readonly_uri() != upload_readonly_dircap]
             return result, others
         collective_dirmap_d.addCallback(do_filter)
@@ -365,75 +367,76 @@ class MagicFolder(service.MultiService):
         path_u = unicode_from_filepath(path)
         self._append_to_upload_deque(path_u)
 
-    def _process(self, path):
+    def _process(self, path_u):
+        precondition(isinstance(path_u, unicode), path_u)
         d = defer.succeed(None)
 
-        def _add_file(name, version):
-            u = FileName(path, self._convergence)
-            return self._upload_dirnode.add_file(name, u, metadata={"version":version}, overwrite=True)
+        def _add_file(encoded_name_u, version):
+            uploadable = FileName(path_u, self._convergence)
+            return self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
 
-        def _add_dir(name):
-            self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
-            u = Data("", self._convergence)
-            name += "@_"
-            upload_d = self._upload_dirnode.add_file(name, u, metadata={"version":0}, overwrite=True)
+        def _add_dir(encoded_name_u):
+            self._notifier.watch(to_filepath(path_u), mask=self.mask, callbacks=[self._notify], recursive=True)
+            uploadable = Data("", self._convergence)
+            encoded_name_u += u"@_"
+            upload_d = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":0}, overwrite=True)
             def _succeeded(ign):
-                self._log("created subdirectory %r" % (path,))
+                self._log("created subdirectory %r" % (path_u,))
                 self._stats_provider.count('magic_folder.directories_created', 1)
             def _failed(f):
-                self._log("failed to create subdirectory %r" % (path,))
+                self._log("failed to create subdirectory %r" % (path_u,))
                 return f
             upload_d.addCallbacks(_succeeded, _failed)
-            upload_d.addCallback(lambda ign: self._scan(path))
+            upload_d.addCallback(lambda ign: self._scan(path_u))
             return upload_d
 
         def _maybe_upload(val):
-            self._upload_pending.remove(path)
-            relpath = os.path.relpath(path, self._local_dir)
-            name = magicpath.path2magic(relpath)
+            self._upload_pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
+            relpath_u = os.path.relpath(path_u, self._local_dir)
+            encoded_name_u = magicpath.path2magic(relpath_u)
 
             def get_metadata(result):
                 try:
-                    metadata_d = self._upload_dirnode.get_metadata_for(name)
+                    metadata_d = self._upload_dirnode.get_metadata_for(encoded_name_u)
                 except KeyError:
                     return Failure()
                 return metadata_d
 
-            if not os.path.exists(path):
+            if not os.path.exists(path_u):
                 self._log("drop-upload: notified object %r disappeared "
-                          "(this is normal for temporary objects)" % (path,))
+                          "(this is normal for temporary objects)" % (path_u,))
                 self._stats_provider.count('magic_folder.objects_disappeared', 1)
                 d2 = defer.succeed(None)
-                if self._db.check_file_db_exists(path):
+                if self._db.check_file_db_exists(relpath_u):
                     d2.addCallback(get_metadata)
                     def set_deleted(metadata):
-                        current_version = self._db.get_local_file_version(path) + 1
+                        current_version = self._db.get_local_file_version(relpath_u) + 1
                         metadata['version'] = current_version
                         metadata['deleted'] = True
                         emptyUploadable = Data("", self._convergence)
-                        return self._upload_dirnode.add_file(name, emptyUploadable, overwrite=True, metadata=metadata)
+                        return self._upload_dirnode.add_file(encoded_name_u, emptyUploadable, overwrite=True, metadata=metadata)
                     d2.addCallback(set_deleted)
                 d2.addCallback(lambda x: Exception("file does not exist"))
                 return d2
-            elif os.path.islink(path):
+            elif os.path.islink(path_u):
                 raise Exception("symlink not being processed")
-            if os.path.isdir(path):
-                return _add_dir(name)
-            elif os.path.isfile(path):
-                version = self._db.get_local_file_version(path)
+            if os.path.isdir(path_u):
+                return _add_dir(encoded_name_u)
+            elif os.path.isfile(path_u):
+                version = self._db.get_local_file_version(relpath_u)
                 if version is None:
                     version = 0
                 else:
                     version += 1
                 print "NEW VERSION ", version
-                d2 = _add_file(name, version)
+                d2 = _add_file(encoded_name_u, version)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
-                    s = os.stat(path)
+                    s = os.stat(path_u)
                     size = s[stat.ST_SIZE]
                     ctime = s[stat.ST_CTIME]
                     mtime = s[stat.ST_MTIME]
-                    self._db.did_upload_file(filecap, path, version, mtime, ctime, size)
+                    self._db.did_upload_file(filecap, relpath_u, version, mtime, ctime, size)
                     self._stats_provider.count('magic_folder.files_uploaded', 1)
                 d2.addCallback(add_db_entry)
                 return d2
@@ -449,7 +452,7 @@ class MagicFolder(service.MultiService):
         def _failed(f):
             self._stats_provider.count('magic_folder.objects_queued', -1)
             self._stats_provider.count('magic_folder.objects_failed', 1)
-            self._log("%r while processing %r" % (f, path))
+            self._log("%r while processing %r" % (f, path_u))
             return f
         d.addCallbacks(_succeeded, _failed)
         d.addBoth(self._do_processed_callback)
