@@ -53,7 +53,7 @@ install_requires = [
 
     "service-identity",         # this is needed to suppress complaints about being unable to verify certs
     "characteristic >= 14.0.0", # latest service-identity depends on this version
-    "pyasn1 >= 0.1.4",          # latest pyasn1-modules depends on this version
+    "pyasn1 >= 0.1.8",          # latest pyasn1-modules depends on this version
     "pyasn1-modules >= 0.0.5",  # service-identity depends on this
 ]
 
