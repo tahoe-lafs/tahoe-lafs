@@ -45,7 +45,8 @@ install_requires = [
     "pycrypto >= 2.1.0, != 2.2, != 2.4",
 
     # <http://www.voidspace.org.uk/python/mock/>, 0.8.0 provides "call"
-    "mock >= 0.8.0",
+    # mock 1.1.x seems to cause problems on several buildslaves.
+    "mock >= 0.8.0, <= 1.0.1",
 
     # pycryptopp-0.6.0 includes ed25519
     "pycryptopp >= 0.6.0",
