@@ -199,7 +199,6 @@ class MagicFolder(service.MultiService):
 
     def _filter_scan_batch(self, result):
         extension = []
-        max_version_dict = {}
         for name in self._download_scan_batch.keys():
             if name in self._download_pending:
                 continue
@@ -246,44 +245,58 @@ class MagicFolder(service.MultiService):
         except FilenameEncodingError:
             raise(Exception("WARNING: magic folder: could not list directory %s due to a filename encoding error" % (quoted_path,)))
 
+        d = defer.succeed(None)
         for child in children:
             assert isinstance(child, unicode), child
             childpath = os.path.join(localpath, child)
-            # note: symlinks to directories are both islink() and isdir()
-            isdir = os.path.isdir(childpath)
-            isfile = os.path.isfile(childpath)
-            islink = os.path.islink(childpath)
 
-            if islink:
-                self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
-            elif isdir:
-                # process directories unconditionally
-                self._append_to_upload_deque(childpath)
+            def _process_child(ign, childpath=childpath):
+                # note: symlinks to directories are both islink() and isdir()
+                isdir = os.path.isdir(childpath)
+                isfile = os.path.isfile(childpath)
+                islink = os.path.islink(childpath)
 
-                # recurse on the child directory
-                self._scan(childpath)
-            elif isfile:
-                file_version = self._db.get_local_file_version(childpath)
-                if file_version is None:
-                    # XXX upload if we didn't record our version in magicfolder db?
+                if islink:
+                    self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
+                    return None
+                elif isdir:
+                    # process directories unconditionally
                     self._append_to_upload_deque(childpath)
-                else:
-                    file_node, metadata = self._get_collective_latest_file(childpath)
-                    if collective_version is None:
-                        continue
-                    if file_version > collective_version:
+
+                    # recurse on the child directory
+                    return self._scan(childpath)
+                elif isfile:
+                    file_version = self._db.get_local_file_version(childpath)
+                    if file_version is None:
+                        # XXX upload if we didn't record our version in magicfolder db?
                         self._append_to_upload_deque(childpath)
-                    elif file_version < collective_version:
-                        # if a collective version of the file is newer than ours
-                        # we must download it and unlink the old file from our upload dirnode
-                        self._append_to_download_deque(childpath)
-                        # XXX where should we save the returned deferred?
-                        d = self._upload_dirnode.delete(childpath, must_be_file=True)
+                        return None
                     else:
-                        # XXX same version. do nothing.
-                        pass
-            else:
-                self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
+                        d2 = self._get_collective_latest_file(childpath)
+                        def _got_latest_file((file_node, metadata)):
+                            collective_version = metadata['version']
+                            if collective_version is None:
+                                return None
+                            if file_version > collective_version:
+                                self._append_to_upload_deque(childpath)
+                            elif file_version < collective_version:
+                                # if a collective version of the file is newer than ours
+                                # we must download it and unlink the old file from our upload dirnode
+                                self._append_to_download_deque(childpath)
+                                # XXX where should we save the returned deferred?
+                                return self._upload_dirnode.delete(childpath, must_be_file=True)
+                            else:
+                                # XXX same version. do nothing.
+                                pass
+                        d2.addCallback(_got_latest_file)
+                        return d2
+                else:
+                    self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
+                    return None
+            d.addCallback(_process_child)
+            d.addErrback(log.err)
+
+        return d
 
     def startService(self):
         self._db = backupdb.get_backupdb(self._dbfile, create_version=(backupdb.SCHEMA_v3, 3))
