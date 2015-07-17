@@ -1,8 +1,8 @@
+
 import random
 
 from twisted.trial import unittest
 from twisted.internet import defer
-import mock
 from foolscap.api import eventually
 
 from allmydata.test import common
@@ -16,6 +16,11 @@ from allmydata.interfaces import NotEnoughSharesError
 from allmydata.immutable.upload import Data
 from allmydata.immutable.downloader import finder
 
+
+class MockShareHashTree(object):
+    def needed_hashes(self):
+        return False
+
 class MockNode(object):
     def __init__(self, check_reneging, check_fetch_failed):
         self.got = 0
@@ -27,8 +32,7 @@ class MockNode(object):
         self.check_fetch_failed = check_fetch_failed
         self._si_prefix='aa'
         self.have_UEB = True
-        self.share_hash_tree = mock.Mock()
-        self.share_hash_tree.needed_hashes.return_value = False
+        self.share_hash_tree = MockShareHashTree()
         self.on_want_more_shares = None
 
     def when_finished(self):
@@ -75,6 +79,9 @@ class TestShareFinder(unittest.TestCase):
         rcap = uri.CHKFileURI('a'*32, 'a'*32, 3, 99, 100)
         vcap = rcap.get_verify_cap()
 
+        class MockBuckets(object):
+            pass
+
         class MockServer(object):
             def __init__(self, buckets):
                 self.version = {
@@ -98,6 +105,7 @@ class TestShareFinder(unittest.TestCase):
                     self.s.hungry()
                 eventually(_give_buckets_and_hunger_again)
                 return d
+
         class MockIServer(object):
             def __init__(self, serverid, rref):
                 self.serverid = serverid
@@ -111,15 +119,28 @@ class TestShareFinder(unittest.TestCase):
             def get_version(self):
                 return self.rref.version
 
-        mockserver1 = MockServer({1: mock.Mock(), 2: mock.Mock()})
+        class MockStorageBroker(object):
+            def __init__(self, servers):
+                self.servers = servers
+            def get_servers_for_psi(self, si):
+                return self.servers
+
+        class MockDownloadStatus(object):
+            def add_dyhb_request(self, server, when):
+                return MockDYHBEvent()
+
+        class MockDYHBEvent(object):
+            def finished(self, shnums, when):
+                pass
+
+        mockserver1 = MockServer({1: MockBuckets(), 2: MockBuckets()})
         mockserver2 = MockServer({})
-        mockserver3 = MockServer({3: mock.Mock()})
-        mockstoragebroker = mock.Mock()
+        mockserver3 = MockServer({3: MockBuckets()})
         servers = [ MockIServer("ms1", mockserver1),
                     MockIServer("ms2", mockserver2),
                     MockIServer("ms3", mockserver3), ]
-        mockstoragebroker.get_servers_for_psi.return_value = servers
-        mockdownloadstatus = mock.Mock()
+        mockstoragebroker = MockStorageBroker(servers)
+        mockdownloadstatus = MockDownloadStatus()
         mocknode = MockNode(check_reneging=True, check_fetch_failed=True)
 
         s = finder.ShareFinder(mockstoragebroker, vcap, mocknode, mockdownloadstatus)

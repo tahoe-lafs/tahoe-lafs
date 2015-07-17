@@ -1,13 +1,16 @@
+
 import os.path
-from twisted.trial import unittest
 from cStringIO import StringIO
 import re
 
-from mock import patch
+from twisted.trial import unittest
+from twisted.python.monkey import MonkeyPatcher
 
+import __builtin__
 from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
+from allmydata.util.namespace import Namespace
 from allmydata.scripts import cli, backupdb
 from .common_util import StallMixin
 from .no_network import GridTestMixin
@@ -328,20 +331,25 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self._check_filtering(filtered, root_listdir, (u'lib.a', u'_darcs', u'subdir'),
                               (nice_doc,))
 
-    @patch('__builtin__.file')
-    def test_exclude_from_tilde_expansion(self, mock):
+    def test_exclude_from_tilde_expansion(self):
         basedir = "cli/Backup/exclude_from_tilde_expansion"
         fileutil.make_dirs(basedir)
         nodeurl_path = os.path.join(basedir, 'node.url')
         fileutil.write(nodeurl_path, 'http://example.net:2357/')
-        def parse(args): return parse_options(basedir, "backup", args)
 
         # ensure that tilde expansion is performed on exclude-from argument
         exclude_file = u'~/.tahoe/excludes.dummy'
 
-        mock.return_value = StringIO()
-        parse(['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
-        self.failUnlessIn(((abspath_expanduser_unicode(exclude_file),), {}), mock.call_args_list)
+        ns = Namespace()
+        ns.called = False
+        def call_file(name, *args):
+            ns.called = True
+            self.failUnlessEqual(name, abspath_expanduser_unicode(exclude_file))
+            return StringIO()
+
+        patcher = MonkeyPatcher((__builtin__, 'file', call_file))
+        patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
+        self.failUnless(ns.called)
 
     def test_ignore_symlinks(self):
         if not hasattr(os, 'symlink'):

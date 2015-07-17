@@ -1,6 +1,5 @@
-import time, os.path, platform, stat, re, simplejson, struct, shutil
 
-import mock
+import time, os.path, platform, stat, re, simplejson, struct, shutil
 
 from twisted.trial import unittest
 
@@ -138,7 +137,13 @@ class Bucket(unittest.TestCase):
 
         fileutil.write(final, share_file_data)
 
-        mockstorageserver = mock.Mock()
+        class MockStorageServer(object):
+            def add_latency(self, category, latency):
+                pass
+            def count(self, name, delta=1):
+                pass
+
+        mockstorageserver = MockStorageServer()
 
         # Now read from it.
         br = BucketReader(mockstorageserver, final)
@@ -513,15 +518,19 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
 
-    @mock.patch('allmydata.util.fileutil.get_disk_stats')
-    def test_reserved_space(self, mock_get_disk_stats):
-        reserved_space=10000
-        mock_get_disk_stats.return_value = {
-            'free_for_nonroot': 15000,
-            'avail': max(15000 - reserved_space, 0),
-            }
+    def test_reserved_space(self):
+        reserved = 10000
+        allocated = 0
 
-        ss = self.create("test_reserved_space", reserved_space=reserved_space)
+        def call_get_disk_stats(whichdir, reserved_space=0):
+            self.failUnlessEqual(reserved_space, reserved)
+            return {
+              'free_for_nonroot': 15000 - allocated,
+              'avail': max(15000 - allocated - reserved_space, 0),
+            }
+        self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
+
+        ss = self.create("test_reserved_space", reserved_space=reserved)
         # 15k available, 10k reserved, leaves 5k for shares
 
         # a newly created and filled share incurs this much overhead, beyond
@@ -558,14 +567,8 @@ class Server(unittest.TestCase):
         del bw
         self.failUnlessEqual(len(ss._active_writers), 0)
 
+        # this also changes the amount reported as available by call_get_disk_stats
         allocated = 1001 + OVERHEAD + LEASE_SIZE
-
-        # we have to manually increase available, since we're not doing real
-        # disk measurements
-        mock_get_disk_stats.return_value = {
-            'free_for_nonroot': 15000 - allocated,
-            'avail': max(15000 - allocated - reserved_space, 0),
-            }
 
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
@@ -4007,9 +4010,10 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d = self.render1(page, args={"t": ["json"]})
         return d
 
-    @mock.patch('allmydata.util.fileutil.get_disk_stats')
-    def test_status_no_disk_stats(self, mock_get_disk_stats):
-        mock_get_disk_stats.side_effect = AttributeError()
+    def test_status_no_disk_stats(self):
+        def call_get_disk_stats(whichdir, reserved_space=0):
+            raise AttributeError()
+        self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
 
         # Some platforms may have no disk stats API. Make sure the code can handle that
         # (test runs on all platforms).
@@ -4026,9 +4030,10 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         self.failUnlessIn("Space Available to Tahoe: ?", s)
         self.failUnless(ss.get_available_space() is None)
 
-    @mock.patch('allmydata.util.fileutil.get_disk_stats')
-    def test_status_bad_disk_stats(self, mock_get_disk_stats):
-        mock_get_disk_stats.side_effect = OSError()
+    def test_status_bad_disk_stats(self):
+        def call_get_disk_stats(whichdir, reserved_space=0):
+            raise OSError()
+        self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
 
         # If the API to get disk stats exists but a call to it fails, then the status should
         # show that no shares will be accepted, and get_available_space() should be 0.
@@ -4045,33 +4050,35 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         self.failUnlessIn("Space Available to Tahoe: ?", s)
         self.failUnlessEqual(ss.get_available_space(), 0)
 
-    @mock.patch('allmydata.util.fileutil.get_disk_stats')
-    def test_status_right_disk_stats(self, mock_get_disk_stats):
+    def test_status_right_disk_stats(self):
         GB = 1000000000
         total            = 5*GB
         free_for_root    = 4*GB
         free_for_nonroot = 3*GB
-        reserved_space   = 1*GB
-        used = total - free_for_root
-        avail = max(free_for_nonroot - reserved_space, 0)
-        mock_get_disk_stats.return_value = {
-            'total': total,
-            'free_for_root': free_for_root,
-            'free_for_nonroot': free_for_nonroot,
-            'used': used,
-            'avail': avail,
-        }
+        reserved         = 1*GB
 
         basedir = "storage/WebStatus/status_right_disk_stats"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20, reserved_space=reserved_space)
+        ss = StorageServer(basedir, "\x00" * 20, reserved_space=reserved)
         expecteddir = ss.sharedir
+
+        def call_get_disk_stats(whichdir, reserved_space=0):
+            self.failUnlessEqual(whichdir, expecteddir)
+            self.failUnlessEqual(reserved_space, reserved)
+            used = total - free_for_root
+            avail = max(free_for_nonroot - reserved_space, 0)
+            return {
+              'total': total,
+              'free_for_root': free_for_root,
+              'free_for_nonroot': free_for_nonroot,
+              'used': used,
+              'avail': avail,
+            }
+        self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
+
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
-
-        self.failIf([True for args in mock_get_disk_stats.call_args_list if args != ((expecteddir, reserved_space), {})],
-                    mock_get_disk_stats.call_args_list)
 
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)

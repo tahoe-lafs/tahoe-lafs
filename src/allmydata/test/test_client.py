@@ -1,8 +1,12 @@
 import os, sys
+import twisted
 from twisted.trial import unittest
 from twisted.application import service
 
 import allmydata
+import allmydata.frontends.drop_upload
+import allmydata.util.log
+
 from allmydata.node import Node, OldConfigError, OldConfigOptionError, MissingConfigEntry, UnescapedHashError
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
@@ -14,7 +18,6 @@ from allmydata.interfaces import IFilesystemNode, IFileNode, \
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
 
-import mock
 
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
@@ -55,8 +58,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
             client.Client(basedir)
 
 
-    @mock.patch('twisted.python.log.msg')
-    def test_error_on_old_config_files(self, mock_log_msg):
+    def test_error_on_old_config_files(self):
         basedir = "test_client.Basic.test_error_on_old_config_files"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
@@ -69,6 +71,9 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "readonly_storage"), "")
         fileutil.write(os.path.join(basedir, "debug_discard_storage"), "")
 
+        logged_messages = []
+        self.patch(twisted.python.log, 'msg', logged_messages.append)
+
         e = self.failUnlessRaises(OldConfigError, client.Client, basedir)
         abs_basedir = fileutil.abspath_expanduser_unicode(unicode(basedir)).encode(sys.getfilesystemencoding())
         self.failUnlessIn(os.path.join(abs_basedir, "introducer.furl"), e.args[0])
@@ -78,18 +83,18 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         for oldfile in ['introducer.furl', 'no_storage', 'readonly_storage',
                         'debug_discard_storage']:
-            logged = [ m for m in mock_log_msg.call_args_list if
-                       ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m[0][0]) and oldfile in str(m[0][0])) ]
-            self.failUnless(logged, (oldfile, mock_log_msg.call_args_list))
+            logged = [ m for m in logged_messages if
+                       ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m) and oldfile in str(m)) ]
+            self.failUnless(logged, (oldfile, logged_messages))
 
         for oldfile in [
             'nickname', 'webport', 'keepalive_timeout', 'log_gatherer.furl',
             'disconnect_timeout', 'advertised_ip_addresses', 'helper.furl',
             'key_generator.furl', 'stats_gatherer.furl', 'sizelimit',
             'run_helper']:
-            logged = [ m for m in mock_log_msg.call_args_list if
-                       ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m[0][0]) and oldfile in str(m[0][0])) ]
-            self.failIf(logged, oldfile)
+            logged = [ m for m in logged_messages if
+                       ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m) and oldfile in str(m)) ]
+            self.failIf(logged, (oldfile, logged_messages))
 
     def test_secrets(self):
         basedir = "test_client.Basic.test_secrets"
@@ -297,9 +302,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         _check("helper.furl = None", None)
         _check("helper.furl = pb://blah\n", "pb://blah")
 
-    @mock.patch('allmydata.util.log.msg')
-    @mock.patch('allmydata.frontends.drop_upload.DropUploader')
-    def test_create_drop_uploader(self, mock_drop_uploader, mock_log_msg):
+    def test_create_drop_uploader(self):
         class MockDropUploader(service.MultiService):
             name = 'drop-upload'
 
@@ -310,7 +313,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                 self.local_dir_utf8 = local_dir_utf8
                 self.inotify = inotify
 
-        mock_drop_uploader.side_effect = MockDropUploader
+        self.patch(allmydata.frontends.drop_upload, 'DropUploader', MockDropUploader)
 
         upload_dircap = "URI:DIR2:blah"
         local_dir_utf8 = u"loc\u0101l_dir".encode('utf-8')
@@ -347,7 +350,14 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         class Boom(Exception):
             pass
-        mock_drop_uploader.side_effect = Boom()
+        def BoomDropUploader(client, upload_dircap, local_dir_utf8, inotify=None):
+            raise Boom()
+
+        logged_messages = []
+        def mock_log(*args, **kwargs):
+            logged_messages.append("%r %r" % (args, kwargs))
+        self.patch(allmydata.util.log, 'msg', mock_log)
+        self.patch(allmydata.frontends.drop_upload, 'DropUploader', BoomDropUploader)
 
         basedir2 = "test_client.Basic.test_create_drop_uploader2"
         os.mkdir(basedir2)
@@ -360,8 +370,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir2, "private", "drop_upload_dircap"), "URI:DIR2:blah")
         c2 = client.Client(basedir2)
         self.failUnlessRaises(KeyError, c2.getServiceNamed, 'drop-upload')
-        self.failUnless([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg)],
-                        mock_log_msg.call_args_list)
+        self.failUnless([True for arg in logged_messages if "Boom" in arg],
+                        logged_messages)
 
 
 def flush_but_dont_ignore(res):

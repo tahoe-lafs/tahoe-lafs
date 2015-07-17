@@ -1,13 +1,14 @@
 
 import os.path
-from twisted.trial import unittest
 from cStringIO import StringIO
 import urllib, sys
 
-from mock import Mock, call
+from twisted.trial import unittest
+from twisted.python.monkey import MonkeyPatcher
 
 import allmydata
 from allmydata.util import fileutil, hashutil, base32, keyutil
+from allmydata.util.namespace import Namespace
 from allmydata import uri
 from allmydata.immutable import upload
 from allmydata.dirnode import normalize
@@ -541,22 +542,29 @@ class CLI(CLITestMixin, unittest.TestCase):
     def test_exception_catcher(self):
         self.basedir = "cli/exception_catcher"
 
-        runner_mock = Mock()
-        sys_exit_mock = Mock()
         stderr = StringIO()
-        self.patch(sys, "argv", ["tahoe"])
-        self.patch(runner, "runner", runner_mock)
-        self.patch(sys, "exit", sys_exit_mock)
-        self.patch(sys, "stderr", stderr)
         exc = Exception("canary")
+        ns = Namespace()
 
+        ns.runner_called = False
         def call_runner(args, install_node_control=True):
+            ns.runner_called = True
+            self.failUnlessEqual(install_node_control, True)
             raise exc
-        runner_mock.side_effect = call_runner
 
-        runner.run()
-        self.failUnlessEqual(runner_mock.call_args_list, [call([], install_node_control=True)])
-        self.failUnlessEqual(sys_exit_mock.call_args_list, [call(1)])
+        ns.sys_exit_called = False
+        def call_sys_exit(exitcode):
+            ns.sys_exit_called = True
+            self.failUnlessEqual(exitcode, 1)
+
+        patcher = MonkeyPatcher((runner, 'runner', call_runner),
+                                (sys, 'argv', ["tahoe"]),
+                                (sys, 'exit', call_sys_exit),
+                                (sys, 'stderr', stderr))
+        patcher.runWithPatches(runner.run)
+
+        self.failUnless(ns.runner_called)
+        self.failUnless(ns.sys_exit_called)
         self.failUnlessIn(str(exc), stderr.getvalue())
 
 

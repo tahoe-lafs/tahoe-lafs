@@ -44,10 +44,6 @@ install_requires = [
     # pycrypto 2.4 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/881130>
     "pycrypto >= 2.1.0, != 2.2, != 2.4",
 
-    # <http://www.voidspace.org.uk/python/mock/>, 0.8.0 provides "call"
-    # mock 1.1.x seems to cause problems on several buildslaves.
-    "mock >= 0.8.0, <= 1.0.1",
-
     # pycryptopp-0.6.0 includes ed25519
     "pycryptopp >= 0.6.0",
 
@@ -74,7 +70,6 @@ package_imports = [
     ('simplejson',       'simplejson'),
     ('pycrypto',         'Crypto'),
     ('pyasn1',           'pyasn1'),
-    ('mock',             'mock'),
     ('service-identity', 'service_identity'),
     ('characteristic',   'characteristic'),
     ('pyasn1-modules',   'pyasn1_modules'),
