@@ -13,7 +13,8 @@ from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import uri
 
-class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
+
+class MagicFolderTestMixin(CLITestMixin, GridTestMixin):
 
     def do_create_magic_folder(self, client_num):
         d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
@@ -156,7 +157,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return d
 
 
-class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
+class CreateMagicFolder(MagicFolderTestMixin, unittest.TestCase):
 
     def test_create_and_then_invite_join(self):
         self.basedir = "cli/MagicFolder/create-and-then-invite-join"
