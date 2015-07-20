@@ -9,7 +9,7 @@ import tahoe_mv
 from allmydata.util import fileutil
 from allmydata import uri
 
-INVITE_SEPARATOR = "~"
+INVITE_SEPARATOR = "+"
 
 class CreateOptions(BasedirOptions):
     nickname = None
