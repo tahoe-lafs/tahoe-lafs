@@ -15,7 +15,7 @@ from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
 
 from allmydata.frontends.drop_upload import DropUploader
-from allmydata.scripts import backupdb
+from allmydata import backupdb
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
