@@ -302,7 +302,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         _check("helper.furl = None", None)
         _check("helper.furl = pb://blah\n", "pb://blah")
 
-    def test_create_magic_folder(self):
+    def test_create_magic_folder_service(self):
         class MockMagicFolder(service.MultiService):
             name = 'magic-folder'
 
@@ -330,7 +330,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                   "[magic_folder]\n" +
                   "enabled = true\n")
 
-        basedir1 = "test_client.Basic.test_create_magic_folder1"
+        basedir1 = "test_client.Basic.test_create_magic_folder_service1"
         os.mkdir(basedir1)
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
@@ -359,17 +359,12 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         class Boom(Exception):
             pass
-        def BoomMagicFolder(self, client, upload_dircap, collective_dircap, local_dir, dbfile,
+        def BoomMagicFolder(client, upload_dircap, collective_dircap, local_dir, dbfile,
                             inotify=None, pending_delay=1.0):
             raise Boom()
-
-        logged_messages = []
-        def mock_log(*args, **kwargs):
-            logged_messages.append("%r %r" % (args, kwargs))
-        self.patch(allmydata.util.log, 'msg', mock_log)
         self.patch(allmydata.frontends.magic_folder, 'MagicFolder', BoomMagicFolder)
 
-        basedir2 = "test_client.Basic.test_create_magic_folder2"
+        basedir2 = "test_client.Basic.test_create_magic_folder_service2"
         os.mkdir(basedir2)
         os.mkdir(os.path.join(basedir2, "private"))
         fileutil.write(os.path.join(basedir2, "tahoe.cfg"),
@@ -379,10 +374,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                        "local.directory = " + local_dir_utf8 + "\n")
         fileutil.write(os.path.join(basedir2, "private", "magic_folder_dircap"), "URI:DIR2:blah")
         fileutil.write(os.path.join(basedir2, "private", "collective_dircap"), "URI:DIR2:meow")
-        c2 = client.Client(basedir2)
-        self.failUnlessRaises(KeyError, c2.getServiceNamed, 'magic-folder')
-        self.failUnless([True for arg in logged_messages if "Boom" in arg],
-                        logged_messages)
+        self.failUnlessRaises(Boom, client.Client, basedir2)
 
 
 def flush_but_dont_ignore(res):
