@@ -12,14 +12,15 @@ from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
-from allmydata.test.test_cli_magic_folder import MagicFolderCLITestMixin
+from allmydata.test.test_cli_magic_folder import MagicFolderTestMixin
 
 from allmydata.frontends import magic_folder
 from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import backupdb, magicpath
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
-class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
+
+class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
     """
     These tests will be run both with a mock notifier, and (on platforms that support it)
     with the real INotify.
