@@ -4,7 +4,7 @@ import os, sys, stat, time
 from twisted.trial import unittest
 from twisted.internet import defer
 
-from allmydata.interfaces import IDirectoryNode, NoSuchChildError
+from allmydata.interfaces import IDirectoryNode
 
 from allmydata.util import fake_inotify, fileutil
 from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
@@ -12,14 +12,14 @@ from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
+from allmydata.test.test_cli_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
 from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import backupdb
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
-
-class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
+class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
     """
     These tests will be run both with a mock notifier, and (on platforms that support it)
     with the real INotify.
@@ -30,42 +30,27 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
-        self.dir_node = None
 
-    def _get_count(self, name):
+    def _get_count(self, name, client=None):
+        if client is not None:
+            return client.stats_provider.get_stats()["counters"].get(name, 0)
         return self.stats_provider.get_stats()["counters"].get(name, 0)
 
     def _createdb(self):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
-        bdb = backupdb.get_backupdb(dbfile)
+        bdb = backupdb.get_backupdb(dbfile, create_version=(backupdb.SCHEMA_v3, 3))
         self.failUnless(bdb, "unable to create backupdb from %r" % (dbfile,))
-        self.failUnlessEqual(bdb.VERSION, 2)
+        self.failUnlessEqual(bdb.VERSION, 3)
         return bdb
-
-    def _made_upload_dir(self, n):
-        if self.dir_node == None:
-            self.dir_node = n
-        else:
-            n = self.dir_node
-        self.failUnless(IDirectoryNode.providedBy(n))
-        self.upload_dirnode = n
-        self.upload_dircap = n.get_uri()
-        self.collective_dircap = "abc123"
 
     def _create_magicfolder(self, ign):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
         self.magicfolder = MagicFolder(self.client, self.upload_dircap, self.collective_dircap, self.local_dir,
                                        dbfile, inotify=self.inotify, pending_delay=0.2)
         self.magicfolder.setServiceParent(self.client)
-        self.magicfolder.upload_ready()
+        self.magicfolder.ready()
 
     # Prevent unclean reactor errors.
-    def _cleanup(self, res):
-        d = defer.succeed(None)
-        if self.magicfolder is not None:
-            d.addCallback(lambda ign: self.magicfolder.finish(for_tests=True))
-        d.addCallback(lambda ign: res)
-        return d
 
     def test_db_basic(self):
         fileutil.make_dirs(self.basedir)
@@ -78,7 +63,7 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         db = self._createdb()
 
         path = abspath_expanduser_unicode(u"myFile1", base=self.basedir)
-        db.did_upload_file('URI:LIT:1', path, 0, 0, 33)
+        db.did_upload_file('URI:LIT:1', path, 1, 0, 0, 33)
 
         c = db.cursor
         c.execute("SELECT size,mtime,ctime,fileid"
@@ -96,7 +81,7 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         size = s[stat.ST_SIZE]
         ctime = s[stat.ST_CTIME]
         mtime = s[stat.ST_MTIME]
-        db.did_upload_file('URI:LIT:2', path, mtime, ctime, size)
+        db.did_upload_file('URI:LIT:2', path, 1, mtime, ctime, size)
         r = db.check_file(path)
         self.failUnless(r.was_uploaded())
 
@@ -110,11 +95,11 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
 
-        d = self.client.create_dirnode()
-        d.addCallback(self._made_upload_dir)
+        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._create_magicfolder)
+
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.dirs_monitored'), 1))
-        d.addBoth(self._cleanup)
+        d.addBoth(self.cleanup)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.dirs_monitored'), 0))
         return d
 
@@ -136,15 +121,13 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         small_tree_dir = abspath_expanduser_unicode(small_tree_name, base=self.basedir)
         new_small_tree_dir = abspath_expanduser_unicode(small_tree_name, base=self.local_dir)
 
-        d = self.client.create_dirnode()
-        d.addCallback(self._made_upload_dir)
-
+        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._create_magicfolder)
 
         def _check_move_empty_tree(res):
             self.mkdir_nonascii(empty_tree_dir)
             d2 = defer.Deferred()
-            self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
+            self.magicfolder.set_processed_callback(d2.callback)
             os.rename(empty_tree_dir, new_empty_tree_dir)
             self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
@@ -170,7 +153,7 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
 
         def _check_moved_tree_is_watched(res):
             d2 = defer.Deferred()
-            self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
+            self.magicfolder.set_processed_callback(d2.callback)
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
             self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
             return d2
@@ -197,7 +180,7 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 2))
 
-        d.addBoth(self._cleanup)
+        d.addBoth(self.cleanup)
         return d
 
     def test_persistence(self):
@@ -213,32 +196,46 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
 
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
-        d = self.client.create_dirnode()
-        d.addCallback(self._made_upload_dir)
+        self.collective_dircap = ""
+
+        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._create_magicfolder)
 
-        def create_file(val):
+        def create_test_file(result):
             d2 = defer.Deferred()
             self.magicfolder.set_processed_callback(d2.callback)
             test_file = abspath_expanduser_unicode(u"what", base=self.local_dir)
             fileutil.write(test_file, "meow")
             self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
             return d2
-        d.addCallback(create_file)
+        d.addCallback(create_test_file)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
-        d.addCallback(self._cleanup)
 
-        def _restart(ign):
-            self.set_up_grid()
-            self.client = self.g.clients[0]
-            self.stats_provider = self.client.stats_provider
-        d.addCallback(_restart)
-        d.addCallback(self._create_magicfolder)
-        d.addCallback(lambda ign: time.sleep(3))
+        def restart(ignore):
+            print "restart"
+            tahoe_config_file = os.path.join(self.get_clientdir(), "tahoe.cfg")
+            tahoe_config = fileutil.read(tahoe_config_file)
+            d3 = defer.succeed(None)
+            def write_config(client_node_dir):
+                print "write_config"
+                fileutil.write(os.path.join(client_node_dir, "tahoe.cfg"), tahoe_config)
+            def setup_stats(result):
+                print "setup_stats"
+                self.client = None
+                self.set_up_grid(client_config_hooks={0: write_config})
+                self.client = self.g.clients[0]
+                self.stats_provider = self.client.stats_provider
+                self.magicfolder = self.client.getServiceNamed("magic-folder")
+
+            d3.addBoth(self.cleanup)
+            d3.addCallback(setup_stats)
+            #d3.addCallback(self._create_magicfolder)
+            return d3
+        d.addCallback(restart)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
-        d.addBoth(self._cleanup)
+        d.addBoth(self.cleanup)
         return d
 
     def test_magic_folder(self):
@@ -249,9 +246,7 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
 
-        d = self.client.create_dirnode()
-
-        d.addCallback(self._made_upload_dir)
+        d = self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
         d.addCallback(self._create_magicfolder)
 
         # Write something short enough for a LIT file.
@@ -273,17 +268,16 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         # TODO: test that causes an upload failure.
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_failed'), 0))
 
-        d.addBoth(self._cleanup)
+        d.addBoth(self.cleanup)
         return d
 
     def _check_file(self, name_u, data, temporary=False):
         previously_uploaded = self._get_count('magic_folder.objects_succeeded')
         previously_disappeared = self._get_count('magic_folder.objects_disappeared')
 
-        d = defer.Deferred()
-
         # Note: this relies on the fact that we only get one IN_CLOSE_WRITE notification per file
         # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
+        d = defer.Deferred()
         self.magicfolder.set_processed_callback(d.callback)
 
         path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
@@ -305,8 +299,6 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         self.notify(path, self.inotify.IN_CLOSE_WRITE)
 
         if temporary:
-            d.addCallback(lambda ign: self.shouldFail(NoSuchChildError, 'temp file not uploaded', None,
-            self.upload_dirnode.get, name_u))
             d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_disappeared'),
                                                                  previously_disappeared + 1))
         else:
@@ -319,6 +311,76 @@ class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, Non
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         return d
 
+    def test_alice_bob(self):
+        d = self.setup_alice_and_bob()
+        def get_results(result):
+            # XXX
+            self.alice_collective_dir, self.alice_upload_dircap, self.alice_magicfolder, self.bob_collective_dircap, self.bob_upload_dircap, self.bob_magicfolder = result
+        d.addCallback(get_results)
+
+        def Alice_write_a_file(result):
+            print "Alice writes a file\n"
+            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder._local_dir)
+            fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
+            self.magicfolder = self.alice_magicfolder
+            self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
+
+        d.addCallback(Alice_write_a_file)
+
+        def Alice_wait_for_upload(result):
+            print "Alice waits for an upload\n"
+            d2 = defer.Deferred()
+            self.alice_magicfolder.set_processed_callback(d2.callback)
+            return d2
+        d.addCallback(Alice_wait_for_upload)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded', client=self.alice_magicfolder._client), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded', client=self.alice_magicfolder._client), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued', client=self.alice_magicfolder._client), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created', client=self.alice_magicfolder._client), 0))
+
+        def Bob_wait_for_download(result):
+            print "Bob waits for a download\n"
+            d2 = defer.Deferred()
+            self.bob_magicfolder.set_download_callback(d2.callback)
+            return d2
+        d.addCallback(Bob_wait_for_download)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_downloaded', client=self.bob_magicfolder._client), 1))
+
+        # test deletion of file behavior
+        def Alice_delete_file(result):
+            print "Alice deletes the file!\n"
+            os.unlink(self.file_path)
+            self.notify(to_filepath(self.file_path), self.inotify.IN_DELETE)
+
+            return None
+        d.addCallback(Alice_delete_file)
+        d.addCallback(Alice_wait_for_upload)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded', client=self.alice_magicfolder._client), 2))
+        d.addCallback(Bob_wait_for_download)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_downloaded', client=self.bob_magicfolder._client), 2))
+
+        def Alice_rewrite_file(result):
+            print "Alice rewrites file\n"
+            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder._local_dir)
+            fileutil.write(self.file_path, "Alice suddenly sees the white rabbit running into the forest.")
+            self.magicfolder = self.alice_magicfolder
+            self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
+        d.addCallback(Alice_rewrite_file)
+
+        d.addCallback(Alice_wait_for_upload)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded', client=self.alice_magicfolder._client), 3))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded', client=self.alice_magicfolder._client), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued', client=self.alice_magicfolder._client), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created', client=self.alice_magicfolder._client), 0))
+
+        def cleanup_Alice_and_Bob(result):
+            d = defer.succeed(None)
+            d.addCallback(lambda ign: self.alice_magicfolder.finish(for_tests=True))
+            d.addCallback(lambda ign: self.bob_magicfolder.finish(for_tests=True))
+            d.addCallback(lambda ign: result)
+            return d
+        d.addCallback(cleanup_Alice_and_Bob)
+        return d
 
 class MockTest(MagicFolderTestMixin, unittest.TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
@@ -357,6 +419,9 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
                             MagicFolder, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
                             MagicFolder, client, readonly_dircap, '', errors_dir, magicfolderdb, inotify=fake_inotify)
+            self.shouldFail(AssertionError, 'collective dircap',
+                            "The URI in 'private/collective_dircap' is not a readonly cap to a directory.",
+                            MagicFolder, client, upload_dircap, upload_dircap, errors_dir, magicfolderdb, inotify=fake_inotify)
 
             def _not_implemented():
                 raise NotImplementedError("blah")

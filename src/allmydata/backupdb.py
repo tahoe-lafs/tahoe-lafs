@@ -12,28 +12,28 @@ from allmydata.util.dbutil import get_db, DBError
 DAY = 24*60*60
 MONTH = 30*DAY
 
-SCHEMA_v1 = """
-CREATE TABLE version -- added in v1
+MAIN_SCHEMA = """
+CREATE TABLE version
 (
- version INTEGER  -- contains one row, set to 2
+ version INTEGER  -- contains one row, set to %s
 );
 
-CREATE TABLE local_files -- added in v1
+CREATE TABLE local_files
 (
  path  VARCHAR(1024) PRIMARY KEY, -- index, this is an absolute UTF-8-encoded local filename
  size  INTEGER,       -- os.stat(fn)[stat.ST_SIZE]
  mtime NUMBER,        -- os.stat(fn)[stat.ST_MTIME]
  ctime NUMBER,        -- os.stat(fn)[stat.ST_CTIME]
- fileid INTEGER
+ fileid INTEGER%s
 );
 
-CREATE TABLE caps -- added in v1
+CREATE TABLE caps
 (
  fileid INTEGER PRIMARY KEY AUTOINCREMENT,
  filecap VARCHAR(256) UNIQUE       -- URI:CHK:...
 );
 
-CREATE TABLE last_upload -- added in v1
+CREATE TABLE last_upload
 (
  fileid INTEGER PRIMARY KEY,
  last_uploaded TIMESTAMP,
@@ -41,6 +41,8 @@ CREATE TABLE last_upload -- added in v1
 );
 
 """
+
+SCHEMA_v1 = MAIN_SCHEMA % (1, "")
 
 TABLE_DIRECTORY = """
 
@@ -54,7 +56,7 @@ CREATE TABLE directories -- added in v2
 
 """
 
-SCHEMA_v2 = SCHEMA_v1 + TABLE_DIRECTORY
+SCHEMA_v2 = MAIN_SCHEMA % (2, "") + TABLE_DIRECTORY
 
 UPDATE_v1_to_v2 = TABLE_DIRECTORY + """
 UPDATE version SET version=2;
@@ -64,6 +66,10 @@ UPDATERS = {
     2: UPDATE_v1_to_v2,
 }
 
+
+SCHEMA_v3 = MAIN_SCHEMA % (3, ",\nversion INTEGER\n") + TABLE_DIRECTORY
+
+
 def get_backupdb(dbfile, stderr=sys.stderr,
                  create_version=(SCHEMA_v2, 2), just_create=False):
     # Open or create the given backupdb file. The parent directory must
@@ -71,7 +77,13 @@ def get_backupdb(dbfile, stderr=sys.stderr,
     try:
         (sqlite3, db) = get_db(dbfile, stderr, create_version, updaters=UPDATERS,
                                just_create=just_create, dbname="backupdb")
-        return BackupDB_v2(sqlite3, db)
+        if create_version[1] in (1, 2):
+            return BackupDB(sqlite3, db)
+        elif create_version[1] == 3:
+            return MagicFolderDB(sqlite3, db)
+        else:
+            print >>stderr, "invalid db schema version specified"
+            return None
     except DBError, e:
         print >>stderr, e
         return None
@@ -127,7 +139,7 @@ class DirectoryResult:
         self.bdb.did_check_directory_healthy(self.dircap, results)
 
 
-class BackupDB_v2:
+class BackupDB:
     VERSION = 2
     NO_CHECK_BEFORE = 1*MONTH
     ALWAYS_CHECK_AFTER = 2*MONTH
@@ -136,6 +148,21 @@ class BackupDB_v2:
         self.sqlite_module = sqlite_module
         self.connection = connection
         self.cursor = connection.cursor()
+
+    def check_file_db_exists(self, path):
+        """I will tell you if a given file has an entry in my database or not
+        by returning True or False.
+        """
+        c = self.cursor
+        c.execute("SELECT size,mtime,ctime,fileid"
+                  " FROM local_files"
+                  " WHERE path=?",
+                  (path,))
+        row = self.cursor.fetchone()
+        if not row:
+            return False
+        else:
+            return True
 
     def check_file(self, path, use_timestamps=True):
         """I will tell you if a given local file needs to be uploaded or not,
@@ -335,4 +362,44 @@ class BackupDB_v2:
                             " SET last_checked=?"
                             " WHERE dircap=?",
                             (now, dircap))
+        self.connection.commit()
+
+
+class MagicFolderDB(BackupDB):
+    VERSION = 3
+
+    def get_local_file_version(self, path):
+        """I will tell you the version of a local file tracked by our magic folder db.
+        If no db entry found then I'll return None.
+        """
+        c = self.cursor
+        c.execute("SELECT version"
+                  " FROM local_files"
+                  " WHERE path=?",
+                  (path,))
+        row = self.cursor.fetchone()
+        if not row:
+            return None
+        else:
+            return row[0]
+
+    def did_upload_file(self, filecap, path, version, mtime, ctime, size):
+        now = time.time()
+        fileid = self.get_or_allocate_fileid_for_cap(filecap)
+        try:
+            self.cursor.execute("INSERT INTO last_upload VALUES (?,?,?)",
+                                (fileid, now, now))
+        except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
+            self.cursor.execute("UPDATE last_upload"
+                                " SET last_uploaded=?, last_checked=?"
+                                " WHERE fileid=?",
+                                (now, now, fileid))
+        try:
+            self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?)",
+                                (path, size, mtime, ctime, fileid, version))
+        except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
+            self.cursor.execute("UPDATE local_files"
+                                " SET size=?, mtime=?, ctime=?, fileid=?, version=?"
+                                " WHERE path=?",
+                                (size, mtime, ctime, fileid, path, version))
         self.connection.commit()

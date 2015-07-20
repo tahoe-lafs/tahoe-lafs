@@ -48,8 +48,11 @@ def parse_options(basedir, command, args):
 
 class CLITestMixin(ReallyEqualMixin):
     def do_cli(self, verb, *args, **kwargs):
+        # client_num is used to execute client CLI commands on a specific client.
+        client_num = kwargs.get("client_num", 0)
+
         nodeargs = [
-            "--node-directory", self.get_clientdir(),
+            "--node-directory", self.get_clientdir(i=client_num),
             ]
         argv = nodeargs + [verb] + list(args)
         stdin = kwargs.get("stdin", "")
