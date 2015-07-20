@@ -407,10 +407,10 @@ class MagicFolder(service.MultiService):
                           "(this is normal for temporary objects)" % (path_u,))
                 self._stats_provider.count('magic_folder.objects_disappeared', 1)
                 d2 = defer.succeed(None)
-                if self._db.check_file_db_exists(path_u): #FIXME relpath_u?
+                if self._db.check_file_db_exists(relpath_u):
                     d2.addCallback(get_metadata)
                     def set_deleted(metadata):
-                        current_version = self._db.get_local_file_version(path_u) + 1 #FIXME relpath_u?
+                        current_version = self._db.get_local_file_version(relpath_u) + 1
                         metadata['version'] = current_version
                         metadata['deleted'] = True
                         emptyUploadable = Data("", self._convergence)
@@ -423,7 +423,7 @@ class MagicFolder(service.MultiService):
             if os.path.isdir(path_u):
                 return _add_dir(encoded_name_u)
             elif os.path.isfile(path_u):
-                version = self._db.get_local_file_version(path_u) #FIXME relpath_u?
+                version = self._db.get_local_file_version(relpath_u)
                 if version is None:
                     version = 0
                 else:
