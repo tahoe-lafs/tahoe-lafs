@@ -4,7 +4,7 @@ from cStringIO import StringIO
 from twisted.python import usage
 
 from .common import BaseOptions, BasedirOptions, get_aliases
-from .cli import MakeDirectoryOptions, LnOptions
+from .cli import MakeDirectoryOptions, LnOptions, CreateAliasOptions
 import tahoe_mv
 from allmydata.util import fileutil
 from allmydata import uri
@@ -27,31 +27,38 @@ class CreateOptions(BasedirOptions):
         node_url_file = os.path.join(self['node-directory'], "node.url")
         self['node-url'] = fileutil.read(node_url_file).strip()
 
+def _delegate_options(source_options, target_options):
+    target_options.aliases = get_aliases(source_options['node-directory'])
+    target_options["node-url"] = source_options["node-url"]
+    target_options["node-directory"] = source_options["node-directory"]
+    target_options.stdin = StringIO("")
+    target_options.stdout = StringIO()
+    target_options.stderr = StringIO()
+    return target_options
+
 def create(options):
     from allmydata.scripts import tahoe_add_alias
-    rc = tahoe_add_alias.create_alias(options)
+    create_alias_options = _delegate_options(options, CreateAliasOptions())
+    create_alias_options.alias = options.alias
+
+    rc = tahoe_add_alias.create_alias(create_alias_options)
+    if rc != 0:
+        print >>options.stderr, create_alias_options.stderr.getvalue()
+        return rc
+    print >>options.stdout, create_alias_options.stdout.getvalue()
 
     if options.nickname is not None:
-        invite_options = InviteOptions()
-        invite_options.aliases = get_aliases(options['node-directory'])
-        invite_options["node-url"] = options["node-url"]
-        invite_options["node-directory"] = options["node-directory"]
+        invite_options = _delegate_options(options, InviteOptions())
         invite_options.alias = options.alias
         invite_options.nickname = options.nickname
-        invite_options.stdin = StringIO("")
-        invite_options.stdout = StringIO()
-        invite_options.stderr = StringIO()
         rc = invite(invite_options)
         if rc != 0:
             print >>options.stderr, "magic-folder: failed to invite after create\n"
-            return -1
+            print >>options.stderr, invite_options.stderr.getvalue()
+            return rc
         invite_code = invite_options.stdout.getvalue().strip()
 
-        join_options = JoinOptions()
-        join_options.alias = options.alias
-        join_options.aliases = get_aliases(options['node-directory'])
-        join_options["node-url"] = options["node-url"]
-        join_options["node-directory"] = options["node-directory"]
+        join_options = _delegate_options(options, JoinOptions())
         join_options.invite_code = invite_code
         fields = invite_code.split(INVITE_SEPARATOR)
         if len(fields) != 2:
@@ -60,8 +67,9 @@ def create(options):
         join_options.local_dir = options.localdir
         rc = join(join_options)
         if rc != 0:
-            print >>options.stderr, "magic-folder: failed to invite after create\n"
-            return -1
+            print >>options.stderr, "magic-folder: failed to join after create\n"
+            print >>options.stderr, join_options.stderr.getvalue()
+            return rc
     return 0
 
 class InviteOptions(BasedirOptions):
@@ -81,43 +89,30 @@ class InviteOptions(BasedirOptions):
 
 def invite(options):
     from allmydata.scripts import tahoe_mkdir
-    mkdir_options = MakeDirectoryOptions()
+    mkdir_options = _delegate_options(options, MakeDirectoryOptions())
     mkdir_options.where = None
-    mkdir_options.stdin = StringIO("")
-    mkdir_options.stdout = StringIO()
-    mkdir_options.stderr = StringIO()
-    mkdir_options.aliases = options.aliases
-    mkdir_options['node-url'] = options['node-url']
-    mkdir_options['node-directory'] = options['node-directory']
 
     rc = tahoe_mkdir.mkdir(mkdir_options)
     if rc != 0:
-        # XXX failure
         print >>options.stderr, "magic-folder: failed to mkdir\n"
-        return -1
+        return rc
     dmd_write_cap = mkdir_options.stdout.getvalue().strip()
     dmd_readonly_cap = unicode(uri.from_string(dmd_write_cap).get_readonly().to_string(), 'utf-8')
     if dmd_readonly_cap is None:
-        # XXX failure
         print >>options.stderr, "magic-folder: failed to diminish dmd write cap\n"
-        return -1
+        return 1
 
     magic_write_cap = get_aliases(options["node-directory"])[options.alias]
     magic_readonly_cap = unicode(uri.from_string(magic_write_cap).get_readonly().to_string(), 'utf-8')
     # tahoe ln CLIENT_READCAP COLLECTIVE_WRITECAP/NICKNAME
-    ln_options = LnOptions()
-    ln_options["node-url"] = options["node-url"]
+    ln_options = _delegate_options(options, LnOptions())
     ln_options.from_file = dmd_readonly_cap
     ln_options.to_file = "%s/%s" % (magic_write_cap, options.nickname)
-    ln_options.aliases = options.aliases
-    ln_options.stdin = StringIO("")
-    ln_options.stdout = StringIO()
-    ln_options.stderr = StringIO()
     rc = tahoe_mv.mv(ln_options, mode="link")
     if rc != 0:
-        # XXX failure
         print >>options.stderr, "magic-folder: failed to create link\n"
-        return -1
+        print >>options.stderr, ln_options.stderr.getvalue()
+        return rc
 
     print >>options.stdout, "%s%s%s" % (magic_readonly_cap, INVITE_SEPARATOR, dmd_write_cap)
     return 0
