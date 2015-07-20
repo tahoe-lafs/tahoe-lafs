@@ -176,6 +176,17 @@ class CreateMagicFolder(MagicFolderTestMixin, unittest.TestCase):
         d.addCallback(lambda x: self.check_config(0, self.local_dir))
         return d
 
+    def test_create_error(self):
+        self.basedir = "cli/MagicFolder/create-error"
+        self.set_up_grid()
+        self.local_dir = os.path.join(self.basedir, "magic")
+        d = self.do_cli("magic-folder", "create", "m a g i c:", client_num=0)
+        def _done((rc,stdout,stderr)):
+            self.failIfEqual(rc, 0)
+            self.failUnlessIn("Alias names cannot contain spaces.", stderr)
+        d.addCallback(_done)
+        return d
+
     def test_create_invite_join(self):
         self.basedir = "cli/MagicFolder/create-invite-join"
         self.set_up_grid()
