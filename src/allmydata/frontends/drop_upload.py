@@ -12,7 +12,8 @@ from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abs
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
      unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
 from allmydata.immutable.upload import FileName
-from allmydata.scripts import backupdb
+
+from allmydata import backupdb
 
 
 class DropUploader(service.MultiService):
