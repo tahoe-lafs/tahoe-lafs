@@ -16,7 +16,7 @@ from allmydata.test.test_cli_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
 from allmydata.frontends.magic_folder import MagicFolder
-from allmydata import backupdb
+from allmydata import backupdb, magicpath
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
@@ -311,6 +311,19 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         return d
 
+    def _check_version_in_dmd(self, magicfolder, relpath_u, expected_version):
+        encoded_name_u = magicpath.path2magic(relpath_u)
+        d = magicfolder._upload_dirnode.get_child_and_metadata(encoded_name_u)
+        def _check((filenode, metadata)):
+            self.failUnless(metadata, "no metadata for %r" % (relpath_u,))
+            self.failUnlessEqual(metadata['version'], expected_version)
+        d.addCallback(_check)
+        return d
+
+    def _check_version_in_local_db(self, magicfolder, relpath_u, expected_version):
+        version = magicfolder._db.get_local_file_version(relpath_u)
+        self.failUnlessEqual(version, expected_version)
+
     def test_alice_bob(self):
         d = self.setup_alice_and_bob()
         def get_results(result):
@@ -333,6 +346,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             self.alice_magicfolder.set_processed_callback(d2.callback)
             return d2
         d.addCallback(Alice_wait_for_upload)
+        d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 0))
+        d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 0))
+
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded', client=self.alice_magicfolder._client), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded', client=self.alice_magicfolder._client), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued', client=self.alice_magicfolder._client), 0))
@@ -344,6 +360,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             self.bob_magicfolder.set_download_callback(d2.callback)
             return d2
         d.addCallback(Bob_wait_for_download)
+        d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_downloaded', client=self.bob_magicfolder._client), 1))
 
         # test deletion of file behavior
