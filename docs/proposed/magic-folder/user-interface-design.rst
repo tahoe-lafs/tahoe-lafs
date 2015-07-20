@@ -139,14 +139,14 @@ For "``tahoe magic-folder invite COLLECTIVE_WRITECAP NICKNAME``" :
 2. Diminish ``CLIENT_WRITECAP`` to ``CLIENT_READCAP``, and
    diminish ``COLLECTIVE_WRITECAP`` to ``COLLECTIVE_READCAP``.
 3. Run "``tahoe ln CLIENT_READCAP COLLECTIVE_WRITECAP/NICKNAME``".
-4. Print "``COLLECTIVE_READCAP|CLIENT_WRITECAP``" as the invitation,
+4. Print "``COLLECTIVE_READCAP+CLIENT_WRITECAP``" as the invitation,
    accompanied by instructions on how to accept the invitation and
    the need to send it over a secure channel.
 
 
 For "``tahoe magic-folder join INVITATION LOCAL_DIR``" :
 
-1. Parse ``INVITATION`` as ``COLLECTIVE_READCAP|CLIENT_WRITECAP``.
+1. Parse ``INVITATION`` as ``COLLECTIVE_READCAP+CLIENT_WRITECAP``.
 2. Write ``CLIENT_WRITECAP`` to the file ``magic_folder_dircap``
    under the client's ``private`` directory.
 3. Write ``COLLECTIVE_READCAP`` to the file ``collective_dircap``
