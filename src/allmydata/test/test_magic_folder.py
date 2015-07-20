@@ -13,13 +13,13 @@ from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
 
-from allmydata.frontends import drop_upload
-from allmydata.frontends.drop_upload import DropUploader
+from allmydata.frontends import magic_folder
+from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import backupdb
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
-class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
+class MagicFolderTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
     """
     These tests will be run both with a mock notifier, and (on platforms that support it)
     with the real INotify.
@@ -29,7 +29,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         GridTestMixin.setUp(self)
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
-        self.uploader = None
+        self.magicfolder = None
         self.dir_node = None
 
     def _get_count(self, name):
@@ -50,20 +50,20 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.failUnless(IDirectoryNode.providedBy(n))
         self.upload_dirnode = n
         self.upload_dircap = n.get_uri()
-        self.parent_dircap = "abc123"
+        self.collective_dircap = "abc123"
 
-    def _create_uploader(self, ign):
+    def _create_magicfolder(self, ign):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
-        self.uploader = DropUploader(self.client, self.upload_dircap, self.parent_dircap, self.local_dir,
-                                     dbfile, inotify=self.inotify, pending_delay=0.2)
-        self.uploader.setServiceParent(self.client)
-        self.uploader.upload_ready()
+        self.magicfolder = MagicFolder(self.client, self.upload_dircap, self.collective_dircap, self.local_dir,
+                                       dbfile, inotify=self.inotify, pending_delay=0.2)
+        self.magicfolder.setServiceParent(self.client)
+        self.magicfolder.upload_ready()
 
     # Prevent unclean reactor errors.
     def _cleanup(self, res):
         d = defer.succeed(None)
-        if self.uploader is not None:
-            d.addCallback(lambda ign: self.uploader.finish(for_tests=True))
+        if self.magicfolder is not None:
+            d.addCallback(lambda ign: self.magicfolder.finish(for_tests=True))
         d.addCallback(lambda ign: res)
         return d
 
@@ -100,7 +100,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         r = db.check_file(path)
         self.failUnless(r.was_uploaded())
 
-    def test_uploader_start_service(self):
+    def test_magicfolder_start_service(self):
         self.set_up_grid()
 
         self.local_dir = abspath_expanduser_unicode(self.unicode_or_fallback(u"l\u00F8cal_dir", u"local_dir"),
@@ -112,10 +112,10 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
 
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
-        d.addCallback(self._create_uploader)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.dirs_monitored'), 1))
+        d.addCallback(self._create_magicfolder)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.dirs_monitored'), 1))
         d.addBoth(self._cleanup)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.dirs_monitored'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.dirs_monitored'), 0))
         return d
 
     def test_move_tree(self):
@@ -139,46 +139,46 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
 
-        d.addCallback(self._create_uploader)
+        d.addCallback(self._create_magicfolder)
 
         def _check_move_empty_tree(res):
             self.mkdir_nonascii(empty_tree_dir)
             d2 = defer.Deferred()
-            self.uploader.set_processed_callback(d2.callback, ignore_count=0)
+            self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
             os.rename(empty_tree_dir, new_empty_tree_dir)
             self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
         d.addCallback(_check_move_empty_tree)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_succeeded'), 1))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 1))
 
         def _check_move_small_tree(res):
             self.mkdir_nonascii(small_tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
             d2 = defer.Deferred()
-            self.uploader.set_processed_callback(d2.callback, ignore_count=1)
+            self.magicfolder.set_processed_callback(d2.callback, ignore_count=1)
             os.rename(small_tree_dir, new_small_tree_dir)
             self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
         d.addCallback(_check_move_small_tree)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_succeeded'), 3))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 1))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 3))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 2))
 
         def _check_moved_tree_is_watched(res):
             d2 = defer.Deferred()
-            self.uploader.set_processed_callback(d2.callback, ignore_count=0)
+            self.magicfolder.set_processed_callback(d2.callback, ignore_count=0)
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
             self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
             return d2
         d.addCallback(_check_moved_tree_is_watched)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_succeeded'), 4))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 2))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 4))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 2))
 
         # Files that are moved out of the upload directory should no longer be watched.
         def _move_dir_away(ign):
@@ -192,10 +192,10 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             return
         d.addCallback(create_file)
         d.addCallback(lambda ign: time.sleep(1))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_succeeded'), 4))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_uploaded'), 2))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.directories_created'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 4))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_uploaded'), 2))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.directories_created'), 2))
 
         d.addBoth(self._cleanup)
         return d
@@ -203,9 +203,9 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
     def test_persistence(self):
         """
         Perform an upload of a given file and then stop the client.
-        Start a new client and uploader... and verify that the file is NOT uploaded
+        Start a new client and magic-folder service... and verify that the file is NOT uploaded
         a second time. This test is meant to test the database persistence along with
-        the startup and shutdown code paths of the uploader.
+        the startup and shutdown code paths of the magic-folder service.
         """
         self.set_up_grid()
         self.local_dir = abspath_expanduser_unicode(u"test_persistence", base=self.basedir)
@@ -215,18 +215,18 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         self.stats_provider = self.client.stats_provider
         d = self.client.create_dirnode()
         d.addCallback(self._made_upload_dir)
-        d.addCallback(self._create_uploader)
+        d.addCallback(self._create_magicfolder)
 
         def create_file(val):
             d2 = defer.Deferred()
-            self.uploader.set_processed_callback(d2.callback)
+            self.magicfolder.set_processed_callback(d2.callback)
             test_file = abspath_expanduser_unicode(u"what", base=self.local_dir)
             fileutil.write(test_file, "meow")
             self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
             return d2
         d.addCallback(create_file)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_succeeded'), 1))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         d.addCallback(self._cleanup)
 
         def _restart(ign):
@@ -234,14 +234,14 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
             self.client = self.g.clients[0]
             self.stats_provider = self.client.stats_provider
         d.addCallback(_restart)
-        d.addCallback(self._create_uploader)
+        d.addCallback(self._create_magicfolder)
         d.addCallback(lambda ign: time.sleep(3))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_succeeded'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         d.addBoth(self._cleanup)
         return d
 
-    def test_drop_upload(self):
+    def test_magic_folder(self):
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
         self.mkdir_nonascii(self.local_dir)
@@ -252,7 +252,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d = self.client.create_dirnode()
 
         d.addCallback(self._made_upload_dir)
-        d.addCallback(self._create_uploader)
+        d.addCallback(self._create_magicfolder)
 
         # Write something short enough for a LIT file.
         d.addCallback(lambda ign: self._check_file(u"short", "test"))
@@ -271,20 +271,20 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         d.addCallback(lambda ign: self._check_file(name_u, "test"*100))
 
         # TODO: test that causes an upload failure.
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.files_failed'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.files_failed'), 0))
 
         d.addBoth(self._cleanup)
         return d
 
     def _check_file(self, name_u, data, temporary=False):
-        previously_uploaded = self._get_count('drop_upload.objects_succeeded')
-        previously_disappeared = self._get_count('drop_upload.objects_disappeared')
+        previously_uploaded = self._get_count('magic_folder.objects_succeeded')
+        previously_disappeared = self._get_count('magic_folder.objects_disappeared')
 
         d = defer.Deferred()
 
         # Note: this relies on the fact that we only get one IN_CLOSE_WRITE notification per file
         # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
-        self.uploader.set_processed_callback(d.callback)
+        self.magicfolder.set_processed_callback(d.callback)
 
         path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
         path = to_filepath(path_u)
@@ -307,28 +307,28 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonA
         if temporary:
             d.addCallback(lambda ign: self.shouldFail(NoSuchChildError, 'temp file not uploaded', None,
             self.upload_dirnode.get, name_u))
-            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_disappeared'),
+            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_disappeared'),
                                                                  previously_disappeared + 1))
         else:
             d.addCallback(lambda ign: self.upload_dirnode.get(name_u))
             d.addCallback(download_to_data)
             d.addCallback(lambda actual_data: self.failUnlessReallyEqual(actual_data, data))
-            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_succeeded'),
+            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_succeeded'),
                                                                  previously_uploaded + 1))
 
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('drop_upload.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('magic_folder.objects_queued'), 0))
         return d
 
 
-class MockTest(DropUploadTestMixin, unittest.TestCase):
+class MockTest(MagicFolderTestMixin, unittest.TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
 
     def setUp(self):
-        DropUploadTestMixin.setUp(self)
+        MagicFolderTestMixin.setUp(self)
         self.inotify = fake_inotify
 
     def notify(self, path, mask):
-        self.uploader._notifier.event(path, mask)
+        self.magicfolder._notifier.event(path, mask)
 
     def test_errors(self):
         self.set_up_grid()
@@ -348,37 +348,37 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
             readonly_dircap = n.get_readonly_uri()
 
             self.shouldFail(AssertionError, 'nonexistent local.directory', 'there is no directory',
-                            DropUploader, client, upload_dircap, '', doesnotexist, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, upload_dircap, '', doesnotexist, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory local.directory', 'is not a directory',
-                            DropUploader, client, upload_dircap, '', not_a_dir, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, upload_dircap, '', not_a_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'bad upload.dircap', 'does not refer to a directory',
-                            DropUploader, client, 'bad', '', errors_dir, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, 'bad', '', errors_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory upload.dircap', 'does not refer to a directory',
-                            DropUploader, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
-                            DropUploader, client, readonly_dircap, '', errors_dir, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, readonly_dircap, '', errors_dir, magicfolderdb, inotify=fake_inotify)
 
             def _not_implemented():
                 raise NotImplementedError("blah")
-            self.patch(drop_upload, 'get_inotify_module', _not_implemented)
+            self.patch(magic_folder, 'get_inotify_module', _not_implemented)
             self.shouldFail(NotImplementedError, 'unsupported', 'blah',
-                            DropUploader, client, upload_dircap, '', errors_dir, magicfolderdb)
+                            MagicFolder, client, upload_dircap, '', errors_dir, magicfolderdb)
         d.addCallback(_check_errors)
         return d
 
 
-class RealTest(DropUploadTestMixin, unittest.TestCase):
+class RealTest(MagicFolderTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
 
     def setUp(self):
-        DropUploadTestMixin.setUp(self)
-        self.inotify = drop_upload.get_inotify_module()
+        MagicFolderTestMixin.setUp(self)
+        self.inotify = magic_folder.get_inotify_module()
 
     def notify(self, path, mask):
         # Writing to the filesystem causes the notification.
         pass
 
 try:
-    drop_upload.get_inotify_module()
+    magic_folder.get_inotify_module()
 except NotImplementedError:
-    RealTest.skip = "Drop-upload support can only be tested for-real on an OS that supports inotify or equivalent."
+    RealTest.skip = "Magic Folder support can only be tested for-real on an OS that supports inotify or equivalent."
