@@ -151,7 +151,7 @@ class Client(node.Node, pollmixin.PollMixin):
         # ControlServer and Helper are attached after Tub startup
         self.init_ftp_server()
         self.init_sftp_server()
-        self.init_drop_uploader()
+        self.init_magic_folder()
 
         # If the node sees an exit_trigger file, it will poll every second to see
         # whether the file still exists, and what its mtime is. If the file does not
@@ -492,33 +492,33 @@ class Client(node.Node, pollmixin.PollMixin):
                                  sftp_portstr, pubkey_file, privkey_file)
             s.setServiceParent(self)
 
-    def init_drop_uploader(self):
+    def init_magic_folder(self):
         if self.get_config("drop_upload", "enabled", False, boolean=True):
-            if self.get_config("drop_upload", "upload.dircap", None):
-                raise OldConfigOptionError("The [drop_upload]upload.dircap option is no longer supported; please "
-                                           "put the cap in a 'private/drop_upload_dircap' file, and delete this option.")
+            raise OldConfigOptionError("The [drop_upload] section must be renamed to [magic_folder].\n"
+                                       "See docs/frontends/magic-folder.rst for more information.")
 
-            upload_dircap = self.get_or_create_private_config("drop_upload_dircap")
-            local_dir_config = self.get_config("drop_upload", "local.directory").decode("utf-8")
+        if self.get_config("magic_folder", "enabled", False, boolean=True):
+            upload_dircap = self.get_or_create_private_config("magic_folder_dircap")
+            local_dir_config = self.get_config("magic_folder", "local.directory").decode("utf-8")
             local_dir = abspath_expanduser_unicode(local_dir_config, base=self.basedir)
 
             try:
-                from allmydata.frontends import drop_upload
+                from allmydata.frontends import magic_folder
                 dbfile = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
                 dbfile = abspath_expanduser_unicode(dbfile)
 
-                parent_dircap_path = os.path.join(self.basedir, "private", "magic_folder_parent_dircap")
-                parent_dircap_path = abspath_expanduser_unicode(parent_dircap_path)
-                parent_dircap = fileutil.read(parent_dircap_path).strip()
+                collective_dircap_path = os.path.join(self.basedir, "private", "collective_dircap")
+                collective_dircap_path = abspath_expanduser_unicode(collective_dircap_path)
+                collective_dircap = fileutil.read(collective_dircap_path).strip()
 
-                s = drop_upload.DropUploader(self, upload_dircap, parent_dircap, local_dir, dbfile)
+                s = magic_folder.MagicFolder(self, upload_dircap, collective_dircap, local_dir, dbfile)
                 s.setServiceParent(self)
                 s.startService()
 
                 # start processing the upload queue when we've connected to enough servers
                 self.upload_ready_d.addCallback(s.upload_ready)
             except Exception, e:
-                self.log("couldn't start drop-uploader: %r", args=(e,))
+                self.log("couldn't start Magic Folder: %r", args=(e,))
 
     def _check_exit_trigger(self, exit_trigger_file):
         if os.path.exists(exit_trigger_file):

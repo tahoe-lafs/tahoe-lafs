@@ -38,10 +38,10 @@ def get_inotify_module():
         raise
 
 
-class DropUploader(service.MultiService):
-    name = 'drop-upload'
+class MagicFolder(service.MultiService):
+    name = 'magic-folder'
 
-    def __init__(self, client, upload_dircap, parent_dircap, local_dir, dbfile, inotify=None,
+    def __init__(self, client, upload_dircap, collective_dircap, local_dir, dbfile, inotify=None,
                  pending_delay=1.0):
         precondition_abspath(local_dir)
 
@@ -61,20 +61,20 @@ class DropUploader(service.MultiService):
         self._inotify = inotify or get_inotify_module()
 
         if not self._local_path.exists():
-            raise AssertionError("The '[drop_upload] local.directory' parameter was %s "
+            raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
                                  "but there is no directory at that location."
                                  % quote_local_unicode_path(local_dir))
         if not self._local_path.isdir():
-            raise AssertionError("The '[drop_upload] local.directory' parameter was %s "
+            raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
                                  "but the thing at that location is not a directory."
                                  % quote_local_unicode_path(local_dir))
 
         # TODO: allow a path rather than a cap URI.
-        self._parent = self._client.create_node_from_uri(upload_dircap)
-        if not IDirectoryNode.providedBy(self._parent):
-            raise AssertionError("The URI in 'private/drop_upload_dircap' does not refer to a directory.")
-        if self._parent.is_unknown() or self._parent.is_readonly():
-            raise AssertionError("The URI in 'private/drop_upload_dircap' is not a writecap to a directory.")
+        self._upload_dirnode = self._client.create_node_from_uri(upload_dircap)
+        if not IDirectoryNode.providedBy(self._upload_dirnode):
+            raise AssertionError("The URI in 'private/magic_folder_dircap' does not refer to a directory.")
+        if self._upload_dirnode.is_unknown() or self._upload_dirnode.is_readonly():
+            raise AssertionError("The URI in 'private/magic_folder_dircap' is not a writecap to a directory.")
 
         self._processed_callback = lambda ign: None
         self._ignore_count = 0
@@ -150,7 +150,7 @@ class DropUploader(service.MultiService):
 
         self._scan(self._local_dir)
 
-        self._stats_provider.count('drop_upload.dirs_monitored', 1)
+        self._stats_provider.count('magic_folder.dirs_monitored', 1)
         return d
 
     def upload_ready(self):
@@ -163,7 +163,7 @@ class DropUploader(service.MultiService):
     def _append_to_deque(self, path):
         self._upload_deque.append(path)
         self._pending.add(path)
-        self._stats_provider.count('drop_upload.objects_queued', 1)
+        self._stats_provider.count('magic_folder.objects_queued', 1)
         if self.is_upload_ready:
             reactor.callLater(0, self._turn_deque)
 
@@ -188,16 +188,16 @@ class DropUploader(service.MultiService):
 
         def _add_file(name):
             u = FileName(path, self._convergence)
-            return self._parent.add_file(name, u, overwrite=True)
+            return self._upload_dirnode.add_file(name, u, overwrite=True)
 
         def _add_dir(name):
             self._notifier.watch(to_filepath(path), mask=self.mask, callbacks=[self._notify], recursive=True)
             u = Data("", self._convergence)
             name += "@_"
-            d2 = self._parent.add_file(name, u, overwrite=True)
+            d2 = self._upload_dirnode.add_file(name, u, overwrite=True)
             def _succeeded(ign):
                 self._log("created subdirectory %r" % (path,))
-                self._stats_provider.count('drop_upload.directories_created', 1)
+                self._stats_provider.count('magic_folder.directories_created', 1)
             def _failed(f):
                 self._log("failed to create subdirectory %r" % (path,))
                 return f
@@ -213,7 +213,7 @@ class DropUploader(service.MultiService):
             if not os.path.exists(path):
                 self._log("drop-upload: notified object %r disappeared "
                           "(this is normal for temporary objects)" % (path,))
-                self._stats_provider.count('drop_upload.objects_disappeared', 1)
+                self._stats_provider.count('magic_folder.objects_disappeared', 1)
                 return None
             elif os.path.islink(path):
                 raise Exception("symlink not being processed")
@@ -229,7 +229,7 @@ class DropUploader(service.MultiService):
                     ctime = s[stat.ST_CTIME]
                     mtime = s[stat.ST_MTIME]
                     self._db.did_upload_file(filecap, path, mtime, ctime, size)
-                    self._stats_provider.count('drop_upload.files_uploaded', 1)
+                    self._stats_provider.count('magic_folder.files_uploaded', 1)
                 d2.addCallback(add_db_entry)
                 return d2
             else:
@@ -238,12 +238,12 @@ class DropUploader(service.MultiService):
         d.addCallback(_maybe_upload)
 
         def _succeeded(res):
-            self._stats_provider.count('drop_upload.objects_queued', -1)
-            self._stats_provider.count('drop_upload.objects_succeeded', 1)
+            self._stats_provider.count('magic_folder.objects_queued', -1)
+            self._stats_provider.count('magic_folder.objects_succeeded', 1)
             return res
         def _failed(f):
-            self._stats_provider.count('drop_upload.objects_queued', -1)
-            self._stats_provider.count('drop_upload.objects_failed', 1)
+            self._stats_provider.count('magic_folder.objects_queued', -1)
+            self._stats_provider.count('magic_folder.objects_failed', 1)
             self._log("%r while processing %r" % (f, path))
             return f
         d.addCallbacks(_succeeded, _failed)
@@ -267,7 +267,7 @@ class DropUploader(service.MultiService):
 
     def finish(self, for_tests=False):
         self._notifier.stopReading()
-        self._stats_provider.count('drop_upload.dirs_monitored', -1)
+        self._stats_provider.count('magic_folder.dirs_monitored', -1)
         if for_tests and hasattr(self._notifier, 'wait_until_stopped'):
             return self._notifier.wait_until_stopped()
         else:
