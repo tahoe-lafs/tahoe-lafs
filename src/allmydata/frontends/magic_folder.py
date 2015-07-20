@@ -428,7 +428,7 @@ class MagicFolder(service.MultiService):
                     version = 0
                 else:
                     version += 1
-                print "NEW VERSION ", version
+                print "NEW VERSION %d for %r" % (version, relpath_u)
                 d2 = _add_file(encoded_name_u, version)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
@@ -436,7 +436,7 @@ class MagicFolder(service.MultiService):
                     size = s[stat.ST_SIZE]
                     ctime = s[stat.ST_CTIME]
                     mtime = s[stat.ST_MTIME]
-                    self._db.did_upload_file(filecap, path_u, version, mtime, ctime, size) #FIXME relpath_u?
+                    self._db.did_upload_file(filecap, relpath_u, version, mtime, ctime, size)
                     self._stats_provider.count('magic_folder.files_uploaded', 1)
                 d2.addCallback(add_db_entry)
                 return d2
