@@ -316,6 +316,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                 self.dbfile = dbfile
                 self.inotify = inotify
 
+            def ready(self):
+                pass
+
         self.patch(allmydata.frontends.magic_folder, 'MagicFolder', MockMagicFolder)
 
         upload_dircap = "URI:DIR2:blah"
