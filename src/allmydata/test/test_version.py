@@ -73,65 +73,71 @@ class CheckRequirement(unittest.TestCase):
         # The bug in #1355 is triggered when a version string from either pkg_resources or import
         # is not parseable at all by normalized_version.
 
-        res = cross_check({"foo": ("unparseable", "")}, [("foo", ("1.0", "", None))])
-        self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn("by pkg_resources could not be parsed", res[0])
+        (errors, extras) = cross_check({"foo": ("unparseable", "")}, [("foo", ("1.0", "", None))])
+        self.failUnlessEqual(extras, [])
+        self.failUnlessEqual(len(errors), 1)
+        self.failUnlessIn("by pkg_resources could not be parsed", errors[0])
 
-        res = cross_check({"foo": ("1.0", "")}, [("foo", ("unparseable", "", None))])
-        self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn(") could not be parsed", res[0])
+        (errors, extras) = cross_check({"foo": ("1.0", "")}, [("foo", ("unparseable", "", None))])
+        self.failUnlessEqual(extras, [])
+        self.failUnlessEqual(len(errors), 1)
+        self.failUnlessIn(") could not be parsed", errors[0])
 
     def test_cross_check(self):
         res = cross_check({}, [])
-        self.failUnlessEqual(res, [])
+        self.failUnlessEqual(res, ([], []))
 
         res = cross_check({}, [("allmydata-tahoe", ("1.0", "", "blah"))])
-        self.failUnlessEqual(res, [])
+        self.failUnlessEqual(res, ([], []))
 
         res = cross_check({"foo": ("unparseable", "")}, [])
-        self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn("not found by import", res[0])
+        self.failUnlessEqual(res, ([], [("foo", ("unparseable", "", "according to pkg_resources"))]))
 
         res = cross_check({"argparse": ("unparseable", "")}, [])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, ([], []))
 
-        res = cross_check({}, [("foo", ("unparseable", "", None))])
-        self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn("not found by pkg_resources", res[0])
+        (errors, extras) = cross_check({}, [("foo", ("unparseable", "", None))])
+        self.failUnlessEqual(extras, [])
+        self.failUnlessEqual(len(errors), 1)
+        self.failUnlessIn("was not found by pkg_resources", errors[0])
 
         res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere", "distribute"))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, ([], []))
 
-        res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere", None))])
-        self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn("location mismatch", res[0])
+        (errors, extras) = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere", None))])
+        self.failUnlessEqual(extras, [])
+        self.failUnlessEqual(len(errors), 1)
+        self.failUnlessIn("location mismatch", errors[0])
 
-        res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere_different", None))])
-        self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn("location mismatch", res[0])
+        (errors, extras) = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere_different", None))])
+        self.failUnlessEqual(extras, [])
+        self.failUnlessEqual(len(errors), 1)
+        self.failUnlessIn("location mismatch", errors[0])
 
         res = cross_check({"zope.interface": ("1.0", "")}, [("zope.interface", ("unknown", "", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, ([], []))
 
-        res = cross_check({"foo": ("1.0", "")}, [("foo", ("unknown", "", None))])
-        self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn("could not find a version number", res[0])
+        (errors, extras) = cross_check({"foo": ("1.0", "")}, [("foo", ("unknown", "", None))])
+        self.failUnlessEqual(extras, [])
+        self.failUnlessEqual(len(errors), 1)
+        self.failUnlessIn("could not find a version number", errors[0])
 
         # When pkg_resources and import both find a package, there is only a warning if both
         # the version and the path fail to match.
 
         res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, ([], []))
 
         res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("1.0", "/somewhere_different", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, ([], []))
 
         res = cross_check({"foo": ("1.0-r123", "/somewhere")}, [("foo", ("1.0.post123", "/somewhere_different", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, ([], []))
 
-        res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere_different", None))])
-        self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn("but version '2.0'", res[0])
+        (errors, extras) = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere_different", None))])
+        self.failUnlessEqual(extras, [])
+        self.failUnlessEqual(len(errors), 1)
+        self.failUnlessIn("but version '2.0'", errors[0])
 
     def test_extract_openssl_version(self):
         self.failUnlessEqual(extract_openssl_version(MockSSL("")),
