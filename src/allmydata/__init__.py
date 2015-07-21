@@ -321,7 +321,6 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     from _auto_deps import not_import_versionable, ignorable
 
     errors = []
-    extra_vers_and_locs_list = []
     not_pkg_resourceable = ['python', 'platform', __appname__.lower(), 'openssl']
 
     for name, (imp_ver, imp_loc, imp_comment) in imported_vers_and_locs_list:
@@ -378,6 +377,7 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                                               % (name, pr_ver, str(pr_normver), pr_loc, imp_ver, str(imp_normver), imp_loc))
 
     imported_packages = set([p.lower() for (p, _) in imported_vers_and_locs_list])
+    extra_vers_and_locs_list = []
     for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
         if pr_name not in imported_packages and pr_name not in ignorable:
             extra_vers_and_locs_list.append( (pr_name, (pr_ver, pr_loc, "according to pkg_resources")) )
