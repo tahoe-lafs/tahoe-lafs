@@ -321,6 +321,7 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     from _auto_deps import not_import_versionable, ignorable
 
     errors = []
+    extra_vers_and_locs_list = []
     not_pkg_resourceable = ['python', 'platform', __appname__.lower(), 'openssl']
 
     for name, (imp_ver, imp_loc, imp_comment) in imported_vers_and_locs_list:
@@ -379,10 +380,9 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     imported_packages = set([p.lower() for (p, _) in imported_vers_and_locs_list])
     for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
         if pr_name not in imported_packages and pr_name not in ignorable:
-            errors.append("Warning: dependency %r (version %r) found by pkg_resources not found by import."
-                          % (pr_name, pr_ver))
+            extra_vers_and_locs_list.append( (pr_name, (pr_ver, pr_loc, "according to pkg_resources")) )
 
-    return errors
+    return errors, extra_vers_and_locs_list
 
 
 def get_error_string(errors, debug=False):
@@ -437,6 +437,12 @@ def get_package_locations():
     return dict([(k, l) for k, (v, l, c) in _vers_and_locs_list])
 
 def get_package_versions_string(show_paths=False, debug=False):
+    errors = []
+    if not hasattr(sys, 'frozen'):
+        global _vers_and_locs_list
+        errors, extra_vers_and_locs_list = cross_check_pkg_resources_versus_import()
+        _vers_and_locs_list += extra_vers_and_locs_list
+
     res = []
     for p, (v, loc, comment) in _vers_and_locs_list:
         info = str(p) + ": " + str(v)
@@ -448,9 +454,7 @@ def get_package_versions_string(show_paths=False, debug=False):
 
     output = "\n".join(res) + "\n"
 
-    if not hasattr(sys, 'frozen'):
-        errors = cross_check_pkg_resources_versus_import()
-        if errors:
-            output += get_error_string(errors, debug=debug)
+    if errors:
+        output += get_error_string(errors, debug=debug)
 
     return output
