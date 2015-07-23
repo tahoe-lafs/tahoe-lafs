@@ -3,7 +3,6 @@ import time, os.path, platform, re, simplejson, struct, itertools, urllib
 from cStringIO import StringIO
 import thread
 
-import mock
 from twisted.trial import unittest
 
 from twisted.internet import defer
@@ -182,7 +181,13 @@ class Bucket(BucketTestMixin, unittest.TestCase):
         d = defer.succeed(None)
         d.addCallback(lambda ign: load_immutable_disk_share(final))
         def _got_share(share):
-            mockstorageserver = mock.Mock()
+            class MockStorageServer(object):
+                def add_latency(self, category, latency):
+                    pass
+                def count(self, name, delta=1):
+                    pass
+
+            mockstorageserver = MockStorageServer()
             account = FakeAccount(mockstorageserver)
 
             # Now read from it.
@@ -632,6 +637,8 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
         return d
 
 
+class MockSignedJwtAssertionCredentials(object):
+    pass
 
 class GoogleStorageAuthenticationClient(unittest.TestCase):
     """
@@ -659,10 +666,9 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         """
         When AuthenticationClient() is created, it refreshes its access token.
         """
-        from oauth2client.client import SignedJwtAssertionCredentials
         auth = googlestorage_container.AuthenticationClient(
             "u@example.com", "xxx123",
-            _credentialsClass=mock.create_autospec(SignedJwtAssertionCredentials),
+            _credentialsClass=MockSignedJwtAssertionCredentials,
             _deferToThread=defer.maybeDeferred)
         self.failUnlessEqual(auth._credentials.refresh.call_count, 1)
 
@@ -671,10 +677,9 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         AuthenticationClient.get_authorization_header() refreshes its
         credentials if the access token has expired.
         """
-        from oauth2client.client import SignedJwtAssertionCredentials
         auth = googlestorage_container.AuthenticationClient(
             "u@example.com", "xxx123",
-            _credentialsClass=mock.create_autospec(SignedJwtAssertionCredentials),
+            _credentialsClass=MockSignedJwtAssertionCredentials,
             _deferToThread=defer.maybeDeferred)
         auth._credentials.apply = lambda d: d.__setitem__('Authorization', 'xxx')
         auth._credentials.access_token_expired = True
@@ -689,7 +694,7 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         from oauth2client.client import SignedJwtAssertionCredentials
         auth = googlestorage_container.AuthenticationClient(
             "u@example.com", "xxx123",
-            _credentialsClass=mock.create_autospec(SignedJwtAssertionCredentials),
+            _credentialsClass=MockSignedJwtAssertionCredentials,
             _deferToThread=defer.maybeDeferred)
         auth._credentials.apply = lambda d: d.__setitem__('Authorization', 'xxx')
         auth._credentials.access_token_expired = False
@@ -702,10 +707,10 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         used for the Authorization header, which is ASCII-encoded if
         necessary.
         """
-        from oauth2client.client import SignedJwtAssertionCredentials
-        class NoNetworkCreds(SignedJwtAssertionCredentials):
+        class NoNetworkCreds(MockSignedJwtAssertionCredentials):
             def refresh(self, http):
                 self.access_token = u"xxx"
+
         auth = googlestorage_container.AuthenticationClient(
             "u@example.com", "xxx123",
             _credentialsClass=NoNetworkCreds,
@@ -727,10 +732,9 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         def fakeDeferToThread(f, *args):
             return results.pop(0)
 
-        from oauth2client.client import SignedJwtAssertionCredentials
         auth = googlestorage_container.AuthenticationClient(
             "u@example.com", "xxx123",
-            _credentialsClass=mock.create_autospec(SignedJwtAssertionCredentials),
+            _credentialsClass=MockSignedJwtAssertionCredentials,
             _deferToThread=fakeDeferToThread)
         # Initial authorization call happens...
         self.failUnlessEqual(len(results), 1)
@@ -748,12 +752,12 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         httplib2.Http instance.
         """
         from httplib2 import Http
-        from oauth2client.client import SignedJwtAssertionCredentials
-        class NoNetworkCreds(SignedJwtAssertionCredentials):
+        class NoNetworkCreds(MockSignedJwtAssertionCredentials):
             def refresh(cred_self, http):
                 cred_self.access_token = "xxx"
                 self.failUnlessIsInstance(http, Http)
                 self.thread_id = thread.get_ident()
+
         auth = googlestorage_container.AuthenticationClient(
             "u@example.com", "xxx123",
             _credentialsClass=NoNetworkCreds)
@@ -778,8 +782,9 @@ class CloudStorageBackendMixin(object):
         Deferred which can be fired by the caller.
         """
         d = defer.Deferred()
-        self.container._http_request = mock.create_autospec(
-            self.container._http_request, return_value=d)
+        def call_http_request(mock_self, what, method, url, request_headers, body=None, need_response_body=False):
+            return d
+        self.container._http_request = call_http_request
         return d
 
 
@@ -792,11 +797,9 @@ class CommonContainerTests(unittest.TestCase, CloudStorageBackendMixin):
         self.reactor = Clock()
         self.container = CommonContainerMixin("container", self.reactor)
 
-        # We don't just use mock.Mock, but do this silly thing so we can use
-        # create_autospec, because create_autospec is the only safe way to use
-        # mock.
-        self.container._http_request = (lambda description, method, url, headers,
-                                        body=None, need_response_body=False: None)
+        def call_http_request(self, what, method, url, request_headers, body=None, need_response_body=False):
+            return None
+        self.container._http_request = call_http_request
 
     def test_retry_response_code(self):
         """
@@ -3109,15 +3112,20 @@ class ServerWithDiskBackend(WithDiskBackend, ServerTest, unittest.TestCase):
         d.addCallback(_allocated2)
         return d
 
-    @mock.patch('allmydata.util.fileutil.get_disk_stats')
-    def test_reserved_space(self, mock_get_disk_stats):
-        reserved_space=10000
-        mock_get_disk_stats.return_value = {
-            'free_for_nonroot': 15000,
-            'avail': max(15000 - reserved_space, 0),
-            }
+    def test_reserved_space(self):
+        ns = Namespace()
+        ns.reserved = 10000
+        ns.allocated = 0
 
-        server = self.create("test_reserved_space", reserved_space=reserved_space)
+        def call_get_disk_stats(whichdir, reserved_space=0):
+            self.failUnlessEqual(reserved_space, ns.reserved)
+            return {
+              'free_for_nonroot': 15000 - ns.allocated,
+              'avail': max(15000 - ns.allocated - ns.reserved_space, 0),
+            }
+        self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
+
+        server = self.create("test_reserved_space", reserved_space=ns.reserved)
         aa = server.get_accountant().get_anonymous_account()
 
         # 15k available, 10k reserved, leaves 5k for shares
@@ -3159,16 +3167,10 @@ class ServerWithDiskBackend(WithDiskBackend, ServerTest, unittest.TestCase):
                 return d3
             d2.addCallback(_allocated2)
 
-            allocated = 1001 + OVERHEAD + LEASE_SIZE
-
-            # we have to manually increase available, since we're not doing real
-            # disk measurements
-            def _mock(ign):
-                mock_get_disk_stats.return_value = {
-                    'free_for_nonroot': 15000 - allocated,
-                    'avail': max(15000 - allocated - reserved_space, 0),
-                    }
-            d2.addCallback(_mock)
+            def _change_allocated(ign):
+                # this also changes the amount reported as available by call_get_disk_stats
+                ns.allocated = 1001 + OVERHEAD + LEASE_SIZE
+            d2.addCallback(_change_allocated)
 
             # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
             # 5000-1085=3915 free, therefore we can fit 39 100byte shares
@@ -5493,9 +5495,10 @@ class WebStatusWithDiskBackend(WithDiskBackend, WebRenderingMixin, unittest.Test
         d.addCallback(_check_json)
         return d
 
-    @mock.patch('allmydata.util.fileutil.get_disk_stats')
-    def test_status_no_disk_stats(self, mock_get_disk_stats):
-        mock_get_disk_stats.side_effect = AttributeError()
+    def test_status_no_disk_stats(self):
+        def call_get_disk_stats(whichdir, reserved_space=0):
+            raise AttributeError()
+        self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
 
         # Some platforms may have no disk stats API. Make sure the code can handle that
         # (test runs on all platforms).
@@ -5510,9 +5513,10 @@ class WebStatusWithDiskBackend(WithDiskBackend, WebRenderingMixin, unittest.Test
         self.failUnlessIn("Space Available to Tahoe: ?", s)
         self.failUnless(server.get_available_space() is None)
 
-    @mock.patch('allmydata.util.fileutil.get_disk_stats')
-    def test_status_bad_disk_stats(self, mock_get_disk_stats):
-        mock_get_disk_stats.side_effect = OSError()
+    def test_status_bad_disk_stats(self):
+        def call_get_disk_stats(whichdir, reserved_space=0):
+            raise OSError()
+        self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
 
         # If the API to get disk stats exists but a call to it fails, then the status should
         # show that no shares will be accepted, and get_available_space() should be 0.
@@ -5527,31 +5531,32 @@ class WebStatusWithDiskBackend(WithDiskBackend, WebRenderingMixin, unittest.Test
         self.failUnlessIn("Space Available to Tahoe: ?", s)
         self.failUnlessEqual(server.get_available_space(), 0)
 
-    @mock.patch('allmydata.util.fileutil.get_disk_stats')
-    def test_status_right_disk_stats(self, mock_get_disk_stats):
+    def test_status_right_disk_stats(self):
         GB = 1000000000
         total            = 5*GB
         free_for_root    = 4*GB
         free_for_nonroot = 3*GB
-        reserved_space   = 1*GB
-        used = total - free_for_root
-        avail = max(free_for_nonroot - reserved_space, 0)
-        mock_get_disk_stats.return_value = {
-            'total': total,
-            'free_for_root': free_for_root,
-            'free_for_nonroot': free_for_nonroot,
-            'used': used,
-            'avail': avail,
-        }
+        reserved         = 1*GB
 
         server = self.create("test_status_right_disk_stats", reserved_space=GB)
         expecteddir = server.backend._sharedir
 
+        def call_get_disk_stats(whichdir, reserved_space=0):
+            self.failUnlessEqual(whichdir, expecteddir)
+            self.failUnlessEqual(reserved_space, reserved)
+            used = total - free_for_root
+            avail = max(free_for_nonroot - reserved_space, 0)
+            return {
+              'total': total,
+              'free_for_root': free_for_root,
+              'free_for_nonroot': free_for_nonroot,
+              'used': used,
+              'avail': avail,
+            }
+        self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
+
         w = StorageStatus(server)
         html = w.renderSynchronously()
-
-        self.failIf([True for args in mock_get_disk_stats.call_args_list if args != ((expecteddir, reserved_space), {})],
-                    (mock_get_disk_stats.call_args_list, expecteddir, reserved_space))
 
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)

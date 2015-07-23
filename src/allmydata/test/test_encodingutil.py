@@ -56,9 +56,10 @@ if __name__ == "__main__":
     shutil.rmtree(tmpdir)
     sys.exit(0)
 
-from twisted.trial import unittest
-from mock import patch
+
 import os, sys, locale
+
+from twisted.trial import unittest
 
 from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.util import encodingutil
@@ -69,10 +70,15 @@ from allmydata.dirnode import normalize
 
 from twisted.python import usage
 
-class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
 
-    @patch('sys.stdout')
-    def test_get_io_encoding(self, mock_stdout):
+class MockStdout(object):
+    pass
+
+class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
+    def test_get_io_encoding(self):
+        mock_stdout = MockStdout()
+        self.patch(sys, 'stdout', mock_stdout)
+
         mock_stdout.encoding = 'UTF-8'
         _reload()
         self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
@@ -93,29 +99,25 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
         else:
             self.failUnlessRaises(AssertionError, _reload)
 
-    @patch('locale.getpreferredencoding')
-    def test_get_io_encoding_not_from_stdout(self, mock_locale_getpreferredencoding):
-        locale  # hush pyflakes
-        mock_locale_getpreferredencoding.return_value = 'koi8-r'
+    def test_get_io_encoding_not_from_stdout(self):
+        preferredencoding = 'koi8-r'
+        def call_locale_getpreferredencoding():
+            return preferredencoding
+        self.patch(locale, 'getpreferredencoding', call_locale_getpreferredencoding)
+        mock_stdout = MockStdout()
+        self.patch(sys, 'stdout', mock_stdout)
 
-        class DummyStdout:
-            pass
-        old_stdout = sys.stdout
-        sys.stdout = DummyStdout()
-        try:
-            expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
-            _reload()
-            self.failUnlessReallyEqual(get_io_encoding(), expected)
+        expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
+        _reload()
+        self.failUnlessReallyEqual(get_io_encoding(), expected)
 
-            sys.stdout.encoding = None
-            _reload()
-            self.failUnlessReallyEqual(get_io_encoding(), expected)
+        mock_stdout.encoding = None
+        _reload()
+        self.failUnlessReallyEqual(get_io_encoding(), expected)
 
-            mock_locale_getpreferredencoding.return_value = None
-            _reload()
-            self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
-        finally:
-            sys.stdout = old_stdout
+        preferredencoding = None
+        _reload()
+        self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
 
     def test_argv_to_unicode(self):
         encodingutil.io_encoding = 'utf-8'
@@ -127,18 +129,18 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
         encodingutil.io_encoding = 'koi8-r'
         self.failUnlessRaises(UnicodeEncodeError, unicode_to_output, lumiere_nfc)
 
-    @patch('os.listdir')
-    def test_no_unicode_normalization(self, mock):
+    def test_no_unicode_normalization(self):
         # Pretend to run on a Unicode platform.
-        # We normalized to NFC in 1.7beta, but we now don't.
-        orig_platform = sys.platform
-        try:
-            sys.platform = 'darwin'
-            mock.return_value = [Artonwall_nfd]
-            _reload()
-            self.failUnlessReallyEqual(listdir_unicode(u'/dummy'), [Artonwall_nfd])
-        finally:
-            sys.platform = orig_platform
+        # listdir_unicode normalized to NFC in 1.7beta, but now doesn't.
+
+        def call_os_listdir(path):
+            return [Artonwall_nfd]
+        self.patch(os, 'listdir', call_os_listdir)
+        self.patch(sys, 'platform', 'darwin')
+
+        _reload()
+        self.failUnlessReallyEqual(listdir_unicode(u'/dummy'), [Artonwall_nfd])
+
 
 # The following tests apply only to platforms that don't store filenames as
 # Unicode entities on the filesystem.
@@ -152,16 +154,21 @@ class EncodingUtilNonUnicodePlatform(unittest.TestCase):
         sys.platform = self.original_platform
         _reload()
 
-    @patch('sys.getfilesystemencoding')
-    @patch('os.listdir')
-    def test_listdir_unicode(self, mock_listdir, mock_getfilesystemencoding):
+    def test_listdir_unicode(self):
         # What happens if latin1-encoded filenames are encountered on an UTF-8
         # filesystem?
-        mock_listdir.return_value = [
-            lumiere_nfc.encode('utf-8'),
-            lumiere_nfc.encode('latin1')]
+        def call_os_listdir(path):
+            return [
+              lumiere_nfc.encode('utf-8'),
+              lumiere_nfc.encode('latin1')
+            ]
+        self.patch(os, 'listdir', call_os_listdir)
 
-        mock_getfilesystemencoding.return_value = 'utf-8'
+        sys_filesystemencoding = 'utf-8'
+        def call_sys_getfilesystemencoding():
+            return sys_filesystemencoding
+        self.patch(sys, 'getfilesystemencoding', call_sys_getfilesystemencoding)
+
         _reload()
         self.failUnlessRaises(FilenameEncodingError,
                               listdir_unicode,
@@ -169,7 +176,7 @@ class EncodingUtilNonUnicodePlatform(unittest.TestCase):
 
         # We're trying to list a directory whose name cannot be represented in
         # the filesystem encoding.  This should fail.
-        mock_getfilesystemencoding.return_value = 'ascii'
+        sys_filesystemencoding = 'ascii'
         _reload()
         self.failUnlessRaises(FilenameEncodingError,
                               listdir_unicode,
@@ -185,12 +192,14 @@ class EncodingUtil(ReallyEqualMixin):
         sys.platform = self.original_platform
         _reload()
 
-    @patch('sys.stdout')
-    def test_argv_to_unicode(self, mock):
+    def test_argv_to_unicode(self):
         if 'argv' not in dir(self):
             return
 
-        mock.encoding = self.io_encoding
+        mock_stdout = MockStdout()
+        mock_stdout.encoding = self.io_encoding
+        self.patch(sys, 'stdout', mock_stdout)
+
         argu = lumiere_nfc
         argv = self.argv
         _reload()
@@ -199,12 +208,14 @@ class EncodingUtil(ReallyEqualMixin):
     def test_unicode_to_url(self):
         self.failUnless(unicode_to_url(lumiere_nfc), "lumi\xc3\xa8re")
 
-    @patch('sys.stdout')
-    def test_unicode_to_output(self, mock):
+    def test_unicode_to_output(self):
         if 'argv' not in dir(self):
             return
 
-        mock.encoding = self.io_encoding
+        mock_stdout = MockStdout()
+        mock_stdout.encoding = self.io_encoding
+        self.patch(sys, 'stdout', mock_stdout)
+
         _reload()
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.argv)
 
@@ -220,9 +231,7 @@ class EncodingUtil(ReallyEqualMixin):
         _reload()
         self.failUnlessReallyEqual(unicode_platform(), matrix[self.platform])
 
-    @patch('sys.getfilesystemencoding')
-    @patch('os.listdir')
-    def test_listdir_unicode(self, mock_listdir, mock_getfilesystemencoding):
+    def test_listdir_unicode(self):
         if 'dirlist' not in dir(self):
             return
 
@@ -233,8 +242,13 @@ class EncodingUtil(ReallyEqualMixin):
                                     "that we are testing for the benefit of a different platform."
                                     % (self.filesystem_encoding,))
 
-        mock_listdir.return_value = self.dirlist
-        mock_getfilesystemencoding.return_value = self.filesystem_encoding
+        def call_os_listdir(path):
+            return self.dirlist
+        self.patch(os, 'listdir', call_os_listdir)
+
+        def call_sys_getfilesystemencoding():
+            return self.filesystem_encoding
+        self.patch(sys, 'getfilesystemencoding', call_sys_getfilesystemencoding)
 
         _reload()
         filenames = listdir_unicode(u'/dummy')
