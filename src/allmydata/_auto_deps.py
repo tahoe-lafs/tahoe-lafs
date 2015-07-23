@@ -37,9 +37,10 @@ install_requires = [
     #   transferring large mutable files of size N.
     # * foolscap < 0.6 is incompatible with Twisted 10.2.0.
     # * foolscap 0.6.1 quiets a DeprecationWarning.
-    # * foolscap < 0.6.3 is incompatible with Twisted-11.1.0 and newer. Since
-    #   current Twisted is 12.0, any build which needs twisted will grab a
-    #   version that requires foolscap>=0.6.3
+    # * foolscap < 0.6.3 is incompatible with Twisted-11.1.0 and newer.
+    # * foolscap 0.8.0 generates 2048-bit RSA-with-SHA-256 signatures,
+    #   rather than 1024-bit RSA-with-MD5. This also allows us to work
+    #   with a FIPS build of OpenSSL.
     # * pyOpenSSL is required by foolscap for it (foolscap) to provide secure
     #   connections. Foolscap doesn't reliably declare this dependency in a
     #   machine-readable way, so we need to declare a dependency on pyOpenSSL
@@ -49,8 +50,8 @@ install_requires = [
     #   pyOpenSSL, or foolscap switching from pyOpenSSL to a different crypto
     #   library, we need to update this declaration here.
     #
-    "foolscap >= 0.6.3",
-    "pyOpenSSL",
+    "foolscap >= 0.8.0",
+    "pyOpenSSL >= 0.13",
 
     "Nevow >= 0.6.0",
 
