@@ -17,7 +17,7 @@ from allmydata.interfaces import IRepairResults, ICheckAndRepairResults, \
 from allmydata.monitor import Monitor
 from allmydata.test.common import ShouldFailMixin
 from allmydata.test.no_network import GridTestMixin
-from foolscap.api import eventually, fireEventually
+from foolscap.api import eventually, fireEventually, flushEventualQueue
 from foolscap.logging import log
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.common import storage_index_to_dir
@@ -1903,6 +1903,13 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
                       "test_verify_mdmf_bad_encprivkey_uncheckable")
         return d
 
+class CheckerEmpty(unittest.TestCase, CheckerMixin, PublishMixin):
+    def test_verify_sdmf(self):
+        d = self.publish_empty_sdmf()
+        d.addCallback(lambda ignored: self._fn.check(Monitor(), verify=True))
+        d.addCallback(self.check_good, "test_verify_sdmf")
+        #d.addCallback(flushEventualQueue)
+        return d
 
 class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
 
@@ -3365,8 +3372,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d = node.get_best_readable_version()
         for (name, offset, length) in modes:
             d.addCallback(self._do_partial_read, name, expected, offset, length)
-        # then read only a few bytes at a time, and see that the results are
-        # what we expect.
+        # then read the whole thing, but only a few bytes at a time, and see
+        # that the results are what we expect.
         def _read_data(version):
             c = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
@@ -3381,10 +3388,15 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
     def _do_partial_read(self, version, name, expected, offset, length):
         c = consumer.MemoryConsumer()
         d = version.read(c, offset, length)
-        expected_range = expected[offset:offset+length]
+        if length is None:
+            expected_range = expected[offset:]
+        else:
+            expected_range = expected[offset:offset+length]
         d.addCallback(lambda ignored: "".join(c.chunks))
         def _check(results):
             if results != expected_range:
+                print "read([%d]+%s) got %d bytes, not %d" % \
+                      (offset, length, len(results), len(expected_range))
                 print "got: %s ... %s" % (results[:20], results[-20:])
                 print "exp: %s ... %s" % (expected_range[:20], expected_range[-20:])
                 self.fail("results[%s] != expected_range" % name)
@@ -3400,17 +3412,20 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
                  ("zero_length_in_middle",                  50, 0),
                  ("zero_length_at_segment_boundary",        segment_boundary, 0),
                  ("complete_file",                          0, len(self.data)),
-                 ("complete_file_past_end",                 0, len(self.data)+1),
+                 #("complete_file_past_end",                 0, len(self.data)+1),
                  ]
         d = self.do_upload_mdmf()
         d.addCallback(self._test_partial_read, self.data, modes, 10000)
         return d
 
     def test_partial_read_sdmf_90(self):
+        # XXX: add filesize=0, read(length=None!/0), maybe _last_segment=-1
         modes = [("start_at_middle",           50, 40),
                  ("zero_length_at_start",      0, 0),
                  ("zero_length_in_middle",     50, 0),
-                 ("complete_file",             0, 90),
+                 ("zero_length_at_end",        90, 0),
+                 ("complete_file1",            0, None),
+                 ("complete_file2",            0, 90),
                  ]
         d = self.do_upload_sdmf()
         d.addCallback(self._test_partial_read, self.small_data, modes, 10)
