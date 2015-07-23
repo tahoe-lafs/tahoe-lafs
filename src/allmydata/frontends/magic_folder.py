@@ -51,7 +51,7 @@ class MagicFolder(service.MultiService):
         self._local_dir = local_dir
         self._upload_lazy_tail = defer.succeed(None)
         self._upload_pending = set()
-        self._download_scan_batch = {}
+        self._download_scan_batch = {} # path -> [(filenode, metadata)]
         self._download_lazy_tail = defer.succeed(None)
         self._download_pending = set()
         self._collective_dirnode = None
@@ -168,9 +168,9 @@ class MagicFolder(service.MultiService):
             for name in listing_map.keys():
                 file_node, metadata = listing_map[name]
                 if self._download_scan_batch.has_key(name):
-                    self._download_scan_batch[name] += [(name, file_node, metadata)]
+                    self._download_scan_batch[name] += [(file_node, metadata)]
                 else:
-                    self._download_scan_batch[name] = [(name, file_node, metadata)]
+                    self._download_scan_batch[name] = [(file_node, metadata)]
         listing_d.addCallback(scan_listing)
         return listing_d
 
@@ -200,11 +200,11 @@ class MagicFolder(service.MultiService):
         self._download_pending.update(map(lambda x: x[0], result))
 
     def _filter_scan_batch(self, result):
-        extension = []
+        extension = [] # consider whether this should be a dict
         for name in self._download_scan_batch.keys():
             if name in self._download_pending:
                 continue
-            name, file_node, metadata = max(self._download_scan_batch[name], key=lambda x: x[2]['version'])
+            file_node, metadata = max(self._download_scan_batch[name], key=lambda x: x[1]['version'])
             if self._should_download(name, metadata['version']):
                 extension += [(name, file_node, metadata)]
         return extension
