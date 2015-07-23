@@ -10,7 +10,7 @@ from twisted.application import service
 
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
-from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
+from allmydata.util.fileutil import precondition_abspath
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
      unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
@@ -48,7 +48,7 @@ class MagicFolder(service.MultiService):
         service.MultiService.__init__(self)
         self._stopped = False
         self._remote_scan_delay = 3 # XXX
-        self._local_dir = abspath_expanduser_unicode(local_dir)
+        self._local_dir = local_dir
         self._upload_lazy_tail = defer.succeed(None)
         self._upload_pending = set()
         self._download_scan_batch = {}
