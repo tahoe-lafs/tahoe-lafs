@@ -11,6 +11,7 @@ from twisted.application import service
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import precondition_abspath
+
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
      unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
@@ -41,12 +42,12 @@ def get_inotify_module():
 class MagicFolder(service.MultiService):
     name = 'magic-folder'
 
-    def __init__(self, client, upload_dircap, collective_dircap, local_dir, dbfile, inotify=None,
+    def __init__(self, client, upload_dircap, collective_dircap, local_dir_path_u, dbfile, inotify=None,
                  pending_delay=1.0):
-        precondition_abspath(local_dir)
+        precondition_abspath(local_dir_path_u)
 
         service.MultiService.__init__(self)
-        local_path = to_filepath(local_dir)
+        local_path = to_filepath(local_dir_path_u)
 
         db = backupdb.get_backupdb(dbfile, create_version=(backupdb.SCHEMA_v3, 3))
         if db is None:
@@ -57,13 +58,13 @@ class MagicFolder(service.MultiService):
         if not local_path.exists():
             raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
                                  "but there is no directory at that location."
-                                 % quote_local_unicode_path(local_dir))
+                                 % quote_local_unicode_path(local_dir_path_u))
         if not local_path.isdir():
             raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
                                  "but the thing at that location is not a directory."
-                                 % quote_local_unicode_path(local_dir))
+                                 % quote_local_unicode_path(local_dir_path_u))
 
-        self.uploader = Uploader(client, local_path, db, upload_dircap, inotify, pending_delay)
+        self.uploader = Uploader(client, local_dir_path_u, db, upload_dircap, inotify, pending_delay)
         self.downloader = Downloader(client, local_path, db, collective_dircap)
 
     def startService(self):
@@ -88,7 +89,7 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(object):
-    def __init__(self, client, counter, local_path, db):
+    def __init__(self, client, local_path, db):
         self._client = client
         self._counter = client.stats_provider.count
         self._local_path = local_path
@@ -97,7 +98,7 @@ class QueueMixin(object):
         self._deque = deque()
         self._lazy_tail = defer.succeed(None)
         self._pending = set()
-        self._processed_callback = lambda ign: None
+        self._callback = lambda ign: None
         self._ignore_count = 0
 
     def _do_callback(self, res):
@@ -122,8 +123,11 @@ class QueueMixin(object):
 
 
 class Uploader(QueueMixin):
-    def __init__(self, client, local_path, db, upload_dircap, inotify, pending_delay):
-        QueueMixin.__init__(self, client, local_path, db)
+    def __init__(self, client, local_dir_path_u, db, upload_dircap, inotify, pending_delay):
+        QueueMixin.__init__(self, client, local_dir_path_u, db)
+
+        self.local_path = local_dir_path_u
+        self.is_ready = False
 
         # TODO: allow a path rather than a cap URI.
         self._upload_dirnode = self._client.create_node_from_uri(upload_dircap)
@@ -150,7 +154,7 @@ class Uploader(QueueMixin):
                     | self._inotify.IN_ONLYDIR
                     | IN_EXCL_UNLINK
                     )
-        self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
+        self._notifier.watch(to_filepath(self.local_path), mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
     def start_monitoring(self):
@@ -169,7 +173,8 @@ class Uploader(QueueMixin):
         return d
 
     def start_scanning(self):
-        self._scan(self._local_dir)
+        self.is_ready = True
+        self._scan(self._local_path)
         self._turn_deque()
 
     def _scan(self, localpath):
@@ -267,12 +272,12 @@ class Uploader(QueueMixin):
         d = defer.succeed(None)
 
         def _add_file(encoded_name_u, version):
-            uploadable = FileName(path_u, self._convergence)
+            uploadable = FileName(path_u, self._client.convergence)
             return self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
 
         def _add_dir(encoded_name_u):
             self._notifier.watch(to_filepath(path_u), mask=self.mask, callbacks=[self._notify], recursive=True)
-            uploadable = Data("", self._convergence)
+            uploadable = Data("", self._client.convergence)
             encoded_name_u += u"@_"
             upload_d = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":0}, overwrite=True)
             def _succeeded(ign):
@@ -286,8 +291,8 @@ class Uploader(QueueMixin):
             return upload_d
 
         def _maybe_upload(val):
-            self._upload_pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
-            relpath_u = os.path.relpath(path_u, self._local_dir)
+            self._pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
+            relpath_u = os.path.relpath(path_u, self.local_path)
             encoded_name_u = magicpath.path2magic(relpath_u)
 
             def get_metadata(result):
@@ -308,7 +313,7 @@ class Uploader(QueueMixin):
                         current_version = self._db.get_local_file_version(relpath_u) + 1
                         metadata['version'] = current_version
                         metadata['deleted'] = True
-                        empty_uploadable = Data("", self._convergence)
+                        empty_uploadable = Data("", self._client.convergence)
                         return self._upload_dirnode.add_file(encoded_name_u, empty_uploadable, overwrite=True, metadata=metadata)
                     d2.addCallback(set_deleted)
                 d2.addCallback(lambda x: Exception("file does not exist"))
@@ -438,12 +443,13 @@ class Downloader(QueueMixin):
     def _scan_remote_collective(self):
         if self._collective_dirnode is None:
             return
-        upload_readonly_dircap = self._upload_dirnode.get_readonly_uri()
         collective_dirmap_d = self._collective_dirnode.list()
-        def do_filter(result):
-            others = [x for x in result.keys() if result[x][0].get_readonly_uri() != upload_readonly_dircap]
+
+        def do_list(result):
+            others = [x for x in result.keys()]
             return result, others
-        collective_dirmap_d.addCallback(do_filter)
+        collective_dirmap_d.addCallback(do_list)
+
         def scan_collective(result):
             d = defer.succeed(None)
             collective_dirmap, others_list = result
@@ -502,8 +508,8 @@ class Downloader(QueueMixin):
 
     # FIXME move to QueueMixin
     def _turn_deque(self):
-        if self._stopped:
-            return
+        #if self._stopped:
+        #    return
         try:
             file_path, file_node, metadata = self._deque.pop()
         except IndexError:
