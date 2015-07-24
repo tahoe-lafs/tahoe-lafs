@@ -94,7 +94,7 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin):
     def cleanup(self, res):
         d = defer.succeed(None)
         if self.magicfolder is not None:
-            d.addCallback(lambda ign: self.magicfolder.finish(for_tests=True))
+            d.addCallback(lambda ign: self.magicfolder.finish())
         d.addCallback(lambda ign: res)
         return d
 
