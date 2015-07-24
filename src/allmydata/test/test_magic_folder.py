@@ -128,7 +128,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         def _check_move_empty_tree(res):
             self.mkdir_nonascii(empty_tree_dir)
             d2 = defer.Deferred()
-            self.magicfolder.set_processed_callback(d2.callback)
+            self.magicfolder.set_callback(d2.callback)
             os.rename(empty_tree_dir, new_empty_tree_dir)
             self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
@@ -142,7 +142,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
             self.mkdir_nonascii(small_tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
             d2 = defer.Deferred()
-            self.magicfolder.set_processed_callback(d2.callback, ignore_count=1)
+            self.magicfolder.set_callback(d2.callback, ignore_count=1)
             os.rename(small_tree_dir, new_small_tree_dir)
             self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
@@ -154,7 +154,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def _check_moved_tree_is_watched(res):
             d2 = defer.Deferred()
-            self.magicfolder.set_processed_callback(d2.callback)
+            self.magicfolder.set_callback(d2.callback)
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
             self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
             return d2
@@ -204,7 +204,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def create_test_file(result):
             d2 = defer.Deferred()
-            self.magicfolder.set_processed_callback(d2.callback)
+            self.magicfolder.set_callback(d2.callback)
             test_file = abspath_expanduser_unicode(u"what", base=self.local_dir)
             fileutil.write(test_file, "meow")
             self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
@@ -279,7 +279,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         # Note: this relies on the fact that we only get one IN_CLOSE_WRITE notification per file
         # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
         d = defer.Deferred()
-        self.magicfolder.set_processed_callback(d.callback)
+        self.magicfolder.set_callback(d.callback)
 
         path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
         path = to_filepath(path_u)
@@ -314,7 +314,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
     def _check_version_in_dmd(self, magicfolder, relpath_u, expected_version):
         encoded_name_u = magicpath.path2magic(relpath_u)
-        d = magicfolder._upload_dirnode.get_child_and_metadata(encoded_name_u)
+        d = magicfolder.uploader._upload_dirnode.get_child_and_metadata(encoded_name_u)
         def _check((filenode, metadata)):
             self.failUnless(metadata, "no metadata for %r" % (relpath_u,))
             self.failUnlessEqual(metadata['version'], expected_version)
@@ -334,7 +334,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def Alice_write_a_file(result):
             print "Alice writes a file\n"
-            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder._local_dir)
+            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader.local_path)
             fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
             self.magicfolder = self.alice_magicfolder
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
@@ -344,7 +344,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         def Alice_wait_for_upload(result):
             print "Alice waits for an upload\n"
             d2 = defer.Deferred()
-            self.alice_magicfolder.set_processed_callback(d2.callback)
+            self.alice_magicfolder.uploader.set_callback(d2.callback)
             return d2
         d.addCallback(Alice_wait_for_upload)
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 0))
@@ -393,8 +393,8 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def cleanup_Alice_and_Bob(result):
             d = defer.succeed(None)
-            d.addCallback(lambda ign: self.alice_magicfolder.finish(for_tests=True))
-            d.addCallback(lambda ign: self.bob_magicfolder.finish(for_tests=True))
+            d.addCallback(lambda ign: self.alice_magicfolder.finish())
+            d.addCallback(lambda ign: self.bob_magicfolder.finish())
             d.addCallback(lambda ign: result)
             return d
         d.addCallback(cleanup_Alice_and_Bob)
@@ -408,7 +408,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         self.inotify = fake_inotify
 
     def notify(self, path, mask):
-        self.magicfolder._notifier.event(path, mask)
+        self.magicfolder.uploader._notifier.event(path, mask)
 
     def test_errors(self):
         self.set_up_grid()
