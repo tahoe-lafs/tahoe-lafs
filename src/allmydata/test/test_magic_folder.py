@@ -128,7 +128,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         def _check_move_empty_tree(res):
             self.mkdir_nonascii(empty_tree_dir)
             d2 = defer.Deferred()
-            self.magicfolder.set_callback(d2.callback)
+            self.magicfolder.uploader.set_callback(d2.callback)
             os.rename(empty_tree_dir, new_empty_tree_dir)
             self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
@@ -204,7 +204,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def create_test_file(result):
             d2 = defer.Deferred()
-            self.magicfolder.set_callback(d2.callback)
+            self.magicfolder.uploader.set_callback(d2.callback)
             test_file = abspath_expanduser_unicode(u"what", base=self.local_dir)
             fileutil.write(test_file, "meow")
             self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
@@ -279,7 +279,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         # Note: this relies on the fact that we only get one IN_CLOSE_WRITE notification per file
         # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
         d = defer.Deferred()
-        self.magicfolder.set_callback(d.callback)
+        self.magicfolder.uploader.set_callback(d.callback)
 
         path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
         path = to_filepath(path_u)
@@ -334,7 +334,8 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def Alice_write_a_file(result):
             print "Alice writes a file\n"
-            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader.local_path)
+            # XXX simplify by just using FilePath and setContent
+            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
             self.magicfolder = self.alice_magicfolder
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
@@ -358,7 +359,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         def Bob_wait_for_download(result):
             print "Bob waits for a download\n"
             d2 = defer.Deferred()
-            self.bob_magicfolder.set_download_callback(d2.callback)
+            self.bob_magicfolder.downloader.set_callback(d2.callback)
             return d2
         d.addCallback(Bob_wait_for_download)
         #d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 0))

@@ -52,8 +52,11 @@ class MagicFolder(service.MultiService):
         if db is None:
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
 
-        self.is_ready = False
+        # for tests
+        self._client = client
+        self._db = db
 
+        self.is_ready = False
 
         self.uploader = Uploader(client, local_path_u, db, upload_dircap, inotify, pending_delay)
         self.downloader = Downloader(client, local_path_u, db, collective_dircap)
