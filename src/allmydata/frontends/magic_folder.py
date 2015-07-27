@@ -42,12 +42,11 @@ def get_inotify_module():
 class MagicFolder(service.MultiService):
     name = 'magic-folder'
 
-    def __init__(self, client, upload_dircap, collective_dircap, local_dir_path_u, dbfile, inotify=None,
+    def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, inotify=None,
                  pending_delay=1.0):
-        precondition_abspath(local_dir_path_u)
+        precondition_abspath(local_path_u)
 
         service.MultiService.__init__(self)
-        local_path = to_filepath(local_dir_path_u)
 
         db = backupdb.get_backupdb(dbfile, create_version=(backupdb.SCHEMA_v3, 3))
         if db is None:
@@ -55,17 +54,9 @@ class MagicFolder(service.MultiService):
 
         self.is_ready = False
 
-        if not local_path.exists():
-            raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
-                                 "but there is no directory at that location."
-                                 % quote_local_unicode_path(local_dir_path_u))
-        if not local_path.isdir():
-            raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
-                                 "but the thing at that location is not a directory."
-                                 % quote_local_unicode_path(local_dir_path_u))
 
-        self.uploader = Uploader(client, local_dir_path_u, db, upload_dircap, inotify, pending_delay)
-        self.downloader = Downloader(client, local_path, db, collective_dircap)
+        self.uploader = Uploader(client, local_path_u, db, upload_dircap, inotify, pending_delay)
+        self.downloader = Downloader(client, local_path_u, db, collective_dircap)
 
     def startService(self):
         service.MultiService.startService(self)
@@ -89,10 +80,21 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(object):
-    def __init__(self, client, local_path, db):
+    def __init__(self, client, local_path_u, db):
         self._client = client
         self._counter = client.stats_provider.count
-        self._local_path = local_path
+        self._local_path_u = local_path_u
+        self._local_path = to_filepath(local_path_u)
+
+        if not self._local_path.exists():
+            raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
+                                 "but there is no directory at that location."
+                                 % quote_local_unicode_path(self._local_path_u))
+        if not self._local_path.isdir():
+            raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
+                                 "but the thing at that location is not a directory."
+                                 % quote_local_unicode_path(self._local_path_u))
+
         self._db = db
 
         self._deque = deque()
@@ -123,10 +125,9 @@ class QueueMixin(object):
 
 
 class Uploader(QueueMixin):
-    def __init__(self, client, local_dir_path_u, db, upload_dircap, inotify, pending_delay):
-        QueueMixin.__init__(self, client, local_dir_path_u, db)
+    def __init__(self, client, local_path_u, db, upload_dircap, inotify, pending_delay):
+        QueueMixin.__init__(self, client, local_path_u, db)
 
-        self.local_path = local_dir_path_u
         self.is_ready = False
 
         # TODO: allow a path rather than a cap URI.
@@ -154,7 +155,7 @@ class Uploader(QueueMixin):
                     | self._inotify.IN_ONLYDIR
                     | IN_EXCL_UNLINK
                     )
-        self._notifier.watch(to_filepath(self.local_path), mask=self.mask, callbacks=[self._notify],
+        self._notifier.watch(self._local_path, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
     def start_monitoring(self):
@@ -174,15 +175,15 @@ class Uploader(QueueMixin):
 
     def start_scanning(self):
         self.is_ready = True
-        self._scan(self._local_path)
+        self._scan(self._local_path_u)
         self._turn_deque()
 
-    def _scan(self, localpath):
-        if not os.path.isdir(localpath):
+    def _scan(self, local_path_u):  # XXX should this take a FilePath?
+        if not os.path.isdir(local_path_u):
             raise AssertionError("Programmer error: _scan() must be passed a directory path.")
-        quoted_path = quote_local_unicode_path(localpath)
+        quoted_path = quote_local_unicode_path(local_path_u)
         try:
-            children = listdir_unicode(localpath)
+            children = listdir_unicode(local_path_u)
         except EnvironmentError:
             raise(Exception("WARNING: magic folder: permission denied on directory %s" % (quoted_path,)))
         except FilenameEncodingError:
@@ -191,50 +192,50 @@ class Uploader(QueueMixin):
         d = defer.succeed(None)
         for child in children:
             assert isinstance(child, unicode), child
-            childpath = os.path.join(localpath, child)
+            child_path_u = os.path.join(local_path_u, child)
 
-            def _process_child(ign, childpath=childpath):
+            def _process_child(ign, child_path_u=child_path_u):
                 # note: symlinks to directories are both islink() and isdir()
-                isdir = os.path.isdir(childpath)
-                isfile = os.path.isfile(childpath)
-                islink = os.path.islink(childpath)
+                isdir = os.path.isdir(child_path_u)
+                isfile = os.path.isfile(child_path_u)
+                islink = os.path.islink(child_path_u)
 
                 if islink:
-                    self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
+                    self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(child_path_u))
                     return None
                 elif isdir:
                     # process directories unconditionally
-                    self._append_to_deque(childpath)
+                    self._append_to_deque(child_path_u)
 
                     # recurse on the child directory
-                    return self._scan(childpath)
+                    return self._scan(child_path_u)
                 elif isfile:
-                    file_version = self._db.get_local_file_version(childpath)
+                    file_version = self._db.get_local_file_version(child_path_u)
                     if file_version is None:
                         # XXX upload if we didn't record our version in magicfolder db?
-                        self._append_to_deque(childpath)
+                        self._append_to_deque(child_path_u)
                         return None
                     else:
-                        d2 = self._get_collective_latest_file(childpath)
+                        d2 = self._get_collective_latest_file(child_path_u)
                         def _got_latest_file((file_node, metadata)):
                             collective_version = metadata['version']
                             if collective_version is None:
                                 return None
                             if file_version > collective_version:
-                                self._append_to_upload_deque(childpath)
+                                self._append_to_upload_deque(child_path_u)
                             elif file_version < collective_version: # FIXME Daira thinks this is wrong
                                 # if a collective version of the file is newer than ours
                                 # we must download it and unlink the old file from our upload dirnode
-                                self._append_to_download_deque(childpath)
+                                self._append_to_download_deque(child_path_u)
                                 # XXX where should we save the returned deferred?
-                                return self._upload_dirnode.delete(childpath, must_be_file=True)
+                                return self._upload_dirnode.delete(child_path_u, must_be_file=True)
                             else:
                                 # XXX same version. do nothing.
                                 pass
                         d2.addCallback(_got_latest_file)
                         return d2
                 else:
-                    self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
+                    self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(child_path_u))
                     return None
             d.addCallback(_process_child)
             d.addErrback(log.err)
@@ -292,7 +293,7 @@ class Uploader(QueueMixin):
 
         def _maybe_upload(val):
             self._pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
-            relpath_u = os.path.relpath(path_u, self.local_path)
+            relpath_u = os.path.relpath(path_u, self._local_path_u)
             encoded_name_u = magicpath.path2magic(relpath_u)
 
             def get_metadata(result):
@@ -360,8 +361,8 @@ class Uploader(QueueMixin):
 
 
 class Downloader(QueueMixin):
-    def __init__(self, client, local_path, db, collective_dircap):
-        QueueMixin.__init__(self, client, local_path, db)
+    def __init__(self, client, local_path_u, db, collective_dircap):
+        QueueMixin.__init__(self, client, local_path_u, db)
 
         # TODO: allow a path rather than a cap URI.
         self._collective_dirnode = self._client.create_node_from_uri(collective_dircap)
