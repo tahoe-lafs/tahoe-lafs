@@ -114,14 +114,14 @@ class CheckRequirement(unittest.TestCase):
         self.failUnlessEqual(res, [])
 
         res = cross_check({"argparse": ("unparseable", "")}, [])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({}, [("foo", ("unparseable", "", None))])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("not found by pkg_resources", res[0])
 
         res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere", "distribute"))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere", None))])
         self.failUnlessEqual(len(res), 1)
@@ -132,7 +132,7 @@ class CheckRequirement(unittest.TestCase):
         self.failUnlessIn("location mismatch", res[0])
 
         res = cross_check({"zope.interface": ("1.0", "")}, [("zope.interface", ("unknown", "", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({"foo": ("1.0", "")}, [("foo", ("unknown", "", None))])
         self.failUnlessEqual(len(res), 1)
@@ -142,13 +142,13 @@ class CheckRequirement(unittest.TestCase):
         # the version and the path fail to match.
 
         res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("1.0", "/somewhere_different", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({"foo": ("1.0-r123", "/somewhere")}, [("foo", ("1.0.post123", "/somewhere_different", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere_different", None))])
         self.failUnlessEqual(len(res), 1)
