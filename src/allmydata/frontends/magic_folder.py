@@ -343,9 +343,9 @@ class Uploader(QueueMixin):
                     version = 0
                 else:
                     version += 1
-                print "NEW VERSION %d for %r" % (version, relpath_u)
                 d2 = _add_file(encoded_name_u, version)
                 def add_db_entry(filenode):
+                    print "add_db_entry: version %d for %r" % (version, relpath_u)
                     filecap = filenode.get_uri()
                     s = os.stat(path_u)
                     size = s[stat.ST_SIZE]
@@ -415,6 +415,15 @@ class Downloader(QueueMixin):
         v = self._db.get_local_file_version(relpath_u)
         return (v is None or v < remote_version)
 
+    def _get_local_latest(self, path_u):
+        """_get_local_latest takes a unicode path string checks to see if this file object
+        exists in our magic-folder db; if not then return None
+        else check for an entry in our magic-folder db and return the version number.
+        """
+        if not os.path.exists(path_u):
+            return None
+        return self._db.get_local_file_version(child_path_u)
+
     def _get_collective_latest_file(self, filename):
         """_get_collective_latest_file takes a file path pointing to a file managed by
         magic-folder and returns a deferred that fires with the two tuple containing a
@@ -459,13 +468,21 @@ class Downloader(QueueMixin):
             for name in listing_map.keys():
                 print "name ", name
                 file_node, metadata = listing_map[name]
-                print "ALL KEYS %s" % (self._download_scan_batch.keys(),)
-                if self._download_scan_batch.has_key(name):
-                    print "HAS KEY - %s %s" % (file_node, metadata)
-                    self._download_scan_batch[name] += [(file_node, metadata)]
+                local_version = self._get_local_latest(name) # XXX we might need to convert first?
+
+                if local_version is None:
+                    return None
+                if local_version >= metadata['version']:
+                    return None
                 else:
-                    print "NOT HAS KEY"
-                    self._download_scan_batch[name] = [(file_node, metadata)]
+                    print "local_version %r" % (local_version,)
+                    print "ALL KEYS %s" % (self._download_scan_batch.keys(),)
+                    if self._download_scan_batch.has_key(name):
+                        print "HAS KEY - %s %s" % (file_node, metadata)
+                        self._download_scan_batch[name] += [(file_node, metadata)]
+                    else:
+                        print "NOT HAS KEY"
+                        self._download_scan_batch[name] = [(file_node, metadata)]
 
             print "download scan batch before filtering", repr(self._download_scan_batch)
         listing_d.addCallback(scan_listing)
