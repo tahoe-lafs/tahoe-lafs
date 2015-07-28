@@ -142,7 +142,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
             self.mkdir_nonascii(small_tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
             d2 = defer.Deferred()
-            self.magicfolder.set_callback(d2.callback, ignore_count=1)
+            self.magicfolder.uploader.set_callback(d2.callback, ignore_count=1)
             os.rename(small_tree_dir, new_small_tree_dir)
             self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
@@ -154,7 +154,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def _check_moved_tree_is_watched(res):
             d2 = defer.Deferred()
-            self.magicfolder.set_callback(d2.callback)
+            self.magicfolder.uploader.set_callback(d2.callback)
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
             self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
             return d2
@@ -380,7 +380,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def Alice_rewrite_file(result):
             print "Alice rewrites file\n"
-            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder._local_dir)
+            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "Alice suddenly sees the white rabbit running into the forest.")
             self.magicfolder = self.alice_magicfolder
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
