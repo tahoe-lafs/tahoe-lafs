@@ -665,7 +665,10 @@ class IReadable(Interface):
         the last byte has been given to it, or because the consumer threw an
         exception during write(), possibly because it no longer wants to
         receive data). The portion downloaded will start at 'offset' and
-        contain 'size' bytes (or the remainder of the file if size==None).
+        contain 'size' bytes (or the remainder of the file if size==None). It
+        is an error to read beyond the end of the file: callers must use
+        get_size() and clip any non-default offset= and size= parameters. It
+        is permissible to read zero bytes.
 
         The consumer will be used in non-streaming mode: an IPullProducer
         will be attached to it.
