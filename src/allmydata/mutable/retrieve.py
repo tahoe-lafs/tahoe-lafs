@@ -103,10 +103,10 @@ class Retrieve:
     def __init__(self, filenode, storage_broker, servermap, verinfo,
                  fetch_privkey=False, verify=False):
         self._node = filenode
-        assert self._node.get_pubkey()
+        _assert(self._node.get_pubkey())
         self._storage_broker = storage_broker
         self._storage_index = filenode.get_storage_index()
-        assert self._node.get_readkey()
+        _assert(self._node.get_readkey())
         self._last_failure = None
         prefix = si_b2a(self._storage_index)[:5]
         self._log_number = log.msg("Retrieve(%s): starting" % prefix)
@@ -115,7 +115,6 @@ class Retrieve:
         self._bad_shares = set()
 
         self.servermap = servermap
-        assert self._node.get_pubkey()
         self.verinfo = verinfo
         # TODO: make it possible to use self.verinfo.datalength instead
         (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
@@ -719,7 +718,7 @@ class Retrieve:
         # wrong data, and CorruptShareError which happens later, when we
         # perform integrity checks on the data.
 
-        assert isinstance(readers, list)
+        precondition(isinstance(readers, list), readers)
         bad_shnums = [reader.shnum for reader in readers]
 
         self.log("validation or decoding failed on share(s) %s, server(s) %s "
@@ -744,7 +743,7 @@ class Retrieve:
 
         block_and_salt, blockhashes, sharehashes = results
         block, salt = block_and_salt
-        assert type(block) is str, (block, salt)
+        _assert(type(block) is str, (block, salt))
 
         blockhashes = dict(enumerate(blockhashes))
         self.log("the reader gave me the following blockhashes: %s" % \
@@ -861,7 +860,7 @@ class Retrieve:
 
         self._set_current_status("decoding")
         started = time.time()
-        assert len(shareids) >= self._required_shares, len(shareids)
+        _assert(len(shareids) >= self._required_shares, len(shareids))
         # zfec really doesn't want extra shares
         shareids = shareids[:self._required_shares]
         shares = shares[:self._required_shares]
