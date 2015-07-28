@@ -17,7 +17,7 @@ from allmydata.interfaces import IRepairResults, ICheckAndRepairResults, \
 from allmydata.monitor import Monitor
 from allmydata.test.common import ShouldFailMixin
 from allmydata.test.no_network import GridTestMixin
-from foolscap.api import eventually, fireEventually
+from foolscap.api import eventually, fireEventually, flushEventualQueue
 from foolscap.logging import log
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.common import storage_index_to_dir
@@ -916,11 +916,13 @@ class PublishMixin:
         d.addCallback(_created)
         return d
 
-    def publish_mdmf(self):
+    def publish_mdmf(self, data=None):
         # like publish_one, except that the result is guaranteed to be
         # an MDMF file.
         # self.CONTENTS should have more than one segment.
-        self.CONTENTS = "This is an MDMF file" * 100000
+        if data is None:
+            data = "This is an MDMF file" * 100000
+        self.CONTENTS = data
         self.uploadable = MutableData(self.CONTENTS)
         self._storage = FakeStorage()
         self._nodemaker = make_nodemaker(self._storage)
@@ -933,29 +935,17 @@ class PublishMixin:
         return d
 
 
-    def publish_sdmf(self):
+    def publish_sdmf(self, data=None):
         # like publish_one, except that the result is guaranteed to be
         # an SDMF file
-        self.CONTENTS = "This is an SDMF file" * 1000
+        if data is None:
+            data = "This is an SDMF file" * 1000
+        self.CONTENTS = data
         self.uploadable = MutableData(self.CONTENTS)
         self._storage = FakeStorage()
         self._nodemaker = make_nodemaker(self._storage)
         self._storage_broker = self._nodemaker.storage_broker
         d = self._nodemaker.create_mutable_file(self.uploadable, version=SDMF_VERSION)
-        def _created(node):
-            self._fn = node
-            self._fn2 = self._nodemaker.create_from_cap(node.get_uri())
-        d.addCallback(_created)
-        return d
-
-    def publish_empty_sdmf(self):
-        self.CONTENTS = ""
-        self.uploadable = MutableData(self.CONTENTS)
-        self._storage = FakeStorage()
-        self._nodemaker = make_nodemaker(self._storage, keysize=None)
-        self._storage_broker = self._nodemaker.storage_broker
-        d = self._nodemaker.create_mutable_file(self.uploadable,
-                                                version=SDMF_VERSION)
         def _created(node):
             self._fn = node
             self._fn2 = self._nodemaker.create_from_cap(node.get_uri())
@@ -1903,6 +1893,19 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
                       "test_verify_mdmf_bad_encprivkey_uncheckable")
         return d
 
+    def test_verify_sdmf_empty(self):
+        d = self.publish_sdmf("")
+        d.addCallback(lambda ignored: self._fn.check(Monitor(), verify=True))
+        d.addCallback(self.check_good, "test_verify_sdmf")
+        d.addCallback(flushEventualQueue)
+        return d
+
+    def test_verify_mdmf_empty(self):
+        d = self.publish_mdmf("")
+        d.addCallback(lambda ignored: self._fn.check(Monitor(), verify=True))
+        d.addCallback(self.check_good, "test_verify_mdmf")
+        d.addCallback(flushEventualQueue)
+        return d
 
 class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
 
@@ -2155,7 +2158,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         # In the buggy version, the check that precedes the retrieve+publish
         # cycle uses MODE_READ, instead of MODE_REPAIR, and fails to get the
         # privkey that repair needs.
-        d = self.publish_empty_sdmf()
+        d = self.publish_sdmf("")
         def _delete_one_share(ign):
             shares = self._storage._peers
             for peerid in shares:
@@ -3068,11 +3071,13 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
         self.data = "test data" * 100000 # about 900 KiB; MDMF
-        self.small_data = "test data" * 10 # about 90 B; SDMF
+        self.small_data = "test data" * 10 # 90 B; SDMF
 
 
-    def do_upload_mdmf(self):
-        d = self.nm.create_mutable_file(MutableData(self.data),
+    def do_upload_mdmf(self, data=None):
+        if data is None:
+            data = self.data
+        d = self.nm.create_mutable_file(MutableData(data),
                                         version=MDMF_VERSION)
         def _then(n):
             assert isinstance(n, MutableFileNode)
@@ -3082,8 +3087,10 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(_then)
         return d
 
-    def do_upload_sdmf(self):
-        d = self.nm.create_mutable_file(MutableData(self.small_data))
+    def do_upload_sdmf(self, data=None):
+        if data is None:
+            data = self.small_data
+        d = self.nm.create_mutable_file(MutableData(data))
         def _then(n):
             assert isinstance(n, MutableFileNode)
             assert n._protocol_version == SDMF_VERSION
@@ -3359,45 +3366,110 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
 
-    def test_partial_read(self):
-        d = self.do_upload_mdmf()
-        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
-        modes = [("start_on_segment_boundary",
-                  mathutil.next_multiple(128 * 1024, 3), 50),
-                 ("ending_one_byte_after_segment_boundary",
-                  mathutil.next_multiple(128 * 1024, 3)-50, 51),
-                 ("zero_length_at_start", 0, 0),
-                 ("zero_length_in_middle", 50, 0),
-                 ("zero_length_at_segment_boundary",
-                  mathutil.next_multiple(128 * 1024, 3), 0),
-                 ]
+    def _test_partial_read(self, node, expected, modes, step):
+        d = node.get_best_readable_version()
         for (name, offset, length) in modes:
-            d.addCallback(self._do_partial_read, name, offset, length)
-        # then read only a few bytes at a time, and see that the results are
-        # what we expect.
+            d.addCallback(self._do_partial_read, name, expected, offset, length)
+        # then read the whole thing, but only a few bytes at a time, and see
+        # that the results are what we expect.
         def _read_data(version):
             c = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
-            for i in xrange(0, len(self.data), 10000):
-                d2.addCallback(lambda ignored, i=i: version.read(c, i, 10000))
+            for i in xrange(0, len(expected), step):
+                d2.addCallback(lambda ignored, i=i: version.read(c, i, step))
             d2.addCallback(lambda ignored:
-                self.failUnlessEqual(self.data, "".join(c.chunks)))
+                self.failUnlessEqual(expected, "".join(c.chunks)))
             return d2
         d.addCallback(_read_data)
         return d
-    def _do_partial_read(self, version, name, offset, length):
+
+    def _do_partial_read(self, version, name, expected, offset, length):
         c = consumer.MemoryConsumer()
         d = version.read(c, offset, length)
-        expected = self.data[offset:offset+length]
+        if length is None:
+            expected_range = expected[offset:]
+        else:
+            expected_range = expected[offset:offset+length]
         d.addCallback(lambda ignored: "".join(c.chunks))
         def _check(results):
-            if results != expected:
-                print
+            if results != expected_range:
+                print "read([%d]+%s) got %d bytes, not %d" % \
+                      (offset, length, len(results), len(expected_range))
                 print "got: %s ... %s" % (results[:20], results[-20:])
-                print "exp: %s ... %s" % (expected[:20], expected[-20:])
-                self.fail("results[%s] != expected" % name)
+                print "exp: %s ... %s" % (expected_range[:20], expected_range[-20:])
+                self.fail("results[%s] != expected_range" % name)
             return version # daisy-chained to next call
         d.addCallback(_check)
+        return d
+
+    def test_partial_read_mdmf_0(self):
+        data = ""
+        d = self.do_upload_mdmf(data=data)
+        modes = [("all1",    0,0),
+                 ("all2",    0,None),
+                 ]
+        d.addCallback(self._test_partial_read, data, modes, 1)
+        return d
+
+    def test_partial_read_mdmf_large(self):
+        segment_boundary = mathutil.next_multiple(128 * 1024, 3)
+        modes = [("start_on_segment_boundary",              segment_boundary, 50),
+                 ("ending_one_byte_after_segment_boundary", segment_boundary-50, 51),
+                 ("zero_length_at_start",                   0, 0),
+                 ("zero_length_in_middle",                  50, 0),
+                 ("zero_length_at_segment_boundary",        segment_boundary, 0),
+                 ("complete_file1",                         0, len(self.data)),
+                 ("complete_file2",                         0, None),
+                 ]
+        d = self.do_upload_mdmf()
+        d.addCallback(self._test_partial_read, self.data, modes, 10000)
+        return d
+
+    def test_partial_read_sdmf_0(self):
+        data = ""
+        modes = [("all1",    0,0),
+                 ("all2",    0,None),
+                 ]
+        d = self.do_upload_sdmf(data=data)
+        d.addCallback(self._test_partial_read, data, modes, 1)
+        return d
+
+    def test_partial_read_sdmf_2(self):
+        data = "hi"
+        modes = [("one_byte",                  0, 1),
+                 ("last_byte",                 1, 1),
+                 ("last_byte2",                1, None),
+                 ("complete_file",             0, 2),
+                 ("complete_file2",            0, None),
+                 ]
+        d = self.do_upload_sdmf(data=data)
+        d.addCallback(self._test_partial_read, data, modes, 1)
+        return d
+
+    def test_partial_read_sdmf_90(self):
+        modes = [("start_at_middle",           50, 40),
+                 ("start_at_middle2",          50, None),
+                 ("zero_length_at_start",      0, 0),
+                 ("zero_length_in_middle",     50, 0),
+                 ("zero_length_at_end",        90, 0),
+                 ("complete_file1",            0, None),
+                 ("complete_file2",            0, 90),
+                 ]
+        d = self.do_upload_sdmf()
+        d.addCallback(self._test_partial_read, self.small_data, modes, 10)
+        return d
+
+    def test_partial_read_sdmf_100(self):
+        data = "test data "*10
+        modes = [("start_at_middle",           50, 50),
+                 ("start_at_middle2",          50, None),
+                 ("zero_length_at_start",      0, 0),
+                 ("zero_length_in_middle",     50, 0),
+                 ("complete_file1",            0, 100),
+                 ("complete_file2",            0, None),
+                 ]
+        d = self.do_upload_sdmf(data=data)
+        d.addCallback(self._test_partial_read, data, modes, 10)
         return d
 
 
@@ -3405,10 +3477,16 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d = node.get_best_readable_version()
         def _read_data(version):
             c = consumer.MemoryConsumer()
+            c2 = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
             d2.addCallback(lambda ignored: version.read(c))
             d2.addCallback(lambda ignored:
                 self.failUnlessEqual(expected, "".join(c.chunks)))
+
+            d2.addCallback(lambda ignored: version.read(c2, offset=0,
+                                                        size=len(expected)))
+            d2.addCallback(lambda ignored:
+                self.failUnlessEqual(expected, "".join(c2.chunks)))
             return d2
         d.addCallback(_read_data)
         d.addCallback(lambda ignored: node.download_best_version())
@@ -3441,7 +3519,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
         self.data = "testdata " * 100000 # about 900 KiB; MDMF
-        self.small_data = "test data" * 10 # about 90 B; SDMF
+        self.small_data = "test data" * 10 # 90 B; SDMF
 
 
     def do_upload_sdmf(self):
