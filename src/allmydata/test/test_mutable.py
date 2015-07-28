@@ -3438,7 +3438,9 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         data = "hi"
         modes = [("one_byte",                  0, 1),
                  ("last_byte",                 1, 1),
+                 ("last_byte2",                1, None),
                  ("complete_file",             0, 2),
+                 ("complete_file2",            0, None),
                  ]
         d = self.do_upload_sdmf(data=data)
         d.addCallback(self._test_partial_read, data, modes, 1)
@@ -3446,6 +3448,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
 
     def test_partial_read_sdmf_90(self):
         modes = [("start_at_middle",           50, 40),
+                 ("start_at_middle2",          50, None),
                  ("zero_length_at_start",      0, 0),
                  ("zero_length_in_middle",     50, 0),
                  ("zero_length_at_end",        90, 0),
@@ -3459,9 +3462,11 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
     def test_partial_read_sdmf_100(self):
         data = "test data "*10
         modes = [("start_at_middle",           50, 50),
+                 ("start_at_middle2",          50, None),
                  ("zero_length_at_start",      0, 0),
                  ("zero_length_in_middle",     50, 0),
-                 ("complete_file",             0, 100),
+                 ("complete_file1",            0, 100),
+                 ("complete_file2",            0, None),
                  ]
         d = self.do_upload_sdmf(data=data)
         d.addCallback(self._test_partial_read, data, modes, 10)
