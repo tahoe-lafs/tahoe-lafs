@@ -348,10 +348,15 @@ Reading a File
 ``GET /uri/$DIRCAP/[SUBDIRS../]FILENAME``
 
  This will retrieve the contents of the given file. The HTTP response body
- will contain the sequence of bytes that make up the file. The "Range:"
- header can be used to restrict which portions of the file are returned (see
- RFC 2616 section 14.35.1 "Byte Ranges"), however Tahoe only supports a
- single "bytes" range and never provides a `multipart/byteranges` response.
+ will contain the sequence of bytes that make up the file.
+
+ The "Range:" header can be used to restrict which portions of the file are
+ returned (see RFC 2616 section 14.35.1 "Byte Ranges"), however Tahoe only
+ supports a single "bytes" range and never provides a `multipart/byteranges`
+ response. An attempt to begin a read past the end of the file will provoke a
+ 416 Requested Range Not Satisfiable error, but normal overruns (reads which
+ start at the beginning or middle and go beyond the end) are simply
+ truncated.
 
  To view files in a web browser, you may want more control over the
  Content-Type and Content-Disposition headers. Please see the next section
