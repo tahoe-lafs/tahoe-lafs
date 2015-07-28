@@ -380,9 +380,10 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     extra_vers_and_locs_list = []
     for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
         if pr_name not in imported_packages and pr_name not in ignorable:
-            extra_vers_and_locs_list.append( (pr_name, (pr_ver, pr_loc, "according to pkg_resources")) )
+            errors.append("Warning: dependency %r (version %r) found by pkg_resources not found by import."
+                          % (pr_name, pr_ver))
 
-    return errors, extra_vers_and_locs_list
+    return errors
 
 
 def get_error_string(errors, debug=False):
@@ -437,12 +438,6 @@ def get_package_locations():
     return dict([(k, l) for k, (v, l, c) in _vers_and_locs_list])
 
 def get_package_versions_string(show_paths=False, debug=False):
-    errors = []
-    if not hasattr(sys, 'frozen'):
-        global _vers_and_locs_list
-        errors, extra_vers_and_locs_list = cross_check_pkg_resources_versus_import()
-        _vers_and_locs_list += extra_vers_and_locs_list
-
     res = []
     for p, (v, loc, comment) in _vers_and_locs_list:
         info = str(p) + ": " + str(v)
@@ -454,7 +449,9 @@ def get_package_versions_string(show_paths=False, debug=False):
 
     output = "\n".join(res) + "\n"
 
-    if errors:
-        output += get_error_string(errors, debug=debug)
+    if not hasattr(sys, 'frozen'):
+        errors = cross_check_pkg_resources_versus_import()
+        if errors:
+            output += get_error_string(errors, debug=debug)
 
     return output
