@@ -471,10 +471,10 @@ class Downloader(QueueMixin):
                 print "name ", name
                 file_node, metadata = listing_map[name]
                 local_version = self._get_local_latest(name) # XXX we might need to convert first?
-                if local_version is None:
-                    return None
-                if local_version >= metadata['version']:
-                    return None
+                if local_version is not None:
+                    if local_version >= metadata['version']:
+                        print "local_version >= metadata['version']"
+                        return None
                 else:
                     print "local_version %r" % (local_version,)
                     print "ALL KEYS %s" % (self._download_scan_batch.keys(),)
