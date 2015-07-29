@@ -388,6 +388,7 @@ class Downloader(QueueMixin):
 
         self._remote_scan_delay = 3 # XXX
         self._download_scan_batch = {} # path -> [(filenode, metadata)]
+        self._stopped = False
         print "Downloader init"
 
     def start_scanning(self):
@@ -397,6 +398,7 @@ class Downloader(QueueMixin):
 
     def stop(self):
         print "downloader stop"
+        self._stopped = True
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._lazy_tail)
         def _print(res):
@@ -469,7 +471,6 @@ class Downloader(QueueMixin):
                 print "name ", name
                 file_node, metadata = listing_map[name]
                 local_version = self._get_local_latest(name) # XXX we might need to convert first?
-
                 if local_version is None:
                     return None
                 if local_version >= metadata['version']:
@@ -577,8 +578,8 @@ class Downloader(QueueMixin):
     # FIXME move to QueueMixin
     def _turn_deque(self):
         print "downloader _turn_deque"
-        #if self._stopped:
-        #    return
+        if self._stopped:
+            return
         try:
             file_path, file_node, metadata = self._deque.pop()
         except IndexError:
