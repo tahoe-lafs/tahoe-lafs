@@ -146,14 +146,14 @@ if sys.platform == "win32":
 
 if _use_old_Twisted_and_Nevow:
     install_requires += [
-        "Twisted >= 11.1.0, <= 12.1.0",
+        "Twisted >= 15.3.0pre1",
         "Nevow >= 0.9.33, <= 0.10",
     ]
     setup_requires += [req for req in install_requires if req.startswith('Twisted')
                                                        or req.startswith('zope.interface')]
 else:
     install_requires += [
-        "Twisted >= 13.0.0",
+        "Twisted >= 15.3.0pre1",
         "Nevow >= 0.11.1",
     ]
 
