@@ -74,14 +74,8 @@ class MagicFolder(service.MultiService):
         self.downloader.start_scanning()
 
     def finish(self):
-        print "finish"
         d = self.uploader.stop()
-        def _print(f):
-            print f
-            return f
-        d.addErrback(_print)
         d.addBoth(lambda ign: self.downloader.stop())
-        d.addErrback(_print)
         return d
 
     def remove_service(self):
@@ -173,18 +167,12 @@ class Uploader(QueueMixin):
         return d
 
     def stop(self):
-        print "stop: _deque = %r, _pending = %r" % (self._deque, self._pending)
         self._notifier.stopReading()
         self._counter('magic_folder.dirs_monitored', -1)
-
         if hasattr(self._notifier, 'wait_until_stopped'):
             d = self._notifier.wait_until_stopped()
         else:
             d = defer.succeed(None)
-        def _after(res):
-            print "stop _after: res = %r, _deque = %r, _pending = %r" % (res, self._deque, self._pending)
-            return res
-        d.addBoth(_after)
         return d
 
     def start_scanning(self):
@@ -345,7 +333,6 @@ class Uploader(QueueMixin):
                     version += 1
                 d2 = _add_file(encoded_name_u, version)
                 def add_db_entry(filenode):
-                    print "add_db_entry: version %d for %r" % (version, relpath_u)
                     filecap = filenode.get_uri()
                     s = os.stat(path_u)
                     size = s[stat.ST_SIZE]
@@ -389,22 +376,15 @@ class Downloader(QueueMixin):
         self._remote_scan_delay = 3 # XXX
         self._download_scan_batch = {} # path -> [(filenode, metadata)]
         self._stopped = False
-        print "Downloader init"
 
     def start_scanning(self):
-        print "downloader start_scanning"
         self._scan_remote_collective()
         self._turn_deque()
 
     def stop(self):
-        print "downloader stop"
         self._stopped = True
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._lazy_tail)
-        def _print(res):
-            print "downloader stop _after: res = %r, _deque = %r, _pending = %r" % (res, self._deque, self._pending)
-            return res
-        d.addBoth(_print)
         return d
 
     def _should_download(self, relpath_u, remote_version):
@@ -413,7 +393,6 @@ class Downloader(QueueMixin):
         We check the remote metadata version against our magic-folder db version number;
         latest version wins.
         """
-        print "_should_download"
         v = self._db.get_local_file_version(relpath_u)
         return (v is None or v < remote_version)
 
@@ -435,7 +414,6 @@ class Downloader(QueueMixin):
         upload_readonly_dircap = self._upload_dirnode.get_readonly_uri()
         collective_dirmap_d = self._collective_dirnode.list()
         def do_filter(result):
-            print result
             others = [x for x in result.keys() if result[x][0].get_readonly_uri() != upload_readonly_dircap]
             return result, others
         collective_dirmap_d.addCallback(do_filter)
@@ -464,45 +442,31 @@ class Downloader(QueueMixin):
         return collective_dirmap_d
 
     def _scan_remote(self, nickname, dirnode):
-        print "_scan_remote START: nickname %s dirnode %s" % (nickname, dirnode)
         listing_d = dirnode.list()
         def scan_listing(listing_map):
             for name in listing_map.keys():
-                print "name ", name
                 file_node, metadata = listing_map[name]
                 local_version = self._get_local_latest(name) # XXX we might need to convert first?
                 if local_version is not None:
                     if local_version >= metadata['version']:
-                        print "local_version >= metadata['version']"
                         return None
                 else:
-                    print "local_version %r" % (local_version,)
-                    print "ALL KEYS %s" % (self._download_scan_batch.keys(),)
                     if self._download_scan_batch.has_key(name):
-                        print "HAS KEY - %s %s" % (file_node, metadata)
                         self._download_scan_batch[name] += [(file_node, metadata)]
                     else:
-                        print "NOT HAS KEY"
                         self._download_scan_batch[name] = [(file_node, metadata)]
-
-            print "download scan batch before filtering", repr(self._download_scan_batch)
         listing_d.addCallback(scan_listing)
-        print "_scan_remote END"
         return listing_d
 
     def _scan_remote_collective(self):
         self._download_scan_batch = {} # XXX
-
-        print "downloader _scan_remote_collective"
         if self._collective_dirnode is None:
             return
         collective_dirmap_d = self._collective_dirnode.list()
-
         def do_list(result):
             others = [x for x in result.keys()]
             return result, others
         collective_dirmap_d.addCallback(do_list)
-
         def scan_collective(result):
             d = defer.succeed(None)
             collective_dirmap, others_list = result
@@ -512,12 +476,7 @@ class Downloader(QueueMixin):
             return d
         collective_dirmap_d.addCallback(scan_collective)
         collective_dirmap_d.addCallback(self._filter_scan_batch)
-        def _print(f):
-            print f
-            return f
-        collective_dirmap_d.addErrback(_print)
         collective_dirmap_d.addCallback(self._add_batch_to_download_queue)
-        print "end of _scan_remote_collective"
         return collective_dirmap_d
 
     def _add_batch_to_download_queue(self, result):
@@ -525,24 +484,16 @@ class Downloader(QueueMixin):
         self._pending.update(map(lambda x: x[0], result))
 
     def _filter_scan_batch(self, result):
-        print "FILTER START len %s" % (len(self._download_scan_batch),)
         extension = [] # consider whether this should be a dict
         for name in self._download_scan_batch.keys():
             if name in self._pending:
-                print "downloader: %s found in pending; skipping" % (name,)
                 continue
             file_node, metadata = max(self._download_scan_batch[name], key=lambda x: x[1]['version'])
-            print "file_node %s metadata %s" % (file_node, metadata)
             if self._should_download(name, metadata['version']):
-                print "should download"
                 extension += [(name, file_node, metadata)]
-            else:
-                print "should not download"
-        print "FILTER END"
         return extension
 
     def _download_file(self, name, file_node):
-        print "_download_file"
         d = file_node.download_best_version()
         def succeeded(res):
             d.addCallback(lambda result: self._write_downloaded_file(name, result))
@@ -553,9 +504,7 @@ class Downloader(QueueMixin):
             self._counter('magic_folder.objects_download_failed', 1)
             return f
         def remove_from_pending(ign):
-            print "REMOVE FROM PENDING _pending = %r, name = %r" % (self._pending, name)
             self._pending.remove(name)
-            print "REMOVE FROM PENDING _after: _pending = %r" % (self._pending,)
         d.addCallbacks(succeeded, failed)
         d.addBoth(self._do_callback)
         d.addCallback(remove_from_pending)
@@ -566,7 +515,6 @@ class Downloader(QueueMixin):
 
     # FIXME move to QueueMixin
     def _append_to_deque(self, path):
-        print "downloader _append_to_deque"
         if path in self._download_scan_batch.keys():
             return
         self._deque.append(path)
@@ -577,7 +525,6 @@ class Downloader(QueueMixin):
 
     # FIXME move to QueueMixin
     def _turn_deque(self):
-        print "downloader _turn_deque"
         if self._stopped:
             return
         try:
