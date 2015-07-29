@@ -4,6 +4,43 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
+Release 1.10.2 (?)
+''''''''''''''''''
+
+Packaging Changes
+-----------------
+
+This release no longer requires the ``mock`` library (which was previously
+used in the unit test suite). Shortly after the Tahoe-LAFS 1.10.1 release, a
+new version of ``mock`` was released (1.1.0) that proved to be incompatible
+with Tahoe's fork of setuptools, preventing Tahoe-1.10.1 from building at
+all. `#2465`_
+
+The ``tahoe --version`` output is now less likely to include scary diagnostic
+warnings that look deceptively like stack traces. `#2436`_
+
+The pyasn1 requirement was increased to >= 0.1.8.
+
+.. _`#2465`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2465
+.. _`#2436`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2436
+
+Other Fixes
+-----------
+
+A WebAPI ``GET`` would sometimes hang when using the HTTP Range header to
+read just part of the file. `#2459`_
+
+Using ``tahoe cp`` to copy two different files of the same name into the same
+target directory now raises an error, rather than silently overwriting one of
+the files. `#2447`_
+
+All tickets closed in this release: 2328 2436 2446 2447 2459 2460 2461 2462
+2465 2470.
+
+.. _`#2459`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2459
+.. _`#2447`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2447
+
+
 Release 1.10.1 (2015-06-15)
 '''''''''''''''''''''''''''
 
