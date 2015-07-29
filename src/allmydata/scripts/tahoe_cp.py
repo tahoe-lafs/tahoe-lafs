@@ -496,8 +496,9 @@ class Copier:
 
     def try_copy(self):
         """
-        All usage errors are caught here, not in a subroutine. This bottoms
-        out in copy_file_to_file() or copy_things_to_directory().
+        All usage errors (except for target filename collisions) are caught
+        here, not in a subroutine. This bottoms out in copy_file_to_file() or
+        copy_things_to_directory().
         """
         source_specs = self.options.sources
         destination_spec = self.options.destination
@@ -734,6 +735,23 @@ class Copier:
         # target Directory instances as keys, and has values of (name:
         # sourceobject) dicts for all the files that need to wind up there.
         targetmap = self.build_targetmap(sources, target)
+
+        # target name collisions are an error
+        collisions = []
+        for target, sources in targetmap.items():
+            target_names = {}
+            for source in sources:
+                name = source.basename()
+                if name in target_names:
+                    collisions.append((target, source, target_names[name]))
+                else:
+                    target_names[name] = source
+        if collisions:
+            self.to_stderr("cannot copy multiple files with the same name into the same target directory")
+            # I'm not sure how to show where the collisions are coming from
+            #for (target, source1, source2) in collisions:
+            #    self.to_stderr(source1.basename())
+            return 1
 
         # step four: walk through the list of targets. For each one, copy all
         # the files. If the target is a TahoeDirectory, upload and create
