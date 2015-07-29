@@ -949,6 +949,8 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
                     return set(["E6-MANYONE"])
                 if err == "target is not a directory, but ends with a slash":
                     return set(["E7-BADSLASH"])
+                if err == "cannot copy multiple files with the same name into the same target directory":
+                    return set(["E9-COLLIDING-TARGETS"])
                 if (err.startswith("source ") and
                     "is not a directory, but ends with a slash" in err):
                     return set(["E8-BADSLASH"])
