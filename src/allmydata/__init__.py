@@ -178,7 +178,7 @@ def extract_openssl_version(ssl_module):
 def get_package_versions_and_locations():
     import warnings
     from _auto_deps import package_imports, global_deprecation_messages, deprecation_messages, \
-        runtime_warning_messages, warning_imports
+        runtime_warning_messages, warning_imports, ignorable
 
     def package_dir(srcfile):
         return os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
@@ -246,7 +246,26 @@ def get_package_versions_and_locations():
         elif pkgname == 'OpenSSL':
             packages.append( (pkgname, get_openssl_version()) )
 
-    return packages
+    cross_check_errors = []
+
+    if not hasattr(sys, 'frozen'):
+        import pkg_resources
+        from _auto_deps import install_requires
+
+        pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
+                                            for p in pkg_resources.require(install_requires)])
+
+        imported_packages = set([p.lower() for (p, _) in packages])
+        extra_packages = []
+
+        for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
+            if pr_name not in imported_packages and pr_name not in ignorable:
+                extra_packages.append( (pr_name, (pr_ver, pr_loc, "according to pkg_resources")) )
+
+        cross_check_errors = cross_check(pkg_resources_vers_and_locs, packages)
+        packages += extra_packages
+
+    return packages, cross_check_errors
 
 
 def check_requirement(req, vers_and_locs):
@@ -300,25 +319,10 @@ def match_requirement(req, reqlist, actualver):
     return True
 
 
-_vers_and_locs_list = get_package_versions_and_locations()
-
-
-def cross_check_pkg_resources_versus_import():
-    """This function returns a list of errors due to any failed cross-checks."""
-
-    import pkg_resources
-    from _auto_deps import install_requires
-
-    pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
-                                        for p in pkg_resources.require(install_requires)])
-
-    return cross_check(pkg_resources_vers_and_locs, _vers_and_locs_list)
-
-
 def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     """This function returns a list of errors due to any failed cross-checks."""
 
-    from _auto_deps import not_import_versionable, ignorable
+    from _auto_deps import not_import_versionable
 
     errors = []
     not_pkg_resourceable = ['python', 'platform', __appname__.lower(), 'openssl']
@@ -376,13 +380,10 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                                               "by pkg_resources, but version %r (normalized to %r, from %r) by import."
                                               % (name, pr_ver, str(pr_normver), pr_loc, imp_ver, str(imp_normver), imp_loc))
 
-    imported_packages = set([p.lower() for (p, _) in imported_vers_and_locs_list])
-    extra_vers_and_locs_list = []
-    for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
-        if pr_name not in imported_packages and pr_name not in ignorable:
-            extra_vers_and_locs_list.append( (pr_name, (pr_ver, pr_loc, "according to pkg_resources")) )
+    return errors
 
-    return errors, extra_vers_and_locs_list
+
+_vers_and_locs_list, _cross_check_errors = get_package_versions_and_locations()
 
 
 def get_error_string(errors, debug=False):
@@ -405,7 +406,7 @@ def check_all_requirements():
 
     from allmydata._auto_deps import install_requires
 
-    errors = []
+    fatal_errors = []
 
     # We require at least 2.6 on all platforms.
     # (On Python 3, we'll have failed long before this point.)
@@ -414,18 +415,18 @@ def check_all_requirements():
             version_string = ".".join(map(str, sys.version_info))
         except Exception:
             version_string = repr(sys.version_info)
-        errors.append("Tahoe-LAFS currently requires Python v2.6 or greater (but less than v3), not %s"
-                      % (version_string,))
+        fatal_errors.append("Tahoe-LAFS currently requires Python v2.6 or greater (but less than v3), not %s"
+                            % (version_string,))
 
     vers_and_locs = dict(_vers_and_locs_list)
     for requirement in install_requires:
         try:
             check_requirement(requirement, vers_and_locs)
         except (ImportError, PackagingError), e:
-            errors.append("%s: %s" % (e.__class__.__name__, e))
+            fatal_errors.append("%s: %s" % (e.__class__.__name__, e))
 
-    if errors:
-        raise PackagingError(get_error_string(errors, debug=True))
+    if fatal_errors:
+        raise PackagingError(get_error_string(fatal_errors + _cross_check_errors, debug=True))
 
 check_all_requirements()
 
@@ -437,12 +438,6 @@ def get_package_locations():
     return dict([(k, l) for k, (v, l, c) in _vers_and_locs_list])
 
 def get_package_versions_string(show_paths=False, debug=False):
-    errors = []
-    if not hasattr(sys, 'frozen'):
-        global _vers_and_locs_list
-        errors, extra_vers_and_locs_list = cross_check_pkg_resources_versus_import()
-        _vers_and_locs_list += extra_vers_and_locs_list
-
     res = []
     for p, (v, loc, comment) in _vers_and_locs_list:
         info = str(p) + ": " + str(v)
@@ -454,7 +449,7 @@ def get_package_versions_string(show_paths=False, debug=False):
 
     output = "\n".join(res) + "\n"
 
-    if errors:
-        output += get_error_string(errors, debug=debug)
+    if _cross_check_errors:
+        output += get_error_string(_cross_check_errors, debug=debug)
 
     return output
