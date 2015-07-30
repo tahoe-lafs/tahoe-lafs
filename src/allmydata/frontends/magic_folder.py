@@ -403,7 +403,7 @@ class Downloader(QueueMixin):
         """
         if not os.path.exists(path_u):
             return None
-        return self._db.get_local_file_version(child_path_u)
+        return self._db.get_local_file_version(path_u)
 
     def _get_collective_latest_file(self, filename):
         """_get_collective_latest_file takes a file path pointing to a file managed by
