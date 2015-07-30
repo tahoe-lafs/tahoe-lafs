@@ -390,6 +390,9 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued', client=self.alice_magicfolder._client), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created', client=self.alice_magicfolder._client), 0))
 
+        d.addCallback(Bob_wait_for_download)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client), 3))
+
         def cleanup_Alice_and_Bob(result):
             d = defer.succeed(None)
             d.addCallback(lambda ign: self.alice_magicfolder.finish())
