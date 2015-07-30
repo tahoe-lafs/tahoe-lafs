@@ -83,11 +83,12 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(object):
-    def __init__(self, client, local_path_u, db):
+    def __init__(self, client, local_path_u, db, name):
         self._client = client
-        self._counter = client.stats_provider.count
         self._local_path_u = local_path_u
         self._local_path = to_filepath(local_path_u)
+        self._db = db
+        self._name = name
 
         if not self._local_path.exists():
             raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
@@ -98,13 +99,19 @@ class QueueMixin(object):
                                  "but the thing at that location is not a directory."
                                  % quote_local_unicode_path(self._local_path_u))
 
-        self._db = db
-
         self._deque = deque()
         self._lazy_tail = defer.succeed(None)
         self._pending = set()
         self._callback = lambda ign: None
         self._ignore_count = 0
+
+    def _count(self, counter_name, delta=1):
+        self._client.stats_provider.count('magic_folder.%s.%s' % (self._name, counter_name), delta)
+
+    def _log(self, msg):
+        self._client.log("Magic Folder %s: %s" % (self._name, msg))
+        #print "_log %s" % (msg,)
+        #open("events", "ab+").write(msg)
 
     def _do_callback(self, res):
         if self._ignore_count == 0:
@@ -121,15 +128,10 @@ class QueueMixin(object):
         self._callback = callback
         self._ignore_count = ignore_count
 
-    def _log(self, msg):
-        self._client.log("Magic Folder: " + msg)
-        #print "_log %s" % (msg,)
-        #open("events", "ab+").write(msg)
-
 
 class Uploader(QueueMixin):
     def __init__(self, client, local_path_u, db, upload_dircap, inotify, pending_delay):
-        QueueMixin.__init__(self, client, local_path_u, db)
+        QueueMixin.__init__(self, client, local_path_u, db, 'uploader')
 
         self.is_ready = False
 
@@ -163,12 +165,12 @@ class Uploader(QueueMixin):
 
     def start_monitoring(self):
         d = self._notifier.startReading()
-        self._counter('magic_folder.dirs_monitored', 1)
+        self._count('dirs_monitored')
         return d
 
     def stop(self):
         self._notifier.stopReading()
-        self._counter('magic_folder.dirs_monitored', -1)
+        self._count('dirs_monitored', -1)
         if hasattr(self._notifier, 'wait_until_stopped'):
             d = self._notifier.wait_until_stopped()
         else:
@@ -285,7 +287,7 @@ class Uploader(QueueMixin):
             upload_d = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":0}, overwrite=True)
             def _succeeded(ign):
                 self._log("created subdirectory %r" % (path_u,))
-                self._counter('magic_folder.directories_created', 1)
+                self._count('directories_created')
             def _failed(f):
                 self._log("failed to create subdirectory %r" % (path_u,))
                 return f
@@ -308,7 +310,7 @@ class Uploader(QueueMixin):
             if not os.path.exists(path_u):
                 self._log("drop-upload: notified object %r disappeared "
                           "(this is normal for temporary objects)" % (path_u,))
-                self._counter('magic_folder.objects_disappeared', 1)
+                self._count('objects_disappeared')
                 d2 = defer.succeed(None)
                 if self._db.check_file_db_exists(relpath_u):
                     d2.addCallback(get_metadata)
@@ -339,7 +341,7 @@ class Uploader(QueueMixin):
                     ctime = s[stat.ST_CTIME]
                     mtime = s[stat.ST_MTIME]
                     self._db.did_upload_file(filecap, relpath_u, version, mtime, ctime, size)
-                    self._counter('magic_folder.files_uploaded', 1)
+                    self._count('files_uploaded')
                 d2.addCallback(add_db_entry)
                 return d2
             else:
@@ -348,12 +350,12 @@ class Uploader(QueueMixin):
         d.addCallback(_maybe_upload)
 
         def _succeeded(res):
-            self._counter('magic_folder.objects_queued', -1)
-            self._counter('magic_folder.objects_succeeded', 1)
+            self._count('objects_queued', -1)
+            self._count('objects_succeeded')
             return res
         def _failed(f):
-            self._counter('magic_folder.objects_queued', -1)
-            self._counter('magic_folder.objects_failed', 1)
+            self._count('objects_queued', -1)
+            self._count('objects_failed')
             self._log("%r while processing %r" % (f, path_u))
             return f
         d.addCallbacks(_succeeded, _failed)
@@ -363,7 +365,7 @@ class Uploader(QueueMixin):
 
 class Downloader(QueueMixin):
     def __init__(self, client, local_path_u, db, collective_dircap):
-        QueueMixin.__init__(self, client, local_path_u, db)
+        QueueMixin.__init__(self, client, local_path_u, db, 'downloader')
 
         # TODO: allow a path rather than a cap URI.
         self._collective_dirnode = self._client.create_node_from_uri(collective_dircap)
@@ -497,11 +499,11 @@ class Downloader(QueueMixin):
         d = file_node.download_best_version()
         def succeeded(res):
             d.addCallback(lambda result: self._write_downloaded_file(name, result))
-            self._counter('magic_folder.objects_downloaded', 1)
+            self._count('objects_downloaded')
             return None
         def failed(f):
             self._log("download failed: %s" % (str(f),))
-            self._counter('magic_folder.objects_download_failed', 1)
+            self._count('objects_download_failed')
             return f
         def remove_from_pending(ign):
             self._pending.remove(name)
@@ -519,7 +521,7 @@ class Downloader(QueueMixin):
             return
         self._deque.append(path)
         self._pending.add(path)
-        self._counter('magic_folder.download_objects_queued', 1)
+        self._count('download_objects_queued')
         if self.is_ready:
             reactor.callLater(0, self._turn_deque)
 
