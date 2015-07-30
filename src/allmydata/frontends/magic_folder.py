@@ -113,6 +113,25 @@ class QueueMixin(object):
         #print "_log %s" % (msg,)
         #open("events", "ab+").write(msg)
 
+    def _append_to_deque(self, path):
+        if path in self._pending:
+            return
+        self._deque.append(path)
+        self._pending.add(path)
+        self._count('objects_queued')
+        if self.is_ready:
+            reactor.callLater(0, self._turn_deque)
+
+    def _turn_deque(self):
+        try:
+            path = self._deque.pop()
+        except IndexError:
+            self._log("magic folder upload deque is now empty")
+            self._lazy_tail = defer.succeed(None)
+            return
+        self._lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._process, path))
+        self._lazy_tail.addCallback(lambda ign: self._turn_deque())
+
     def _do_callback(self, res):
         if self._ignore_count == 0:
             self._callback(res)
@@ -245,27 +264,6 @@ class Uploader(QueueMixin):
             d.addErrback(log.err)
 
         return d
-
-    # FIXME move to QueueMixin
-    def _append_to_deque(self, path):
-        if path in self._pending:
-            return
-        self._deque.append(path)
-        self._pending.add(path)
-        self._counter('magic_folder.objects_queued', 1)
-        if self.is_ready:
-            reactor.callLater(0, self._turn_deque)
-
-    # FIXME move to QueueMixin
-    def _turn_deque(self):
-        try:
-            path = self._deque.pop()
-        except IndexError:
-            self._log("magic folder upload deque is now empty")
-            self._lazy_tail = defer.succeed(None)
-            return
-        self._lazy_tail.addCallback(lambda ign: task.deferLater(reactor, 0, self._process, path))
-        self._lazy_tail.addCallback(lambda ign: self._turn_deque())
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
