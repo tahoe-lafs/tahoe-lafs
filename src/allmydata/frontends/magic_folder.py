@@ -526,13 +526,3 @@ class Downloader(QueueMixin):
 
     def _write_downloaded_file(self, name, file_contents):
         print "_write_downloaded_file: no-op."
-
-    # FIXME move to QueueMixin
-    def _append_to_deque(self, path):
-        if path in self._download_scan_batch.keys():
-            return
-        self._deque.append(path)
-        self._pending.add(path)
-        self._count('download_objects_queued')
-        if self.is_ready:
-            reactor.callLater(0, self._turn_deque)
