@@ -1,7 +1,7 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.10.2
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.10.2
 
 The Tahoe-LAFS team is pleased to announce version 1.10.2 of
-Tahoe-LAFS, an extremely reliable distributed storage system.
+Tahoe-LAFS, an extremely reliable decentralized storage system.
 Get it here:
 
 https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.rst
@@ -25,12 +25,11 @@ were fixed too. See the NEWS file [1] for details.
 
 WHAT IS IT GOOD FOR?
 
-With Tahoe-LAFS, you distribute your filesystem across
-multiple servers, and even if some of the servers fail or are
-taken over by an attacker, the entire filesystem continues to
-work correctly, and continues to preserve your privacy and
-security. You can easily share specific files and directories
-with other people.
+With Tahoe-LAFS, you distribute your data across multiple
+servers. Even if some of the servers fail or are taken over
+by an attacker, the entire file store continues to function
+correctly, preserving your privacy and security. You can
+easily share specific files and directories with other people.
 
 In addition to the core storage system itself, volunteers
 have built other projects on top of Tahoe-LAFS and have
