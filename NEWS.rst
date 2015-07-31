@@ -4,8 +4,8 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.10.2 (?)
-''''''''''''''''''
+Release 1.10.2 (2015-07-30)
+'''''''''''''''''''''''''''
 
 Packaging Changes
 -----------------
@@ -32,7 +32,7 @@ read just part of the file. `#2459`_
 
 Using ``tahoe cp`` to copy two different files of the same name into the same
 target directory now raises an error, rather than silently overwriting one of
-the files. `#2447`_
+them. `#2447`_
 
 All tickets closed in this release: 2328 2436 2446 2447 2459 2460 2461 2462
 2465 2470.
