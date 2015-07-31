@@ -322,6 +322,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
     def _check_version_in_local_db(self, magicfolder, relpath_u, expected_version):
         version = magicfolder._db.get_local_file_version(relpath_u)
+        print "_check_version_in_local_db %s---------------------------------" % (version,)
         self.failUnlessEqual(version, expected_version)
 
     def test_alice_bob(self):
@@ -377,7 +378,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         d.addCallback(Alice_wait_for_upload)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded', client=self.alice_magicfolder._client), 2))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 1))
-        d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 1))
+        d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", "1"))
 
         d.addCallback(Bob_wait_for_download)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client), 2))
