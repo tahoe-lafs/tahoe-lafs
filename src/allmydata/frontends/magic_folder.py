@@ -2,6 +2,7 @@
 import sys, os, stat
 import os.path
 from collections import deque
+import time
 
 from twisted.internet import defer, reactor, task
 from twisted.python.failure import Failure
@@ -307,14 +308,18 @@ class Uploader(QueueMixin):
             self._pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
             relpath_u = os.path.relpath(path_u, self._local_path_u)
             encoded_name_u = magicpath.path2magic(relpath_u)
-
             def get_metadata(result):
                 try:
                     metadata_d = self._upload_dirnode.get_metadata_for(encoded_name_u)
                 except KeyError:
                     return Failure()
                 return metadata_d
-
+            def get_filenode(path_u):
+                try:
+                    node_d = self._upload_dirnode.get(path_u)
+                except KeyError:
+                    return Failure()
+                return node_d
             if not os.path.exists(path_u):
                 self._log("drop-upload: notified object %r disappeared "
                           "(this is normal for temporary objects)" % (path_u,))
@@ -322,13 +327,27 @@ class Uploader(QueueMixin):
                 d2 = defer.succeed(None)
                 if self._db.check_file_db_exists(relpath_u):
                     d2.addCallback(get_metadata)
+                    current_version = self._db.get_local_file_version(relpath_u) + 1
                     def set_deleted(metadata):
-                        current_version = self._db.get_local_file_version(relpath_u) + 1
+                        print "SET_DELETED new version %s----------------------------------------------" % (current_version,)
                         metadata['version'] = current_version
                         metadata['deleted'] = True
                         empty_uploadable = Data("", self._client.convergence)
                         return self._upload_dirnode.add_file(encoded_name_u, empty_uploadable, overwrite=True, metadata=metadata)
                     d2.addCallback(set_deleted)
+                    def add_db_entry(filenode):
+                        filecap = filenode.get_uri()
+                        size = 0
+                        now = time.time()
+                        ctime = now
+                        mtime = now
+                        print "before change magic-folder db"
+                        self._db.did_upload_file(filecap, relpath_u, current_version, int(mtime), int(ctime), size)
+                        print "after change magic-folder db %s %s %s %s %s %s-----------------------" % (filecap, relpath_u, current_version, mtime, ctime, size)
+                        self._count('files_uploaded')
+                    d2.addCallback(lambda x: get_filenode(encoded_name_u))
+                    d2.addCallback(add_db_entry)
+
                 d2.addCallback(lambda x: Exception("file does not exist"))
                 return d2
             elif os.path.islink(path_u):
