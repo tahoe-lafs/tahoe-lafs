@@ -421,19 +421,14 @@ class Downloader(QueueMixin):
         file node and metadata for the latest version of the file located in the
         magic-folder collective directory.
         """
-        upload_readonly_dircap = self._upload_dirnode.get_readonly_uri()
         collective_dirmap_d = self._collective_dirnode.list()
-        def do_filter(result):
-            others = [x for x in result.keys() if result[x][0].get_readonly_uri() != upload_readonly_dircap]
-            return result, others
-        collective_dirmap_d.addCallback(do_filter)
         def scan_collective(result):
+            print "get_collective_latest scan_collective result %s" % (result,)
             list_of_deferreds = []
-            collective_dirmap, others_list = result
-            for dir_name in result:
+            for dir_name in result.keys():
                 # XXX make sure it's a directory
                 d = defer.succeed(None)
-                d.addCallback(lambda x, dir_name=dir_name: collective_dirmap[dir_name][0].get_child_and_metadata(filename))
+                d.addCallback(lambda x, dir_name=dir_name: result[dir_name][0].get_child_and_metadata(filename))
                 list_of_deferreds.append(d)
             deferList = defer.DeferredList(list_of_deferreds)
             return deferList
