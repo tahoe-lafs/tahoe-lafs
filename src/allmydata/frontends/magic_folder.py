@@ -8,6 +8,7 @@ from twisted.python.failure import Failure
 from twisted.python import runtime
 from twisted.application import service
 
+from allmydata.util import fileutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import precondition_abspath
@@ -402,6 +403,7 @@ class Downloader(QueueMixin):
         latest version wins.
         """
         v = self._db.get_local_file_version(relpath_u)
+        print "_should_download path %s local db version %s, remote dmd version %s" % (relpath_u, v, remote_version)
         return (v is None or v < remote_version)
 
     def _get_local_latest(self, path_u):
@@ -510,9 +512,18 @@ class Downloader(QueueMixin):
         (name, file_node, metadata) = item
         d = file_node.download_best_version()
         def succeeded(res):
-            d.addCallback(lambda result: self._write_downloaded_file(name, result))
+            def do_update_db(result):
+                filecap = file_node.get_uri()
+                s = os.stat(name)
+                size = s[stat.ST_SIZE]
+                ctime = s[stat.ST_CTIME]
+                mtime = s[stat.ST_MTIME]
+                self._db.did_upload_file(filecap, name, metadata['version'], mtime, ctime, size)
+            d2 = defer.succeed(res)
+            d2.addCallback(lambda result: self._write_downloaded_file(name, result))
+            d2.addCallback(do_update_db)
             self._count('objects_downloaded')
-            return None
+            return d2
         def failed(f):
             self._log("download failed: %s" % (str(f),))
             self._count('objects_download_failed')
@@ -525,4 +536,4 @@ class Downloader(QueueMixin):
         return d
 
     def _write_downloaded_file(self, name, file_contents):
-        print "_write_downloaded_file: no-op."
+        fileutil.write(name, file_contents)
