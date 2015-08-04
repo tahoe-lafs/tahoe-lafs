@@ -14,7 +14,12 @@ from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.backends.disk.disk_backend import DiskBackend
 from allmydata.storage.backends.cloud.cloud_backend import CloudBackend
+from allmydata.storage.backends.cloud.s3 import s3_container
+from allmydata.storage.backends.cloud.openstack import openstack_container
+from allmydata.storage.backends.cloud.googlestorage import googlestorage_container
+from allmydata.storage.backends.cloud.msazure import msazure_container
 from allmydata.util import base32, fileutil
+from allmydata.util.namespace import Namespace
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
@@ -205,8 +210,14 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.make_dirs(os.path.join(basedir, "private"))
         fileutil.write(os.path.join(basedir, "private", filename), secret)
 
-    @mock.patch('allmydata.storage.backends.cloud.s3.s3_container.S3Container')
-    def test_s3_config_good_defaults(self, mock_S3Container):
+    def test_s3_config_good_defaults(self):
+        ns = Namespace()
+        class MockS3Container(object):
+            def __init__(self, access_key, secret_key, url, container_name, usertoken=None, producttoken=None, override_reactor=None):
+                ns.container_call_args = (access_key, secret_key, url, container_name, usertoken, producttoken)
+
+        self.patch(s3_container, 'S3Container', MockS3Container)
+
         basedir = "client.Basic.test_s3_config_good_defaults"
         os.mkdir(basedir)
         self._write_secret(basedir, "s3secret")
@@ -219,21 +230,20 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
 
         c = client.Client(basedir)
-        mock_S3Container.assert_called_with("keyid", "dummy", "http://s3.amazonaws.com", "test", None, None)
+        self.failUnlessEqual(ns.container_call_args, ("keyid", "dummy", "http://s3.amazonaws.com", "test", None, None))
         server = c.getServiceNamed("storage")
         self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
 
-        mock_S3Container.reset_mock()
         self._write_secret(basedir, "s3producttoken", secret="{ProductToken}")
         self.failUnlessRaises(InvalidValueError, client.Client, basedir)
 
-        mock_S3Container.reset_mock()
         self._write_secret(basedir, "s3usertoken", secret="{UserToken}")
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), config + "s3.url = http://s3.example.com\n")
 
+        ns.container_call_args = None
         c = client.Client(basedir)
-        mock_S3Container.assert_called_with("keyid", "dummy", "http://s3.example.com", "test",
-                                            "{UserToken}", "{ProductToken}")
+        self.failUnlessEqual(ns.container_call_args, ("keyid", "dummy", "http://s3.example.com", "test",
+                                                      "{UserToken}", "{ProductToken}"))
 
     def test_s3_readonly_bad(self):
         basedir = "client.Basic.test_s3_readonly_bad"
@@ -337,11 +347,22 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "s3.bucket = test\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
-    @mock.patch('allmydata.storage.backends.cloud.openstack.openstack_container.AuthenticatorV2')
-    @mock.patch('allmydata.storage.backends.cloud.openstack.openstack_container.AuthenticationClient')
-    @mock.patch('allmydata.storage.backends.cloud.openstack.openstack_container.OpenStackContainer')
-    def test_openstack_config_good_defaults(self, mock_OpenStackContainer, mock_AuthenticationClient,
-                                            mock_Authenticator):
+    def test_openstack_config_good_defaults(self):
+        ns = Namespace()
+        class MockAuthenticatorV2(object):
+            def __init__(self, auth_service_url, credentials):
+                ns.authenticator_call_args = (auth_service_url, credentials)
+        class MockAuthenticationClient(object):
+            def __init__(self, authenticator, reauth_period, override_reactor=None):
+                ns.authclient_call_args = (authenticator, reauth_period)
+        class MockOpenStackContainer(object):
+            def __init__(self, auth_client, container_name, override_reactor=None):
+                ns.container_call_args = (auth_client, container_name)
+
+        self.patch(openstack_container, 'AuthenticatorV2', MockAuthenticatorV2)
+        self.patch(openstack_container, 'AuthenticationClient', MockAuthenticationClient)
+        self.patch(openstack_container, 'OpenStackContainer', MockOpenStackContainer)
+
         basedir = "client.Basic.test_openstack_config_good_defaults"
         os.mkdir(basedir)
         self._write_secret(basedir, "openstack_api_key")
@@ -355,14 +376,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
 
         c = client.Client(basedir)
-        mock_Authenticator.assert_called_with("https://identity.api.rackspacecloud.com/v2.0/tokens",
-                                              {'RAX-KSKEY:apiKeyCredentials': {'username': 'alex', 'apiKey': 'dummy'}})
-        authclient_call_args = mock_AuthenticationClient.call_args_list
-        self.failUnlessEqual(len(authclient_call_args), 1)
-        self.failUnlessEqual(authclient_call_args[0][0][1:], (11*60*60,))
-        container_call_args = mock_OpenStackContainer.call_args_list
-        self.failUnlessEqual(len(container_call_args), 1)
-        self.failUnlessEqual(container_call_args[0][0][1:], ("test",))
+        self.failUnlessEqual(ns.authenticator_call_args,
+                             ("https://identity.api.rackspacecloud.com/v2.0/tokens",
+                              {'RAX-KSKEY:apiKeyCredentials': {'username': 'alex', 'apiKey': 'dummy'}}))
+        self.failUnless(isinstance(ns.authclient_call_args[0], MockAuthenticatorV2), ns.authclient_call_args)
+        self.failUnlessEqual(ns.authclient_call_args[1 :], (11*60*60,))
+        self.failUnless(isinstance(ns.container_call_args[0], MockAuthenticationClient), ns.container_call_args)
+        self.failUnlessEqual(ns.container_call_args[1 :], ("test",))
         server = c.getServiceNamed("storage")
         self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
 
@@ -459,12 +479,22 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                        "googlestorage.project_id = 456\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
-    @mock.patch('allmydata.storage.backends.cloud.googlestorage.googlestorage_container.AuthenticationClient')
-    @mock.patch('allmydata.storage.backends.cloud.googlestorage.googlestorage_container.GoogleStorageContainer')
-    def test_googlestorage_config(self, mock_OpenStackContainer, mock_AuthenticationClient):
+    def test_googlestorage_config(self):
         """
         Given good configuration, we correctly configure a good GoogleStorageContainer.
         """
+        ns = Namespace()
+        class MockAuthenticationClient(object):
+            def __init__(self, account_name, private_key, private_key_password='notasecret',
+                         _credentialsClass=None, _deferToThread=None):
+                ns.authclient_call_args = (account_name, private_key, private_key_password)
+        class MockGoogleStorageContainer(object):
+            def __init__(self, auth_client, project_id, bucket_name, override_reactor=None):
+                ns.container_call_args = (auth_client, project_id, bucket_name)
+
+        self.patch(googlestorage_container, 'AuthenticationClient', MockAuthenticationClient)
+        self.patch(googlestorage_container, 'GoogleStorageContainer', MockGoogleStorageContainer)
+
         basedir = self.mktemp()
         os.mkdir(basedir)
         self._write_secret(basedir, "googlestorage_private_key", "sekrit")
@@ -479,14 +509,9 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         c = client.Client(basedir)
         server = c.getServiceNamed("storage")
         self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
-        # Protect against typos with isinstance(), because mock is dangerous.
-        self.assertFalse(isinstance(mock_AuthenticationClient.assert_called_once_with,
-                                    mock.Mock))
-        mock_AuthenticationClient.assert_called_once_with("u@example.com", "sekrit")
-        self.assertFalse(isinstance(mock_OpenStackContainer.assert_called_once_with,
-                                    mock.Mock))
-        mock_OpenStackContainer.assert_called_once_with(mock_AuthenticationClient.return_value,
-                                                        "456", "bucket")
+        self.failUnlessEqual(ns.authclient_call_args, ("u@example.com", "sekrit", "notasecret"))
+        self.failUnless(isinstance(ns.container_call_args[0], MockAuthenticationClient), ns.container_call_args)
+        self.failUnlessEqual(ns.container_call_args[1 :], ("456", "bucket"))
 
     def test_msazure_config_required(self):
         """
@@ -523,11 +548,17 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                        "msazure.container = bucket\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
-    @mock.patch('allmydata.storage.backends.cloud.msazure.msazure_container.MSAzureStorageContainer')
-    def test_msazure_config(self, mock_MSAzureStorageContainer):
+    def test_msazure_config(self):
         """
         Given good configuration, we correctly configure a good MSAzureStorageContainer.
         """
+        ns = Namespace()
+        class MockMSAzureStorageContainer(object):
+            def __init__(self, account_name, account_key, container_name, override_reactor=None):
+                ns.container_call_args = (account_name, account_key, container_name)
+
+        self.patch(msazure_container, 'MSAzureStorageContainer', MockMSAzureStorageContainer)
+
         basedir = self.mktemp()
         os.mkdir(basedir)
         self._write_secret(basedir, "msazure_account_key", "abc")
@@ -541,11 +572,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         c = client.Client(basedir)
         server = c.getServiceNamed("storage")
         self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
-        # Protect against typos with isinstance(), because mock is dangerous.
-        self.assertFalse(isinstance(
-                mock_MSAzureStorageContainer.assert_called_once_with, mock.Mock))
-        mock_MSAzureStorageContainer.assert_called_once_with(
-            "theaccount", "abc", "bucket")
+        self.failUnlessEqual(ns.container_call_args, ("theaccount", "abc", "bucket"))
 
     def test_expire_mutable_false_unsupported(self):
         basedir = "client.Basic.test_expire_mutable_false_unsupported"
