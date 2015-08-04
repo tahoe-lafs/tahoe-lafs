@@ -6,6 +6,8 @@ from allmydata.util.encodingutil import quote_output
 from allmydata.scripts.common import BaseOptions, BasedirOptions
 
 class GenerateKeypairOptions(BaseOptions):
+    def getSynopsis(self):
+        return "Usage: tahoe [global-options] admin generate-keypair"
 
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
@@ -102,7 +104,7 @@ def do_create_container(options):
 
 class ListContainerOptions(BasedirOptions):
     def getSynopsis(self):
-        return "Usage: %s [global-opts] admin ls-container [NODEDIR]" % (self.command_name,)
+        return "Usage: %s [global-options] admin ls-container [NODEDIR]" % (self.command_name,)
 
     def getUsage(self, width=None):
         t = BasedirOptions.getUsage(self, width)
