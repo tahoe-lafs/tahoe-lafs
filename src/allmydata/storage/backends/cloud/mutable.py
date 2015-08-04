@@ -10,6 +10,7 @@ from zope.interface import implements
 from allmydata.interfaces import IMutableShare, BadWriteEnablerError
 from allmydata.util import idlib, log
 from allmydata.util.assertutil import precondition, _assert
+from allmydata.util.namespace import Namespace
 from allmydata.util.mathutil import div_ceil
 from allmydata.util.hashutil import timing_safe_compare
 from allmydata.storage.common import CorruptStoredShareError, UnknownMutableContainerVersionError, \
@@ -40,10 +41,6 @@ from allmydata.storage.backends.cloud.cloud_common import get_chunk_key, get_zer
 # 8 bytes in size. Since compatibility depends upon this, double-check it.
 assert struct.calcsize(">L") == 4, struct.calcsize(">L")
 assert struct.calcsize(">Q") == 8, struct.calcsize(">Q")
-
-
-class Namespace(object):
-    pass
 
 
 class MutableCloudShare(CloudShareBase, CloudShareReaderMixin):
