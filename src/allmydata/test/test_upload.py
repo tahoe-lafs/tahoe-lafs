@@ -1671,7 +1671,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
+            self.shouldFail(UploadUnhappinessError,
+                            "test_exception_messages_during_server_selection1",
                             "placed 0 shares out of 10 "
                             "total (10 homeless), want to place shares on at "
                             "least 4 servers such that any 3 of them have "
@@ -1711,7 +1712,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign: self.remove_server(0))
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
+            self.shouldFail(UploadUnhappinessError,
+                            "test_exception_messages_during_server_selection2",
                             "placed 0 shares out of 10 "
                             "total (10 homeless), want to place shares on at "
                             "least 4 servers such that any 3 of them have "
@@ -1732,7 +1734,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server(server_number=1))
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
+            self.shouldFail(UploadUnhappinessError,
+                            "test_exception_messages_during_server_selection3",
                             "shares could be placed or found on only 2 "
                             "server(s). We were asked to place shares on at "
                             "least 4 server(s) such that any 3 of them have "
@@ -1757,7 +1760,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server(server_number=4))
         d.addCallback(_reset_encoding_parameters, happy=7)
         d.addCallback(lambda client:
-            self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
+            self.shouldFail(UploadUnhappinessError,
+                            "test_exception_messages_during_server_selection4",
                             "shares could be placed on only 5 server(s) such "
                             "that any 3 of them have enough shares to recover "
                             "the file, but we were asked to place shares on "
@@ -1786,7 +1790,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                         readonly=True))
         d.addCallback(_reset_encoding_parameters, happy=7)
         d.addCallback(lambda client:
-            self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
+            self.shouldFail(UploadUnhappinessError,
+                            "test_exception_messages_during_server_selection5",
                             "shares could be placed or found on 4 server(s), "
                             "but they are not spread out evenly enough to "
                             "ensure that any 3 of these servers would have "
