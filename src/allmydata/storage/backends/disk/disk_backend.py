@@ -58,7 +58,7 @@ class DiskBackend(Backend):
         Backend.__init__(self)
         self._storedir = storedir
         self._readonly = readonly
-        self._reserved_space = int(reserved_space)
+        self._reserved_space = reserved_space
         self._sharedir = os.path.join(self._storedir, 'shares')
         fileutil.make_dirs(self._sharedir)
         self._incomingdir = os.path.join(self._sharedir, 'incoming')
