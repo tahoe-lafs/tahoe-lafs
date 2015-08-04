@@ -7,16 +7,19 @@ import allmydata
 import allmydata.frontends.drop_upload
 import allmydata.util.log
 
-from allmydata.node import Node, InvalidValueError, OldConfigError, OldConfigOptionError, \
+from allmydata.node import Node, OldConfigError, OldConfigOptionError, InvalidValueError, \
      MissingConfigEntry, UnescapedHashError
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
+from allmydata.storage.backends.disk.disk_backend import DiskBackend
+from allmydata.storage.backends.cloud.cloud_backend import CloudBackend
 from allmydata.util import base32, fileutil
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
+
 
 
 BASECONFIG = ("[client]\n"
@@ -31,9 +34,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_loadable(self):
         basedir = "test_client.Basic.test_loadable"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG)
-        client.Client(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG)
+        c = client.Client(basedir)
+        server = c.getServiceNamed("storage")
+        self.failUnless(isinstance(server.backend, DiskBackend), server.backend)
 
     def test_comment(self):
         should_fail = [r"test#test", r"#testtest", r"test\\#test"]
@@ -99,8 +104,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_secrets(self):
         basedir = "test_client.Basic.test_secrets"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG)
         c = client.Client(basedir)
         secret_fname = os.path.join(basedir, "private", "secret")
         self.failUnless(os.path.exists(secret_fname), secret_fname)
@@ -128,57 +133,120 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_reserved_1(self):
         basedir = "client.Basic.test_reserved_1"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" + \
-                           "reserved_space = 1000\n")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "reserved_space = 1000\n")
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 1000)
+        server = c.getServiceNamed("storage")
+        self.failUnlessReallyEqual(server.backend._reserved_space, 1000)
 
     def test_reserved_2(self):
         basedir = "client.Basic.test_reserved_2"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),  \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" + \
-                           "reserved_space = 10K\n")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "reserved_space = 10K\n")
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 10*1000)
+        server = c.getServiceNamed("storage")
+        self.failUnlessReallyEqual(server.backend._reserved_space, 10*1000)
 
     def test_reserved_3(self):
         basedir = "client.Basic.test_reserved_3"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" + \
-                           "reserved_space = 5mB\n")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "reserved_space = 5mB\n")
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
-                             5*1000*1000)
+        server = c.getServiceNamed("storage")
+        self.failUnlessReallyEqual(server.backend._reserved_space, 5*1000*1000)
 
     def test_reserved_4(self):
         basedir = "client.Basic.test_reserved_4"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" + \
-                           "reserved_space = 78Gb\n")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "reserved_space = 78Gb\n")
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
-                             78*1000*1000*1000)
+        server = c.getServiceNamed("storage")
+        self.failUnlessReallyEqual(server.backend._reserved_space, 78*1000*1000*1000)
+
+    def test_reserved_default(self):
+        # This is testing the default when 'reserved_space' is not present, not
+        # the default for a newly created node.
+        basedir = "client.Basic.test_reserved_default"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n")
+        c = client.Client(basedir)
+        server = c.getServiceNamed("storage")
+        self.failUnlessReallyEqual(server.backend._reserved_space, 0)
 
     def test_reserved_bad(self):
         basedir = "client.Basic.test_reserved_bad"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" + \
-                           "reserved_space = bogus\n")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "reserved_space = bogus\n")
+        self.failUnlessRaises(InvalidValueError, client.Client, basedir)
+
+    def _write_s3secret(self, basedir, secret="dummy"):
+        os.mkdir(os.path.join(basedir, "private"))
+        fileutil.write(os.path.join(basedir, "private", "s3secret"), secret)
+
+    @mock.patch('allmydata.storage.backends.cloud.s3.s3_container.S3Container')
+    def test_s3_config_good_defaults(self, mock_S3Container):
+        basedir = "client.Basic.test_s3_config_good_defaults"
+        os.mkdir(basedir)
+        self._write_s3secret(basedir)
+        config = (BASECONFIG +
+                  "[storage]\n" +
+                  "enabled = true\n" +
+                  "backend = cloud.s3\n" +
+                  "s3.access_key_id = keyid\n" +
+                  "s3.bucket = test\n")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
+
+        c = client.Client(basedir)
+        mock_S3Container.assert_called_with("keyid", "dummy", "http://s3.amazonaws.com", "test", None, None)
+        server = c.getServiceNamed("storage")
+        self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
+
+        mock_S3Container.reset_mock()
+        fileutil.write(os.path.join(basedir, "private", "s3producttoken"), "{ProductToken}")
+        self.failUnlessRaises(InvalidValueError, client.Client, basedir)
+
+        mock_S3Container.reset_mock()
+        fileutil.write(os.path.join(basedir, "private", "s3usertoken"), "{UserToken}")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), config + "s3.url = http://s3.example.com\n")
+
+        c = client.Client(basedir)
+        mock_S3Container.assert_called_with("keyid", "dummy", "http://s3.example.com", "test",
+                                            "{UserToken}", "{ProductToken}")
+
+    def test_s3_readonly_bad(self):
+        basedir = "client.Basic.test_s3_readonly_bad"
+        os.mkdir(basedir)
+        self._write_s3secret(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "readonly = true\n" +
+                                    "backend = cloud.s3\n" +
+                                    "s3.access_key_id = keyid\n" +
+                                    "s3.bucket = test\n")
         self.failUnlessRaises(InvalidValueError, client.Client, basedir)
 
     def test_web_staticdir(self):
@@ -232,6 +300,42 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                         "enabled = true\n"
                         "port = tcp:0:interface=127.0.0.1\n"))
         self.failUnlessRaises(NeedRootcapLookupScheme, client.Client, basedir)
+
+    def test_s3_config_no_access_key_id(self):
+        basedir = "client.Basic.test_s3_config_no_access_key_id"
+        os.mkdir(basedir)
+        self._write_s3secret(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "backend = cloud.s3\n" +
+                                    "s3.bucket = test\n")
+        self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
+
+    def test_s3_config_no_bucket(self):
+        basedir = "client.Basic.test_s3_config_no_bucket"
+        os.mkdir(basedir)
+        self._write_s3secret(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "backend = cloud.s3\n" +
+                                    "s3.access_key_id = keyid\n")
+        self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
+
+    def test_s3_config_no_s3secret(self):
+        basedir = "client.Basic.test_s3_config_no_s3secret"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "backend = cloud.s3\n" +
+                                    "s3.access_key_id = keyid\n" +
+                                    "s3.bucket = test\n")
+        self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
     def test_expire_mutable_false_unsupported(self):
         basedir = "client.Basic.test_expire_mutable_false_unsupported"
