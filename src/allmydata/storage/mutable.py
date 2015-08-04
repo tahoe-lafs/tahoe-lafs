@@ -1,10 +1,11 @@
-import os, stat, struct
+
+import os, struct
 
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.util import idlib, log
 from allmydata.util.assertutil import precondition
 from allmydata.util.hashutil import timing_safe_compare
-from allmydata.storage.lease import LeaseInfo
+from allmydata.util.fileutil import get_used_space
 from allmydata.storage.common import UnknownMutableContainerVersionError, \
      DataTooLargeError
 from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
@@ -39,7 +40,6 @@ class MutableShareFile:
 
     sharetype = "mutable"
     DATA_LENGTH_OFFSET = struct.calcsize(">32s20s32s")
-    EXTRA_LEASE_OFFSET = DATA_LENGTH_OFFSET + 8
     HEADER_SIZE = struct.calcsize(">32s20s32sQQ") # doesn't include leases
     LEASE_SIZE = struct.calcsize(">LL32s32s20s")
     assert LEASE_SIZE == 92
@@ -61,7 +61,7 @@ class MutableShareFile:
             data = f.read(self.HEADER_SIZE)
             (magic,
              write_enabler_nodeid, write_enabler,
-             data_length, extra_least_offset) = \
+             data_length, extra_lease_offset) = \
              struct.unpack(">32s20s32sQQ", data)
             if magic != self.MAGIC:
                 msg = "sharefile %s had magic '%r' but we wanted '%r'" % \
@@ -92,17 +92,31 @@ class MutableShareFile:
         # extra leases go here, none at creation
         f.close()
 
+    def get_used_space(self):
+        return get_used_space(self.home)
+
     def unlink(self):
         os.unlink(self.home)
+
+    def get_size(self):
+        return os.stat(self.home).st_size
 
     def _read_data_length(self, f):
         f.seek(self.DATA_LENGTH_OFFSET)
         (data_length,) = struct.unpack(">Q", f.read(8))
         return data_length
 
+    def _read_container_size(self, f):
+        f.seek(self.DATA_LENGTH_OFFSET + 8)
+        (extra_lease_offset,) = struct.unpack(">Q", f.read(8))
+        return extra_lease_offset - self.DATA_OFFSET
+
     def _write_data_length(self, f, data_length):
+        extra_lease_offset = self.DATA_OFFSET + data_length
         f.seek(self.DATA_LENGTH_OFFSET)
-        f.write(struct.pack(">Q", data_length))
+        f.write(struct.pack(">QQ", data_length, extra_lease_offset))
+        f.seek(extra_lease_offset)
+        f.write(struct.pack(">L", 0))
 
     def _read_share_data(self, f, offset, length):
         precondition(offset >= 0)
@@ -118,75 +132,17 @@ class MutableShareFile:
         data = f.read(length)
         return data
 
-    def _read_extra_lease_offset(self, f):
-        f.seek(self.EXTRA_LEASE_OFFSET)
-        (extra_lease_offset,) = struct.unpack(">Q", f.read(8))
-        return extra_lease_offset
-
-    def _write_extra_lease_offset(self, f, offset):
-        f.seek(self.EXTRA_LEASE_OFFSET)
-        f.write(struct.pack(">Q", offset))
-
-    def _read_num_extra_leases(self, f):
-        offset = self._read_extra_lease_offset(f)
-        f.seek(offset)
-        (num_extra_leases,) = struct.unpack(">L", f.read(4))
-        return num_extra_leases
-
-    def _write_num_extra_leases(self, f, num_leases):
-        extra_lease_offset = self._read_extra_lease_offset(f)
-        f.seek(extra_lease_offset)
-        f.write(struct.pack(">L", num_leases))
-
-    def _change_container_size(self, f, new_container_size):
-        if new_container_size > self.MAX_SIZE:
-            raise DataTooLargeError()
-        old_extra_lease_offset = self._read_extra_lease_offset(f)
-        new_extra_lease_offset = self.DATA_OFFSET + new_container_size
-        if new_extra_lease_offset < old_extra_lease_offset:
-            # TODO: allow containers to shrink. For now they remain large.
-            return
-        num_extra_leases = self._read_num_extra_leases(f)
-        f.seek(old_extra_lease_offset)
-        leases_size = 4 + num_extra_leases * self.LEASE_SIZE
-        extra_lease_data = f.read(leases_size)
-
-        # Zero out the old lease info (in order to minimize the chance that
-        # it could accidentally be exposed to a reader later, re #1528).
-        f.seek(old_extra_lease_offset)
-        f.write('\x00' * leases_size)
-        f.flush()
-
-        # An interrupt here will corrupt the leases.
-
-        f.seek(new_extra_lease_offset)
-        f.write(extra_lease_data)
-        self._write_extra_lease_offset(f, new_extra_lease_offset)
-
     def _write_share_data(self, f, offset, data):
         length = len(data)
         precondition(offset >= 0)
         data_length = self._read_data_length(f)
-        extra_lease_offset = self._read_extra_lease_offset(f)
 
         if offset+length >= data_length:
             # They are expanding their data size.
 
-            if self.DATA_OFFSET+offset+length > extra_lease_offset:
-                # TODO: allow containers to shrink. For now, they remain
-                # large.
+            if offset+length > self.MAX_SIZE:
+                raise DataTooLargeError()
 
-                # Their new data won't fit in the current container, so we
-                # have to move the leases. With luck, they're expanding it
-                # more than the size of the extra lease block, which will
-                # minimize the corrupt-the-share window
-                self._change_container_size(f, offset+length)
-                extra_lease_offset = self._read_extra_lease_offset(f)
-
-                # an interrupt here is ok.. the container has been enlarged
-                # but the data remains untouched
-
-            assert self.DATA_OFFSET+offset+length <= extra_lease_offset
             # Their data now fits in the current container. We must write
             # their new data and modify the recorded data size.
 
@@ -205,161 +161,6 @@ class MutableShareFile:
         f.write(data)
         return
 
-    def _write_lease_record(self, f, lease_number, lease_info):
-        extra_lease_offset = self._read_extra_lease_offset(f)
-        num_extra_leases = self._read_num_extra_leases(f)
-        if lease_number < 4:
-            offset = self.HEADER_SIZE + lease_number * self.LEASE_SIZE
-        elif (lease_number-4) < num_extra_leases:
-            offset = (extra_lease_offset
-                      + 4
-                      + (lease_number-4)*self.LEASE_SIZE)
-        else:
-            # must add an extra lease record
-            self._write_num_extra_leases(f, num_extra_leases+1)
-            offset = (extra_lease_offset
-                      + 4
-                      + (lease_number-4)*self.LEASE_SIZE)
-        f.seek(offset)
-        assert f.tell() == offset
-        f.write(lease_info.to_mutable_data())
-
-    def _read_lease_record(self, f, lease_number):
-        # returns a LeaseInfo instance, or None
-        extra_lease_offset = self._read_extra_lease_offset(f)
-        num_extra_leases = self._read_num_extra_leases(f)
-        if lease_number < 4:
-            offset = self.HEADER_SIZE + lease_number * self.LEASE_SIZE
-        elif (lease_number-4) < num_extra_leases:
-            offset = (extra_lease_offset
-                      + 4
-                      + (lease_number-4)*self.LEASE_SIZE)
-        else:
-            raise IndexError("No such lease number %d" % lease_number)
-        f.seek(offset)
-        assert f.tell() == offset
-        data = f.read(self.LEASE_SIZE)
-        lease_info = LeaseInfo().from_mutable_data(data)
-        if lease_info.owner_num == 0:
-            return None
-        return lease_info
-
-    def _get_num_lease_slots(self, f):
-        # how many places do we have allocated for leases? Not all of them
-        # are filled.
-        num_extra_leases = self._read_num_extra_leases(f)
-        return 4+num_extra_leases
-
-    def _get_first_empty_lease_slot(self, f):
-        # return an int with the index of an empty slot, or None if we do not
-        # currently have an empty slot
-
-        for i in range(self._get_num_lease_slots(f)):
-            if self._read_lease_record(f, i) is None:
-                return i
-        return None
-
-    def get_leases(self):
-        """Yields a LeaseInfo instance for all leases."""
-        f = open(self.home, 'rb')
-        for i, lease in self._enumerate_leases(f):
-            yield lease
-        f.close()
-
-    def _enumerate_leases(self, f):
-        for i in range(self._get_num_lease_slots(f)):
-            try:
-                data = self._read_lease_record(f, i)
-                if data is not None:
-                    yield i,data
-            except IndexError:
-                return
-
-    def add_lease(self, lease_info):
-        precondition(lease_info.owner_num != 0) # 0 means "no lease here"
-        f = open(self.home, 'rb+')
-        num_lease_slots = self._get_num_lease_slots(f)
-        empty_slot = self._get_first_empty_lease_slot(f)
-        if empty_slot is not None:
-            self._write_lease_record(f, empty_slot, lease_info)
-        else:
-            self._write_lease_record(f, num_lease_slots, lease_info)
-        f.close()
-
-    def renew_lease(self, renew_secret, new_expire_time):
-        accepting_nodeids = set()
-        f = open(self.home, 'rb+')
-        for (leasenum,lease) in self._enumerate_leases(f):
-            if timing_safe_compare(lease.renew_secret, renew_secret):
-                # yup. See if we need to update the owner time.
-                if new_expire_time > lease.expiration_time:
-                    # yes
-                    lease.expiration_time = new_expire_time
-                    self._write_lease_record(f, leasenum, lease)
-                f.close()
-                return
-            accepting_nodeids.add(lease.nodeid)
-        f.close()
-        # Return the accepting_nodeids set, to give the client a chance to
-        # update the leases on a share which has been migrated from its
-        # original server to a new one.
-        msg = ("Unable to renew non-existent lease. I have leases accepted by"
-               " nodeids: ")
-        msg += ",".join([("'%s'" % idlib.nodeid_b2a(anid))
-                         for anid in accepting_nodeids])
-        msg += " ."
-        raise IndexError(msg)
-
-    def add_or_renew_lease(self, lease_info):
-        precondition(lease_info.owner_num != 0) # 0 means "no lease here"
-        try:
-            self.renew_lease(lease_info.renew_secret,
-                             lease_info.expiration_time)
-        except IndexError:
-            self.add_lease(lease_info)
-
-    def cancel_lease(self, cancel_secret):
-        """Remove any leases with the given cancel_secret. If the last lease
-        is cancelled, the file will be removed. Return the number of bytes
-        that were freed (by truncating the list of leases, and possibly by
-        deleting the file. Raise IndexError if there was no lease with the
-        given cancel_secret."""
-
-        accepting_nodeids = set()
-        modified = 0
-        remaining = 0
-        blank_lease = LeaseInfo(owner_num=0,
-                                renew_secret="\x00"*32,
-                                cancel_secret="\x00"*32,
-                                expiration_time=0,
-                                nodeid="\x00"*20)
-        f = open(self.home, 'rb+')
-        for (leasenum,lease) in self._enumerate_leases(f):
-            accepting_nodeids.add(lease.nodeid)
-            if timing_safe_compare(lease.cancel_secret, cancel_secret):
-                self._write_lease_record(f, leasenum, blank_lease)
-                modified += 1
-            else:
-                remaining += 1
-        if modified:
-            freed_space = self._pack_leases(f)
-            f.close()
-            if not remaining:
-                freed_space += os.stat(self.home)[stat.ST_SIZE]
-                self.unlink()
-            return freed_space
-
-        msg = ("Unable to cancel non-existent lease. I have leases "
-               "accepted by nodeids: ")
-        msg += ",".join([("'%s'" % idlib.nodeid_b2a(anid))
-                         for anid in accepting_nodeids])
-        msg += " ."
-        raise IndexError(msg)
-
-    def _pack_leases(self, f):
-        # TODO: reclaim space from cancelled leases
-        return 0
-
     def _read_write_enabler_and_nodeid(self, f):
         f.seek(0)
         data = f.read(self.HEADER_SIZE)
@@ -377,12 +178,6 @@ class MutableShareFile:
             datav.append(self._read_share_data(f, offset, length))
         f.close()
         return datav
-
-#    def remote_get_length(self):
-#        f = open(self.home, 'rb')
-#        data_length = self._read_data_length(f)
-#        f.close()
-#        return data_length
 
     def check_write_enabler(self, write_enabler, si_s):
         f = open(self.home, 'rb+')
@@ -422,9 +217,7 @@ class MutableShareFile:
             cur_length = self._read_data_length(f)
             if new_length < cur_length:
                 self._write_data_length(f, new_length)
-                # TODO: if we're going to shrink the share file when the
-                # share data has shrunk, then call
-                # self._change_container_size() here.
+                # TODO: shrink the share file.
         f.close()
 
 def testv_compare(a, op, b):
