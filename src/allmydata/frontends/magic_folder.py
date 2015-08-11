@@ -287,21 +287,6 @@ class Uploader(QueueMixin):
         precondition(isinstance(path_u, unicode), path_u)
         d = defer.succeed(None)
 
-        def _add_dir(encoded_name_u):
-            self._notifier.watch(to_filepath(path_u), mask=self.mask, callbacks=[self._notify], recursive=True)
-            uploadable = Data("", self._client.convergence)
-            encoded_name_u += u"@_"
-            upload_d = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":0}, overwrite=True)
-            def _succeeded(ign):
-                self._log("created subdirectory %r" % (path_u,))
-                self._count('directories_created')
-            def _failed(f):
-                self._log("failed to create subdirectory %r" % (path_u,))
-                return f
-            upload_d.addCallbacks(_succeeded, _failed)
-            upload_d.addCallback(lambda ign: self._scan(path_u))
-            return upload_d
-
         def _maybe_upload(val):
             self._pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
             relpath_u = os.path.relpath(path_u, self._local_path_u)
@@ -350,8 +335,20 @@ class Uploader(QueueMixin):
                 return d2
             elif os.path.islink(path_u):
                 raise Exception("symlink not being processed")
-            if os.path.isdir(path_u):
-                return _add_dir(encoded_name_u)
+            elif os.path.isdir(path_u):
+                self._notifier.watch(to_filepath(path_u), mask=self.mask, callbacks=[self._notify], recursive=True)
+                uploadable = Data("", self._client.convergence)
+                encoded_name_u += u"@_"
+                upload_d = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":0}, overwrite=True)
+                def _succeeded(ign):
+                    self._log("created subdirectory %r" % (path_u,))
+                    self._count('directories_created')
+                def _failed(f):
+                    self._log("failed to create subdirectory %r" % (path_u,))
+                    return f
+                upload_d.addCallbacks(_succeeded, _failed)
+                upload_d.addCallback(lambda ign: self._scan(path_u))
+                return upload_d
             elif os.path.isfile(path_u):
                 version = self._db.get_local_file_version(relpath_u)
                 if version is None:
