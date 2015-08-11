@@ -163,7 +163,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("Alias %s created" % quote_output(u"\u00E9tudes"), out)
 
             aliases = get_aliases(self.get_clientdir())
-            self.failUnless(aliases[u"\u00E9tudes"].startswith("URI:DIR2:"))
+            etudes_alias = aliases[u"\u00E9tudes"]
+            self.failUnless(etudes_alias.startswith("URI:DIR2-MDMF:"), etudes_alias)
         d.addCallback(_check_create_unicode)
 
         d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))

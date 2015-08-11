@@ -934,10 +934,10 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = os.path.dirname(self.mktemp())
         self.set_up_grid()
         d = self.do_cli("create-alias", "tahoe")
-        def _check((rc, out, err), st):
-            self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
-            self.failUnlessIn(st, out)
+        def _check((rc, out, err), st, what):
+            self.failUnlessReallyEqual(rc, 0, what)
+            self.failUnlessReallyEqual(err, "", what)
+            self.failUnlessIn(st, out, what)
             return out
         def _mkdir(ign, mutable_type, uri_prefix, dirname):
             d2 = self.do_cli("mkdir", "--format="+mutable_type, dirname)
@@ -950,7 +950,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
             d2.addCallback(lambda ign: self.do_cli("ls", "--json", dirname))
             d2.addCallback(_check, uri_prefix)
             d2.addCallback(lambda ign: self.do_cli("ls", "--json", self._filecap))
-            d2.addCallback(_check, '"format": "%s"' % (mutable_type.upper(),))
+            d2.addCallback(_check, '"format": "%s"' % (mutable_type.upper(),),
+                           (mutable_type, uri_prefix, dirname))
             return d2
 
         d.addCallback(_mkdir, "sdmf", "URI:DIR2", "tahoe:foo")
