@@ -334,7 +334,8 @@ class Uploader(QueueMixin):
                 d2.addCallback(lambda x: Exception("file does not exist"))
                 return d2
             elif os.path.islink(path_u):
-                raise Exception("symlink not being processed")
+                self.warn("WARNING: cannot upload symlink %s" % quote_local_unicode_path(path_u))
+                return None
             elif os.path.isdir(path_u):
                 self._notifier.watch(to_filepath(path_u), mask=self.mask, callbacks=[self._notify], recursive=True)
                 uploadable = Data("", self._client.convergence)
@@ -369,7 +370,8 @@ class Uploader(QueueMixin):
                 d2.addCallback(add_db_entry)
                 return d2
             else:
-                raise Exception("non-directory/non-regular file not being processed")
+                self.warn("WARNING: cannot process special file %s" % quote_local_unicode_path(path_u))
+                return None
 
         d.addCallback(_maybe_upload)
 
