@@ -348,15 +348,15 @@ class Root(rend.Page):
 
     def render_upload_form(self, ctx, data):
         # This is a form where users can upload unlinked files.
-        # Users can choose immutable, SDMF, or MDMF from a radio button.
+        # Users can choose immutable, MDMF, or SDMF from a radio button.
 
         upload_chk  = T.input(type='radio', name='format',
                               value='chk', id='upload-chk',
                               checked='checked')
-        upload_sdmf = T.input(type='radio', name='format',
-                              value='sdmf', id='upload-sdmf')
         upload_mdmf = T.input(type='radio', name='format',
                               value='mdmf', id='upload-mdmf')
+        upload_sdmf = T.input(type='radio', name='format',
+                              value='sdmf', id='upload-sdmf')
 
         form = T.form(action="uri", method="post",
                       enctype="multipart/form-data")[
@@ -365,9 +365,9 @@ class Root(rend.Page):
             T.div["Choose a file:"+SPACE,
                   T.input(type="file", name="file", class_="freeform-input-file")],
             T.input(type="hidden", name="t", value="upload"),
-            T.div[upload_chk,  T.label(for_="upload-chk") [" Immutable"],           SPACE,
-                  upload_sdmf, T.label(for_="upload-sdmf")[" SDMF"],                SPACE,
-                  upload_mdmf, T.label(for_="upload-mdmf")[" MDMF (experimental)"], SPACE*2,
+            T.div[upload_chk,  T.label(for_="upload-chk") [" Immutable"], SPACE,
+                  upload_mdmf, T.label(for_="upload-mdmf")[" MDMF"],      SPACE,
+                  upload_sdmf, T.label(for_="upload-sdmf")[" SDMF"],      SPACE*2,
                   T.input(type="submit", value="Upload!")],
             ]]
         return T.div[form]
@@ -376,18 +376,18 @@ class Root(rend.Page):
         # This is a form where users can create new directories.
         # Users can choose SDMF or MDMF from a radio button.
 
-        mkdir_sdmf = T.input(type='radio', name='format',
-                             value='sdmf', id='mkdir-sdmf',
-                             checked='checked')
         mkdir_mdmf = T.input(type='radio', name='format',
-                             value='mdmf', id='mkdir-mdmf')
+                             value='mdmf', id='mkdir-mdmf',
+                             checked='checked')
+        mkdir_sdmf = T.input(type='radio', name='format',
+                             value='sdmf', id='mkdir-sdmf')
 
         form = T.form(action="uri", method="post",
                       enctype="multipart/form-data")[
             T.fieldset[
             T.legend(class_="freeform-form-label")["Create a directory"],
-            mkdir_sdmf, T.label(for_='mkdir-sdmf')[" SDMF"],                SPACE,
-            mkdir_mdmf, T.label(for_='mkdir-mdmf')[" MDMF (experimental)"], SPACE*2,
+            mkdir_mdmf, T.label(for_='mkdir-mdmf')[" MDMF"], SPACE,
+            mkdir_sdmf, T.label(for_='mkdir-sdmf')[" SDMF"], SPACE*2,
             T.input(type="hidden", name="t", value="mkdir"),
             T.input(type="hidden", name="redirect_to_result", value="true"),
             T.input(type="submit", value="Create a directory"),

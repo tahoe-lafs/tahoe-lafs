@@ -76,14 +76,14 @@
                   Immutable
                 </label>
 
+                <label for="upload-mdmf" class="radio">
+                  <input type="radio" id="upload-mdmf" value="mdmf" name="format" />
+                  <acronym title="Medium Distributed Mutable File">MDMF</acronym>
+                </label>
+
                 <label for="upload-sdmf" class="radio">
                   <input type="radio" id="upload-sdmf" value="sdmf" name="format" />
                   <acronym title="Small Distributed Mutable File">SDMF</acronym>
-                </label>
-
-                <label for="upload-mdmf" class="radio">
-                  <input type="radio" id="upload-mdmf" value="mdmf" name="format" />
-                  <acronym title="Medium Distributed Mutable File">MDMF</acronym> (experimental)
                 </label>
 
                 <p><input type="submit" class="btn" value="Upload File &#187;" /></p>
@@ -94,14 +94,14 @@
             <div class="nav-header">Create Directory</div>
             <div class="nav-form">
               <form action="uri" method="post" enctype="multipart/form-data">
+                <label for="mkdir-mdmf" class="radio">
+                  <input type="radio" id="mkdir-mdmf" value="mdmf" name="format" />
+                  <acronym title="Medium Distributed Mutable File">MDMF</acronym>
+                </label>
+
                 <label for="mkdir-sdmf" class="radio"> 
                   <input type="radio" checked="checked" id="mkdir-sdmf" value="sdmf" name="format" />
                   <acronym title="Small Distributed Mutable File">SDMF</acronym>
-                </label>
-
-                <label for="mkdir-mdmf" class="radio">
-                  <input type="radio" id="mkdir-mdmf" value="mdmf" name="format" />
-                  <acronym title="Medium Distributed Mutable File">MDMF</acronym> (experimental)
                 </label>
 
                 <input type="hidden" name="t" value="mkdir" />

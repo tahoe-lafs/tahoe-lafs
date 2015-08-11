@@ -17,7 +17,7 @@ from allmydata.util.encodingutil import to_str
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
      IImmutableFileNode, IMutableFileNode, ExistingChildError, \
-     NoSuchChildError, EmptyPathnameComponentError, SDMF_VERSION, MDMF_VERSION
+     NoSuchChildError, EmptyPathnameComponentError, MDMF_VERSION, SDMF_VERSION
 from allmydata.blacklist import ProhibitedNode
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata import dirnode
@@ -803,11 +803,11 @@ class DirectoryAsHTML(rend.Page):
         if self.dirnode_children is None:
             return T.div["No upload forms: directory is unreadable"]
 
+        mkdir_mdmf = T.input(type='radio', name='format',
+                             value='mdmf', id='mkdir-mdmf')
         mkdir_sdmf = T.input(type='radio', name='format',
                              value='sdmf', id='mkdir-sdmf',
                              checked='checked')
-        mkdir_mdmf = T.input(type='radio', name='format',
-                             value='mdmf', id='mkdir-mdmf')
 
         mkdir_form = T.form(action=".", method="post",
                             enctype="multipart/form-data")[
@@ -818,8 +818,8 @@ class DirectoryAsHTML(rend.Page):
             "New directory name:"+SPACE, T.br,
             T.input(type="text", name="name"), SPACE,
             T.div(class_="form-inline")[
-                mkdir_sdmf, T.label(for_='mutable-directory-sdmf')[SPACE, "SDMF"], SPACE*2,
-                mkdir_mdmf, T.label(for_='mutable-directory-mdmf')[SPACE, "MDMF (experimental)"]
+                mkdir_mdmf, T.label(for_='mutable-directory-mdmf')[SPACE, "MDMF"], SPACE*2,
+                mkdir_sdmf, T.label(for_='mutable-directory-sdmf')[SPACE, "SDMF"]
             ],
             T.input(type="submit", class_="btn", value="Create")
             ]]
@@ -828,10 +828,10 @@ class DirectoryAsHTML(rend.Page):
         upload_chk  = T.input(type='radio', name='format',
                               value='chk', id='upload-chk',
                               checked='checked')
-        upload_sdmf = T.input(type='radio', name='format',
-                              value='sdmf', id='upload-sdmf')
         upload_mdmf = T.input(type='radio', name='format',
                               value='mdmf', id='upload-mdmf')
+        upload_sdmf = T.input(type='radio', name='format',
+                              value='sdmf', id='upload-sdmf')
 
         upload_form = T.form(action=".", method="post",
                              enctype="multipart/form-data")[
@@ -843,8 +843,8 @@ class DirectoryAsHTML(rend.Page):
             T.input(type="file", name="file", class_="freeform-input-file"), SPACE,
             T.div(class_="form-inline")[
                 upload_chk,  T.label(for_="upload-chk") [SPACE, "Immutable"], SPACE*2,
-                upload_sdmf, T.label(for_="upload-sdmf")[SPACE, "SDMF"], SPACE*2,
-                upload_mdmf, T.label(for_="upload-mdmf")[SPACE, "MDMF (experimental)"]
+                upload_mdmf, T.label(for_="upload-mdmf")[SPACE, "MDMF"],      SPACE*2,
+                upload_sdmf, T.label(for_="upload-sdmf")[SPACE, "SDMF"]
             ],
             T.input(type="submit", class_="btn", value="Upload"),             SPACE*2,
             ]]

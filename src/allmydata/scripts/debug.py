@@ -919,14 +919,11 @@ def corrupt_share(options):
         f = open(fn, "rb")
         f.seek(m.DATA_OFFSET)
         data = f.read(2000)
-        # make sure this slot contains an SMDF share
-        assert data[0] == "\x00", "non-SDMF mutable shares not supported"
         f.close()
 
         (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
          ig_datalen, offsets) = unpack_header(data)
 
-        assert version == 0, "we only handle v0 SDMF files"
         start = m.DATA_OFFSET + offsets["share_data"]
         end = m.DATA_OFFSET + offsets["enc_privkey"]
         flip_bit(start, end)

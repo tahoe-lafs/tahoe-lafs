@@ -382,7 +382,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.blacklist = Blacklist(fn)
 
     def init_nodemaker(self):
-        default = self.get_config("client", "mutable.format", default="SDMF")
+        default = self.get_config("client", "mutable.format", default="MDMF")
         if default.upper() == "MDMF":
             self.mutable_file_default = MDMF_VERSION
         else:
