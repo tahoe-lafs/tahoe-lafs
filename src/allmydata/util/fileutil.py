@@ -3,7 +3,8 @@ Futz with files like a pro.
 """
 
 import sys, exceptions, os, stat, tempfile, time, binascii
-from errno import EEXIST
+from collections import namedtuple
+from errno import EEXIST, ENOENT
 
 from twisted.python import log
 
@@ -622,3 +623,25 @@ else:
             rename_no_overwrite(replacement_path, replaced_path)
         except EnvironmentError:
             reraise(ConflictError)
+
+
+PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists')
+
+def get_pathinfo(path_u):
+    precondition(isinstance(path_u, unicode), path_u)
+
+    # note: symlinks to directories are both islink and isdir
+    try:
+        statinfo = os.lstat(path_u)
+        mode = statinfo.st_mode
+        return PathInfo(isdir =stat.S_ISDIR(mode),
+                        isfile=stat.S_ISREG(mode),
+                        islink=stat.S_ISLNK(mode),
+                        exists=True)
+    except OSError as e:
+        if e.errno == ENOENT:
+            return PathInfo(isdir=False,
+                            isfile=False,
+                            islink=False,
+                            exists=False)
+        raise
