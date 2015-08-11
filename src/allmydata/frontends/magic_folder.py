@@ -291,25 +291,13 @@ class Uploader(QueueMixin):
             self._pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
             relpath_u = os.path.relpath(path_u, self._local_path_u)
             encoded_name_u = magicpath.path2magic(relpath_u)
-            def get_metadata(result):
-                try:
-                    metadata_d = self._upload_dirnode.get_metadata_for(encoded_name_u)
-                except KeyError:
-                    return Failure()
-                return metadata_d
-            def get_filenode(path_u):
-                try:
-                    node_d = self._upload_dirnode.get(path_u)
-                except KeyError:
-                    return Failure()
-                return node_d
             if not os.path.exists(path_u):
                 self._log("drop-upload: notified object %r disappeared "
                           "(this is normal for temporary objects)" % (path_u,))
                 self._count('objects_disappeared')
                 d2 = defer.succeed(None)
                 if self._db.check_file_db_exists(relpath_u):
-                    d2.addCallback(get_metadata)
+                    d2.addCallback(lambda ign: self._get_metadata(encoded_name_u))
                     current_version = self._db.get_local_file_version(relpath_u) + 1
                     def set_deleted(metadata):
                         print "SET_DELETED new version %s----------------------------------------------" % (current_version,)
@@ -328,7 +316,7 @@ class Uploader(QueueMixin):
                         self._db.did_upload_file(filecap, relpath_u, current_version, int(mtime), int(ctime), size)
                         print "after change magic-folder db %s %s %s %s %s %s-----------------------" % (filecap, relpath_u, current_version, mtime, ctime, size)
                         self._count('files_uploaded')
-                    d2.addCallback(lambda x: get_filenode(encoded_name_u))
+                    d2.addCallback(lambda x: self._get_filenode(encoded_name_u))
                     d2.addCallback(add_db_entry)
 
                 d2.addCallback(lambda x: Exception("file does not exist"))
@@ -386,6 +374,20 @@ class Uploader(QueueMixin):
             return f
         d.addCallbacks(_succeeded, _failed)
         d.addBoth(self._do_callback)
+        return d
+
+    def _get_metadata(self, encoded_name_u):
+        try:
+            d = self._upload_dirnode.get_metadata_for(encoded_name_u)
+        except KeyError:
+            return Failure()
+        return d
+
+    def _get_filenode(self, encoded_name_u):
+        try:
+            d = self._upload_dirnode.get(encoded_name_u)
+        except KeyError:
+            return Failure()
         return d
 
 
