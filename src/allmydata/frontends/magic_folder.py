@@ -287,10 +287,6 @@ class Uploader(QueueMixin):
         precondition(isinstance(path_u, unicode), path_u)
         d = defer.succeed(None)
 
-        def _add_file(encoded_name_u, version):
-            uploadable = FileName(path_u, self._client.convergence)
-            return self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
-
         def _add_dir(encoded_name_u):
             self._notifier.watch(to_filepath(path_u), mask=self.mask, callbacks=[self._notify], recursive=True)
             uploadable = Data("", self._client.convergence)
@@ -362,7 +358,9 @@ class Uploader(QueueMixin):
                     version = 0
                 else:
                     version += 1
-                d2 = _add_file(encoded_name_u, version)
+
+                uploadable = FileName(path_u, self._client.convergence)
+                d2 = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
                     s = os.stat(path_u)
