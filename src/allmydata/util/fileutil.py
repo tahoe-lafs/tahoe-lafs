@@ -641,7 +641,7 @@ def get_pathinfo(path_u):
                        )
     except OSError as e:
         if e.errno == ENOENT:
-            return PathInfo(isdir=False,
+            return PathInfo(isdir =False,
                             isfile=False,
                             islink=False,
                             exists=False,

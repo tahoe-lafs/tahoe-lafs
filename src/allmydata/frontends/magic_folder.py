@@ -12,7 +12,7 @@ from twisted.application import service
 from allmydata.util import fileutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
-from allmydata.util.fileutil import precondition_abspath
+from allmydata.util.fileutil import precondition_abspath, get_pathinfo
 
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
@@ -240,21 +240,18 @@ class Uploader(QueueMixin):
     def _process_child(self, path_u):
         precondition(isinstance(path_u, unicode), path_u)
 
-        # note: symlinks to directories are both islink() and isdir()
-        isdir = os.path.isdir(path_u)
-        isfile = os.path.isfile(path_u)
-        islink = os.path.islink(path_u)
+        pathinfo = get_pathinfo(path_u)
 
-        if islink:
+        if pathinfo.islink:
             self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(path_u))
             return None
-        elif isdir:
+        elif pathinfo.isdir:
             # process directories unconditionally
             self._append_to_deque(path_u)
 
             # recurse on the child directory
             return self._scan(path_u)
-        elif isfile:
+        elif pathinfo.isfile:
             file_version = self._db.get_local_file_version(path_u)
             if file_version is None:
                 # XXX upload if we didn't record our version in magicfolder db?
@@ -285,13 +282,17 @@ class Uploader(QueueMixin):
 
     def _process(self, path_u):
         precondition(isinstance(path_u, unicode), path_u)
+
         d = defer.succeed(None)
 
         def _maybe_upload(val):
+            pathinfo = get_pathinfo(path_u)
+
             self._pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
             relpath_u = os.path.relpath(path_u, self._local_path_u)
             encoded_name_u = magicpath.path2magic(relpath_u)
-            if not os.path.exists(path_u):
+
+            if not pathinfo.exists:
                 self._log("drop-upload: notified object %r disappeared "
                           "(this is normal for temporary objects)" % (path_u,))
                 self._count('objects_disappeared')
@@ -319,12 +320,12 @@ class Uploader(QueueMixin):
                     d2.addCallback(lambda x: self._get_filenode(encoded_name_u))
                     d2.addCallback(add_db_entry)
 
-                d2.addCallback(lambda x: Exception("file does not exist"))
+                d2.addCallback(lambda x: Exception("file does not exist"))  # FIXME wrong
                 return d2
-            elif os.path.islink(path_u):
+            elif pathinfo.islink:
                 self.warn("WARNING: cannot upload symlink %s" % quote_local_unicode_path(path_u))
                 return None
-            elif os.path.isdir(path_u):
+            elif pathinfo.isdir:
                 self._notifier.watch(to_filepath(path_u), mask=self.mask, callbacks=[self._notify], recursive=True)
                 uploadable = Data("", self._client.convergence)
                 encoded_name_u += u"@_"
@@ -338,7 +339,7 @@ class Uploader(QueueMixin):
                 upload_d.addCallbacks(_succeeded, _failed)
                 upload_d.addCallback(lambda ign: self._scan(path_u))
                 return upload_d
-            elif os.path.isfile(path_u):
+            elif pathinfo.isfile:
                 version = self._db.get_local_file_version(relpath_u)
                 if version is None:
                     version = 0
@@ -349,11 +350,9 @@ class Uploader(QueueMixin):
                 d2 = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
-                    s = os.stat(path_u)
-                    size = s[stat.ST_SIZE]
-                    ctime = s[stat.ST_CTIME]
-                    mtime = s[stat.ST_MTIME]
-                    self._db.did_upload_file(filecap, relpath_u, version, mtime, ctime, size)
+                    # XXX maybe just pass pathinfo
+                    self._db.did_upload_file(filecap, relpath_u, version,
+                                             pathinfo.mtime, pathinfo.ctime, pathinfo.size)
                     self._count('files_uploaded')
                 d2.addCallback(add_db_entry)
                 return d2
