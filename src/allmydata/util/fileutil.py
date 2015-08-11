@@ -628,9 +628,6 @@ else:
 PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists')
 
 def get_pathinfo(path_u):
-    precondition(isinstance(path_u, unicode), path_u)
-
-    # note: symlinks to directories are both islink and isdir
     try:
         statinfo = os.lstat(path_u)
         mode = statinfo.st_mode
