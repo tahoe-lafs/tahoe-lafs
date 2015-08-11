@@ -139,18 +139,21 @@ hash of the public key in the URI. As a result, the data validation is
 limited to confirming that the data retrieved matches *some* data that was
 uploaded in the past, but not _which_ version of that data.
 
-The format of the write-cap for mutable files is::
+The format of the write-cap for mutable files, for SDMF and MDMF files
+respectively, is::
 
  URI:SSK:(writekey):(fingerprint)
+ URI:MDMF:(writekey):(fingerprint)
 
 Where (writekey) is the base32 encoding of the 16-byte AES encryption key
 that is used to encrypt the RSA private key, and (fingerprint) is the base32
 encoded 32-byte SHA-256 hash of the RSA public key. For more details about
 the way these keys are used, please see mutable.rst_.
 
-The format for mutable read-caps is::
+The format for mutable read-caps, for SDMF and MDMF files respectively, is::
 
  URI:SSK-RO:(readkey):(fingerprint)
+ URI:MDMF-RO:(readkey):(fingerprint)
 
 The read-cap is just like the write-cap except it contains the other AES
 encryption key: the one used for encrypting the mutable file's contents. This
@@ -178,11 +181,13 @@ way to interpret the contents of these files. As a result, a directory
 write-cap looks a lot like a mutable-file write-cap::
 
  URI:DIR2:(writekey):(fingerprint)
+ URI:DIR2-MDMF:(writekey):(fingerprint)
 
 Likewise directory read-caps (which provide read-only access to the
 directory) look much like mutable-file read-caps::
 
  URI:DIR2-RO:(readkey):(fingerprint)
+ URI:DIR2-MDMF-RO:(readkey):(fingerprint)
 
 Historical note: the "DIR2" prefix is used because the non-distributed
 dirnodes in earlier Tahoe releases had already claimed the "DIR" prefix.

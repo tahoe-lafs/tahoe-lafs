@@ -78,7 +78,8 @@ the share format for SDMF could not be used for MDMF, resulting in a larger
 gap between the two implementations (my original intention had been to make
 SDMF a clean subset of MDMF, where any single-segment MDMF file could be
 handled by the old SDMF code). In the fall of 2011, Kevan's code was finally
-integrated, and first made available in the Tahoe-1.9.0 release.
+integrated, and first made available in the Tahoe-LAFS v1.9.0 release.
+
 
 SDMF vs. MDMF
 -------------
@@ -92,20 +93,19 @@ the first segment of data should be delivered faster from a large MDMF file
 than from an SDMF file, although the overall download will then proceed at
 the same rate.
 
-We've decided to make it opt-in for now: mutable files default to
-SDMF format unless explicitly configured to use MDMF, either in ``tahoe.cfg``
+Starting from Tahoe-LAFS v1.11.0, mutable files default to MDMF format
+unless explicitly configured to use SDMF, either in ``tahoe.cfg``
 (see `<configuration.rst>`__) or in the WUI or CLI command that created a
-new mutable file.
+new mutable file. In previous releases, the default was SDMF.
 
 The code can read and modify existing files of either format without user
-intervention. We expect to make MDMF the default in a subsequent release,
-perhaps 2.0.
+intervention.
 
 Which format should you use? SDMF works well for files up to a few MB, and
-can be handled by older versions (Tahoe-1.8.3 and earlier). If you do not
-need to support older clients, want to efficiently work with mutable files,
-and have code which will use Range: headers that make partial reads and
-writes, then MDMF is for you.
+can be handled by older versions (Tahoe-LAFS v1.8.3 and earlier). If you do
+not need to support older clients, want to efficiently work with mutable
+files, and have code which will use Range: headers that make partial reads
+and writes, then MDMF is for you.
 
 
 Consistency vs. Availability

@@ -396,26 +396,26 @@ Writing/Uploading a File
  specifying a format= argument in the query string. format=MDMF creates an
  MDMF mutable file. format=SDMF creates an SDMF mutable file. format=CHK
  creates an immutable file. The value of the format argument is
- case-insensitive. If no format is specified, the newly-created file will be
- immutable (but see below).
+ case-insensitive.
 
- For compatibility with previous versions of Tahoe-LAFS, the web-API will
- also accept a mutable=true argument in the query string. If mutable=true is
- given, then the new file will be mutable, and its format will be the default
- mutable file format, as configured by the [client]mutable.format option of
- tahoe.cfg on the Tahoe-LAFS node hosting the webapi server. Use of
- mutable=true is discouraged; new code should use format= instead of
- mutable=true (unless it needs to be compatible with web-API servers older
- than v1.9.0). If neither format= nor mutable=true are given, the
- newly-created file will be immutable.
+ The web-API also accepts a mutable=true argument in the query string.
+ If mutable=true is given, then the new file will be mutable, and its
+ format will be the default mutable file format, as configured by the
+ [client]mutable.format option of tahoe.cfg on the Tahoe-LAFS node hosting
+ the webapi server.
 
- This returns the file-cap of the resulting file. If a new file was created
- by this method, the HTTP response code (as dictated by rfc2616) will be set
- to 201 CREATED. If an existing file was replaced or modified, the response
- code will be 200 OK.
+ If neither format= nor mutable=true are given, the newly-created file
+ will be immutable.
+
+ This method returns the file-cap of the resulting file. If a new file
+ was created, the HTTP response code (as dictated by `RFC2616`_) will be
+ set to 201 CREATED. If an existing file was replaced or modified, the
+ response code will be 200 OK.
 
  Note that the 'curl -T localfile http://127.0.0.1:3456/uri/$DIRCAP/foo.txt'
  command can be used to invoke this operation.
+
+.. _RFC2616: https://tools.ietf.org/html/rfc2616
 
 ``PUT /uri``
 
