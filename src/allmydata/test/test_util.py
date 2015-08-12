@@ -634,6 +634,37 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         disk = fileutil.get_disk_stats('.', 2**128)
         self.failUnlessEqual(disk['avail'], 0)
 
+    def test_get_pathinfo(self):
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        # create a directory
+        self.mkdir(basedir, "a")
+        dirinfo = fileutil.get_pathinfo(basedir)
+        self.failUnlessTrue(dirinfo.isdir)
+        self.failUnlessTrue(dirinfo.exists)
+        self.failUnlessFalse(dirinfo.isfile)
+        self.failUnlessFalse(dirinfo.islink)
+
+        # create a file under the directory
+        f = os.path.join(basedir, "a/1.txt")
+        self.touch(basedir, "a/1.txt", data="a"*10)
+        fileinfo = fileutil.get_pathinfo(f)
+        self.failUnlessTrue(fileinfo.isfile)
+        self.failUnlessTrue(fileinfo.exists)
+        self.failUnlessFalse(fileinfo.isdir)
+        self.failUnlessFalse(fileinfo.islink)
+        self.failUnlessEqual(fileinfo.size, 10)
+
+        # create a symlink under the directory a pointing to 1.txt
+        slname = os.path.join(basedir, "a/linkto1.txt")
+        os.symlink(f, slname)
+        symlinkinfo = fileutil.get_pathinfo(slname)
+        self.failUnlessTrue(symlinkinfo.islink)
+        self.failUnlessTrue(symlinkinfo.exists)
+        self.failUnlessFalse(symlinkinfo.isfile)
+        self.failUnlessFalse(symlinkinfo.isdir)
+
 
 class PollMixinTests(unittest.TestCase):
     def setUp(self):
