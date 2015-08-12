@@ -637,19 +637,19 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
     def test_get_pathinfo(self):
         basedir = "util/FileUtil/test_get_pathinfo"
         fileutil.make_dirs(basedir)
-        d = os.path.join(basedir, "foobar")
+        testdir = os.path.join(basedir, "foobar")
 
         # create a directory
-        self.mkdir(d, "a")
-        dirinfo = fileutil.get_pathinfo(d)
+        self.mkdir(testdir, "a")
+        dirinfo = fileutil.get_pathinfo(testdir)
         self.failUnlessTrue(dirinfo.isdir)
         self.failUnlessTrue(dirinfo.exists)
         self.failUnlessFalse(dirinfo.isfile)
         self.failUnlessFalse(dirinfo.islink)
 
         # create a file under the directory
-        f = os.path.join(d, "a/1.txt")
-        self.touch(d, "a/1.txt", data="a"*10)
+        f = os.path.join(testdir, "a/1.txt")
+        self.touch(testdir, "a/1.txt", data="a"*10)
         fileinfo = fileutil.get_pathinfo(f)
         self.failUnlessTrue(fileinfo.isfile)
         self.failUnlessTrue(fileinfo.exists)
@@ -657,8 +657,8 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessFalse(fileinfo.islink)
         self.failUnlessEqual(fileinfo.size, 10)
 
-        # create a simlink under the directory a pointing to 1.txt
-        slname = os.path.join(d, "a/linkto1.txt")
+        # create a symlink under the directory a pointing to 1.txt
+        slname = os.path.join(testdir, "a/linkto1.txt")
         os.symlink(f, slname)
         symlinkinfo = fileutil.get_pathinfo(slname)
         self.failUnlessTrue(symlinkinfo.islink)
