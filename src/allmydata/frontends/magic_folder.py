@@ -202,17 +202,12 @@ class Uploader(QueueMixin):
         return d
 
     def stop(self):
-        print "stop: _deque = %r, _pending = %r" % (self._deque, self._pending)
         self._notifier.stopReading()
         self._count('dirs_monitored', -1)
         if hasattr(self._notifier, 'wait_until_stopped'):
             d = self._notifier.wait_until_stopped()
         else:
             d = defer.succeed(None)
-        def _after(res):
-            print "stop _after: res = %r, _deque = %r, _pending = %r" % (res, self._deque, self._pending)
-            return res
-        d.addBoth(_after)
         return d
 
     def start_scanning(self):
@@ -312,7 +307,6 @@ class Uploader(QueueMixin):
                     d2.addCallback(lambda ign: self._get_metadata(encoded_name_u))
                     current_version = self._db.get_local_file_version(relpath_u) + 1
                     def set_deleted(metadata):
-                        print "SET_DELETED new version %s----------------------------------------------" % (current_version,)
                         metadata['version'] = current_version
                         metadata['deleted'] = True
                         empty_uploadable = Data("", self._client.convergence)
@@ -324,9 +318,7 @@ class Uploader(QueueMixin):
                         now = time.time()
                         ctime = now
                         mtime = now
-                        print "before change magic-folder db"
                         self._db.did_upload_file(filecap, relpath_u, current_version, int(mtime), int(ctime), size)
-                        print "after change magic-folder db %s %s %s %s %s %s-----------------------" % (filecap, relpath_u, current_version, mtime, ctime, size)
                         self._count('files_uploaded')
                     d2.addCallback(lambda x: self._get_filenode(encoded_name_u))
                     d2.addCallback(add_db_entry)
@@ -415,22 +407,15 @@ class Downloader(QueueMixin):
 
         self._turn_delay = 3 # delay between remote scans
         self._download_scan_batch = {} # path -> [(filenode, metadata)]
-        print "Downloader init"
 
     def start_scanning(self):
-        print "downloader start_scanning"
-        self._scan_remote_collective()
+        #self._scan_remote_collective()
         self._turn_deque()
 
     def stop(self):
-        print "downloader stop"
         self._stopped = True
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._lazy_tail)
-        def _print(res):
-            print "downloader stop _after: res = %r, _deque = %r, _pending = %r" % (res, self._deque, self._pending)
-            return res
-        d.addBoth(_print)
         return d
 
     def _should_download(self, relpath_u, remote_version):
@@ -439,9 +424,7 @@ class Downloader(QueueMixin):
         We check the remote metadata version against our magic-folder db version number;
         latest version wins.
         """
-        print "_should_download"
         v = self._db.get_local_file_version(relpath_u)
-        print "_should_download path %s local db version %s, remote dmd version %s" % (relpath_u, v, remote_version)
         return (v is None or v < remote_version)
 
     def _get_local_latest(self, path_u):
@@ -461,7 +444,6 @@ class Downloader(QueueMixin):
         """
         collective_dirmap_d = self._collective_dirnode.list()
         def scan_collective(result):
-            print "get_collective_latest scan_collective result %s" % (result,)
             list_of_deferreds = []
             for dir_name in result.keys():
                 # XXX make sure it's a directory
@@ -484,33 +466,32 @@ class Downloader(QueueMixin):
         collective_dirmap_d.addCallback(highest_version)
         return collective_dirmap_d
 
+    def _append_to_batch(self, name, file_node, metadata):
+        if self._download_scan_batch.has_key(name):
+            self._download_scan_batch[name] += [(file_node, metadata)]
+        else:
+            self._download_scan_batch[name] = [(file_node, metadata)]
+
     def _scan_remote(self, nickname, dirnode):
-        print "_scan_remote START: nickname %s dirnode %s" % (nickname, dirnode)
         listing_d = dirnode.list()
         def scan_listing(listing_map):
             for name in listing_map.keys():
-                print "name ", name
                 file_node, metadata = listing_map[name]
                 local_version = self._get_local_latest(name) # XXX we might need to convert first?
                 if local_version is not None:
                     if local_version >= metadata['version']:
+                        print "local version greater than or equal to remote"
                         return None
-                else:
-                    print "ALL KEYS %s" % (self._download_scan_batch.keys(),)
-                    if self._download_scan_batch.has_key(name):
-                        print "HAS KEY - %s %s" % (file_node, metadata)
-                        self._download_scan_batch[name] += [(file_node, metadata)]
                     else:
-                        print "NOT HAS KEY"
-                        self._download_scan_batch[name] = [(file_node, metadata)]
+                        print "local version less than remote"
+                        self._append_to_batch(name, file_node, metadata)
+                else:
+                    self._append_to_batch(name, file_node, metadata)
 
-            print "download scan batch before filtering", repr(self._download_scan_batch)
         listing_d.addCallback(scan_listing)
-        print "_scan_remote END"
         return listing_d
 
     def _scan_remote_collective(self):
-        print "downloader _scan_remote_collective"
         self._download_scan_batch = {} # XXX
 
         if self._collective_dirnode is None:
@@ -534,7 +515,6 @@ class Downloader(QueueMixin):
             return f
         collective_dirmap_d.addErrback(_print)
         collective_dirmap_d.addCallback(self._add_batch_to_download_queue)
-        print "end of _scan_remote_collective"
         return collective_dirmap_d
 
     def _add_batch_to_download_queue(self, result):
@@ -542,30 +522,21 @@ class Downloader(QueueMixin):
         self._pending.update(map(lambda x: x[0], result))
 
     def _filter_scan_batch(self, result):
-        print "FILTER START len %s" % (len(self._download_scan_batch),)
         extension = [] # consider whether this should be a dict
         for name in self._download_scan_batch.keys():
             if name in self._pending:
-                print "downloader: %s found in pending; skipping" % (name,)
                 continue
             file_node, metadata = max(self._download_scan_batch[name], key=lambda x: x[1]['version'])
-            print "file_node %s metadata %s" % (file_node, metadata)
             if self._should_download(name, metadata['version']):
-                print "should download"
                 extension += [(name, file_node, metadata)]
-            else:
-                print "should not download"
-        print "FILTER END"
         return extension
 
     def _when_queue_is_empty(self):
-        print "_when_queue_is_empty"
         d = task.deferLater(reactor, self._turn_delay, self._scan_remote_collective)
         d.addCallback(lambda ign: self._turn_deque())
         return d
 
     def _process(self, item):
-        print "_process"
         (name, file_node, metadata) = item
         d = file_node.download_best_version()
         def succeeded(res):
@@ -586,14 +557,11 @@ class Downloader(QueueMixin):
             self._count('objects_download_failed')
             return f
         def remove_from_pending(ign):
-            print "REMOVE FROM PENDING _pending = %r, name = %r" % (self._pending, name)
             self._pending.remove(name)
-            print "REMOVE FROM PENDING _after: _pending = %r" % (self._pending,)
         d.addCallbacks(succeeded, failed)
         d.addBoth(self._do_callback)
         d.addCallback(remove_from_pending)
         return d
 
     def _write_downloaded_file(self, name, file_contents):
-        print "_write_downloaded_file"
         fileutil.write(name, file_contents)
