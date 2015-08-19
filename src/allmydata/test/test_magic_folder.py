@@ -322,7 +322,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
     def _check_version_in_local_db(self, magicfolder, relpath_u, expected_version):
         version = magicfolder._db.get_local_file_version(relpath_u)
-        print "_check_version_in_local_db %s---------------------------------" % (version,)
+        print "_check_version_in_local_db %r %s---------------------------------" % (relpath_u, version)
         self.failUnlessEqual(version, expected_version)
 
     def test_alice_bob(self):
