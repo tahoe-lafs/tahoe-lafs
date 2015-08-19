@@ -328,8 +328,9 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
     def test_alice_bob(self):
         d = self.setup_alice_and_bob()
         def get_results(result):
-            # XXX
-            self.alice_collective_dir, self.alice_upload_dircap, self.alice_magicfolder, self.bob_collective_dircap, self.bob_upload_dircap, self.bob_magicfolder = result
+            # XXX are these used?
+            (self.alice_collective_dircap, self.alice_upload_dircap, self.alice_magicfolder,
+             self.bob_collective_dircap,   self.bob_upload_dircap,   self.bob_magicfolder) = result
             print "Alice magicfolderdb is at %r" % (self.alice_magicfolder._client.basedir)
             print "Bob   magicfolderdb is at %r" % (self.bob_magicfolder._client.basedir)
         d.addCallback(get_results)
