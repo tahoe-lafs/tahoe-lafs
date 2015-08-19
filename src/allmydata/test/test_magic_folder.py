@@ -330,6 +330,8 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         def get_results(result):
             # XXX
             self.alice_collective_dir, self.alice_upload_dircap, self.alice_magicfolder, self.bob_collective_dircap, self.bob_upload_dircap, self.bob_magicfolder = result
+            print "Alice magicfolderdb is at %r" % (self.alice_magicfolder._client.basedir)
+            print "Bob   magicfolderdb is at %r" % (self.bob_magicfolder._client.basedir)
         d.addCallback(get_results)
 
         def Alice_write_a_file(result):
