@@ -398,9 +398,11 @@ class MagicFolderDB(BackupDB):
                                 " WHERE fileid=?",
                                 (now, now, fileid))
         try:
+            print "here1!!!1"
             self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?)",
                                 (path, size, mtime, ctime, fileid, version))
         except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
+            print "here2!!!2"
             self.cursor.execute("UPDATE local_files"
                                 " SET size=?, mtime=?, ctime=?, fileid=?, version=?"
                                 " WHERE path=?",
