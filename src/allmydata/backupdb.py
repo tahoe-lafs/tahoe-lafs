@@ -406,5 +406,5 @@ class MagicFolderDB(BackupDB):
             self.cursor.execute("UPDATE local_files"
                                 " SET size=?, mtime=?, ctime=?, fileid=?, version=?"
                                 " WHERE path=?",
-                                (size, mtime, ctime, fileid, path, version))
+                                (size, mtime, ctime, fileid, version, path))
         self.connection.commit()
