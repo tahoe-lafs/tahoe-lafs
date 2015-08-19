@@ -238,11 +238,45 @@ class Uploader(QueueMixin):
         return defer.succeed(None)
 
     def _process_child(self, path_u):
+        print "_process_child %r" % (path_u,)
         precondition(isinstance(path_u, unicode), path_u)
 
         pathinfo = get_pathinfo(path_u)
 
-        if pathinfo.islink:
+        self._pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
+        relpath_u = os.path.relpath(path_u, self._local_path_u)
+        encoded_name_u = magicpath.path2magic(relpath_u)
+
+        if not pathinfo.exists:
+            self._log("notified object %r does not exist" % (path_u,))
+            self._count('objects_disappeared')
+            d2 = defer.succeed(None)
+            if self._db.check_file_db_exists(relpath_u):
+                d2.addCallback(lambda ign: self._get_metadata(encoded_name_u))
+                current_version = self._db.get_local_file_version(relpath_u) + 1
+                def set_deleted(metadata):
+                    print "SET_DELETED new version %s----------------------------------------------" % (current_version,)
+                    metadata['version'] = current_version
+                    metadata['deleted'] = True
+                    empty_uploadable = Data("", self._client.convergence)
+                    return self._upload_dirnode.add_file(encoded_name_u, empty_uploadable, overwrite=True, metadata=metadata)
+                d2.addCallback(set_deleted)
+                def add_db_entry(filenode):
+                    filecap = filenode.get_uri()
+                    size = 0
+                    now = time.time()
+                    ctime = now
+                    mtime = now
+                    print "before change magic-folder db"
+                    self._db.did_upload_file(filecap, relpath_u, current_version, int(mtime), int(ctime), size)
+                    print "after change magic-folder db %s %s %s %s %s %s-----------------------" % (filecap, relpath_u, current_version, mtime, ctime, size)
+                    self._count('files_uploaded')
+                d2.addCallback(lambda x: self._get_filenode(encoded_name_u))
+                d2.addCallback(add_db_entry)
+
+            d2.addCallback(lambda x: Exception("file does not exist"))  # FIXME wrong
+            return d2
+        elif pathinfo.islink:
             self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(path_u))
             return None
         elif pathinfo.isdir:
@@ -252,8 +286,8 @@ class Uploader(QueueMixin):
             # recurse on the child directory
             return self._scan(path_u)
         elif pathinfo.isfile:
-            file_version = self._db.get_local_file_version(path_u)
-            if file_version is None:
+            local_version = self._db.get_local_file_version(path_u)
+            if local_version is None:
                 # XXX upload if we didn't record our version in magicfolder db?
                 self._append_to_deque(path_u)
                 return None
@@ -263,16 +297,17 @@ class Uploader(QueueMixin):
                     collective_version = metadata['version']
                     if collective_version is None:
                         return None
-                    if file_version > collective_version:
+                    if local_version > collective_version:
                         self._append_to_upload_deque(path_u)
-                    elif file_version < collective_version: # FIXME Daira thinks this is wrong
+                    elif local_version < collective_version: # FIXME Daira thinks this is wrong
                         # if a collective version of the file is newer than ours
                         # we must download it and unlink the old file from our upload dirnode
                         self._append_to_download_deque(path_u)
                         # XXX where should we save the returned deferred?
                         return self._upload_dirnode.delete(path_u, must_be_file=True)
                     else:
-                        # XXX same version. do nothing.
+                        # XXX same version
+                        # FIXME this still might be a conflict
                         pass
                 d2.addCallback(_got_latest_file)
                 return d2
@@ -280,87 +315,88 @@ class Uploader(QueueMixin):
             self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(path_u))
             return None
 
-    def _process(self, path_u):
+    def _process2(path_u):
+        print "_process2 %r" % (path_u,)
         precondition(isinstance(path_u, unicode), path_u)
 
-        d = defer.succeed(None)
+        pathinfo = get_pathinfo(path_u)
 
-        def _maybe_upload(val):
-            pathinfo = get_pathinfo(path_u)
+        self._pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
+        relpath_u = os.path.relpath(path_u, self._local_path_u)
+        encoded_name_u = magicpath.path2magic(relpath_u)
 
-            self._pending.remove(path_u)  # FIXME make _upload_pending hold relative paths
-            relpath_u = os.path.relpath(path_u, self._local_path_u)
-            encoded_name_u = magicpath.path2magic(relpath_u)
-
-            if not pathinfo.exists:
-                self._log("drop-upload: notified object %r disappeared "
-                          "(this is normal for temporary objects)" % (path_u,))
-                self._count('objects_disappeared')
-                d2 = defer.succeed(None)
-                if self._db.check_file_db_exists(relpath_u):
-                    d2.addCallback(lambda ign: self._get_metadata(encoded_name_u))
-                    current_version = self._db.get_local_file_version(relpath_u) + 1
-                    def set_deleted(metadata):
-                        print "SET_DELETED new version %s----------------------------------------------" % (current_version,)
-                        metadata['version'] = current_version
-                        metadata['deleted'] = True
-                        empty_uploadable = Data("", self._client.convergence)
-                        return self._upload_dirnode.add_file(encoded_name_u, empty_uploadable, overwrite=True, metadata=metadata)
-                    d2.addCallback(set_deleted)
-                    def add_db_entry(filenode):
-                        filecap = filenode.get_uri()
-                        size = 0
-                        now = time.time()
-                        ctime = now
-                        mtime = now
-                        print "before change magic-folder db"
-                        self._db.did_upload_file(filecap, relpath_u, current_version, int(mtime), int(ctime), size)
-                        print "after change magic-folder db %s %s %s %s %s %s-----------------------" % (filecap, relpath_u, current_version, mtime, ctime, size)
-                        self._count('files_uploaded')
-                    d2.addCallback(lambda x: self._get_filenode(encoded_name_u))
-                    d2.addCallback(add_db_entry)
-
-                d2.addCallback(lambda x: Exception("file does not exist"))  # FIXME wrong
-                return d2
-            elif pathinfo.islink:
-                self.warn("WARNING: cannot upload symlink %s" % quote_local_unicode_path(path_u))
-                return None
-            elif pathinfo.isdir:
-                self._notifier.watch(to_filepath(path_u), mask=self.mask, callbacks=[self._notify], recursive=True)
-                uploadable = Data("", self._client.convergence)
-                encoded_name_u += u"@_"
-                upload_d = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":0}, overwrite=True)
-                def _succeeded(ign):
-                    self._log("created subdirectory %r" % (path_u,))
-                    self._count('directories_created')
-                def _failed(f):
-                    self._log("failed to create subdirectory %r" % (path_u,))
-                    return f
-                upload_d.addCallbacks(_succeeded, _failed)
-                upload_d.addCallback(lambda ign: self._scan(path_u))
-                return upload_d
-            elif pathinfo.isfile:
-                version = self._db.get_local_file_version(relpath_u)
-                if version is None:
-                    version = 0
-                else:
-                    version += 1
-
-                uploadable = FileName(path_u, self._client.convergence)
-                d2 = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
+        if not pathinfo.exists:
+            self._log("notified object %r does not exist" % (path_u,))
+            self._count('objects_disappeared')
+            d2 = defer.succeed(None)
+            if self._db.check_file_db_exists(relpath_u):
+                d2.addCallback(lambda ign: self._get_metadata(encoded_name_u))
+                current_version = self._db.get_local_file_version(relpath_u) + 1
+                def set_deleted(metadata):
+                    print "SET_DELETED new version %s----------------------------------------------" % (current_version,)
+                    metadata['version'] = current_version
+                    metadata['deleted'] = True
+                    empty_uploadable = Data("", self._client.convergence)
+                    return self._upload_dirnode.add_file(encoded_name_u, empty_uploadable, overwrite=True, metadata=metadata)
+                d2.addCallback(set_deleted)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
-                    # XXX maybe just pass pathinfo
-                    self._db.did_upload_file(filecap, relpath_u, version,
-                                             pathinfo.mtime, pathinfo.ctime, pathinfo.size)
+                    size = 0
+                    now = time.time()
+                    ctime = now
+                    mtime = now
+                    print "before change magic-folder db"
+                    self._db.did_upload_file(filecap, relpath_u, current_version, int(mtime), int(ctime), size)
+                    print "after change magic-folder db %s %s %s %s %s %s-----------------------" % (filecap, relpath_u, current_version, mtime, ctime, size)
                     self._count('files_uploaded')
+                d2.addCallback(lambda x: self._get_filenode(encoded_name_u))
                 d2.addCallback(add_db_entry)
-                return d2
-            else:
-                self.warn("WARNING: cannot process special file %s" % quote_local_unicode_path(path_u))
-                return None
 
-        d.addCallback(_maybe_upload)
+            d2.addCallback(lambda x: Exception("file does not exist"))  # FIXME wrong
+            return d2
+        elif pathinfo.islink:
+            self.warn("WARNING: cannot upload symlink %s" % quote_local_unicode_path(path_u))
+            return None
+        elif pathinfo.isdir:
+            self._notifier.watch(to_filepath(path_u), mask=self.mask, callbacks=[self._notify], recursive=True)
+            uploadable = Data("", self._client.convergence)
+            encoded_name_u += u"@_"
+            upload_d = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":0}, overwrite=True)
+            def _succeeded(ign):
+                self._log("created subdirectory %r" % (path_u,))
+                self._count('directories_created')
+            def _failed(f):
+                self._log("failed to create subdirectory %r" % (path_u,))
+                return f
+            upload_d.addCallbacks(_succeeded, _failed)
+            upload_d.addCallback(lambda ign: self._scan(path_u))
+            return upload_d
+        elif pathinfo.isfile:
+            local_version = self._db.get_local_file_version(relpath_u)
+            if local_version is None:
+                local_version = 0
+            else:
+                local_version += 1
+
+            uploadable = FileName(path_u, self._client.convergence)
+            d2 = self._upload_dirnode.add_file(encoded_name_u, uploadable,
+                                               metadata={"version": local_version},
+                                               overwrite=True)
+            def add_db_entry(filenode):
+                filecap = filenode.get_uri()
+                # XXX maybe just pass pathinfo
+                self._db.did_upload_file(filecap, relpath_u, local_version,
+                                         pathinfo.mtime, pathinfo.ctime, pathinfo.size)
+                self._count('files_uploaded')
+            d2.addCallback(add_db_entry)
+            return d2
+        else:
+            self.warn("WARNING: cannot process special file %s" % quote_local_unicode_path(path_u))
+            return None
+
+    def _process(self, path_u):
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self._process2(path_u))
 
         def _succeeded(res):
             self._count('objects_queued', -1)
