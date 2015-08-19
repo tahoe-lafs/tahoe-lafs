@@ -108,12 +108,9 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin):
 
     def setup_alice_and_bob(self):
         self.set_up_grid(num_clients=2)
-        alice_dir = abspath_expanduser_unicode(u"Alice\u00F8", base=self.basedir)
-        self.mkdir_nonascii(alice_dir)
+
         alice_magic_dir = abspath_expanduser_unicode(u"Alice-magic", base=self.basedir)
         self.mkdir_nonascii(alice_magic_dir)
-        bob_dir = abspath_expanduser_unicode(u"Bob\u00F8", base=self.basedir)
-        self.mkdir_nonascii(bob_dir)
         bob_magic_dir = abspath_expanduser_unicode(u"Bob-magic", base=self.basedir)
         self.mkdir_nonascii(bob_magic_dir)
 
@@ -152,7 +149,9 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(get_Bob_magicfolder)
 
         def prepare_result(result):
-            return self.alice_collective_dircap, self.alice_upload_dircap, self.alice_magicfolder, self.bob_collective_dircap, self.bob_upload_dircap, self.bob_magicfolder
+            # XXX improve this
+            return (self.alice_collective_dircap, self.alice_upload_dircap, self.alice_magicfolder,
+                    self.bob_collective_dircap,   self.bob_upload_dircap,   self.bob_magicfolder)
         d.addCallback(prepare_result)
         return d
 
