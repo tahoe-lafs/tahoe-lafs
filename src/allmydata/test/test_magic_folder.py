@@ -125,8 +125,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def _check_move_empty_tree(res):
             self.mkdir_nonascii(empty_tree_dir)
-            d2 = defer.Deferred()
-            self.magicfolder.uploader.set_callback(d2.callback)
+            d2 = self.magicfolder.uploader.set_hook('processed')
             os.rename(empty_tree_dir, new_empty_tree_dir)
             self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
@@ -139,8 +138,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         def _check_move_small_tree(res):
             self.mkdir_nonascii(small_tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
-            d2 = defer.Deferred()
-            self.magicfolder.uploader.set_callback(d2.callback, ignore_count=1)
+            d2 = self.magicfolder.uploader.set_hook('processed', ignore_count=1)
             os.rename(small_tree_dir, new_small_tree_dir)
             self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
             return d2
@@ -151,8 +149,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 2))
 
         def _check_moved_tree_is_watched(res):
-            d2 = defer.Deferred()
-            self.magicfolder.uploader.set_callback(d2.callback)
+            d2 = self.magicfolder.uploader.set_hook('processed')
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
             self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
             return d2
@@ -201,8 +198,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         d.addCallback(self._create_magicfolder)
 
         def create_test_file(result):
-            d2 = defer.Deferred()
-            self.magicfolder.uploader.set_callback(d2.callback)
+            d2 = self.magicfolder.uploader.set_hook('processed')
             test_file = abspath_expanduser_unicode(u"what", base=self.local_dir)
             fileutil.write(test_file, "meow")
             self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
@@ -274,10 +270,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         previously_uploaded = self._get_count('uploader.objects_succeeded')
         previously_disappeared = self._get_count('uploader.objects_disappeared')
 
-        # Note: this relies on the fact that we only get one IN_CLOSE_WRITE notification per file
-        # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
-        d = defer.Deferred()
-        self.magicfolder.uploader.set_callback(d.callback)
+        d = self.magicfolder.uploader.set_hook('processed')
 
         path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
         path = to_filepath(path_u)
@@ -347,8 +340,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def Alice_wait_for_upload(result):
             print "Alice waits for an upload\n"
-            d2 = defer.Deferred()
-            self.alice_magicfolder.uploader.set_callback(d2.callback)
+            d2 = self.alice_magicfolder.uploader.set_hook('processed')
             return d2
         d.addCallback(Alice_wait_for_upload)
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 0))
@@ -361,8 +353,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         def Bob_wait_for_download(result):
             print "Bob waits for a download\n"
-            d2 = defer.Deferred()
-            self.bob_magicfolder.downloader.set_callback(d2.callback)
+            d2 = self.bob_magicfolder.downloader.set_hook('processed')
             return d2
         d.addCallback(Bob_wait_for_download)
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 0))
@@ -385,8 +376,8 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         d.addCallback(Bob_wait_for_download)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client), 2))
-        #d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 1))
-        #d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 1))
+        d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 1))
+        d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 1))
 
 
         def Alice_rewrite_file(result):

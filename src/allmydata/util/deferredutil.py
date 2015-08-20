@@ -5,6 +5,7 @@ from foolscap.api import eventually, fireEventually
 from twisted.internet import defer, reactor
 
 from allmydata.util import log
+from allmydata.util.assertutil import _assert
 from allmydata.util.pollmixin import PollMixin
 
 
@@ -77,11 +78,13 @@ class HookMixin:
     I am a helper mixin that maintains a collection of named hooks, primarily
     for use in tests. Each hook is set to an unfired Deferred using 'set_hook',
     and can then be fired exactly once at the appropriate time by '_call_hook'.
+    If 'ignore_count' is given, that number of calls to '_call_hook' will be
+    ignored before firing the hook.
 
     I assume a '_hooks' attribute that should set by the class constructor to
     a dict mapping each valid hook name to None.
     """
-    def set_hook(self, name, d=None):
+    def set_hook(self, name, d=None, ignore_count=0):
         """
         Called by the hook observer (e.g. by a test).
         If d is not given, an unfired Deferred is created and returned.
@@ -89,16 +92,20 @@ class HookMixin:
         """
         if d is None:
             d = defer.Deferred()
-        assert self._hooks[name] is None, self._hooks[name]
-        assert isinstance(d, defer.Deferred), d
-        self._hooks[name] = d
+        _assert(ignore_count >= 0, ignore_count=ignore_count)
+        _assert(name in self._hooks, name=name)
+        _assert(self._hooks[name] is None, name=name, hook=self._hooks[name])
+        _assert(isinstance(d, defer.Deferred), d=d)
+
+        self._hooks[name] = (d, ignore_count)
         return d
 
     def _call_hook(self, res, name):
         """
-        Called to trigger the hook, with argument 'res'. This is a no-op if the
-        hook is unset. Otherwise, the hook will be unset, and then its Deferred
-        will be fired synchronously.
+        Called to trigger the hook, with argument 'res'. This is a no-op if
+        the hook is unset. If the hook's ignore_count is positive, it will be
+        decremented; if it was already zero, the hook will be unset, and then
+        its Deferred will be fired synchronously.
 
         The expected usage is "deferred.addBoth(self._call_hook, 'hookname')".
         This ensures that if 'res' is a failure, the hook will be errbacked,
@@ -106,11 +113,15 @@ class HookMixin:
         'res' is returned so that the current result or failure will be passed
         through.
         """
-        d = self._hooks[name]
-        if d is None:
+        hook = self._hooks[name]
+        if hook is None:
             return defer.succeed(None)
-        self._hooks[name] = None
-        _with_log(d.callback, res)
+        (d, ignore_count) = hook
+        if ignore_count > 0:
+            self._hooks[name] = (d, ignore_count - 1)
+        else:
+            self._hooks[name] = None
+            _with_log(d.callback, res)
         return res
 
 

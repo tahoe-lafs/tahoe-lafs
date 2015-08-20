@@ -13,8 +13,8 @@ from allmydata.util import fileutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import precondition_abspath, get_pathinfo
-
 from allmydata.util.assertutil import precondition
+from allmydata.util.deferredutil import HookMixin
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
      unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
 from allmydata.immutable.upload import FileName, Data
@@ -90,13 +90,14 @@ class MagicFolder(service.MultiService):
         return service.MultiService.disownServiceParent(self)
 
 
-class QueueMixin(object):
+class QueueMixin(HookMixin):
     def __init__(self, client, local_path_u, db, name):
         self._client = client
         self._local_path_u = local_path_u
         self._local_path = to_filepath(local_path_u)
         self._db = db
         self._name = name
+        self._hooks = {'processed': None}
 
         if not self._local_path.exists():
             raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
@@ -143,23 +144,9 @@ class QueueMixin(object):
             self._lazy_tail.addCallback(lambda ign: self._when_queue_is_empty())
         else:
             self._lazy_tail.addCallback(lambda ign: self._process(item))
-            #self._lazy_tail.addErrback(lambda f: self._log("error: %s" % (f,)))
+            self._lazy_tail.addBoth(self._call_hook, 'processed')
+            self._lazy_tail.addErrback(log.err)
             self._lazy_tail.addCallback(lambda ign: task.deferLater(reactor, self._turn_delay, self._turn_deque))
-
-    def _do_callback(self, res):
-        if self._ignore_count == 0:
-            self._callback(res)
-        else:
-            self._ignore_count -= 1
-        return None  # intentionally suppress failures, which have already been logged
-
-    def set_callback(self, callback, ignore_count=0):
-        """
-        set_callback sets a function that will be called after a filesystem change
-        (either local or remote) has been processed, successfully or unsuccessfully.
-        """
-        self._callback = callback
-        self._ignore_count = ignore_count
 
 
 class Uploader(QueueMixin):
@@ -383,7 +370,6 @@ class Uploader(QueueMixin):
             self._log("%r while processing %r" % (f, path_u))
             return f
         d.addCallbacks(_succeeded, _failed)
-        d.addBoth(self._do_callback)
         return d
 
     def _get_metadata(self, encoded_name_u):
@@ -585,13 +571,13 @@ class Downloader(QueueMixin):
             self._log("download failed: %s" % (str(f),))
             self._count('objects_download_failed')
             return f
-        def remove_from_pending(ign):
+        d.addCallbacks(succeeded, failed)
+        def remove_from_pending(res):
             print "REMOVE FROM PENDING _pending = %r, name = %r" % (self._pending, name)
             self._pending.remove(name)
             print "REMOVE FROM PENDING _after: _pending = %r" % (self._pending,)
-        d.addCallbacks(succeeded, failed)
-        d.addBoth(self._do_callback)
-        d.addCallback(remove_from_pending)
+            return res
+        d.addBoth(remove_from_pending)
         return d
 
     def _write_downloaded_file(self, name, file_contents):
