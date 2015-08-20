@@ -459,23 +459,18 @@ class Downloader(QueueMixin):
             self._download_scan_batch[name] = [(file_node, metadata)]
 
     def _scan_remote(self, nickname, dirnode):
-        listing_d = dirnode.list()
+        d = dirnode.list()
         def scan_listing(listing_map):
             for name in listing_map.keys():
                 file_node, metadata = listing_map[name]
                 local_version = self._get_local_latest(name) # XXX we might need to convert first?
-                if local_version is not None:
-                    if local_version >= metadata['version']:
-                        print "local version greater than or equal to remote"
-                        return None
-                    else:
-                        print "local version less than remote"
-                        self._append_to_batch(name, file_node, metadata)
-                else:
+                remote_version = metadata.get('version', None)
+                print "%r has local version %r, remote version %r" % (name, local_version, remote_version)
+                if local_version is None or remote_version is None or local_version < remote_version:
                     self._append_to_batch(name, file_node, metadata)
 
-        listing_d.addCallback(scan_listing)
-        return listing_d
+        d.addCallback(scan_listing)
+        return d
 
     def _scan_remote_collective(self):
         self._download_scan_batch = {} # XXX
