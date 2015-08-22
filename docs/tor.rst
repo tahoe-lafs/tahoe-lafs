@@ -59,18 +59,30 @@ For Tahoe-LAFS storage servers there are three use-cases:
 Native Tor integration for Tahoe-LAFS
 =====================================
 
-Native Tor integration for Tahoe-LAFS utilizes the Twisted endpoints API:
-https://twistedmatrix.com/documents/current/core/howto/endpoints.html
+Native Tor integration for Tahoe-LAFS utilizes the Twisted endpoints API::
+* https://twistedmatrix.com/documents/current/core/howto/endpoints.html
 
 Twisted's endpoint parser plugin system is extensible via installing additional
 Twisted packages. The native Tor integration for Tahoe-LAFS uses 
-txsocksx and txtorcon.
+endpoint and parser plugins from the txsocksx and txtorcon modules.
+Although the Twisted endpoint API is very flexible it is missing a feature so that
+servers can be written in an endpoint agnostic style. We've opened a Twisted trac
+ticket for this feature here::
+* https://twistedmatrix.com/trac/ticket/7603
+
+Once this ticket is resolved then an additional changes can be made to Foolscap
+so that it's server side API is completely endpoint agnostic which will allow
+users to easily to use Tahoe-LAFS with many protocols on the server side.
 
 txsocksx will try to use the system tor's SOCKS port if available;
-attempts are made on ports 9050 and 9151.
+attempts are made on ports 9050 and 9151. Currently the maintainer of txsocksx
+has not merged in our code for the Tor client endpoint. We'll use
+this branch until the Tor endpoint code is merged upstream::
+* https://github.com/david415/txsocksx/tree/endpoint_parsers_retry_socks
 
 txtorcon will use the system tor control port to configure Tor Hidden Services
-( pending resolution of tor trac ticket https://trac.torproject.org/projects/tor/ticket/11291 )
+pending resolution of tor trac ticket 11291::
+* https://trac.torproject.org/projects/tor/ticket/11291
 
 See also Tahoe-LAFS Tor related tickets #1010 and #517.
 
@@ -265,3 +277,34 @@ Tahoe-LAFS + Torsocks storage server configuration::
     tub.port = 8098
     tub.location = ualhejtq2p7ohfbb.onion:29212
 
+**Troubleshooting**
+
+On some NetBSD systems, torsocks may segfault::
+
+  $ torsocks telnet www.google.com 80
+  Segmentation fault (core dumped)
+
+and backtraces show looping libc and syscalls::
+
+  #7198 0xbbbda26e in *__socket30 (domain=2, type=1, protocol=6) at socket.c:64
+  #7199 0xbb84baf9 in socket () from /usr/lib/libc.so.12
+  #7200 0xbbbda19b in tsocks_socket (domain=2, type=1, protocol=6) at socket.c:56
+  #7201 0xbbbda26e in *__socket30 (domain=2, type=1, protocol=6) at socket.c:64
+  #7202 0xbb84baf9 in socket () from /usr/lib/libc.so.12
+  [...etc...]
+
+This has to do with the nature of the torsocks socket() call wrapper being unaware
+of NetBSD's internal binary backwards compatibility.
+
+Information on a the first parts of a solution patch can be found in a tor-dev
+thread here from Thomas Klausner:
+
+* https://lists.torproject.org/pipermail/tor-dev/2013-November/005741.html
+
+As of this writing, torsocks still exists in the pkgsrc wip tree here:
+
+* http://pkgsrc.se/wip/torsocks
+
+but the NetBSD-specific patches have been merged upstream into torsocks as of commitid 6adfba809267d9c217906d6974468db22293ab9b:
+
+* https://gitweb.torproject.org/torsocks.git/commit/6adfba809267d9c217906d6974468db22293ab9b
