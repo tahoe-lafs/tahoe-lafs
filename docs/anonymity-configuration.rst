@@ -1,8 +1,8 @@
 ﻿.. -*- coding: utf-8-with-signature; fill-column: 77 -*-
 
-=========================
-Using Tahoe-LAFS with Tor
-=========================
+======================================================
+Using Tahoe-LAFS with an anonymizing network: Tor, I2P
+======================================================
 
 1.  `Use cases`_
 2.  `Native Tor integration for Tahoe-LAFS`_
@@ -18,6 +18,8 @@ Tor is an anonymizing network used to help hide the identity of internet
 clients and servers. Please see the Tor Project's website for more information:
 https://www.torproject.org/
 
+Informative description about what i2p is... here.
+
 
 There are three potential use-cases for Tahoe-LAFS on the client side:
 
@@ -25,11 +27,12 @@ There are three potential use-cases for Tahoe-LAFS on the client side:
    storage servers. This document is not useful to you... so stop reading.
 
 2. User does not care to protect their anonymity but they wish to connect to
-   Tahoe-LAFS storage servers which are accessbile only via Tor Hidden Services.
+   Tahoe-LAFS storage servers which are accessbile only via Tor Hidden Services or I2P.
+   (For Tor users this means only use Tor if the endpoint string has a .onion address.)
 
-3. User wishes to always use Tor to protect their anonymity when
+3. User wishes to always use an anonymizing network (Tor, I2P) to protect their anonymity when
    connecting to Tahoe-LAFS storage grids (whether or not the storage servers
-   are Tor Hidden Services) [*].
+   are anonymous).
 
 
 For Tahoe-LAFS storage servers there are three use-cases:
@@ -38,18 +41,21 @@ For Tahoe-LAFS storage servers there are three use-cases:
    nor to help the clients protect theirs. Stop reading this document 
    and run your Tahoe-LAFS storage server using publicly routed TCP/IP.
 
-2. The operator does not require anonymity for his storage server, but
-   he wants it to be available over both publicly routed TCP/IP and
-   through Tor Hidden Services. One possible reason to do this is
-   because being reachable through Tor Hidden Services is a convenient
+2. The operator does not require anonymity for the storage server, but
+   they want it to be available over both publicly routed TCP/IP and
+   through an anonymizing network (I2P, Tor Hidden Services). One possible reason to do this is
+   because being reachable through an anonymizing network is a convenient
    way to bypass NAT or firewall that prevents publicly routed TCP/IP
    connections to your server. Another is that making your storage
-   server reachable through Tor Hidden Services can provide better
-   protection for your clients who themselves use Tor to protect their
-   anonymity [*].
+   server reachable through an anonymizing network can provide better
+   protection for your clients who themselves use that anonymizing network to protect their
+   anonymity.
 
    See this Tor Project page for more information about Tor Hidden Services:
    https://www.torproject.org/docs/hidden-services.html.en
+
+   See this I2P Project page for more information about I2P:
+   https://...
 
 3. The operator wishes to protect their anonymity by making their 
    Tahoe server accessible only via Tor Hidden Services.
@@ -212,6 +218,29 @@ Tor Hidden Service, as compared to if you upload or download files
 over Tor to a publicly traceable TCP/IP server.
 
 
+Native I2P Integration for Tahoe-LAFS
+=====================================
+
+Really cool and interesting description of how the I2p integration works...
+
+
+Software Dependencies
+=====================
+
+I2p software deps here
+
+
+Configuration
+=============
+
+informative configuration info for i2p users
+
+
+Performance and security issues of I2p (if applicable)
+======================================================
+
+i2p info here
+
 
 Torsocks: the old way of configuring Tahoe-LAFS to use Tor
 ==========================================================
@@ -308,3 +337,9 @@ As of this writing, torsocks still exists in the pkgsrc wip tree here:
 but the NetBSD-specific patches have been merged upstream into torsocks as of commitid 6adfba809267d9c217906d6974468db22293ab9b:
 
 * https://gitweb.torproject.org/torsocks.git/commit/6adfba809267d9c217906d6974468db22293ab9b
+
+
+Legacy I2P Tahoe-LAFS Configuration
+===================================
+
+legacy i2p info here
