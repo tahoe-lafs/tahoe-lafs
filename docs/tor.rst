@@ -167,7 +167,7 @@ Also, interaction, through Tor, with a Tor Hidden Service may be more
 protected from network traffic analysis than interaction, through Tor,
 with a publicly traceable TCP/IP server.
 
-**XXX is there a document maintained by Tor hackers which substantiates or refutes this belief?
+**XXX is there a document maintained by Tor developers which substantiates or refutes this belief?
 If so we need to link to it. If not, then maybe we should explain more here why we think this?**
 
 Performance
@@ -236,31 +236,32 @@ address to the server.
 
 Tahoe-LAFS + Torsocks client configuration::
 
-    * Run a node using ``torsocks``, in client-only mode (i.e. we can
-      make outbound connections, but other nodes will not be able to connect
-      to us). The literal '``client.fakelocation``' will not resolve, but will
-      serve as a reminder to human observers that this node cannot be reached.
-      "Don't call us.. we'll call you"::
+* Run a node using ``torsocks``, in client-only mode (i.e. we can
+  make outbound connections, but other nodes will not be able to connect
+  to us). The literal '``client.fakelocation``' will not resolve, but will
+  serve as a reminder to human observers that this node cannot be reached.
+  "Don't call us.. we'll call you"::
 
-        tub.port = 8098
-        tub.location = client.fakelocation:0
+    tub.port = 8098
+    tub.location = client.fakelocation:0
 
 
 Tahoe-LAFS + Torsocks storage server configuration::
 
-    * Run a node behind a Tor proxy, and make the server available as a Tor
-      "hidden service". (This assumes that other clients are running their
-      node with ``torsocks``, such that they are prepared to connect to a
-      ``.onion`` address.) The hidden service must first be configured in
-      Tor, by giving it a local port number and then obtaining a ``.onion``
-      name, using something in the ``torrc`` file like::
+* Run a node behind a Tor proxy, and make the server available as a Tor
+  "hidden service". (This assumes that other clients are running their
+  node with ``torsocks``, such that they are prepared to connect to a
+  ``.onion`` address.) The hidden service must first be configured in
+  Tor, by giving it a local port number and then obtaining a ``.onion``
+  name, using something in the ``torrc`` file like::
 
-        HiddenServiceDir /var/lib/tor/hidden_services/tahoe
-        HiddenServicePort 29212 127.0.0.1:8098
+    HiddenServiceDir /var/lib/tor/hidden_services/tahoe
+    HiddenServicePort 29212 127.0.0.1:8098
 
-      once Tor is restarted, the ``.onion`` hostname will be in
-      ``/var/lib/tor/hidden_services/tahoe/hostname``. Then set up your
-      ``tahoe.cfg`` like::
+  once Tor is restarted, the ``.onion`` hostname will be in
+  ``/var/lib/tor/hidden_services/tahoe/hostname``. Then set up your
+  ``tahoe.cfg`` like::
 
-        tub.port = 8098
-        tub.location = ualhejtq2p7ohfbb.onion:29212
+    tub.port = 8098
+    tub.location = ualhejtq2p7ohfbb.onion:29212
+
