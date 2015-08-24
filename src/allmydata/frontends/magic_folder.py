@@ -441,7 +441,7 @@ class Downloader(QueueMixin):
                 d = defer.succeed(None)
                 d.addCallback(lambda x, dir_name=dir_name: result[dir_name][0].get_child_and_metadata(filename))
                 list_of_deferreds.append(d)
-            deferList = defer.DeferredList(list_of_deferreds)
+            deferList = defer.DeferredList(list_of_deferreds, consumeErrors=True)
             return deferList
         collective_dirmap_d.addCallback(scan_collective)
         def highest_version(deferredList):
