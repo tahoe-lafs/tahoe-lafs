@@ -130,7 +130,7 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
-        self.upload_ready_d = defer.Deferred()
+        self.connected_enough_d = defer.Deferred()
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
@@ -350,7 +350,7 @@ class Client(node.Node, pollmixin.PollMixin):
                                    self.encoding_params["happy"] + 1)
 
         sb = storage_client.StorageFarmBroker(self.tub, True, connection_threshold,
-                                              self.upload_ready_d)
+                                              self.connected_enough_d)
         self.storage_broker = sb
 
         # load static server specifications from tahoe.cfg, if any.
@@ -514,7 +514,7 @@ class Client(node.Node, pollmixin.PollMixin):
             s.startService()
 
             # start processing the upload queue when we've connected to enough servers
-            self.upload_ready_d.addCallback(s.ready)
+            self.connected_enough_d.addCallback(s.ready)
 
     def _check_exit_trigger(self, exit_trigger_file):
         if os.path.exists(exit_trigger_file):
