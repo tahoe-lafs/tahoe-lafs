@@ -378,17 +378,15 @@ class MagicFolderDB(BackupDB):
                   " WHERE path=?",
                   (path,))
         row = self.cursor.fetchone()
-        print "row = %r" % (row,)
         if not row:
             return None
         else:
             return row[0]
 
     def did_upload_file(self, filecap, path, version, mtime, ctime, size):
-        print "_did_upload_file(%r, %r, %r, %r, %r, %r)" % (filecap, path, version, mtime, ctime, size)
+        #print "_did_upload_file(%r, %r, %r, %r, %r, %r)" % (filecap, path, version, mtime, ctime, size)
         now = time.time()
         fileid = self.get_or_allocate_fileid_for_cap(filecap)
-        print "fileid = %r" % (fileid,)
         try:
             self.cursor.execute("INSERT INTO last_upload VALUES (?,?,?)",
                                 (fileid, now, now))
@@ -398,11 +396,9 @@ class MagicFolderDB(BackupDB):
                                 " WHERE fileid=?",
                                 (now, now, fileid))
         try:
-            print "here1!!!1"
             self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?)",
                                 (path, size, mtime, ctime, fileid, version))
         except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
-            print "here2!!!2"
             self.cursor.execute("UPDATE local_files"
                                 " SET size=?, mtime=?, ctime=?, fileid=?, version=?"
                                 " WHERE path=?",
