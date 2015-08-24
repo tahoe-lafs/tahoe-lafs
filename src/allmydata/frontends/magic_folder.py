@@ -74,18 +74,14 @@ class MagicFolder(service.MultiService):
         self.is_ready = True
         d = self.uploader.start_scanning()
         d2 = self.downloader.start_scanning()
-        d.addCallback(lambda x: d2)
+        d.addCallback(lambda ign: d2)
         return d
 
     def finish(self):
-        print "finish"
+        #print "finish"
         d = self.uploader.stop()
-        def _print(f):
-            print f
-            return f
-        d.addErrback(_print)
-        d.addBoth(lambda ign: self.downloader.stop())
-        d.addErrback(_print)
+        d2 = self.downloader.stop()
+        d.addCallback(lambda ign: d2)
         return d
 
     def remove_service(self):
@@ -124,7 +120,7 @@ class QueueMixin(HookMixin):
     def _log(self, msg):
         s = "Magic Folder %s: %s" % (self._name, msg)
         self._client.log(s)
-        print s
+        #print s
         #open("events", "ab+").write(msg)
 
     def _append_to_deque(self, path):
@@ -470,7 +466,7 @@ class Downloader(QueueMixin):
                 file_node, metadata = listing_map[name]
                 local_version = self._get_local_latest(name)
                 remote_version = metadata.get('version', None)
-                print "%r has local version %r, remote version %r" % (name, local_version, remote_version)
+                #print "%r has local version %r, remote version %r" % (name, local_version, remote_version)
                 if local_version is None or remote_version is None or local_version < remote_version:
                     self._append_to_batch(name, file_node, metadata)
 
@@ -496,10 +492,6 @@ class Downloader(QueueMixin):
             return d
         collective_dirmap_d.addCallback(scan_collective)
         collective_dirmap_d.addCallback(self._filter_scan_batch)
-        def _print(f):
-            print f
-            return f
-        collective_dirmap_d.addErrback(_print)
         collective_dirmap_d.addCallback(self._add_batch_to_download_queue)
         return collective_dirmap_d
 
