@@ -197,6 +197,7 @@ class Uploader(QueueMixin):
             d = self._notifier.wait_until_stopped()
         else:
             d = defer.succeed(None)
+        d.addCallback(lambda ign: self._lazy_tail)
         return d
 
     def start_scanning(self):
