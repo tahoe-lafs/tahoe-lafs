@@ -72,8 +72,10 @@ class MagicFolder(service.MultiService):
         processing the upload and download items...
         """
         self.is_ready = True
-        self.uploader.start_scanning()
-        self.downloader.start_scanning()
+        d = self.uploader.start_scanning()
+        d2 = self.downloader.start_scanning()
+        d.addCallback(lambda x: d2)
+        return d
 
     def finish(self):
         print "finish"
@@ -199,8 +201,9 @@ class Uploader(QueueMixin):
 
     def start_scanning(self):
         self.is_ready = True
-        self._scan(self._local_path_u)
+        d = self._scan(self._local_path_u) # XXX do not want dropped deferreds!
         self._turn_deque()
+        return d
 
     def _scan(self, local_path_u):  # XXX should this take a FilePath?
         if not os.path.isdir(local_path_u):
@@ -395,8 +398,9 @@ class Downloader(QueueMixin):
         self._download_scan_batch = {} # path -> [(filenode, metadata)]
 
     def start_scanning(self):
-        #self._scan_remote_collective()
+        d = self._scan_remote_collective()
         self._turn_deque()
+        return d
 
     def stop(self):
         self._stopped = True
@@ -463,7 +467,7 @@ class Downloader(QueueMixin):
         def scan_listing(listing_map):
             for name in listing_map.keys():
                 file_node, metadata = listing_map[name]
-                local_version = self._get_local_latest(name) # XXX we might need to convert first?
+                local_version = self._get_local_latest(name)
                 remote_version = metadata.get('version', None)
                 print "%r has local version %r, remote version %r" % (name, local_version, remote_version)
                 if local_version is None or remote_version is None or local_version < remote_version:
