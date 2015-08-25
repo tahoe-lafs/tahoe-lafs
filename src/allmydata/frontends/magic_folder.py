@@ -541,5 +541,36 @@ class Downloader(QueueMixin):
         d.addBoth(remove_from_pending)
         return d
 
-    def _write_downloaded_file(self, name, file_contents):
-        fileutil.write(name, file_contents)
+    FUDGE_SECONDS = 10.0
+
+    @classmethod
+    def _write_downloaded_file(cls, path, file_contents, is_conflict=False, now=None):
+        # 1. Write a temporary file, say .foo.tmp.
+        # 2. is_conflict determines whether this is an overwrite or a conflict.
+        # 3. Set the mtime of the replacement file to be T seconds before the
+        #    current local time.
+        # 4. Perform a file replacement with backup filename foo.backup,
+        #    replaced file foo, and replacement file .foo.tmp. If any step of
+        #    this operation fails, reclassify as a conflict and stop.
+
+        precondition(isinstance(path, unicode), path=path)
+
+        replacement_path = path + u".tmp"  # FIXME more unique
+        backup_path = path + u".backup"
+        if now is None:
+            now = time.time()
+
+        fileutil.write(replacement_path, file_contents)
+        os.utimes(replacement_path, (now, now - cls.FUDGE_SECONDS))
+        if is_conflict:
+            cls._rename_conflicted_file(path, replacement_path)
+        else:
+            try:
+                fileutil.replace_file(path, replacement_path, backup_path)
+            except fileutil.ConflictError:
+                cls._rename_conflicted_file(path, replacement_path)
+
+    @classmethod
+    def _rename_conflicted_file(self, path, replacement_path):
+        conflict_path = path + u".conflict"
+        fileutil.rename_no_overwrite(replacement_path, conflict_path)
