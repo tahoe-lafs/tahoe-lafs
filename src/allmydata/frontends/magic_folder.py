@@ -518,9 +518,15 @@ class Downloader(QueueMixin):
         (name, file_node, metadata) = item
         d = file_node.download_best_version()
         def succeeded(res):
-            def do_update_db(result):
+            def do_update_db(result, is_conflicted=False):
                 filecap = file_node.get_uri()
-                s = os.stat(name)
+                full_path = fileutil.abspath_expanduser_unicode(name, base=self._local_path_u)
+                if is_conflicted:
+                    full_path = full_path + u".conflict" # XXX do we want to mark the conflicted in the db???
+                try:
+                    s = os.stat(full_path)
+                except:
+                    raise(Exception("wtf downloaded file %s disappeared" % full_path))
                 size = s[stat.ST_SIZE]
                 ctime = s[stat.ST_CTIME]
                 mtime = s[stat.ST_MTIME]
@@ -528,6 +534,7 @@ class Downloader(QueueMixin):
             d2 = defer.succeed(res)
             d2.addCallback(lambda result: self._write_downloaded_file(name, result, self._local_path_u))
             d2.addCallback(do_update_db)
+            d2.addErrback(lambda x: do_update_db(x, is_conflicted=True))
             self._count('objects_downloaded')
             return d2
         def failed(f):
@@ -568,7 +575,10 @@ class Downloader(QueueMixin):
             try:
                 fileutil.replace_file(path, replacement_path, backup_path)
             except fileutil.ConflictError:
+                is_conflict = True
                 cls._rename_conflicted_file(path, replacement_path)
+        if is_conflict:
+            raise(Exception("Conflict detected..."))
 
     @classmethod
     def _rename_conflicted_file(self, path, replacement_path):
