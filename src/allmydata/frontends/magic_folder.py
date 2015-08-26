@@ -526,7 +526,7 @@ class Downloader(QueueMixin):
                 mtime = s[stat.ST_MTIME]
                 self._db.did_upload_file(filecap, name, metadata['version'], mtime, ctime, size)
             d2 = defer.succeed(res)
-            d2.addCallback(lambda result: self._write_downloaded_file(name, result))
+            d2.addCallback(lambda result: self._write_downloaded_file(name, result, self._local_path_u))
             d2.addCallback(do_update_db)
             self._count('objects_downloaded')
             return d2
@@ -544,7 +544,7 @@ class Downloader(QueueMixin):
     FUDGE_SECONDS = 10.0
 
     @classmethod
-    def _write_downloaded_file(cls, path, file_contents, is_conflict=False, now=None):
+    def _write_downloaded_file(cls, path, file_contents, base, is_conflict=False, now=None):
         # 1. Write a temporary file, say .foo.tmp.
         # 2. is_conflict determines whether this is an overwrite or a conflict.
         # 3. Set the mtime of the replacement file to be T seconds before the
@@ -554,7 +554,7 @@ class Downloader(QueueMixin):
         #    this operation fails, reclassify as a conflict and stop.
 
         precondition(isinstance(path, unicode), path=path)
-
+        path = fileutil.abspath_expanduser_unicode(path, base=base)
         replacement_path = path + u".tmp"  # FIXME more unique
         backup_path = path + u".backup"
         if now is None:
