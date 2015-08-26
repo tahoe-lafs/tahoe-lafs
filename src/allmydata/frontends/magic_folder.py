@@ -573,7 +573,9 @@ class Downloader(QueueMixin):
             cls._rename_conflicted_file(path, replacement_path)
         else:
             try:
+                print "-------- here's the conflict replace_file: path %s, replacement_path %s, backup_path %s" % (path, replacement_path, backup_path)
                 fileutil.replace_file(path, replacement_path, backup_path)
+
             except fileutil.ConflictError:
                 is_conflict = True
                 cls._rename_conflicted_file(path, replacement_path)
