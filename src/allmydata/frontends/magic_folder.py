@@ -561,7 +561,7 @@ class Downloader(QueueMixin):
             now = time.time()
 
         fileutil.write(replacement_path, file_contents)
-        os.utimes(replacement_path, (now, now - cls.FUDGE_SECONDS))
+        os.utime(replacement_path, (now, now - cls.FUDGE_SECONDS))
         if is_conflict:
             cls._rename_conflicted_file(path, replacement_path)
         else:
