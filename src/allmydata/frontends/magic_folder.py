@@ -534,7 +534,7 @@ class Downloader(QueueMixin):
             d2 = defer.succeed(res)
             d2.addCallback(lambda result: self._write_downloaded_file(name, result, self._local_path_u))
             d2.addCallback(do_update_db)
-            d2.addErrback(lambda x: do_update_db(x, is_conflicted=True))
+            # XXX handle failure here with addErrback...
             self._count('objects_downloaded')
             return d2
         def failed(f):
@@ -573,14 +573,12 @@ class Downloader(QueueMixin):
             cls._rename_conflicted_file(path, replacement_path)
         else:
             try:
-                print "-------- here's the conflict replace_file: path %s, replacement_path %s, backup_path %s" % (path, replacement_path, backup_path)
                 fileutil.replace_file(path, replacement_path, backup_path)
-
             except fileutil.ConflictError:
                 is_conflict = True
                 cls._rename_conflicted_file(path, replacement_path)
         if is_conflict:
-            raise(Exception("Conflict detected..."))
+            raise ConflictError("Conflict detected...")
 
     @classmethod
     def _rename_conflicted_file(self, path, replacement_path):
