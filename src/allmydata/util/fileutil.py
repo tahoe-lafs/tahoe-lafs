@@ -619,12 +619,11 @@ else:
         if not os.path.exists(replacement_path):
             raise ConflictError("Replacement file not found: %r" % (replacement_path,))
         try:
-            os.rename(replaced_path, backup_path)
+            if os.path.exists(replaced_path):
+                os.rename(replaced_path, backup_path)
             rename_no_overwrite(replacement_path, replaced_path)
         except EnvironmentError:
-            print "@@@@@@@@@@@@@@@@@@@@@@@@@@@env err"
             reraise(ConflictError)
-
 
 PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size ctime mtime')
 
