@@ -4,7 +4,7 @@ Futz with files like a pro.
 
 import sys, exceptions, os, stat, tempfile, time, binascii
 from collections import namedtuple
-from errno import EEXIST, ENOENT
+from errno import ENOENT
 
 from twisted.python import log
 
@@ -618,12 +618,14 @@ else:
 
         if not os.path.exists(replacement_path):
             raise ConflictError("Replacement file not found: %r" % (replacement_path,))
+
         try:
-            try:
-                os.rename(replaced_path, backup_path)
-            except OSError as e:
-                if e.errno != errno.EEXIST:
-                    raise
+            os.rename(replaced_path, backup_path)
+        except OSError as e:
+            print e, e.errno
+            if e.errno != ENOENT:
+                raise
+        try:
             rename_no_overwrite(replacement_path, replaced_path)
         except EnvironmentError:
             reraise(ConflictError)
