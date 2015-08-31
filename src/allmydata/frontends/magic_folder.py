@@ -519,17 +519,21 @@ class Downloader(QueueMixin):
         (name, file_node, metadata) = item
         d = file_node.download_best_version()
         def succeeded(res):
-            def do_update_db(result):
+            d2 = defer.succeed(res)
+            absname = abspath_expanduser_unicode(name, base=self._local_path_u)
+            d2.addCallback(lambda result: self._write_downloaded_file(absname, result, is_conflict=False))
+            def do_update_db(full_path):
                 filecap = file_node.get_uri()
-                s = os.stat(name)
+                try:
+                    s = os.stat(full_path)
+                except:
+                    raise(Exception("wtf downloaded file %s disappeared" % full_path))
                 size = s[stat.ST_SIZE]
                 ctime = s[stat.ST_CTIME]
                 mtime = s[stat.ST_MTIME]
                 self._db.did_upload_file(filecap, name, metadata['version'], mtime, ctime, size)
-            d2 = defer.succeed(res)
-            absname = abspath_expanduser_unicode(name)
-            d2.addCallback(lambda result: self._write_downloaded_file(absname, result))
             d2.addCallback(do_update_db)
+            # XXX handle failure here with addErrback...
             self._count('objects_downloaded')
             return d2
         def failed(f):
