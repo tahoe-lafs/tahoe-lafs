@@ -11,7 +11,6 @@ from .test_cli import CLITestMixin
 from allmydata.scripts import magic_folder_cli
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.frontends.magic_folder import MagicFolder
-from allmydata.frontends.magic_folder import Downloader
 from allmydata import uri
 
 
@@ -202,35 +201,3 @@ class CreateMagicFolder(MagicFolderTestMixin, unittest.TestCase):
         d.addCallback(lambda x: self.check_joined_config(0, self.upload_dircap))
         d.addCallback(lambda x: self.check_config(0, self.local_dir))
         return d
-
-    def test_write_downloaded_file(self):
-        workdir = u"cli/MagicFolder/write-downloaded-file"
-        local_file = fileutil.abspath_expanduser_unicode(os.path.join(workdir, "foobar"))
-
-        # create a file with name "foobar" with content "foo"
-        # write downloaded file content "bar" into "foobar" with is_conflict = False
-        fileutil.make_dirs(workdir)
-        fileutil.write(local_file, "foo")
-
-        # if is_conflict is False, then the .conflict file shouldn't exist.
-        Downloader._write_downloaded_file(local_file, "bar", False, None)
-        conflicted_path = local_file + u".conflict"
-        self.failIf(os.path.exists(conflicted_path))
-
-        # At this point, the backup file should exist with content "foo"
-        backup_path = local_file + u".backup"
-        self.failUnless(os.path.exists(backup_path))
-        self.failUnlessEqual(fileutil.read(backup_path), "foo")
-
-        # .tmp file shouldn't exist
-        self.failIf(os.path.exists(local_file + u".tmp"))
-
-        # .. and the original file should have the new content
-        self.failUnlessEqual(fileutil.read(local_file), "bar")
-
-        # now a test for conflicted case
-        Downloader._write_downloaded_file(local_file, "bar", True, None)
-        self.failUnless(os.path.exists(conflicted_path))
-
-        # .tmp file shouldn't exist
-        self.failIf(os.path.exists(local_file + u".tmp"))
