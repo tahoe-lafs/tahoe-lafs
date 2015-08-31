@@ -554,6 +554,8 @@ class Downloader(QueueMixin):
         # 4. Perform a file replacement with backup filename foo.backup,
         #    replaced file foo, and replacement file .foo.tmp. If any step of
         #    this operation fails, reclassify as a conflict and stop.
+        #
+        # Returns the path of the destination file.
 
         precondition(isinstance(path, unicode), path=path)
 
@@ -565,14 +567,16 @@ class Downloader(QueueMixin):
         fileutil.write(replacement_path, file_contents)
         os.utime(replacement_path, (now, now - cls.FUDGE_SECONDS))
         if is_conflict:
-            cls._rename_conflicted_file(path, replacement_path)
+            return cls._rename_conflicted_file(path, replacement_path)
         else:
             try:
                 fileutil.replace_file(path, replacement_path, backup_path)
+                return path
             except fileutil.ConflictError:
-                cls._rename_conflicted_file(path, replacement_path)
+                return cls._rename_conflicted_file(path, replacement_path)
 
     @classmethod
     def _rename_conflicted_file(self, path, replacement_path):
         conflict_path = path + u".conflict"
         fileutil.rename_no_overwrite(replacement_path, conflict_path)
+        return conflict_path
