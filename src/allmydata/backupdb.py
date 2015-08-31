@@ -368,6 +368,17 @@ class BackupDB:
 class MagicFolderDB(BackupDB):
     VERSION = 3
 
+    def get_all_files(self):
+        """Retreive a list of all files that have had an entry in magic-folder db
+        (files that have been downloaded at least once).
+        """
+        self.cursor.execute("SELECT path FROM local_files")
+        rows = self.cursor.fetchall()
+        if not rows:
+            return None
+        else:
+            return rows
+
     def get_local_file_version(self, path):
         """I will tell you the version of a local file tracked by our magic folder db.
         If no db entry found then I'll return None.
