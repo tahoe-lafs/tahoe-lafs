@@ -460,16 +460,17 @@ class Downloader(QueueMixin):
             self._download_scan_batch[name] = [(file_node, metadata)]
 
     def _scan_remote(self, nickname, dirnode):
+        print "------------------_scan_remote----------------------"
         d = dirnode.list()
         def scan_listing(listing_map):
             for name in listing_map.keys():
                 file_node, metadata = listing_map[name]
                 local_version = self._get_local_latest(name)
                 remote_version = metadata.get('version', None)
-                #print "%r has local version %r, remote version %r" % (name, local_version, remote_version)
+                print "%r has local version %r, remote version %r" % (name, local_version, remote_version)
                 if local_version is None or remote_version is None or local_version < remote_version:
+                    print "added to download queue\n"
                     self._append_to_batch(name, file_node, metadata)
-
         d.addCallback(scan_listing)
         return d
 

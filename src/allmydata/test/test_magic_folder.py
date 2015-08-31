@@ -325,12 +325,12 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
             # XXX are these used?
             (self.alice_collective_dircap, self.alice_upload_dircap, self.alice_magicfolder,
              self.bob_collective_dircap,   self.bob_upload_dircap,   self.bob_magicfolder) = result
-            #print "Alice magicfolderdb is at %r" % (self.alice_magicfolder._client.basedir)
-            #print "Bob   magicfolderdb is at %r" % (self.bob_magicfolder._client.basedir)
+            print "Alice magicfolderdb is at %r" % (self.alice_magicfolder._client.basedir)
+            print "Bob   magicfolderdb is at %r" % (self.bob_magicfolder._client.basedir)
         d.addCallback(get_results)
 
         def Alice_write_a_file(result):
-            #print "Alice writes a file\n"
+            print "Alice writes a file\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
             self.magicfolder = self.alice_magicfolder
@@ -339,7 +339,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         d.addCallback(Alice_write_a_file)
 
         def Alice_wait_for_upload(result):
-            #print "Alice waits for an upload\n"
+            print "Alice waits for an upload\n"
             d2 = self.alice_magicfolder.uploader.set_hook('processed')
             return d2
         d.addCallback(Alice_wait_for_upload)
@@ -352,7 +352,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created', client=self.alice_magicfolder._client), 0))
 
         def Bob_wait_for_download(result):
-            #print "Bob waits for a download\n"
+            print "Bob waits for a download\n"
             d2 = self.bob_magicfolder.downloader.set_hook('processed')
             return d2
         d.addCallback(Bob_wait_for_download)
@@ -363,7 +363,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
         # test deletion of file behavior
         def Alice_delete_file(result):
-            #print "Alice deletes the file!\n"
+            print "Alice deletes the file!\n"
             os.unlink(self.file_path)
             self.notify(to_filepath(self.file_path), self.inotify.IN_DELETE)
 
@@ -381,7 +381,7 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
 
 
         def Alice_rewrite_file(result):
-            #print "Alice rewrites file\n"
+            print "Alice rewrites file\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "Alice suddenly sees the white rabbit running into the forest.")
             self.magicfolder = self.alice_magicfolder
