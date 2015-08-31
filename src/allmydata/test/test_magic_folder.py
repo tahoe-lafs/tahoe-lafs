@@ -209,25 +209,31 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
 
         def restart(ignore):
-            #print "restart"
+            print "restart"
             tahoe_config_file = os.path.join(self.get_clientdir(), "tahoe.cfg")
             tahoe_config = fileutil.read(tahoe_config_file)
             d3 = defer.succeed(None)
             def write_config(client_node_dir):
-                #print "write_config"
+                print "write_config"
                 fileutil.write(os.path.join(client_node_dir, "tahoe.cfg"), tahoe_config)
             def setup_stats(result):
-                #print "setup_stats"
+                print "setup_stats"
                 self.client = None
                 self.set_up_grid(client_config_hooks={0: write_config})
                 self.client = self.g.clients[0]
                 self.stats_provider = self.client.stats_provider
                 self.magicfolder = self.client.getServiceNamed("magic-folder")
 
-            d3.addBoth(self.cleanup)
+                #dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
+                #self.magicfolder = MagicFolder(self.client, self.upload_dircap, self.collective_dircap, self.local_dir,
+                #                               dbfile, inotify=self.inotify, pending_delay=0.2)
+                self.magicfolder.setServiceParent(self.client)
+                self.magicfolder.ready()
+
+            #d3.addBoth(self.cleanup)
             d3.addCallback(setup_stats)
-            #d3.addCallback(self._create_magicfolder)
             return d3
+        d.addBoth(self.cleanup)
         d.addCallback(restart)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
