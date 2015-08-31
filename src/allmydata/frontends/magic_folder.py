@@ -12,7 +12,7 @@ from twisted.application import service
 from allmydata.util import fileutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
-from allmydata.util.fileutil import precondition_abspath, get_pathinfo
+from allmydata.util.fileutil import precondition_abspath, get_pathinfo, abspath_expanduser_unicode
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
@@ -526,7 +526,8 @@ class Downloader(QueueMixin):
                 mtime = s[stat.ST_MTIME]
                 self._db.did_upload_file(filecap, name, metadata['version'], mtime, ctime, size)
             d2 = defer.succeed(res)
-            d2.addCallback(lambda result: self._write_downloaded_file(name, result))
+            absname = abspath_expanduser_unicode(name)
+            d2.addCallback(lambda result: self._write_downloaded_file(absname, result))
             d2.addCallback(do_update_db)
             self._count('objects_downloaded')
             return d2
