@@ -395,6 +395,11 @@ class Downloader(QueueMixin):
         self._download_scan_batch = {} # path -> [(filenode, metadata)]
 
     def start_scanning(self):
+        print "start_scanning----\n"
+        all_files = self._db.get_all_files()
+        print "---------------------"
+        print "all files in magic folder db: %s\n" % all_files
+        print "---------------------"
         d = self._scan_remote_collective()
         self._turn_deque()
         return d
