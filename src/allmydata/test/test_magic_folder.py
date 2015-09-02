@@ -12,16 +12,15 @@ from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
-from allmydata.test.test_cli_magic_folder import MagicFolderTestMixin
+from .test_cli_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
-from allmydata.frontends.magic_folder import MagicFolder
-from allmydata.frontends.magic_folder import Downloader
+from allmydata.frontends.magic_folder import MagicFolder, Downloader
 from allmydata import backupdb, magicpath
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
-class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
+class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
     """
     These tests will be run both with a mock notifier, and (on platforms that support it)
     with the real INotify.
@@ -86,18 +85,19 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         self.failUnless(r.was_uploaded())
 
     def test_magicfolder_start_service(self):
-        self.set_up_grid()
-
         self.local_dir = abspath_expanduser_unicode(self.unicode_or_fallback(u"l\u00F8cal_dir", u"local_dir"),
                                                     base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
 
+        def _create_invite_join(clientdir):
+            self.create_invite_join_magic_folder(u"Alice", self.local_dir)
+            return NoNetworkClient(clientdir)
+        self.set_up_grid(client_config_hooks={0: _create_invite_join})
+
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
 
-        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
-        d.addCallback(self._create_magicfolder)
-
+        d = self.client.magicfolder.set_hook('started')
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 1))
         d.addBoth(self.cleanup)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 0))
@@ -187,6 +187,8 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         a second time. This test is meant to test the database persistence along with
         the startup and shutdown code paths of the magic-folder service.
         """
+        A = set(dir(self))
+        print "A", A
         self.set_up_grid()
         self.local_dir = abspath_expanduser_unicode(u"test_persistence", base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
@@ -207,30 +209,51 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         d.addCallback(create_test_file)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
+        d.addCallback(self.cleanup)
+        def _print(res):
+            print res
+        d.addCallback(lambda ign: _print(self.s.services))
+        d.addCallback(lambda ign: self.s.removeService(self.g))
+        def _reset_s(res):
+            print "reset s"
+            self.s = None
+        d.addCallback(_reset_s)
+        d.addCallback(lambda ign: GridTestMixin.setUp(self))
 
         def restart(ignore):
-            #print "restart"
+            print "restart"
             tahoe_config_file = os.path.join(self.get_clientdir(), "tahoe.cfg")
             tahoe_config = fileutil.read(tahoe_config_file)
+            print tahoe_config
+            self.failUnlessIn("[magic_folder]\nenabled = True", tahoe_config)
             d3 = defer.succeed(None)
             def write_config(client_node_dir):
-                #print "write_config"
+                print "write_config"
                 fileutil.write(os.path.join(client_node_dir, "tahoe.cfg"), tahoe_config)
             def setup_stats(result):
-                #print "setup_stats"
-                self.client = None
+                print "setup_stats"
+
+                del self.client_baseurls
+                del self.stats_provider
+                del self.g
+                del self.client
+                del self.client_webports
+                del self.magicfolder
+                C = set(dir(self))
+                print "C", C
+                print "A - C", A - C
+                print "C - A", C - A
                 self.set_up_grid(client_config_hooks={0: write_config})
                 self.client = self.g.clients[0]
                 self.stats_provider = self.client.stats_provider
-                self.magicfolder = self.client.getServiceNamed("magic-folder")
+                #self.magicfolder = self.client.getServiceNamed("magic-folder")
 
-            d3.addBoth(self.cleanup)
-            d3.addCallback(setup_stats)
+            #d3.addCallback(setup_stats)
             #d3.addCallback(self._create_magicfolder)
             return d3
         d.addCallback(restart)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
+        #d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 0))
+        #d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addBoth(self.cleanup)
         return d
 

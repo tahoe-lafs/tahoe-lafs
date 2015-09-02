@@ -14,7 +14,7 @@ from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import uri
 
 
-class MagicFolderTestMixin(CLITestMixin, GridTestMixin):
+class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
     def do_create_magic_folder(self, client_num):
         d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
@@ -77,21 +77,16 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin):
         self.failIf(ret is None)
 
     def create_invite_join_magic_folder(self, nickname, local_dir):
-        d = self.do_cli("magic-folder", "create", u"magic:", nickname, local_dir)
-        def _done((rc,stdout,stderr)):
-            self.failUnless(rc == 0)
-            return (rc,stdout,stderr)
-        d.addCallback(_done)
-        def get_alice_caps(x):
-            self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
-            self.collective_dirnode = self.client.create_node_from_uri(self.collective_dircap)
-            self.upload_dirnode     = self.client.create_node_from_uri(self.upload_dircap)
-        d.addCallback(get_alice_caps)
-        d.addCallback(lambda x: self.check_joined_config(0, self.upload_dircap))
-        d.addCallback(lambda x: self.check_config(0, local_dir))
-        return d
+        rc, stdout, stderr = self.do_cli_synchronously("magic-folder", "create", u"magic:", nickname, local_dir)
+        self.failUnless(rc == 0)
+        self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
+        self.collective_dirnode = self.client.create_node_from_uri(self.collective_dircap)
+        self.upload_dirnode     = self.client.create_node_from_uri(self.upload_dircap)
+        self.check_joined_config(0, self.upload_dircap)
+        self.check_config(0, local_dir)
 
     def cleanup(self, res):
+        print "cleanup", res
         d = defer.succeed(None)
         if self.magicfolder is not None:
             d.addCallback(lambda ign: self.magicfolder.finish())
@@ -156,7 +151,7 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin):
         return d
 
 
-class CreateMagicFolder(MagicFolderTestMixin, unittest.TestCase):
+class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
     def test_create_and_then_invite_join(self):
         self.basedir = "cli/MagicFolder/create-and-then-invite-join"

@@ -95,7 +95,7 @@ class QueueMixin(HookMixin):
         self._local_path = to_filepath(local_path_u)
         self._db = db
         self._name = name
-        self._hooks = {'processed': None}
+        self._hooks = {'processed': None, 'started': None}
 
         if not self._local_path.exists():
             raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
@@ -184,6 +184,7 @@ class Uploader(QueueMixin):
     def start_monitoring(self):
         d = self._notifier.startReading()
         self._count('dirs_monitored')
+        d.addBoth(self._call_hook, 'started')
         return d
 
     def stop(self):
