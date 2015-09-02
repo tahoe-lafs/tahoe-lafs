@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ -d /Applications/tahoe.app ]; then
+   rm -r /Applications/tahoe.app
+fi
+
+if [ -f /etc/paths.d/tahoe ]; then
+   rm /etc/paths.d/tahoe
+fi
