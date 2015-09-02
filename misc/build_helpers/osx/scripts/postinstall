@@ -1,3 +1,8 @@
 #!/bin/bash
 
-echo "/Applications/tahoe.app/bin" >> /etc/paths.d/tahoe
+PWD=`pwd`
+
+echo "/Applications/tahoe.app/bin/" >> /etc/paths.d/tahoe
+
+# copy the manpage into /etc/manpaths.d/
+echo "/Applications/tahoe.app/docs/man/" >> /etc/manpaths.d/tahoe
