@@ -120,7 +120,7 @@ class QueueMixin(HookMixin):
     def _log(self, msg):
         s = "Magic Folder %s: %s" % (self._name, msg)
         self._client.log(s)
-        #print s
+        print s
         #open("events", "ab+").write(msg)
 
     def _append_to_deque(self, path):
@@ -395,6 +395,10 @@ class Downloader(QueueMixin):
         self._download_scan_batch = {} # path -> [(filenode, metadata)]
 
     def start_scanning(self):
+        self._log("\nstart_scanning")
+        files = self._db.get_all_files()
+        self._log("all files %s" % files)
+
         d = self._scan_remote_collective()
         self._turn_deque()
         return d
@@ -460,21 +464,22 @@ class Downloader(QueueMixin):
             self._download_scan_batch[name] = [(file_node, metadata)]
 
     def _scan_remote(self, nickname, dirnode):
-        print "------------------_scan_remote----------------------"
+        self._log("_scan_remote nickname %s" % nickname)
         d = dirnode.list()
         def scan_listing(listing_map):
             for name in listing_map.keys():
                 file_node, metadata = listing_map[name]
                 local_version = self._get_local_latest(name)
                 remote_version = metadata.get('version', None)
-                print "%r has local version %r, remote version %r" % (name, local_version, remote_version)
+                self._log("%r has local version %r, remote version %r" % (name, local_version, remote_version))
                 if local_version is None or remote_version is None or local_version < remote_version:
-                    print "added to download queue\n"
+                    self._log("added to download queue\n")
                     self._append_to_batch(name, file_node, metadata)
         d.addCallback(scan_listing)
         return d
 
     def _scan_remote_collective(self):
+        self._log("_scan_remote_collective")
         self._download_scan_batch = {} # XXX
 
         if self._collective_dirnode is None:
