@@ -49,6 +49,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         def _restarted(ign):
             print "_restarted"
             self.magicfolder = self.get_client().getServiceNamed('magic-folder')
+            return self.magicfolder.uploader.started_d
         d.addCallback(_restarted)
         return d
 
