@@ -14,7 +14,7 @@ from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import uri
 
 
-class MagicFolderTestMixin(CLITestMixin, GridTestMixin):
+class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
     def do_create_magic_folder(self, client_num):
         d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
