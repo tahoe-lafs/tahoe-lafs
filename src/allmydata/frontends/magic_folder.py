@@ -109,8 +109,6 @@ class QueueMixin(HookMixin):
         self._deque = deque()
         self._lazy_tail = defer.succeed(None)
         self._pending = set()
-        self._callback = lambda ign: None
-        self._ignore_count = 0
         self._stopped = False
         self._turn_delay = 0
 
