@@ -209,12 +209,14 @@ class MagicFolderTestMixin(MagicFolderTestMixin, ShouldFailMixin, ReallyEqualMix
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
 
         def restart(ignore):
-            #print "restart"
+            print "restart"
             tahoe_config_file = os.path.join(self.get_clientdir(), "tahoe.cfg")
             tahoe_config = fileutil.read(tahoe_config_file)
+            print tahoe_config
+            self.failUnlessIn("[magic_folder]\nenabled = True", tahoe_config)
             d3 = defer.succeed(None)
             def write_config(client_node_dir):
-                #print "write_config"
+                print "write_config"
                 fileutil.write(os.path.join(client_node_dir, "tahoe.cfg"), tahoe_config)
             def setup_stats(result):
                 #print "setup_stats"
