@@ -33,7 +33,8 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.magicfolder = None
 
     def _get_count(self, name, client=None):
-        return (client or self).stats_provider.get_stats()["counters"].get('magic_folder.%s' % (name,), 0)
+        counters = (client or self.get_client()).stats_provider.get_stats()["counters"]
+        return counters.get('magic_folder.%s' % (name,), 0)
 
     def _createdb(self):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
@@ -47,19 +48,15 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d = self.restart_client()
         def _restarted(ign):
             print "_restarted"
-            self.client = self.get_client()
-            print self.client
-            print self.client.services
-            self.magicfolder = self.client.getServiceNamed('magic-folder')
-            #self.magicfolder.ready()
+            self.magicfolder = self.get_client().getServiceNamed('magic-folder')
         d.addCallback(_restarted)
         return d
 
     def _create_magicfolder(self, ign):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
-        self.magicfolder = MagicFolder(self.client, self.upload_dircap, self.collective_dircap, self.local_dir,
+        self.magicfolder = MagicFolder(self.get_client(), self.upload_dircap, self.collective_dircap, self.local_dir,
                                        dbfile, inotify=self.inotify, pending_delay=0.2)
-        self.magicfolder.setServiceParent(self.client)
+        self.magicfolder.setServiceParent(self.get_client())
         self.magicfolder.ready()
 
     # Prevent unclean reactor errors.
@@ -104,9 +101,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
                                                     base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
 
-        self.client = self.g.clients[0]
-        self.stats_provider = self.client.stats_provider
-
         d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._restart_client)
 
@@ -121,9 +115,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.local_dir = abspath_expanduser_unicode(self.unicode_or_fallback(u"l\u00F8cal_dir", u"local_dir"),
                                                     base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
-
-        self.client = self.g.clients[0]
-        self.stats_provider = self.client.stats_provider
 
         empty_tree_name = self.unicode_or_fallback(u"empty_tr\u00EAe", u"empty_tree")
         empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
@@ -203,8 +194,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.local_dir = abspath_expanduser_unicode(u"test_persistence", base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
 
-        self.client = self.g.clients[0]
-        self.stats_provider = self.client.stats_provider
         self.collective_dircap = ""
 
         d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
@@ -232,11 +221,8 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
                 fileutil.write(os.path.join(client_node_dir, "tahoe.cfg"), tahoe_config)
             def setup_stats(result):
                 #print "setup_stats"
-                self.client = None
                 self.set_up_grid(client_config_hooks={0: write_config})
-                self.client = self.g.clients[0]
-                self.stats_provider = self.client.stats_provider
-                self.magicfolder = self.client.getServiceNamed("magic-folder")
+                self.magicfolder = self.get_client().getServiceNamed("magic-folder")
 
             d3.addBoth(self.cleanup)
             d3.addCallback(setup_stats)
@@ -252,9 +238,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
         self.mkdir_nonascii(self.local_dir)
-
-        self.client = self.g.clients[0]
-        self.stats_provider = self.client.stats_provider
 
         d = self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
         d.addCallback(self._create_magicfolder)
