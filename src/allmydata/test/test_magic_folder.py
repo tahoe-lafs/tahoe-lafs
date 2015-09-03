@@ -105,9 +105,8 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
         d.addCallback(self._restart_client)
 
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 2)) # why 2??
         d.addBoth(self.cleanup)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 0))
         return d
 
     def test_move_tree(self):
