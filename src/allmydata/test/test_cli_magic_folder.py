@@ -14,7 +14,7 @@ from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import uri
 
 
-class MagicFolderTestMixin(CLITestMixin, GridTestMixin):
+class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
     def do_create_magic_folder(self, client_num):
         d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
@@ -157,7 +157,7 @@ class MagicFolderTestMixin(CLITestMixin, GridTestMixin):
         return d
 
 
-class CreateMagicFolder(MagicFolderTestMixin, unittest.TestCase):
+class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
     def test_create_and_then_invite_join(self):
         self.basedir = "cli/MagicFolder/create-and-then-invite-join"
