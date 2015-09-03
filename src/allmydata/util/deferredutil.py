@@ -113,6 +113,7 @@ class HookMixin:
         'res' is returned so that the current result or failure will be passed
         through.
         """
+        print "calling hook %r" % (name,)
         hook = self._hooks[name]
         if hook is None:
             return defer.succeed(None)
