@@ -500,6 +500,7 @@ class Client(node.Node, pollmixin.PollMixin):
                                        "See docs/frontends/magic-folder.rst for more information.")
 
         if self.get_config("magic_folder", "enabled", False, boolean=True):
+            print "magic folder enabled"
             upload_dircap = self.get_private_config("magic_folder_dircap")
             collective_dircap = self.get_private_config("collective_dircap")
 
