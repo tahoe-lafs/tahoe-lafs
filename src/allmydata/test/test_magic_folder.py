@@ -42,6 +42,19 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.failUnlessEqual(bdb.VERSION, 3)
         return bdb
 
+    def _restart_client(self, ign):
+        print "_restart_client"
+        d = self.restart_client()
+        def _restarted(ign):
+            print "_restarted"
+            self.client = self.get_client()
+            print self.client
+            print self.client.services
+            self.magicfolder = self.client.getServiceNamed('magic-folder')
+            #self.magicfolder.ready()
+        d.addCallback(_restarted)
+        return d
+
     def _create_magicfolder(self, ign):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
         self.magicfolder = MagicFolder(self.client, self.upload_dircap, self.collective_dircap, self.local_dir,
@@ -95,7 +108,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.stats_provider = self.client.stats_provider
 
         d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
-        d.addCallback(self._create_magicfolder)
+        d.addCallback(self._restart_client)
 
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 1))
         d.addBoth(self.cleanup)
