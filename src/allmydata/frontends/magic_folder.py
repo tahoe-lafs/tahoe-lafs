@@ -64,6 +64,10 @@ class MagicFolder(service.MultiService):
         self.downloader = Downloader(client, local_path_u, db, collective_dircap)
 
     def startService(self):
+        # TODO: why is this being called more than once?
+        if self.running:
+            return defer.succeed(None)
+        #print "%r.startService" % (self,)
         service.MultiService.startService(self)
         return self.uploader.start_monitoring()
 
