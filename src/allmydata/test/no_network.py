@@ -386,7 +386,7 @@ class GridTestMixin:
     def restart_client(self, i=0):
         client = self.g.clients[i]
         d = defer.succeed(None)
-        d.addCallback(lambda ign: client.stopService())
+        d.addCallback(lambda ign: self.g.removeService(client))
         def _make_client(ign):
             c = self.g.make_client(i, write_config=False)
             self.g.clients[i] = c
