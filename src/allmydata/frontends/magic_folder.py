@@ -466,7 +466,7 @@ class Downloader(QueueMixin):
             self._download_scan_batch[name] = [(file_node, metadata)]
 
     def _scan_remote(self, nickname, dirnode):
-        self._log("_scan_remote nickname %s" % nickname)
+        self._log("_scan_remote nickname %r" % (nickname,))
         d = dirnode.list()
         def scan_listing(listing_map):
             for name in listing_map.keys():
