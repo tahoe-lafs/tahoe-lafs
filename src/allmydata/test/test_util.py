@@ -495,13 +495,14 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         os.remove(backup_path)
         os.remove(replaced_path)
         fileutil.write(replacement_path, "bar")
-        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path, backup_path)
-        self.failUnlessEqual(fileutil.read(replacement_path), "bar")
-        self.failIf(os.path.exists(replaced_path))
+        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failIf(os.path.exists(replacement_path))
         self.failIf(os.path.exists(backup_path))
 
         # when replaced, replacement and backup all exist
         fileutil.write(replaced_path,    "foo")
+        fileutil.write(replacement_path, "bar")
         fileutil.write(backup_path,      "bak")
         fileutil.replace_file(replaced_path, replacement_path, backup_path)
         self.failUnlessEqual(fileutil.read(backup_path),   "foo")
