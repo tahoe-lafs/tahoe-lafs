@@ -129,7 +129,7 @@ class Client(node.Node, pollmixin.PollMixin):
                                    }
 
     def __init__(self, basedir="."):
-        print "Client.__init__(%r)" % (basedir,)
+        #print "Client.__init__(%r)" % (basedir,)
         node.Node.__init__(self, basedir)
         self.connected_enough_d = defer.Deferred()
         self.started_timestamp = time.time()
@@ -494,13 +494,13 @@ class Client(node.Node, pollmixin.PollMixin):
             s.setServiceParent(self)
 
     def init_magic_folder(self):
-        print "init_magic_folder"
+        #print "init_magic_folder"
         if self.get_config("drop_upload", "enabled", False, boolean=True):
             raise OldConfigOptionError("The [drop_upload] section must be renamed to [magic_folder].\n"
                                        "See docs/frontends/magic-folder.rst for more information.")
 
         if self.get_config("magic_folder", "enabled", False, boolean=True):
-            print "magic folder enabled"
+            #print "magic folder enabled"
             upload_dircap = self.get_private_config("magic_folder_dircap")
             collective_dircap = self.get_private_config("collective_dircap")
 
