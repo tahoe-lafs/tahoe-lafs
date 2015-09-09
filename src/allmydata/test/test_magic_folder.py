@@ -198,7 +198,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.set_up_grid()
         self.local_dir = abspath_expanduser_unicode(u"test_persistence", base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
-
         self.collective_dircap = ""
 
         d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
@@ -213,27 +212,8 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(create_test_file)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
-
-        def restart(ignore):
-            print "restart"
-            tahoe_config_file = os.path.join(self.get_clientdir(), "tahoe.cfg")
-            tahoe_config = fileutil.read(tahoe_config_file)
-            print tahoe_config
-            self.failUnlessIn("[magic_folder]\nenabled = True", tahoe_config)
-            d3 = defer.succeed(None)
-            def write_config(client_node_dir):
-                print "write_config"
-                fileutil.write(os.path.join(client_node_dir, "tahoe.cfg"), tahoe_config)
-            def setup_stats(result):
-                #print "setup_stats"
-                self.set_up_grid(client_config_hooks={0: write_config})
-                self.magicfolder = self.get_client().getServiceNamed("magic-folder")
-
-            d3.addBoth(self.cleanup)
-            d3.addCallback(setup_stats)
-            #d3.addCallback(self._create_magicfolder)
-            return d3
-        d.addCallback(restart)
+        d.addCallback(self.cleanup)
+        d.addCallback(self._restart_client)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addBoth(self.cleanup)
