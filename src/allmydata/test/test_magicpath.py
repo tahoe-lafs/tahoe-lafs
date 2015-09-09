@@ -18,3 +18,11 @@ class MagicPath(unittest.TestCase):
     def test_magic2path(self):
         for expected, test in self.tests.items():
             self.failUnlessEqual(magicpath.magic2path(test), expected)
+
+    def test_should_ignore(self):
+        self.failUnlessEqual(magicpath.should_ignore_file(".bashrc"), True)
+        self.failUnlessEqual(magicpath.should_ignore_file("bashrc."), False)
+        self.failUnlessEqual(magicpath.should_ignore_file("forest/tree/branch/.bashrc"), True)
+        self.failUnlessEqual(magicpath.should_ignore_file("forest/tree/.branch/bashrc"), True)
+        self.failUnlessEqual(magicpath.should_ignore_file("forest/.tree/branch/bashrc"), True)
+        self.failUnlessEqual(magicpath.should_ignore_file("forest/tree/branch/bashrc"), False)
