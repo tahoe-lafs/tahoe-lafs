@@ -52,7 +52,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
     def _wait_until_started(self, ign):
         print "_wait_until_started"
         self.magicfolder = self.get_client().getServiceNamed('magic-folder')
-        return self.magicfolder.uploader.started_d
+        return self.magicfolder.ready()
 
     def _create_magicfolder(self, ign):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
