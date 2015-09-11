@@ -203,7 +203,10 @@ class Uploader(QueueMixin):
         return d
 
     def start_scanning(self):
+        print "start_scanning self._db = %r" % (self._db,)
         self.is_ready = True
+        all_files = self._db.get_all_files()
+        print "ALL files recorded in magic-folder db: %s" % (all_files,)
         d = self._scan(self._local_path_u) # XXX do not want dropped deferreds!
         self._turn_deque()
         return d
@@ -337,6 +340,7 @@ class Uploader(QueueMixin):
                 return upload_d
             elif pathinfo.isfile:
                 version = self._db.get_local_file_version(relpath_u)
+                print "LOCAL version %s" % (version,)
                 if version is None:
                     version = 0
                 else:
