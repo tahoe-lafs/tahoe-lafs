@@ -55,13 +55,13 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         return self.magicfolder.ready()
 
     def _create_magicfolder(self, ign):
+        print "_create_magicfolder self.basedir %s" % (self.basedir,)
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
+        print "<>--< dbfile %s" % (dbfile,)
         self.magicfolder = MagicFolder(self.get_client(), self.upload_dircap, self.collective_dircap, self.local_dir,
                                        dbfile, inotify=self.inotify, pending_delay=0.2)
         self.magicfolder.setServiceParent(self.get_client())
         self.magicfolder.ready()
-
-    # Prevent unclean reactor errors.
 
     def test_db_basic(self):
         fileutil.make_dirs(self.basedir)
@@ -195,14 +195,21 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         a second time. This test is meant to test the database persistence along with
         the startup and shutdown code paths of the magic-folder service.
         """
+        print "test_persistence"
+        print "basedir = %s" % (self.basedir,)
+
         self.set_up_grid()
         self.local_dir = abspath_expanduser_unicode(u"test_persistence", base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
         self.collective_dircap = ""
 
-        d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
-        d.addCallback(self._create_magicfolder)
-
+        print "calling create_invite_join_magic_folder with self.local_dir %s" % (self.local_dir,)
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self.create_invite_join_magic_folder(u"Alice", self.local_dir))
+        #d.addCallback(self._create_magicfolder)
+        d.addCallback(self.create_magicfolder())
+        #d.addCallback(self._restart_client)
+        
         def create_test_file(result, filename):
             d2 = self.magicfolder.uploader.set_hook('processed')
             test_file = abspath_expanduser_unicode(filename, base=self.local_dir)
@@ -224,7 +231,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             print "2nd upload complete"
         d.addBoth(fu2)
 
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
+        #d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addBoth(self.cleanup)
         return d
