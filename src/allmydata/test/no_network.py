@@ -380,14 +380,19 @@ class GridTestMixin:
     def get_clientdir(self, i=0):
         return self.g.clients[i].basedir
 
+    def set_clientdir(self, basedir, i=0):
+        self.g.clients[i].basedir = basedir
+
     def get_client(self, i=0):
         return self.g.clients[i]
 
     def restart_client(self, i=0):
         client = self.g.clients[i]
+        #client_basedir = self.get_clientdir()
         d = defer.succeed(None)
         d.addCallback(lambda ign: self.g.removeService(client))
         def _make_client(ign):
+            #self.set_clientdir(client_basedir, i)
             c = self.g.make_client(i, write_config=False)
             self.g.clients[i] = c
             self._record_webports_and_baseurls()
