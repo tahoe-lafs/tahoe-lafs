@@ -91,17 +91,24 @@ class CheckRequirement(unittest.TestCase):
         self.failIfEqual(errors, [])
         self.failUnlessEqual([e for e in errors if "was not found by pkg_resources" not in e], [])
 
-    def test_cross_check_ticket_1355(self):
+    def test_cross_check_unparseable_versions(self):
         # The bug in #1355 is triggered when a version string from either pkg_resources or import
         # is not parseable at all by normalized_version.
 
         res = cross_check({"foo": ("unparseable", "")}, [("foo", ("1.0", "", None))])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("by pkg_resources could not be parsed", res[0])
+        self.failUnlessIn("due to IrrationalVersionError", res[0])
 
         res = cross_check({"foo": ("1.0", "")}, [("foo", ("unparseable", "", None))])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn(") could not be parsed", res[0])
+        self.failUnlessIn("due to IrrationalVersionError", res[0])
+
+        # However, an error should not be triggered when the version strings are unparseable
+        # but equal (#2499).
+        res = cross_check({"foo": ("unparseable", "")}, [("foo", ("unparseable", "", None))])
+        self.failUnlessEqual(res, [])
 
     def test_cross_check(self):
         res = cross_check({}, [])
@@ -134,9 +141,17 @@ class CheckRequirement(unittest.TestCase):
         res = cross_check({"zope.interface": ("1.0", "")}, [("zope.interface", ("unknown", "", None))])
         self.failUnlessEqual(res, [])
 
+        res = cross_check({"zope.interface": ("unknown", "")}, [("zope.interface", ("unknown", "", None))])
+        self.failUnlessEqual(len(res), 1)
+        self.failUnlessIn("could not be parsed", res[0])
+
         res = cross_check({"foo": ("1.0", "")}, [("foo", ("unknown", "", None))])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("could not find a version number", res[0])
+
+        res = cross_check({"foo": ("unknown", "")}, [("foo", ("unknown", "", None))])
+        self.failUnlessEqual(len(res), 1)
+        self.failUnlessIn("could not be parsed", res[0])
 
         # When pkg_resources and import both find a package, there is only a warning if both
         # the version and the path fail to match.

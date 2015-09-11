@@ -146,7 +146,8 @@ def get_platform():
 from allmydata.util import verlib
 def normalized_version(verstr, what=None):
     try:
-        return verlib.NormalizedVersion(verlib.suggest_normalized_version(verstr))
+        suggested = verlib.suggest_normalized_version(verstr) or verstr
+        return verlib.NormalizedVersion(suggested)
     except (StandardError, verlib.IrrationalVersionError):
         cls, value, trace = sys.exc_info()
         raise PackagingError, ("could not parse %s due to %s: %s"
@@ -349,6 +350,11 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                 errors.append("Warning: dependency %r could not be imported. pkg_resources thought it should be possible "
                               "to import version %r from %r.\nThe exception trace was %r."
                               % (name, pr_ver, pr_loc, imp_comment))
+                continue
+
+            # If the pkg_resources version is identical to the imported version, don't attempt
+            # to normalize them, since it is unnecessary and may fail (ticket #2499).
+            if imp_ver != 'unknown' and pr_ver == imp_ver:
                 continue
 
             try:
