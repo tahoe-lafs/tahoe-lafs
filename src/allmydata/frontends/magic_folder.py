@@ -50,6 +50,7 @@ class MagicFolder(service.MultiService):
 
         service.MultiService.__init__(self)
 
+        print "MagicFolder __init__"
         db = backupdb.get_backupdb(dbfile, create_version=(backupdb.SCHEMA_v3, 3))
         if db is None:
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
@@ -154,6 +155,7 @@ class Uploader(QueueMixin):
     def __init__(self, client, local_path_u, db, upload_dircap, inotify, pending_delay):
         QueueMixin.__init__(self, client, local_path_u, db, 'uploader')
 
+        print "Magic-Folder: Uploader: __init__"
         self.is_ready = False
 
         # TODO: allow a path rather than a cap URI.
@@ -393,6 +395,7 @@ class Downloader(QueueMixin):
     def __init__(self, client, local_path_u, db, collective_dircap):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader')
 
+        print "Magic-Folder: Downloader: __init__"
         # TODO: allow a path rather than a cap URI.
         self._collective_dirnode = self._client.create_node_from_uri(collective_dircap)
 

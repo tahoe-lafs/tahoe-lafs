@@ -108,6 +108,16 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         magicfolder.ready()
         return magicfolder
 
+    def create_magicfolder(self, client_num=0):
+        dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.get_clientdir(i=client_num))
+        self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
+
+        self.magicfolder = MagicFolder(self.get_client(client_num), self.upload_dircap, self.collective_dircap, self.local_dir,
+                                       dbfile, inotify=self.inotify, pending_delay=0.2)
+        magicfolder.setServiceParent(self.get_client(client_num))
+        return magicfolder.ready()
+
+
     def setup_alice_and_bob(self):
         self.set_up_grid(num_clients=2)
 
