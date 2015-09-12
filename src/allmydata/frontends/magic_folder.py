@@ -346,7 +346,11 @@ class Uploader(QueueMixin):
                 if version is None:
                     version = 0
                 else:
-                    version += 1
+                    if self._db.is_new_file_time(os.path.join(self._local_path_u, relpath_u), relpath_u):
+                        version += 1
+                        print "version incremented to %s" % (version,)
+                    else:
+                        print "version not incremented"
 
                 uploadable = FileName(path_u, self._client.convergence)
                 d2 = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
