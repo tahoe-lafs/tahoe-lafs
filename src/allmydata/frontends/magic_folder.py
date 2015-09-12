@@ -436,7 +436,7 @@ class Downloader(QueueMixin):
         exists in our magic-folder db; if not then return None
         else check for an entry in our magic-folder db and return the version number.
         """
-        if not os.path.exists(path_u):
+        if not os.path.exists(os.path.join(self._local_path_u,path_u)):
             return None
         return self._db.get_local_file_version(path_u)
 
