@@ -285,6 +285,7 @@ class Uploader(QueueMixin):
             return None
 
     def _process(self, path_u):
+        print "_process %s" % (path_u,)
         precondition(isinstance(path_u, unicode), path_u)
 
         d = defer.succeed(None)
