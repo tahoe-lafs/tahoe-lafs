@@ -195,21 +195,15 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         a second time. This test is meant to test the database persistence along with
         the startup and shutdown code paths of the magic-folder service.
         """
-        print "test_persistence"
-        print "basedir = %s" % (self.basedir,)
-
         self.set_up_grid()
         self.local_dir = abspath_expanduser_unicode(u"test_persistence", base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
         self.collective_dircap = ""
 
-        print "calling create_invite_join_magic_folder with self.local_dir %s" % (self.local_dir,)
         d = defer.succeed(None)
         d.addCallback(lambda ign: self.create_invite_join_magic_folder(u"Alice", self.local_dir))
-        #d.addCallback(self._create_magicfolder)
-        d.addCallback(self.create_magicfolder())
-        #d.addCallback(self._restart_client)
-        
+        d.addCallback(lambda ign: self.create_magicfolder())
+
         def create_test_file(result, filename):
             d2 = self.magicfolder.uploader.set_hook('processed')
             test_file = abspath_expanduser_unicode(filename, base=self.local_dir)
@@ -224,14 +218,13 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addCallback(self.cleanup)
         d.addCallback(self._restart_client)
-
         d.addCallback(lambda ign: create_test_file(ign, u"what2"))
 
         def fu2(ign):
             print "2nd upload complete"
         d.addBoth(fu2)
 
-        #d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addBoth(self.cleanup)
         return d
