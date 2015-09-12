@@ -415,3 +415,28 @@ class MagicFolderDB(BackupDB):
                                 " WHERE path=?",
                                 (size, mtime, ctime, fileid, version, path))
         self.connection.commit()
+
+    def is_new_file_time(self, path, relpath_u):
+        """recent_file_time returns true if the file is recent...
+        meaning it's current mtime matched the mtime that was previously stored in the db.
+        """
+        print "check_file_time %s %s" % (path, relpath_u)
+        path = abspath_expanduser_unicode(path)
+        s = os.stat(path)
+        size = s[stat.ST_SIZE]
+        ctime = s[stat.ST_CTIME]
+        mtime = s[stat.ST_MTIME]
+        now = time.time()
+        c = self.cursor
+        c.execute("SELECT size,mtime,ctime,fileid"
+                  " FROM local_files"
+                  " WHERE path=?",
+                  (relpath_u,))
+        row = self.cursor.fetchone()
+        if not row:
+            return True
+        (last_size,last_mtime,last_ctime,last_fileid) = row
+        if int(mtime) == int(last_mtime):
+            return False
+        else:
+            return True
