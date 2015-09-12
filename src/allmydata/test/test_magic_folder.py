@@ -207,7 +207,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         def create_test_file(result, filename):
             d2 = self.magicfolder.uploader.set_hook('processed')
             test_file = abspath_expanduser_unicode(filename, base=self.local_dir)
-            fileutil.write(test_file, "meow")
+            fileutil.write(test_file, "meow %s" % filename)
             self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
             return d2
         d.addCallback(lambda ign: create_test_file(ign, u"what1"))
@@ -218,13 +218,15 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addCallback(self.cleanup)
         d.addCallback(self._restart_client)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addCallback(lambda ign: create_test_file(ign, u"what2"))
 
         def fu2(ign):
             print "2nd upload complete"
         d.addBoth(fu2)
 
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 2))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addBoth(self.cleanup)
         return d
