@@ -313,7 +313,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         #print "_check_version_in_local_db: %r has version %s" % (relpath_u, version)
         self.failUnlessEqual(version, expected_version)
 
-    def FOO_test_alice_bob(self):
+    def test_alice_bob(self):
         d = self.setup_alice_and_bob()
         def get_results(result):
             # XXX are these used?
