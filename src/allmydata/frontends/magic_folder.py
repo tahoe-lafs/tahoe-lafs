@@ -68,7 +68,7 @@ class MagicFolder(service.MultiService):
         # TODO: why is this being called more than once?
         if self.running:
             return defer.succeed(None)
-        #print "%r.startService" % (self,)
+        print "%r.startService" % (self,)
         service.MultiService.startService(self)
         return self.uploader.start_monitoring()
 
@@ -83,7 +83,7 @@ class MagicFolder(service.MultiService):
         return d
 
     def finish(self):
-        #print "finish"
+        print "finish"
         d = self.uploader.stop()
         d2 = self.downloader.stop()
         d.addCallback(lambda ign: d2)
@@ -208,8 +208,7 @@ class Uploader(QueueMixin):
         print "start_scanning self._db = %r" % (self._db,)
         self.is_ready = True
         all_files = self._db.get_all_files()
-        print "ALL files recorded in magic-folder db: %s" % (all_files,)
-        d = self._scan(self._local_path_u) # XXX do not want dropped deferreds!
+        d = self._scan(self._local_path_u)
         self._turn_deque()
         return d
 
@@ -285,7 +284,6 @@ class Uploader(QueueMixin):
             return None
 
     def _process(self, path_u):
-        print "_process %s" % (path_u,)
         precondition(isinstance(path_u, unicode), path_u)
 
         d = defer.succeed(None)
@@ -343,15 +341,11 @@ class Uploader(QueueMixin):
                 return upload_d
             elif pathinfo.isfile:
                 version = self._db.get_local_file_version(relpath_u)
-                print "LOCAL version %s" % (version,)
                 if version is None:
                     version = 0
                 else:
                     if self._db.is_new_file_time(os.path.join(self._local_path_u, relpath_u), relpath_u):
                         version += 1
-                        print "version incremented to %s" % (version,)
-                    else:
-                        print "version not incremented"
 
                 uploadable = FileName(path_u, self._client.convergence)
                 d2 = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
