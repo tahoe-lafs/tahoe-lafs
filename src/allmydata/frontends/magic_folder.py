@@ -44,7 +44,7 @@ def get_inotify_module():
 class MagicFolder(service.MultiService):
     name = 'magic-folder'
 
-    def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, inotify=None,
+    def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile,
                  pending_delay=1.0):
         precondition_abspath(local_path_u)
 
@@ -61,7 +61,7 @@ class MagicFolder(service.MultiService):
 
         self.is_ready = False
 
-        self.uploader = Uploader(client, local_path_u, db, upload_dircap, inotify, pending_delay)
+        self.uploader = Uploader(client, local_path_u, db, upload_dircap, pending_delay)
         self.downloader = Downloader(client, local_path_u, db, collective_dircap)
 
     def startService(self):
@@ -152,7 +152,7 @@ class QueueMixin(HookMixin):
 
 
 class Uploader(QueueMixin):
-    def __init__(self, client, local_path_u, db, upload_dircap, inotify, pending_delay):
+    def __init__(self, client, local_path_u, db, upload_dircap, pending_delay):
         QueueMixin.__init__(self, client, local_path_u, db, 'uploader')
 
         print "Magic-Folder: Uploader: __init__"
@@ -165,7 +165,7 @@ class Uploader(QueueMixin):
         if self._upload_dirnode.is_unknown() or self._upload_dirnode.is_readonly():
             raise AssertionError("The URI in 'private/magic_folder_dircap' is not a writecap to a directory.")
 
-        self._inotify = inotify or get_inotify_module()
+        self._inotify = get_inotify_module()
         self._notifier = self._inotify.INotify()
 
         if hasattr(self._notifier, 'set_pending_delay'):
