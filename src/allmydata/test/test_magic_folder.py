@@ -408,6 +408,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
     def setUp(self):
         MagicFolderTestMixin.setUp(self)
         self.inotify = fake_inotify
+        self.patch(magic_folder, 'get_inotify_module', lambda: self.inotify)
 
     def notify(self, path, mask):
         self.magicfolder.uploader._notifier.event(path, mask)
