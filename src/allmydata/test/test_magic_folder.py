@@ -59,7 +59,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
         print "<>--< dbfile %s" % (dbfile,)
         self.magicfolder = MagicFolder(self.get_client(), self.upload_dircap, self.collective_dircap, self.local_dir,
-                                       dbfile, inotify=self.inotify, pending_delay=0.2)
+                                       dbfile, pending_delay=0.2)
         self.magicfolder.setServiceParent(self.get_client())
         self.magicfolder.ready()
 
@@ -431,18 +431,18 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             readonly_dircap = n.get_readonly_uri()
 
             self.shouldFail(AssertionError, 'nonexistent local.directory', 'there is no directory',
-                            MagicFolder, client, upload_dircap, '', doesnotexist, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, upload_dircap, '', doesnotexist, magicfolderdb)
             self.shouldFail(AssertionError, 'non-directory local.directory', 'is not a directory',
-                            MagicFolder, client, upload_dircap, '', not_a_dir, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, upload_dircap, '', not_a_dir, magicfolderdb)
             self.shouldFail(AssertionError, 'bad upload.dircap', 'does not refer to a directory',
-                            MagicFolder, client, 'bad', '', errors_dir, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, 'bad', '', errors_dir, magicfolderdb)
             self.shouldFail(AssertionError, 'non-directory upload.dircap', 'does not refer to a directory',
-                            MagicFolder, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb)
             self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
-                            MagicFolder, client, readonly_dircap, '', errors_dir, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, readonly_dircap, '', errors_dir, magicfolderdb,)
             self.shouldFail(AssertionError, 'collective dircap',
                             "The URI in 'private/collective_dircap' is not a readonly cap to a directory.",
-                            MagicFolder, client, upload_dircap, upload_dircap, errors_dir, magicfolderdb, inotify=fake_inotify)
+                            MagicFolder, client, upload_dircap, upload_dircap, errors_dir, magicfolderdb)
 
             def _not_implemented():
                 raise NotImplementedError("blah")
