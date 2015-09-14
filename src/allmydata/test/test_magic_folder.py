@@ -211,8 +211,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             self.notify(to_filepath(test_file), self.inotify.IN_CLOSE_WRITE)
             return d2
         d.addCallback(lambda ign: create_test_file(ign, u"what1"))
-        def fu(ign):
+        def fu(res):
             print "upload complete"
+            return res
         d.addBoth(fu)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
@@ -222,8 +223,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addCallback(lambda ign: create_test_file(ign, u"what2"))
 
-        def fu2(ign):
+        def fu2(res):
             print "2nd upload complete"
+            return res
         d.addBoth(fu2)
 
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 2))
