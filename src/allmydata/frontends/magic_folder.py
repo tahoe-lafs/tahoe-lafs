@@ -536,7 +536,7 @@ class Downloader(QueueMixin):
         d = file_node.download_best_version()
         def succeeded(res):
             d2 = defer.succeed(res)
-            absname = abspath_expanduser_unicode(name, base=self._local_path_u)
+            absname = fileutil.abspath_expanduser_unicode(name, base=self._local_path_u)
             d2.addCallback(lambda result: self._write_downloaded_file(absname, result, is_conflict=False))
             def do_update_db(full_path):
                 filecap = file_node.get_uri()
