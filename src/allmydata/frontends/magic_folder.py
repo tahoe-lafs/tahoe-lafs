@@ -519,11 +519,11 @@ class Downloader(QueueMixin):
         (name, file_node, metadata) = item
         d = file_node.download_best_version()
         def succeeded(res):
-            def do_update_db(result, is_conflicted=False):
+            d2 = defer.succeed(res)
+            absname = abspath_expanduser_unicode(name, base=self._local_path_u)
+            d2.addCallback(lambda result: self._write_downloaded_file(absname, result, is_conflict=False))
+            def do_update_db(full_path):
                 filecap = file_node.get_uri()
-                full_path = fileutil.abspath_expanduser_unicode(name, base=self._local_path_u)
-                if is_conflicted:
-                    full_path = full_path + u".conflict" # XXX do we want to mark the conflicted in the db???
                 try:
                     s = os.stat(full_path)
                 except:
@@ -532,8 +532,6 @@ class Downloader(QueueMixin):
                 ctime = s[stat.ST_CTIME]
                 mtime = s[stat.ST_MTIME]
                 self._db.did_upload_file(filecap, name, metadata['version'], mtime, ctime, size)
-            d2 = defer.succeed(res)
-            d2.addCallback(lambda result: self._write_downloaded_file(name, result, self._local_path_u))
             d2.addCallback(do_update_db)
             # XXX handle failure here with addErrback...
             self._count('objects_downloaded')
