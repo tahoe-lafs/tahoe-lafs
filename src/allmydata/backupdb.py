@@ -421,7 +421,7 @@ class MagicFolderDB(BackupDB):
         meaning its current statinfo (i.e. size, ctime, and mtime) matched the statinfo
         that was previously stored in the db.
         """
-        print "check_file_time %s %s" % (path, relpath_u)
+        #print "check_file_time %s %s" % (path, relpath_u)
         path = abspath_expanduser_unicode(path)
         s = os.stat(path)
         size = s[stat.ST_SIZE]
