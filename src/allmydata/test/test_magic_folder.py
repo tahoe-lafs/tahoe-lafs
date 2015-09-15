@@ -202,7 +202,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d = defer.succeed(None)
         d.addCallback(lambda ign: self.create_invite_join_magic_folder(u"Alice", self.local_dir))
-        d.addCallback(lambda ign: self.create_magicfolder())
+        d.addCallback(self._restart_client)
 
         def create_test_file(filename):
             d2 = self.magicfolder.uploader.set_hook('processed')
