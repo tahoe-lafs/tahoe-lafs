@@ -50,7 +50,6 @@ class MagicFolder(service.MultiService):
 
         service.MultiService.__init__(self)
 
-        print "MagicFolder __init__"
         db = backupdb.get_backupdb(dbfile, create_version=(backupdb.SCHEMA_v3, 3))
         if db is None:
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
@@ -68,7 +67,7 @@ class MagicFolder(service.MultiService):
         # TODO: why is this being called more than once?
         if self.running:
             return defer.succeed(None)
-        print "%r.startService" % (self,)
+        #print "%r.startService" % (self,)
         service.MultiService.startService(self)
         return self.uploader.start_monitoring()
 
@@ -83,7 +82,7 @@ class MagicFolder(service.MultiService):
         return d
 
     def finish(self):
-        print "finish"
+        #print "finish"
         d = self.uploader.stop()
         d2 = self.downloader.stop()
         d.addCallback(lambda ign: d2)
@@ -124,7 +123,7 @@ class QueueMixin(HookMixin):
     def _log(self, msg):
         s = "Magic Folder %s: %s" % (self._name, msg)
         self._client.log(s)
-        print s
+        #print s
         #open("events", "ab+").write(msg)
 
     def _append_to_deque(self, path):
@@ -155,7 +154,6 @@ class Uploader(QueueMixin):
     def __init__(self, client, local_path_u, db, upload_dircap, pending_delay):
         QueueMixin.__init__(self, client, local_path_u, db, 'uploader')
 
-        print "Magic-Folder: Uploader: __init__"
         self.is_ready = False
 
         # TODO: allow a path rather than a cap URI.
@@ -187,7 +185,7 @@ class Uploader(QueueMixin):
                              recursive=True)
 
     def start_monitoring(self):
-        print "start_monitoring"
+        self._log("start_monitoring")
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._notifier.startReading())
         d.addCallback(lambda ign: self._count('dirs_monitored'))
@@ -195,6 +193,7 @@ class Uploader(QueueMixin):
         return d
 
     def stop(self):
+        self._log("stop")
         self._notifier.stopReading()
         self._count('dirs_monitored', -1)
         if hasattr(self._notifier, 'wait_until_stopped'):
@@ -205,7 +204,7 @@ class Uploader(QueueMixin):
         return d
 
     def start_scanning(self):
-        print "start_scanning self._db = %r" % (self._db,)
+        self._log("start_scanning")
         self.is_ready = True
         all_files = self._db.get_all_files()
         d = self._scan(self._local_path_u)
@@ -213,6 +212,7 @@ class Uploader(QueueMixin):
         return d
 
     def _scan(self, local_path_u):  # XXX should this take a FilePath?
+        self._log("scan %r" % (local_path_u))
         if not os.path.isdir(local_path_u):
             raise AssertionError("Programmer error: _scan() must be passed a directory path.")
         quoted_path = quote_local_unicode_path(local_path_u)
@@ -394,7 +394,6 @@ class Downloader(QueueMixin):
     def __init__(self, client, local_path_u, db, collective_dircap):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader')
 
-        print "Magic-Folder: Downloader: __init__"
         # TODO: allow a path rather than a cap URI.
         self._collective_dirnode = self._client.create_node_from_uri(collective_dircap)
 

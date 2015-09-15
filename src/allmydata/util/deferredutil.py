@@ -113,11 +113,12 @@ class HookMixin:
         'res' is returned so that the current result or failure will be passed
         through.
         """
-        print "calling hook %r" % (name,)
         hook = self._hooks[name]
         if hook is None:
             return defer.succeed(None)
+
         (d, ignore_count) = hook
+        log.msg("call_hook", name=name, ignore_count=ignore_count, level=log.NOISY)
         if ignore_count > 0:
             self._hooks[name] = (d, ignore_count - 1)
         else:
