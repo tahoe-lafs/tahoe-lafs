@@ -54,15 +54,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.magicfolder = self.get_client().getServiceNamed('magic-folder')
         return self.magicfolder.ready()
 
-    def _create_magicfolder(self, ign):
-        print "_create_magicfolder self.basedir %s" % (self.basedir,)
-        dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
-        print "<>--< dbfile %s" % (dbfile,)
-        self.magicfolder = MagicFolder(self.get_client(), self.upload_dircap, self.collective_dircap, self.local_dir,
-                                       dbfile, pending_delay=0.2)
-        self.magicfolder.setServiceParent(self.get_client())
-        self.magicfolder.ready()
-
     def test_db_basic(self):
         fileutil.make_dirs(self.basedir)
         self._createdb()
@@ -130,7 +121,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         new_small_tree_dir = abspath_expanduser_unicode(small_tree_name, base=self.local_dir)
 
         d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
-        d.addCallback(self._create_magicfolder)
+        d.addCallback(self._restart_client)
 
         def _check_move_empty_tree(res):
             self.mkdir_nonascii(empty_tree_dir)
@@ -239,7 +230,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.mkdir_nonascii(self.local_dir)
 
         d = self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
-        d.addCallback(self._create_magicfolder)
+        d.addCallback(self._restart_client)
 
         # Write something short enough for a LIT file.
         d.addCallback(lambda ign: self._check_file(u"short", "test"))
