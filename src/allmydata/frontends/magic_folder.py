@@ -566,7 +566,7 @@ class Downloader(QueueMixin):
     FUDGE_SECONDS = 10.0
 
     @classmethod
-    def _write_downloaded_file(cls, path, file_contents, base, is_conflict=False, now=None):
+    def _write_downloaded_file(cls, path, file_contents, is_conflict=False, now=None):
         # 1. Write a temporary file, say .foo.tmp.
         # 2. is_conflict determines whether this is an overwrite or a conflict.
         # 3. Set the mtime of the replacement file to be T seconds before the
@@ -577,8 +577,7 @@ class Downloader(QueueMixin):
         #
         # Returns the path of the destination file.
 
-        precondition(isinstance(path, unicode), path=path)
-        path = fileutil.abspath_expanduser_unicode(path, base=base)
+        precondition_abspath(path)
         replacement_path = path + u".tmp"  # FIXME more unique
         backup_path = path + u".backup"
         if now is None:
