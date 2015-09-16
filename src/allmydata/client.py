@@ -376,7 +376,7 @@ class Client(node.Node, pollmixin.PollMixin):
         connection_threshold = min(self.encoding_params["k"],
                                    self.encoding_params["happy"] + 1)
         helper = storage_client.ConnectedEnough(sb, connection_threshold)
-        self.upload_ready_d = helper.when_connected_enough()
+        self.connected_enough_d = helper.when_connected_enough()
 
         # utilize the loaded static server specifications
         for key, server in self.connections_config['servers'].items():
@@ -491,7 +491,7 @@ class Client(node.Node, pollmixin.PollMixin):
                 s.startService()
 
                 # start processing the upload queue when we've connected to enough servers
-                self.upload_ready_d.addCallback(s.upload_ready)
+                self.connected_enough_d.addCallback(s.ready)
             except Exception, e:
                 self.log("couldn't start drop-uploader: %r", args=(e,))
 
