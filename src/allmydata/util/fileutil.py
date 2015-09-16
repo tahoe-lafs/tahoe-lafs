@@ -622,7 +622,6 @@ else:
         try:
             os.rename(replaced_path, backup_path)
         except OSError as e:
-            print e, e.errno
             if e.errno != ENOENT:
                 raise
         try:
