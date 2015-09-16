@@ -15,8 +15,9 @@ from allmydata.immutable.upload import FileName
 from allmydata import backupdb
 
 
-class DropUploader(service.MultiService):
-    name = 'drop-upload'
+
+class MagicFolder(service.MultiService):
+    name = 'magic-folder'
 
     def __init__(self, client, upload_dircap, local_dir, dbfile, inotify=None,
                  pending_delay=1.0):
@@ -40,20 +41,20 @@ class DropUploader(service.MultiService):
         self._inotify = inotify
 
         if not self._local_path.exists():
-            raise AssertionError("The '[drop_upload] local.directory' parameter was %s "
+            raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
                                  "but there is no directory at that location."
                                  % quote_local_unicode_path(local_dir))
         if not self._local_path.isdir():
-            raise AssertionError("The '[drop_upload] local.directory' parameter was %s "
+            raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
                                  "but the thing at that location is not a directory."
                                  % quote_local_unicode_path(local_dir))
 
         # TODO: allow a path rather than a cap URI.
         self._parent = self._client.create_node_from_uri(upload_dircap)
         if not IDirectoryNode.providedBy(self._parent):
-            raise AssertionError("The URI in 'private/drop_upload_dircap' does not refer to a directory.")
+            raise AssertionError("The URI in 'private/magic_folder_dircap' does not refer to a directory.")
         if self._parent.is_unknown() or self._parent.is_readonly():
-            raise AssertionError("The URI in 'private/drop_upload_dircap' is not a writecap to a directory.")
+            raise AssertionError("The URI in 'private/magic_folder_dircap' is not a writecap to a directory.")
 
         self._uploaded_callback = lambda ign: None
 
