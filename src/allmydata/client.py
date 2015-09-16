@@ -129,6 +129,7 @@ class Client(node.Node, pollmixin.PollMixin):
                                    }
 
     def __init__(self, basedir="."):
+        #print "Client.__init__(%r)" % (basedir,)
         node.Node.__init__(self, basedir)
         self.connected_enough_d = defer.Deferred()
         self.started_timestamp = time.time()
@@ -511,7 +512,7 @@ class Client(node.Node, pollmixin.PollMixin):
 
             from allmydata.frontends import magic_folder
 
-            s = magic_folder.MagicFolder(self, upload_dircap, local_dir, dbfile)
+            s = magic_folder.MagicFolder(self, upload_dircap, collective_dircap, local_dir, dbfile)
             s.setServiceParent(self)
             s.startService()
 

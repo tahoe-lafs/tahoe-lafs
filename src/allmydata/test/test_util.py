@@ -441,6 +441,74 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failIf(os.path.exists(fn))
         self.failUnless(os.path.exists(fn2))
 
+    def test_rename_no_overwrite(self):
+        workdir = fileutil.abspath_expanduser_unicode(u"test_rename_no_overwrite")
+        fileutil.make_dirs(workdir)
+
+        source_path = os.path.join(workdir, "source")
+        dest_path   = os.path.join(workdir, "dest")
+
+        # when neither file exists
+        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+
+        # when only dest exists
+        fileutil.write(dest_path,   "dest")
+        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+        self.failUnlessEqual(fileutil.read(dest_path),   "dest")
+
+        # when both exist
+        fileutil.write(source_path, "source")
+        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+        self.failUnlessEqual(fileutil.read(source_path), "source")
+        self.failUnlessEqual(fileutil.read(dest_path),   "dest")
+
+        # when only source exists
+        os.remove(dest_path)
+        fileutil.rename_no_overwrite(source_path, dest_path)
+        self.failUnlessEqual(fileutil.read(dest_path), "source")
+        self.failIf(os.path.exists(source_path))
+
+    def test_replace_file(self):
+        workdir = fileutil.abspath_expanduser_unicode(u"test_replace_file")
+        fileutil.make_dirs(workdir)
+
+        backup_path      = os.path.join(workdir, "backup")
+        replaced_path    = os.path.join(workdir, "replaced")
+        replacement_path = os.path.join(workdir, "replacement")
+
+        # when none of the files exist
+        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path, backup_path)
+
+        # when only replaced exists
+        fileutil.write(replaced_path,    "foo")
+        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(replaced_path), "foo")
+
+        # when both replaced and replacement exist, but not backup
+        fileutil.write(replacement_path, "bar")
+        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(backup_path),   "foo")
+        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failIf(os.path.exists(replacement_path))
+
+        # when only replacement exists
+        os.remove(backup_path)
+        os.remove(replaced_path)
+        fileutil.write(replacement_path, "bar")
+        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failIf(os.path.exists(replacement_path))
+        self.failIf(os.path.exists(backup_path))
+
+        # when replaced, replacement and backup all exist
+        fileutil.write(replaced_path,    "foo")
+        fileutil.write(replacement_path, "bar")
+        fileutil.write(backup_path,      "bak")
+        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(backup_path),   "foo")
+        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failIf(os.path.exists(replacement_path))
+
     def test_du(self):
         basedir = "util/FileUtil/test_du"
         fileutil.make_dirs(basedir)
@@ -566,6 +634,38 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         # bytes of available space on your filesystem.
         disk = fileutil.get_disk_stats('.', 2**128)
         self.failUnlessEqual(disk['avail'], 0)
+
+    def test_get_pathinfo(self):
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        # create a directory
+        self.mkdir(basedir, "a")
+        dirinfo = fileutil.get_pathinfo(basedir)
+        self.failUnlessTrue(dirinfo.isdir)
+        self.failUnlessTrue(dirinfo.exists)
+        self.failUnlessFalse(dirinfo.isfile)
+        self.failUnlessFalse(dirinfo.islink)
+
+        # create a file under the directory
+        f = os.path.join(basedir, "a/1.txt")
+        self.touch(basedir, "a/1.txt", data="a"*10)
+        fileinfo = fileutil.get_pathinfo(f)
+        self.failUnlessTrue(fileinfo.isfile)
+        self.failUnlessTrue(fileinfo.exists)
+        self.failUnlessFalse(fileinfo.isdir)
+        self.failUnlessFalse(fileinfo.islink)
+        self.failUnlessEqual(fileinfo.size, 10)
+
+        # create a symlink under the directory a pointing to 1.txt
+        slname = os.path.join(basedir, "a/linkto1.txt")
+        os.symlink(f, slname)
+        symlinkinfo = fileutil.get_pathinfo(slname)
+        self.failUnlessTrue(symlinkinfo.islink)
+        self.failUnlessTrue(symlinkinfo.exists)
+        self.failUnlessFalse(symlinkinfo.isfile)
+        self.failUnlessFalse(symlinkinfo.isdir)
+
 
 class PollMixinTests(unittest.TestCase):
     def setUp(self):

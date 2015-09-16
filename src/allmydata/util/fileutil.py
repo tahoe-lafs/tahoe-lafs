@@ -3,6 +3,8 @@ Futz with files like a pro.
 """
 
 import sys, exceptions, os, stat, tempfile, time, binascii
+from collections import namedtuple
+from errno import ENOENT
 
 from twisted.python import log
 
@@ -518,8 +520,7 @@ def get_available_space(whichdir, reserved_space):
 
 
 if sys.platform == "win32":
-    from ctypes import WINFUNCTYPE, windll, WinError
-    from ctypes.wintypes import BOOL, HANDLE, DWORD, LPCWSTR, LPVOID
+    from ctypes.wintypes import BOOL, HANDLE, DWORD, LPCWSTR, LPVOID, WinError, get_last_error
 
     # <http://msdn.microsoft.com/en-us/library/aa363858%28v=vs.85%29.aspx>
     CreateFileW = WINFUNCTYPE(HANDLE, LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE) \
@@ -560,3 +561,97 @@ else:
     def flush_volume(path):
         # use sync()?
         pass
+
+
+class ConflictError(Exception):
+    pass
+
+class UnableToUnlinkReplacementError(Exception):
+    pass
+
+def reraise(wrapper):
+    _, exc, tb = sys.exc_info()
+    wrapper_exc = wrapper("%s: %s" % (exc.__class__.__name__, exc))
+    raise wrapper_exc.__class__, wrapper_exc, tb
+
+if sys.platform == "win32":
+    from ctypes import WINFUNCTYPE, windll, WinError, get_last_error
+    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPVOID
+
+    # <https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx>
+    ReplaceFileW = WINFUNCTYPE(
+        BOOL,
+          LPCWSTR, LPCWSTR, LPCWSTR, DWORD, LPVOID, LPVOID,
+        use_last_error=True
+      )(("ReplaceFileW", windll.kernel32))
+
+    REPLACEFILE_IGNORE_MERGE_ERRORS = 0x00000002
+
+    def rename_no_overwrite(source_path, dest_path):
+        os.rename(source_path, dest_path)
+
+    def replace_file(replaced_path, replacement_path, backup_path):
+        precondition_abspath(replaced_path)
+        precondition_abspath(replacement_path)
+        precondition_abspath(backup_path)
+
+        r = ReplaceFileW(replaced_path, replacement_path, backup_path,
+                         REPLACEFILE_IGNORE_MERGE_ERRORS, None, None)
+        if r == 0:
+            # The UnableToUnlinkReplacementError case does not happen on Windows;
+            # all errors should be treated as signalling a conflict.
+            err = get_last_error()
+            raise ConflictError("WinError: %s" % (WinError(err)))
+else:
+    def rename_no_overwrite(source_path, dest_path):
+        # link will fail with EEXIST if there is already something at dest_path.
+        os.link(source_path, dest_path)
+        try:
+            os.unlink(source_path)
+        except EnvironmentError:
+            reraise(UnableToUnlinkReplacementError)
+
+    def replace_file(replaced_path, replacement_path, backup_path):
+        precondition_abspath(replaced_path)
+        precondition_abspath(replacement_path)
+        precondition_abspath(backup_path)
+
+        if not os.path.exists(replacement_path):
+            raise ConflictError("Replacement file not found: %r" % (replacement_path,))
+
+        try:
+            os.rename(replaced_path, backup_path)
+        except OSError as e:
+            print e, e.errno
+            if e.errno != ENOENT:
+                raise
+        try:
+            rename_no_overwrite(replacement_path, replaced_path)
+        except EnvironmentError:
+            reraise(ConflictError)
+
+PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size ctime mtime')
+
+def get_pathinfo(path_u):
+    try:
+        statinfo = os.lstat(path_u)
+        mode = statinfo.st_mode
+        return PathInfo(isdir =stat.S_ISDIR(mode),
+                        isfile=stat.S_ISREG(mode),
+                        islink=stat.S_ISLNK(mode),
+                        exists=True,
+                        size  =statinfo.st_size,
+                        ctime =statinfo.st_ctime,
+                        mtime =statinfo.st_mtime,
+                       )
+    except OSError as e:
+        if e.errno == ENOENT:
+            return PathInfo(isdir =False,
+                            isfile=False,
+                            islink=False,
+                            exists=False,
+                            size  =None,
+                            ctime =None,
+                            mtime =None,
+                           )
+        raise
