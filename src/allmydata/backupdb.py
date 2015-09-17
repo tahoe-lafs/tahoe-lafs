@@ -368,34 +368,33 @@ class BackupDB:
 class MagicFolderDB(BackupDB):
     VERSION = 3
 
-    def get_all_files(self):
-        """Retreive a list of all files that have had an entry in magic-folder db
-        (files that have been downloaded at least once).
+    def get_all_relpaths(self):
+        """
+        Retrieve a list of all relpaths of files that have had an entry in magic folder db
+        (i.e. that have been downloaded at least once).
         """
         self.cursor.execute("SELECT path FROM local_files")
         rows = self.cursor.fetchall()
-        if not rows:
-            return None
-        else:
-            return rows
+        return set([r[0] for r in rows])
 
-    def get_local_file_version(self, path):
-        """I will tell you the version of a local file tracked by our magic folder db.
-        If no db entry found then I'll return None.
+    def get_local_file_version(self, relpath_u):
+        """
+        Return the version of a local file tracked by our magic folder db.
+        If no db entry is found then return None.
         """
         c = self.cursor
         c.execute("SELECT version, fileid"
                   " FROM local_files"
                   " WHERE path=?",
-                  (path,))
+                  (relpath_u,))
         row = self.cursor.fetchone()
         if not row:
             return None
         else:
             return row[0]
 
-    def did_upload_file(self, filecap, path, version, mtime, ctime, size):
-        #print "_did_upload_file(%r, %r, %r, %r, %r, %r)" % (filecap, path, version, mtime, ctime, size)
+    def did_upload_file(self, filecap, relpath_u, version, mtime, ctime, size):
+        #print "_did_upload_file(%r, %r, %r, %r, %r, %r)" % (filecap, relpath_u, version, mtime, ctime, size)
         now = time.time()
         fileid = self.get_or_allocate_fileid_for_cap(filecap)
         try:
@@ -408,12 +407,12 @@ class MagicFolderDB(BackupDB):
                                 (now, now, fileid))
         try:
             self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?)",
-                                (path, size, mtime, ctime, fileid, version))
+                                (relpath_u, size, mtime, ctime, fileid, version))
         except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
             self.cursor.execute("UPDATE local_files"
                                 " SET size=?, mtime=?, ctime=?, fileid=?, version=?"
                                 " WHERE path=?",
-                                (size, mtime, ctime, fileid, version, path))
+                                (size, mtime, ctime, fileid, version, relpath_u))
         self.connection.commit()
 
     def is_new_file_time(self, path, relpath_u):
