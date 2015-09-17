@@ -121,7 +121,10 @@ class QueueMixin(HookMixin):
         return unicode_from_filepath(self._local_filepath.preauthChild(relpath_u))
 
     def _get_relpath(self, filepath):
-        return u"/".join(filepath.segmentsFrom(self._local_filepath))
+        print "_get_relpath(%r)" % (filepath,)
+        segments = filepath.asTextMode().segmentsFrom(self._local_filepath.asTextMode())
+        print "segments = %r" % (segments,)
+        return u"/".join(segments)
 
     def _count(self, counter_name, delta=1):
         self._client.stats_provider.count('magic_folder.%s.%s' % (self._name, counter_name), delta)
