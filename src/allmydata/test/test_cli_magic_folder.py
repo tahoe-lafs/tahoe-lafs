@@ -3,6 +3,7 @@ import re
 
 from twisted.trial import unittest
 from twisted.internet import defer
+from twisted.internet import reactor
 
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
@@ -100,15 +101,15 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(lambda ign: res)
         return d
 
-    def init_magicfolder(self, client_num, upload_dircap, collective_dircap, local_magic_dir):
+    def init_magicfolder(self, client_num, upload_dircap, collective_dircap, local_magic_dir, clock):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.get_clientdir(i=client_num))
         magicfolder = MagicFolder(self.get_client(client_num), upload_dircap, collective_dircap, local_magic_dir,
-                                       dbfile, pending_delay=0.2)
+                                       dbfile, pending_delay=0.2, clock=clock)
         magicfolder.setServiceParent(self.get_client(client_num))
         magicfolder.ready()
         return magicfolder
 
-    def setup_alice_and_bob(self):
+    def setup_alice_and_bob(self, clock=reactor):
         self.set_up_grid(num_clients=2)
 
         alice_magic_dir = abspath_expanduser_unicode(u"Alice-magic", base=self.basedir)
@@ -130,7 +131,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(lambda x: self.check_joined_config(0, self.alice_upload_dircap))
         d.addCallback(lambda x: self.check_config(0, alice_magic_dir))
         def get_Alice_magicfolder(result):
-            self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap, self.alice_collective_dircap, alice_magic_dir)
+            self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap, self.alice_collective_dircap, alice_magic_dir, clock)
             return result
         d.addCallback(get_Alice_magicfolder)
 
@@ -146,7 +147,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(lambda x: self.check_joined_config(1, self.bob_upload_dircap))
         d.addCallback(lambda x: self.check_config(1, bob_magic_dir))
         def get_Bob_magicfolder(result):
-            self.bob_magicfolder = self.init_magicfolder(1, self.bob_upload_dircap, self.bob_collective_dircap, bob_magic_dir)
+            self.bob_magicfolder = self.init_magicfolder(1, self.bob_upload_dircap, self.bob_collective_dircap, bob_magic_dir, clock)
             return result
         d.addCallback(get_Bob_magicfolder)
 
