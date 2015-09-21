@@ -67,7 +67,7 @@ class MagicFolder(service.MultiService):
         # TODO: why is this being called more than once?
         if self.running:
             return defer.succeed(None)
-        #print "%r.startService" % (self,)
+        print "%r.startService" % (self,)
         service.MultiService.startService(self)
         return self.uploader.start_monitoring()
 
@@ -82,7 +82,7 @@ class MagicFolder(service.MultiService):
         return d
 
     def finish(self):
-        #print "finish"
+        print "finish"
         d = self.uploader.stop()
         d2 = self.downloader.stop()
         d.addCallback(lambda ign: d2)
@@ -132,7 +132,7 @@ class QueueMixin(HookMixin):
     def _log(self, msg):
         s = "Magic Folder %s: %s" % (self._name, msg)
         self._client.log(s)
-        #print s
+        print s
         #open("events", "ab+").write(msg)
 
     def _append_to_deque(self, relpath_u):
