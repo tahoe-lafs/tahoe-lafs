@@ -163,14 +163,14 @@ I2P
 * I2P must be installed. See here:
   https://geti2p.net/en/download
 
-* The BOB API must be enabled.
+* The SAM API must be enabled.
 
   * Start I2P.
   * Visit http://127.0.0.1:7657/configclients in your browser.
-  * Under "Client Configuration", check the "Run at Startup?" box for "BOB
+  * Under "Client Configuration", check the "Run at Startup?" box for "SAM
     application bridge".
   * Click "Save Client Configuration".
-  * Click the "Start" control for "BOB application bridge", or restart I2P.
+  * Click the "Start" control for "SAM application bridge", or restart I2P.
 
 * txi2p must be installed ::
 
