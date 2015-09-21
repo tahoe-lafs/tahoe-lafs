@@ -244,7 +244,7 @@ class Uploader(QueueMixin):
         for child in children:
             assert isinstance(child, unicode), child
             d.addCallback(lambda ign, child=child: os.path.join(reldir_u, child))
-            d.addCallback(self._process_child)
+            d.addCallback(self._process)
             d.addErrback(log.err)
 
         return d
@@ -256,50 +256,6 @@ class Uploader(QueueMixin):
 
     def _when_queue_is_empty(self):
         return defer.succeed(None)
-
-    def _process_child(self, relpath_u):
-        precondition(isinstance(relpath_u, unicode), relpath_u)
-
-        abspath_u = self._get_abspath(relpath_u)
-        pathinfo = get_pathinfo(abspath_u)
-
-        if pathinfo.islink:
-            self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(abspath_u))
-            return None
-        elif pathinfo.isdir:
-            # process directories unconditionally
-            self._append_to_deque(relpath_u)
-
-            # recurse on the child directory
-            return self._scan(relpath_u)
-        elif pathinfo.isfile:
-            file_version = self._db.get_local_file_version(relpath_u)
-            if file_version is None:
-                # XXX upload if we didn't record our version in magicfolder db?
-                self._append_to_deque(relpath_u)
-                return None
-            else:
-                d2 = self._get_collective_latest_file(relpath_u)
-                def _got_latest_file((file_node, metadata)):
-                    collective_version = metadata['version']
-                    if collective_version is None:
-                        return None
-                    if file_version > collective_version:
-                        self._append_to_upload_deque(relpath_u)
-                    elif file_version < collective_version: # FIXME Daira thinks this is wrong
-                        # if a collective version of the file is newer than ours
-                        # we must download it and unlink the old file from our upload dirnode
-                        self._append_to_download_deque(relpath_u)
-                        # XXX where should we save the returned deferred?
-                        return self._upload_dirnode.delete(relpath_u, must_be_file=True)
-                    else:
-                        # XXX same version. do nothing.
-                        pass
-                d2.addCallback(_got_latest_file)
-                return d2
-        else:
-            self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(abspath_u))
-            return None
 
     def _process(self, relpath_u):
         precondition(isinstance(relpath_u, unicode), relpath_u)
