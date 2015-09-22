@@ -153,6 +153,7 @@ class QueueMixin(HookMixin):
             return
         try:
             item = self._deque.pop()
+            self._count('objects_queued', -1)
         except IndexError:
             self._log("deque is now empty")
             self._lazy_tail.addCallback(lambda ign: self._when_queue_is_empty())
@@ -340,12 +341,10 @@ class Uploader(QueueMixin):
         d.addCallback(_maybe_upload)
 
         def _succeeded(res):
-            self._count('objects_queued', -1)
             self._count('objects_succeeded')
             return res
         def _failed(f):
             print f
-            self._count('objects_queued', -1)
             self._count('objects_failed')
             self._log("%r while processing %r" % (f, relpath_u))
             return f
@@ -497,6 +496,7 @@ class Downloader(QueueMixin):
         print "deque = %r" % (self._deque,)
         self._deque.extend(result)
         print "deque after = %r" % (self._deque,)
+        self._count('objects_queued', len(result))
         print "pending = %r" % (self._pending,)
         self._pending.update(map(lambda x: x[0], result))
         print "pending after = %r" % (self._pending,)
