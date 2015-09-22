@@ -16,7 +16,8 @@ from allmydata.util.fileutil import precondition_abspath, get_pathinfo
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
-     unicode_from_filepath, quote_local_unicode_path, FilenameEncodingError
+     unicode_from_filepath, quote_local_unicode_path, quote_output, \
+     FilenameEncodingError
 from allmydata.immutable.upload import FileName, Data
 from allmydata import backupdb, magicpath
 
@@ -130,7 +131,7 @@ class QueueMixin(HookMixin):
         self._client.stats_provider.count('magic_folder.%s.%s' % (self._name, counter_name), delta)
 
     def _log(self, msg):
-        s = "Magic Folder %s: %s" % (self._name, msg)
+        s = "Magic Folder %s %s: %s" % (quote_output(self._client.nickname), self._name, msg)
         self._client.log(s)
         print s
         #open("events", "ab+").write(msg)
