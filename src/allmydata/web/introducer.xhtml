@@ -30,7 +30,6 @@
     <th class="nickname-and-peerid">
       <div class="service-nickname">Nickname</div>
       <div class="nodeid data-chars">ServerID</div></th>
-    <th>Advertised IPs</th>
     <th>Announced</th>
     <th>Version</th>
     <th>Service Name</th>
@@ -39,8 +38,7 @@
     <td class="nickname-and-peerid">
       <div class="nickname"><n:slot name="nickname"/></div>
       <div class="nodeid data-chars"><n:slot name="serverid"/></div></td>
-    <td><n:slot name="advertised"/></td>
-    <td class="service-announced"><n:slot name="announced"/></td>
+    <td class="service-announced"><n:attr name="title"><n:slot name="connection-hints"/></n:attr><n:slot name="announced"/></td>
     <td class="service-version"><n:slot name="version"/></td>
     <td class="service-service-name"><n:slot name="service_name"/></td>
   </tr>

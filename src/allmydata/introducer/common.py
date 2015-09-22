@@ -131,9 +131,9 @@ class AnnouncementDescriptor:
      .nickname: their self-provided nickname, or "" (unicode)
      .serverid: the server identifier. This is a pubkey (for V2 clients),
                 or a tubid (for V1 clients).
-     .advertised_addresses: which hosts they listen on (list of strings)
-                            if the announcement included a key for
-                            'anonymous-storage-FURL', else an empty list.
+     .connection_hints: where they listen (list of strings) if the
+                        announcement included a key for
+                        'anonymous-storage-FURL', else an empty list.
     """
 
     def __init__(self, when, index, canary, ann_d):
@@ -148,6 +148,6 @@ class AnnouncementDescriptor:
         self.serverid = key_s or tubid_s
         furl = ann_d.get("anonymous-storage-FURL")
         if furl:
-            self.advertised_addresses = rrefutil.hosts_for_furl(furl)
+            self.connection_hints = rrefutil.connection_hints_for_furl(furl)
         else:
-            self.advertised_addresses = []
+            self.connection_hints = []
