@@ -248,6 +248,10 @@ class Uploader(QueueMixin):
         for child in children:
             assert isinstance(child, unicode), child
             d.addCallback(lambda ign, child=child: os.path.join(reldir_u, child))
+            def _add_pending(relpath_u):
+                self._pending.add(relpath_u)
+                return relpath_u
+            d.addCallback(_add_pending)
             d.addCallback(self._process)
             d.addErrback(log.err)
 
