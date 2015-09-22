@@ -27,20 +27,6 @@ def trap_deadref(f):
     return trap_and_discard(f, DeadReferenceError)
 
 
-def hosts_for_rref(rref, ignore_localhost=True):
-    # actually, this only returns hostnames
-    advertised = []
-    for hint in rref.getLocationHints():
-        # Foolscap-0.2.5 and earlier used strings in .locationHints, but we
-        # require a newer version that uses tuples of ("ipv4", host, port)
-        assert not isinstance(hint, str), hint
-        if hint[0] == "ipv4":
-            host = hint[1]
-            if ignore_localhost and host == "127.0.0.1":
-                continue
-            advertised.append(host)
-    return advertised
-
 def hosts_for_furl(furl, ignore_localhost=True):
     advertised = []
     for hint in SturdyRef(furl).locationHints:

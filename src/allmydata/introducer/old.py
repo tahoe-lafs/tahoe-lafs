@@ -405,13 +405,11 @@ class IntroducerService_v1(service.MultiService, Referenceable):
         for service_name, subscribers in self._subscribers.items():
             for rref, when in subscribers.items():
                 tubid = rref.getRemoteTubID() or "?"
-                advertised_addresses = rrefutil.hosts_for_rref(rref)
                 remote_address = rrefutil.stringify_remote_address(rref)
                 nickname, version, app_versions = u"?", u"?", {}
                 sd = SubscriberDescriptor(service_name, when,
                                           nickname, version, app_versions,
-                                          advertised_addresses, remote_address,
-                                          tubid)
+                                          remote_address, tubid)
                 s.append(sd)
         return s
 

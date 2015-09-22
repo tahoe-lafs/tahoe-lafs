@@ -119,7 +119,6 @@ class IntroducerRoot(rend.Page):
     def render_subscriber_row(self, ctx, s):
         ctx.fillSlots("nickname", s.nickname)
         ctx.fillSlots("tubid", s.tubid)
-        ctx.fillSlots("advertised", " ".join(s.advertised_addresses))
         ctx.fillSlots("connected", s.remote_address)
         since_s = time.strftime("%H:%M:%S %d-%b-%Y", time.localtime(s.when))
         ctx.fillSlots("since", since_s)
