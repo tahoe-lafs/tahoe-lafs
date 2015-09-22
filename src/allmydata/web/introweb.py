@@ -42,28 +42,12 @@ class IntroducerRoot(rend.Page):
         res["subscription_summary"] = counts
 
         announcement_summary = {}
-        service_hosts = {}
         for ad in self.introducer_service.get_announcements():
             service_name = ad.service_name
             if service_name not in announcement_summary:
                 announcement_summary[service_name] = 0
             announcement_summary[service_name] += 1
-            if service_name not in service_hosts:
-                service_hosts[service_name] = set()
-            # it's nice to know how many distinct hosts are available for
-            # each service. We define a "host" by a set of addresses
-            # (hostnames or ipv4 addresses), which we extract from the
-            # connection hints. In practice, this is usually close
-            # enough: when multiple services are run on a single host,
-            # they're usually either configured with the same addresses,
-            # or setLocationAutomatically picks up the same interfaces.
-            host = frozenset(ad.advertised_addresses)
-            service_hosts[service_name].add(host)
         res["announcement_summary"] = announcement_summary
-        distinct_hosts = dict([(name, len(hosts))
-                               for (name, hosts)
-                               in service_hosts.iteritems()])
-        res["announcement_distinct_hosts"] = distinct_hosts
 
         return simplejson.dumps(res, indent=1) + "\n"
 
