@@ -14,12 +14,13 @@ Using Tahoe-LAFS with an anonymizing network: Tor, I2P
 
    #. `Tor`_
    #. `I2P`_
-   #. `Post-install`_
 
-#. `Configuration`_
+#. `Connection configuration`_
 
-   #. `Client configuration`_
-   #. `Server configuration`_
+#. `Anonymity configuration`_
+
+   #. `Client anonymity`_
+   #. `Server anonymity`_
 
 #. `Performance and security issues with Tor Hidden Services`_
 #. `Performance and security issues with I2P`_
@@ -38,6 +39,7 @@ https://www.torproject.org/
 I2P is a decentralized anonymizing network that focuses on end-to-end anonymity
 between clients and servers. Please see the I2P website for more information:
 https://geti2p.net/
+
 
 
 Use cases
@@ -138,6 +140,7 @@ string. See `Tahoe-LAFS ticket #2293`_ for progress.
 .. _`Tahoe-LAFS ticket #2293`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2293
 
 
+
 Software Dependencies
 =====================
 
@@ -147,13 +150,11 @@ Tor
 * Tor (tor) must be installed. See here:
   https://www.torproject.org/docs/installguide.html.en
 
-* The "Tor-friendly" branch of txsocksx must be installed
-  ( Once this is merged then you can use upstream txsocksx;
-  https://github.com/habnabit/txsocksx/pull/8 ) ::
+* txsocksx must be installed ::
 
-   pip install git+https://github.com/david415/txsocksx.git
+   pip install txsocksx
 
-* txtorcon must be installed ::
+* For storage servers, txtorcon must be installed ::
 
    pip install txtorcon
 
@@ -176,21 +177,34 @@ I2P
 
    pip install txi2p
 
-Post-install
-------------
-
-Once these software dependencies are installed and the Tahoe-LAFS node
-is restarted, then no further configuration is necessary for "unsafe"
-Tor or I2P connectivity to other Tahoe-LAFS nodes (client use-case 2 from
-`Use cases`_, above).
-
-In order to implement client use-case 3 or server use-cases 2 or 3, further
-configuration is necessary.
 
 
+Connection configuration
+========================
 
-Configuration
-=============
+``[connections]``
+
+``tcp.socks-proxy = (string, optional)``
+
+    When this option is present, Tahoe-LAFS will install a plugin that routes
+    regular internet connections through a SOCKS proxy.
+
+``tor.socks-proxy = (string, optional)``
+
+    When this option is present, Tahoe-LAFS will install a plugin that handles
+    Tor Hidden service (``.onion``) connections for clients. If provided but
+    left blank, the plugin will try the default Tor SOCKS proxy ports.
+
+``i2p.sam-api = (string, optional)``
+
+    When this option is present, Tahoe-LAFS will install a plugin that handles
+    I2P connections. If provided but left blank, the plugin will use the default
+    SAM port on localhost.
+
+
+
+Anonymity configuration
+=======================
 
 Tahoe-LAFS provides a configuration flag for explicitly stating whether or not
 anonymity is required for a node::
@@ -204,10 +218,10 @@ Tahoe-LAFS:
 1. Tahoe-LAFS will not start if any of the configuration options in ``tahoe.cfg``
    would compromise the identity of the node.
 
-   * In particular, ``tub.location`` is forced to contain safe values. It is an
-     error to specify a ``tub.location`` that contains anything other than the
-     special string ``UNREACHABLE``, or a comma-separated list of Twisted server
-     endpoint descriptor strings for supported anonymizing networks.
+   * In particular, ``tub.location`` is forced to either be empty, or contain
+     safe values. It is an error to specify a ``tub.location`` that contains
+     anything other than a comma-separated list of location hints for supported
+     anonymizing networks.
 
 2. Tahoe-LAFS will not make any outgoing connections that are not over a
    supported anonymizing network.
@@ -215,7 +229,7 @@ Tahoe-LAFS:
    * If a server's FURL contains one or more location hints for anonymizing
      networks, Tahoe-LAFS will prefer those hints to connect to the server.
      An anonymizing network location hint will only be used if the correct
-     modules are installed.
+     modules are installed (see `Connection configuration`_ above).
    * If a server's FURL contains no location hints for anonymizing networks
      (or Tahoe-LAFS could not contact the server via any of the provided
      anonymizing network location hints), and the user has the required modules
@@ -227,21 +241,21 @@ This option is **critical** to preserving the client's anonymity (client
 use-case 3 from `Use cases`_, above). It is also necessary to preserve a
 server's anonymity (server use-case 3).
 
-Client configuration
---------------------
+Client anonymity
+----------------
 
 To configure a client node for anonymity, ``tahoe.cfg`` **must** contain the
 following configuration flags::
 
    [node]
    anonymous = True
-   tub.location = UNREACHABLE
+   tub.location =
 
 Once the Tahoe-LAFS node has been restarted, it can be used anonymously (client
 use-case 3).
 
-Server configuration
---------------------
+Server anonymity
+----------------
 
 To configure a server node to listen on an anonymizing network, a corresponding
 server endpoint descriptor string must be specified in ``tahoe.cfg``::
@@ -268,19 +282,19 @@ networks::
 
    tub.location = tcp:123.456.789.0:80,onion:80:hiddenServiceDir=/var/lib/tor/my_service
 
-The special string ``AUTODETECT`` tells Tahoe-LAFS to try to detect the public
+The special string ``AUTO`` tells Tahoe-LAFS to try to detect the public
 interface and use it::
 
-   tub.location = "AUTODETECT,onion:80:hiddenServiceDir=/var/lib/tor/my_service"
+   tub.location = "AUTO,onion:80:hiddenServiceDir=/var/lib/tor/my_service"
 
-It is an error to specify a ``tub.location`` value that contains ``AUTODETECT``
-or server endpoint strings for non-anonymizing networks when ``anonymous`` is
-set to ``True``. ``anonymous`` **must** either be unset, or set to ``False``. A
+It is an error to specify a ``tub.location`` value that contains ``AUTO`` or
+server endpoint strings for non-anonymizing networks when ``anonymous`` is set
+to ``True``. ``anonymous`` **must** either be unset, or set to ``False``. A
 complete configuration for server use-case 2 would look like::
 
    [node]
    anonymous = False
-   tub.location = AUTODETECT,onion:80:hiddenServiceDir=/var/lib/tor/my_service,i2p:/var/lib/i2p/my_service.keypair
+   tub.location = AUTO,onion:80:hiddenServiceDir=/var/lib/tor/my_service,i2p:/var/lib/i2p/my_service.keypair
 
 
 
