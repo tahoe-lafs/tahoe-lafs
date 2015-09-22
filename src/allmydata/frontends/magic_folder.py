@@ -128,7 +128,9 @@ class QueueMixin(HookMixin):
         return u"/".join(segments)
 
     def _count(self, counter_name, delta=1):
-        self._client.stats_provider.count('magic_folder.%s.%s' % (self._name, counter_name), delta)
+        ctr = 'magic_folder.%s.%s' % (self._name, counter_name)
+        print "%r += %r" % (ctr, delta)
+        self._client.stats_provider.count(ctr, delta)
 
     def _log(self, msg):
         s = "Magic Folder %s %s: %s" % (quote_output(self._client.nickname), self._name, msg)
@@ -267,6 +269,7 @@ class Uploader(QueueMixin):
             abspath_u = self._get_abspath(relpath_u)
             pathinfo = get_pathinfo(abspath_u)
 
+            print "pending = %r, about to remove %r" % (self._pending, relpath_u)
             self._pending.remove(relpath_u)
             encoded_name_u = magicpath.path2magic(relpath_u)
 
@@ -341,6 +344,7 @@ class Uploader(QueueMixin):
             self._count('objects_succeeded')
             return res
         def _failed(f):
+            print f
             self._count('objects_queued', -1)
             self._count('objects_failed')
             self._log("%r while processing %r" % (f, relpath_u))
@@ -489,8 +493,13 @@ class Downloader(QueueMixin):
         return collective_dirmap_d
 
     def _add_batch_to_download_queue(self, result):
+        print "result = %r" % (result,)
+        print "deque = %r" % (self._deque,)
         self._deque.extend(result)
+        print "deque after = %r" % (self._deque,)
+        print "pending = %r" % (self._pending,)
         self._pending.update(map(lambda x: x[0], result))
+        print "pending after = %r" % (self._pending,)
 
     def _filter_scan_batch(self, result):
         extension = [] # consider whether this should be a dict
