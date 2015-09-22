@@ -89,7 +89,8 @@ class IntroducerRoot(rend.Page):
     def render_service_row(self, ctx, ad):
         ctx.fillSlots("serverid", ad.serverid)
         ctx.fillSlots("nickname", ad.nickname)
-        ctx.fillSlots("advertised", " ".join(ad.advertised_addresses))
+        ctx.fillSlots("connection-hints",
+                      "connection hints: " + " ".join(ad.connection_hints))
         ctx.fillSlots("connected", "?")
         when_s = time.strftime("%H:%M:%S %d-%b-%Y", time.localtime(ad.when))
         ctx.fillSlots("announced", when_s)
