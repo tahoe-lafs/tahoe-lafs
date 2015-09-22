@@ -298,12 +298,12 @@ complete configuration for server use-case 2 would look like::
 
 
 
-Performance and security issues with Tor Hidden Services
-========================================================
+Performance and security issues
+===============================
 
 If you are running a server which does not itself need to be
-anonymous, should you make it reachable as a Tor Hidden Service or
-not? Or should you make it reachable *both* as a Tor Hidden Service
+anonymous, should you make it reachable via an anonymizing network or
+not? Or should you make it reachable *both* via an anonymizing network
 and as a publicly traceable TCP/IP server?
 
 There are several trade-offs effected by this decision.
@@ -311,18 +311,16 @@ There are several trade-offs effected by this decision.
 NAT/Firewall penetration
 ------------------------
 
-Making a server be reachable as a Tor Hidden Service makes it
-reachable even if there are NATs or firewalls preventing direct TCP/IP
-connections to the server.
+Making a server be reachable via Tor or I2P makes it reachable even if there
+are NATs or firewalls preventing direct TCP/IP connections to the server.
 
 Anonymity
 ---------
 
-Making a Tahoe-LAFS server accessible *only* via Tor Hidden Services
-can be used to guarantee that the Tahoe-LAFS clients use Tor to
-connect. This prevents misconfigured clients from accidentally
-de-anonymizing themselves by connecting to your server through the
-traceable Internet.
+Making a Tahoe-LAFS server accessible *only* via Tor or I2P can be used to
+guarantee that the Tahoe-LAFS clients use Tor or I2P to connect. This prevents
+misconfigured clients from accidentally de-anonymizing themselves by connecting
+to your server through the traceable Internet.
 
 Also, interaction, through Tor, with a Tor Hidden Service may be more
 protected from network traffic analysis than interaction, through Tor,
@@ -334,13 +332,12 @@ If so we need to link to it. If not, then maybe we should explain more here why 
 Performance
 -----------
 
-A client connecting to a Tahoe-LAFS server through Tor incurs
-substantially higher latency and sometimes worse throughput than the
-same client connecting to the same server over a normal traceable
-TCP/IP connection.
+A client connecting to a publicly traceable Tahoe-LAFS server through Tor incurs
+substantially higher latency and sometimes worse throughput than the same client
+connecting to the same server over a normal traceable TCP/IP connection.
 
-A client connecting to a Tahoe-LAFS server which is a Tor Hidden
-Service incurs much more latency and probably worse throughput.
+A client connecting to a Tahoe-LAFS server which is a Tor Hidden Service or I2P
+server incurs much more latency and probably worse throughput.
 
 Positive and negative effects on other Tor users
 ------------------------------------------------
@@ -360,12 +357,25 @@ Both of these effects are doubled if you upload or download files to a
 Tor Hidden Service, as compared to if you upload or download files
 over Tor to a publicly traceable TCP/IP server.
 
+Positive and negative effects on other I2P users
+------------------------------------------------
 
+Sending your Tahoe-LAFS traffic over I2P adds cover traffic for other I2P users
+who are also transmitting data. So that is good for them -- increasing their
+anonymity. It will not directly impair the performance of other I2P users'
+interactive sessions, because the I2P network has several congestion control and
+quality-of-service features, such as prioritizing smaller packets.
 
-Performance and security issues with I2P
-========================================
+However, if many users are sending Tahoe-LAFS traffic over I2P, and do not have
+their I2P routers configured to participate in much traffic, then the I2P
+network as a whole will suffer degradation. Each Tahoe-LAFS router using I2P has
+their own anonymizing tunnels that their data is sent through. On average, one
+Tahoe-LAFS node requires 12 other I2P routers to participate in their tunnels.
 
-TBC
+It is therefore important that your I2P router is sharing bandwidth with other
+routers, so that you can give back as you use I2P. This will never impair the
+performance of your Tahoe-LAFS node, because your I2P router will always
+prioritize your own traffic.
 
 
 
