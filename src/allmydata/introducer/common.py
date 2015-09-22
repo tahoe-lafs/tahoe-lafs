@@ -100,20 +100,18 @@ class SubscriberDescriptor:
     .nickname: their self-provided nickname, or "?" (unicode)
     .version: their self-provided version (string)
     .app_versions: versions of each library they use (dict str->str)
-    .advertised_addresses: what hosts they listen on (list of strings)
     .remote_address: the external address from which they connected (string)
     .tubid: for subscribers connecting with Foolscap, their tubid (string)
     """
 
     def __init__(self, service_name, when,
                  nickname, version, app_versions,
-                 advertised_addresses, remote_address, tubid):
+                 remote_address, tubid):
         self.service_name = service_name
         self.when = when
         self.nickname = nickname
         self.version = version
         self.app_versions = app_versions
-        self.advertised_addresses = advertised_addresses
         self.remote_address = remote_address
         self.tubid = tubid
 

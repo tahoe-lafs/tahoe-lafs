@@ -175,7 +175,6 @@ class IntroducerService(service.MultiService, Referenceable):
                 # tubid will be None. Also, subscribers do not tell us which
                 # pubkey they use; only publishers do that.
                 tubid = rref.getRemoteTubID() or "?"
-                advertised_addresses = rrefutil.hosts_for_rref(rref)
                 remote_address = rrefutil.stringify_remote_address(rref)
                 # these three assume subscriber_info["version"]==0, but
                 # should tolerate other versions
@@ -188,8 +187,7 @@ class IntroducerService(service.MultiService, Referenceable):
                 # 'when' is the time they subscribed
                 sd = SubscriberDescriptor(service_name, when,
                                           nickname, version, app_versions,
-                                          advertised_addresses, remote_address,
-                                          tubid)
+                                          remote_address, tubid)
                 s.append(sd)
         return s
 
