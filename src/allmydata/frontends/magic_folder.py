@@ -152,12 +152,12 @@ class QueueMixin(HookMixin):
         if self._stopped:
             return
         try:
-            relpath_u = self._deque.pop()
+            item = self._deque.pop()
         except IndexError:
             self._log("deque is now empty")
             self._lazy_tail.addCallback(lambda ign: self._when_queue_is_empty())
         else:
-            self._lazy_tail.addCallback(lambda ign: self._process(relpath_u))
+            self._lazy_tail.addCallback(lambda ign: self._process(item))
             self._lazy_tail.addBoth(self._call_hook, 'processed')
             self._lazy_tail.addErrback(log.err)
             self._lazy_tail.addCallback(lambda ign: task.deferLater(reactor, self._turn_delay, self._turn_deque))
