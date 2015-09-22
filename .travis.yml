@@ -1,3 +1,4 @@
+sudo: false
 language: python
 python:
   - "2.7"
@@ -7,7 +8,7 @@ before_install:
   - sh -c set
   - git config --global user.email "travis-tahoe@tahoe-lafs.org"
   - git config --global user.name "Travis Tahoe"
-  - git pull --depth=1000
+  - git fetch --depth=1000
   - python misc/build_helpers/show-tool-versions.py
 install:
   - pip install 'coveralls==0.4.2'
