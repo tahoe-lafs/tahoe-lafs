@@ -124,6 +124,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(self._restart_client)
 
         def _check_move_empty_tree(res):
+            #print "_check_move_empty_tree"
             self.mkdir_nonascii(empty_tree_dir)
             d2 = self.magicfolder.uploader.set_hook('processed')
             os.rename(empty_tree_dir, new_empty_tree_dir)
@@ -137,6 +138,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 1))
 
         def _check_move_small_tree(res):
+            #print "_check_move_small_tree"
             self.mkdir_nonascii(small_tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
             d2 = self.magicfolder.uploader.set_hook('processed', ignore_count=1)
@@ -151,6 +153,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 2))
 
         def _check_moved_tree_is_watched(res):
+            #print "_check_moved_tree_is_watched"
             d2 = self.magicfolder.uploader.set_hook('processed')
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
             self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
