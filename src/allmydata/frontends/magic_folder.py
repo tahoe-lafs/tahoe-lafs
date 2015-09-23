@@ -140,7 +140,7 @@ class QueueMixin(HookMixin):
 
     def _append_to_deque(self, relpath_u):
         print "_append_to_deque(%r)" % (relpath_u,)
-        if relpath_u in self._pending:
+        if relpath_u in self._pending or magicpath.should_ignore_file(relpath_u):
             return
         self._deque.append(relpath_u)
         self._pending.add(relpath_u)
@@ -250,6 +250,9 @@ class Uploader(QueueMixin):
             d.addCallback(lambda ign, child=child:
                           ("%s/%s" % (reldir_u, child) if reldir_u else child))
             def _add_pending(relpath_u):
+                if magicpath.should_ignore_file(relpath_u):
+                    return None
+
                 self._pending.add(relpath_u)
                 return relpath_u
             d.addCallback(_add_pending)
@@ -267,6 +270,8 @@ class Uploader(QueueMixin):
         return defer.succeed(None)
 
     def _process(self, relpath_u):
+        if relpath_u is None:
+            return
         precondition(isinstance(relpath_u, unicode), relpath_u)
 
         d = defer.succeed(None)
@@ -407,6 +412,8 @@ class Downloader(QueueMixin):
         We check the remote metadata version against our magic-folder db version number;
         latest version wins.
         """
+        if magicpath.should_ignore_file(relpath_u):
+            return False
         v = self._db.get_local_file_version(relpath_u)
         return (v is None or v < remote_version)
 
