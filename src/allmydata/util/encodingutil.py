@@ -253,23 +253,40 @@ def quote_local_unicode_path(path, quotemarks=True):
 
     return quote_output(path, quotemarks=quotemarks, quote_newlines=True)
 
-def to_filepath(path):
-    precondition(isinstance(path, basestring), path=path)
+def quote_filepath(path, quotemarks=True):
+    return quote_local_unicode_path(unicode_from_filepath(path), quotemarks=quotemarks)
 
+def _encode(s):
+    precondition(isinstance(s, basestring), s=s)
     if isinstance(path, unicode) and not use_unicode_filepath:
-        path = path.encode(filesystem_encoding)
+        return s.encode(filesystem_encoding)
+    else:
+        return s
 
-    return FilePath(path)
+def _decode(s):
+    precondition(isinstance(s, basestring), s=s)
+    if isinstance(s, bytes):
+        return s.decode(filesystem_encoding)
+    else:
+        return s
+
+def to_filepath(path):
+    return FilePath(_encode(path))
+
+def extend_filepath(fp, path):
+    return fp.preauthChild(_decode(path))
 
 def unicode_from_filepath(fp):
     precondition(isinstance(fp, FilePath), fp=fp)
+    return _decode(fp.path)
 
-    path = fp.path
-    if isinstance(path, bytes):
-        path = path.decode(filesystem_encoding)
-
-    return path
-
+def unicode_segments_from(base_fp, ancestor_fp):
+    if hasattr(FilePath, 'asTextMode'):
+        return base_fp.asTextMode().segmentsFrom(ancestor_fp.asTextMode())
+    else:
+        bpt, apt = (type(base_fp.path), type(ancestor_fp.path))
+        _assert(bpt == apt, bpt=bpt, apt=apt)
+        return map(_decode, base_fp.segmentsFrom(ancestor_fp))
 
 def unicode_platform():
     """
@@ -317,3 +334,6 @@ def listdir_unicode(path):
         return os.listdir(path)
     else:
         return listdir_unicode_fallback(path)
+
+def listdir_filepath(fp):
+    return listdir_unicode(unicode_from_filepath(fp))
