@@ -256,7 +256,9 @@ class Uploader(QueueMixin):
                 self._pending.add(relpath_u)
                 return relpath_u
             d.addCallback(_add_pending)
+            # This call to _process doesn't go through the deque, and probably should.
             d.addCallback(self._process)
+            d.addBoth(self._call_hook, 'processed')
             d.addErrback(log.err)
 
         return d
