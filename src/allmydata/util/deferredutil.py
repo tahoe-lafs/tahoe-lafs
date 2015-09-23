@@ -90,6 +90,7 @@ class HookMixin:
         If d is not given, an unfired Deferred is created and returned.
         The hook must not already be set.
         """
+        self._log("set_hook %r, ignore_count=%r" % (name, ignore_count))
         if d is None:
             d = defer.Deferred()
         _assert(ignore_count >= 0, ignore_count=ignore_count)
@@ -118,13 +119,16 @@ class HookMixin:
             return defer.succeed(None)
 
         (d, ignore_count) = hook
-        log.msg("call_hook", name=name, ignore_count=ignore_count, level=log.NOISY)
+        self._log("call_hook %r, ignore_count=%r" % (name, ignore_count))
         if ignore_count > 0:
             self._hooks[name] = (d, ignore_count - 1)
         else:
             self._hooks[name] = None
             _with_log(d.callback, res)
         return res
+
+    def _log(self, msg):
+        log.msg(msg, level=log.NOISY)
 
 
 def async_iterate(process, iterable, *extra_args, **kwargs):
