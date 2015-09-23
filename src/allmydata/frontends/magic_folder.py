@@ -247,7 +247,8 @@ class Uploader(QueueMixin):
         d = defer.succeed(None)
         for child in children:
             assert isinstance(child, unicode), child
-            d.addCallback(lambda ign, child=child: "%s/%s" % (reldir_u, child))
+            d.addCallback(lambda ign, child=child:
+                          ("%s/%s" % (reldir_u, child) if reldir_u else child))
             def _add_pending(relpath_u):
                 self._pending.add(relpath_u)
                 return relpath_u
