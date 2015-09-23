@@ -270,6 +270,7 @@ class Uploader(QueueMixin):
         return defer.succeed(None)
 
     def _process(self, relpath_u):
+        self._log("_process(%r)" % (relpath_u,))
         if relpath_u is None:
             return
         precondition(isinstance(relpath_u, unicode), relpath_u)
