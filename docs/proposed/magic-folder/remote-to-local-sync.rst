@@ -395,14 +395,17 @@ and Windows. On Unix, it can be implemented as follows:
   suppressing errors.
 
 Note that, if there is no conflict, the entry for ``foo``
-recorded in the `magic folder db`_ will reflect the ``mtime``
-set in step 3. The link operation in step 4c will cause an
-``IN_CREATE`` event for ``foo``, but this will not trigger an
-upload, because the metadata recorded in the database entry
-will exactly match the metadata for the file's inode on disk.
-(The two hard links — ``foo`` and, while it still exists,
-``.foo.tmp`` — share the same inode and therefore the same
-metadata.)
+recorded in the `magic folder db`_ will reflect the ``mtime`` 
+set in step 3. The move operation in step 4b will cause a
+``MOVED_FROM`` event for ``foo``, and the link operation in 
+step 4c will cause an ``IN_CREATE`` event for ``foo``.
+However, these events will not trigger an upload, because they 
+are guaranteed to be processed only after the file replacement
+has finished, at which point the metadata recorded in the
+database entry will exactly match the metadata for the file's
+inode on disk. (The two hard links — ``foo`` and,  while it
+still exists, ``.foo.tmp`` — share the same inode and
+therefore the same metadata.)
 
 .. _`magic folder db`: filesystem_integration.rst#local-scanning-and-database
 
@@ -411,9 +414,9 @@ call to the `ReplaceFileW`_ API (with the
 ``REPLACEFILE_IGNORE_MERGE_ERRORS`` flag).
 
 Similar to the Unix case, the `ReplaceFileW`_ operation will
-cause a change notification for ``foo``. The replaced ``foo``
-has the same ``mtime`` as the replacement file, and so this
-notification will not trigger an unwanted upload.
+cause one or more change notifications for ``foo``. The replaced
+``foo`` has the same ``mtime`` as the replacement file, and so any
+such notification(s) will not trigger an unwanted upload.
 
 .. _`ReplaceFileW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx
 
