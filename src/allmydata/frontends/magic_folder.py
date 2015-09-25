@@ -336,6 +336,8 @@ class Uploader(QueueMixin):
                     version = 0
                 elif self._db.is_new_file_time(abspath_u, relpath_u):
                     version += 1
+                else:
+                    return None
 
                 uploadable = FileName(abspath_u, self._client.convergence)
                 d2 = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
