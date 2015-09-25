@@ -416,11 +416,10 @@ class MagicFolderDB(BackupDB):
         self.connection.commit()
 
     def is_new_file_time(self, path, relpath_u):
-        """recent_file_time returns true if the file is recent...
+        """is_new_file_time returns true if the file is recent...
         meaning its current statinfo (i.e. size, ctime, and mtime) matched the statinfo
         that was previously stored in the db.
         """
-        #print "check_file_time %s %s" % (path, relpath_u)
         path = abspath_expanduser_unicode(path)
         s = os.stat(path)
         size = s[stat.ST_SIZE]
@@ -435,7 +434,7 @@ class MagicFolderDB(BackupDB):
         if not row:
             return True
         (last_size,last_mtime,last_ctime,last_fileid) = row
-        if (size, ctime, mtime) == (last_size, last_ctime, last_mtime):
+        if (size, ctime, mtime) == (int(last_size), int(last_ctime), int(last_mtime)):
             return False
         else:
             return True
