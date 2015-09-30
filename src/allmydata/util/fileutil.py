@@ -629,7 +629,7 @@ else:
         except EnvironmentError:
             reraise(ConflictError)
 
-PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size ctime mtime')
+PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime ctime')
 
 def get_pathinfo(path_u):
     try:
@@ -640,8 +640,8 @@ def get_pathinfo(path_u):
                         islink=stat.S_ISLNK(mode),
                         exists=True,
                         size  =statinfo.st_size,
-                        ctime =statinfo.st_ctime,
                         mtime =statinfo.st_mtime,
+                        ctime =statinfo.st_ctime,
                        )
     except OSError as e:
         if e.errno == ENOENT:
@@ -650,7 +650,7 @@ def get_pathinfo(path_u):
                             islink=False,
                             exists=False,
                             size  =None,
-                            ctime =None,
                             mtime =None,
+                            ctime =None,
                            )
         raise
