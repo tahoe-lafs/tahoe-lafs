@@ -6,7 +6,7 @@ unicode and back.
 import sys, os, re, locale
 from types import NoneType
 
-from allmydata.util.assertutil import precondition
+from allmydata.util.assertutil import precondition, _assert
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 from allmydata.util import log
@@ -253,6 +253,22 @@ def quote_local_unicode_path(path, quotemarks=True):
 
     return quote_output(path, quotemarks=quotemarks, quote_newlines=True)
 
+def quote_filepath(path, quotemarks=True):
+    return quote_local_unicode_path(unicode_from_filepath(path), quotemarks=quotemarks)
+
+def extend_filepath(fp, segments):
+    # We cannot use FilePath.preauthChild, because
+    # * it has the security flaw described in <https://twistedmatrix.com/trac/ticket/6527>;
+    # * it may return a FilePath in the wrong mode.
+
+    for segment in segments:
+        fp = fp.child(segment)
+
+    if isinstance(fp.path, unicode) and not use_unicode_filepath:
+        return FilePath(fp.path.encode(filesystem_encoding))
+    else:
+        return fp
+
 def to_filepath(path):
     precondition(isinstance(path, basestring), path=path)
 
@@ -261,15 +277,28 @@ def to_filepath(path):
 
     return FilePath(path)
 
+def _decode(s):
+    precondition(isinstance(s, basestring), s=s)
+
+    if isinstance(s, bytes):
+        return s.decode(filesystem_encoding)
+    else:
+        return s
+
 def unicode_from_filepath(fp):
     precondition(isinstance(fp, FilePath), fp=fp)
+    return _decode(fp.path)
 
-    path = fp.path
-    if isinstance(path, bytes):
-        path = path.decode(filesystem_encoding)
+def unicode_segments_from(base_fp, ancestor_fp):
+    precondition(isinstance(base_fp, FilePath), base_fp=base_fp)
+    precondition(isinstance(ancestor_fp, FilePath), ancestor_fp=ancestor_fp)
 
-    return path
-
+    if hasattr(FilePath, 'asTextMode'):
+        return base_fp.asTextMode().segmentsFrom(ancestor_fp.asTextMode())
+    else:
+        bpt, apt = (type(base_fp.path), type(ancestor_fp.path))
+        _assert(bpt == apt, bpt=bpt, apt=apt)
+        return map(_decode, base_fp.segmentsFrom(ancestor_fp))
 
 def unicode_platform():
     """
@@ -317,3 +346,6 @@ def listdir_unicode(path):
         return os.listdir(path)
     else:
         return listdir_unicode_fallback(path)
+
+def listdir_filepath(fp):
+    return listdir_unicode(unicode_from_filepath(fp))
