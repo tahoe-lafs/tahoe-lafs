@@ -1,5 +1,5 @@
 
-import os, sys, stat, time
+import os, sys, stat
 
 from twisted.trial import unittest
 from twisted.internet import defer
