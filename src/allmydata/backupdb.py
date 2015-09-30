@@ -396,8 +396,8 @@ class MagicFolderDB(BackupDB):
         else:
             return row[0]
 
-    def did_upload_file(self, filecap, relpath_u, version, mtime, ctime, size):
-        #print "_did_upload_file(%r, %r, %r, %r, %r, %r)" % (filecap, relpath_u, version, mtime, ctime, size)
+    def did_upload_version(self, filecap, relpath_u, version, pathinfo):
+        #print "did_upload_version(%r, %r, %r, %r)" % (filecap, relpath_u, version, pathinfo)
         now = time.time()
         fileid = self.get_or_allocate_fileid_for_cap(filecap)
         try:
@@ -410,34 +410,26 @@ class MagicFolderDB(BackupDB):
                                 (now, now, fileid))
         try:
             self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?)",
-                                (relpath_u, size, mtime, ctime, fileid, version))
+                                (relpath_u, pathinfo.size, pathinfo.mtime, pathinfo.ctime, fileid, version))
         except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
             self.cursor.execute("UPDATE local_files"
                                 " SET size=?, mtime=?, ctime=?, fileid=?, version=?"
                                 " WHERE path=?",
-                                (size, mtime, ctime, fileid, version, relpath_u))
+                                (pathinfo.size, pathinfo.mtime, pathinfo.ctime, fileid, version, relpath_u))
         self.connection.commit()
 
-    def is_new_file_time(self, path, relpath_u):
+    def is_new_file(self, pathinfo, relpath_u):
         """
         Returns true if the file's current pathinfo (size, mtime, and ctime) has
         changed from the pathinfo previously stored in the db.
-        #print "check_file_time %s %s" % (path, relpath_u)
-        path = abspath_expanduser_unicode(path)
-        s = os.stat(path)
-        size = s[stat.ST_SIZE]
-        ctime = s[stat.ST_CTIME]
-        mtime = s[stat.ST_MTIME]
+        """
+        #print "is_new_file(%r, %r)" % (pathinfo, relpath_u)
         c = self.cursor
-        c.execute("SELECT size,mtime,ctime,fileid"
+        c.execute("SELECT size, mtime, ctime"
                   " FROM local_files"
                   " WHERE path=?",
                   (relpath_u,))
         row = self.cursor.fetchone()
         if not row:
             return True
-        (last_size,last_mtime,last_ctime,last_fileid) = row
-        if (size, ctime, mtime) == (last_size, last_ctime, last_mtime):
-            return False
-        else:
-            return True
+        return (pathinfo.size, pathinfo.mtime, pathinfo.ctime) != row
