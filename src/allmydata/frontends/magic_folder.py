@@ -15,9 +15,9 @@ from allmydata.util import log
 from allmydata.util.fileutil import precondition_abspath, get_pathinfo
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import HookMixin
-from allmydata.util.encodingutil import listdir_unicode, to_filepath, \
-     unicode_from_filepath, quote_local_unicode_path, quote_output, \
-     FilenameEncodingError
+from allmydata.util.encodingutil import listdir_filepath, to_filepath, \
+     extend_filepath, unicode_from_filepath, unicode_segments_from, \
+     quote_filepath, quote_local_unicode_path, quote_output, FilenameEncodingError
 from allmydata.immutable.upload import FileName, Data
 from allmydata import backupdb, magicpath
 
@@ -119,12 +119,12 @@ class QueueMixin(HookMixin):
         self._stopped = False
         self._turn_delay = 0
 
-    def _get_abspath(self, relpath_u):
-        return unicode_from_filepath(self._local_filepath.preauthChild(relpath_u))
+    def _get_filepath(self, relpath_u):
+        return extend_filepath(self._local_filepath, relpath_u.split(u"/"))
 
     def _get_relpath(self, filepath):
         print "_get_relpath(%r)" % (filepath,)
-        segments = filepath.asTextMode().segmentsFrom(self._local_filepath.asTextMode())
+        segments = unicode_segments_from(filepath, self._local_filepath)
         print "segments = %r" % (segments,)
         return u"/".join(segments)
 
@@ -235,15 +235,15 @@ class Uploader(QueueMixin):
 
     def _scan(self, reldir_u):
         self._log("scan %r" % (reldir_u,))
-        abspath_u = self._get_abspath(reldir_u)
+        fp = self._get_filepath(reldir_u)
         try:
-            children = listdir_unicode(abspath_u)
+            children = listdir_filepath(fp)
         except EnvironmentError:
             raise Exception("WARNING: magic folder: permission denied on directory %s"
-                            % quote_local_unicode_path(abspath_u))
+                            % quote_filepath(fp))
         except FilenameEncodingError:
             raise Exception("WARNING: magic folder: could not list directory %s due to a filename encoding error"
-                            % quote_local_unicode_path(abspath_u))
+                            % quote_filepath(fp))
 
         d = defer.succeed(None)
         for child in children:
@@ -281,15 +281,15 @@ class Uploader(QueueMixin):
         d = defer.succeed(None)
 
         def _maybe_upload(val):
-            abspath_u = self._get_abspath(relpath_u)
-            pathinfo = get_pathinfo(abspath_u)
+            fp = self._get_filepath(relpath_u)
+            pathinfo = get_pathinfo(unicode_from_filepath(fp))
 
             print "pending = %r, about to remove %r" % (self._pending, relpath_u)
             self._pending.remove(relpath_u)
             encoded_name_u = magicpath.path2magic(relpath_u)
 
             if not pathinfo.exists:
-                self._log("notified object %s disappeared (this is normal)" % quote_local_unicode_path(abspath_u))
+                self._log("notified object %s disappeared (this is normal)" % quote_filepath(fp))
                 self._count('objects_disappeared')
                 d2 = defer.succeed(None)
                 if self._db.check_file_db_exists(relpath_u):
@@ -315,10 +315,10 @@ class Uploader(QueueMixin):
                 d2.addCallback(lambda x: Exception("file does not exist"))  # FIXME wrong
                 return d2
             elif pathinfo.islink:
-                self.warn("WARNING: cannot upload symlink %s" % quote_local_unicode_path(abspath_u))
+                self.warn("WARNING: cannot upload symlink %s" % quote_filepath(fp))
                 return None
             elif pathinfo.isdir:
-                self._notifier.watch(to_filepath(abspath_u), mask=self.mask, callbacks=[self._notify], recursive=True)
+                self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
                 uploadable = Data("", self._client.convergence)
                 encoded_name_u += u"@_"
                 upload_d = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":0}, overwrite=True)
@@ -335,12 +335,12 @@ class Uploader(QueueMixin):
                 version = self._db.get_local_file_version(relpath_u)
                 if version is None:
                     version = 0
-                elif self._db.is_new_file_time(abspath_u, relpath_u):
+                elif self._db.is_new_file_time(unicode_from_filepath(fp), relpath_u):
                     version += 1
                 else:
                     return None
 
-                uploadable = FileName(abspath_u, self._client.convergence)
+                uploadable = FileName(unicode_from_filepath(fp), self._client.convergence)
                 d2 = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
@@ -351,7 +351,7 @@ class Uploader(QueueMixin):
                 d2.addCallback(add_db_entry)
                 return d2
             else:
-                self.warn("WARNING: cannot process special file %s" % quote_local_unicode_path(abspath_u))
+                self.warn("WARNING: cannot process special file %s" % quote_filepath(fp))
                 return None
 
         d.addCallback(_maybe_upload)
@@ -429,8 +429,7 @@ class Downloader(QueueMixin):
         exists in our magic-folder db; if not then return None
         else check for an entry in our magic-folder db and return the version number.
         """
-        abspath_u = self._get_abspath(relpath_u)
-        if not os.path.exists(abspath_u):
+        if not self._get_filepath(relpath_u).exists():
             return None
         return self._db.get_local_file_version(relpath_u)
 
@@ -538,7 +537,8 @@ class Downloader(QueueMixin):
         (relpath_u, file_node, metadata) = item
         d = file_node.download_best_version()
         def succeeded(res):
-            abspath_u = self._get_abspath(relpath_u)
+            fp = self._get_filepath(relpath_u)
+            abspath_u = unicode_from_filepath(fp)
             d2 = defer.succeed(res)
             d2.addCallback(lambda result: self._write_downloaded_file(abspath_u, result, is_conflict=False))
             def do_update_db(written_abspath_u):
