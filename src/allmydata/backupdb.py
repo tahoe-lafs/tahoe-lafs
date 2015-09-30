@@ -21,7 +21,8 @@ CREATE TABLE version
 CREATE TABLE local_files
 (
  path  VARCHAR(1024) PRIMARY KEY, -- index, this is an absolute UTF-8-encoded local filename
- size  INTEGER,       -- os.stat(fn)[stat.ST_SIZE]
+ -- note that size is before mtime and ctime here, but after in function parameters
+ size  INTEGER,       -- os.stat(fn)[stat.ST_SIZE]   (NULL if the file has been deleted)
  mtime NUMBER,        -- os.stat(fn)[stat.ST_MTIME]
  ctime NUMBER,        -- os.stat(fn)[stat.ST_CTIME]
  fileid INTEGER%s
@@ -186,9 +187,9 @@ class BackupDB:
         is not healthy, please upload the file and call r.did_upload(filecap)
         when you're done.
 
-        If use_timestamps=True (the default), I will compare ctime and mtime
+        If use_timestamps=True (the default), I will compare mtime and ctime
         of the local file against an entry in my database, and consider the
-        file to be unchanged if ctime, mtime, and filesize are all the same
+        file to be unchanged if mtime, ctime, and filesize are all the same
         as the earlier version. If use_timestamps=False, I will not trust the
         timestamps, so more files (perhaps all) will be marked as needing
         upload. A future version of this database may hash the file to make
@@ -200,10 +201,12 @@ class BackupDB:
         """
 
         path = abspath_expanduser_unicode(path)
+
+        # XXX consider using get_pathinfo
         s = os.stat(path)
         size = s[stat.ST_SIZE]
-        ctime = s[stat.ST_CTIME]
         mtime = s[stat.ST_MTIME]
+        ctime = s[stat.ST_CTIME]
 
         now = time.time()
         c = self.cursor
@@ -416,10 +419,9 @@ class MagicFolderDB(BackupDB):
         self.connection.commit()
 
     def is_new_file_time(self, path, relpath_u):
-        """recent_file_time returns true if the file is recent...
-        meaning its current statinfo (i.e. size, ctime, and mtime) matched the statinfo
-        that was previously stored in the db.
         """
+        Returns true if the file's current pathinfo (size, mtime, and ctime) has
+        changed from the pathinfo previously stored in the db.
         #print "check_file_time %s %s" % (path, relpath_u)
         path = abspath_expanduser_unicode(path)
         s = os.stat(path)
