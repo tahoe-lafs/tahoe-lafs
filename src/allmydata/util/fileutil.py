@@ -631,7 +631,7 @@ else:
 
 PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime ctime')
 
-def get_pathinfo(path_u):
+def get_pathinfo(path_u, now=None):
     try:
         statinfo = os.lstat(path_u)
         mode = statinfo.st_mode
@@ -645,12 +645,14 @@ def get_pathinfo(path_u):
                        )
     except OSError as e:
         if e.errno == ENOENT:
+            if now is None:
+                now = time.time()
             return PathInfo(isdir =False,
                             isfile=False,
                             islink=False,
                             exists=False,
                             size  =None,
-                            mtime =None,
-                            ctime =None,
+                            mtime =now,
+                            ctime =now,
                            )
         raise
