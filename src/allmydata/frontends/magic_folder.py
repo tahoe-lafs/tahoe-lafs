@@ -285,27 +285,27 @@ class Uploader(QueueMixin):
 
             print "pending = %r, about to remove %r" % (self._pending, relpath_u)
             self._pending.remove(relpath_u)
-            encoded_name_u = magicpath.path2magic(relpath_u)
+            encoded_path_u = magicpath.path2magic(relpath_u)
 
             if not pathinfo.exists:
                 self._log("notified object %s disappeared (this is normal)" % quote_filepath(fp))
                 self._count('objects_disappeared')
                 d2 = defer.succeed(None)
                 if self._db.check_file_db_exists(relpath_u):
-                    d2.addCallback(lambda ign: self._get_metadata(encoded_name_u))
+                    d2.addCallback(lambda ign: self._get_metadata(encoded_path_u))
                     current_version = self._db.get_local_file_version(relpath_u) + 1
                     def set_deleted(metadata):
                         metadata['version'] = current_version
                         metadata['deleted'] = True
                         empty_uploadable = Data("", self._client.convergence)
-                        return self._upload_dirnode.add_file(encoded_name_u, empty_uploadable, overwrite=True, metadata=metadata)
+                        return self._upload_dirnode.add_file(encoded_path_u, empty_uploadable, overwrite=True, metadata=metadata)
                     d2.addCallback(set_deleted)
                     def add_db_entry(filenode):
                         filecap = filenode.get_uri()
                         self._db.did_upload_version(filecap, relpath_u, current_version, pathinfo)
                         self._count('files_uploaded')
                     # FIXME consider whether it's correct to retrieve the filenode again.
-                    d2.addCallback(lambda x: self._get_filenode(encoded_name_u))
+                    d2.addCallback(lambda x: self._get_filenode(encoded_path_u))
                     d2.addCallback(add_db_entry)
 
                 d2.addCallback(lambda x: Exception("file does not exist"))  # FIXME wrong
@@ -317,7 +317,7 @@ class Uploader(QueueMixin):
                 self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
                 uploadable = Data("", self._client.convergence)
                 encoded_name_u += u"@_"
-                upload_d = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":0}, overwrite=True)
+                upload_d = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata={"version":0}, overwrite=True)
                 def _succeeded(ign):
                     self._log("created subdirectory %r" % (relpath_u,))
                     self._count('directories_created')
@@ -335,7 +335,7 @@ class Uploader(QueueMixin):
                     version += 1
 
                 uploadable = FileName(unicode_from_filepath(fp), self._client.convergence)
-                d2 = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
+                d2 = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata={"version":version}, overwrite=True)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
                     self._db.did_upload_version(filecap, relpath_u, version, pathinfo)
@@ -359,16 +359,16 @@ class Uploader(QueueMixin):
         d.addCallbacks(_succeeded, _failed)
         return d
 
-    def _get_metadata(self, encoded_name_u):
+    def _get_metadata(self, encoded_path_u):
         try:
-            d = self._upload_dirnode.get_metadata_for(encoded_name_u)
+            d = self._upload_dirnode.get_metadata_for(encoded_path_u)
         except KeyError:
             return Failure()
         return d
 
-    def _get_filenode(self, encoded_name_u):
+    def _get_filenode(self, encoded_path_u):
         try:
-            d = self._upload_dirnode.get(encoded_name_u)
+            d = self._upload_dirnode.get(encoded_path_u)
         except KeyError:
             return Failure()
         return d
