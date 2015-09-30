@@ -303,12 +303,9 @@ class Uploader(QueueMixin):
                     d2.addCallback(set_deleted)
                     def add_db_entry(filenode):
                         filecap = filenode.get_uri()
-                        size = 0
-                        now = time.time()
-                        ctime = now
-                        mtime = now
-                        self._db.did_upload_file(filecap, relpath_u, current_version, int(mtime), int(ctime), size)
+                        self._db.did_upload_version(filecap, relpath_u, current_version, pathinfo)
                         self._count('files_uploaded')
+                    # FIXME consider whether it's correct to retrieve the filenode again.
                     d2.addCallback(lambda x: self._get_filenode(encoded_name_u))
                     d2.addCallback(add_db_entry)
 
@@ -335,7 +332,7 @@ class Uploader(QueueMixin):
                 version = self._db.get_local_file_version(relpath_u)
                 if version is None:
                     version = 0
-                elif self._db.is_new_file_time(unicode_from_filepath(fp), relpath_u):
+                elif self._db.is_new_file(pathinfo, relpath_u):
                     version += 1
                 else:
                     return None
@@ -344,9 +341,7 @@ class Uploader(QueueMixin):
                 d2 = self._upload_dirnode.add_file(encoded_name_u, uploadable, metadata={"version":version}, overwrite=True)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
-                    # XXX maybe just pass pathinfo
-                    self._db.did_upload_file(filecap, relpath_u, version,
-                                             pathinfo.mtime, pathinfo.ctime, pathinfo.size)
+                    self._db.did_upload_version(filecap, relpath_u, version, pathinfo)
                     self._count('files_uploaded')
                 d2.addCallback(add_db_entry)
                 return d2
@@ -543,11 +538,11 @@ class Downloader(QueueMixin):
             d2.addCallback(lambda result: self._write_downloaded_file(abspath_u, result, is_conflict=False))
             def do_update_db(written_abspath_u):
                 filecap = file_node.get_uri()
-                pathinfo = get_pathinfo(written_abspath_u)
-                if not pathinfo.exists:
+                written_pathinfo = get_pathinfo(written_abspath_u)
+                if not written_pathinfo.exists:
                     raise Exception("downloaded file %s disappeared" % quote_local_unicode_path(written_abspath_u))
-                self._db.did_upload_file(filecap, relpath_u, metadata['version'],
-                                         pathinfo.mtime, pathinfo.ctime, pathinfo.size)
+
+                self._db.did_upload_version(filecap, relpath_u, metadata['version'], written_pathinfo)
             d2.addCallback(do_update_db)
             # XXX handle failure here with addErrback...
             self._count('objects_downloaded')

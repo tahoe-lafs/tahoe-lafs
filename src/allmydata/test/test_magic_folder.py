@@ -1,5 +1,5 @@
 
-import os, sys, stat
+import os, sys
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -64,28 +64,31 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         fileutil.make_dirs(self.basedir)
         db = self._createdb()
 
-        path = abspath_expanduser_unicode(u"myFile1", base=self.basedir)
-        db.did_upload_file('URI:LIT:1', path, 1, 0, 0, 33)
+        relpath1 = u"myFile1"
+        pathinfo = fileutil.PathInfo(isdir=False, isfile=True, islink=False,
+                                     exists=True, size=1, mtime=123, ctime=456)
+        db.did_upload_version('URI:LIT:1', relpath1, 0, pathinfo)
 
         c = db.cursor
-        c.execute("SELECT size,mtime,ctime,fileid"
+        c.execute("SELECT size, mtime, ctime"
                   " FROM local_files"
                   " WHERE path=?",
-                  (path,))
-        row = db.cursor.fetchone()
-        self.failIfEqual(row, None)
+                  (relpath1,))
+        row = c.fetchone()
+        self.failUnlessEqual(row, (pathinfo.size, pathinfo.mtime, pathinfo.ctime))
 
-        # Second test uses db.check_file instead of SQL query directly
+        # Second test uses db.is_new_file instead of SQL query directly
         # to confirm the previous upload entry in the db.
-        path = abspath_expanduser_unicode(u"myFile2", base=self.basedir)
-        fileutil.write(path, "meow\n")
-        s = os.stat(path)
-        size = s[stat.ST_SIZE]
-        ctime = s[stat.ST_CTIME]
-        mtime = s[stat.ST_MTIME]
-        db.did_upload_file('URI:LIT:2', path, 1, mtime, ctime, size)
-        r = db.check_file(path)
-        self.failUnless(r.was_uploaded())
+        relpath2 = u"myFile2"
+        path2 = os.path.join(self.basedir, relpath2)
+        fileutil.write(path2, "meow\n")
+        pathinfo = fileutil.get_pathinfo(path2)
+        db.did_upload_version('URI:LIT:2', relpath2, 0, pathinfo)
+        self.failUnlessFalse(db.is_new_file(pathinfo, relpath2))
+
+        different_pathinfo = fileutil.PathInfo(isdir=False, isfile=True, islink=False,
+                                               exists=True, size=0, mtime=pathinfo.mtime, ctime=pathinfo.ctime)
+        self.failUnlessTrue(db.is_new_file(different_pathinfo, relpath2))
 
     def test_magicfolder_start_service(self):
         self.set_up_grid()
