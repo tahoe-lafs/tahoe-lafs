@@ -648,7 +648,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessFalse(dirinfo.islink)
 
         # create a file under the directory
-        f = os.path.join(basedir, "a/1.txt")
+        f = os.path.join(basedir, "a", "1.txt")
         self.touch(basedir, "a/1.txt", data="a"*10)
         fileinfo = fileutil.get_pathinfo(f)
         self.failUnlessTrue(fileinfo.isfile)
@@ -658,13 +658,25 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(fileinfo.size, 10)
 
         # create a symlink under the directory a pointing to 1.txt
-        slname = os.path.join(basedir, "a/linkto1.txt")
+        slname = os.path.join(basedir, "a", "linkto1.txt")
         os.symlink(f, slname)
         symlinkinfo = fileutil.get_pathinfo(slname)
         self.failUnlessTrue(symlinkinfo.islink)
         self.failUnlessTrue(symlinkinfo.exists)
         self.failUnlessFalse(symlinkinfo.isfile)
         self.failUnlessFalse(symlinkinfo.isdir)
+
+        # path at which nothing exists
+        dnename = os.path.join(basedir, "a", "doesnotexist")
+        now = time.time()
+        dneinfo = fileutil.get_pathinfo(dnename, now=now)
+        self.failUnlessFalse(dneinfo.exists)
+        self.failUnlessFalse(dneinfo.isfile)
+        self.failUnlessFalse(dneinfo.isdir)
+        self.failUnlessFalse(dneinfo.islink)
+        self.failUnlessEqual(dneinfo.size, None)
+        self.failUnlessEqual(dneinfo.mtime, now)
+        self.failUnlessEqual(dneinfo.ctime, now)
 
 
 class PollMixinTests(unittest.TestCase):
