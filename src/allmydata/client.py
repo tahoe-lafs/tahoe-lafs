@@ -121,6 +121,7 @@ class Client(node.Node, pollmixin.PollMixin):
                                    }
 
     def __init__(self, basedir="."):
+        #print "Client.__init__(%r)" % (basedir,)
         node.Node.__init__(self, basedir)
         # All tub.registerReference must happen *after* we upcall, since
         # that's what does tub.setLocation()
@@ -491,7 +492,7 @@ class Client(node.Node, pollmixin.PollMixin):
 
             from allmydata.frontends import magic_folder
 
-            s = magic_folder.MagicFolder(self, upload_dircap, local_dir, dbfile)
+            s = magic_folder.MagicFolder(self, upload_dircap, collective_dircap, local_dir, dbfile)
             s.setServiceParent(self)
             s.startService()
 
