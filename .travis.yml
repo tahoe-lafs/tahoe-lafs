@@ -11,7 +11,8 @@ before_install:
   - git fetch --depth=1000
   - python misc/build_helpers/show-tool-versions.py
 install:
-  - pip install 'coveralls==0.4.2'
+  - pip install 'coverage==3.7.1'  # see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2511
+  - pip install coveralls
 before_script: python setup.py build
 script: bin/tahoe @coverage run --branch --source=src/allmydata @tahoe --version-and-path debug trial --rterrors --reporter=timing
 after_success:
