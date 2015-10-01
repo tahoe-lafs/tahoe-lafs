@@ -11,7 +11,8 @@ from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
 from allmydata.util.namespace import Namespace
-from allmydata.scripts import cli, backupdb
+from allmydata.scripts import cli
+from allmydata import backupdb
 from .common_util import StallMixin
 from .no_network import GridTestMixin
 from .test_cli import CLITestMixin, parse_options
