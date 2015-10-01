@@ -306,14 +306,18 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         class MockMagicFolder(service.MultiService):
             name = 'magic-folder'
 
-            def __init__(self, client, upload_dircap, local_dir, dbfile, inotify=None,
+            def __init__(self, client, upload_dircap, collective_dircap, local_dir, dbfile, inotify=None,
                          pending_delay=1.0):
                 service.MultiService.__init__(self)
                 self.client = client
                 self.upload_dircap = upload_dircap
+                self.collective_dircap = collective_dircap
                 self.local_dir = local_dir
                 self.dbfile = dbfile
                 self.inotify = inotify
+
+            def ready(self):
+                pass
 
         self.patch(allmydata.frontends.magic_folder, 'MagicFolder', MockMagicFolder)
 
@@ -328,12 +332,14 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         basedir1 = "test_client.Basic.test_create_magic_folder_service1"
         os.mkdir(basedir1)
+
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
                        config + "local.directory = " + local_dir_utf8 + "\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir1)
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"), config)
         fileutil.write(os.path.join(basedir1, "private", "magic_folder_dircap"), "URI:DIR2:blah")
+        fileutil.write(os.path.join(basedir1, "private", "collective_dircap"), "URI:DIR2:meow")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir1)
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
@@ -353,14 +359,10 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         class Boom(Exception):
             pass
-        def BoomMagicFolder(client, upload_dircap, local_dir_utf8, inotify=None):
+        def BoomMagicFolder(client, upload_dircap, collective_dircap, local_dir, dbfile,
+                            inotify=None, pending_delay=1.0):
             raise Boom()
         self.patch(allmydata.frontends.magic_folder, 'MagicFolder', BoomMagicFolder)
-
-        logged_messages = []
-        def mock_log(*args, **kwargs):
-            logged_messages.append("%r %r" % (args, kwargs))
-        self.patch(allmydata.util.log, 'msg', mock_log)
 
         basedir2 = "test_client.Basic.test_create_magic_folder_service2"
         os.mkdir(basedir2)
@@ -371,10 +373,8 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                        "enabled = true\n" +
                        "local.directory = " + local_dir_utf8 + "\n")
         fileutil.write(os.path.join(basedir2, "private", "magic_folder_dircap"), "URI:DIR2:blah")
-        c2 = client.Client(basedir2)
-        self.failUnlessRaises(KeyError, c2.getServiceNamed, 'magic-folder')
-        self.failUnless([True for arg in logged_messages if "Boom" in arg],
-                        logged_messages)
+        fileutil.write(os.path.join(basedir2, "private", "collective_dircap"), "URI:DIR2:meow")
+        self.failUnlessRaises(Boom, client.Client, basedir2)
 
 
 def flush_but_dont_ignore(res):

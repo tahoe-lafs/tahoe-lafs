@@ -21,7 +21,8 @@ CREATE TABLE version
 CREATE TABLE local_files
 (
  path  VARCHAR(1024) PRIMARY KEY, -- index, this is an absolute UTF-8-encoded local filename
- size  INTEGER,       -- os.stat(fn)[stat.ST_SIZE]
+ -- note that size is before mtime and ctime here, but after in function parameters
+ size  INTEGER,       -- os.stat(fn)[stat.ST_SIZE]   (NULL if the file has been deleted)
  mtime NUMBER,        -- os.stat(fn)[stat.ST_MTIME]
  ctime NUMBER,        -- os.stat(fn)[stat.ST_CTIME]
  fileid INTEGER%s
@@ -186,9 +187,9 @@ class BackupDB:
         is not healthy, please upload the file and call r.did_upload(filecap)
         when you're done.
 
-        If use_timestamps=True (the default), I will compare ctime and mtime
+        If use_timestamps=True (the default), I will compare mtime and ctime
         of the local file against an entry in my database, and consider the
-        file to be unchanged if ctime, mtime, and filesize are all the same
+        file to be unchanged if mtime, ctime, and filesize are all the same
         as the earlier version. If use_timestamps=False, I will not trust the
         timestamps, so more files (perhaps all) will be marked as needing
         upload. A future version of this database may hash the file to make
@@ -200,10 +201,12 @@ class BackupDB:
         """
 
         path = abspath_expanduser_unicode(path)
+
+        # XXX consider using get_pathinfo
         s = os.stat(path)
         size = s[stat.ST_SIZE]
-        ctime = s[stat.ST_CTIME]
         mtime = s[stat.ST_MTIME]
+        ctime = s[stat.ST_CTIME]
 
         now = time.time()
         c = self.cursor
@@ -368,34 +371,33 @@ class BackupDB:
 class MagicFolderDB(BackupDB):
     VERSION = 3
 
-    def get_all_files(self):
-        """Retreive a list of all files that have had an entry in magic-folder db
-        (files that have been downloaded at least once).
+    def get_all_relpaths(self):
+        """
+        Retrieve a list of all relpaths of files that have had an entry in magic folder db
+        (i.e. that have been downloaded at least once).
         """
         self.cursor.execute("SELECT path FROM local_files")
         rows = self.cursor.fetchall()
-        if not rows:
-            return None
-        else:
-            return rows
+        return set([r[0] for r in rows])
 
-    def get_local_file_version(self, path):
-        """I will tell you the version of a local file tracked by our magic folder db.
-        If no db entry found then I'll return None.
+    def get_local_file_version(self, relpath_u):
+        """
+        Return the version of a local file tracked by our magic folder db.
+        If no db entry is found then return None.
         """
         c = self.cursor
         c.execute("SELECT version, fileid"
                   " FROM local_files"
                   " WHERE path=?",
-                  (path,))
+                  (relpath_u,))
         row = self.cursor.fetchone()
         if not row:
             return None
         else:
             return row[0]
 
-    def did_upload_file(self, filecap, path, version, mtime, ctime, size):
-        #print "_did_upload_file(%r, %r, %r, %r, %r, %r)" % (filecap, path, version, mtime, ctime, size)
+    def did_upload_version(self, filecap, relpath_u, version, pathinfo):
+        #print "did_upload_version(%r, %r, %r, %r)" % (filecap, relpath_u, version, pathinfo)
         now = time.time()
         fileid = self.get_or_allocate_fileid_for_cap(filecap)
         try:
@@ -408,35 +410,26 @@ class MagicFolderDB(BackupDB):
                                 (now, now, fileid))
         try:
             self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?)",
-                                (path, size, mtime, ctime, fileid, version))
+                                (relpath_u, pathinfo.size, pathinfo.mtime, pathinfo.ctime, fileid, version))
         except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
             self.cursor.execute("UPDATE local_files"
                                 " SET size=?, mtime=?, ctime=?, fileid=?, version=?"
                                 " WHERE path=?",
-                                (size, mtime, ctime, fileid, version, path))
+                                (pathinfo.size, pathinfo.mtime, pathinfo.ctime, fileid, version, relpath_u))
         self.connection.commit()
 
-    def is_new_file_time(self, path, relpath_u):
-        """recent_file_time returns true if the file is recent...
-        meaning its current statinfo (i.e. size, ctime, and mtime) matched the statinfo
-        that was previously stored in the db.
+    def is_new_file(self, pathinfo, relpath_u):
         """
-        #print "check_file_time %s %s" % (path, relpath_u)
-        path = abspath_expanduser_unicode(path)
-        s = os.stat(path)
-        size = s[stat.ST_SIZE]
-        ctime = s[stat.ST_CTIME]
-        mtime = s[stat.ST_MTIME]
+        Returns true if the file's current pathinfo (size, mtime, and ctime) has
+        changed from the pathinfo previously stored in the db.
+        """
+        #print "is_new_file(%r, %r)" % (pathinfo, relpath_u)
         c = self.cursor
-        c.execute("SELECT size,mtime,ctime,fileid"
+        c.execute("SELECT size, mtime, ctime"
                   " FROM local_files"
                   " WHERE path=?",
                   (relpath_u,))
         row = self.cursor.fetchone()
         if not row:
             return True
-        (last_size,last_mtime,last_ctime,last_fileid) = row
-        if (size, ctime, mtime) == (last_size, last_ctime, last_mtime):
-            return False
-        else:
-            return True
+        return (pathinfo.size, pathinfo.mtime, pathinfo.ctime) != row
