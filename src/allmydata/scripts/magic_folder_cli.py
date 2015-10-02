@@ -107,7 +107,7 @@ def invite(options):
     # tahoe ln CLIENT_READCAP COLLECTIVE_WRITECAP/NICKNAME
     ln_options = _delegate_options(options, LnOptions())
     ln_options.from_file = dmd_readonly_cap
-    ln_options.to_file = "%s/%s" % (magic_write_cap, options.nickname)
+    ln_options.to_file = u"%s/%s" % (magic_write_cap, options.nickname)
     rc = tahoe_mv.mv(ln_options, mode="link")
     if rc != 0:
         print >>options.stderr, "magic-folder: failed to create link\n"
