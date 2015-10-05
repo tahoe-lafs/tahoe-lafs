@@ -578,6 +578,11 @@ class Downloader(QueueMixin):
         if now is None:
             now = time.time()
 
+        # ensure parent directory exists
+        head, tail = os.path.split(abspath_u)
+        mode = 0777 # XXX
+        fileutil.make_dirs(head, mode)
+
         fileutil.write(replacement_path_u, file_contents)
         os.utime(replacement_path_u, (now, now - cls.FUDGE_SECONDS))
         if is_conflict:
