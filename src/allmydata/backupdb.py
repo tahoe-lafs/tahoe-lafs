@@ -373,7 +373,7 @@ class MagicFolderDB(BackupDB):
 
     def get_all_relpaths(self):
         """
-        Retrieve a list of all relpaths of files that have had an entry in magic folder db
+        Retrieve a set of all relpaths of files that have had an entry in magic folder db
         (i.e. that have been downloaded at least once).
         """
         self.cursor.execute("SELECT path FROM local_files")
