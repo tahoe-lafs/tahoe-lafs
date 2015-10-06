@@ -31,6 +31,8 @@ Configuration
 =============
 
 The Magic Folder frontend runs as part of a gateway node. To set it up, you
+must use the tahoe magic-folder CLI. For detailed information see our
+`Magic-Folder CLI design documentation`_.
 need to choose the local directory to monitor for file changes, and a mutable
 directory on the grid to which files will be uploaded.
 
@@ -159,4 +161,4 @@ On Windows, when a node has Magic Folder enabled, it is unresponsive to Ctrl-C
 .. _`#2440`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2440
 
 .. _docs/garbage-collection.rst: ../garbage-collection.rst
-
+.. _`Magic-Folder CLI design documentation`: ../proposed/magic-folder/user-interface-design.rst
