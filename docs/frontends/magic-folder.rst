@@ -32,11 +32,14 @@ Configuration
 
 The Magic Folder frontend runs as part of a gateway node. To set it up, you
 must use the tahoe magic-folder CLI. For detailed information see our
-`Magic-Folder CLI design documentation`_.
-need to choose the local directory to monitor for file changes, and a mutable
-directory on the grid to which files will be uploaded.
+`Magic-Folder CLI design documentation`_. For a given Magic-Folder collective
+directory you need to run the ``tahoe magic-folder create`` command. After that
+the ``tahoe magic-folder invite`` command must used to generate an invite code for
+each member of the magic-folder collective. A confidential, authenticated communications
+channel should be used to transmit the invite code to each member, who will be joining
+using the ``tahoe magic-folder join`` command.
 
-These settings are configured in the ``[magic_folder]`` section of the
+These settings are persisted in the ``[magic_folder]`` section of the
 gateway's ``tahoe.cfg`` file.
 
 ``[magic_folder]``
