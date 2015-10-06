@@ -127,7 +127,9 @@ with an immutable file. (`#1712`_)
 If a file in the upload directory is changed (actually relinked to a new
 file), then the old file is still present on the grid, and any other caps to
 it will remain valid. See `docs/garbage-collection.rst`_ for how to reclaim
-the space used by files that are no longer needed.
+the space used by files that are no longer needed. Garbage collection is
+not included as part of the OTF Magic-Folder grant... however we've documented
+this feature here `#2440`_
 
 Unicode filenames are supported on both Linux and Windows, but on Linux, the
 local name of a file must be encoded correctly in order for it to be uploaded.
@@ -154,6 +156,7 @@ On Windows, when a node has Magic Folder enabled, it is unresponsive to Ctrl-C
 .. _`#1712`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1712
 .. _`#2218`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2218
 .. _`#2219`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2219
+.. _`#2440`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2440
 
 .. _docs/garbage-collection.rst: ../garbage-collection.rst
 
