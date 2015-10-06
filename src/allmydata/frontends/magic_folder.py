@@ -72,7 +72,7 @@ class MagicFolder(service.MultiService):
         service.MultiService.startService(self)
         return self.uploader.start_monitoring()
 
-    def ready(self):
+    def ready(self, ign):
         """ready is used to signal us to start
         processing the upload and download items...
         """
