@@ -78,16 +78,6 @@ Known Issues and Limitations
 This frontend only works on Linux and Windows. There is a ticket to add
 support for Mac OS X and BSD-based systems (`#1432`_).
 
-Subdirectories of the local directory are not monitored. If a subdirectory
-is created, it will be ignored. (`#1433`_)
-
-If files are created or changed in the local directory just after the gateway
-has started, it might not have connected to a sufficient number of servers
-when the upload is attempted, causing the upload to fail. (`#1449`_)
-
-Files that were created or changed in the local directory while the gateway
-was not running, will not be uploaded. (`#1458`_)
-
 The only way to determine whether uploads have failed is to look at the
 'Operational Statistics' page linked from the Welcome page. This only shows
 a count of failures, not the names of files. Uploads are never retried.
