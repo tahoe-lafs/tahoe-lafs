@@ -68,7 +68,25 @@ UPDATERS = {
 }
 
 
-SCHEMA_v3 = MAIN_SCHEMA % (3, ",\nversion INTEGER\n") + TABLE_DIRECTORY
+# magic-folder db schema version 3
+MAGIC_FOLDER_SCHEMA_v3 = """
+CREATE TABLE version
+(
+ version INTEGER  -- contains one row, set to %s
+);
+
+CREATE TABLE local_files
+(
+ path  VARCHAR(1024) PRIMARY KEY, -- index, this is an absolute UTF-8-encoded local filename
+ -- note that size is before mtime and ctime here, but after in function parameters
+ size  INTEGER,       -- os.stat(fn)[stat.ST_SIZE]   (NULL if the file has been deleted)
+ mtime NUMBER,        -- os.stat(fn)[stat.ST_MTIME]
+ ctime NUMBER,        -- os.stat(fn)[stat.ST_CTIME]
+ version INTEGER,
+ last_downloaded_uri VARCHAR(256) UNIQUE,       -- URI:CHK:... 
+ last_downloaded_timestamp NUMBER
+);
+""" % (3,)
 
 
 def get_backupdb(dbfile, stderr=sys.stderr,
@@ -368,8 +386,28 @@ class BackupDB:
         self.connection.commit()
 
 
-class MagicFolderDB(BackupDB):
+class MagicFolderDB():
     VERSION = 3
+
+    def __init__(self, sqlite_module, connection):
+        self.sqlite_module = sqlite_module
+        self.connection = connection
+        self.cursor = connection.cursor()
+
+    def check_file_db_exists(self, path):
+        """I will tell you if a given file has an entry in my database or not
+        by returning True or False.
+        """
+        c = self.cursor
+        c.execute("SELECT size,mtime,ctime"
+                  " FROM local_files"
+                  " WHERE path=?",
+                  (path,))
+        row = self.cursor.fetchone()
+        if not row:
+            return False
+        else:
+            return True
 
     def get_all_relpaths(self):
         """
@@ -380,13 +418,29 @@ class MagicFolderDB(BackupDB):
         rows = self.cursor.fetchall()
         return set([r[0] for r in rows])
 
+    def get_last_downloaded_uri(self, relpath_u):
+        """
+        Return the last downloaded uri recorded in the magic folder db.
+        If none are found then return None.
+        """
+        c = self.cursor
+        c.execute("SELECT last_downloaded_uri"
+                  " FROM local_files"
+                  " WHERE path=?",
+                  (relpath_u,))
+        row = self.cursor.fetchone()
+        if not row:
+            return None
+        else:
+            return row[0]
+
     def get_local_file_version(self, relpath_u):
         """
         Return the version of a local file tracked by our magic folder db.
         If no db entry is found then return None.
         """
         c = self.cursor
-        c.execute("SELECT version, fileid"
+        c.execute("SELECT version"
                   " FROM local_files"
                   " WHERE path=?",
                   (relpath_u,))
@@ -397,26 +451,23 @@ class MagicFolderDB(BackupDB):
             return row[0]
 
     def did_upload_version(self, filecap, relpath_u, version, pathinfo):
-        #print "did_upload_version(%r, %r, %r, %r)" % (filecap, relpath_u, version, pathinfo)
+        print "did_upload_version(%r, %r, %r, %r)" % (filecap, relpath_u, version, pathinfo)
         now = time.time()
-        fileid = self.get_or_allocate_fileid_for_cap(filecap)
         try:
-            self.cursor.execute("INSERT INTO last_upload VALUES (?,?,?)",
-                                (fileid, now, now))
-        except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
-            self.cursor.execute("UPDATE last_upload"
-                                " SET last_uploaded=?, last_checked=?"
-                                " WHERE fileid=?",
-                                (now, now, fileid))
-        try:
+            print "insert"
             self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?)",
-                                (relpath_u, pathinfo.size, pathinfo.mtime, pathinfo.ctime, fileid, version))
+                                (relpath_u, pathinfo.size, pathinfo.mtime, pathinfo.ctime, version, filecap, pathinfo.mtime))
         except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
-            self.cursor.execute("UPDATE local_files"
-                                " SET size=?, mtime=?, ctime=?, fileid=?, version=?"
-                                " WHERE path=?",
-                                (pathinfo.size, pathinfo.mtime, pathinfo.ctime, fileid, version, relpath_u))
+            print "err... update"
+            try:
+                self.cursor.execute("UPDATE local_files"
+                                    " SET size=?, mtime=?, ctime=?, version=?, last_downloaded_uri=?, last_downloaded_timestamp=?"
+                                    " WHERE path=?",
+                                    (pathinfo.size, pathinfo.mtime, pathinfo.ctime, version, filecap, pathinfo.mtime, relpath_u))
+            except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
+                print "WTF BBQ OMG"
         self.connection.commit()
+        print "commited"
 
     def is_new_file(self, pathinfo, relpath_u):
         """
