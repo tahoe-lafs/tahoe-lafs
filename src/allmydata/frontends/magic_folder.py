@@ -51,7 +51,7 @@ class MagicFolder(service.MultiService):
 
         service.MultiService.__init__(self)
 
-        db = backupdb.get_backupdb(dbfile, create_version=(backupdb.SCHEMA_v3, 3))
+        db = backupdb.get_backupdb(dbfile, create_version=(backupdb.MAGIC_FOLDER_SCHEMA_v3, 3))
         if db is None:
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
 
@@ -294,8 +294,10 @@ class Uploader(QueueMixin):
                 d2 = defer.succeed(None)
                 if self._db.check_file_db_exists(relpath_u):
                     d2.addCallback(lambda ign: self._get_metadata(encoded_path_u))
+                    last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
                     current_version = self._db.get_local_file_version(relpath_u) + 1
                     def set_deleted(metadata):
+                        metadata['last_downloaded_uri'] = last_downloaded_uri
                         metadata['version'] = current_version
                         metadata['deleted'] = True
                         empty_uploadable = Data("", self._client.convergence)
@@ -305,6 +307,7 @@ class Uploader(QueueMixin):
                         filecap = filenode.get_uri()
                         self._db.did_upload_version(filecap, relpath_u, current_version, pathinfo)
                         self._count('files_uploaded')
+
                     # FIXME consider whether it's correct to retrieve the filenode again.
                     d2.addCallback(lambda x: self._get_filenode(encoded_path_u))
                     d2.addCallback(add_db_entry)
@@ -330,6 +333,7 @@ class Uploader(QueueMixin):
                 return upload_d
             elif pathinfo.isfile:
                 version = self._db.get_local_file_version(relpath_u)
+                last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
                 if version is None:
                     version = 0
                 elif self._db.is_new_file(pathinfo, relpath_u):
@@ -338,11 +342,13 @@ class Uploader(QueueMixin):
                     return None
 
                 uploadable = FileName(unicode_from_filepath(fp), self._client.convergence)
-                d2 = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata={"version":version}, overwrite=True)
+                metadata = { "version":version }
+                if last_downloaded_uri is not None:
+                    metadata["last_downloaded_uri"] = last_downloaded_uri
+                d2 = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata=metadata, overwrite=True)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
                     self._db.did_upload_version(filecap, relpath_u, version, pathinfo)
-                    self._count('files_uploaded')
                 d2.addCallback(add_db_entry)
                 return d2
             else:
