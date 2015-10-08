@@ -31,6 +31,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
+        Downloader.REMOTE_SCAN_INTERVAL = 0
 
     def _get_count(self, name, client=None):
         counters = (client or self.get_client()).stats_provider.get_stats()["counters"]
