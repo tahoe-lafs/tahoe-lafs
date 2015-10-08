@@ -646,7 +646,10 @@ class Downloader(QueueMixin, WriteFileMixin):
             d.addCallback(lambda ign: abspath_u)
         else:
             d.addCallback(lambda ign: file_node.download_best_version())
-            d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents, is_conflict=False))
+            if metadata.get('deleted', False):
+                d.addCallback(lambda result: self._unlink_deleted_file(abspath_u, result))
+            else:
+                d.addCallback(lambda result: self._write_downloaded_file(abspath_u, result, is_conflict=False))
 
         def do_update_db(written_abspath_u):
             filecap = file_node.get_uri()
@@ -654,7 +657,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             last_downloaded_uri = filecap
             last_downloaded_timestamp = now
             written_pathinfo = get_pathinfo(written_abspath_u)
-            if not written_pathinfo.exists:
+            if not written_pathinfo.exists and not metadata.get('deleted', False):
                 raise Exception("downloaded object %s disappeared" % quote_local_unicode_path(written_abspath_u))
 
             self._db.did_upload_version(relpath_u, metadata['version'], last_uploaded_uri,
@@ -670,3 +673,10 @@ class Downloader(QueueMixin, WriteFileMixin):
             return res
         d.addBoth(remove_from_pending)
         return d
+
+    def _unlink_deleted_file(self, abspath_u, result):
+        try:
+            os.unlink(abspath_u)
+        except OSError:
+            self._log("Already gone: '%s'" % (abspath_u,))
+        return abspath_u
