@@ -8,7 +8,7 @@ from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, HTTPError, format_http_error
 from allmydata.util import time_format
-from allmydata import backupdb
+from allmydata.scripts import backupdb
 from allmydata.util.encodingutil import listdir_unicode, quote_output, \
      quote_local_unicode_path, to_str, FilenameEncodingError, unicode_to_url
 from allmydata.util.assertutil import precondition
