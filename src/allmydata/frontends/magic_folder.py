@@ -378,6 +378,8 @@ class Uploader(QueueMixin):
 
 
 class Downloader(QueueMixin):
+    REMOTE_SCAN_INTERVAL = 3  # facilitates tests
+
     def __init__(self, client, local_path_u, db, collective_dircap, clock):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
 
@@ -389,7 +391,7 @@ class Downloader(QueueMixin):
         if self._collective_dirnode.is_unknown() or not self._collective_dirnode.is_readonly():
             raise AssertionError("The URI in 'private/collective_dircap' is not a readonly cap to a directory.")
 
-        self._turn_delay = 3 # delay between remote scans
+        self._turn_delay = self.REMOTE_SCAN_INTERVAL
         self._download_scan_batch = {} # path -> [(filenode, metadata)]
 
     def start_scanning(self):
