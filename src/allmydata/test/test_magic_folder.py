@@ -16,7 +16,7 @@ from .test_cli_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
 from allmydata.frontends.magic_folder import MagicFolder, Downloader
-from allmydata import backupdb, magicpath
+from allmydata import magicfolderdb, magicpath
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
@@ -38,10 +38,10 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
     def _createdb(self):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
-        bdb = backupdb.get_backupdb(dbfile, create_version=(backupdb.MAGIC_FOLDER_SCHEMA_v3, 3))
-        self.failUnless(bdb, "unable to create backupdb from %r" % (dbfile,))
-        self.failUnlessEqual(bdb.VERSION, 3)
-        return bdb
+        mdb = magicfolderdb.get_magicfolderdb(dbfile, create_version=(magicfolderdb.SCHEMA_v1, 1))
+        self.failUnless(mdb, "unable to create magicfolderdb from %r" % (dbfile,))
+        self.failUnlessEqual(mdb.VERSION, 1)
+        return mdb
 
     def _restart_client(self, ign):
         #print "_restart_client"

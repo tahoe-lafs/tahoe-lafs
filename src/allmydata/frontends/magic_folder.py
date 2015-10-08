@@ -19,7 +19,7 @@ from allmydata.util.encodingutil import listdir_filepath, to_filepath, \
      extend_filepath, unicode_from_filepath, unicode_segments_from, \
      quote_filepath, quote_local_unicode_path, quote_output, FilenameEncodingError
 from allmydata.immutable.upload import FileName, Data
-from allmydata import backupdb, magicpath
+from allmydata import magicfolderdb, magicpath
 
 
 IN_EXCL_UNLINK = 0x04000000L
@@ -31,13 +31,13 @@ def get_inotify_module():
         elif runtime.platform.supportsINotify():
             from twisted.internet import inotify
         else:
-            raise NotImplementedError("filesystem notification needed for drop-upload is not supported.\n"
+            raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
                                       "This currently requires Linux or Windows.")
         return inotify
     except (ImportError, AttributeError) as e:
         log.msg(e)
         if sys.platform == "win32":
-            raise NotImplementedError("filesystem notification needed for drop-upload is not supported.\n"
+            raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
                                       "Windows support requires at least Vista, and has only been tested on Windows 7.")
         raise
 
@@ -51,7 +51,7 @@ class MagicFolder(service.MultiService):
 
         service.MultiService.__init__(self)
 
-        db = backupdb.get_backupdb(dbfile, create_version=(backupdb.MAGIC_FOLDER_SCHEMA_v3, 3))
+        db = magicfolderdb.get_magicfolderdb(dbfile, create_version=(magicfolderdb.SCHEMA_v1, 1))
         if db is None:
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
 
