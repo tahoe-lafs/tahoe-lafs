@@ -72,13 +72,21 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
     def check_config(self, client_num, local_dir):
         client_config = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "tahoe.cfg"))
-        # XXX utf-8?
         local_dir = local_dir.encode('utf-8')
         ret = re.search("\[magic_folder\]\nenabled = True\nlocal.directory = %s" % (local_dir,), client_config)
         self.failIf(ret is None)
 
     def create_invite_join_magic_folder(self, nickname, local_dir):
-        d = self.do_cli("magic-folder", "create", u"magic:", nickname, local_dir)
+        abs_local_dir = abspath_expanduser_unicode(local_dir)
+        try:
+            nickname_arg = nickname.encode(get_io_encoding())
+            local_dir_arg = local_dir.encode(get_io_encoding())
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
+
+        self.skip_if_cannot_represent_filename(local_dir)
+
+        d = self.do_cli("magic-folder", "create", "magic:", nickname_arg, local_dir_arg)
         def _done((rc,stdout,stderr)):
             self.failUnless(rc == 0)
             return (rc,stdout,stderr)
@@ -90,7 +98,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
             self.upload_dirnode     = client.create_node_from_uri(self.upload_dircap)
         d.addCallback(get_alice_caps)
         d.addCallback(lambda x: self.check_joined_config(0, self.upload_dircap))
-        d.addCallback(lambda x: self.check_config(0, local_dir))
+        d.addCallback(lambda x: self.check_config(0, abs_local_dir))
         return d
 
     def cleanup(self, res):
