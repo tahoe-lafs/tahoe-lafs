@@ -411,16 +411,16 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             print "cleanup alice bob test\n"
             d = defer.succeed(None)
             d.addCallback(lambda ign: self.alice_magicfolder.finish())
+            alice_clock.advance(0)
 
-            def clean_bob(_):
+            def clean_bob(ign):
                 d2 = self.bob_magicfolder.finish()
-                d2.addCallback(lambda ign: result)
                 bob_clock.advance(0)
                 return d2
             d.addCallback(clean_bob)
-            alice_clock.advance(0)
+            d.addCallback(lambda ign: result)
             return d
-        d.addCallback(cleanup_Alice_and_Bob)
+        d.addBoth(cleanup_Alice_and_Bob)
         return d
 
 class MockTest(MagicFolderTestMixin, unittest.TestCase):
