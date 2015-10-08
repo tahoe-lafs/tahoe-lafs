@@ -371,6 +371,10 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         #print "_check_version_in_local_db: %r has version %s" % (relpath_u, version)
         self.failUnlessEqual(version, expected_version)
 
+    def _check_file_gone(self, magicfolder, relpath_u):
+        path = os.path.join(magicfolder.uploader._local_path_u, relpath_u)
+        self.assertTrue(not os.path.exists(path))
+
     def test_alice_bob(self):
         alice_clock = task.Clock()
         bob_clock = task.Clock()
@@ -431,6 +435,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 1))
+        d.addCallback(lambda ign: self._check_file_gone(self.bob_magicfolder, u"file1"))
         d.addCallback(_check_downloader_count, 'objects_failed', 0)
         d.addCallback(_check_downloader_count, 'objects_downloaded', 2)
 
