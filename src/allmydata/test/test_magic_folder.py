@@ -258,16 +258,14 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             with open(path, 'w') as f:
                 f.write('foo\n')
             self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
-            x = yield up_proc
-            self.assertIs(x, None)  # some things "return" an Exception instead of raising it
+            yield up_proc
             self.assertTrue(os.path.exists(path))
 
             # the real test part: delete the file
             proc = self.magicfolder.uploader.set_hook('processed')
             os.unlink(path)
             self.notify(to_filepath(path), self.inotify.IN_DELETE)
-            x = yield proc
-            self.assertIs(x, None)
+            yield down_proc
             self.assertFalse(os.path.exists(path))
 
             # ensure we still have a DB entry, and that the version is 1
