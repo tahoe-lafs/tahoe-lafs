@@ -6,6 +6,11 @@ import sys, exceptions, os, stat, tempfile, time, binascii
 from collections import namedtuple
 from errno import ENOENT
 
+if sys.platform == "win32":
+    from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_ulonglong, \
+        create_unicode_buffer, get_last_error
+    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID, HANDLE
+
 from twisted.python import log
 
 from pycryptopp.cipher.aes import AES
@@ -520,8 +525,6 @@ def get_available_space(whichdir, reserved_space):
 
 
 if sys.platform == "win32":
-    from ctypes.wintypes import BOOL, HANDLE, DWORD, LPCWSTR, LPVOID, WinError, get_last_error
-
     # <http://msdn.microsoft.com/en-us/library/aa363858%28v=vs.85%29.aspx>
     CreateFileW = WINFUNCTYPE(HANDLE, LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE) \
                       (("CreateFileW", windll.kernel32))
