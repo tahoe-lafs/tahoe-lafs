@@ -135,4 +135,6 @@ class MagicFolderDB(object):
         row = self.cursor.fetchone()
         if not row:
             return True
+        if not pathinfo.exists and row[0] is None:
+            return False
         return (pathinfo.size, pathinfo.mtime, pathinfo.ctime) != row
