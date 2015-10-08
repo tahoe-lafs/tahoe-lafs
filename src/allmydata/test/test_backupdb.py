@@ -6,7 +6,7 @@ from twisted.trial import unittest
 from allmydata.util import fileutil
 from allmydata.util.encodingutil import listdir_unicode, get_filesystem_encoding, unicode_platform
 from allmydata.util.assertutil import precondition
-from allmydata import backupdb
+from allmydata.scripts import backupdb
 
 class BackupDB(unittest.TestCase):
     def create(self, dbfile):

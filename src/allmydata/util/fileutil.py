@@ -9,7 +9,7 @@ from errno import ENOENT
 if sys.platform == "win32":
     from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_ulonglong, \
         create_unicode_buffer, get_last_error
-    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR
+    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID, HANDLE
 
 from twisted.python import log
 
@@ -519,8 +519,6 @@ def get_available_space(whichdir, reserved_space):
 
 
 if sys.platform == "win32":
-    from ctypes.wintypes import BOOL, HANDLE, DWORD, LPCWSTR, LPVOID, WinError, get_last_error
-
     # <http://msdn.microsoft.com/en-us/library/aa363858%28v=vs.85%29.aspx>
     CreateFileW = WINFUNCTYPE(HANDLE, LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE) \
                       (("CreateFileW", windll.kernel32))
@@ -574,9 +572,6 @@ def reraise(wrapper):
     raise wrapper_exc.__class__, wrapper_exc, tb
 
 if sys.platform == "win32":
-    from ctypes import WINFUNCTYPE, windll, WinError, get_last_error
-    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPVOID
-
     # <https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx>
     ReplaceFileW = WINFUNCTYPE(
         BOOL,
