@@ -517,7 +517,7 @@ class Client(node.Node, pollmixin.PollMixin):
             s.startService()
 
             # start processing the upload queue when we've connected to enough servers
-            self.connected_enough_d.addCallback(s.ready)
+            self.connected_enough_d.addCallback(lambda ign: s.ready())
 
     def _check_exit_trigger(self, exit_trigger_file):
         if os.path.exists(exit_trigger_file):
