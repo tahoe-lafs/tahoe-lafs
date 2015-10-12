@@ -280,7 +280,9 @@ class Uploader(QueueMixin):
 
         d = defer.succeed(None)
 
-        def _maybe_upload(val):
+        def _maybe_upload(val, now=None):
+            if now is None:
+                now = time.time()
             fp = self._get_filepath(relpath_u)
             pathinfo = get_pathinfo(unicode_from_filepath(fp))
 
@@ -293,19 +295,22 @@ class Uploader(QueueMixin):
                 self._count('objects_disappeared')
                 d2 = defer.succeed(None)
                 if self._db.check_file_db_exists(relpath_u):
+                    last_downloaded_timestamp = now
                     d2.addCallback(lambda ign: self._get_metadata(encoded_path_u))
-                    last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
                     current_version = self._db.get_local_file_version(relpath_u) + 1
+                    new_metadata = {}
                     def set_deleted(metadata):
-                        metadata['last_downloaded_uri'] = last_downloaded_uri
-                        metadata['version'] = current_version
-                        metadata['deleted'] = True
+                        last_downloaded_uri = metadata.get('last_downloaded_uri', None)
+                        new_metadata['last_downloaded_uri'] = last_downloaded_uri # XXX this has got to be wrong
+                        new_metadata['version'] = current_version
+                        new_metadata['deleted'] = True
                         empty_uploadable = Data("", self._client.convergence)
                         return self._upload_dirnode.add_file(encoded_path_u, empty_uploadable, overwrite=True, metadata=metadata)
                     d2.addCallback(set_deleted)
                     def add_db_entry(filenode):
                         filecap = filenode.get_uri()
-                        self._db.did_upload_version(filecap, relpath_u, current_version, pathinfo)
+
+                        self._db.did_upload_version(relpath_u, current_version, filecap, last_downloaded_uri, last_downloaded_timestamp, pathinfo)
                         self._count('files_uploaded')
 
                     # FIXME consider whether it's correct to retrieve the filenode again.
@@ -345,10 +350,13 @@ class Uploader(QueueMixin):
                 metadata = { "version":version }
                 if last_downloaded_uri is not None:
                     metadata["last_downloaded_uri"] = last_downloaded_uri
+                    metadata["last_downloaded_timestamp"] = now
                 d2 = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata=metadata, overwrite=True)
                 def add_db_entry(filenode):
                     filecap = filenode.get_uri()
-                    self._db.did_upload_version(filecap, relpath_u, version, pathinfo)
+                    last_downloaded_uri = metadata.get('last_downloaded_uri', None)
+                    last_downloaded_timestamp = now
+                    self._db.did_upload_version(relpath_u, version, filecap, last_downloaded_uri, last_downloaded_timestamp, pathinfo)
                 d2.addCallback(add_db_entry)
                 return d2
             else:
