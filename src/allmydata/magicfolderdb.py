@@ -16,12 +16,12 @@ CREATE TABLE local_files
  path                VARCHAR(1024) PRIMARY KEY, -- UTF-8 filename relative to local magic folder dir
  -- note that size is before mtime and ctime here, but after in function parameters
  size                INTEGER,                   -- ST_SIZE, or NULL if the file has been deleted
- mtime               REAL,                      -- ST_MTIME
- ctime               REAL,                      -- ST_CTIME
+ mtime               NUMBER,                      -- ST_MTIME
+ ctime               NUMBER,                      -- ST_CTIME
  version             INTEGER,
  last_uploaded_uri   VARCHAR(256) UNIQUE,       -- URI:CHK:...
  last_downloaded_uri VARCHAR(256) UNIQUE,       -- URI:CHK:...
- last_downloaded_timestamp REAL
+ last_downloaded_timestamp TIMESTAMP
 );
 """
 
@@ -107,18 +107,17 @@ class MagicFolderDB(object):
         else:
             return row[0]
 
-    def did_upload_version(self, filecap, relpath_u, version, pathinfo):
-        print "did_upload_version(%r, %r, %r, %r)" % (filecap, relpath_u, version, pathinfo)
+    def did_upload_version(self, relpath_u, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, pathinfo):
         try:
             print "insert"
-            self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?)",
-                                (relpath_u, pathinfo.size, pathinfo.mtime, pathinfo.ctime, version, filecap, pathinfo.mtime))
+            self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?,?,?)",
+                                (relpath_u, pathinfo.size, pathinfo.mtime, pathinfo.ctime, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp))
         except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
             print "err... update"
             self.cursor.execute("UPDATE local_files"
-                                " SET size=?, mtime=?, ctime=?, version=?, last_downloaded_uri=?, last_downloaded_timestamp=?"
+                                " SET size=?, mtime=?, ctime=?, version=?, last_uploaded_uri=?, last_downloaded_uri=?, last_downloaded_timestamp=?"
                                 " WHERE path=?",
-                                (pathinfo.size, pathinfo.mtime, pathinfo.ctime, version, filecap, pathinfo.mtime, relpath_u))
+                                (pathinfo.size, pathinfo.mtime, pathinfo.ctime, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, relpath_u))
         self.connection.commit()
         print "commited"
 
@@ -127,7 +126,6 @@ class MagicFolderDB(object):
         Returns true if the file's current pathinfo (size, mtime, and ctime) has
         changed from the pathinfo previously stored in the db.
         """
-        #print "is_new_file(%r, %r)" % (pathinfo, relpath_u)
         c = self.cursor
         c.execute("SELECT size, mtime, ctime"
                   " FROM local_files"
