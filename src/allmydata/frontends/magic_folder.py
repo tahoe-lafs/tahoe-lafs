@@ -357,6 +357,7 @@ class Uploader(QueueMixin):
                     last_downloaded_uri = metadata.get('last_downloaded_uri', None)
                     last_downloaded_timestamp = now
                     self._db.did_upload_version(relpath_u, version, filecap, last_downloaded_uri, last_downloaded_timestamp, pathinfo)
+                    self._count('files_uploaded')
                 d2.addCallback(add_db_entry)
                 return d2
             else:
