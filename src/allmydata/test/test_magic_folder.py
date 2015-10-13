@@ -7,6 +7,7 @@ from twisted.internet import defer, task
 from allmydata.interfaces import IDirectoryNode
 
 from allmydata.util import fake_inotify, fileutil
+from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
@@ -130,11 +131,13 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         def _check_move_empty_tree(res):
             print "_check_move_empty_tree"
+            downloaded_d = self.magicfolder.downloader.set_hook('processed')
+            uploaded_d = self.magicfolder.uploader.set_hook('processed')
             self.mkdir_nonascii(empty_tree_dir)
-            d2 = self.magicfolder.uploader.set_hook('processed')
             os.rename(empty_tree_dir, new_empty_tree_dir)
             self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
-            return d2
+
+            return DeferredListShouldSucceed([downloaded_d, uploaded_d])
         d.addCallback(_check_move_empty_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
@@ -142,14 +145,18 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 1))
 
+        # FIXME check that Bob downloaded/created the empty tree.
+
         def _check_move_small_tree(res):
             print "_check_move_small_tree"
+            downloaded_d = self.magicfolder.downloader.set_hook('processed', ignore_count=1)
+            uploaded_d = self.magicfolder.uploader.set_hook('processed', ignore_count=1)
             self.mkdir_nonascii(small_tree_dir)
             fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
-            d2 = self.magicfolder.uploader.set_hook('processed', ignore_count=1)
             os.rename(small_tree_dir, new_small_tree_dir)
             self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
-            return d2
+
+            return DeferredListShouldSucceed([downloaded_d, uploaded_d])
         d.addCallback(_check_move_small_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 3))
@@ -159,10 +166,12 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         def _check_moved_tree_is_watched(res):
             print "_check_moved_tree_is_watched"
-            d2 = self.magicfolder.uploader.set_hook('processed')
+            downloaded_d = self.magicfolder.downloader.set_hook('processed', ignore_count=1)
+            uploaded_d = self.magicfolder.uploader.set_hook('processed')
             fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
             self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
-            return d2
+
+            return DeferredListShouldSucceed([downloaded_d, uploaded_d])
         d.addCallback(_check_moved_tree_is_watched)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 4))
