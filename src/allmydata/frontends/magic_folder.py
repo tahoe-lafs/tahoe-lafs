@@ -545,7 +545,9 @@ class Downloader(QueueMixin):
         d.addCallback(lambda ign: self._turn_deque())
         return d
 
-    def _process(self, item):
+    def _process(self, item, now=None):
+        if now is None:
+            now = time.time()
         (relpath_u, file_node, metadata) = item
         d = file_node.download_best_version()
         def succeeded(res):
@@ -555,11 +557,15 @@ class Downloader(QueueMixin):
             d2.addCallback(lambda result: self._write_downloaded_file(abspath_u, result, is_conflict=False))
             def do_update_db(written_abspath_u):
                 filecap = file_node.get_uri()
+                last_uploaded_uri = metadata.get('last_uploaded_uri', None)
+                last_downloaded_uri = filecap
+                last_downloaded_timestamp = now
                 written_pathinfo = get_pathinfo(written_abspath_u)
                 if not written_pathinfo.exists:
                     raise Exception("downloaded file %s disappeared" % quote_local_unicode_path(written_abspath_u))
 
-                self._db.did_upload_version(filecap, relpath_u, metadata['version'], written_pathinfo)
+                self._db.did_upload_version(relpath_u, metadata['version'], last_uploaded_uri,
+                                            last_downloaded_uri, last_downloaded_timestamp, written_pathinfo)
             d2.addCallback(do_update_db)
             # XXX handle failure here with addErrback...
             self._count('objects_downloaded')
