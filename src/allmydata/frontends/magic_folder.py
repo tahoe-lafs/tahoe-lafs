@@ -123,14 +123,14 @@ class QueueMixin(HookMixin):
         return extend_filepath(self._local_filepath, relpath_u.split(u"/"))
 
     def _get_relpath(self, filepath):
-        print "_get_relpath(%r)" % (filepath,)
+        self._log("_get_relpath(%r)" % (filepath,))
         segments = unicode_segments_from(filepath, self._local_filepath)
-        print "segments = %r" % (segments,)
+        self._log("segments = %r" % (segments,))
         return u"/".join(segments)
 
     def _count(self, counter_name, delta=1):
         ctr = 'magic_folder.%s.%s' % (self._name, counter_name)
-        print "%r += %r" % (ctr, delta)
+        self._log("%s += %r" % (counter_name, delta))
         self._client.stats_provider.count(ctr, delta)
 
     def _log(self, msg):
@@ -140,7 +140,7 @@ class QueueMixin(HookMixin):
         #open("events", "ab+").write(msg)
 
     def _append_to_deque(self, relpath_u):
-        print "_append_to_deque(%r)" % (relpath_u,)
+        self._log("_append_to_deque(%r)" % (relpath_u,))
         if relpath_u in self._pending or magicpath.should_ignore_file(relpath_u):
             return
         self._deque.append(relpath_u)
@@ -222,12 +222,12 @@ class Uploader(QueueMixin):
         self._log("start_scanning")
         self.is_ready = True
         self._pending = self._db.get_all_relpaths()
-        print "all_files %r" % (self._pending)
+        self._log("all_files %r" % (self._pending))
         d = self._scan(u"")
         def _add_pending(ign):
             # This adds all of the files that were in the db but not already processed
             # (normally because they have been deleted on disk).
-            print "adding %r" % (self._pending)
+            self._log("adding %r" % (self._pending))
             self._deque.extend(self._pending)
         d.addCallback(_add_pending)
         d.addCallback(lambda ign: self._turn_deque())
@@ -286,7 +286,7 @@ class Uploader(QueueMixin):
             fp = self._get_filepath(relpath_u)
             pathinfo = get_pathinfo(unicode_from_filepath(fp))
 
-            print "pending = %r, about to remove %r" % (self._pending, relpath_u)
+            self._log("pending = %r, about to remove %r" % (self._pending, relpath_u))
             self._pending.remove(relpath_u)
             encoded_path_u = magicpath.path2magic(relpath_u)
 
@@ -370,7 +370,6 @@ class Uploader(QueueMixin):
             self._count('objects_succeeded')
             return res
         def _failed(f):
-            print f
             self._count('objects_failed')
             self._log("%r while processing %r" % (f, relpath_u))
             return f
@@ -410,7 +409,7 @@ class Downloader(QueueMixin):
         self._download_scan_batch = {} # path -> [(filenode, metadata)]
 
     def start_scanning(self):
-        self._log("\nstart_scanning")
+        self._log("start_scanning")
         files = self._db.get_all_relpaths()
         self._log("all files %s" % files)
 
@@ -521,14 +520,14 @@ class Downloader(QueueMixin):
         return collective_dirmap_d
 
     def _add_batch_to_download_queue(self, result):
-        print "result = %r" % (result,)
-        print "deque = %r" % (self._deque,)
+        self._log("result = %r" % (result,))
+        self._log("deque = %r" % (self._deque,))
         self._deque.extend(result)
-        print "deque after = %r" % (self._deque,)
+        self._log("deque after = %r" % (self._deque,))
         self._count('objects_queued', len(result))
-        print "pending = %r" % (self._pending,)
+        self._log("pending = %r" % (self._pending,))
         self._pending.update(map(lambda x: x[0], result))
-        print "pending after = %r" % (self._pending,)
+        self._log("pending after = %r" % (self._pending,))
 
     def _filter_scan_batch(self, result):
         extension = [] # consider whether this should be a dict
@@ -546,6 +545,7 @@ class Downloader(QueueMixin):
         return d
 
     def _process(self, item, now=None):
+        self._log("_process(%r)" % (item,))
         if now is None:
             now = time.time()
         (relpath_u, file_node, metadata) = item
