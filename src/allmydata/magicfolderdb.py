@@ -108,6 +108,7 @@ class MagicFolderDB(object):
             return row[0]
 
     def did_upload_version(self, relpath_u, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, pathinfo):
+        print "%r.did_upload_version(%r, %r, %r, %r, %r, %r)" % (self, relpath_u, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, pathinfo)
         try:
             print "insert"
             self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?,?,?)",
@@ -119,7 +120,7 @@ class MagicFolderDB(object):
                                 " WHERE path=?",
                                 (pathinfo.size, pathinfo.mtime, pathinfo.ctime, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, relpath_u))
         self.connection.commit()
-        print "commited"
+        print "committed"
 
     def is_new_file(self, pathinfo, relpath_u):
         """
