@@ -291,33 +291,37 @@ class Uploader(QueueMixin):
             encoded_path_u = magicpath.path2magic(relpath_u)
 
             if not pathinfo.exists:
+                # FIXME merge this with the 'isfile' case.
                 self._log("notified object %s disappeared (this is normal)" % quote_filepath(fp))
                 self._count('objects_disappeared')
-                d2 = defer.succeed(None)
-                if self._db.check_file_db_exists(relpath_u):
-                    last_downloaded_timestamp = now
-                    d2.addCallback(lambda ign: self._get_metadata(encoded_path_u))
-                    current_version = self._db.get_local_file_version(relpath_u) + 1
-                    new_metadata = {}
-                    def set_deleted(metadata):
-                        last_downloaded_uri = metadata.get('last_downloaded_uri', None)
-                        new_metadata['last_downloaded_uri'] = last_downloaded_uri # XXX this has got to be wrong
-                        new_metadata['version'] = current_version
-                        new_metadata['deleted'] = True
-                        empty_uploadable = Data("", self._client.convergence)
-                        return self._upload_dirnode.add_file(encoded_path_u, empty_uploadable, overwrite=True, metadata=metadata)
-                    d2.addCallback(set_deleted)
-                    def add_db_entry(filenode):
-                        filecap = filenode.get_uri()
+                if not self._db.check_file_db_exists(relpath_u):
+                    return None
 
-                        self._db.did_upload_version(relpath_u, current_version, filecap, last_downloaded_uri, last_downloaded_timestamp, pathinfo)
-                        self._count('files_uploaded')
+                last_downloaded_timestamp = now
+                last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
 
-                    # FIXME consider whether it's correct to retrieve the filenode again.
-                    d2.addCallback(lambda x: self._get_filenode(encoded_path_u))
-                    d2.addCallback(add_db_entry)
+                current_version = self._db.get_local_file_version(relpath_u)
+                if current_version is None:
+                    new_version = 0
+                else:
+                    new_version = current_version + 1
 
-                d2.addCallback(lambda x: Exception("file does not exist"))  # FIXME wrong
+                metadata = { 'version': new_version,
+                             'deleted': True,
+                             'last_downloaded_timestamp': last_downloaded_timestamp }
+                if last_downloaded_uri is not None:
+                    metadata['last_downloaded_uri'] = last_downloaded_uri
+
+                empty_uploadable = Data("", self._client.convergence)
+                d2 = self._upload_dirnode.add_file(encoded_path_u, empty_uploadable,
+                                                   metadata=metadata, overwrite=True)
+
+                def _add_db_entry(filenode):
+                    filecap = filenode.get_uri()
+                    self._db.did_upload_version(relpath_u, new_version, filecap,
+                                                last_downloaded_uri, last_downloaded_timestamp, pathinfo)
+                    self._count('files_uploaded')
+                d2.addCallback(_add_db_entry)
                 return d2
             elif pathinfo.islink:
                 self.warn("WARNING: cannot upload symlink %s" % quote_filepath(fp))
@@ -337,28 +341,33 @@ class Uploader(QueueMixin):
                 upload_d.addCallback(lambda ign: self._scan(relpath_u))
                 return upload_d
             elif pathinfo.isfile:
-                version = self._db.get_local_file_version(relpath_u)
                 last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
-                if version is None:
-                    version = 0
+                last_downloaded_timestamp = now
+
+                current_version = self._db.get_local_file_version(relpath_u)
+                if current_version is None:
+                    new_version = 0
                 elif self._db.is_new_file(pathinfo, relpath_u):
-                    version += 1
+                    new_version = current_version + 1
                 else:
                     return None
 
-                uploadable = FileName(unicode_from_filepath(fp), self._client.convergence)
-                metadata = { "version":version }
+                metadata = { 'version': new_version,
+                             'last_downloaded_timestamp': last_downloaded_timestamp }
                 if last_downloaded_uri is not None:
-                    metadata["last_downloaded_uri"] = last_downloaded_uri
-                    metadata["last_downloaded_timestamp"] = now
-                d2 = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata=metadata, overwrite=True)
-                def add_db_entry(filenode):
+                    metadata['last_downloaded_uri'] = last_downloaded_uri
+
+                uploadable = FileName(unicode_from_filepath(fp), self._client.convergence)
+                d2 = self._upload_dirnode.add_file(encoded_path_u, uploadable,
+                                                   metadata=metadata, overwrite=True)
+
+                def _add_db_entry(filenode):
                     filecap = filenode.get_uri()
                     last_downloaded_uri = metadata.get('last_downloaded_uri', None)
-                    last_downloaded_timestamp = now
-                    self._db.did_upload_version(relpath_u, version, filecap, last_downloaded_uri, last_downloaded_timestamp, pathinfo)
+                    self._db.did_upload_version(relpath_u, new_version, filecap,
+                                                last_downloaded_uri, last_downloaded_timestamp, pathinfo)
                     self._count('files_uploaded')
-                d2.addCallback(add_db_entry)
+                d2.addCallback(_add_db_entry)
                 return d2
             else:
                 self.warn("WARNING: cannot process special file %s" % quote_filepath(fp))
