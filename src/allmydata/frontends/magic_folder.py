@@ -400,7 +400,54 @@ class Uploader(QueueMixin):
         return d
 
 
-class Downloader(QueueMixin):
+class WriteFileMixin(object):
+    FUDGE_SECONDS = 10.0
+
+    def _write_downloaded_file(self, abspath_u, file_contents, is_conflict=False, now=None):
+        self._log("_write_downloaded_file(%r, <%d bytes>, is_conflict=%r, now=%r)"
+                  % (abspath_u, len(file_contents), is_conflict, now))
+
+        # 1. Write a temporary file, say .foo.tmp.
+        # 2. is_conflict determines whether this is an overwrite or a conflict.
+        # 3. Set the mtime of the replacement file to be T seconds before the
+        #    current local time.
+        # 4. Perform a file replacement with backup filename foo.backup,
+        #    replaced file foo, and replacement file .foo.tmp. If any step of
+        #    this operation fails, reclassify as a conflict and stop.
+        #
+        # Returns the path of the destination file.
+
+        precondition_abspath(abspath_u)
+        replacement_path_u = abspath_u + u".tmp"  # FIXME more unique
+        backup_path_u = abspath_u + u".backup"
+        if now is None:
+            now = time.time()
+
+        # ensure parent directory exists
+        head, tail = os.path.split(abspath_u)
+        mode = 0777 # XXX
+        fileutil.make_dirs(head, mode)
+
+        fileutil.write(replacement_path_u, file_contents)
+        os.utime(replacement_path_u, (now, now - self.FUDGE_SECONDS))
+        if is_conflict:
+            return self._rename_conflicted_file(abspath_u, replacement_path_u)
+        else:
+            try:
+                fileutil.replace_file(abspath_u, replacement_path_u, backup_path_u)
+                return abspath_u
+            except fileutil.ConflictError:
+                return self._rename_conflicted_file(abspath_u, replacement_path_u)
+
+    def _rename_conflicted_file(self, abspath_u, replacement_path_u):
+        self._log("_rename_conflicted_file(%r, %r)" % (abspath_u, replacement_path_u))
+
+        conflict_path_u = abspath_u + u".conflict"
+        fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
+        return conflict_path_u
+
+
+class Downloader(QueueMixin, WriteFileMixin):
     REMOTE_SCAN_INTERVAL = 3  # facilitates tests
 
     def __init__(self, client, local_path_u, db, collective_dircap, clock):
@@ -589,45 +636,3 @@ class Downloader(QueueMixin):
             return res
         d.addBoth(remove_from_pending)
         return d
-
-    FUDGE_SECONDS = 10.0
-
-    @classmethod
-    def _write_downloaded_file(cls, abspath_u, file_contents, is_conflict=False, now=None):
-        # 1. Write a temporary file, say .foo.tmp.
-        # 2. is_conflict determines whether this is an overwrite or a conflict.
-        # 3. Set the mtime of the replacement file to be T seconds before the
-        #    current local time.
-        # 4. Perform a file replacement with backup filename foo.backup,
-        #    replaced file foo, and replacement file .foo.tmp. If any step of
-        #    this operation fails, reclassify as a conflict and stop.
-        #
-        # Returns the path of the destination file.
-
-        precondition_abspath(abspath_u)
-        replacement_path_u = abspath_u + u".tmp"  # FIXME more unique
-        backup_path_u = abspath_u + u".backup"
-        if now is None:
-            now = time.time()
-
-        # ensure parent directory exists
-        head, tail = os.path.split(abspath_u)
-        mode = 0777 # XXX
-        fileutil.make_dirs(head, mode)
-
-        fileutil.write(replacement_path_u, file_contents)
-        os.utime(replacement_path_u, (now, now - cls.FUDGE_SECONDS))
-        if is_conflict:
-            return cls._rename_conflicted_file(abspath_u, replacement_path_u)
-        else:
-            try:
-                fileutil.replace_file(abspath_u, replacement_path_u, backup_path_u)
-                return abspath_u
-            except fileutil.ConflictError:
-                return cls._rename_conflicted_file(abspath_u, replacement_path_u)
-
-    @classmethod
-    def _rename_conflicted_file(self, abspath_u, replacement_path_u):
-        conflict_path_u = abspath_u + u".conflict"
-        fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
-        return conflict_path_u
