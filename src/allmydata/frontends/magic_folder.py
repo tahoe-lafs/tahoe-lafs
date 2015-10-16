@@ -184,12 +184,10 @@ class Uploader(QueueMixin):
         if hasattr(self._notifier, 'set_pending_delay'):
             self._notifier.set_pending_delay(pending_delay)
 
-        # We don't watch for IN_CREATE, because that would cause us to read and upload a
-        # possibly-incomplete file before the application has closed it. There should always
-        # be an IN_CLOSE_WRITE after an IN_CREATE (I think).
         # TODO: what about IN_MOVE_SELF, IN_MOVED_FROM, or IN_UNMOUNT?
         #
-        self.mask = ( self._inotify.IN_CLOSE_WRITE
+        self.mask = ( self._inotify.IN_CREATE
+                    | self._inotify.IN_CLOSE_WRITE
                     | self._inotify.IN_MOVED_TO
                     | self._inotify.IN_MOVED_FROM
                     | self._inotify.IN_DELETE
@@ -266,6 +264,19 @@ class Uploader(QueueMixin):
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
+
+        # We filter out IN_CREATE events not associated with a directory.
+        # Acting on IN_CREATE for files could cause us to read and upload
+        # a possibly-incomplete file before the application has closed it.
+        # There should always be an IN_CLOSE_WRITE after an IN_CREATE, I think.
+        # It isn't possible to avoid watching for IN_CREATE at all, because
+        # it is the only event notified for a directory creation.
+
+        if ((events_mask & self._inotify.IN_CREATE) != 0 and
+            (events_mask & self._inotify.IN_ISDIR) == 0):
+            self._log("ignoring inotify event for creation of file %r\n" % (path,))
+            return
+
         relpath_u = self._get_relpath(path)
         self._append_to_deque(relpath_u)
 
