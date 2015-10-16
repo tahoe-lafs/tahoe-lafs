@@ -608,32 +608,35 @@ class Downloader(QueueMixin, WriteFileMixin):
         if now is None:
             now = time.time()
         (relpath_u, file_node, metadata) = item
-        d = file_node.download_best_version()
-        def succeeded(res):
-            fp = self._get_filepath(relpath_u)
-            abspath_u = unicode_from_filepath(fp)
-            d2 = defer.succeed(res)
-            d2.addCallback(lambda result: self._write_downloaded_file(abspath_u, result, is_conflict=False))
-            def do_update_db(written_abspath_u):
-                filecap = file_node.get_uri()
-                last_uploaded_uri = metadata.get('last_uploaded_uri', None)
-                last_downloaded_uri = filecap
-                last_downloaded_timestamp = now
-                written_pathinfo = get_pathinfo(written_abspath_u)
-                if not written_pathinfo.exists:
-                    raise Exception("downloaded file %s disappeared" % quote_local_unicode_path(written_abspath_u))
+        fp = self._get_filepath(relpath_u)
+        abspath_u = unicode_from_filepath(fp)
 
-                self._db.did_upload_version(relpath_u, metadata['version'], last_uploaded_uri,
-                                            last_downloaded_uri, last_downloaded_timestamp, written_pathinfo)
-            d2.addCallback(do_update_db)
-            # XXX handle failure here with addErrback...
+        d = defer.succeed(None)
+        if relpath_u.endswith(u"/"):
+            self._log("mkdir(%r)" % (abspath_u,))
+            d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
+            d.addCallback(lambda ign: abspath_u)
+        else:
+            d.addCallback(lambda ign: file_node.download_best_version())
+            d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents, is_conflict=False))
+
+        def do_update_db(written_abspath_u):
+            filecap = file_node.get_uri()
+            last_uploaded_uri = metadata.get('last_uploaded_uri', None)
+            last_downloaded_uri = filecap
+            last_downloaded_timestamp = now
+            written_pathinfo = get_pathinfo(written_abspath_u)
+            if not written_pathinfo.exists:
+                raise Exception("downloaded object %s disappeared" % quote_local_unicode_path(written_abspath_u))
+
+            self._db.did_upload_version(relpath_u, metadata['version'], last_uploaded_uri,
+                                        last_downloaded_uri, last_downloaded_timestamp, written_pathinfo)
             self._count('objects_downloaded')
-            return d2
         def failed(f):
             self._log("download failed: %s" % (str(f),))
-            self._count('objects_download_failed')
+            self._count('objects_failed')
             return f
-        d.addCallbacks(succeeded, failed)
+        d.addCallbacks(do_update_db, failed)
         def remove_from_pending(res):
             self._pending.remove(relpath_u)
             return res
