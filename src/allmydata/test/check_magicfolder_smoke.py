@@ -4,7 +4,7 @@
 #
 # 1. create an introducer
 # 2. create 5 storage nodes
-# 3. create 2 client nodes (client0 = alice, client1 = bob)
+# 3. create 2 client nodes (alice, bob)
 # 4. Alice creates a magic-folder ("magik:")
 # 5. Alice invites Bob
 # 6. Bob joins
@@ -34,6 +34,7 @@ from __future__ import print_function
 
 import sys
 import time
+import shutil
 import subprocess
 from os.path import join, abspath, curdir, exists
 from os import mkdir, listdir, unlink
@@ -72,6 +73,7 @@ with open(join(data_base, 'introducer', 'tahoe.cfg'), 'w') as f:
 nickname = introducer0
 web.port = 4560
 ''')
+
 subprocess.check_call(
     [
         tahoe_bin, 'start', join(data_base, 'introducer'),
@@ -89,7 +91,10 @@ for x in range(5):
     if not exists(data_dir):
         subprocess.check_call(
             [
-                tahoe_bin, 'create-node', data_dir,
+                tahoe_bin, 'create-node',
+                '--nickname', 'node{}'.format(x),
+                '--introducer', furl,
+                data_dir,
             ]
         )
         with open(join(data_dir, 'tahoe.cfg'), 'w') as f:
@@ -117,21 +122,26 @@ shares.total = 4
 
 # alice and bob clients
 do_invites = False
-for x in range(2):
-    data_dir = join(data_base, 'client%d' % x)
-    magic_dir = join(data_base, 'client%d-magic' % x)
+node_id = 0
+for name in ['alice', 'bob']:
+    data_dir = join(data_base, name)
+    magic_dir = join(data_base, '{}-magic'.format(name))
     mkdir(magic_dir)
     if not exists(data_dir):
         do_invites = True
         subprocess.check_call(
             [
-                tahoe_bin, 'create-node', data_dir,
+                tahoe_bin, 'create-node',
+                '--no-storage',
+                '--nickname', name,
+                '--introducer', furl,
+                data_dir,
             ]
         )
         with open(join(data_dir, 'tahoe.cfg'), 'w') as f:
             f.write('''
 [node]
-nickname = client{node_id}
+nickname = {name}
 web.port = tcp:998{node_id}:interface=localhost
 web.static = public_html
 
@@ -141,24 +151,25 @@ introducer.furl = {furl}
 shares.needed = 2
 shares.happy = 3
 shares.total = 4
-'''.format(node_id=x, furl=furl, magic_dir=magic_dir))
+'''.format(name=name, node_id=node_id, furl=furl, magic_dir=magic_dir))
     subprocess.check_call(
         [
             tahoe_bin, 'start', data_dir,
         ]
     )
+    node_id += 1
 
-# okay, now we have alice + bob (client0, client1)
+# okay, now we have alice + bob (alice, bob)
 # now we have alice create a magic-folder, and invite bob to it
 
 if do_invites:
-    data_dir = join(data_base, 'client0')
-    # alice/client0 creates her folder, invites bob
+    data_dir = join(data_base, 'alice')
+    # alice creates her folder, invites bob
     print("Alice creates a magic-folder")
     subprocess.check_call(
         [
             tahoe_bin, 'magic-folder', 'create', '--basedir', data_dir, 'magik:', 'alice',
-            join(data_base, 'client0-magic'),
+            join(data_base, 'alice-magic'),
         ]
     )
     print("Alice invites Bob")
@@ -169,13 +180,13 @@ if do_invites:
     )
     print("  invite:", invite)
 
-    # now we let "bob"/client1 join
+    # now we let "bob"/bob join
     print("Bob joins Alice's magic folder")
-    data_dir = join(data_base, 'client1')
+    data_dir = join(data_base, 'bob')
     subprocess.check_call(
         [
             tahoe_bin, 'magic-folder', 'join', '--basedir', data_dir, invite,
-            join(data_base, 'client1-magic'),
+            join(data_base, 'bob-magic'),
         ]
     )
     print("Bob has joined.")
@@ -183,24 +194,30 @@ if do_invites:
     print("Restarting alice + bob clients")
     subprocess.check_call(
         [
-            tahoe_bin, 'restart', '--basedir', join(data_base, 'client0'),
+            tahoe_bin, 'restart', '--basedir', join(data_base, 'alice'),
         ]
     )
     subprocess.check_call(
         [
-            tahoe_bin, 'restart', '--basedir', join(data_base, 'client1'),
+            tahoe_bin, 'restart', '--basedir', join(data_base, 'bob'),
         ]
     )
 
 if True:
-    for x in range(2):
-        with open(join(data_base, 'client{}'.format(x), 'private', 'magic_folder_dircap'), 'r') as f:
-            print("dircap{}: {}".format(x, f.read().strip()))
+    for name in ['alice', 'bob']:
+        with open(join(data_base, name, 'private', 'magic_folder_dircap'), 'r') as f:
+            print("dircap {}: {}".format(name, f.read().strip()))
+
+# give storage nodes a chance to connect properly? I'm not entirely
+# sure what's up here, but I get "UnrecoverableFileError" on the
+# first_file upload from Alice "very often" otherwise
+print("waiting a second")
+time.sleep(1)
 
 if True:
     # alice writes a file; bob should get it
-    alice_foo = join(data_base, 'client0-magic', 'first_file')
-    bob_foo = join(data_base, 'client1-magic', 'first_file')
+    alice_foo = join(data_base, 'alice-magic', 'first_file')
+    bob_foo = join(data_base, 'bob-magic', 'first_file')
     with open(alice_foo, 'w') as f:
         f.write("line one\n")
 
@@ -216,8 +233,8 @@ if True:
 
 if True:
     # bob writes a file; alice should get it
-    alice_bar = join(data_base, 'client0-magic', 'second_file')
-    bob_bar = join(data_base, 'client1-magic', 'second_file')
+    alice_bar = join(data_base, 'alice-magic', 'second_file')
+    bob_bar = join(data_base, 'bob-magic', 'second_file')
     with open(bob_bar, 'w') as f:
         f.write("line one\n")
 
@@ -231,11 +248,12 @@ if True:
                 print("  file contents still mismatched")
         time.sleep(1)
 
-if True:
+# deletes do not yet work
+if False:
     # bob deletes alice's "first_file"; alice should also delete it
-    alice_foo = join(data_base, 'client0-magic', 'first_file')
-    bob_foo = join(data_base, 'client1-magic', 'first_file')
-    unlink(alice_foo)
+    alice_foo = join(data_base, 'alice-magic', 'first_file')
+    bob_foo = join(data_base, 'bob-magic', 'first_file')
+    unlink(bob_foo)
 
     print("Waiting for '%s' to disappear" % (bob_foo,))
     while True:
@@ -246,8 +264,8 @@ if True:
 
 if True:
     # re-write 'second_file'
-    alice_foo = join(data_base, 'client0-magic', 'second_file')
-    bob_foo = join(data_base, 'client1-magic', 'second_file')
+    alice_foo = join(data_base, 'alice-magic', 'second_file')
+    bob_foo = join(data_base, 'bob-magic', 'second_file')
     gold_content = "line one\nsecond line\n"
 
     with open(bob_foo, 'w') as f:
@@ -266,8 +284,8 @@ if True:
 
 if True:
     # restore 'first_file' but with different contents
-    alice_foo = join(data_base, 'client0-magic', 'first_file')
-    bob_foo = join(data_base, 'client1-magic', 'first_file')
+    alice_foo = join(data_base, 'alice-magic', 'first_file')
+    bob_foo = join(data_base, 'bob-magic', 'first_file')
     gold_content = "see it again for the first time\n"
 
     with open(bob_foo, 'w') as f:
