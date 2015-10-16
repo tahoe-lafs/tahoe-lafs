@@ -541,14 +541,17 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._log("_scan_remote nickname %r" % (nickname,))
         d = dirnode.list()
         def scan_listing(listing_map):
-            for name in listing_map.keys():
-                file_node, metadata = listing_map[name]
-                local_version = self._get_local_latest(name)
+            for encoded_relpath_u in listing_map.keys():
+                relpath_u = magicpath.magic2path(encoded_relpath_u)
+                self._log("found %r" % (relpath_u,))
+
+                file_node, metadata = listing_map[encoded_relpath_u]
+                local_version = self._get_local_latest(relpath_u)
                 remote_version = metadata.get('version', None)
-                self._log("%r has local version %r, remote version %r" % (name, local_version, remote_version))
+                self._log("%r has local version %r, remote version %r" % (relpath_u, local_version, remote_version))
                 if local_version is None or remote_version is None or local_version < remote_version:
-                    self._log("added to download queue\n")
-                    self._append_to_batch(name, file_node, metadata)
+                    self._log("%r added to download queue" % (relpath_u,))
+                    self._append_to_batch(relpath_u, file_node, metadata)
         d.addCallback(scan_listing)
         return d
 
