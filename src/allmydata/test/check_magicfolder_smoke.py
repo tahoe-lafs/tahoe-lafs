@@ -304,6 +304,41 @@ if True:
 
 
 
+if True:
+    # bob creates a sub-directory and adds a file to it
+    alice_dir = join(data_base, 'alice-magic', 'subdir')
+    bob_dir = join(data_base, 'alice-magic', 'subdir')
+    gold_content = 'a file in a subdirectory\n'
+
+    mkdir(bob_dir)
+    with open(join(bob_dir, 'subfile'), 'w') as f:
+        f.write(gold_content)
+
+    print("Waiting for Bob's subdir '%s' to appear" % (bob_dir,))
+    while True:
+        if exists(bob_dir):
+            print("  found subdir")
+            if exists(join(bob_dir, 'subfile')):
+                print("  found file")
+                with open(join(bob_dir, 'subfile'), 'r') as f:
+                    if f.read() == gold_content:
+                        print("  contents match")
+                        break
+        time.sleep(0.1)
+
+if True:
+    # bob deletes the whole subdir
+    alice_dir = join(data_base, 'alice-magic', 'subdir')
+    bob_dir = join(data_base, 'alice-magic', 'subdir')
+    shutil.rmtree(bob_dir)
+
+    print("Waiting for Alice's subdir '%s' to disappear" % (alice_dir,))
+    while True:
+        if not exists(alice_dir):
+            print("  it's gone")
+            break
+        time.sleep(0.1)
+
 # XXX test .backup (delete a file)
 
 # port david's clock.advance stuff
