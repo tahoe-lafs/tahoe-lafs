@@ -16,7 +16,7 @@ from allmydata.test.common import ShouldFailMixin
 from .test_cli_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
-from allmydata.frontends.magic_folder import MagicFolder, Downloader
+from allmydata.frontends.magic_folder import MagicFolder, Downloader, WriteFileMixin
 from allmydata import magicfolderdb, magicpath
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
@@ -482,13 +482,19 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         workdir = u"cli/MagicFolder/write-downloaded-file"
         local_file = fileutil.abspath_expanduser_unicode(os.path.join(workdir, "foobar"))
 
+        class TestWriteFileMixin(WriteFileMixin):
+            def _log(self, msg):
+                pass
+
+        writefile = TestWriteFileMixin()
+
         # create a file with name "foobar" with content "foo"
         # write downloaded file content "bar" into "foobar" with is_conflict = False
         fileutil.make_dirs(workdir)
         fileutil.write(local_file, "foo")
 
         # if is_conflict is False, then the .conflict file shouldn't exist.
-        Downloader._write_downloaded_file(local_file, "bar", False, None)
+        writefile._write_downloaded_file(local_file, "bar", False, None)
         conflicted_path = local_file + u".conflict"
         self.failIf(os.path.exists(conflicted_path))
 
@@ -504,7 +510,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         self.failUnlessEqual(fileutil.read(local_file), "bar")
 
         # now a test for conflicted case
-        Downloader._write_downloaded_file(local_file, "bar", True, None)
+        writefile._write_downloaded_file(local_file, "bar", True, None)
         self.failUnless(os.path.exists(conflicted_path))
 
         # .tmp file shouldn't exist
