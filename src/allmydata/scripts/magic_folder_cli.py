@@ -22,7 +22,7 @@ class CreateOptions(BasedirOptions):
             raise usage.UsageError("An alias must end with a ':' character.")
         self.alias = alias[:-1]
         self.nickname = nickname
-        self.localdir = localdir
+        self.localdir = argv_to_abspath(str(localdir))
         if self.nickname and not self.localdir:
             raise usage.UsageError("If NICKNAME is specified then LOCALDIR must also be specified.")
         node_url_file = os.path.join(self['node-directory'], "node.url")
