@@ -6,6 +6,7 @@ from twisted.python import usage
 from .common import BaseOptions, BasedirOptions, get_aliases
 from .cli import MakeDirectoryOptions, LnOptions, CreateAliasOptions
 import tahoe_mv
+from allmydata.util.encodingutil import argv_to_abspath
 from allmydata.util import fileutil
 from allmydata import uri
 
@@ -123,7 +124,7 @@ class JoinOptions(BasedirOptions):
     magic_readonly_cap = ""
     def parseArgs(self, invite_code, local_dir):
         BasedirOptions.parseArgs(self)
-        self.local_dir = local_dir
+        self.local_dir = argv_to_abspath(str(local_dir))
         fields = invite_code.split(INVITE_SEPARATOR)
         if len(fields) != 2:
             raise usage.UsageError("Invalid invite code.")
