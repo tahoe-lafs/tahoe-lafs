@@ -618,18 +618,28 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._log("_process(%r)" % (item,))
         if now is None:
             now = time.time()
+
         (relpath_u, file_node, metadata) = item
         fp = self._get_filepath(relpath_u)
         abspath_u = unicode_from_filepath(fp)
+        deleted = metadata.get('deleted', False)
+        is_directory = relpath_u.endswith(u"/")
 
         d = defer.succeed(None)
-        if relpath_u.endswith(u"/"):
-            self._log("mkdir(%r)" % (abspath_u,))
-            d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
-            d.addCallback(lambda ign: abspath_u)
+        if is_directory:
+            if deleted:
+                self._log("rmdir(%r)" % (abspath_u,))
+                # what to do here, if anything?
+            else:
+                self._log("mkdir(%r)" % (abspath_u,))
+                d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
+                d.addCallback(lambda ign: abspath_u)
         else:
-            d.addCallback(lambda ign: file_node.download_best_version())
-            d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents, is_conflict=False))
+            if deleted:
+                d.addCallback(lambda ign: self._unlink_deleted_file(abspath_u))
+            else:
+                d.addCallback(lambda ign: file_node.download_best_version())
+                d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents, is_conflict=False))
 
         def do_update_db(written_abspath_u):
             filecap = file_node.get_uri()
@@ -637,7 +647,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             last_downloaded_uri = filecap
             last_downloaded_timestamp = now
             written_pathinfo = get_pathinfo(written_abspath_u)
-            if not written_pathinfo.exists:
+            if not deleted and not written_pathinfo.exists:
                 raise Exception("downloaded object %s disappeared" % quote_local_unicode_path(written_abspath_u))
 
             self._db.did_upload_version(relpath_u, metadata['version'], last_uploaded_uri,
@@ -653,3 +663,44 @@ class Downloader(QueueMixin, WriteFileMixin):
             return res
         d.addBoth(remove_from_pending)
         return d
+
+    FUDGE_SECONDS = 10.0
+
+    def _unlink_deleted_file(self, abspath_u):
+        fileutil.remove(abspath_u)
+        return abspath_u
+
+    @classmethod
+    def _write_downloaded_file(cls, abspath_u, file_contents, is_conflict=False, now=None):
+        # 1. Write a temporary file, say .foo.tmp.
+        # 2. is_conflict determines whether this is an overwrite or a conflict.
+        # 3. Set the mtime of the replacement file to be T seconds before the
+        #    current local time.
+        # 4. Perform a file replacement with backup filename foo.backup,
+        #    replaced file foo, and replacement file .foo.tmp. If any step of
+        #    this operation fails, reclassify as a conflict and stop.
+        #
+        # Returns the path of the destination file.
+
+        precondition_abspath(abspath_u)
+        replacement_path_u = abspath_u + u".tmp"  # FIXME more unique
+        backup_path_u = abspath_u + u".backup"
+        if now is None:
+            now = time.time()
+
+        fileutil.write(replacement_path_u, file_contents)
+        os.utime(replacement_path_u, (now, now - cls.FUDGE_SECONDS))
+        if is_conflict:
+            return cls._rename_conflicted_file(abspath_u, replacement_path_u)
+        else:
+            try:
+                fileutil.replace_file(abspath_u, replacement_path_u, backup_path_u)
+                return abspath_u
+            except fileutil.ConflictError:
+                return cls._rename_conflicted_file(abspath_u, replacement_path_u)
+
+    @classmethod
+    def _rename_conflicted_file(self, abspath_u, replacement_path_u):
+        conflict_path_u = abspath_u + u".conflict"
+        fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
+        return conflict_path_u

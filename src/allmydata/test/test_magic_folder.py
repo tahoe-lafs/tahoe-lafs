@@ -241,6 +241,43 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addBoth(self.cleanup)
         return d
 
+    @defer.inlineCallbacks
+    def X_test_delete(self):
+        self.set_up_grid()
+        self.local_dir = os.path.join(self.basedir, u"local_dir")
+        self.mkdir_nonascii(self.local_dir)
+
+        yield self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
+        yield self._restart_client(None)
+
+        try:
+            # create a file
+            uploaded_d = self.magicfolder.uploader.set_hook('processed')
+            downloaded_d = self.magicfolder.downloader.set_hook('processed')
+            path = os.path.join(self.local_dir, u'foo')
+            with open(path, 'w') as f:
+                f.write('foo\n')
+            self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
+            yield uploaded_d
+            #yield downloaded_d
+            self.assertTrue(os.path.exists(path))
+
+            # the real test part: delete the file
+            uploaded_d2 = self.magicfolder.uploader.set_hook('processed')
+            os.unlink(path)
+            self.notify(to_filepath(path), self.inotify.IN_DELETE)
+            yield uploaded_d2
+            yield downloaded_d
+            self.assertFalse(os.path.exists(path))
+
+            # ensure we still have a DB entry, and that the version is 1
+            node, metadata = yield self.magicfolder.downloader._get_collective_latest_file(u'foo')
+            self.assertTrue(node is not None, "Failed to find '{}' in DMD".format(path))
+            self.failUnlessEqual(metadata['version'], 1)
+
+        finally:
+            yield self.cleanup(None)
+
     def test_magic_folder(self):
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
@@ -336,6 +373,10 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         #print "_check_version_in_local_db: %r has version %s" % (relpath_u, version)
         self.failUnlessEqual(version, expected_version)
 
+    def _check_file_gone(self, magicfolder, relpath_u):
+        path = os.path.join(magicfolder.uploader._local_path_u, relpath_u)
+        self.assertTrue(not os.path.exists(path))
+
     def test_alice_bob(self):
         alice_clock = task.Clock()
         bob_clock = task.Clock()
@@ -402,6 +443,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 1))
+        d.addCallback(lambda ign: self._check_file_gone(self.bob_magicfolder, u"file1"))
         d.addCallback(_check_downloader_count, 'objects_failed', 0)
         d.addCallback(_check_downloader_count, 'objects_downloaded', 2)
 
