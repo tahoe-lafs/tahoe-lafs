@@ -4,6 +4,7 @@ import re
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet import reactor
+from twisted.python import usage
 
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
@@ -218,16 +219,23 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         return d
 
     def test_create_invite_join_failure(self):
-        self.basedir = "cli/MagicFolder/create-invite-join-failure"
-        self.set_up_grid()
-        self.local_dir = os.path.join(self.basedir, "magic")
-        self.local_dir = argv_to_abspath("-" + self.local_dir)
-        d = self.do_cli("magic-folder", "create", u"magic:", u"Alice", self.local_dir)
-        def _done((rc,stdout,stderr)):
-            print "rc %s" % (rc,)
-            print "stdout %s" % (stdout,)
-            print "stderr %s" % (stderr,)
-            self.failUnless(rc == 1)
-            return (rc,stdout,stderr)
-        d.addCallback(_done)
-        return d
+        o = magic_folder_cli.CreateOptions()
+        o.parent = magic_folder_cli.MagicFolderCommand()
+        o.parent.parseOptions(["magic-folder"])
+        try:
+            o.parseOptions(["magic:", "Alice", "-foo"])
+        except usage.UsageError as e:
+            self.failUnlessIn("cannot start with '-'", str(e))
+        else:
+            self.fail("expected UsageError")
+
+    def test_join_failure(self):
+        o = magic_folder_cli.JoinOptions()
+        o.parent = magic_folder_cli.MagicFolderCommand()
+        o.parent.parseOptions(["magic-folder"])
+        try:
+            o.parseOptions(["URI:invite+URI:code", "-foo"])
+        except usage.UsageError as e:
+            self.failUnlessIn("cannot start with '-'", str(e))
+        else:
+            self.fail("expected UsageError")
