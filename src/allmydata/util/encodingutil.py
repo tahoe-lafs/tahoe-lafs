@@ -95,8 +95,6 @@ def argv_to_unicode(s):
     except UnicodeDecodeError:
         raise usage.UsageError("Argument %s cannot be decoded as %s." %
                                (quote_output(s), io_encoding))
-    if local_dir.startswith('-'):
-        raise usage.UsageError("Argument %s cannot start with a -." % (quote_output(s),))
 
 def argv_to_abspath(s, **kwargs):
     """
