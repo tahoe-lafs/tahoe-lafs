@@ -11,6 +11,7 @@ from allmydata.test.no_network import GridTestMixin
 from .test_cli import CLITestMixin
 from allmydata.scripts import magic_folder_cli
 from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.encodingutil import argv_to_abspath
 from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import uri
 
@@ -175,7 +176,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
     def test_create_and_then_invite_join(self):
         self.basedir = "cli/MagicFolder/create-and-then-invite-join"
         self.set_up_grid()
-        self.local_dir = os.path.join(self.basedir, "magic")
+        self.local_dir = argv_to_abspath(os.path.join(self.basedir, "magic"))
         d = self.do_create_magic_folder(0)
         d.addCallback(lambda x: self.do_invite(0, u"Alice"))
         def get_invite((rc,stdout,stderr)):
@@ -220,7 +221,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         self.basedir = "cli/MagicFolder/create-invite-join-failure"
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, "magic")
-        self.local_dir = "-" + self.local_dir
+        self.local_dir = argv_to_abspath("-" + self.local_dir)
         d = self.do_cli("magic-folder", "create", u"magic:", u"Alice", self.local_dir)
         def _done((rc,stdout,stderr)):
             print "rc %s" % (rc,)
