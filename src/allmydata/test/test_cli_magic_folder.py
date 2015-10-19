@@ -215,3 +215,18 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         d.addCallback(lambda x: self.check_joined_config(0, self.upload_dircap))
         d.addCallback(lambda x: self.check_config(0, self.local_dir))
         return d
+
+    def test_create_invite_join_failure(self):
+        self.basedir = "cli/MagicFolder/create-invite-join-failure"
+        self.set_up_grid()
+        self.local_dir = os.path.join(self.basedir, "magic")
+        self.local_dir = "-" + self.local_dir
+        d = self.do_cli("magic-folder", "create", u"magic:", u"Alice", self.local_dir)
+        def _done((rc,stdout,stderr)):
+            print "rc %s" % (rc,)
+            print "stdout %s" % (stdout,)
+            print "stderr %s" % (stderr,)
+            self.failUnless(rc == 1)
+            return (rc,stdout,stderr)
+        d.addCallback(_done)
+        return d
