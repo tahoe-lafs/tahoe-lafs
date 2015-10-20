@@ -211,8 +211,8 @@ if True:
 # give storage nodes a chance to connect properly? I'm not entirely
 # sure what's up here, but I get "UnrecoverableFileError" on the
 # first_file upload from Alice "very often" otherwise
-print("waiting a second")
-time.sleep(1)
+print("waiting 3 seconds")
+time.sleep(3)
 
 if True:
     # alice writes a file; bob should get it
@@ -248,12 +248,11 @@ if True:
                 print("  file contents still mismatched")
         time.sleep(1)
 
-# deletes do not yet work
-if False:
-    # bob deletes alice's "first_file"; alice should also delete it
+if True:
+    # alice deletes 'first_file'
     alice_foo = join(data_base, 'alice-magic', 'first_file')
     bob_foo = join(data_base, 'bob-magic', 'first_file')
-    unlink(bob_foo)
+    unlink(alice_foo)
 
     print("Waiting for '%s' to disappear" % (bob_foo,))
     while True:
@@ -262,8 +261,18 @@ if False:
             break
         time.sleep(1)
 
+    # XXX this doesn't work; shouldn't a .tmp file appear on bob's side?
+    bob_tmp = bob_foo + '.tmp'
+    print("Waiting for '%s' to appear" % (bob_tmp,))
+    while True:
+        if exists(bob_tmp):
+            print("  appeared", bob_tmp)
+            break
+        time.sleep(1)
+
 if True:
-    # re-write 'second_file'
+    # bob writes new content to 'second_file'; alice should get it
+    # get it.
     alice_foo = join(data_base, 'alice-magic', 'second_file')
     bob_foo = join(data_base, 'bob-magic', 'second_file')
     gold_content = "line one\nsecond line\n"
@@ -280,29 +289,8 @@ if True:
                 if content == gold_content:
                     break
                 print("  file contents still mismatched:\n")
+                print(content)
         time.sleep(1)
-
-if True:
-    # restore 'first_file' but with different contents
-    alice_foo = join(data_base, 'alice-magic', 'first_file')
-    bob_foo = join(data_base, 'bob-magic', 'first_file')
-    gold_content = "see it again for the first time\n"
-
-    with open(bob_foo, 'w') as f:
-        f.write(gold_content)
-
-    print("Waiting for:", alice_foo)
-    while True:
-        if exists(alice_foo):
-            print("  found", alice_foo)
-            with open(alice_foo, 'r') as f:
-                content = f.read()
-                if content == gold_content:
-                    break
-                print("  file contents still mismatched:\n")
-        time.sleep(1)
-
-
 
 if True:
     # bob creates a sub-directory and adds a file to it
@@ -338,6 +326,37 @@ if True:
             print("  it's gone")
             break
         time.sleep(0.1)
+
+# XXX restore the file not working (but, unit-tests work; what's wrong with them?)
+# NOTE: only not-works if it's alice restoring the file!
+if True:
+    # restore 'first_file' but with different contents
+    print("re-writing 'first_file'")
+    assert not exists(join(data_base, 'bob-magic', 'first_file'))
+    assert not exists(join(data_base, 'alice-magic', 'first_file'))
+    alice_foo = join(data_base, 'alice-magic', 'first_file')
+    bob_foo = join(data_base, 'bob-magic', 'first_file')
+    if True:
+        # if we don't swap around, it works fine
+        alice_foo, bob_foo = bob_foo, alice_foo
+    gold_content = "see it again for the first time\n"
+
+    with open(bob_foo, 'w') as f:
+        f.write(gold_content)
+
+    print("Waiting for:", alice_foo)
+    while True:
+        if exists(alice_foo):
+            print("  found", alice_foo)
+            with open(alice_foo, 'r') as f:
+                content = f.read()
+                if content == gold_content:
+                    break
+                print("  file contents still mismatched: %d bytes:\n" % (len(content),))
+                print(content)
+        else:
+            print("   {} not there yet".format(alice_foo))
+        time.sleep(1)
 
 # XXX test .backup (delete a file)
 
