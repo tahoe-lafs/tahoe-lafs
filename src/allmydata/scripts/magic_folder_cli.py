@@ -109,24 +109,28 @@ def invite(options):
     if rc != 0:
         print >>options.stderr, "magic-folder: failed to mkdir\n"
         return rc
+
+    # FIXME this assumes caps are ASCII.
     dmd_write_cap = mkdir_options.stdout.getvalue().strip()
-    dmd_readonly_cap = unicode(uri.from_string(dmd_write_cap).get_readonly().to_string(), 'utf-8')
+    dmd_readonly_cap = uri.from_string(dmd_write_cap).get_readonly().to_string()
     if dmd_readonly_cap is None:
         print >>options.stderr, "magic-folder: failed to diminish dmd write cap\n"
         return 1
 
     magic_write_cap = get_aliases(options["node-directory"])[options.alias]
-    magic_readonly_cap = unicode(uri.from_string(magic_write_cap).get_readonly().to_string(), 'utf-8')
+    magic_readonly_cap = uri.from_string(magic_write_cap).get_readonly().to_string()
+
     # tahoe ln CLIENT_READCAP COLLECTIVE_WRITECAP/NICKNAME
     ln_options = _delegate_options(options, LnOptions())
-    ln_options.from_file = dmd_readonly_cap
-    ln_options.to_file = u"%s/%s" % (magic_write_cap, options.nickname)
+    ln_options.from_file = unicode(dmd_readonly_cap, 'utf-8')
+    ln_options.to_file = u"%s/%s" % (unicode(magic_write_cap, 'utf-8'), options.nickname)
     rc = tahoe_mv.mv(ln_options, mode="link")
     if rc != 0:
         print >>options.stderr, "magic-folder: failed to create link\n"
         print >>options.stderr, ln_options.stderr.getvalue()
         return rc
 
+    # FIXME: this assumes caps are ASCII.
     print >>options.stdout, "%s%s%s" % (magic_readonly_cap, INVITE_SEPARATOR, dmd_write_cap)
     return 0
 
