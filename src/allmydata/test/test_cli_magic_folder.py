@@ -145,7 +145,9 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(lambda ign: self.check_joined_config(0, self.alice_upload_dircap))
         d.addCallback(lambda ign: self.check_config(0, alice_magic_dir))
         def get_Alice_magicfolder(result):
-            self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap, self.alice_collective_dircap, alice_magic_dir, alice_clock)
+            self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap,
+                                                           self.alice_collective_dircap,
+                                                           alice_magic_dir, alice_clock)
             return result
         d.addCallback(get_Alice_magicfolder)
 
@@ -161,7 +163,9 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(lambda ign: self.check_joined_config(1, self.bob_upload_dircap))
         d.addCallback(lambda ign: self.check_config(1, bob_magic_dir))
         def get_Bob_magicfolder(result):
-            self.bob_magicfolder = self.init_magicfolder(1, self.bob_upload_dircap, self.bob_collective_dircap, bob_magic_dir, bob_clock)
+            self.bob_magicfolder = self.init_magicfolder(1, self.bob_upload_dircap,
+                                                         self.bob_collective_dircap,
+                                                         bob_magic_dir, bob_clock)
             return result
         d.addCallback(get_Bob_magicfolder)
 
