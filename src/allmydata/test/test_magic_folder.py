@@ -324,6 +324,59 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         finally:
             yield self.cleanup(None)
 
+
+    @defer.inlineCallbacks
+    def test_alice_delete_bob_restore(self):
+        alice_clock = task.Clock()
+        bob_clock = task.Clock()
+        caps = yield self.setup_alice_and_bob(alice_clock, bob_clock)
+        alice_magic = caps[2]
+        bob_magic = caps[5]
+        alice_dir = alice_magic.uploader._local_path_u
+        bob_dir = bob_magic.uploader._local_path_u
+        alice_fname = os.path.join(alice_dir, 'blam')
+        bob_fname = os.path.join(bob_dir, 'blam')
+
+        try:
+            # alice creates a file, bob downloads it
+            alice_proc = alice_magic.uploader.set_hook('processed')
+            bob_proc = bob_magic.downloader.set_hook('processed')
+
+            with open(alice_fname, 'wb') as f:
+                f.write('contents0\n')
+            alice_magic.uploader._notifier.event(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE)
+
+            alice_clock.advance(0)
+            yield alice_proc  # alice uploads
+
+            bob_clock.advance(0)
+            bob_clock.advance(0)
+            yield bob_proc    # bob downloads
+
+            # check the states
+            yield self._check_version_in_dmd(alice_magic, u"blam", 1)
+            yield self._check_version_in_local_db(alice_magic, u"blam", 0)
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_failed', client=bob_magic._client),
+                0
+            )
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_downloaded', client=bob_magic._client),
+                1
+            )
+
+            # now bob deletes it
+
+        finally:
+            # cleanup
+            d0 = alice_magic.finish()
+            alice_clock.advance(0)
+            yield d0
+
+            d1 = bob_magic.finish()
+            bob_clock.advance(0)
+            yield d1
+
     def test_magic_folder(self):
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
