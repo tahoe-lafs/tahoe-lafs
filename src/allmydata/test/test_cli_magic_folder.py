@@ -74,8 +74,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
     def check_config(self, client_num, local_dir):
         client_config = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "tahoe.cfg"))
-        # XXX utf-8?
-        local_dir = local_dir.encode('utf-8')
+        local_dir = argv_to_abspath(str(local_dir))
         ret = re.search("\[magic_folder\]\nenabled = True\nlocal.directory = %s" % (local_dir,), client_config)
         self.failIf(ret is None)
 
