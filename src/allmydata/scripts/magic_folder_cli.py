@@ -1,12 +1,16 @@
 
 import os
+from types import NoneType
 from cStringIO import StringIO
+
 from twisted.python import usage
+
+from allmydata.util.assertutil import precondition
 
 from .common import BaseOptions, BasedirOptions, get_aliases
 from .cli import MakeDirectoryOptions, LnOptions, CreateAliasOptions
 import tahoe_mv
-from allmydata.util.encodingutil import argv_to_abspath
+from allmydata.util.encodingutil import argv_to_abspath, argv_to_unicode
 from allmydata.util import fileutil
 from allmydata import uri
 
@@ -18,10 +22,11 @@ class CreateOptions(BasedirOptions):
     synopsis = "MAGIC_ALIAS: [NICKNAME LOCAL_DIR]"
     def parseArgs(self, alias, nickname=None, local_dir=None):
         BasedirOptions.parseArgs(self)
-        if not alias.endswith(':'):
+        alias = argv_to_unicode(alias)
+        if not alias.endswith(u':'):
             raise usage.UsageError("An alias must end with a ':' character.")
         self.alias = alias[:-1]
-        self.nickname = nickname
+        self.nickname = None if nickname is None else argv_to_unicode(nickname)
         self.local_dir = None if local_dir is None else argv_to_abspath(local_dir)
         if self.nickname and not self.local_dir:
             raise usage.UsageError("If NICKNAME is specified then LOCAL_DIR must also be specified.")
@@ -38,6 +43,10 @@ def _delegate_options(source_options, target_options):
     return target_options
 
 def create(options):
+    precondition(isinstance(options.alias, unicode), alias=options.alias)
+    precondition(isinstance(options.nickname, (unicode, NoneType)), nickname=options.nickname)
+    precondition(isinstance(options.local_dir, (unicode, NoneType)), local_dir=options.local_dir)
+
     from allmydata.scripts import tahoe_add_alias
     create_alias_options = _delegate_options(options, CreateAliasOptions())
     create_alias_options.alias = options.alias
@@ -78,16 +87,20 @@ class InviteOptions(BasedirOptions):
     stdin = StringIO("")
     def parseArgs(self, alias, nickname=None):
         BasedirOptions.parseArgs(self)
-        if not alias.endswith(':'):
+        alias = argv_to_unicode(alias)
+        if not alias.endswith(u':'):
             raise usage.UsageError("An alias must end with a ':' character.")
         self.alias = alias[:-1]
-        self.nickname = nickname
+        self.nickname = argv_to_unicode(nickname)
         node_url_file = os.path.join(self['node-directory'], "node.url")
         self['node-url'] = open(node_url_file, "r").read().strip()
         aliases = get_aliases(self['node-directory'])
         self.aliases = aliases
 
 def invite(options):
+    precondition(isinstance(options.alias, unicode), alias=options.alias)
+    precondition(isinstance(options.nickname, unicode), nickname=options.nickname)
+
     from allmydata.scripts import tahoe_mkdir
     mkdir_options = _delegate_options(options, MakeDirectoryOptions())
     mkdir_options.where = None
