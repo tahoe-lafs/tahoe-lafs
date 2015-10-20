@@ -22,7 +22,7 @@ class CreateOptions(BasedirOptions):
             raise usage.UsageError("An alias must end with a ':' character.")
         self.alias = alias[:-1]
         self.nickname = nickname
-        self.localdir = localdir
+        self.localdir = argv_to_abspath(str(localdir))
         if self.nickname and not self.localdir:
             raise usage.UsageError("If NICKNAME is specified then LOCALDIR must also be specified.")
         node_url_file = os.path.join(self['node-directory'], "node.url")
@@ -58,7 +58,6 @@ def create(options):
             print >>options.stderr, invite_options.stderr.getvalue()
             return rc
         invite_code = invite_options.stdout.getvalue().strip()
-
         join_options = _delegate_options(options, JoinOptions())
         join_options.invite_code = invite_code
         fields = invite_code.split(INVITE_SEPARATOR)
@@ -122,13 +121,15 @@ class JoinOptions(BasedirOptions):
     synopsis = "INVITE_CODE LOCAL_DIR"
     dmd_write_cap = ""
     magic_readonly_cap = ""
-    def parseArgs(self, invite_code, local_dir):
-        BasedirOptions.parseArgs(self)
+    def parseInvite(self, invite_code, local_dir):
         self.local_dir = argv_to_abspath(str(local_dir))
         fields = invite_code.split(INVITE_SEPARATOR)
         if len(fields) != 2:
             raise usage.UsageError("Invalid invite code.")
         self.magic_readonly_cap, self.dmd_write_cap = fields
+    def parseArgs(self, invite_code, local_dir):
+        BasedirOptions.parseArgs(self)
+        self.parseInvite(invite_code, local_dir)
 
 def join(options):
     dmd_cap_file = os.path.join(options["node-directory"], "private/magic_folder_dircap")
