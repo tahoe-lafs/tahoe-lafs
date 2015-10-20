@@ -10,7 +10,7 @@ from allmydata.util.assertutil import precondition
 from .common import BaseOptions, BasedirOptions, get_aliases
 from .cli import MakeDirectoryOptions, LnOptions, CreateAliasOptions
 import tahoe_mv
-from allmydata.util.encodingutil import argv_to_abspath, argv_to_unicode
+from allmydata.util.encodingutil import argv_to_abspath, argv_to_unicode, to_str
 from allmydata.util import fileutil
 from allmydata import uri
 
@@ -68,12 +68,8 @@ def create(options):
             return rc
         invite_code = invite_options.stdout.getvalue().strip()
         join_options = _delegate_options(options, JoinOptions())
-        join_options.invite_code = invite_code
-        fields = invite_code.split(INVITE_SEPARATOR)
-        if len(fields) != 2:
-            raise usage.UsageError("Invalid invite code.")
-        join_options.magic_readonly_cap, join_options.dmd_write_cap = fields
         join_options.local_dir = options.local_dir
+        join_options.invite_code = invite_code
         rc = join(join_options)
         if rc != 0:
             print >>options.stderr, "magic-folder: failed to join after create\n"
@@ -138,22 +134,22 @@ class JoinOptions(BasedirOptions):
     synopsis = "INVITE_CODE LOCAL_DIR"
     dmd_write_cap = ""
     magic_readonly_cap = ""
-    def parseInvite(self, invite_code, local_dir):
-        self.local_dir = None if local_dir is None else argv_to_abspath(local_dir)
-        fields = invite_code.split(INVITE_SEPARATOR)
-        if len(fields) != 2:
-            raise usage.UsageError("Invalid invite code.")
-        self.magic_readonly_cap, self.dmd_write_cap = fields
     def parseArgs(self, invite_code, local_dir):
         BasedirOptions.parseArgs(self)
-        self.parseInvite(invite_code, local_dir)
+        self.local_dir = None if local_dir is None else argv_to_abspath(local_dir)
+        self.invite_code = to_str(argv_to_unicode(invite_code))
 
 def join(options):
+    fields = options.invite_code.split(INVITE_SEPARATOR)
+    if len(fields) != 2:
+        raise usage.UsageError("Invalid invite code.")
+    magic_readonly_cap, dmd_write_cap = fields
+
     dmd_cap_file = os.path.join(options["node-directory"], "private/magic_folder_dircap")
     collective_readcap_file = os.path.join(options["node-directory"], "private/collective_dircap")
 
-    fileutil.write(dmd_cap_file, options.dmd_write_cap)
-    fileutil.write(collective_readcap_file, options.magic_readonly_cap)
+    fileutil.write(dmd_cap_file, dmd_write_cap)
+    fileutil.write(collective_readcap_file, magic_readonly_cap)
     fileutil.write(os.path.join(options["node-directory"], "tahoe.cfg"),
                    "[magic_folder]\nenabled = True\nlocal.directory = %s\n"
                    % (options.local_dir.encode('utf-8'),), mode="ab")
