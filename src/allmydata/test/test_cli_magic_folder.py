@@ -6,6 +6,7 @@ from twisted.internet import defer
 from twisted.internet import reactor
 from twisted.python import usage
 
+from allmydata.util.assertutil import precondition
 from allmydata.util import fileutil
 from allmydata.util.fileutil import precondition_abspath
 from allmydata.scripts.common import get_aliases
@@ -41,8 +42,11 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return d
 
     def do_join(self, client_num, local_dir, invite_code):
-        magic_readonly_cap, dmd_write_cap = invite_code.split(magic_folder_cli.INVITE_SEPARATOR)
-        d = self.do_cli("magic-folder", "join", invite_code, local_dir, client_num=client_num)
+        precondition(isinstance(local_dir, unicode), local_dir=local_dir)
+        precondition(isinstance(invite_code, str), invite_code=invite_code)
+
+        local_dir_arg = unicode_to_argv(local_dir)
+        d = self.do_cli("magic-folder", "join", invite_code, local_dir_arg, client_num=client_num)
         def _done((rc, stdout, stderr)):
             self.failUnlessEqual(rc, 0)
             return (rc, stdout, stderr)
@@ -184,7 +188,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_invite(0, u"Alice"))
         def get_invite_code_and_join((rc, stdout, stderr)):
             invite_code = stdout.strip()
-            return self.do_join(0, local_dir, invite_code)
+            return self.do_join(0, unicode(local_dir), invite_code)
         d.addCallback(get_invite_code_and_join)
         def get_caps(ign):
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
