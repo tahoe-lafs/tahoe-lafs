@@ -1,6 +1,7 @@
 
 import sys, os
 import os.path
+import shutil
 from collections import deque
 import time
 
@@ -649,7 +650,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             if metadata.get('deleted', False):
                 d.addCallback(lambda result: self._unlink_deleted_file(abspath_u, result))
             else:
-                d.addCallback(lambda result: self._write_downloaded_file(abspath_u, result, is_conflict=False))
+                d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents, is_conflict=False))
 
         def do_update_db(written_abspath_u):
             filecap = file_node.get_uri()
@@ -676,7 +677,8 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def _unlink_deleted_file(self, abspath_u, result):
         try:
-            os.unlink(abspath_u)
-        except OSError:
+            self._log('unlinking: %s' % (abspath_u,))
+            shutil.move(abspath_u, abspath_u + '.tmp')
+        except IOError:
             self._log("Already gone: '%s'" % (abspath_u,))
         return abspath_u
