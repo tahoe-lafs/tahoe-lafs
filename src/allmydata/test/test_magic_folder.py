@@ -350,12 +350,13 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             yield alice_proc  # alice uploads
 
             bob_clock.advance(0)
-            bob_clock.advance(0)
             yield bob_proc    # bob downloads
 
             # check the states
             yield self._check_version_in_dmd(alice_magic, u"blam", 1)
             yield self._check_version_in_local_db(alice_magic, u"blam", 0)
+            yield self._check_version_in_dmd(bob_magic, u"blam", 1)
+            yield self._check_version_in_local_db(bob_magic, u"blam", 0)
             yield self.failUnlessReallyEqual(
                 self._get_count('downloader.objects_failed', client=bob_magic._client),
                 0
@@ -365,7 +366,24 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
                 1
             )
 
-            # now bob deletes it
+            # now bob deletes it (bob should upload, alice download)
+            bob_proc = bob_magic.uploader.set_hook('processed')
+            alice_proc = alice_magic.downloader.set_hook('processed')
+            os.unlink(bob_fname)
+            bob_magic.uploader._notifier.event(to_filepath(bob_fname), self.inotify.IN_DELETE)
+
+            bob_clock.advance(0)
+            yield bob_proc
+            alice_clock.advance(0)
+            yield alice_proc
+
+            # check the states
+            # okay, i think we have the bug: this *should* be 2,
+            # right? i.e. an updated version from the last time?
+            yield self._check_version_in_dmd(bob_magic, u"blam", 2)
+            yield self._check_version_in_local_db(bob_magic, u"blam", 1)
+            yield self._check_version_in_dmd(alice_magic, u"blam", 2)
+            yield self._check_version_in_local_db(alice_magic, u"blam", 1)
 
         finally:
             # cleanup
