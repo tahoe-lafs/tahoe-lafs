@@ -730,7 +730,7 @@ ALLEGED_IMMUTABLE_PREFIX = 'imm.'
 
 def from_string(u, deep_immutable=False, name=u"<unknown name>"):
     if not isinstance(u, str):
-        raise TypeError("unknown URI type: %s.." % str(u)[:100])
+        raise TypeError("URI must be str: %r" % (u,))
 
     # We allow and check ALLEGED_READONLY_PREFIX or ALLEGED_IMMUTABLE_PREFIX
     # on all URIs, even though we would only strictly need to do so for caps of
