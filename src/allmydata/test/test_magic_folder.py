@@ -67,7 +67,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         fileutil.make_dirs(self.basedir)
         db = self._createdb()
 
-
         relpath1 = u"myFile1"
         pathinfo = fileutil.PathInfo(isdir=False, isfile=True, islink=False,
                                      exists=True, size=1, mtime=123, ctime=456)
