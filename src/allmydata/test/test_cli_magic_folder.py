@@ -219,22 +219,29 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         return d
 
     def test_create_invite_join_failure(self):
+        self.basedir = "cli/MagicFolder/create-invite-join-failure"
+        self.set_up_grid()
+        self.local_dir = os.path.join(self.basedir, "magic")
         o = magic_folder_cli.CreateOptions()
         o.parent = magic_folder_cli.MagicFolderCommand()
-        o.parent.parseOptions(["magic-folder"])
+        o.parent['node-directory'] = str(self.get_clientdir(i=0))
         try:
-            o.parseOptions(["magic:", "Alice", "-foo"])
+            o.parseArgs("magic:", "Alice", "-foo")
         except usage.UsageError as e:
             self.failUnlessIn("cannot start with '-'", str(e))
         else:
             self.fail("expected UsageError")
 
     def test_join_failure(self):
+        self.basedir = "cli/MagicFolder/create-join-failure"
+        self.set_up_grid()
+        self.local_dir = os.path.join(self.basedir, "magic")
+
         o = magic_folder_cli.JoinOptions()
         o.parent = magic_folder_cli.MagicFolderCommand()
-        o.parent.parseOptions(["magic-folder"])
+        o.parent['node-directory'] = str(self.get_clientdir(i=0))
         try:
-            o.parseOptions(["URI:invite+URI:code", "-foo"])
+            o.parseArgs("URI:invite+URI:code", "-foo")
         except usage.UsageError as e:
             self.failUnlessIn("cannot start with '-'", str(e))
         else:
