@@ -14,17 +14,17 @@ INVITE_SEPARATOR = "+"
 
 class CreateOptions(BasedirOptions):
     nickname = None
-    localdir = None
-    synopsis = "MAGIC_ALIAS: [NICKNAME LOCALDIR]"
-    def parseArgs(self, alias, nickname=None, localdir=None):
+    local_dir = None
+    synopsis = "MAGIC_ALIAS: [NICKNAME LOCAL_DIR]"
+    def parseArgs(self, alias, nickname=None, local_dir=None):
         BasedirOptions.parseArgs(self)
         if not alias.endswith(':'):
             raise usage.UsageError("An alias must end with a ':' character.")
         self.alias = alias[:-1]
         self.nickname = nickname
-        self.localdir = argv_to_abspath(str(localdir))
-        if self.nickname and not self.localdir:
-            raise usage.UsageError("If NICKNAME is specified then LOCALDIR must also be specified.")
+        self.local_dir = None if local_dir is None else argv_to_abspath(local_dir)
+        if self.nickname and not self.local_dir:
+            raise usage.UsageError("If NICKNAME is specified then LOCAL_DIR must also be specified.")
         node_url_file = os.path.join(self['node-directory'], "node.url")
         self['node-url'] = fileutil.read(node_url_file).strip()
 
@@ -64,7 +64,7 @@ def create(options):
         if len(fields) != 2:
             raise usage.UsageError("Invalid invite code.")
         join_options.magic_readonly_cap, join_options.dmd_write_cap = fields
-        join_options.local_dir = options.localdir
+        join_options.local_dir = options.local_dir
         rc = join(join_options)
         if rc != 0:
             print >>options.stderr, "magic-folder: failed to join after create\n"
@@ -122,7 +122,7 @@ class JoinOptions(BasedirOptions):
     dmd_write_cap = ""
     magic_readonly_cap = ""
     def parseInvite(self, invite_code, local_dir):
-        self.local_dir = argv_to_abspath(str(local_dir))
+        self.local_dir = None if local_dir is None else argv_to_abspath(local_dir)
         fields = invite_code.split(INVITE_SEPARATOR)
         if len(fields) != 2:
             raise usage.UsageError("Invalid invite code.")
