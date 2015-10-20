@@ -34,18 +34,18 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
     def do_invite(self, client_num, nickname):
         nickname_arg = unicode_to_argv(nickname)
         d = self.do_cli("magic-folder", "invite", "magic:", nickname_arg, client_num=client_num)
-        def _done((rc,stdout,stderr)):
-            self.failUnless(rc == 0)
-            return (rc,stdout,stderr)
+        def _done((rc, stdout, stderr)):
+            self.failUnlessEqual(rc, 0)
+            return (rc, stdout, stderr)
         d.addCallback(_done)
         return d
 
     def do_join(self, client_num, local_dir, invite_code):
         magic_readonly_cap, dmd_write_cap = invite_code.split(magic_folder_cli.INVITE_SEPARATOR)
         d = self.do_cli("magic-folder", "join", invite_code, local_dir, client_num=client_num)
-        def _done((rc,stdout,stderr)):
-            self.failUnless(rc == 0)
-            return (rc,stdout,stderr)
+        def _done((rc, stdout, stderr)):
+            self.failUnlessEqual(rc, 0)
+            return (rc, stdout, stderr)
         d.addCallback(_done)
         return d
 
@@ -55,9 +55,9 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         """
         collective_readonly_cap = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "private/collective_dircap"))
         d = self.do_cli("ls", "--json", collective_readonly_cap, client_num=client_num)
-        def _done((rc,stdout,stderr)):
-            self.failUnless(rc == 0)
-            return (rc,stdout,stderr)
+        def _done((rc, stdout, stderr)):
+            self.failUnlessEqual(rc, 0)
+            return (rc, stdout, stderr)
         d.addCallback(_done)
         def test_joined_magic_folder((rc,stdout,stderr)):
             readonly_cap = unicode(uri.from_string(upload_dircap).get_readonly().to_string(), 'utf-8')
@@ -85,7 +85,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         local_dir_arg = unicode_to_argv(local_dir)
         d = self.do_cli("magic-folder", "create", "magic:", nickname_arg, local_dir_arg)
         def _done((rc, stdout, stderr)):
-            self.failUnless(rc == 0)
+            self.failUnlessEqual(rc, 0)
 
             client = self.get_client()
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
@@ -138,10 +138,10 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         # invites herself then and joins.
         d = self.do_create_magic_folder(0)
         d.addCallback(lambda ign: self.do_invite(0, u"Alice\u00F8"))
-        def get_invitecode(result):
-            self.invitecode = result[1].strip()
-        d.addCallback(get_invitecode)
-        d.addCallback(lambda ign: self.do_join(0, alice_magic_dir, self.invitecode))
+        def get_invite_code(result):
+            self.invite_code = result[1].strip()
+        d.addCallback(get_invite_code)
+        d.addCallback(lambda ign: self.do_join(0, alice_magic_dir, self.invite_code))
         def get_alice_caps(ign):
             self.alice_collective_dircap, self.alice_upload_dircap = self.get_caps_from_files(0)
         d.addCallback(get_alice_caps)
@@ -156,10 +156,10 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
         # Alice invites Bob. Bob joins.
         d.addCallback(lambda ign: self.do_invite(0, u"Bob\u00F8"))
-        def get_invitecode(result):
-            self.invitecode = result[1].strip()
-        d.addCallback(get_invitecode)
-        d.addCallback(lambda ign: self.do_join(1, bob_magic_dir, self.invitecode))
+        def get_invite_code(result):
+            self.invite_code = result[1].strip()
+        d.addCallback(get_invite_code)
+        d.addCallback(lambda ign: self.do_join(1, bob_magic_dir, self.invite_code))
         def get_bob_caps(ign):
             self.bob_collective_dircap, self.bob_upload_dircap = self.get_caps_from_files(1)
         d.addCallback(get_bob_caps)
@@ -211,11 +211,9 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
         d = self.do_cli("magic-folder", "create", "magic:", "Alice", local_dir)
         def _done((rc, stdout, stderr)):
-            self.failUnless(rc == 0)
-        d.addCallback(_done)
-        def get_caps(ign):
+            self.failUnlessEqual(rc, 0)
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
-        d.addCallback(get_caps)
+        d.addCallback(_done)
         d.addCallback(lambda ign: self.check_joined_config(0, self.upload_dircap))
         d.addCallback(lambda ign: self.check_config(0, abspath_expanduser_unicode(unicode(local_dir))))
         return d
