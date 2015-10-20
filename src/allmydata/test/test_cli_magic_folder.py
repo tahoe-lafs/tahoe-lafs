@@ -7,13 +7,13 @@ from twisted.internet import reactor
 from twisted.python import usage
 
 from allmydata.util import fileutil
+from allmydata.util.fileutil import precondition_abspath
 from allmydata.scripts.common import get_aliases
 from allmydata.test.no_network import GridTestMixin
 from .test_cli import CLITestMixin
 from allmydata.scripts import magic_folder_cli
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import unicode_to_argv
-from allmydata.util.encodingutil import argv_to_abspath
 from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import uri
 
@@ -74,9 +74,10 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return collective_dircap, upload_dircap
 
     def check_config(self, client_num, local_dir):
+        precondition_abspath(local_dir)
         client_config = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "tahoe.cfg"))
-        local_dir = argv_to_abspath(str(local_dir))
-        ret = re.search("\[magic_folder\]\nenabled = True\nlocal.directory = %s" % (local_dir,), client_config)
+        local_dir_utf8 = local_dir.encode('utf-8')
+        ret = re.search("\[magic_folder\]\nenabled = True\nlocal.directory = %s" % (local_dir_utf8,), client_config)
         self.failIf(ret is None)
 
     def create_invite_join_magic_folder(self, nickname, local_dir):
@@ -173,7 +174,6 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 
 
 class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
-
     def test_create_and_then_invite_join(self):
         self.basedir = "cli/MagicFolder/create-and-then-invite-join"
         self.set_up_grid()
@@ -221,11 +221,11 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
     def test_create_invite_join_failure(self):
         self.basedir = "cli/MagicFolder/create-invite-join-failure"
-        self.set_up_grid()
-        self.local_dir = os.path.join(self.basedir, "magic")
+        os.makedirs(self.basedir)
+
         o = magic_folder_cli.CreateOptions()
         o.parent = magic_folder_cli.MagicFolderCommand()
-        o.parent['node-directory'] = str(self.get_clientdir(i=0))
+        o.parent['node-directory'] = self.basedir
         try:
             o.parseArgs("magic:", "Alice", "-foo")
         except usage.UsageError as e:
@@ -235,12 +235,11 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
     def test_join_failure(self):
         self.basedir = "cli/MagicFolder/create-join-failure"
-        self.set_up_grid()
-        self.local_dir = os.path.join(self.basedir, "magic")
+        os.makedirs(self.basedir)
 
         o = magic_folder_cli.JoinOptions()
         o.parent = magic_folder_cli.MagicFolderCommand()
-        o.parent['node-directory'] = str(self.get_clientdir(i=0))
+        o.parent['node-directory'] = self.basedir
         try:
             o.parseArgs("URI:invite+URI:code", "-foo")
         except usage.UsageError as e:
