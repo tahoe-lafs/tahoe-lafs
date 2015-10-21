@@ -59,7 +59,7 @@ install_requires = [
     # pycrypto 2.2 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/620253
     # pycrypto 2.4 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/881130
     "pycrypto == 2.1.0, == 2.3, >= 2.4.1",
-    "pyasn1 >= 0.0.8a",
+    "pyasn1 >= 0.1.8",
 
     # <http://www.voidspace.org.uk/python/mock/>, 0.8.0 provides "call"
     # mock 1.1.x seems to cause problems on several buildslaves.
