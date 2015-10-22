@@ -620,6 +620,9 @@ class Downloader(QueueMixin, WriteFileMixin):
             file_node, metadata = max(self._download_scan_batch[relpath_u], key=lambda x: x[1]['version'])
             if self._should_download(relpath_u, metadata['version']):
                 extension += [(relpath_u, file_node, metadata)]
+            else:
+                self._count('objects_excluded')
+                self._call_hook(None, 'processed')
         return extension
 
     def _when_queue_is_empty(self):
