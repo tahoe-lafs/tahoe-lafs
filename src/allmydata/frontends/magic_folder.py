@@ -133,6 +133,10 @@ class QueueMixin(HookMixin):
         self._log("%s += %r" % (counter_name, delta))
         self._client.stats_provider.count(ctr, delta)
 
+    def _logcb(self, res, msg):
+        self._log("%s: %r" % (msg, res))
+        return res
+
     def _log(self, msg):
         s = "Magic Folder %s %s: %s" % (quote_output(self._client.nickname), self._name, msg)
         self._client.log(s)
@@ -150,10 +154,13 @@ class QueueMixin(HookMixin):
             self._clock.callLater(0, self._turn_deque)
 
     def _turn_deque(self):
+        self._log("_turn_deque")
         if self._stopped:
+            self._log("stopped")
             return
         try:
             item = self._deque.pop()
+            self._log("popped %r" % (item,))
             self._count('objects_queued', -1)
         except IndexError:
             self._log("deque is now empty")
@@ -496,9 +503,13 @@ class Downloader(QueueMixin, WriteFileMixin):
         We check the remote metadata version against our magic-folder db version number;
         latest version wins.
         """
+        self._log("_should_download(%r, %r)" % (relpath_u, remote_version))
         if magicpath.should_ignore_file(relpath_u):
+            self._log("nope")
             return False
+        self._log("yep")
         v = self._db.get_local_file_version(relpath_u)
+        self._log("v = %r" % (v,))
         return (v is None or v < remote_version)
 
     def _get_local_latest(self, relpath_u):
@@ -564,6 +575,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                     self._log("%r added to download queue" % (relpath_u,))
                     self._append_to_batch(relpath_u, file_node, metadata)
         d.addCallback(scan_listing)
+        d.addBoth(self._logcb, "end of _scan_remote")
         return d
 
     def _scan_remote_collective(self):
@@ -600,6 +612,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._log("pending after = %r" % (self._pending,))
 
     def _filter_scan_batch(self, result):
+        self._log("_filter_scan_batch")
         extension = [] # consider whether this should be a dict
         for relpath_u in self._download_scan_batch.keys():
             if relpath_u in self._pending:
@@ -611,6 +624,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def _when_queue_is_empty(self):
         d = task.deferLater(self._clock, self._turn_delay, self._scan_remote_collective)
+        d.addBoth(self._logcb, "after _scan_remote_collective")
         d.addCallback(lambda ign: self._turn_deque())
         return d
 
