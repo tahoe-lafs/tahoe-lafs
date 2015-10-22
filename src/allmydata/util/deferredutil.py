@@ -116,7 +116,7 @@ class HookMixin:
         """
         hook = self._hooks[name]
         if hook is None:
-            return defer.succeed(None)
+            return None
 
         (d, ignore_count) = hook
         self._log("call_hook %r, ignore_count=%r" % (name, ignore_count))
