@@ -24,6 +24,9 @@ from allmydata import magicfolderdb, magicpath
 
 IN_EXCL_UNLINK = 0x04000000L
 
+class DownloadConflictError(Exception):
+    pass
+
 def get_inotify_module():
     try:
         if sys.platform == "win32":
@@ -436,6 +439,7 @@ class WriteFileMixin(object):
         # Returns the path of the destination file.
 
         precondition_abspath(abspath_u)
+        print "after precondition that %r exists" % (abspath_u,)
         replacement_path_u = abspath_u + u".tmp"  # FIXME more unique
         backup_path_u = abspath_u + u".backup"
         if now is None:
@@ -449,6 +453,7 @@ class WriteFileMixin(object):
         fileutil.write(replacement_path_u, file_contents)
         os.utime(replacement_path_u, (now, now - self.FUDGE_SECONDS))
         if is_conflict:
+            print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
             try:
@@ -461,6 +466,12 @@ class WriteFileMixin(object):
         self._log("_rename_conflicted_file(%r, %r)" % (abspath_u, replacement_path_u))
 
         conflict_path_u = abspath_u + u".conflict"
+        print "XXX rename %r %r" % (replacement_path_u, conflict_path_u)
+        if os.path.isfile(replacement_path_u):
+            print "%r exists" % (replacement_path_u,)
+        if os.path.isfile(conflict_path_u):
+            print "%r exists" % (conflict_path_u,)
+
         fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
         return conflict_path_u
 
@@ -638,16 +649,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         (relpath_u, file_node, metadata) = item
         fp = self._get_filepath(relpath_u)
         abspath_u = unicode_from_filepath(fp)
-
+        conflict_path_u = abspath_u + u".conflict"
         d = defer.succeed(None)
-        if relpath_u.endswith(u"/"):
-            self._log("mkdir(%r)" % (abspath_u,))
-            d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
-            d.addCallback(lambda ign: abspath_u)
-        else:
-            d.addCallback(lambda ign: file_node.download_best_version())
-            d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents, is_conflict=False))
-
         def do_update_db(written_abspath_u):
             filecap = file_node.get_uri()
             last_uploaded_uri = metadata.get('last_uploaded_uri', None)
@@ -655,7 +658,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             last_downloaded_timestamp = now
             written_pathinfo = get_pathinfo(written_abspath_u)
             if not written_pathinfo.exists:
-                raise Exception("downloaded object %s disappeared" % quote_local_unicode_path(written_abspath_u))
+                raise Exception("downloaded object %r disappeared" % quote_local_unicode_path(written_abspath_u))
 
             self._db.did_upload_version(relpath_u, metadata['version'], last_uploaded_uri,
                                         last_downloaded_uri, last_downloaded_timestamp, written_pathinfo)
@@ -664,9 +667,39 @@ class Downloader(QueueMixin, WriteFileMixin):
             self._log("download failed: %s" % (str(f),))
             self._count('objects_failed')
             return f
+
+        if os.path.isfile(conflict_path_u):
+            def fail(res):
+                raise DownloadConflictError("download failed: already conflicted: %r" % (relpath_u,))
+            d.addCallback(fail)
+        else:
+            if not self._db.check_file_db_exists(relpath_u):
+                is_conflict = False
+            else:
+                # XXX
+                dmd_last_downloaded_uri = metadata.get('last_downloaded_uri', None)
+                local_last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
+                print "<<<<--- if %r != %r" % (dmd_last_downloaded_uri, local_last_downloaded_uri)
+                if dmd_last_downloaded_uri != local_last_downloaded_uri:
+                    is_conflict = True
+                #dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
+                #local_last_uploaded_uri = ...
+
+            if relpath_u.endswith(u"/"):
+                self._log("mkdir(%r)" % (abspath_u,))
+                d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
+                d.addCallback(lambda ign: abspath_u)
+            else:
+                d.addCallback(lambda ign: file_node.download_best_version())
+                d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents, is_conflict=is_conflict))
+
         d.addCallbacks(do_update_db, failed)
         def remove_from_pending(res):
             self._pending.remove(relpath_u)
             return res
         d.addBoth(remove_from_pending)
+        def trap_conflicts(f):
+            f.trap(DownloadConflictError)
+            return None
+        d.addErrback(trap_conflicts)
         return d
