@@ -20,6 +20,7 @@ from allmydata.frontends import magic_folder
 from allmydata.frontends.magic_folder import MagicFolder, Downloader, WriteFileMixin
 from allmydata import magicfolderdb, magicpath
 from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.immutable.upload import Data
 
 
 class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
@@ -347,17 +348,18 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             self.failUnlessReallyEqual(self._get_count('downloader.'+name, client=self.bob_magicfolder._client),
                                        expected)
 
+        def _wait_for_Bob(ign, downloaded_d):
+            print "Now waiting for Bob to download\n"
+            bob_clock.advance(0)
+            return downloaded_d
+
         def _wait_for(ign, something_to_do):
             downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
             uploaded_d = self.alice_magicfolder.uploader.set_hook('processed')
             something_to_do()
             print "Waiting for Alice to upload\n"
             alice_clock.advance(0)
-            def _wait_for_Bob(ign):
-                print "Now waiting for Bob to download\n"
-                bob_clock.advance(0)
-                return downloaded_d
-            uploaded_d.addCallback(_wait_for_Bob)
+            uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
             return uploaded_d
 
         def Alice_to_write_a_file():
@@ -415,6 +417,28 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 2))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 2))
         d.addCallback(_check_downloader_count, 'objects_failed', 0)
+        d.addCallback(_check_downloader_count, 'objects_downloaded', 3)
+
+        path_u = u"/tmp/magic_folder_test"
+        encoded_path_u = magicpath.path2magic(u"/tmp/magic_folder_test")
+
+        def Alice_tries_to_p0wn_Bob(ign):
+            print "Alice tries to p0wn Bob\n"
+            processed_d = self.bob_magicfolder.downloader.set_hook('processed')
+
+            # upload a file that would provoke the security bug from #2506
+            uploadable = Data("", self.alice_magicfolder._client.convergence)
+            alice_dmd = self.alice_magicfolder.uploader._upload_dirnode
+
+            d2 = alice_dmd.add_file(encoded_path_u, uploadable, metadata={"version": 0}, overwrite=True)
+            d2.addCallback(lambda ign: self.failUnless(alice_dmd.has_child(encoded_path_u)))
+            d2.addCallback(_wait_for_Bob, processed_d)
+            return d2
+        d.addCallback(Alice_tries_to_p0wn_Bob)
+
+        d.addCallback(lambda ign: self.failIf(os.path.exists(path_u)))
+        d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, encoded_path_u, None))
+        d.addCallback(_check_downloader_count, 'objects_excluded', 1)
         d.addCallback(_check_downloader_count, 'objects_downloaded', 3)
 
         def _cleanup(ign, magicfolder, clock):
