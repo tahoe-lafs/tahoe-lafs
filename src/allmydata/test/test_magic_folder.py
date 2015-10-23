@@ -378,6 +378,8 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             yield alice_proc
 
             # check versions
+            node, metadata = yield alice_magic.downloader._get_collective_latest_file(u'blam')
+            self.assertTrue(metadata['deleted'])
             yield self._check_version_in_dmd(bob_magic, u"blam", 1)
             yield self._check_version_in_local_db(bob_magic, u"blam", 1)
             yield self._check_version_in_dmd(alice_magic, u"blam", 1)
@@ -396,6 +398,8 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             yield bob_proc
 
             # check versions
+            node, metadata = yield alice_magic.downloader._get_collective_latest_file(u'blam')
+            self.assertTrue('deleted' not in metadata or not metadata['deleted'])
             yield self._check_version_in_dmd(bob_magic, u"blam", 2)
             yield self._check_version_in_local_db(bob_magic, u"blam", 2)
             yield self._check_version_in_dmd(alice_magic, u"blam", 2)
@@ -469,6 +473,92 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             yield self._check_version_in_local_db(bob_magic, u"blam", 1)
             yield self._check_version_in_dmd(alice_magic, u"blam", 1)
             yield self._check_version_in_local_db(alice_magic, u"blam", 1)
+
+        finally:
+            # cleanup
+            d0 = alice_magic.finish()
+            alice_clock.advance(0)
+            yield d0
+
+            d1 = bob_magic.finish()
+            bob_clock.advance(0)
+            yield d1
+
+    @defer.inlineCallbacks
+    def test_alice_delete_and_restore(self):
+        alice_clock = task.Clock()
+        bob_clock = task.Clock()
+        caps = yield self.setup_alice_and_bob(alice_clock, bob_clock)
+        alice_magic = caps[2]
+        bob_magic = caps[5]
+        alice_dir = alice_magic.uploader._local_path_u
+        bob_dir = bob_magic.uploader._local_path_u
+        alice_fname = os.path.join(alice_dir, 'blam')
+        bob_fname = os.path.join(bob_dir, 'blam')
+
+        try:
+            # alice creates a file, bob downloads it
+            alice_proc = alice_magic.uploader.set_hook('processed')
+            bob_proc = bob_magic.downloader.set_hook('processed')
+
+            with open(alice_fname, 'wb') as f:
+                f.write('contents0\n')
+            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=alice_magic)
+
+            alice_clock.advance(0)
+            yield alice_proc  # alice uploads
+
+            bob_clock.advance(0)
+            yield bob_proc    # bob downloads
+
+            # check the state
+            yield self._check_version_in_dmd(alice_magic, u"blam", 1)
+            yield self._check_version_in_local_db(alice_magic, u"blam", 0)
+            yield self._check_version_in_dmd(bob_magic, u"blam", 1)
+            yield self._check_version_in_local_db(bob_magic, u"blam", 0)
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_failed', client=bob_magic._client),
+                0
+            )
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_downloaded', client=bob_magic._client),
+                1
+            )
+
+            # now alice deletes it (alice should upload, bob download)
+            alice_proc = alice_magic.uploader.set_hook('processed')
+            bob_proc = bob_magic.downloader.set_hook('processed')
+            os.unlink(alice_fname)
+            self.notify(to_filepath(alice_fname), self.inotify.IN_DELETE, magic=alice_magic)
+
+            alice_clock.advance(0)
+            yield alice_proc
+            bob_clock.advance(0)
+            yield bob_proc
+
+            # check the state
+            yield self._check_version_in_dmd(bob_magic, u"blam", 1)
+            yield self._check_version_in_local_db(bob_magic, u"blam", 1)
+            yield self._check_version_in_dmd(alice_magic, u"blam", 1)
+            yield self._check_version_in_local_db(alice_magic, u"blam", 1)
+
+            # now alice restores the file (with new contents)
+            alice_proc = alice_magic.uploader.set_hook('processed')
+            bob_proc = bob_magic.downloader.set_hook('processed')
+            with open(alice_fname, 'wb') as f:
+                f.write('alice wuz here\n')
+            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=alice_magic)
+
+            alice_clock.advance(0)
+            yield alice_proc
+            bob_clock.advance(0)
+            yield bob_proc
+
+            # check the state
+            yield self._check_version_in_dmd(bob_magic, u"blam", 2)
+            yield self._check_version_in_local_db(bob_magic, u"blam", 2)
+            yield self._check_version_in_dmd(alice_magic, u"blam", 2)
+            yield self._check_version_in_local_db(alice_magic, u"blam", 2)
 
         finally:
             # cleanup
