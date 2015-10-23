@@ -344,7 +344,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
             with open(alice_fname, 'wb') as f:
                 f.write('contents0\n')
-            alice_magic.uploader._notifier.event(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE)
+            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=alice_magic)
 
             alice_clock.advance(0)
             yield alice_proc  # alice uploads
@@ -352,7 +352,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             bob_clock.advance(0)
             yield bob_proc    # bob downloads
 
-            # check the states
+            # check the state
             yield self._check_version_in_dmd(alice_magic, u"blam", 1)
             yield self._check_version_in_local_db(alice_magic, u"blam", 0)
             yield self._check_version_in_dmd(bob_magic, u"blam", 1)
@@ -370,7 +370,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             bob_proc = bob_magic.uploader.set_hook('processed')
             alice_proc = alice_magic.downloader.set_hook('processed')
             os.unlink(bob_fname)
-            bob_magic.uploader._notifier.event(to_filepath(bob_fname), self.inotify.IN_DELETE)
+            self.notify(to_filepath(bob_fname), self.inotify.IN_DELETE, magic=bob_magic)
 
             bob_clock.advance(0)
             yield bob_proc
@@ -380,9 +380,100 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             # check the states
             # okay, i think we have the bug: this *should* be 2,
             # right? i.e. an updated version from the last time?
-            yield self._check_version_in_dmd(bob_magic, u"blam", 2)
+            # hmm, actually no, I think it *should* be just 1 for bob
+            yield self._check_version_in_dmd(bob_magic, u"blam", 1)
             yield self._check_version_in_local_db(bob_magic, u"blam", 1)
+            yield self._check_version_in_dmd(alice_magic, u"blam", 1)
+            yield self._check_version_in_local_db(alice_magic, u"blam", 1)
+
+            # now alice restores it (alice should upload, bob download)
+            alice_proc = alice_magic.uploader.set_hook('processed')
+            bob_proc = bob_magic.downloader.set_hook('processed')
+            with open(alice_fname, 'wb') as f:
+                f.write('new contents\n')
+            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=alice_magic)
+
+            alice_clock.advance(0)
+            yield alice_proc
+            bob_clock.advance(0)
+            yield bob_proc
+
+            # check the states
+            # okay, i think we have the bug: this *should* be 2,
+            # right? i.e. an updated version from the last time?
+            # hmm, actually no, I think it *should* be just 1 for bob
+            yield self._check_version_in_dmd(bob_magic, u"blam", 2)
+            yield self._check_version_in_local_db(bob_magic, u"blam", 2)
             yield self._check_version_in_dmd(alice_magic, u"blam", 2)
+            yield self._check_version_in_local_db(alice_magic, u"blam", 2)
+
+        finally:
+            # cleanup
+            d0 = alice_magic.finish()
+            alice_clock.advance(0)
+            yield d0
+
+            d1 = bob_magic.finish()
+            bob_clock.advance(0)
+            yield d1
+
+    @defer.inlineCallbacks
+    def test_alice_create_bob_update():
+        alice_clock = task.Clock()
+        bob_clock = task.Clock()
+        caps = yield self.setup_alice_and_bob(alice_clock, bob_clock)
+        alice_magic = caps[2]
+        bob_magic = caps[5]
+        alice_dir = alice_magic.uploader._local_path_u
+        bob_dir = bob_magic.uploader._local_path_u
+        alice_fname = os.path.join(alice_dir, 'blam')
+        bob_fname = os.path.join(bob_dir, 'blam')
+
+        try:
+            # alice creates a file, bob downloads it
+            alice_proc = alice_magic.uploader.set_hook('processed')
+            bob_proc = bob_magic.downloader.set_hook('processed')
+
+            with open(alice_fname, 'wb') as f:
+                f.write('contents0\n')
+            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=alice_magic)
+
+            alice_clock.advance(0)
+            yield alice_proc  # alice uploads
+
+            bob_clock.advance(0)
+            yield bob_proc    # bob downloads
+
+            # check the state
+            yield self._check_version_in_dmd(alice_magic, u"blam", 1)
+            yield self._check_version_in_local_db(alice_magic, u"blam", 0)
+            yield self._check_version_in_dmd(bob_magic, u"blam", 1)
+            yield self._check_version_in_local_db(bob_magic, u"blam", 0)
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_failed', client=bob_magic._client),
+                0
+            )
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_downloaded', client=bob_magic._client),
+                1
+            )
+
+            # now bob updates it (bob should upload, alice download)
+            bob_proc = bob_magic.uploader.set_hook('processed')
+            alice_proc = alice_magic.downloader.set_hook('processed')
+            with open(bob_fname, 'wb') as f:
+                f.write('bob wuz here\n')
+            self.notify(to_filepath(bob_fname), self.inotify.IN_CLOSE_WRITE, magic=bob_magic)
+
+            bob_clock.advance(0)
+            yield bob_proc
+            alice_clock.advance(0)
+            yield alice_proc
+
+            # check the state
+            yield self._check_version_in_dmd(bob_magic, u"blam", 1)
+            yield self._check_version_in_local_db(bob_magic, u"blam", 1)
+            yield self._check_version_in_dmd(alice_magic, u"blam", 1)
             yield self._check_version_in_local_db(alice_magic, u"blam", 1)
 
         finally:
@@ -625,8 +716,10 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         self.inotify = fake_inotify
         self.patch(magic_folder, 'get_inotify_module', lambda: self.inotify)
 
-    def notify(self, path, mask):
-        self.magicfolder.uploader._notifier.event(path, mask)
+    def notify(self, path, mask, magic=None):
+        if magic is None:
+            magic = self.magicfolder
+        magic.uploader._notifier.event(path, mask)
 
     def test_errors(self):
         self.set_up_grid()
@@ -713,7 +806,7 @@ class RealTest(MagicFolderTestMixin, unittest.TestCase):
         MagicFolderTestMixin.setUp(self)
         self.inotify = magic_folder.get_inotify_module()
 
-    def notify(self, path, mask):
+    def notify(self, path, mask, **kw):
         # Writing to the filesystem causes the notification.
         pass
 
