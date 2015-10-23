@@ -253,7 +253,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         try:
             # create a file
             up_proc = self.magicfolder.uploader.set_hook('processed')
-            down_proc = self.magicfolder.downloader.set_hook('processed')
+            # down_proc = self.magicfolder.downloader.set_hook('processed')
             path = os.path.join(self.local_dir, u'foo')
             with open(path, 'w') as f:
                 f.write('foo\n')

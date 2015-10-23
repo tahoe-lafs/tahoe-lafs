@@ -261,7 +261,6 @@ if True:
             break
         time.sleep(1)
 
-    # XXX this doesn't work; shouldn't a .tmp file appear on bob's side?
     bob_tmp = bob_foo + '.tmp'
     print("Waiting for '%s' to appear" % (bob_tmp,))
     while True:
