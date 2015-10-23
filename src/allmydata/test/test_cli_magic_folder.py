@@ -57,7 +57,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         """Tests that our collective directory has the readonly cap of
         our upload directory.
         """
-        collective_readonly_cap = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "private/collective_dircap"))
+        collective_readonly_cap = fileutil.read(os.path.join(self.get_clientdir(i=client_num),
+                                                             u"private", u"collective_dircap"))
         d = self.do_cli("ls", "--json", collective_readonly_cap, client_num=client_num)
         def _done((rc, stdout, stderr)):
             self.failUnlessEqual(rc, 0)
@@ -72,8 +73,10 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return d
 
     def get_caps_from_files(self, client_num):
-        collective_dircap = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "private/collective_dircap"))
-        upload_dircap = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "private/magic_folder_dircap"))
+        collective_dircap = fileutil.read(os.path.join(self.get_clientdir(i=client_num),
+                                                       u"private", u"collective_dircap"))
+        upload_dircap = fileutil.read(os.path.join(self.get_clientdir(i=client_num),
+                                                   u"private", u"magic_folder_dircap"))
         self.failIf(collective_dircap is None or upload_dircap is None)
         return collective_dircap, upload_dircap
 
