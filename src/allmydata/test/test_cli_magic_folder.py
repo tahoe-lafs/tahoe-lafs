@@ -186,6 +186,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         self.basedir = "cli/MagicFolder/create-and-then-invite-join"
         self.set_up_grid()
         local_dir = os.path.join(self.basedir, "magic")
+        abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
 
         d = self.do_create_magic_folder(0)
         d.addCallback(lambda ign: self.do_invite(0, u"Alice"))
@@ -197,7 +198,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
         d.addCallback(get_caps)
         d.addCallback(lambda ign: self.check_joined_config(0, self.upload_dircap))
-        d.addCallback(lambda ign: self.check_config(0, abspath_expanduser_unicode(unicode(local_dir))))
+        d.addCallback(lambda ign: self.check_config(0, abs_local_dir_u))
         return d
 
     def test_create_error(self):
@@ -215,6 +216,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         self.basedir = "cli/MagicFolder/create-invite-join"
         self.set_up_grid()
         local_dir = os.path.join(self.basedir, "magic")
+        abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
 
         d = self.do_cli("magic-folder", "create", "magic:", "Alice", local_dir)
         def _done((rc, stdout, stderr)):
@@ -222,7 +224,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
         d.addCallback(_done)
         d.addCallback(lambda ign: self.check_joined_config(0, self.upload_dircap))
-        d.addCallback(lambda ign: self.check_config(0, abspath_expanduser_unicode(unicode(local_dir))))
+        d.addCallback(lambda ign: self.check_config(0, abs_local_dir_u))
         return d
 
     def test_create_invite_join_failure(self):
