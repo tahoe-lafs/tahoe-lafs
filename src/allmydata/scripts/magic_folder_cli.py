@@ -136,7 +136,9 @@ class JoinOptions(BasedirOptions):
     magic_readonly_cap = ""
     def parseArgs(self, invite_code, local_dir):
         BasedirOptions.parseArgs(self)
-        self.local_dir = None if local_dir is None else argv_to_abspath(local_dir)
+
+        # Expand the path relative to the current directory of the CLI command, not the node.
+        self.local_dir = None if local_dir is None else argv_to_abspath(local_dir, long_path=False)
         self.invite_code = to_str(argv_to_unicode(invite_code))
 
 def join(options):
