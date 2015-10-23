@@ -181,9 +181,11 @@ class Uploader(QueueMixin):
         # TODO: allow a path rather than a cap URI.
         self._upload_dirnode = self._client.create_node_from_uri(upload_dircap)
         if not IDirectoryNode.providedBy(self._upload_dirnode):
-            raise AssertionError("The URI in 'private/magic_folder_dircap' does not refer to a directory.")
+            raise AssertionError("The URI in '%s' does not refer to a directory."
+                                 % os.path.join('private', 'magic_folder_dircap'))
         if self._upload_dirnode.is_unknown() or self._upload_dirnode.is_readonly():
-            raise AssertionError("The URI in 'private/magic_folder_dircap' is not a writecap to a directory.")
+            raise AssertionError("The URI in '%s' is not a writecap to a directory."
+                                 % os.path.join('private', 'magic_folder_dircap'))
 
         self._inotify = get_inotify_module()
         self._notifier = self._inotify.INotify()
@@ -500,9 +502,11 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._collective_dirnode = self._client.create_node_from_uri(collective_dircap)
 
         if not IDirectoryNode.providedBy(self._collective_dirnode):
-            raise AssertionError("The URI in 'private/collective_dircap' does not refer to a directory.")
+            raise AssertionError("The URI in '%s' does not refer to a directory."
+                                 % os.path.join('private', 'collective_dircap'))
         if self._collective_dirnode.is_unknown() or not self._collective_dirnode.is_readonly():
-            raise AssertionError("The URI in 'private/collective_dircap' is not a readonly cap to a directory.")
+            raise AssertionError("The URI in '%s' is not a readonly cap to a directory."
+                                 % os.path.join('private', 'collective_dircap'))
 
         self._turn_delay = self.REMOTE_SCAN_INTERVAL
         self._download_scan_batch = {} # path -> [(filenode, metadata)]
