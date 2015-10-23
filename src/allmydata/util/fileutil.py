@@ -276,13 +276,14 @@ try:
 except ImportError:
     pass
 
-def abspath_expanduser_unicode(path, base=None):
+def abspath_expanduser_unicode(path, base=None, long_path=True):
     """
     Return the absolute version of a path. If 'base' is given and 'path' is relative,
     the path will be expanded relative to 'base'.
     'path' must be a Unicode string. 'base', if given, must be a Unicode string
     corresponding to an absolute path as returned by a previous call to
     abspath_expanduser_unicode.
+    On Windows, the result will be a long path unless long_path is given as False.
     """
     if not isinstance(path, unicode):
         raise AssertionError("paths must be Unicode strings")
@@ -313,7 +314,7 @@ def abspath_expanduser_unicode(path, base=None):
     # there is always at least one Unicode path component.
     path = os.path.normpath(path)
 
-    if sys.platform == "win32":
+    if sys.platform == "win32" and long_path:
         path = to_windows_long_path(path)
 
     return path
