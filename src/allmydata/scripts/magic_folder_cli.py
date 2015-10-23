@@ -27,10 +27,13 @@ class CreateOptions(BasedirOptions):
             raise usage.UsageError("An alias must end with a ':' character.")
         self.alias = alias[:-1]
         self.nickname = None if nickname is None else argv_to_unicode(nickname)
-        self.local_dir = None if local_dir is None else argv_to_abspath(local_dir)
+
+        # Expand the path relative to the current directory of the CLI command, not the node.
+        self.local_dir = None if local_dir is None else argv_to_abspath(local_dir, long_path=False)
+
         if self.nickname and not self.local_dir:
             raise usage.UsageError("If NICKNAME is specified then LOCAL_DIR must also be specified.")
-        node_url_file = os.path.join(self['node-directory'], "node.url")
+        node_url_file = os.path.join(self['node-directory'], u"node.url")
         self['node-url'] = fileutil.read(node_url_file).strip()
 
 def _delegate_options(source_options, target_options):
@@ -88,7 +91,7 @@ class InviteOptions(BasedirOptions):
             raise usage.UsageError("An alias must end with a ':' character.")
         self.alias = alias[:-1]
         self.nickname = argv_to_unicode(nickname)
-        node_url_file = os.path.join(self['node-directory'], "node.url")
+        node_url_file = os.path.join(self['node-directory'], u"node.url")
         self['node-url'] = open(node_url_file, "r").read().strip()
         aliases = get_aliases(self['node-directory'])
         self.aliases = aliases
