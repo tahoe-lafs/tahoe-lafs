@@ -152,6 +152,8 @@ def join(options):
 
     fileutil.write(dmd_cap_file, dmd_write_cap)
     fileutil.write(collective_readcap_file, magic_readonly_cap)
+
+    # FIXME: modify any existing [magic_folder] fields, rather than appending.
     fileutil.write(os.path.join(options["node-directory"], u"tahoe.cfg"),
                    "[magic_folder]\nenabled = True\nlocal.directory = %s\n"
                    % (options.local_dir.encode('utf-8'),), mode="ab")
