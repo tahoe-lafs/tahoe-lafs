@@ -416,7 +416,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             yield d1
 
     @defer.inlineCallbacks
-    def test_alice_create_bob_update():
+    def test_alice_create_bob_update(self):
         alice_clock = task.Clock()
         bob_clock = task.Clock()
         caps = yield self.setup_alice_and_bob(alice_clock, bob_clock)

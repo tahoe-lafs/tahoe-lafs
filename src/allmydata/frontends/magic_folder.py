@@ -64,6 +64,8 @@ class MagicFolder(service.MultiService):
 
         self.uploader = Uploader(client, local_path_u, db, upload_dircap, pending_delay, clock)
         self.downloader = Downloader(client, local_path_u, db, collective_dircap, clock)
+        # FIXME FIXME FIXME horrible, just trying it out
+        self.downloader._deleted_files = self.uploader._deleted_files
 
     def startService(self):
         # TODO: why is this being called more than once?
@@ -204,6 +206,14 @@ class Uploader(QueueMixin):
                     )
         self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
+
+        # we keep a list of files we've "recently" deleted, as we'll
+        # get inotify events for these, but we want to ignore
+        # them. (e.g. if we just decided we need to delete a file
+        # locally, we don't want to immediately upload a new "deleted"
+        # version of it)
+        self._deleted_files = []
+
 
     def start_monitoring(self):
         self._log("start_monitoring")
@@ -678,6 +688,7 @@ class Downloader(QueueMixin, WriteFileMixin):
     def _unlink_deleted_file(self, abspath_u, result):
         try:
             self._log('unlinking: %s' % (abspath_u,))
+            self._deleted_files.append(abspath_u)
             shutil.move(abspath_u, abspath_u + '.tmp')
         except IOError:
             self._log("Already gone: '%s'" % (abspath_u,))
