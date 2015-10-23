@@ -145,12 +145,12 @@ def join(options):
         raise usage.UsageError("Invalid invite code.")
     magic_readonly_cap, dmd_write_cap = fields
 
-    dmd_cap_file = os.path.join(options["node-directory"], "private/magic_folder_dircap")
-    collective_readcap_file = os.path.join(options["node-directory"], "private/collective_dircap")
+    dmd_cap_file = os.path.join(options["node-directory"], u"private", u"magic_folder_dircap")
+    collective_readcap_file = os.path.join(options["node-directory"], u"private", u"collective_dircap")
 
     fileutil.write(dmd_cap_file, dmd_write_cap)
     fileutil.write(collective_readcap_file, magic_readonly_cap)
-    fileutil.write(os.path.join(options["node-directory"], "tahoe.cfg"),
+    fileutil.write(os.path.join(options["node-directory"], u"tahoe.cfg"),
                    "[magic_folder]\nenabled = True\nlocal.directory = %s\n"
                    % (options.local_dir.encode('utf-8'),), mode="ab")
     return 0
