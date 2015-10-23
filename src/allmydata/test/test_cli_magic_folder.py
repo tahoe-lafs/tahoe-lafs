@@ -8,7 +8,6 @@ from twisted.python import usage
 
 from allmydata.util.assertutil import precondition
 from allmydata.util import fileutil
-from allmydata.util.fileutil import precondition_abspath
 from allmydata.scripts.common import get_aliases
 from allmydata.test.no_network import GridTestMixin
 from .test_cli import CLITestMixin
@@ -81,11 +80,10 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return collective_dircap, upload_dircap
 
     def check_config(self, client_num, local_dir):
-        precondition_abspath(local_dir)
         client_config = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "tahoe.cfg"))
         local_dir_utf8 = local_dir.encode('utf-8')
-        ret = re.search("\[magic_folder\]\nenabled = True\nlocal.directory = %s" % (local_dir_utf8,), client_config)
-        self.failIf(ret is None)
+        magic_folder_config = "[magic_folder]\nenabled = True\nlocal.directory = %s" % (local_dir_utf8,)
+        self.failUnlessIn(magic_folder_config, client_config)
 
     def create_invite_join_magic_folder(self, nickname, local_dir):
         nickname_arg = unicode_to_argv(nickname)
