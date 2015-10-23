@@ -157,7 +157,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.write("# Shall this node automatically upload files created or modified in a local directory?\n")
     c.write("enabled = false\n")
     c.write("# To specify the target of uploads, a mutable directory writecap URI must be placed\n"
-            "# in 'private/drop_upload_dircap'.\n")
+            "# in '%s'.\n" % os.path.join('private', 'magic_folder_dircap'))
     c.write("local.directory = ~/drop_upload\n")
     c.write("\n")
 
