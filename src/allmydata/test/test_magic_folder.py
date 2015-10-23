@@ -377,10 +377,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             alice_clock.advance(0)
             yield alice_proc
 
-            # check the states
-            # okay, i think we have the bug: this *should* be 2,
-            # right? i.e. an updated version from the last time?
-            # hmm, actually no, I think it *should* be just 1 for bob
+            # check versions
             yield self._check_version_in_dmd(bob_magic, u"blam", 1)
             yield self._check_version_in_local_db(bob_magic, u"blam", 1)
             yield self._check_version_in_dmd(alice_magic, u"blam", 1)
@@ -398,10 +395,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             bob_clock.advance(0)
             yield bob_proc
 
-            # check the states
-            # okay, i think we have the bug: this *should* be 2,
-            # right? i.e. an updated version from the last time?
-            # hmm, actually no, I think it *should* be just 1 for bob
+            # check versions
             yield self._check_version_in_dmd(bob_magic, u"blam", 2)
             yield self._check_version_in_local_db(bob_magic, u"blam", 2)
             yield self._check_version_in_dmd(alice_magic, u"blam", 2)
