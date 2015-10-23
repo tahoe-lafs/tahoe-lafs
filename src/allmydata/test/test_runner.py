@@ -265,7 +265,7 @@ class CreateNode(unittest.TestCase):
                 self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = true\n", content), content)
                 self.failUnless("\nreserved_space = 1G\n" in content)
 
-            self.failUnless(re.search(r"\n\[drop_upload\]\n#.*\nenabled = false\n", content), content)
+            self.failUnless(re.search(r"\n\[magic_folder\]\n#.*\n#enabled = false\n", content), content)
 
         # creating the node a second time should be rejected
         rc, out, err = self.run_tahoe(argv)
