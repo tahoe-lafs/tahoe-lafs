@@ -568,7 +568,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
             self.failIf(baz_notlong.startswith(u"\\\\?\\"), baz_notlong)
             self.failUnlessReallyEqual(baz_notlong[1 :], u":\\baz")
 
-            bar_notlong = fileutil.abspath_expanduser_unicode(u"\\bar", base=baz, long_path=False)
+            bar_notlong = fileutil.abspath_expanduser_unicode(u"\\bar", base=baz_notlong, long_path=False)
             self.failIf(bar_notlong.startswith(u"\\\\?\\"), bar_notlong)
             self.failUnlessReallyEqual(bar_notlong[1 :], u":\\bar")
             # not u":\\baz\\bar", because \bar is absolute on the current drive.
@@ -664,9 +664,9 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessFalse(dirinfo.isfile)
         self.failUnlessFalse(dirinfo.islink)
 
-        # create a file under the directory
-        f = os.path.join(basedir, "a", "1.txt")
-        self.touch(basedir, "a/1.txt", data="a"*10)
+        # create a file
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
         fileinfo = fileutil.get_pathinfo(f)
         self.failUnlessTrue(fileinfo.isfile)
         self.failUnlessTrue(fileinfo.exists)
@@ -674,17 +674,8 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessFalse(fileinfo.islink)
         self.failUnlessEqual(fileinfo.size, 10)
 
-        # create a symlink under the directory a pointing to 1.txt
-        slname = os.path.join(basedir, "a", "linkto1.txt")
-        os.symlink(f, slname)
-        symlinkinfo = fileutil.get_pathinfo(slname)
-        self.failUnlessTrue(symlinkinfo.islink)
-        self.failUnlessTrue(symlinkinfo.exists)
-        self.failUnlessFalse(symlinkinfo.isfile)
-        self.failUnlessFalse(symlinkinfo.isdir)
-
         # path at which nothing exists
-        dnename = os.path.join(basedir, "a", "doesnotexist")
+        dnename = os.path.join(basedir, "doesnotexist")
         now = time.time()
         dneinfo = fileutil.get_pathinfo(dnename, now=now)
         self.failUnlessFalse(dneinfo.exists)
@@ -694,6 +685,25 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(dneinfo.size, None)
         self.failUnlessEqual(dneinfo.mtime, now)
         self.failUnlessEqual(dneinfo.ctime, now)
+
+    def test_get_pathinfo_symlink(self):
+        if not hasattr(os, 'symlink'):
+            raise unittest.SkipTest("can't create symlinks on this platform")
+
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
+
+        # create a symlink pointing to 1.txt
+        slname = os.path.join(basedir, "linkto1.txt")
+        os.symlink(f, slname)
+        symlinkinfo = fileutil.get_pathinfo(slname)
+        self.failUnlessTrue(symlinkinfo.islink)
+        self.failUnlessTrue(symlinkinfo.exists)
+        self.failUnlessFalse(symlinkinfo.isfile)
+        self.failUnlessFalse(symlinkinfo.isdir)
 
 
 class PollMixinTests(unittest.TestCase):
