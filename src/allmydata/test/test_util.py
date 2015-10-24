@@ -720,9 +720,9 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessFalse(dirinfo.isfile)
         self.failUnlessFalse(dirinfo.islink)
 
-        # create a file under the directory
-        f = os.path.join(basedir, "a", "1.txt")
-        self.touch(basedir, "a/1.txt", data="a"*10)
+        # create a file
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
         fileinfo = fileutil.get_pathinfo(f)
         self.failUnlessTrue(fileinfo.isfile)
         self.failUnlessTrue(fileinfo.exists)
