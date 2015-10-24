@@ -287,7 +287,7 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
     """
     if not isinstance(path, unicode):
         raise AssertionError("paths must be Unicode strings")
-    if base is not None:
+    if base is not None and long_path:
         precondition_abspath(base)
 
     path = expanduser(path)
