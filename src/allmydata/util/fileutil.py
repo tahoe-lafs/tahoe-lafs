@@ -588,6 +588,9 @@ if sys.platform == "win32":
 
     REPLACEFILE_IGNORE_MERGE_ERRORS = 0x00000002
 
+    # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms681382%28v=vs.85%29.aspx>
+    ERROR_FILE_NOT_FOUND = 2
+
     def rename_no_overwrite(source_path, dest_path):
         os.rename(source_path, dest_path)
 
@@ -602,7 +605,13 @@ if sys.platform == "win32":
             # The UnableToUnlinkReplacementError case does not happen on Windows;
             # all errors should be treated as signalling a conflict.
             err = get_last_error()
-            raise ConflictError("WinError: %s" % (WinError(err)))
+            if err != ERROR_FILE_NOT_FOUND:
+                raise ConflictError("WinError: %s" % (WinError(err),))
+
+            try:
+                rename_no_overwrite(replacement_path, replaced_path)
+            except EnvironmentError:
+                reraise(ConflictError)
 else:
     def rename_no_overwrite(source_path, dest_path):
         # link will fail with EEXIST if there is already something at dest_path.
