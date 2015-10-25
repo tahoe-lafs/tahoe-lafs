@@ -896,10 +896,20 @@ take this as a signal to rename their copies to the backup filename.
 Note that the entry for this zero-length file has a version number as
 usual, and later versions may restore the file.
 
+When the downloader deletes a file (or renames it to a filename
+ending in ``.backup``) in response to a remote change, a local
+filesystem notification will occur, and we must make sure that this
+is not treated as a local change. To do this we have the downloader
+set the ``size`` field in the magic folder db to ``None`` (SQL NULL)
+just before deleting the file, and suppress notifications for which
+the local file does not exist, and the recorded ``size`` field is
+``None``.
+
 When a Magic Folder client restarts, we can detect files that had
 been downloaded but were deleted while it was not running, because
 their paths will have last-downloaded records in the magic folder db
-without any corresponding local file.
+with a ``size`` other than ``None``, and without any corresponding
+local file.
 
 Deletion of a directory
 ~~~~~~~~~~~~~~~~~~~~~~~
