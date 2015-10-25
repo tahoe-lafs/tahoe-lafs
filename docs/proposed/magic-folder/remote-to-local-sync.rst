@@ -174,7 +174,7 @@ collapsed into the same DMD, which could get quite large. In practice a
 single DMD can easily handle the number of files expected to be written
 by a client, so this is unlikely to be a significant issue.
 
-123‒ ‒ ‒: In these designs, the set of files in a Magic Folder is
+123‒ ‒: In these designs, the set of files in a Magic Folder is
 represented as the union of the files in all client DMDs. However,
 when a file is modified by more than one client, it will be linked
 from multiple client DMDs. We therefore need a mechanism, such as a
@@ -231,7 +231,7 @@ leave some corner cases of the write coordination problem unsolved.
 +------------------------------------------------+------+------+------+------+------+------+
 | Can result in large DMDs                       |‒     |      |      |      |      |      |
 +------------------------------------------------+------+------+------+------+------+------+
-| Need version number to determine priority      |‒     |‒     |‒     |      |      |      |
+| Need version number to determine priority      |‒ ‒   |‒ ‒   |‒ ‒   |      |      |      |
 +------------------------------------------------+------+------+------+------+------+------+
 | Must traverse immutable directory structure    |      |      |‒ ‒   |      |‒ ‒   |      |
 +------------------------------------------------+------+------+------+------+------+------+
