@@ -350,6 +350,9 @@ remote change has been initially classified as an overwrite.
 
 .. _`Fire Dragons`: #fire-dragons-distinguishing-conflicts-from-overwrites
 
+Note that writing a file that does not already have an entry in
+the `magic folder db`_ is initially classed as an overwrite.
+
 A *write/download collision* occurs when another program writes
 to ``foo`` in the local filesystem, concurrently with the new
 version being written by the Magic Folder client. We need to
@@ -665,8 +668,9 @@ must not bother the user.
 For example, suppose that Alice's Magic Folder client sees a change
 to ``foo`` in Bob's DMD. If the version it downloads from Bob's DMD
 is "based on" the version currently in Alice's local filesystem at
-the time Alice's client attempts to write the downloaded file, then
-it is an overwrite. Otherwise it is initially classified as a
+the time Alice's client attempts to write the downloaded file ‒or if
+there is no existing version in Alice's local filesystem at that time‒
+then it is an overwrite. Otherwise it is initially classified as a
 conflict.
 
 This initial classification is used by the procedure for writing a
