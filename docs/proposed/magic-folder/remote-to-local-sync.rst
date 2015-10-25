@@ -787,9 +787,9 @@ may be absent). Then the algorithm is:
   * the *last-uploaded statinfo*, if any (this is the size in
     bytes, ``mtime``, and ``ctime`` stored in the ``local_files``
     table when the file was last uploaded);
-  * the ``filecap`` field of the ``caps`` table for this file,
-    which is the URI under which the file was last uploaded.
-    Call this ``last_uploaded_uri``.
+  * the ``last_uploaded_uri`` field of the ``local_files`` table
+    for this file, which is the URI under which the file was last
+    uploaded.
 
 * 2d. If any of the following are true, then classify as a conflict:
 
