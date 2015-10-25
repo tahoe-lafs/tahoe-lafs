@@ -387,11 +387,16 @@ To reclassify as a conflict, attempt to rename ``.foo.tmp`` to
 The implementation of file replacement differs between Unix
 and Windows. On Unix, it can be implemented as follows:
 
-* 4a. Set the permissions of the replacement file to be the
-  same as the replaced file, bitwise-or'd with octal 600
-  (``rw-------``).
+* 4a. Stat the replaced path, and set the permissions of the
+  replacement file to be the same as the replaced file,
+  bitwise-or'd with octal 600 (``rw-------``). If the replaced
+  file does not exist, set the permissions according to the
+  user's umask. If there is a directory at the replaced path,
+  fail.
 * 4b. Attempt to move the replaced file (``foo``) to the
-  backup filename (``foo.backup``).
+  backup filename (``foo.backup``). If an ``ENOENT`` error
+  occurs because the replaced file does not exist, ignore this
+  error and continue with steps 4c and 4d.
 * 4c. Attempt to create a hard link at the replaced filename
   (``foo``) pointing to the replacement file (``.foo.tmp``).
 * 4d. Attempt to unlink the replacement file (``.foo.tmp``),
@@ -412,9 +417,12 @@ therefore the same metadata.)
 
 .. _`magic folder db`: filesystem_integration.rst#local-scanning-and-database
 
-On Windows, file replacement can be implemented as a single
-call to the `ReplaceFileW`_ API (with the
-``REPLACEFILE_IGNORE_MERGE_ERRORS`` flag).
+On Windows, file replacement can be implemented by a call to
+the `ReplaceFileW`_ API (with the
+``REPLACEFILE_IGNORE_MERGE_ERRORS`` flag). If an error occurs
+because the replaced file does not exist, then we ignore this
+error and attempt to move the replacement file to the replaced
+file.
 
 Similar to the Unix case, the `ReplaceFileW`_ operation will
 cause one or more change notifications for ``foo``. The replaced
@@ -431,7 +439,7 @@ operations performed by the Magic Folder client and the other process.
 (Note that atomic operations on a directory are totally ordered.)
 The set of possible interleavings differs between Windows and Unix.
 
-On Unix, we have:
+On Unix, for the case where the replaced file already exists, we have:
 
 * Interleaving A: the other process' rename precedes our rename in
   step 4b, and we get an ``IN_MOVED_TO`` event for its rename by
@@ -463,6 +471,14 @@ On Unix, we have:
   Therefore, an upload will be triggered for ``foo`` after its
   change, which is correct and avoids data loss.
 
+If the replaced file did not already exist, an ``ENOENT`` error
+occurs at step 4b, and we continue with steps 4c and 4d. The other
+process' rename races with our link operation in step 4c. If the
+other process wins the race then the effect is similar to
+Interleaving C, and if we win the race this it is similar to
+Interleaving D. Either case avoids data loss.
+
+
 On Windows, the internal implementation of `ReplaceFileW`_ is similar
 to what we have described above for Unix; it works like this:
 
@@ -483,7 +499,11 @@ step 4c′. (If there is a failure at steps 4c′ after step 4b′ has
 completed, the `ReplaceFileW`_ call will fail with return code
 ``ERROR_UNABLE_TO_MOVE_REPLACEMENT_2``. However, it is still
 preferable to use this API over two `MoveFileExW`_ calls, because
-it retains the attributes and ACLs of ``foo`` where possible.)
+it retains the attributes and ACLs of ``foo`` where possible.
+Also note that if the `ReplaceFileW`_ call fails with
+``ERROR_FILE_NOT_FOUND`` because the replaced file does not exist,
+then the replacment operation ignores this error and continues with
+the equivalent of step 4c′, as on Unix.)
 
 However, on Windows the other application will not be able to
 directly rename ``foo.other`` onto ``foo`` (which would fail because
@@ -492,7 +512,10 @@ the destination already exists); it will have to rename or delete
 deleted. This complicates the interleaving analysis, because we
 have two operations done by the other process interleaving with
 three done by the magic folder process (rather than one operation
-interleaving with four as on Unix). The cases are:
+interleaving with four as on Unix).
+
+So on Windows, for the case where the replaced file already exists,
+we have:
 
 * Interleaving A′: the other process' deletion of ``foo`` and its
   rename of ``foo.other`` to ``foo`` both precede our rename in
@@ -510,10 +533,14 @@ interleaving with four as on Unix). The cases are:
   our rename of ``foo`` to ``foo.backup`` done by `ReplaceFileW`_,
   but its rename of ``foo.other`` to ``foo`` does not, so we get
   an ``ERROR_FILE_NOT_FOUND`` error from `ReplaceFileW`_ indicating
-  that the replaced file does not exist. Then we reclassify as a
-  conflict; the other process' changes end up at ``foo`` (after
-  it has renamed ``foo.other`` to ``foo``) and our changes end up
-  at ``foo.conflicted``. This avoids data loss.
+  that the replaced file does not exist. We ignore this error and
+  attempt to move ``foo.tmp`` to ``foo``, racing with the other
+  process which is attempting to move ``foo.other`` to ``foo``.
+  If we win the race, then our changes end up at ``foo``, and the
+  other process' move fails. If the other process wins the race,
+  then its changes end up at ``foo``, our move fails, and we
+  reclassify as a conflict, so that our changes end up at
+  ``foo.conflicted``. Either possibility avoids data loss.
 
 * Interleaving D′: the other process' deletion and/or rename happen
   during the call to `ReplaceFileW`_, causing the latter to fail.
@@ -545,6 +572,11 @@ interleaving with four as on Unix). The cases are:
   after its change, which is correct and avoids data loss.
 
 .. _`MoveFileExW`: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365240%28v=vs.85%29.aspx
+
+If the replaced file did not already exist, we get an
+``ERROR_FILE_NOT_FOUND`` error from `ReplaceFileW`_, and attempt to
+move ``foo.tmp`` to ``foo``. This is similar to Interleaving C, and
+either possibility for the resulting race avoids data loss.
 
 We also need to consider what happens if another process opens ``foo``
 and writes to it directly, rather than renaming another file onto it:
