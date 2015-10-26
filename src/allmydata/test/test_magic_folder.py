@@ -744,6 +744,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_file_gone(self.bob_magicfolder, u"file1"))
         d.addCallback(_check_downloader_count, 'objects_failed', 0)
+        d.addCallback(_check_downloader_count, 'objects_excluded', 1)
         d.addCallback(_check_downloader_count, 'objects_downloaded', 2)
 
         def Alice_to_rewrite_file():
