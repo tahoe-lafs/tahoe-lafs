@@ -428,6 +428,9 @@ class Uploader(QueueMixin):
 class WriteFileMixin(object):
     FUDGE_SECONDS = 10.0
 
+    def _get_conflicted_filename(self, abspath_u):
+        return abspath_u + u".conflict"
+
     def _write_downloaded_file(self, abspath_u, file_contents, is_conflict=False, now=None):
         self._log("_write_downloaded_file(%r, <%d bytes>, is_conflict=%r, now=%r)"
                   % (abspath_u, len(file_contents), is_conflict, now))
@@ -443,7 +446,6 @@ class WriteFileMixin(object):
         # Returns the path of the destination file.
 
         precondition_abspath(abspath_u)
-        print "after precondition that %r exists" % (abspath_u,)
         replacement_path_u = abspath_u + u".tmp"  # FIXME more unique
         backup_path_u = abspath_u + u".backup"
         if now is None:
@@ -469,7 +471,7 @@ class WriteFileMixin(object):
     def _rename_conflicted_file(self, abspath_u, replacement_path_u):
         self._log("_rename_conflicted_file(%r, %r)" % (abspath_u, replacement_path_u))
 
-        conflict_path_u = abspath_u + u".conflict"
+        conflict_path_u = self._get_conflicted_filename(abspath_u)
         print "XXX rename %r %r" % (replacement_path_u, conflict_path_u)
         if os.path.isfile(replacement_path_u):
             print "%r exists" % (replacement_path_u,)
@@ -654,7 +656,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         (relpath_u, file_node, metadata) = item
         fp = self._get_filepath(relpath_u)
         abspath_u = unicode_from_filepath(fp)
-        conflict_path_u = abspath_u + u".conflict"
+        conflict_path_u = self._get_conflicted_filename(abspath_u)
         d = defer.succeed(None)
 
         def do_update_db(written_abspath_u):
