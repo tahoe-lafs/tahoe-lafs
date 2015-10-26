@@ -83,6 +83,11 @@ _tmpfstest: make-version
 	sudo umount '$(TMPDIR)'
 	rmdir '$(TMPDIR)'
 
+.PHONY: smoketest
+smoketest:
+	-python ./src/allmydata/test/check_magicfolder_smoke.py kill
+	-rm -rf smoke_magicfolder/
+	python ./src/allmydata/test/check_magicfolder_smoke.py
 
 # code coverage: install the "coverage" package from PyPI, do "make test-coverage" to
 # do a unit test run with coverage-gathering enabled, then use "make coverage-output" to
