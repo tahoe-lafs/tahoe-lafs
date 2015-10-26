@@ -651,7 +651,6 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def _process(self, item, now=None):
         self._log("_process(%r)" % (item,))
-        is_conflict = False
         if now is None:
             now = time.time()
         (relpath_u, file_node, metadata) = item
@@ -684,6 +683,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             d.addCallback(fail)
         else:
             if self._db.check_file_db_exists(relpath_u):
+                is_conflict = False
                 dmd_last_downloaded_uri = metadata.get('last_downloaded_uri', None)
                 local_last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
                 print "metadata %r" % (metadata,)
