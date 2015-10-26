@@ -419,7 +419,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
     def test_alice_create_bob_update(self):
         alice_clock = task.Clock()
         bob_clock = task.Clock()
-        caps = yield self.setup_alice_and_bob(alice_clock, bob_clock)
+        yield self.setup_alice_and_bob(alice_clock, bob_clock)
         alice_dir = self.alice_magicfolder.uploader._local_path_u
         bob_dir = self.bob_magicfolder.uploader._local_path_u
         alice_fname = os.path.join(alice_dir, 'blam')
@@ -520,6 +520,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
                 self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
                 1
             )
+            self.failUnless(os.path.exists(bob_fname))
 
             # now alice deletes it (alice should upload, bob download)
             alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
@@ -537,6 +538,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
             yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
             yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
+            self.failIf(os.path.exists(bob_fname))
 
             # now alice restores the file (with new contents)
             alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
@@ -555,6 +557,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 2)
             yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 2)
             yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 2)
+            self.failUnless(os.path.exists(bob_fname))
 
         finally:
             # cleanup
