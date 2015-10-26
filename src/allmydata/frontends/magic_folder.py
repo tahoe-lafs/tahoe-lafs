@@ -679,7 +679,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                 print "metadata %r" % (metadata,)
                 print "<<<<--- if %r != %r" % (dmd_last_downloaded_uri, local_last_downloaded_uri)
                 if dmd_last_downloaded_uri is not None and dmd_last_downloaded_uri != local_last_downloaded_uri:
-                        is_conflict = True
+                    is_conflict = True
                 #dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
                 #local_last_uploaded_uri = ...
 
