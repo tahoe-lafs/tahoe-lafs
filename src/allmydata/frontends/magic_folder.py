@@ -651,6 +651,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def _process(self, item, now=None):
         self._log("_process(%r)" % (item,))
+        is_conflict = False
         if now is None:
             now = time.time()
         (relpath_u, file_node, metadata) = item
@@ -682,15 +683,14 @@ class Downloader(QueueMixin, WriteFileMixin):
                 raise ConflictError("download failed: already conflicted: %r" % (relpath_u,))
             d.addCallback(fail)
         else:
-            if not self._db.check_file_db_exists(relpath_u):
-                is_conflict = False
-            else:
-                # XXX
+            if self._db.check_file_db_exists(relpath_u):
                 dmd_last_downloaded_uri = metadata.get('last_downloaded_uri', None)
                 local_last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
+                print "metadata %r" % (metadata,)
                 print "<<<<--- if %r != %r" % (dmd_last_downloaded_uri, local_last_downloaded_uri)
-                if dmd_last_downloaded_uri != local_last_downloaded_uri:
-                    is_conflict = True
+                if dmd_last_downloaded_uri is not None:
+                    if dmd_last_downloaded_uri != local_last_downloaded_uri:
+                        is_conflict = True
                 #dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
                 #local_last_uploaded_uri = ...
 
