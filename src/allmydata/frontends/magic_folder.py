@@ -682,8 +682,8 @@ class Downloader(QueueMixin, WriteFileMixin):
                 raise ConflictError("download failed: already conflicted: %r" % (relpath_u,))
             d.addCallback(fail)
         else:
+            is_conflict = False
             if self._db.check_file_db_exists(relpath_u):
-                is_conflict = False
                 dmd_last_downloaded_uri = metadata.get('last_downloaded_uri', None)
                 local_last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
                 print "metadata %r" % (metadata,)
