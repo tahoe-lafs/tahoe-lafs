@@ -13,7 +13,7 @@ from twisted.application import service
 from allmydata.util import fileutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
-from allmydata.util.fileutil import precondition_abspath, get_pathinfo
+from allmydata.util.fileutil import precondition_abspath, get_pathinfo, ConflictError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.encodingutil import listdir_filepath, to_filepath, \
