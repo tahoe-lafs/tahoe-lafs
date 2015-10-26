@@ -625,6 +625,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             if self._should_download(relpath_u, metadata['version']):
                 extension += [(relpath_u, file_node, metadata)]
             else:
+                self._log("Excluding '{0}'".format(relpath_u))
                 self._count('objects_excluded')
                 self._call_hook(None, 'processed')
         return extension
