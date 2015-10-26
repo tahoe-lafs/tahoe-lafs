@@ -657,7 +657,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             last_downloaded_timestamp = now
             written_pathinfo = get_pathinfo(written_abspath_u)
             if not written_pathinfo.exists:
-                raise Exception("downloaded object %r disappeared" % quote_local_unicode_path(written_abspath_u))
+                raise Exception("downloaded object %s disappeared" % quote_local_unicode_path(written_abspath_u))
 
             self._db.did_upload_version(relpath_u, metadata['version'], last_uploaded_uri,
                                         last_downloaded_uri, last_downloaded_timestamp, written_pathinfo)
