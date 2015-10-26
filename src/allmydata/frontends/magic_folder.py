@@ -670,7 +670,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
         if os.path.isfile(conflict_path_u):
             def fail(res):
-                raise DownloadConflictError("download failed: already conflicted: %r" % (relpath_u,))
+                raise ConflictError("download failed: already conflicted: %r" % (relpath_u,))
             d.addCallback(fail)
         else:
             if self._db.check_file_db_exists(relpath_u):
@@ -698,7 +698,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             return res
         d.addBoth(remove_from_pending)
         def trap_conflicts(f):
-            f.trap(DownloadConflictError)
+            f.trap(ConflictError)
             return None
         d.addErrback(trap_conflicts)
         return d
