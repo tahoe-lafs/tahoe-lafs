@@ -673,25 +673,40 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         bob_clock = task.Clock()
         d = self.setup_alice_and_bob(alice_clock, bob_clock)
 
-        def _check_uploader_count(ign, name, expected):
-            self.failUnlessReallyEqual(self._get_count('uploader.'+name, client=self.alice_magicfolder._client),
-                                       expected)
+        def _check_uploader_count(ign, name, expected, alice=True):
+            if alice:
+                self.failUnlessReallyEqual(self._get_count('uploader.'+name, client=self.alice_magicfolder._client),
+                                           expected)
+            else:
+                self.failUnlessReallyEqual(self._get_count('uploader.'+name, client=self.bob_magicfolder._client),
+                                           expected)
+
         def _check_downloader_count(ign, name, expected):
             self.failUnlessReallyEqual(self._get_count('downloader.'+name, client=self.bob_magicfolder._client),
                                        expected)
+
+        def _wait_for_Alice(ign, downloaded_d):
+            print "Now waiting for Alice to download\n"
+            alice_clock.advance(0)
+            return downloaded_d
 
         def _wait_for_Bob(ign, downloaded_d):
             print "Now waiting for Bob to download\n"
             bob_clock.advance(0)
             return downloaded_d
 
-        def _wait_for(ign, something_to_do):
+        def _wait_for(ign, something_to_do, alice=True):
             downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
             uploaded_d = self.alice_magicfolder.uploader.set_hook('processed')
             something_to_do()
-            print "Waiting for Alice to upload\n"
-            alice_clock.advance(0)
-            uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
+            if alice:
+                print "Waiting for Alice to upload\n"
+                alice_clock.advance(0)
+                uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
+            else:
+                print "Waiting for Bob to upload\n"
+                bob_clock.advance(0)
+                uploaded_d.addCallback(_wait_for_Alice, downloaded_d)
             return uploaded_d
 
         def Alice_to_write_a_file():
@@ -783,6 +798,15 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, encoded_path_u, None))
         d.addCallback(lambda ign: _check_downloader_count(None, 'objects_excluded', self.objects_excluded+1))
         d.addCallback(_check_downloader_count, 'objects_downloaded', 3)
+
+        # XXX
+        def Bob_to_rewrite_file():
+            print "Bob rewrites file\n"
+            self.file_path = abspath_expanduser_unicode(u"file1", base=self.bob_magicfolder.uploader._local_path_u)
+            fileutil.write(self.file_path, "No white rabbit to be found.")
+            self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
+
+        d.addCallback(lambda ign: _wait_for(ign, Bob_to_rewrite_file, alice=False))
 
         def _cleanup(ign, magicfolder, clock):
             if magicfolder is not None:
