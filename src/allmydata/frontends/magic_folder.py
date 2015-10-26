@@ -325,7 +325,8 @@ class Uploader(QueueMixin):
                 elif self._db.is_new_file(pathinfo, relpath_u):
                     new_version = current_version + 1
                 else:
-                    self._log("ignoring {}".format(relpath_u))
+                    self._log("Not uploading '{0}'".format(relpath_u))
+                    self._count('objects_not_uploaded')
                     return
 
                 metadata = { 'version': new_version,
@@ -372,6 +373,8 @@ class Uploader(QueueMixin):
                 elif self._db.is_new_file(pathinfo, relpath_u):
                     new_version = current_version + 1
                 else:
+                    self._log("Not uploading '{0}'".format(relpath_u))
+                    self._count('objects_not_uploaded')
                     return None
 
                 metadata = { 'version': new_version,
