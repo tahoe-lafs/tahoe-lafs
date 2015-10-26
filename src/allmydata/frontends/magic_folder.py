@@ -24,9 +24,6 @@ from allmydata import magicfolderdb, magicpath
 
 IN_EXCL_UNLINK = 0x04000000L
 
-class DownloadConflictError(Exception):
-    pass
-
 def get_inotify_module():
     try:
         if sys.platform == "win32":
