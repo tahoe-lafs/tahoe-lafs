@@ -12,7 +12,7 @@ from twisted.application import service
 from allmydata.util import fileutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
-from allmydata.util.fileutil import precondition_abspath, get_pathinfo
+from allmydata.util.fileutil import precondition_abspath, get_pathinfo, ConflictError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.encodingutil import listdir_filepath, to_filepath, \
@@ -421,6 +421,9 @@ class Uploader(QueueMixin):
 class WriteFileMixin(object):
     FUDGE_SECONDS = 10.0
 
+    def _get_conflicted_filename(self, abspath_u):
+        return abspath_u + u".conflict"
+
     def _write_downloaded_file(self, abspath_u, file_contents, is_conflict=False, now=None):
         self._log("_write_downloaded_file(%r, <%d bytes>, is_conflict=%r, now=%r)"
                   % (abspath_u, len(file_contents), is_conflict, now))
@@ -449,6 +452,7 @@ class WriteFileMixin(object):
         fileutil.write(replacement_path_u, file_contents)
         os.utime(replacement_path_u, (now, now - self.FUDGE_SECONDS))
         if is_conflict:
+            print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
             try:
@@ -460,7 +464,13 @@ class WriteFileMixin(object):
     def _rename_conflicted_file(self, abspath_u, replacement_path_u):
         self._log("_rename_conflicted_file(%r, %r)" % (abspath_u, replacement_path_u))
 
-        conflict_path_u = abspath_u + u".conflict"
+        conflict_path_u = self._get_conflicted_filename(abspath_u)
+        print "XXX rename %r %r" % (replacement_path_u, conflict_path_u)
+        if os.path.isfile(replacement_path_u):
+            print "%r exists" % (replacement_path_u,)
+        if os.path.isfile(conflict_path_u):
+            print "%r exists" % (conflict_path_u,)
+
         fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
         return conflict_path_u
 
@@ -638,16 +648,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         (relpath_u, file_node, metadata) = item
         fp = self._get_filepath(relpath_u)
         abspath_u = unicode_from_filepath(fp)
-
+        conflict_path_u = self._get_conflicted_filename(abspath_u)
         d = defer.succeed(None)
-        if relpath_u.endswith(u"/"):
-            self._log("mkdir(%r)" % (abspath_u,))
-            d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
-            d.addCallback(lambda ign: abspath_u)
-        else:
-            d.addCallback(lambda ign: file_node.download_best_version())
-            d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents, is_conflict=False))
-
         def do_update_db(written_abspath_u):
             filecap = file_node.get_uri()
             last_uploaded_uri = metadata.get('last_uploaded_uri', None)
@@ -664,9 +666,40 @@ class Downloader(QueueMixin, WriteFileMixin):
             self._log("download failed: %s" % (str(f),))
             self._count('objects_failed')
             return f
+
+        if os.path.isfile(conflict_path_u):
+            def fail(res):
+                raise ConflictError("download failed: already conflicted: %r" % (relpath_u,))
+            d.addCallback(fail)
+        else:
+            is_conflict = False
+            if self._db.check_file_db_exists(relpath_u):
+                dmd_last_downloaded_uri = metadata.get('last_downloaded_uri', None)
+                local_last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
+                print "metadata %r" % (metadata,)
+                print "<<<<--- if %r != %r" % (dmd_last_downloaded_uri, local_last_downloaded_uri)
+                if dmd_last_downloaded_uri is not None and dmd_last_downloaded_uri != local_last_downloaded_uri:
+                    is_conflict = True
+                    self._count('objects_conflicted')
+
+                #dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
+                #local_last_uploaded_uri = ...
+
+            if relpath_u.endswith(u"/"):
+                self._log("mkdir(%r)" % (abspath_u,))
+                d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
+                d.addCallback(lambda ign: abspath_u)
+            else:
+                d.addCallback(lambda ign: file_node.download_best_version())
+                d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents, is_conflict=is_conflict))
+
         d.addCallbacks(do_update_db, failed)
         def remove_from_pending(res):
             self._pending.remove(relpath_u)
             return res
         d.addBoth(remove_from_pending)
+        def trap_conflicts(f):
+            f.trap(ConflictError)
+            return None
+        d.addErrback(trap_conflicts)
         return d
