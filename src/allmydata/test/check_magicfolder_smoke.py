@@ -261,7 +261,7 @@ if True:
             break
         time.sleep(1)
 
-    bob_tmp = bob_foo + '.tmp'
+    bob_tmp = bob_foo + '.backup'
     print("Waiting for '%s' to appear" % (bob_tmp,))
     while True:
         if exists(bob_tmp):
