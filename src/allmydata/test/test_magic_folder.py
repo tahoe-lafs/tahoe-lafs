@@ -330,8 +330,8 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         alice_clock = task.Clock()
         bob_clock = task.Clock()
         caps = yield self.setup_alice_and_bob(alice_clock, bob_clock)
-        alice_magic = caps[2]
-        bob_magic = caps[5]
+        alice_magic = self.alice_magicfolder
+        bob_magic = self.bob_magicfolder
         alice_dir = alice_magic.uploader._local_path_u
         bob_dir = bob_magic.uploader._local_path_u
         alice_fname = os.path.join(alice_dir, 'blam')
