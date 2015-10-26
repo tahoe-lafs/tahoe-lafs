@@ -732,12 +732,13 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 1))
         d.addCallback(_check_uploader_count, 'objects_failed', 0)
         d.addCallback(_check_uploader_count, 'objects_succeeded', 2)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_not_uploaded',
+                                                                             client=self.bob_magicfolder._client), 1))
 
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_file_gone(self.bob_magicfolder, u"file1"))
         d.addCallback(_check_downloader_count, 'objects_failed', 0)
-        d.addCallback(_check_downloader_count, 'objects_excluded', 1)
         d.addCallback(_check_downloader_count, 'objects_downloaded', 2)
 
         def Alice_to_rewrite_file():
@@ -765,6 +766,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         def Alice_tries_to_p0wn_Bob(ign):
             print "Alice tries to p0wn Bob\n"
+            self.objects_excluded = self._get_count('downloader.objects_excluded', client=self.bob_magicfolder._client)
             processed_d = self.bob_magicfolder.downloader.set_hook('processed')
 
             # upload a file that would provoke the security bug from #2506
@@ -779,7 +781,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addCallback(lambda ign: self.failIf(os.path.exists(path_u)))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, encoded_path_u, None))
-        d.addCallback(_check_downloader_count, 'objects_excluded', 2)
+        d.addCallback(lambda ign: _check_downloader_count(None, 'objects_excluded', self.objects_excluded+1))
         d.addCallback(_check_downloader_count, 'objects_downloaded', 3)
 
         def _cleanup(ign, magicfolder, clock):
