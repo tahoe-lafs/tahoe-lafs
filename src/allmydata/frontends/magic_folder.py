@@ -320,7 +320,10 @@ class Uploader(QueueMixin):
                 last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
 
                 current_version = self._db.get_local_file_version(relpath_u)
-                if current_version is None:
+                if not self._db.is_new_file(pathinfo, relpath_u):
+                    self._log("ignoring {}".format(relpath_u))
+                    return
+                elif current_version is None:
                     new_version = 0
                 else:
                     new_version = current_version + 1

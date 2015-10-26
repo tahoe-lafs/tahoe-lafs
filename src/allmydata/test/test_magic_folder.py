@@ -364,6 +364,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
                 1
             )
 
+            print("BOB DELETE")
             # now bob deletes it (bob should upload, alice download)
             bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
             alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
@@ -383,6 +384,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
             yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
 
+            print("ALICE RESTORE")
             # now alice restores it (alice should upload, bob download)
             alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
             bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
