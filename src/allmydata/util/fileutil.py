@@ -546,8 +546,12 @@ if sys.platform == "win32":
 
     # <http://social.msdn.microsoft.com/forums/en-US/netfxbcl/thread/4465cafb-f4ed-434f-89d8-c85ced6ffaa8/>
     def flush_volume(path):
-        drive = os.path.splitdrive(os.path.realpath(path))[0]
+        abspath = os.path.realpath(path)
+        if abspath.startswith("\\\\?\\"):
+            abspath = abspath[4 :]
+        drive = os.path.splitdrive(abspath)[0]
 
+        print "flushing %r" % (drive,)
         hVolume = CreateFileW(u"\\\\.\\" + drive,
                               GENERIC_WRITE,
                               FILE_SHARE_READ | FILE_SHARE_WRITE,
