@@ -668,26 +668,18 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         path = os.path.join(magicfolder.uploader._local_path_u, relpath_u)
         self.assertTrue(not os.path.exists(path))
 
+    def _check_uploader_count(self, name, expected, magic=None):
+        self.failUnlessReallyEqual(self._get_count('uploader.'+name, client=(magic or self.alice_magicfolder)._client),
+                                   expected)
+
+    def _check_downloader_count(self, name, expected, magic=None):
+        self.failUnlessReallyEqual(self._get_count('downloader.'+name, client=(magic or self.bob_magicfolder)._client),
+                                   expected)
+
     def test_alice_bob(self):
         alice_clock = task.Clock()
         bob_clock = task.Clock()
         d = self.setup_alice_and_bob(alice_clock, bob_clock)
-
-        def _check_uploader_count(ign, name, expected, alice=True):
-            if alice:
-                self.failUnlessReallyEqual(self._get_count('uploader.'+name, client=self.alice_magicfolder._client),
-                                           expected)
-            else:
-                self.failUnlessReallyEqual(self._get_count('uploader.'+name, client=self.bob_magicfolder._client),
-                                           expected)
-
-        def _check_downloader_count(ign, name, expected, alice=True):
-            if alice:
-                self.failUnlessReallyEqual(self._get_count('downloader.'+name, client=self.bob_magicfolder._client),
-                                           expected)
-            else:
-                self.failUnlessReallyEqual(self._get_count('downloader.'+name, client=self.alice_magicfolder._client),
-                                           expected)
 
         def _wait_for_Alice(ign, downloaded_d):
             print "Now waiting for Alice to download\n"
@@ -726,17 +718,17 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 0))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 0))
-        d.addCallback(_check_uploader_count, 'objects_failed', 0)
-        d.addCallback(_check_uploader_count, 'objects_succeeded', 1)
-        d.addCallback(_check_uploader_count, 'files_uploaded', 1)
-        d.addCallback(_check_uploader_count, 'objects_queued', 0)
-        d.addCallback(_check_uploader_count, 'directories_created', 0)
-        d.addCallback(_check_uploader_count, 'objects_conflicted', 0)
-        d.addCallback(_check_uploader_count, 'objects_conflicted', 0, alice=False)
+        d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 1))
+        d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 1))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_queued', 0))
+        d.addCallback(lambda ign: self._check_uploader_count('directories_created', 0))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_conflicted', 0))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_conflicted', 0, magic=self.bob_magicfolder))
 
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 0))
-        d.addCallback(_check_downloader_count, 'objects_failed', 0)
-        d.addCallback(_check_downloader_count, 'objects_downloaded', 1)
+        d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1))
 
         def Alice_to_delete_file():
             print "Alice deletes the file!\n"
@@ -755,16 +747,15 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 1))
-        d.addCallback(_check_uploader_count, 'objects_failed', 0)
-        d.addCallback(_check_uploader_count, 'objects_succeeded', 2)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_not_uploaded',
-                                                                             client=self.bob_magicfolder._client), 1))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 2))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_not_uploaded', 1, magic=self.bob_magicfolder))
 
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_file_gone(self.bob_magicfolder, u"file1"))
-        d.addCallback(_check_downloader_count, 'objects_failed', 0)
-        d.addCallback(_check_downloader_count, 'objects_downloaded', 2)
+        d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 2))
 
         def Alice_to_rewrite_file():
             print "Alice rewrites file\n"
@@ -775,18 +766,18 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 2))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 2))
-        d.addCallback(_check_uploader_count, 'objects_failed', 0)
-        d.addCallback(_check_uploader_count, 'objects_succeeded', 3)
-        d.addCallback(_check_uploader_count, 'files_uploaded', 3)
-        d.addCallback(_check_uploader_count, 'objects_queued', 0)
-        d.addCallback(_check_uploader_count, 'directories_created', 0)
-        d.addCallback(_check_downloader_count, 'objects_conflicted', 0)
-        d.addCallback(_check_downloader_count, 'objects_conflicted', 0, alice=False)
+        d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 3))
+        d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 3))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_queued', 0))
+        d.addCallback(lambda ign: self._check_uploader_count('directories_created', 0))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0))
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 2))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 2))
-        d.addCallback(_check_downloader_count, 'objects_failed', 0)
-        d.addCallback(_check_downloader_count, 'objects_downloaded', 3)
+        d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 3))
 
         path_u = u"/tmp/magic_folder_test"
         encoded_path_u = magicpath.path2magic(u"/tmp/magic_folder_test")
@@ -808,10 +799,10 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addCallback(lambda ign: self.failIf(os.path.exists(path_u)))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, encoded_path_u, None))
-        d.addCallback(lambda ign: _check_downloader_count(None, 'objects_excluded', self.objects_excluded+1))
-        d.addCallback(_check_downloader_count, 'objects_downloaded', 3)
-        d.addCallback(_check_downloader_count, 'objects_conflicted', 0)
-        d.addCallback(_check_downloader_count, 'objects_conflicted', 0, alice=False)
+        d.addCallback(lambda ign: self._check_downloader_count('objects_excluded', self.objects_excluded+1))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 3))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0))
 
         def Bob_to_rewrite_file():
             print "Bob rewrites file\n"
@@ -824,18 +815,18 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 3))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 3))
-        d.addCallback(_check_uploader_count, 'objects_failed', 0, alice=False)
-        d.addCallback(_check_uploader_count, 'objects_succeeded', 1, alice=False)
-        d.addCallback(_check_uploader_count, 'files_uploaded', 1, alice=False)
-        d.addCallback(_check_uploader_count, 'objects_queued', 0, alice=False)
-        d.addCallback(_check_uploader_count, 'directories_created', 0, alice=False)
-        d.addCallback(_check_downloader_count, 'objects_conflicted', 0)
+        d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 1, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 1, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_queued', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('directories_created', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0))
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 3))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 3))
-        d.addCallback(_check_downloader_count, 'objects_failed', 0, alice=False)
-        d.addCallback(_check_downloader_count, 'objects_downloaded', 1, alice=False)
-        d.addCallback(_check_downloader_count, 'objects_conflicted', 0, alice=False)
+        d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
 
         def Alice_conflicts_with_Bob():
             print "Alice conflicts with Bob\n"
@@ -854,9 +845,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addCallback(lambda ign: Alice_conflicts_with_Bob())
         # XXX fix the code so that it doesn't increment objects_excluded each turn
-        #d.addCallback(_check_downloader_count, 'objects_excluded', 1)
-        d.addCallback(_check_downloader_count, 'objects_downloaded', 4)
-        d.addCallback(_check_downloader_count, 'objects_conflicted', 1)
+        #d.addCallback(lambda ign: self._check_downloader_count('objects_excluded', 1))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 4))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 1))
 
         def _cleanup(ign, magicfolder, clock):
             if magicfolder is not None:
