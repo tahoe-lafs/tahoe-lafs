@@ -963,7 +963,7 @@ class RealTest(MagicFolderTestMixin, unittest.TestCase):
         # Writing to the filesystem causes the notification.
         # However, flushing filesystem buffers may be necessary on Windows.
         if flush:
-            fileutil.flush_volume(path)
+            fileutil.flush_volume(path.path)
 
 try:
     magic_folder.get_inotify_module()
