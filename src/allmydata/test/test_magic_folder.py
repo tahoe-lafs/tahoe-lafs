@@ -696,8 +696,12 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             return downloaded_d
 
         def _wait_for(ign, something_to_do, alice=True):
-            downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
-            uploaded_d = self.alice_magicfolder.uploader.set_hook('processed')
+            if alice:
+                downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
+                uploaded_d = self.alice_magicfolder.uploader.set_hook('processed')
+            else:
+                downloaded_d = self.alice_magicfolder.downloader.set_hook('processed')
+                uploaded_d = self.bob_magicfolder.uploader.set_hook('processed')
             something_to_do()
             if alice:
                 print "Waiting for Alice to upload\n"
@@ -799,14 +803,17 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: _check_downloader_count(None, 'objects_excluded', self.objects_excluded+1))
         d.addCallback(_check_downloader_count, 'objects_downloaded', 3)
 
+
         # XXX
         def Bob_to_rewrite_file():
             print "Bob rewrites file\n"
-            self.file_path = abspath_expanduser_unicode(u"file1", base=self.bob_magicfolder.uploader._local_path_u)
+            self.file_path = abspath_expanduser_unicode(u"file2", base=self.bob_magicfolder.uploader._local_path_u)
+            print "---- bob's file is %r" % (self.file_path,)
             fileutil.write(self.file_path, "No white rabbit to be found.")
+            self.magicfolder = self.bob_magicfolder
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
 
-        d.addCallback(lambda ign: _wait_for(ign, Bob_to_rewrite_file, alice=False))
+        d.addCallback(lambda ign: _wait_for(None, Bob_to_rewrite_file, alice=False))
 
         def _cleanup(ign, magicfolder, clock):
             if magicfolder is not None:
