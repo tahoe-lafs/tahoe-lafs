@@ -119,23 +119,8 @@ So, it is recommended for the local directory to be on a directly attached
 disk-based filesystem, not a network filesystem or one provided by a virtual
 machine.
 
-Attempts to read the mutable directory at about the same time as an uploaded
-file is being linked into it, might fail, even if they are done through the
-same gateway. (`#1105`_)
-
-When a local file is changed and closed several times in quick succession,
-it may be uploaded more times than necessary to keep the remote copy
-up-to-date. (`#1440`_)
-
-Files deleted from the local directory will not be unlinked from the upload
-directory. (`#1710`_)
-
 The ``private/magic_folder_dircap`` and ``private/collective_dircap`` files
 cannot use an alias or path to specify the upload directory. (`#1711`_)
-
-Files are always uploaded as immutable. If there is an existing mutable file
-of the same name in the upload directory, it will be unlinked and replaced
-with an immutable file. (`#1712`_)
 
 If a file in the upload directory is changed (actually relinked to a new
 file), then the old file is still present on the grid, and any other caps to
@@ -155,18 +140,11 @@ On Windows, local directories with non-ASCII names are not currently working.
 On Windows, when a node has Magic Folder enabled, it is unresponsive to Ctrl-C
 (it can only be killed using Task Manager or similar). (`#2218`_)
 
-.. _`#1105`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1105
 .. _`#1430`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1430
 .. _`#1431`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1431
 .. _`#1432`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1432
-.. _`#1433`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1433
-.. _`#1440`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1440
-.. _`#1449`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1449
-.. _`#1458`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1458
 .. _`#1459`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1459
-.. _`#1710`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1710
 .. _`#1711`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1711
-.. _`#1712`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1712
 .. _`#2218`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2218
 .. _`#2219`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2219
 .. _`#2440`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2440
