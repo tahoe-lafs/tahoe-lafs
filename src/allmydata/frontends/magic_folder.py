@@ -712,10 +712,10 @@ class Downloader(QueueMixin, WriteFileMixin):
                     d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
                     d.addCallback(lambda ign: abspath_u)
             else:
-                d.addCallback(lambda ign: file_node.download_best_version())
                 if metadata.get('deleted', False):
                     d.addCallback(lambda ign: self._rename_deleted_file(abspath_u))
                 else:
+                    d.addCallback(lambda ign: file_node.download_best_version())
                     d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents,
                                                                                is_conflict=is_conflict))
 
