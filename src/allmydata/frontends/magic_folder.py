@@ -325,7 +325,7 @@ class Uploader(QueueMixin):
                 elif self._db.is_new_file(pathinfo, relpath_u):
                     new_version = current_version + 1
                 else:
-                    self._log("Not uploading '{0}'".format(relpath_u))
+                    self._log("Not uploading %r" % (relpath_u,))
                     self._count('objects_not_uploaded')
                     return
 
@@ -373,7 +373,7 @@ class Uploader(QueueMixin):
                 elif self._db.is_new_file(pathinfo, relpath_u):
                     new_version = current_version + 1
                 else:
-                    self._log("Not uploading '{0}'".format(relpath_u))
+                    self._log("Not uploading %r" % (relpath_u,))
                     self._count('objects_not_uploaded')
                     return None
 
@@ -628,7 +628,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             if self._should_download(relpath_u, metadata['version']):
                 extension += [(relpath_u, file_node, metadata)]
             else:
-                self._log("Excluding '{0}'".format(relpath_u))
+                self._log("Excluding %r" % (relpath_u,))
                 self._count('objects_excluded')
                 self._call_hook(None, 'processed')
         return extension

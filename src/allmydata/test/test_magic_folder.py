@@ -270,7 +270,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
             # ensure we still have a DB entry, and that the version is 1
             node, metadata = yield self.magicfolder.downloader._get_collective_latest_file(u'foo')
-            self.assertTrue(node is not None, "Failed to find '{}' in DMD".format(path))
+            self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
             self.failUnlessEqual(metadata['version'], 1)
 
         finally:
@@ -305,7 +305,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
             # ensure we still have a DB entry, and that the version is 1
             node, metadata = yield self.magicfolder.downloader._get_collective_latest_file(u'foo')
-            self.assertTrue(node is not None, "Failed to find '{}' in DMD".format(path))
+            self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
             self.failUnlessEqual(metadata['version'], 1)
 
             # restore the file, with different contents
@@ -318,7 +318,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
             # ensure we still have a DB entry, and that the version is 2
             node, metadata = yield self.magicfolder.downloader._get_collective_latest_file(u'foo')
-            self.assertTrue(node is not None, "Failed to find '{}' in DMD".format(path))
+            self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
             self.failUnlessEqual(metadata['version'], 2)
 
         finally:
