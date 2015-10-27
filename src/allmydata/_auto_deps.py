@@ -29,6 +29,19 @@ install_requires = [
     # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
     "zope.interface >= 3.6.0, != 3.6.3, != 3.6.4",
 
+    # * We need Twisted 10.1.0 for the FTP frontend in order for
+    #   Twisted's FTP server to support asynchronous close.
+    # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
+    #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
+    # * The FTP frontend depends on Twisted >= 11.1.0 for
+    #   filepath.Permissions
+    # * Nevow 0.11.1 depends on Twisted >= 13.0.0.
+    # * The Magic Folder frontend depends on Twisted >= 15.2.0.
+    "Twisted >= 15.2.0",
+
+    # Nevow 0.11.1 can be installed using pip (#2032).
+    "Nevow >= 0.11.1",
+
     # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
     #   transferring large mutable files of size N.
     # * foolscap < 0.6 is incompatible with Twisted 10.2.0.
@@ -52,6 +65,9 @@ install_requires = [
     "pyasn1 >= 0.1.8",          # latest pyasn1-modules depends on this version
     "pyasn1-modules >= 0.0.5",  # service-identity depends on this
 ]
+
+# We no longer have any setup dependencies.
+setup_requires = []
 
 # Includes some indirect dependencies, but does not include allmydata.
 # These are in the order they should be listed by --version, etc.
@@ -99,63 +115,6 @@ import sys
 # entry for setuptools in install_requires above isn't conditional.
 if not hasattr(sys, 'frozen'):
     package_imports.append(('setuptools', 'setuptools'))
-
-
-# * On Linux we need at least Twisted 10.1.0 for inotify support
-#   used by the drop-upload frontend.
-# * We also need Twisted 10.1.0 for the FTP frontend in order for
-#   Twisted's FTP server to support asynchronous close.
-# * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
-#   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
-# * The FTP frontend depends on Twisted >= 11.1.0 for
-#   filepath.Permissions
-#
-# On Windows, Twisted >= 12.2.0 has a dependency on pywin32.
-# Since pywin32 can only be installed manually, we fall back to
-# requiring earlier versions of Twisted and Nevow if it is not
-# already installed.
-# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2028>
-#
-# When the fallback is used we also need to work around the fact
-# that Nevow imports itself when building, which causes Twisted
-# and zope.interface to be imported; therefore, we need to set
-# setup_requires to make sure that the versions of Twisted and
-# zope.interface used at build time satisfy Nevow's requirements.
-#
-# In cases where this fallback isn't needed, we prefer Nevow >= 0.11.1
-# which can be installed using pip, and Twisted >= 13.0.0 which
-# Nevow 0.11.1 depends on. In this case we should *not* use the
-# setup_requires hack, because if we do then the build will break
-# when Twisted < 13.0.0 is already installed (even though it could
-# have succeeded by building a later version under support/ ).
-#
-# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2032>
-# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2249>
-# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2291>
-# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2286>
-
-setup_requires = []
-
-_use_old_Twisted_and_Nevow = False
-if sys.platform == "win32":
-    try:
-        import win32api
-        [win32api]
-    except ImportError:
-        _use_old_Twisted_and_Nevow = True
-
-if _use_old_Twisted_and_Nevow:
-    install_requires += [
-        "Twisted >= 11.1.0, <= 12.1.0",
-        "Nevow >= 0.9.33, <= 0.10",
-    ]
-    setup_requires += [req for req in install_requires if req.startswith('Twisted')
-                                                       or req.startswith('zope.interface')]
-else:
-    install_requires += [
-        "Twisted >= 13.0.0",
-        "Nevow >= 0.11.1",
-    ]
 
 
 # * pyOpenSSL is required in order for foolscap to provide secure connections.
