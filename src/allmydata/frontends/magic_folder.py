@@ -705,9 +705,12 @@ class Downloader(QueueMixin, WriteFileMixin):
                 #local_last_uploaded_uri = ...
 
             if relpath_u.endswith(u"/"):
-                self._log("mkdir(%r)" % (abspath_u,))
-                d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
-                d.addCallback(lambda ign: abspath_u)
+                if metadata.get('deleted', False):
+                    self._log("rmdir(%r) ignored" % (abspath_u,))
+                else:
+                    self._log("mkdir(%r)" % (abspath_u,))
+                    d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
+                    d.addCallback(lambda ign: abspath_u)
             else:
                 d.addCallback(lambda ign: file_node.download_best_version())
                 if metadata.get('deleted', False):
