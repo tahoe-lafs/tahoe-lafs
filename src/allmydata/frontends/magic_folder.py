@@ -688,9 +688,10 @@ class Downloader(QueueMixin, WriteFileMixin):
                 local_last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
                 print "metadata %r" % (metadata,)
                 print "<<<<--- if %r != %r" % (dmd_last_downloaded_uri, local_last_downloaded_uri)
-                if dmd_last_downloaded_uri is not None and dmd_last_downloaded_uri != local_last_downloaded_uri:
-                    is_conflict = True
-                    self._count('objects_conflicted')
+                if dmd_last_downloaded_uri is not None and local_last_downloaded_uri is not None:
+                    if dmd_last_downloaded_uri != local_last_downloaded_uri:
+                        is_conflict = True
+                        self._count('objects_conflicted')
 
                 #dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
                 #local_last_uploaded_uri = ...
