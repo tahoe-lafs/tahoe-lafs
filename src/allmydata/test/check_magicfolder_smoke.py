@@ -48,7 +48,7 @@ if not exists(data_base):
     mkdir(data_base)
 
 if not exists(tahoe_bin):
-    raise RuntimeError("Can't find 'tahoe' binary at '{}'".format(tahoe_bin))
+    raise RuntimeError("Can't find 'tahoe' binary at %r" % (tahoe_bin,))
 
 if 'kill' in sys.argv:
     print("Killing the grid")
@@ -92,7 +92,7 @@ for x in range(5):
         subprocess.check_call(
             [
                 tahoe_bin, 'create-node',
-                '--nickname', 'node{}'.format(x),
+                '--nickname', 'node%d' % (x,),
                 '--introducer', furl,
                 data_dir,
             ]
@@ -100,18 +100,18 @@ for x in range(5):
         with open(join(data_dir, 'tahoe.cfg'), 'w') as f:
             f.write('''
 [node]
-nickname = node{node_id}
+nickname = node%(node_id)s
 web.port =
 web.static = public_html
-tub.location = localhost:{tub_port}
+tub.location = localhost:%(tub_port)d
 
 [client]
 # Which services should this client connect to?
-introducer.furl = {furl}
+introducer.furl = %(furl)s
 shares.needed = 2
 shares.happy = 3
 shares.total = 4
-'''.format(node_id=x, furl=furl, tub_port=(9900 + x)))
+''' % {'node_id':x, 'furl':furl, 'tub_port':(9900 + x)})
     subprocess.check_call(
         [
             tahoe_bin, 'start', data_dir,
@@ -125,7 +125,7 @@ do_invites = False
 node_id = 0
 for name in ['alice', 'bob']:
     data_dir = join(data_base, name)
-    magic_dir = join(data_base, '{}-magic'.format(name))
+    magic_dir = join(data_base, '%s-magic' % (name,))
     mkdir(magic_dir)
     if not exists(data_dir):
         do_invites = True
@@ -141,17 +141,17 @@ for name in ['alice', 'bob']:
         with open(join(data_dir, 'tahoe.cfg'), 'w') as f:
             f.write('''
 [node]
-nickname = {name}
-web.port = tcp:998{node_id}:interface=localhost
+nickname = %(name)s
+web.port = tcp:998%(node_id)d:interface=localhost
 web.static = public_html
 
 [client]
 # Which services should this client connect to?
-introducer.furl = {furl}
+introducer.furl = %(furl)s
 shares.needed = 2
 shares.happy = 3
 shares.total = 4
-'''.format(name=name, node_id=node_id, furl=furl, magic_dir=magic_dir))
+''' % {'name':name, 'node_id':node_id, 'furl':furl})
     subprocess.check_call(
         [
             tahoe_bin, 'start', data_dir,
@@ -206,7 +206,7 @@ if do_invites:
 if True:
     for name in ['alice', 'bob']:
         with open(join(data_base, name, 'private', 'magic_folder_dircap'), 'r') as f:
-            print("dircap {}: {}".format(name, f.read().strip()))
+            print("dircap %s: %s" % (name, f.read().strip()))
 
 # give storage nodes a chance to connect properly? I'm not entirely
 # sure what's up here, but I get "UnrecoverableFileError" on the
@@ -354,7 +354,7 @@ if True:
                 print("  file contents still mismatched: %d bytes:\n" % (len(content),))
                 print(content)
         else:
-            print("   {} not there yet".format(alice_foo))
+            print("   %r not there yet" % (alice_foo,))
         time.sleep(1)
 
 # XXX test .backup (delete a file)
