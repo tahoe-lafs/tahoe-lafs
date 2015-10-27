@@ -1,7 +1,6 @@
 
 import sys, os
 import os.path
-import shutil
 from collections import deque
 import time
 
@@ -481,6 +480,15 @@ class WriteFileMixin(object):
         fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
         return conflict_path_u
 
+    def _rename_deleted_file(self, abspath_u):
+        self._log('renaming deleted file to backup: %s' % (abspath_u,))
+        try:
+            fileutil.rename_no_overwrite(abspath_u, abspath_u + u'.backup')
+        except IOError:
+            # XXX is this the correct error?
+            self._log("Already gone: '%s'" % (abspath_u,))
+        return abspath_u
+
 
 class Downloader(QueueMixin, WriteFileMixin):
     REMOTE_SCAN_INTERVAL = 3  # facilitates tests
@@ -703,7 +711,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             else:
                 d.addCallback(lambda ign: file_node.download_best_version())
                 if metadata.get('deleted', False):
-                    d.addCallback(lambda result: self._unlink_deleted_file(abspath_u, result))
+                    d.addCallback(lambda ign: self._rename_deleted_file(abspath_u))
                 else:
                     d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents,
                                                                                is_conflict=is_conflict))
@@ -719,11 +727,3 @@ class Downloader(QueueMixin, WriteFileMixin):
             return None
         d.addErrback(trap_conflicts)
         return d
-
-    def _unlink_deleted_file(self, abspath_u, result):
-        try:
-            self._log('unlinking: %s' % (abspath_u,))
-            shutil.move(abspath_u, abspath_u + '.backup')
-        except IOError:
-            self._log("Already gone: '%s'" % (abspath_u,))
-        return abspath_u
