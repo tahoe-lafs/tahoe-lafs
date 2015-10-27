@@ -343,10 +343,6 @@ def to_windows_long_path(path):
 
 have_GetDiskFreeSpaceExW = False
 if sys.platform == "win32":
-    from ctypes import WINFUNCTYPE, windll, POINTER, byref, c_ulonglong, create_unicode_buffer, \
-        get_last_error
-    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR
-
     # <http://msdn.microsoft.com/en-us/library/windows/desktop/ms683188%28v=vs.85%29.aspx>
     GetEnvironmentVariableW = WINFUNCTYPE(
         DWORD,
@@ -579,9 +575,6 @@ def reraise(wrapper):
     raise wrapper_exc.__class__, wrapper_exc, tb
 
 if sys.platform == "win32":
-    from ctypes import WINFUNCTYPE, windll, WinError, get_last_error
-    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPVOID
-
     # <https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx>
     ReplaceFileW = WINFUNCTYPE(
         BOOL,
