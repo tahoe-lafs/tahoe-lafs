@@ -153,7 +153,8 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             downloaded_d = self.magicfolder.downloader.set_hook('processed', ignore_count=1)
             uploaded_d = self.magicfolder.uploader.set_hook('processed', ignore_count=1)
             self.mkdir_nonascii(small_tree_dir)
-            fileutil.write(abspath_expanduser_unicode(u"what", base=small_tree_dir), "say when")
+            what_path = abspath_expanduser_unicode(u"what", base=small_tree_dir)
+            fileutil.write(what_path, "say when")
             os.rename(small_tree_dir, new_small_tree_dir)
             self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
 
@@ -169,8 +170,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             print "_check_moved_tree_is_watched"
             downloaded_d = self.magicfolder.downloader.set_hook('processed', ignore_count=1)
             uploaded_d = self.magicfolder.uploader.set_hook('processed')
-            fileutil.write(abspath_expanduser_unicode(u"another", base=new_small_tree_dir), "file")
-            self.notify(to_filepath(abspath_expanduser_unicode(u"another", base=new_small_tree_dir)), self.inotify.IN_CLOSE_WRITE)
+            another_path = abspath_expanduser_unicode(u"another", base=new_small_tree_dir)
+            fileutil.write(another_path, "file")
+            self.notify(to_filepath(another_path), self.inotify.IN_CLOSE_WRITE)
 
             return DeferredListShouldSucceed([downloaded_d, uploaded_d])
         d.addCallback(_check_moved_tree_is_watched)
@@ -255,8 +257,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             up_proc = self.magicfolder.uploader.set_hook('processed')
             # down_proc = self.magicfolder.downloader.set_hook('processed')
             path = os.path.join(self.local_dir, u'foo')
-            with open(path, 'w') as f:
-                f.write('foo\n')
+            fileutil.write(path, 'foo\n')
             self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
             yield up_proc
             self.assertTrue(os.path.exists(path))
@@ -290,8 +291,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             up_proc = self.magicfolder.uploader.set_hook('processed')
             # down_proc = self.magicfolder.downloader.set_hook('processed')
             path = os.path.join(self.local_dir, u'foo')
-            with open(path, 'w') as f:
-                f.write('foo\n')
+            fileutil.write(path, 'foo\n')
             self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
             yield up_proc
             self.assertTrue(os.path.exists(path))
@@ -311,8 +311,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             # restore the file, with different contents
             up_proc = self.magicfolder.uploader.set_hook('processed')
             path = os.path.join(self.local_dir, u'foo')
-            with open(path, 'w') as f:
-                f.write('bar\n')
+            fileutil.write(path, 'bar\n')
             self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
             yield up_proc
 
@@ -340,8 +339,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
             bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
 
-            with open(alice_fname, 'wb') as f:
-                f.write('contents0\n')
+            fileutil.write(alice_fname, 'contents0\n')
             self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
 
             alice_clock.advance(0)
@@ -388,8 +386,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             # now alice restores it (alice should upload, bob download)
             alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
             bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-            with open(alice_fname, 'wb') as f:
-                f.write('new contents\n')
+            fileutil.write(alice_fname, 'new contents\n')
             self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
 
             alice_clock.advance(0)
@@ -430,8 +427,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
             bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
 
-            with open(alice_fname, 'wb') as f:
-                f.write('contents0\n')
+            fileutil.write(alice_fname, 'contents0\n')
             self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
 
             alice_clock.advance(0)
@@ -457,8 +453,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             # now bob updates it (bob should upload, alice download)
             bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
             alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
-            with open(bob_fname, 'wb') as f:
-                f.write('bob wuz here\n')
+            fileutil.write(bob_fname, 'bob wuz here\n')
             self.notify(to_filepath(bob_fname), self.inotify.IN_CLOSE_WRITE, magic=self.bob_magicfolder)
 
             bob_clock.advance(0)
@@ -497,8 +492,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
             bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
 
-            with open(alice_fname, 'wb') as f:
-                f.write('contents0\n')
+            fileutil.write(alice_fname, 'contents0\n')
             self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
 
             alice_clock.advance(0)
@@ -543,8 +537,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             # now alice restores the file (with new contents)
             alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
             bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-            with open(alice_fname, 'wb') as f:
-                f.write('alice wuz here\n')
+            fileutil.write(alice_fname, 'alice wuz here\n')
             self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
 
             alice_clock.advance(0)
