@@ -90,6 +90,8 @@ _action_to_inotify_mask = {
 
 INVALID_HANDLE_VALUE             = 0xFFFFFFFF
 
+TRUE  = 0
+FALSE = 1
 
 class Event(object):
     """
@@ -173,7 +175,7 @@ def _open_directory(path_u):
 def simple_test():
     path_u = u"test"
     filter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE
-    recursive = False
+    recursive = FALSE
 
     hDirectory = _open_directory(path_u)
     fni = FileNotifyInformation()
@@ -236,7 +238,7 @@ class INotify(PollMixin):
         if mask & IN_ATTRIB:
             self._filter = self._filter | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SECURITY
 
-        self._recursive = recursive
+        self._recursive = TRUE if recursive else FALSE
         self._callbacks = callbacks or []
         self._hDirectory = _open_directory(path_u)
 
