@@ -813,8 +813,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(_check_downloader_count, 'objects_conflicted', 0)
         d.addCallback(_check_downloader_count, 'objects_conflicted', 0, alice=False)
 
-
-        # XXX
         def Bob_to_rewrite_file():
             print "Bob rewrites file\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.bob_magicfolder.uploader._local_path_u)
@@ -838,6 +836,27 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(_check_downloader_count, 'objects_failed', 0, alice=False)
         d.addCallback(_check_downloader_count, 'objects_downloaded', 1, alice=False)
         d.addCallback(_check_downloader_count, 'objects_conflicted', 0, alice=False)
+
+        def Alice_conflicts_with_Bob():
+            print "Alice conflicts with Bob\n"
+            downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
+            uploadable = Data("do not follow the white rabbit", self.alice_magicfolder._client.convergence)
+            alice_dmd = self.alice_magicfolder.uploader._upload_dirnode
+            d2 = alice_dmd.add_file(u"file1", uploadable,
+                                    metadata={"version": 5,
+                                              "last_downloaded_uri" : "URI:LIT:" },
+                                    overwrite=True)
+            print "Waiting for Alice to upload\n"
+            d2.addCallback(lambda ign: bob_clock.advance(6))
+            d2.addCallback(lambda ign: downloaded_d)
+            d2.addCallback(lambda ign: self.failUnless(alice_dmd.has_child(encoded_path_u)))
+            return d2
+
+        d.addCallback(lambda ign: Alice_conflicts_with_Bob())
+        # XXX fix the code so that it doesn't increment objects_excluded each turn
+        #d.addCallback(_check_downloader_count, 'objects_excluded', 1)
+        d.addCallback(_check_downloader_count, 'objects_downloaded', 4)
+        d.addCallback(_check_downloader_count, 'objects_conflicted', 1)
 
         def _cleanup(ign, magicfolder, clock):
             if magicfolder is not None:
