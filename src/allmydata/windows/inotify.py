@@ -23,15 +23,18 @@ from allmydata.util.encodingutil import quote_output
 from allmydata.util import log, fileutil
 from allmydata.util.pollmixin import PollMixin
 
-from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, create_string_buffer, addressof
+from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, create_string_buffer, \
+    addressof, get_last_error
 from ctypes.wintypes import BOOL, HANDLE, DWORD, LPCWSTR, LPVOID
 
 # <http://msdn.microsoft.com/en-us/library/gg258116%28v=vs.85%29.aspx>
 FILE_LIST_DIRECTORY              = 1
 
 # <http://msdn.microsoft.com/en-us/library/aa363858%28v=vs.85%29.aspx>
-CreateFileW = WINFUNCTYPE(HANDLE, LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE) \
-                  (("CreateFileW", windll.kernel32))
+CreateFileW = WINFUNCTYPE(
+    HANDLE,  LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE,
+    use_last_error=True
+)(("CreateFileW", windll.kernel32))
 
 FILE_SHARE_READ                  = 0x00000001
 FILE_SHARE_WRITE                 = 0x00000002
@@ -42,11 +45,16 @@ OPEN_EXISTING                    = 3
 FILE_FLAG_BACKUP_SEMANTICS       = 0x02000000
 
 # <http://msdn.microsoft.com/en-us/library/ms724211%28v=vs.85%29.aspx>
-CloseHandle = WINFUNCTYPE(BOOL, HANDLE)(("CloseHandle", windll.kernel32))
+CloseHandle = WINFUNCTYPE(
+    BOOL,  HANDLE,
+    use_last_error=True
+)(("CloseHandle", windll.kernel32))
 
 # <http://msdn.microsoft.com/en-us/library/aa365465%28v=vs.85%29.aspx>
-ReadDirectoryChangesW = WINFUNCTYPE(BOOL, HANDLE, LPVOID, DWORD, BOOL, DWORD, POINTER(DWORD), LPVOID, LPVOID) \
-                            (("ReadDirectoryChangesW", windll.kernel32))
+ReadDirectoryChangesW = WINFUNCTYPE(
+    BOOL,  HANDLE, LPVOID, DWORD, BOOL, DWORD, POINTER(DWORD), LPVOID, LPVOID,
+    use_last_error=True
+)(("ReadDirectoryChangesW", windll.kernel32))
 
 FILE_NOTIFY_CHANGE_FILE_NAME     = 0x00000001
 FILE_NOTIFY_CHANGE_DIR_NAME      = 0x00000002
@@ -121,7 +129,7 @@ class FileNotifyInformation(object):
                                   None   # NULL -> no completion routine
                                  )
         if r == 0:
-            raise WinError()
+            raise WinError(get_last_error())
         self.data = self.buffer.raw[:bytes_returned.value]
 
     def __iter__(self):
@@ -157,8 +165,8 @@ def _open_directory(path_u):
                              None                         # no template file
                             )
     if hDirectory == INVALID_HANDLE_VALUE:
-        e = WinError()
-        raise OSError("Opening directory %s gave Windows error %r: %s" % (quote_output(path_u), e.args[0], e.args[1]))
+        e = WinError(get_last_error())
+        raise OSError("Opening directory %s gave WinError: %s" % (quote_output(path_u), e))
     return hDirectory
 
 
