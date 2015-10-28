@@ -182,7 +182,7 @@ Run::
   bin\tahoe -d ..\grid\alice magic-folder create magic: alice ..\local\alice
   bin\tahoe -d ..\grid\alice magic-folder invite magic: bob >invitecode
   set /p INVITECODE=<invitecode
-  bin\tahoe -d ..\grid\bob magic-folder join %INVITECODE% bob ..\local\bob
+  bin\tahoe -d ..\grid\bob magic-folder join %INVITECODE% ..\local\bob
 
 Then close the Command Prompt windows that are running the alice and bob
 nodes, and open two new ones in which to run::
