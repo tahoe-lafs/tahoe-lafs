@@ -187,8 +187,8 @@ Run::
 Then close the Command Prompt windows that are running the alice and bob
 nodes, and open two new ones in which to run::
 
-  bin/tahoe start ..\grid\alice
-  bin/tahoe start ..\grid\bob
+  bin\tahoe start ..\grid\alice
+  bin\tahoe start ..\grid\bob
 
 
 Testing
