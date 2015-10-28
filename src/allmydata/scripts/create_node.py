@@ -3,7 +3,7 @@ import os, sys
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_output, quote_local_unicode_path
+from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path
 import allmydata
 
 class _CreateBaseOptions(BasedirOptions):
@@ -109,7 +109,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
+            print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
             print >>err, "To avoid clobbering anything, I am going to quit now."
             print >>err, "Please use a different directory, or empty this one."
             return -1
@@ -165,7 +165,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
 
     from allmydata.util import fileutil
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
-    print >>out, "Node created in %s" % quote_output(basedir)
+    print >>out, "Node created in %s" % quote_local_unicode_path(basedir)
     if not config.get("introducer", ""):
         print >>out, " Please set [client]introducer.furl= in tahoe.cfg!"
         print >>out, " The node cannot connect to a grid without it."
@@ -185,7 +185,7 @@ def create_introducer(config, out=sys.stdout, err=sys.stderr):
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
+            print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
             print >>err, "To avoid clobbering anything, I am going to quit now."
             print >>err, "Please use a different directory, or empty this one."
             return -1
@@ -200,7 +200,7 @@ def create_introducer(config, out=sys.stdout, err=sys.stderr):
     write_node_config(c, config)
     c.close()
 
-    print >>out, "Introducer created in %s" % quote_output(basedir)
+    print >>out, "Introducer created in %s" % quote_local_unicode_path(basedir)
     return 0
 
 
