@@ -91,6 +91,22 @@ class MagicFolderDB(object):
         else:
             return row[0]
 
+    def get_last_uploaded_uri(self, relpath_u):
+        """
+        Return the last downloaded uri recorded in the magic folder db.
+        If none are found then return None.
+        """
+        c = self.cursor
+        c.execute("SELECT last_uploaded_uri"
+                  " FROM local_files"
+                  " WHERE path=?",
+                  (relpath_u,))
+        row = self.cursor.fetchone()
+        if not row:
+            return None
+        else:
+            return row[0]
+
     def get_local_file_version(self, relpath_u):
         """
         Return the version of a local file tracked by our magic folder db.
