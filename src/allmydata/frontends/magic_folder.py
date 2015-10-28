@@ -707,10 +707,12 @@ class Downloader(QueueMixin, WriteFileMixin):
                     if dmd_last_downloaded_uri != local_last_downloaded_uri:
                         is_conflict = True
                         self._count('objects_conflicted')
-
-                #dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
-                #local_last_uploaded_uri = ...
-
+                    else:
+                        dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
+                        local_last_uploaded_uri = self._db.get_last_uploaded_uri(relpath_u)
+                        if dmd_last_uploaded_uri != local_last_uploaded_uri:
+                            is_conflict = True
+                            self._count('objects_conflicted')
             if relpath_u.endswith(u"/"):
                 if metadata.get('deleted', False):
                     self._log("rmdir(%r) ignored" % (abspath_u,))
