@@ -15,7 +15,7 @@ Linux
 -----
 
 Install ``git`` from your distribution's package manager.
-Then run these commands:
+Then run these commands::
 
   git clone -b 2438.magic-folder-stable.5 https://github.com/tahoe-lafs/tahoe-lafs.git
   cd tahoe-lafs
@@ -55,20 +55,20 @@ For 32-bit Windows:
 * Install git from
   https://github.com/git-for-windows/git/releases/download/v2.6.2.windows.1/Git-2.6.2-32-bit.exe
 
-Then (for any version) run these commands in a Command Prompt:
+Then (for any version) run these commands in a Command Prompt::
 
   git clone -b 2438.magic-folder-stable.5 https://github.com/tahoe-lafs/tahoe-lafs.git
   cd tahoe-lafs
   python setup.py build
 
 Open a new Command Prompt with the same current directory,
-then run:
+then run::
 
   bin\tahoe --version-and-path
 
 It is normal for this command to print warnings and
 debugging output on some systems. Do not run
-"python setup.py test", because it currently hangs on
+``python setup.py test``, because it currently hangs on
 Windows.
 
 
@@ -78,7 +78,7 @@ Setting up a local test grid
 Linux
 -----
 
-Run these commands:
+Run these commands::
 
   mkdir ../grid
   bin/tahoe create-introducer ../grid/introducer
@@ -92,7 +92,7 @@ Run these commands:
 Windows
 -------
 
-Run:
+Run::
 
   mkdir ..\grid
   bin\tahoe create-introducer ..\grid\introducer
@@ -100,7 +100,7 @@ Run:
 
 Leave the introducer running in that Command Prompt,
 and in a separate Command Prompt (with the same current
-directory), run:
+directory), run::
 
   set /p FURL=<..\grid\introducer\private\introducer.furl
   bin\tahoe create-node --introducer=%FURL% ..\grid\server
@@ -111,10 +111,10 @@ directory), run:
 Both Linux and Windows
 ----------------------
 
-(Replace "/" with "\" for Windows paths.)
+(Replace ``/`` with ``\`` for Windows paths.)
 
-Edit ../grid/alice/tahoe.cfg, and make the following
-changes to the [node] and [client] sections:
+Edit ``../grid/alice/tahoe.cfg``, and make the following
+changes to the [node] and [client] sections::
 
   [node]
   nickname = alice
@@ -125,9 +125,9 @@ changes to the [node] and [client] sections:
   shares.happy = 1
   shares.total = 1
 
-Edit ../grid/bob/tahoe.cfg, and make the following
-change to the [node] section, and the same change as
-above to the [client] section:
+Edit ``../grid/bob/tahoe.cfg``, and make the following
+change to the ``[node]`` section, and the same change as
+above to the ``[client]`` section::
 
   [node]
   nickname = bob
@@ -140,7 +140,7 @@ Here we have used the default of 3456 for the server,
 3457 for alice, and 3458 for bob.
 
 Now start all of the nodes (the introducer should still be
-running from above):
+running from above)::
 
   bin/tahoe start ../grid/server
   bin/tahoe start ../grid/alice
@@ -162,7 +162,7 @@ Setting up Magic Folder
 Linux
 -----
 
-Run:
+Run::
 
   mkdir -p ../local/alice ../local/bob
   bin/tahoe -d ../grid/alice magic-folder create magic: alice ../local/alice
@@ -176,7 +176,7 @@ Run:
 Windows
 -------
 
-Run:
+Run::
 
   mkdir ..\local\alice ..\local\bob
   bin\tahoe -d ..\grid\alice magic-folder create magic: alice ..\local\alice
@@ -185,7 +185,7 @@ Run:
   bin\tahoe -d ..\grid\bob magic-folder join %INVITECODE% bob ..\local\bob
 
 Then close the Command Prompt windows that are running the alice and bob
-nodes, and open two new ones in which to run:
+nodes, and open two new ones in which to run::
 
   bin/tahoe start ..\grid\alice
   bin/tahoe start ..\grid\bob
@@ -195,11 +195,11 @@ Testing
 =======
 
 You can now experiment with creating files and directories in
-../local/alice and /local/bob; any changes should be propagated
-to the other directory.
+``../local/alice`` and ``/local/bob``; any changes should be
+propagated to the other directory.
 
 Note that when a file is deleted, the corresponding file in the
-other directory will be renamed to a filename ending in ".backup".
+other directory will be renamed to a filename ending in ``.backup``.
 Deleting a directory will have no effect.
 
 Subdirectories do not currently work on Windows.
