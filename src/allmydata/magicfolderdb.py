@@ -1,5 +1,6 @@
 
 import sys
+from collections import namedtuple
 
 from allmydata.util.dbutil import get_db, DBError
 
@@ -42,6 +43,7 @@ def get_magicfolderdb(dbfile, stderr=sys.stderr,
         print >>stderr, e
         return None
 
+PathEntry = namedtuple('PathEntry', 'size mtime ctime version last_uploaded_uri last_downloaded_uri last_downloaded_timestamp')
 
 class MagicFolderDB(object):
     VERSION = 1
@@ -51,20 +53,25 @@ class MagicFolderDB(object):
         self.connection = connection
         self.cursor = connection.cursor()
 
-    def check_file_db_exists(self, path):
-        """I will tell you if a given file has an entry in my database or not
-        by returning True or False.
+    def get_db_entry(self, relpath_u):
+        """
+        Retrieve the entry in the database for a given path, or return None
+        if there is no such entry.
         """
         c = self.cursor
-        c.execute("SELECT size,mtime,ctime"
+        c.execute("SELECT size, mtime, ctime, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp"
                   " FROM local_files"
                   " WHERE path=?",
-                  (path,))
+                  (relpath_u,))
         row = self.cursor.fetchone()
         if not row:
-            return False
+            return None
         else:
-            return True
+            (size, mtime, ctime, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp) = row
+            return PathEntry(size=size, mtime=mtime, ctime=ctime, version=version,
+                             last_uploaded_uri=last_uploaded_uri,
+                             last_downloaded_uri=last_downloaded_uri,
+                             last_downloaded_timestamp=last_downloaded_timestamp)
 
     def get_all_relpaths(self):
         """
@@ -74,54 +81,6 @@ class MagicFolderDB(object):
         self.cursor.execute("SELECT path FROM local_files")
         rows = self.cursor.fetchall()
         return set([r[0] for r in rows])
-
-    def get_last_downloaded_uri(self, relpath_u):
-        """
-        Return the last downloaded uri recorded in the magic folder db.
-        If none are found then return None.
-        """
-        c = self.cursor
-        c.execute("SELECT last_downloaded_uri"
-                  " FROM local_files"
-                  " WHERE path=?",
-                  (relpath_u,))
-        row = self.cursor.fetchone()
-        if not row:
-            return None
-        else:
-            return row[0]
-
-    def get_last_uploaded_uri(self, relpath_u):
-        """
-        Return the last downloaded uri recorded in the magic folder db.
-        If none are found then return None.
-        """
-        c = self.cursor
-        c.execute("SELECT last_uploaded_uri"
-                  " FROM local_files"
-                  " WHERE path=?",
-                  (relpath_u,))
-        row = self.cursor.fetchone()
-        if not row:
-            return None
-        else:
-            return row[0]
-
-    def get_local_file_version(self, relpath_u):
-        """
-        Return the version of a local file tracked by our magic folder db.
-        If no db entry is found then return None.
-        """
-        c = self.cursor
-        c.execute("SELECT version"
-                  " FROM local_files"
-                  " WHERE path=?",
-                  (relpath_u,))
-        row = self.cursor.fetchone()
-        if not row:
-            return None
-        else:
-            return row[0]
 
     def did_upload_version(self, relpath_u, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, pathinfo):
         print "%r.did_upload_version(%r, %r, %r, %r, %r, %r)" % (self, relpath_u, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, pathinfo)
