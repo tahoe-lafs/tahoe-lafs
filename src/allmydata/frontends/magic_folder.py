@@ -64,6 +64,8 @@ class MagicFolder(service.MultiService):
         self.uploader = Uploader(client, local_path_u, db, upload_dircap, pending_delay, clock)
         self.downloader = Downloader(client, local_path_u, db, collective_dircap, clock, self.uploader.is_pending)
 
+        #self.downloader = Downloader(client, local_path_u, db, collective_dircap, clock, lambda x: self.uploader.is_pending(x))
+
     def startService(self):
         # TODO: why is this being called more than once?
         if self.running:
@@ -271,7 +273,7 @@ class Uploader(QueueMixin):
 
         return d
 
-    def is_pending(relpath_u):
+    def is_pending(self, relpath_u):
         if relpath_u in self._pending:
             return True
         else:
@@ -712,18 +714,18 @@ class Downloader(QueueMixin, WriteFileMixin):
                     if dmd_last_downloaded_uri != local_last_downloaded_uri:
                         is_conflict = True
                         self._count('objects_conflicted')
+                else:
+                    dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
+                    local_last_uploaded_uri = self._db.get_last_uploaded_uri(relpath_u)
+                    print ">>>>  if %r != %r" % (dmd_last_uploaded_uri, local_last_uploaded_uri)
+                    if dmd_last_uploaded_uri is not None and dmd_last_uploaded_uri != local_last_uploaded_uri:
+                        is_conflict = True
+                        self._count('objects_conflicted')
                     else:
-                        dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
-                        local_last_uploaded_uri = self._db.get_last_uploaded_uri(relpath_u)
-                        print ">>>>  if %r != %r" % (dmd_last_uploaded_uri, local_last_uploaded_uri)
-                        if dmd_last_uploaded_uri != local_last_uploaded_uri:
+                        # XXX todo: mark as conflict if file is in pending upload set
+                        if self._is_upload_pending(relpath_u):
                             is_conflict = True
                             self._count('objects_conflicted')
-                        else:
-                            # XXX todo: mark as conflict if file is in pending upload set
-                            if self._is_upload_pending(relpath_u):
-                                is_conflict = True
-                                self._count('objects_conflicted')
 
             if relpath_u.endswith(u"/"):
                 if metadata.get('deleted', False):
