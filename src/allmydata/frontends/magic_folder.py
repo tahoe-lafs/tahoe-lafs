@@ -62,7 +62,7 @@ class MagicFolder(service.MultiService):
         self.is_ready = False
 
         self.uploader = Uploader(client, local_path_u, db, upload_dircap, pending_delay, clock)
-        self.downloader = Downloader(client, local_path_u, db, collective_dircap, clock)
+        self.downloader = Downloader(client, local_path_u, db, collective_dircap, clock, self.uploader.is_pending)
 
     def startService(self):
         # TODO: why is this being called more than once?
@@ -270,6 +270,12 @@ class Uploader(QueueMixin):
             d.addErrback(log.err)
 
         return d
+
+    def is_pending(relpath_u):
+        if relpath_u in self._pending:
+            return True
+        else:
+            return False
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
@@ -495,8 +501,10 @@ class WriteFileMixin(object):
 class Downloader(QueueMixin, WriteFileMixin):
     REMOTE_SCAN_INTERVAL = 3  # facilitates tests
 
-    def __init__(self, client, local_path_u, db, collective_dircap, clock):
+    def __init__(self, client, local_path_u, db, collective_dircap, clock, is_upload_pending):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
+
+        self._is_upload_pending = is_upload_pending
 
         # TODO: allow a path rather than a cap URI.
         self._collective_dirnode = self._client.create_node_from_uri(collective_dircap)
@@ -711,6 +719,12 @@ class Downloader(QueueMixin, WriteFileMixin):
                         if dmd_last_uploaded_uri != local_last_uploaded_uri:
                             is_conflict = True
                             self._count('objects_conflicted')
+                        else:
+                            # XXX todo: mark as conflict if file is in pending upload set
+                            if self._is_upload_pending(relpath_u):
+                                is_conflict = True
+                                self._count('objects_conflicted')
+
             if relpath_u.endswith(u"/"):
                 if metadata.get('deleted', False):
                     self._log("rmdir(%r) ignored" % (abspath_u,))
