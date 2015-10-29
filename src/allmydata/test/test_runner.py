@@ -8,7 +8,7 @@ from twisted.internet import threads
 
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, \
-    get_filesystem_encoding, quote_local_unicode_path
+    get_filesystem_encoding
 from allmydata.scripts import runner
 from allmydata.client import Client
 from allmydata.test import common_util
