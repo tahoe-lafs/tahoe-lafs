@@ -37,8 +37,7 @@ install_requires = [
     #   filepath.Permissions
     # * Nevow 0.11.1 depends on Twisted >= 13.0.0.
     # * The Magic Folder frontend depends on Twisted >= 15.2.0.
-    # * For now we pin Twisted 15.2.0 to avoid <http://foolscap.lothar.com/trac/ticket/244>.
-    "Twisted == 15.2.0",
+    "Twisted >= 15.2.0",
 
     # Nevow 0.11.1 can be installed using pip (#2032).
     "Nevow >= 0.11.1",
