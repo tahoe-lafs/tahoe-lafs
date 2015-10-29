@@ -826,7 +826,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
 
-        def Alice_conflicts_with_Bob():
+        def Alice_conflicts_with_Bobs_last_downloaded_uri():
             print "Alice conflicts with Bob\n"
             downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
             uploadable = Data("do not follow the white rabbit", self.alice_magicfolder._client.convergence)
@@ -841,11 +841,88 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             d2.addCallback(lambda ign: self.failUnless(alice_dmd.has_child(encoded_path_u)))
             return d2
 
-        d.addCallback(lambda ign: Alice_conflicts_with_Bob())
+        d.addCallback(lambda ign: Alice_conflicts_with_Bobs_last_downloaded_uri())
         # XXX fix the code so that it doesn't increment objects_excluded each turn
         #d.addCallback(lambda ign: self._check_downloader_count('objects_excluded', 1))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 4))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 1))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
+
+        # prepare to perform another conflict test
+        def Alice_to_write_file2():
+            print "Alice writes a file\n"
+            self.file_path = abspath_expanduser_unicode(u"file", base=self.alice_magicfolder.uploader._local_path_u)
+            fileutil.write(self.file_path, "something")
+            self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+        d.addCallback(_wait_for, Alice_to_write_file2)
+        d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file2", 0))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
+
+        def Bob_to_rewrite_file2():
+            print "Bob rewrites file\n"
+            self.file_path = abspath_expanduser_unicode(u"file2", base=self.bob_magicfolder.uploader._local_path_u)
+            print "---- bob's file is %r" % (self.file_path,)
+            fileutil.write(self.file_path, "roger roger. what vector?")
+            self.magicfolder = self.bob_magicfolder
+            self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
+        d.addCallback(lambda ign: _wait_for(None, Bob_to_rewrite_file2, alice=False))
+        d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file2", 1))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 5))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 1))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 3, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 2, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_queued', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('directories_created', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 1, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 3, magic=self.alice_magicfolder))
+
+        # XXX here we advance the clock and then test again to make sure no values are monotonically increasing
+        # with each queue turn ;-p
+        alice_clock.advance(6)
+        bob_clock.advance(6)
+        d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file2", 1))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 5))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 1))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 3, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 2, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_queued', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('directories_created', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 1, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 3, magic=self.alice_magicfolder))
+
+        def Alice_conflicts_with_Bobs_last_uploaded_uri():
+            print "Alice conflicts with Bob\n"
+            encoded_path_u = magicpath.path2magic(u"file2")
+            downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
+            uploadable = Data("rabbits of with sharp fangs", self.alice_magicfolder._client.convergence)
+            alice_dmd = self.alice_magicfolder.uploader._upload_dirnode
+            d2 = alice_dmd.add_file(u"file2", uploadable,
+                                    metadata={"version": 5,
+                                              "last_uploaded_uri" : "URI:LIT:" },
+                                    overwrite=True)
+            print "Waiting for Alice to upload\n"
+            d2.addCallback(lambda ign: bob_clock.advance(6))
+            d2.addCallback(lambda ign: downloaded_d)
+            d2.addCallback(lambda ign: self.failUnless(alice_dmd.has_child(encoded_path_u)))
+            return d2
+        d.addCallback(lambda ign: Alice_conflicts_with_Bobs_last_uploaded_uri())
+        d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file2", 5))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 6))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 2))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 3, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 2, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_queued', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('directories_created', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 1, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 3, magic=self.alice_magicfolder))
+
 
         def _cleanup(ign, magicfolder, clock):
             if magicfolder is not None:
