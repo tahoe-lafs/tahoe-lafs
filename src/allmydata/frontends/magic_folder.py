@@ -322,17 +322,15 @@ class Uploader(QueueMixin):
                 # FIXME merge this with the 'isfile' case.
                 self._log("notified object %s disappeared (this is normal)" % quote_filepath(fp))
                 self._count('objects_disappeared')
-                if not self._db.check_file_db_exists(relpath_u):
+
+                db_entry = self._db.get_db_entry(relpath_u)
+                if db_entry is None:
                     return None
 
-                last_downloaded_timestamp = now
-                last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
+                last_downloaded_timestamp = now  # is this correct?
 
-                current_version = self._db.get_local_file_version(relpath_u)
-                if current_version is None:
-                    new_version = 0
-                elif self._db.is_new_file(pathinfo, relpath_u):
-                    new_version = current_version + 1
+                if self._db.is_new_file(pathinfo, relpath_u):
+                    new_version = db_entry.version + 1
                 else:
                     self._log("Not uploading %r" % (relpath_u,))
                     self._count('objects_not_uploaded')
@@ -341,8 +339,8 @@ class Uploader(QueueMixin):
                 metadata = { 'version': new_version,
                              'deleted': True,
                              'last_downloaded_timestamp': last_downloaded_timestamp }
-                if last_downloaded_uri is not None:
-                    metadata['last_downloaded_uri'] = last_downloaded_uri
+                if db_entry.last_downloaded_uri is not None:
+                    metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
 
                 empty_uploadable = Data("", self._client.convergence)
                 d2 = self._upload_dirnode.add_file(encoded_path_u, empty_uploadable,
@@ -350,8 +348,10 @@ class Uploader(QueueMixin):
 
                 def _add_db_entry(filenode):
                     filecap = filenode.get_uri()
+                    last_downloaded_uri = metadata.get('last_downloaded_uri', None)
                     self._db.did_upload_version(relpath_u, new_version, filecap,
-                                                last_downloaded_uri, last_downloaded_timestamp, pathinfo)
+                                                last_downloaded_uri, last_downloaded_timestamp,
+                                                pathinfo)
                     self._count('files_uploaded')
                 d2.addCallback(_add_db_entry)
                 return d2
@@ -373,14 +373,14 @@ class Uploader(QueueMixin):
                 upload_d.addCallback(lambda ign: self._scan(relpath_u))
                 return upload_d
             elif pathinfo.isfile:
-                last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
+                db_entry = self._db.get_db_entry(relpath_u)
+
                 last_downloaded_timestamp = now
 
-                current_version = self._db.get_local_file_version(relpath_u)
-                if current_version is None:
+                if db_entry is None:
                     new_version = 0
                 elif self._db.is_new_file(pathinfo, relpath_u):
-                    new_version = current_version + 1
+                    new_version = db_entry.version + 1
                 else:
                     self._log("Not uploading %r" % (relpath_u,))
                     self._count('objects_not_uploaded')
@@ -388,8 +388,8 @@ class Uploader(QueueMixin):
 
                 metadata = { 'version': new_version,
                              'last_downloaded_timestamp': last_downloaded_timestamp }
-                if last_downloaded_uri is not None:
-                    metadata['last_downloaded_uri'] = last_downloaded_uri
+                if db_entry is not None and db_entry.last_downloaded_uri is not None:
+                    metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
 
                 uploadable = FileName(unicode_from_filepath(fp), self._client.convergence)
                 d2 = self._upload_dirnode.add_file(encoded_path_u, uploadable,
@@ -399,7 +399,8 @@ class Uploader(QueueMixin):
                     filecap = filenode.get_uri()
                     last_downloaded_uri = metadata.get('last_downloaded_uri', None)
                     self._db.did_upload_version(relpath_u, new_version, filecap,
-                                                last_downloaded_uri, last_downloaded_timestamp, pathinfo)
+                                                last_downloaded_uri, last_downloaded_timestamp,
+                                                pathinfo)
                     self._count('files_uploaded')
                 d2.addCallback(_add_db_entry)
                 return d2
@@ -547,9 +548,11 @@ class Downloader(QueueMixin, WriteFileMixin):
             self._log("nope")
             return False
         self._log("yep")
-        v = self._db.get_local_file_version(relpath_u)
-        self._log("v = %r" % (v,))
-        return (v is None or v < remote_version)
+        db_entry = self._db.get_db_entry(relpath_u)
+        if db_entry is None:
+            return True
+        self._log("version %r" % (db_entry.version,))
+        return (db_entry.version < remote_version)
 
     def _get_local_latest(self, relpath_u):
         """
@@ -559,7 +562,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         """
         if not self._get_filepath(relpath_u).exists():
             return None
-        return self._db.get_local_file_version(relpath_u)
+        db_entry = self._db.get_db_entry(relpath_u)
+        return None if db_entry is None else db_entry.version
 
     def _get_collective_latest_file(self, filename):
         """
@@ -705,20 +709,19 @@ class Downloader(QueueMixin, WriteFileMixin):
             d.addCallback(fail)
         else:
             is_conflict = False
-            if self._db.check_file_db_exists(relpath_u):
+            db_entry = self._db.get_db_entry(relpath_u)
+            if db_entry:
                 dmd_last_downloaded_uri = metadata.get('last_downloaded_uri', None)
-                local_last_downloaded_uri = self._db.get_last_downloaded_uri(relpath_u)
                 print "metadata %r" % (metadata,)
-                print "<<<<--- if %r != %r" % (dmd_last_downloaded_uri, local_last_downloaded_uri)
-                if dmd_last_downloaded_uri is not None and local_last_downloaded_uri is not None:
-                    if dmd_last_downloaded_uri != local_last_downloaded_uri:
+                print "<<<<--- if %r != %r" % (dmd_last_downloaded_uri, db_entry.last_downloaded_uri)
+                if dmd_last_downloaded_uri is not None and db_entry.last_downloaded_uri is not None:
+                    if dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
                         is_conflict = True
                         self._count('objects_conflicted')
                 else:
                     dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
-                    local_last_uploaded_uri = self._db.get_last_uploaded_uri(relpath_u)
-                    print ">>>>  if %r != %r" % (dmd_last_uploaded_uri, local_last_uploaded_uri)
-                    if dmd_last_uploaded_uri is not None and dmd_last_uploaded_uri != local_last_uploaded_uri:
+                    print ">>>>  if %r != %r" % (dmd_last_uploaded_uri, db_entry.last_uploaded_uri)
+                    if dmd_last_uploaded_uri is not None and dmd_last_uploaded_uri != db_entry.last_uploaded_uri:
                         is_conflict = True
                         self._count('objects_conflicted')
                     else:
