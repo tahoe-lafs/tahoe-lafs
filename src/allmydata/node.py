@@ -381,7 +381,7 @@ class Node(service.MultiService):
             self.tub.setOption("log-gatherer-furl", lgfurl)
         self.tub.setOption("log-gatherer-furlfile",
                            os.path.join(self.basedir, "log_gatherer.furl"))
-        self.tub.setOption("bridge-twisted-logs", False)
+        #self.tub.setOption("bridge-twisted-logs", True)
         incident_dir = os.path.join(self.basedir, "logs", "incidents")
         foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
 
