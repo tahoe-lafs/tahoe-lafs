@@ -351,7 +351,9 @@ class Uploader(QueueMixin):
                 self.warn("WARNING: cannot upload symlink %s" % quote_filepath(fp))
                 return None
             elif pathinfo.isdir:
-                self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
+                if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
+                    self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
+
                 uploadable = Data("", self._client.convergence)
                 encoded_path_u += magicpath.path2magic(u"/")
                 upload_d = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata={"version":0}, overwrite=True)
