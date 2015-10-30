@@ -1,12 +1,21 @@
+sudo: false
 language: python
 python:
   - "2.7"
   - "2.6"
+  - "pypy"
 before_install:
   - sh -c set
-install: true
-before_script: python misc/build_helpers/show-tool-versions.py
-script: python setup.py test --reporter=timing
+  - git config --global user.email "travis-tahoe@tahoe-lafs.org"
+  - git config --global user.name "Travis Tahoe"
+  - git fetch --depth=1000
+  - python misc/build_helpers/show-tool-versions.py
+install:
+  - pip install coverage coveralls
+before_script: python setup.py build
+script: bin/tahoe @coverage run --branch --source=src/allmydata @tahoe --version-and-path debug trial --rterrors --reporter=timing
+after_success:
+  coveralls
 notifications:
   email: false
   irc:
@@ -16,3 +25,7 @@ notifications:
     template:
       - "%{repository}#%{build_number} [%{branch}: %{commit} by %{author}] %{message}"
       - "Changes: %{compare_url} | Details: %{build_url}"
+matrix:
+  allow_failures:
+    - python: "pypy"
+  fast_finish: true
