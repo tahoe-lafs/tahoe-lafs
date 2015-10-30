@@ -201,6 +201,7 @@ class INotify(PollMixin):
         self._path = None
         self._pending = set()
         self._pending_delay = 1.0
+        self.recursive_includes_new_subdirectories = True
 
     def set_pending_delay(self, delay):
         self._pending_delay = delay
