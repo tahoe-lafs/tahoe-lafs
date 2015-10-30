@@ -13,7 +13,7 @@ from allmydata.util import fileutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import precondition_abspath, get_pathinfo, ConflictError
-from allmydata.util.assertutil import precondition
+from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.encodingutil import listdir_filepath, to_filepath, \
      extend_filepath, unicode_from_filepath, unicode_segments_from, \
@@ -254,7 +254,7 @@ class Uploader(QueueMixin):
 
         d = defer.succeed(None)
         for child in children:
-            assert isinstance(child, unicode), child
+            _assert(isinstance(child, unicode), child=child)
             d.addCallback(lambda ign, child=child:
                           ("%s/%s" % (reldir_u, child) if reldir_u else child))
             def _add_pending(relpath_u):
@@ -406,7 +406,7 @@ class Uploader(QueueMixin):
             return res
         def _failed(f):
             self._count('objects_failed')
-            self._log("%r while processing %r" % (f, relpath_u))
+            self._log("%s while processing %r" % (f, relpath_u))
             return f
         d.addCallbacks(_succeeded, _failed)
         return d
