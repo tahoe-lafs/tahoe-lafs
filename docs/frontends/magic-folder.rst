@@ -41,11 +41,12 @@ Configuration
 The Magic Folder frontend runs as part of a gateway node. To set it up, you
 must use the tahoe magic-folder CLI. For detailed information see our
 `Magic-Folder CLI design documentation`_. For a given Magic-Folder collective
-directory you need to run the ``tahoe magic-folder create`` command. After that
-the ``tahoe magic-folder invite`` command must used to generate an invite code for
-each member of the magic-folder collective. A confidential, authenticated communications
-channel should be used to transmit the invite code to each member, who will be joining
-using the ``tahoe magic-folder join`` command.
+directory you need to run the ``tahoe magic-folder create`` command. After
+that the ``tahoe magic-folder invite`` command must used to generate an
+*invite code* for each member of the magic-folder collective. A confidential,
+authenticated communications channel should be used to transmit the invite code
+to each member, who will be joining using the ``tahoe magic-folder join``
+command.
 
 These settings are persisted in the ``[magic_folder]`` section of the
 gateway's ``tahoe.cfg`` file.
@@ -64,18 +65,14 @@ gateway's ``tahoe.cfg`` file.
     in UTF-8 regardless of the system's filesystem encoding. Relative paths
     will be interpreted starting from the node's base directory.
 
-In addition:
- * the file ``private/magic_folder_dircap`` must contain a writecap pointing
-   to an existing mutable directory to be used as the target of uploads.
-   It will start with ``URI:DIR2:``, and cannot include an alias or path.
- * the file ``private/collective_dircap`` must contain a readcap
+You should not normally need to set these fields manually because they are
+set by the ``tahoe magic-folder create`` and/or ``tahoe magic-folder join``
+commands. Use the ``--help`` option to these commands for more information.
 
-After setting the above fields and starting or restarting the gateway,
-you can confirm that the feature is working by copying a file into the
-local directory. Then, use the WUI or CLI to check that it has appeared
-in the upload directory with the same filename. A large file may take some
-time to appear, since it is only linked into the directory after the upload
-has completed.
+After setting up a Magic Folder collective and starting or restarting each
+gateway, you can confirm that the feature is working by copying a file into
+any local directory, and checking that it appears on other clients.
+Large files may take some time to appear.
 
 The 'Operational Statistics' page linked from the Welcome page shows
 counts of the number of files uploaded, the number of change events currently
