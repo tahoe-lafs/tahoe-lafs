@@ -357,7 +357,8 @@ class Uploader(QueueMixin):
                     self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
 
                 uploadable = Data("", self._client.convergence)
-                encoded_path_u += magicpath.path2magic(u"/")
+                _assert(encoded_path_u.endswith(magicpath.path2magic(u"/")))
+                self._log("encoded_path_u =  %r" % (encoded_path_u,))
                 upload_d = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata={"version":0}, overwrite=True)
                 def _succeeded(ign):
                     self._log("created subdirectory %r" % (relpath_u,))
@@ -521,6 +522,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._log("all files %s" % files)
 
         d = self._scan_remote_collective()
+        d.addBoth(self._logcb, "after _scan_remote_collective 0")
         self._turn_deque()
         return d
 
@@ -659,7 +661,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def _when_queue_is_empty(self):
         d = task.deferLater(self._clock, self._turn_delay, self._scan_remote_collective)
-        d.addBoth(self._logcb, "after _scan_remote_collective")
+        d.addBoth(self._logcb, "after _scan_remote_collective 1")
         d.addCallback(lambda ign: self._turn_deque())
         return d
 

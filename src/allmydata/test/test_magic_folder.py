@@ -593,6 +593,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
     def _check_file(self, name_u, data, temporary=False, directory=False):
         precondition(not (temporary and directory), temporary=temporary, directory=directory)
 
+        print "%r._check_file(%r, %r, temporary=%r, directory=%r)" % (self, name_u, data, temporary, directory)
         previously_uploaded = self._get_count('uploader.objects_succeeded')
         previously_disappeared = self._get_count('uploader.objects_disappeared')
 
@@ -627,9 +628,18 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_disappeared'),
                                                                  previously_disappeared + 1))
         else:
+            def _here(res, n):
+                print "here %r %r" % (n, res)
+                return res
+            d.addBoth(_here, 1)
+            d.addCallback(lambda ign: self.upload_dirnode.list())
+            d.addBoth(_here, 1.5)
             d.addCallback(lambda ign: self.upload_dirnode.get(encoded_name_u))
+            d.addBoth(_here, 2)
             d.addCallback(download_to_data)
+            d.addBoth(_here, 3)
             d.addCallback(lambda actual_data: self.failUnlessReallyEqual(actual_data, data))
+            d.addBoth(_here, 4)
             d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'),
                                                                  previously_uploaded + 1))
 
