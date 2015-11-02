@@ -300,6 +300,7 @@ class Uploader(QueueMixin):
         if relpath_u is None:
             return
         precondition(isinstance(relpath_u, unicode), relpath_u)
+        precondition(not relpath_u.endswith(u'/'), relpath_u)
 
         d = defer.succeed(None)
 
