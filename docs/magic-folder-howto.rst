@@ -86,10 +86,10 @@ then run::
 
   bin\tahoe --version-and-path
 
-It is normal for this command to print warnings and
-debugging output on some systems. Do not run
-``python setup.py test``, because it currently hangs on
-Windows.
+It is normal for this command to print warnings and debugging output
+on some systems. ``python setup.py test`` can also be run, but there
+are some known sources of nondeterministic errors in tests on Windows
+that are unrelated to Magic Folder.
 
 
 Setting up a local test grid
