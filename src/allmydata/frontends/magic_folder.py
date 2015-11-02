@@ -61,8 +61,11 @@ class MagicFolder(service.MultiService):
 
         self.is_ready = False
 
-        self.uploader = Uploader(client, local_path_u, db, upload_dircap, pending_delay, clock)
-        self.downloader = Downloader(client, local_path_u, db, collective_dircap, clock)
+        upload_dirnode = self._client.create_node_from_uri(upload_dircap)
+        collective_dirnode = self._client.create_node_from_uri(collective_dircap)
+
+        self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock)
+        self.downloader = Downloader(client, local_path_u, db, collective_dirnode, upload_dirnode.get_readonly_uri(), clock)
 
     def startService(self):
         # TODO: why is this being called more than once?
@@ -173,20 +176,19 @@ class QueueMixin(HookMixin):
 
 
 class Uploader(QueueMixin):
-    def __init__(self, client, local_path_u, db, upload_dircap, pending_delay, clock):
+    def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
         QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock)
 
         self.is_ready = False
 
-        # TODO: allow a path rather than a cap URI.
-        self._upload_dirnode = self._client.create_node_from_uri(upload_dircap)
-        if not IDirectoryNode.providedBy(self._upload_dirnode):
+        if not IDirectoryNode.providedBy(upload_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
                                  % os.path.join('private', 'magic_folder_dircap'))
-        if self._upload_dirnode.is_unknown() or self._upload_dirnode.is_readonly():
+        if upload_dirnode.is_unknown() or upload_dirnode.is_readonly():
             raise AssertionError("The URI in '%s' is not a writecap to a directory."
                                  % os.path.join('private', 'magic_folder_dircap'))
 
+        self._upload_dirnode = upload_dirnode
         self._inotify = get_inotify_module()
         self._notifier = self._inotify.INotify()
 
@@ -497,18 +499,18 @@ class WriteFileMixin(object):
 class Downloader(QueueMixin, WriteFileMixin):
     REMOTE_SCAN_INTERVAL = 3  # facilitates tests
 
-    def __init__(self, client, local_path_u, db, collective_dircap, clock):
+    def __init__(self, client, local_path_u, db, collective_dirnode, upload_readonly_dircap, clock):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
 
-        # TODO: allow a path rather than a cap URI.
-        self._collective_dirnode = self._client.create_node_from_uri(collective_dircap)
-
-        if not IDirectoryNode.providedBy(self._collective_dirnode):
+        if not IDirectoryNode.providedBy(collective_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
                                  % os.path.join('private', 'collective_dircap'))
-        if self._collective_dirnode.is_unknown() or not self._collective_dirnode.is_readonly():
+        if collective_dirnode.is_unknown() or not collective_dirnode.is_readonly():
             raise AssertionError("The URI in '%s' is not a readonly cap to a directory."
                                  % os.path.join('private', 'collective_dircap'))
+
+        self._collective_dirnode = collective_dirnode
+        self._upload_readonly_dircap = upload_readonly_dircap
 
         self._turn_delay = self.REMOTE_SCAN_INTERVAL
         self._download_scan_batch = {} # path -> [(filenode, metadata)]
@@ -613,24 +615,22 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._log("_scan_remote_collective")
         self._download_scan_batch = {} # XXX
 
-        if self._collective_dirnode is None:
-            return
-        collective_dirmap_d = self._collective_dirnode.list()
-        def do_list(result):
-            others = [x for x in result.keys()]
-            return result, others
-        collective_dirmap_d.addCallback(do_list)
-        def scan_collective(result):
-            d = defer.succeed(None)
-            collective_dirmap, others_list = result
-            for dir_name in others_list:
-                d.addCallback(lambda x, dir_name=dir_name: self._scan_remote(dir_name, collective_dirmap[dir_name][0]))
-                # XXX todo add errback
-            return d
-        collective_dirmap_d.addCallback(scan_collective)
-        collective_dirmap_d.addCallback(self._filter_scan_batch)
-        collective_dirmap_d.addCallback(self._add_batch_to_download_queue)
-        return collective_dirmap_d
+        d = self._collective_dirnode.list()
+        def scan_collective(dirmap):
+            d2 = defer.succeed(None)
+            for dir_name in dirmap:
+                (dirnode, metadata) = dirmap[dir_name]
+                if dirnode.get_readonly_uri() != self._upload_readonly_dircap:
+                    d2.addCallback(lambda ign, dir_name=dir_name: self._scan_remote(dir_name, dirnode))
+                    def _err(f):
+                        self._log("failed to scan DMD for client %r: %s" % (dir_name, f))
+                        # XXX what should we do to make this failure more visible to users?
+                    d2.addErrback(_err)
+            return d2
+        d.addCallback(scan_collective)
+        d.addCallback(self._filter_scan_batch)
+        d.addCallback(self._add_batch_to_download_queue)
+        return d
 
     def _add_batch_to_download_queue(self, result):
         self._log("result = %r" % (result,))
