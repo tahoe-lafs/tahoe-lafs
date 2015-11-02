@@ -123,6 +123,7 @@ class QueueMixin(HookMixin):
         self._turn_delay = 0
 
     def _get_filepath(self, relpath_u):
+        self._log("_get_filepath(%r)" % (relpath_u,))
         return extend_filepath(self._local_filepath, relpath_u.split(u"/"))
 
     def _get_relpath(self, filepath):
@@ -299,6 +300,7 @@ class Uploader(QueueMixin):
         if relpath_u is None:
             return
         precondition(isinstance(relpath_u, unicode), relpath_u)
+        precondition(not relpath_u.endswith(u'/'), relpath_u)
 
         d = defer.succeed(None)
 
@@ -357,7 +359,7 @@ class Uploader(QueueMixin):
                     self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
 
                 uploadable = Data("", self._client.convergence)
-                _assert(encoded_path_u.endswith(magicpath.path2magic(u"/")))
+                encoded_path_u += magicpath.path2magic(u"/")
                 self._log("encoded_path_u =  %r" % (encoded_path_u,))
                 upload_d = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata={"version":0}, overwrite=True)
                 def _succeeded(ign):
