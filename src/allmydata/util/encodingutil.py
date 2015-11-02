@@ -274,10 +274,17 @@ def extend_filepath(fp, segments):
         return fp
 
 def to_filepath(path):
-    precondition(isinstance(path, basestring), path=path)
+    precondition(isinstance(path, unicode if use_unicode_filepath else basestring),
+                 path=path)
 
     if isinstance(path, unicode) and not use_unicode_filepath:
         path = path.encode(filesystem_encoding)
+
+    if sys.platform == "win32":
+        _assert(isinstance(path, unicode), path=path)
+        if path.startswith(u"\\\\?\\") and len(path) > 4:
+            # FilePath normally strips trailing path separators, but not in this case.
+            path = path.rstrip(u"\\")
 
     return FilePath(path)
 
