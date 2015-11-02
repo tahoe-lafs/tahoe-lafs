@@ -28,4 +28,5 @@ notifications:
 matrix:
   allow_failures:
     - python: "pypy"
+    - python: "2.6"
   fast_finish: true
