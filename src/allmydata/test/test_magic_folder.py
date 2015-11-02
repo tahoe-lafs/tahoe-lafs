@@ -451,7 +451,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
                 1
             )
 
-            print("BOB DELETE")
             # now bob deletes it (bob should upload, alice download)
             bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
             alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
