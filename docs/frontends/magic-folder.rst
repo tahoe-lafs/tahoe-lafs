@@ -88,7 +88,7 @@ page and the node log_ may be helpful to determine the cause of any failures.
 Known Issues and Limitations
 ============================
 
-This frontend only works on Linux and Windows. There is a ticket to add
+This feature only works on Linux and Windows. There is a ticket to add
 support for Mac OS X and BSD-based systems (`#1432`_).
 
 The only way to determine whether uploads have failed is to look at the
@@ -123,11 +123,10 @@ The ``private/magic_folder_dircap`` and ``private/collective_dircap`` files
 cannot use an alias or path to specify the upload directory. (`#1711`_)
 
 If a file in the upload directory is changed (actually relinked to a new
-file), then the old file is still present on the grid, and any other caps to
-it will remain valid. See `docs/garbage-collection.rst`_ for how to reclaim
-the space used by files that are no longer needed. Garbage collection is
-not included as part of the OTF Magic-Folder grant... however we've documented
-this feature here `#2440`_
+file), then the old file is still present on the grid, and any other caps
+to it will remain valid. Eventually it will be possible to use
+`garbage collection`_ to reclaim the space used by these files; however
+currently they are retained indefinitely. (`#2440`_)
 
 Unicode filenames are supported on both Linux and Windows, but on Linux, the
 local name of a file must be encoded correctly in order for it to be uploaded.
@@ -149,5 +148,5 @@ On Windows, when a node has Magic Folder enabled, it is unresponsive to Ctrl-C
 .. _`#2219`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2219
 .. _`#2440`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2440
 
-.. _docs/garbage-collection.rst: ../garbage-collection.rst
+.. _`garbage collection`: ../garbage-collection.rst
 .. _`Magic-Folder CLI design documentation`: ../proposed/magic-folder/user-interface-design.rst
