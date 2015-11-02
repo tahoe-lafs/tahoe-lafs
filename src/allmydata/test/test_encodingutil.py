@@ -447,13 +447,14 @@ class QuotePaths(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(quote_filepath(foo_bar_fp, quotemarks=False),
                                    win32_other("C:\\foo\\bar", "/foo/bar"))
 
-        foo_longfp = FilePath(u'\\\\?\\C:\\foo')
-        self.failUnlessReallyEqual(quote_filepath(foo_longfp),
-                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
-        self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=True),
-                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
-        self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=False),
-                                   win32_other("C:\\foo", "\\\\?\\C:\\foo"))
+        if sys.platform == "win32":
+            foo_longfp = FilePath(u'\\\\?\\C:\\foo')
+            self.failUnlessReallyEqual(quote_filepath(foo_longfp),
+                                       "'C:\\foo'")
+            self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=True),
+                                       "'C:\\foo'")
+            self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=False),
+                                       "C:\\foo")
 
 
 class FilePaths(ReallyEqualMixin, unittest.TestCase):
@@ -465,7 +466,8 @@ class FilePaths(ReallyEqualMixin, unittest.TestCase):
 
         for fp in (nosep_fp, sep_fp):
             self.failUnlessReallyEqual(fp, FilePath(foo_u))
-            self.failUnlessReallyEqual(fp.path, foo_u)
+            if encodingutil.use_unicode_filepath:
+                self.failUnlessReallyEqual(fp.path, foo_u)
 
         if sys.platform == "win32":
             long_u = u'\\\\?\\C:\\foo'
@@ -481,7 +483,8 @@ class FilePaths(ReallyEqualMixin, unittest.TestCase):
         for foo_fp in (foo_bfp, foo_ufp):
             fp = extend_filepath(foo_fp, [u'bar', u'baz'])
             self.failUnlessReallyEqual(fp, FilePath(foo_bar_baz_u))
-            self.failUnlessReallyEqual(fp.path, foo_bar_baz_u)
+            if encodingutil.use_unicode_filepath:
+                self.failUnlessReallyEqual(fp.path, foo_bar_baz_u)
 
     def test_unicode_from_filepath(self):
         foo_bfp = FilePath(win32_other(b'C:\\foo', b'/foo'))
