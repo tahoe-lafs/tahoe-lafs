@@ -400,13 +400,13 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check(u"\n",       u"\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_default(self):
-        encodingutil.io_encoding = 'ascii'
+        self.patch(encodingutil, 'io_encoding', 'ascii')
         self.test_quote_output_ascii(None)
 
-        encodingutil.io_encoding = 'latin1'
+        self.patch(encodingutil, 'io_encoding', 'latin1')
         self.test_quote_output_latin1(None)
 
-        encodingutil.io_encoding = 'utf-8'
+        self.patch(encodingutil, 'io_encoding', 'utf-8')
         self.test_quote_output_utf8(None)
 
 
