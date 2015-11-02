@@ -488,8 +488,7 @@ class WriteFileMixin(object):
         self._log('renaming deleted file to backup: %s' % (abspath_u,))
         try:
             fileutil.rename_no_overwrite(abspath_u, abspath_u + u'.backup')
-        except IOError:
-            # XXX is this the correct error?
+        except OSError:
             self._log("Already gone: '%s'" % (abspath_u,))
         return abspath_u
 
