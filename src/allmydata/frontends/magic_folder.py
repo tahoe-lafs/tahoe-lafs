@@ -123,6 +123,7 @@ class QueueMixin(HookMixin):
         self._turn_delay = 0
 
     def _get_filepath(self, relpath_u):
+        self._log("_get_filepath(%r)" % (relpath_u,))
         return extend_filepath(self._local_filepath, relpath_u.split(u"/"))
 
     def _get_relpath(self, filepath):
@@ -358,6 +359,7 @@ class Uploader(QueueMixin):
 
                 uploadable = Data("", self._client.convergence)
                 encoded_path_u += magicpath.path2magic(u"/")
+                self._log("encoded_path_u =  %r" % (encoded_path_u,))
                 upload_d = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata={"version":0}, overwrite=True)
                 def _succeeded(ign):
                     self._log("created subdirectory %r" % (relpath_u,))
@@ -521,6 +523,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._log("all files %s" % files)
 
         d = self._scan_remote_collective()
+        d.addBoth(self._logcb, "after _scan_remote_collective 0")
         self._turn_deque()
         return d
 
@@ -659,7 +662,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def _when_queue_is_empty(self):
         d = task.deferLater(self._clock, self._turn_delay, self._scan_remote_collective)
-        d.addBoth(self._logcb, "after _scan_remote_collective")
+        d.addBoth(self._logcb, "after _scan_remote_collective 1")
         d.addCallback(lambda ign: self._turn_deque())
         return d
 
