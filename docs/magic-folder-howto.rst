@@ -2,10 +2,30 @@
 Magic Folder Set-up Howto
 =========================
 
-1.  `Preparation`_
-2.  `Setting up a local test grid`_
-3.  `Setting up Magic Folder`_
-4.  `Testing`_
+1.  `This document`_
+2.  `Preparation`_
+3.  `Setting up a local test grid`_
+4.  `Setting up Magic Folder`_
+5.  `Testing`_
+
+
+This document
+=============
+
+This is preliminary documentation of how to set up the
+Magic Folder pre-release using a test grid on a single Linux
+or Windows machine, with two clients and one server. It is
+aimed at a fairly technical audience.
+
+For an introduction to Magic Folder and how to configure it
+more generally, see `docs/frontends/magic-folder.rst`_.
+
+It it possible to adapt these instructions to run the nodes on
+different machines, to synchronize between three or more clients,
+to mix Windows and Linux clients, and to use multiple servers
+(if the Tahoe-LAFS encoding parameters are changed).
+
+.. _`docs/frontends/magic-folder.rst`: ../docs/frontends/magic-folder.rst
 
 
 Preparation
@@ -114,7 +134,7 @@ Both Linux and Windows
 (Replace ``/`` with ``\`` for Windows paths.)
 
 Edit ``../grid/alice/tahoe.cfg``, and make the following
-changes to the [node] and [client] sections::
+changes to the ``[node]`` and ``[client]`` sections::
 
   [node]
   nickname = alice
@@ -202,14 +222,10 @@ Note that when a file is deleted, the corresponding file in the
 other directory will be renamed to a filename ending in ``.backup``.
 Deleting a directory will have no effect.
 
-Subdirectories do not currently work on Windows.
-
 For other known issues and limitations, see
 https://github.com/tahoe-lafs/tahoe-lafs/blob/2438.magic-folder-stable.5/docs/frontends/magic-folder.rst#known-issues-and-limitations
 
-For simplicity, this Howto covers only using Magic Folder using a
-test grid on a single machine, with two clients and one server.
-It should also be possible to run the nodes on different machines,
-to synchronize between three or more clients, to mix Windows and
-Linux clients, and to use multiple servers (if the Tahoe-LAFS
-encoding parameters are changed).
+As mentioned earlier, it is also possible to run the nodes on
+different machines, to synchronize between three or more clients,
+to mix Windows and Linux clients, and to use multiple servers
+(if the Tahoe-LAFS encoding parameters are changed).
