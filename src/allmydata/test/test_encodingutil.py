@@ -447,6 +447,14 @@ class QuotePaths(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(quote_filepath(foo_bar_fp, quotemarks=False),
                                    win32_other("C:\\foo\\bar", "/foo/bar"))
 
+        foo_longfp = FilePath(u'\\\\?\\C:\\foo')
+        self.failUnlessReallyEqual(quote_filepath(foo_longfp),
+                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
+        self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=True),
+                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
+        self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=False),
+                                   win32_other("C:\\foo", "\\\\?\\C:\\foo"))
+
 
 class FilePaths(ReallyEqualMixin, unittest.TestCase):
     def test_to_filepath(self):
