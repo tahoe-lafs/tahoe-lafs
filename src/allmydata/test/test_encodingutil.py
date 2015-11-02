@@ -61,12 +61,15 @@ import os, sys, locale
 
 from twisted.trial import unittest
 
+from twisted.python.filepath import FilePath
+
 from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.util import encodingutil, fileutil
 from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
-    unicode_platform, listdir_unicode, FilenameEncodingError, get_io_encoding, \
-    get_filesystem_encoding, to_str, from_utf8_or_none, _reload
+    quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
+    get_io_encoding, get_filesystem_encoding, to_str, from_utf8_or_none, _reload, \
+    to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from
 from allmydata.dirnode import normalize
 
 from twisted.python import usage
@@ -410,6 +413,9 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         self.test_quote_output_utf8(None)
 
 
+def win32_other(win32, other):
+    return win32 if sys.platform == "win32" else other
+
 class QuotePaths(ReallyEqualMixin, unittest.TestCase):
     def test_quote_path(self):
         self.failUnlessReallyEqual(quote_path([u'foo', u'bar']), "'foo/bar'")
@@ -418,9 +424,6 @@ class QuotePaths(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar']), '"foo/\\x0abar"')
         self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=True), '"foo/\\x0abar"')
         self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=False), '"foo/\\x0abar"')
-
-        def win32_other(win32, other):
-            return win32 if sys.platform == "win32" else other
 
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo"),
                                    win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
@@ -434,6 +437,62 @@ class QuotePaths(ReallyEqualMixin, unittest.TestCase):
                                    win32_other("'\\\\foo\\bar'", "'\\\\?\\UNC\\foo\\bar'"))
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=False),
                                    win32_other("\\\\foo\\bar", "\\\\?\\UNC\\foo\\bar"))
+
+    def test_quote_filepath(self):
+        foo_bar_fp = FilePath(win32_other(u'C:\\foo\\bar', u'/foo/bar'))
+        self.failUnlessReallyEqual(quote_filepath(foo_bar_fp),
+                                   win32_other("'C:\\foo\\bar'", "'/foo/bar'"))
+        self.failUnlessReallyEqual(quote_filepath(foo_bar_fp, quotemarks=True),
+                                   win32_other("'C:\\foo\\bar'", "'/foo/bar'"))
+        self.failUnlessReallyEqual(quote_filepath(foo_bar_fp, quotemarks=False),
+                                   win32_other("C:\\foo\\bar", "/foo/bar"))
+
+
+class FilePaths(ReallyEqualMixin, unittest.TestCase):
+    def test_to_filepath(self):
+        foo_u = win32_other(u'C:\\foo', u'/foo')
+
+        nosep_fp = to_filepath(foo_u)
+        sep_fp = to_filepath(foo_u + os.path.sep)
+
+        for fp in (nosep_fp, sep_fp):
+            self.failUnlessReallyEqual(fp, FilePath(foo_u))
+            self.failUnlessReallyEqual(fp.path, foo_u)
+
+        if sys.platform == "win32":
+            long_u = u'\\\\?\\C:\\foo'
+            longfp = to_filepath(long_u + u'\\')
+            self.failUnlessReallyEqual(longfp, FilePath(long_u))
+            self.failUnlessReallyEqual(longfp.path, long_u)
+
+    def test_extend_filepath(self):
+        foo_bfp = FilePath(win32_other(b'C:\\foo', b'/foo'))
+        foo_ufp = FilePath(win32_other(u'C:\\foo', u'/foo'))
+        foo_bar_baz_u = win32_other(u'C:\\foo\\bar\\baz', u'/foo/bar/baz')
+
+        for foo_fp in (foo_bfp, foo_ufp):
+            fp = extend_filepath(foo_fp, [u'bar', u'baz'])
+            self.failUnlessReallyEqual(fp, FilePath(foo_bar_baz_u))
+            self.failUnlessReallyEqual(fp.path, foo_bar_baz_u)
+
+    def test_unicode_from_filepath(self):
+        foo_bfp = FilePath(win32_other(b'C:\\foo', b'/foo'))
+        foo_ufp = FilePath(win32_other(u'C:\\foo', u'/foo'))
+        foo_u = win32_other(u'C:\\foo', u'/foo')
+
+        for foo_fp in (foo_bfp, foo_ufp):
+            self.failUnlessReallyEqual(unicode_from_filepath(foo_fp), foo_u)
+
+    def test_unicode_segments_from(self):
+        foo_bfp = FilePath(win32_other(b'C:\\foo', b'/foo'))
+        foo_ufp = FilePath(win32_other(u'C:\\foo', u'/foo'))
+        foo_bar_baz_bfp = FilePath(win32_other(b'C:\\foo\\bar\\baz', b'/foo/bar/baz'))
+        foo_bar_baz_ufp = FilePath(win32_other(u'C:\\foo\\bar\\baz', u'/foo/bar/baz'))
+
+        for foo_fp in (foo_bfp, foo_ufp):
+            for foo_bar_baz_fp in (foo_bar_baz_bfp, foo_bar_baz_ufp):
+                self.failUnlessReallyEqual(unicode_segments_from(foo_bar_baz_fp, foo_fp),
+                                           [u'bar', u'baz'])
 
 
 class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
