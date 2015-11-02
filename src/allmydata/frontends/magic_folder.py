@@ -357,7 +357,9 @@ class Uploader(QueueMixin):
                     self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
 
                 uploadable = Data("", self._client.convergence)
-                _assert(encoded_path_u.endswith(magicpath.path2magic(u"/")))
+                encoded_slash_u = magicpath.path2magic(u"/")
+                if not encoded_path_u.endswith(encoded_slash_u):
+                    encoded_path_u += encoded_slash_u
                 self._log("encoded_path_u =  %r" % (encoded_path_u,))
                 upload_d = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata={"version":0}, overwrite=True)
                 def _succeeded(ign):
