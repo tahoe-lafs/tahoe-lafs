@@ -112,7 +112,9 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
     def init_magicfolder(self, client_num, upload_dircap, collective_dircap, local_magic_dir, clock):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.get_clientdir(i=client_num))
         magicfolder = MagicFolder(self.get_client(client_num), upload_dircap, collective_dircap, local_magic_dir,
-                                       dbfile, pending_delay=0.2, clock=clock)
+                                  dbfile, pending_delay=0.2, clock=clock)
+
+        magicfolder.uploader._advance_clock = lambda: clock.advance(0)
 
         magicfolder.setServiceParent(self.get_client(client_num))
         magicfolder.ready()

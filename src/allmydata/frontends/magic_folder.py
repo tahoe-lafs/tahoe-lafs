@@ -51,7 +51,6 @@ class MagicFolder(service.MultiService):
 
         service.MultiService.__init__(self)
 
-        immediate = clock is not None
         clock = clock or reactor
         db = magicfolderdb.get_magicfolderdb(dbfile, create_version=(magicfolderdb.SCHEMA_v1, 1))
         if db is None:
@@ -64,7 +63,7 @@ class MagicFolder(service.MultiService):
         upload_dirnode = self._client.create_node_from_uri(upload_dircap)
         collective_dirnode = self._client.create_node_from_uri(collective_dircap)
 
-        self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock, immediate)
+        self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock)
         self.downloader = Downloader(client, local_path_u, db, collective_dirnode, upload_dirnode.get_readonly_uri(), clock)
 
     def startService(self):
@@ -165,12 +164,11 @@ class QueueMixin(HookMixin):
 
 
 class Uploader(QueueMixin):
-    def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock,
-                 immediate=False):
+    def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
         QueueMixin.__init__(self, client, local_path_u, db, 'uploader', 0, clock)
 
         self.is_ready = False
-        self._immediate = immediate
+        self._advance_clock = lambda: None
 
         if not IDirectoryNode.providedBy(upload_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
@@ -282,15 +280,10 @@ class Uploader(QueueMixin):
             self._deque.append(relpath_u)
             self._count('objects_queued')
             if self.is_ready:
-                if self._immediate:  # for tests
-                    self._turn_deque()
-                else:
-                    self._clock.callLater(0, self._turn_deque)
+                self._clock.callLater(0, self._turn_deque)
+                self._advance_clock()
 
-        if self._immediate:
-            _do_append()
-        else:
-            self._clock.callLater(self._pending_delay, _do_append)
+        self._clock.callLater(self._pending_delay, _do_append)
 
     def _when_queue_is_empty(self):
         return defer.succeed(None)
