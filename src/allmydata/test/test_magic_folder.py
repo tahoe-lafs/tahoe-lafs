@@ -339,7 +339,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             alice_clock.advance(0)
             yield alice_proc  # alice uploads
 
-            bob_clock.advance(0)
+            bob_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield bob_proc    # bob downloads
 
             # check the state
@@ -365,7 +365,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
             bob_clock.advance(0)
             yield bob_proc
-            alice_clock.advance(0)
+            alice_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield alice_proc
 
             # check versions
@@ -385,7 +385,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
             alice_clock.advance(0)
             yield alice_proc
-            bob_clock.advance(0)
+            bob_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield bob_proc
 
             # check versions
@@ -403,7 +403,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             yield d0
 
             d1 = self.bob_magicfolder.finish()
-            bob_clock.advance(0)
+            bob_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield d1
 
     @defer.inlineCallbacks
@@ -427,7 +427,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             alice_clock.advance(0)
             yield alice_proc  # alice uploads
 
-            bob_clock.advance(0)
+            bob_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield bob_proc    # bob downloads
 
             # check the state
@@ -452,7 +452,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
             bob_clock.advance(0)
             yield bob_proc
-            alice_clock.advance(0)
+            alice_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield alice_proc
 
             # check the state
@@ -464,11 +464,11 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         finally:
             # cleanup
             d0 = self.alice_magicfolder.finish()
-            alice_clock.advance(0)
+            alice_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield d0
 
             d1 = self.bob_magicfolder.finish()
-            bob_clock.advance(0)
+            bob_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield d1
 
     @defer.inlineCallbacks
@@ -492,7 +492,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             alice_clock.advance(0)
             yield alice_proc  # alice uploads
 
-            bob_clock.advance(0)
+            bob_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield bob_proc    # bob downloads
 
             # check the state
@@ -518,7 +518,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
             alice_clock.advance(0)
             yield alice_proc
-            bob_clock.advance(0)
+            bob_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield bob_proc
 
             # check the state
@@ -536,7 +536,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
             alice_clock.advance(0)
             yield alice_proc
-            bob_clock.advance(0)
+            bob_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield bob_proc
 
             # check the state
@@ -549,11 +549,11 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         finally:
             # cleanup
             d0 = self.alice_magicfolder.finish()
-            alice_clock.advance(0)
+            alice_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield d0
 
             d1 = self.bob_magicfolder.finish()
-            bob_clock.advance(0)
+            bob_clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             yield d1
 
     def test_magic_folder(self):
@@ -677,14 +677,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         bob_clock = task.Clock()
         d = self.setup_alice_and_bob(alice_clock, bob_clock)
 
-        def _wait_for_Alice(ign, downloaded_d):
-            print "Now waiting for Alice to download\n"
-            alice_clock.advance(0)
-            return downloaded_d
-
-        def _wait_for_Bob(ign, downloaded_d):
-            print "Now waiting for Bob to download\n"
-            bob_clock.advance(0)
+        def _wait_for_download(ign, name, clock, downloaded_d):
+            print "Now waiting for %s to download\n" % (name,)
+            clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
             return downloaded_d
 
         def _wait_for(ign, something_to_do, alice=True):
@@ -698,11 +693,11 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             if alice:
                 print "Waiting for Alice to upload\n"
                 alice_clock.advance(0)
-                uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
+                uploaded_d.addCallback(_wait_for_download, 'Bob', bob_clock, downloaded_d)
             else:
                 print "Waiting for Bob to upload\n"
                 bob_clock.advance(0)
-                uploaded_d.addCallback(_wait_for_Alice, downloaded_d)
+                uploaded_d.addCallback(_wait_for_download, 'Alice', alice_clock, downloaded_d)
             return uploaded_d
 
         def Alice_to_write_a_file():
@@ -850,7 +845,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         def _cleanup(ign, magicfolder, clock):
             if magicfolder is not None:
                 d2 = magicfolder.finish()
-                clock.advance(0)
+                clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
                 return d2
 
         def cleanup_Alice_and_Bob(result):
