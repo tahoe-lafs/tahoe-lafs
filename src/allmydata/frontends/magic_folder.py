@@ -193,7 +193,7 @@ class Uploader(QueueMixin):
         if hasattr(self._notifier, 'set_pending_delay'):
             self._notifier.set_pending_delay(pending_delay)
 
-        # TODO: what about IN_MOVE_SELF, IN_MOVED_FROM, or IN_UNMOUNT?
+        # TODO: what about IN_MOVE_SELF and IN_UNMOUNT?
         #
         self.mask = ( self._inotify.IN_CREATE
                     | self._inotify.IN_CLOSE_WRITE
@@ -293,6 +293,7 @@ class Uploader(QueueMixin):
         return defer.succeed(None)
 
     def _process(self, relpath_u):
+        # Uploader
         self._log("_process(%r)" % (relpath_u,))
         if relpath_u is None:
             return
@@ -307,7 +308,8 @@ class Uploader(QueueMixin):
             fp = self._get_filepath(relpath_u)
             pathinfo = get_pathinfo(unicode_from_filepath(fp))
 
-            self._log("pending = %r, about to remove %r" % (self._pending, relpath_u))
+            self._log("about to remove %r from pending set %r" %
+                      (relpath_u, self._pending))
             self._pending.remove(relpath_u)
             encoded_path_u = magicpath.path2magic(relpath_u)
 
@@ -662,6 +664,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         return d
 
     def _process(self, item, now=None):
+        # Downloader
         self._log("_process(%r)" % (item,))
         if now is None:
             now = time.time()
@@ -669,6 +672,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         fp = self._get_filepath(relpath_u)
         abspath_u = unicode_from_filepath(fp)
         conflict_path_u = self._get_conflicted_filename(abspath_u)
+
         d = defer.succeed(None)
 
         def do_update_db(written_abspath_u):
