@@ -656,9 +656,10 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         return d
 
     def _check_version_in_local_db(self, magicfolder, relpath_u, expected_version):
-        version = magicfolder._db.get_local_file_version(relpath_u)
-        #print "_check_version_in_local_db: %r has version %s" % (relpath_u, version)
-        self.failUnlessEqual(version, expected_version)
+        db_entry = magicfolder._db.get_db_entry(relpath_u)
+        if db_entry is not None:
+            #print "_check_version_in_local_db: %r has version %s" % (relpath_u, version)
+            self.failUnlessEqual(db_entry.version, expected_version)
 
     def _check_file_gone(self, magicfolder, relpath_u):
         path = os.path.join(magicfolder.uploader._local_path_u, relpath_u)
