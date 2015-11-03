@@ -630,9 +630,9 @@ class Downloader(QueueMixin, WriteFileMixin):
             for dir_name in dirmap:
                 (dirnode, metadata) = dirmap[dir_name]
                 if dirnode.get_readonly_uri() != self._upload_readonly_dircap:
-                    d2.addCallback(lambda ign, dir_name=dir_name:
+                    d2.addCallback(lambda ign, dir_name=dir_name, dirnode=dirnode:
                                    self._scan_remote_dmd(dir_name, dirnode, scan_batch))
-                    def _err(f):
+                    def _err(f, dir_name=dir_name):
                         self._log("failed to scan DMD for client %r: %s" % (dir_name, f))
                         # XXX what should we do to make this failure more visible to users?
                     d2.addErrback(_err)
