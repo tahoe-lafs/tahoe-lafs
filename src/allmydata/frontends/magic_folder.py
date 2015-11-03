@@ -143,16 +143,6 @@ class QueueMixin(HookMixin):
         print s
         #open("events", "ab+").write(msg)
 
-    def _append_to_deque(self, relpath_u):
-        self._log("_append_to_deque(%r)" % (relpath_u,))
-        if relpath_u in self._pending or magicpath.should_ignore_file(relpath_u):
-            return
-        self._deque.append(relpath_u)
-        self._pending.add(relpath_u)
-        self._count('objects_queued')
-        if self.is_ready:
-            self._clock.callLater(0, self._turn_deque)
-
     def _turn_deque(self):
         self._log("_turn_deque")
         if self._stopped:
@@ -273,6 +263,7 @@ class Uploader(QueueMixin):
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
+        relpath_u = self._get_relpath(path)
 
         # We filter out IN_CREATE events not associated with a directory.
         # Acting on IN_CREATE for files could cause us to read and upload
@@ -283,11 +274,21 @@ class Uploader(QueueMixin):
 
         if ((events_mask & self._inotify.IN_CREATE) != 0 and
             (events_mask & self._inotify.IN_ISDIR) == 0):
-            self._log("ignoring inotify event for creation of file %r\n" % (path,))
+            self._log("ignoring event for %r (creation of non-directory)\n" % (relpath_u,))
+            return
+        if relpath_u in self._pending:
+            self._log("ignoring event for %r (already pending)" % (relpath_u,))
+            return
+        if magicpath.should_ignore_file(relpath_u):
+            self._log("ignoring event for %r (ignorable path)" % (relpath_u,))
             return
 
-        relpath_u = self._get_relpath(path)
-        self._append_to_deque(relpath_u)
+        self._log("appending %r to deque" % (relpath_u,))
+        self._deque.append(relpath_u)
+        self._pending.add(relpath_u)
+        self._count('objects_queued')
+        if self.is_ready:
+            self._clock.callLater(0, self._turn_deque)
 
     def _when_queue_is_empty(self):
         return defer.succeed(None)
