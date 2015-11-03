@@ -96,12 +96,13 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(HookMixin):
-    def __init__(self, client, local_path_u, db, name, clock):
+    def __init__(self, client, local_path_u, db, name, turn_delay, clock):
         self._client = client
         self._local_path_u = local_path_u
         self._local_filepath = to_filepath(local_path_u)
         self._db = db
         self._name = name
+        self._turn_delay = turn_delay
         self._clock = clock
         self._hooks = {'processed': None, 'started': None}
         self.started_d = self.set_hook('started')
@@ -118,7 +119,6 @@ class QueueMixin(HookMixin):
         self._deque = deque()
         self._lazy_tail = defer.succeed(None)
         self._stopped = False
-        self._turn_delay = 0
 
     def _get_filepath(self, relpath_u):
         self._log("_get_filepath(%r)" % (relpath_u,))
@@ -167,7 +167,7 @@ class QueueMixin(HookMixin):
 class Uploader(QueueMixin):
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock,
                  immediate=False):
-        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock)
+        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', 0, clock)
 
         self.is_ready = False
         self._immediate = immediate
@@ -502,7 +502,8 @@ class Downloader(QueueMixin, WriteFileMixin):
     REMOTE_SCAN_INTERVAL = 3  # facilitates tests
 
     def __init__(self, client, local_path_u, db, collective_dirnode, upload_readonly_dircap, clock):
-        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
+        QueueMixin.__init__(self, client, local_path_u, db, 'downloader',
+                            self.REMOTE_SCAN_INTERVAL, clock)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
@@ -513,8 +514,6 @@ class Downloader(QueueMixin, WriteFileMixin):
 
         self._collective_dirnode = collective_dirnode
         self._upload_readonly_dircap = upload_readonly_dircap
-
-        self._turn_delay = self.REMOTE_SCAN_INTERVAL
 
     def start_scanning(self):
         self._log("start_scanning")
