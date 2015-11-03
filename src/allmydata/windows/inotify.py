@@ -199,12 +199,7 @@ class INotify(PollMixin):
         self._callbacks = None
         self._hDirectory = None
         self._path = None
-        self._pending = set()
-        self._pending_delay = 1.0
         self.recursive_includes_new_subdirectories = True
-
-    def set_pending_delay(self, delay):
-        self._pending_delay = delay
 
     def startReading(self):
         deferToThread(self._thread)
@@ -265,20 +260,16 @@ class INotify(PollMixin):
                         return
 
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
-                    #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
+                    mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
-                    def _maybe_notify(path):
-                        if path not in self._pending:
-                            self._pending.add(path)
-                            def _do_callbacks():
-                                self._pending.remove(path)
-                                for cb in self._callbacks:
-                                    try:
-                                        cb(None, path, IN_CHANGED)
-                                    except Exception, e:
-                                        log.err(e)
-                            reactor.callLater(self._pending_delay, _do_callbacks)
-                    reactor.callFromThread(_maybe_notify, path)
+                    def _notify(path):
+                        for cb in self._callbacks:
+                            try:
+                                cb(None, path, mask)
+                            except Exception, e:
+                                log.err(e)
+
+                    reactor.callFromThread(_notify, path)
         except Exception, e:
             log.err(e)
             self._state = STOPPED
