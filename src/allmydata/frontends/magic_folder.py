@@ -46,11 +46,13 @@ class MagicFolder(service.MultiService):
     name = 'magic-folder'
 
     def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile,
-                 pending_delay=1.0, clock=reactor):
+                 pending_delay=1.0, clock=None):
         precondition_abspath(local_path_u)
 
         service.MultiService.__init__(self)
 
+        immediate = clock is not None
+        clock = clock or reactor
         db = magicfolderdb.get_magicfolderdb(dbfile, create_version=(magicfolderdb.SCHEMA_v1, 1))
         if db is None:
             return Failure(Exception('ERROR: Unable to load magic folder db.'))
@@ -62,7 +64,7 @@ class MagicFolder(service.MultiService):
         upload_dirnode = self._client.create_node_from_uri(upload_dircap)
         collective_dirnode = self._client.create_node_from_uri(collective_dircap)
 
-        self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock)
+        self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock, immediate)
         self.downloader = Downloader(client, local_path_u, db, collective_dirnode, upload_dirnode.get_readonly_uri(), clock)
 
     def startService(self):
@@ -163,10 +165,12 @@ class QueueMixin(HookMixin):
 
 
 class Uploader(QueueMixin):
-    def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
+    def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock,
+                 immediate=False):
         QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock)
 
         self.is_ready = False
+        self._immediate = immediate
 
         if not IDirectoryNode.providedBy(upload_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
@@ -288,7 +292,10 @@ class Uploader(QueueMixin):
         self._pending.add(relpath_u)
         self._count('objects_queued')
         if self.is_ready:
-            self._clock.callLater(0, self._turn_deque)
+            if self._immediate:  # for tests
+                self._turn_deque()
+            else:
+                self._clock.callLater(0, self._turn_deque)
 
     def _when_queue_is_empty(self):
         return defer.succeed(None)
