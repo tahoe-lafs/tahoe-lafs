@@ -262,7 +262,7 @@ class INotify(PollMixin):
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
                     mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
-                    def _notify(path):
+                    def _notify(path, mask=mask):
                         for cb in self._callbacks:
                             try:
                                 cb(None, path, mask)
