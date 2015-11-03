@@ -65,7 +65,8 @@ class MagicFolder(service.MultiService):
         collective_dirnode = self._client.create_node_from_uri(collective_dircap)
 
         self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock, immediate)
-        self.downloader = Downloader(client, local_path_u, db, collective_dirnode, upload_dirnode.get_readonly_uri(), clock)
+        self.downloader = Downloader(client, local_path_u, db, collective_dirnode,
+                                     upload_dirnode.get_readonly_uri(), clock, self.uploader.is_pending)
 
     def startService(self):
         # TODO: why is this being called more than once?
@@ -264,6 +265,9 @@ class Uploader(QueueMixin):
             d.addErrback(log.err)
 
         return d
+
+    def is_pending(relpath_u):
+        return relpath_u in self._pending
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
@@ -509,7 +513,8 @@ class WriteFileMixin(object):
 class Downloader(QueueMixin, WriteFileMixin):
     REMOTE_SCAN_INTERVAL = 3  # facilitates tests
 
-    def __init__(self, client, local_path_u, db, collective_dirnode, upload_readonly_dircap, clock):
+    def __init__(self, client, local_path_u, db, collective_dirnode,
+                 upload_readonly_dircap, clock, is_upload_pending):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
@@ -521,6 +526,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
         self._collective_dirnode = collective_dirnode
         self._upload_readonly_dircap = upload_readonly_dircap
+        self._is_upload_pending = is_upload_pending
 
         self._turn_delay = self.REMOTE_SCAN_INTERVAL
 
@@ -714,6 +720,12 @@ class Downloader(QueueMixin, WriteFileMixin):
                         if dmd_last_uploaded_uri != local_last_uploaded_uri:
                             is_conflict = True
                             self._count('objects_conflicted')
+                        else:
+                            # XXX todo: mark as conflict if file is in pending upload set
+                            if self._is_upload_pending(relpath_u):
+                                is_conflict = True
+                                self._count('objects_conflicted')
+
             if relpath_u.endswith(u"/"):
                 if metadata.get('deleted', False):
                     self._log("rmdir(%r) ignored" % (abspath_u,))
