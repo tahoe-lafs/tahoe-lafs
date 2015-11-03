@@ -115,7 +115,6 @@ class QueueMixin(HookMixin):
 
         self._deque = deque()
         self._lazy_tail = defer.succeed(None)
-        self._pending = set()
         self._stopped = False
         self._turn_delay = 0
 
@@ -189,6 +188,7 @@ class Uploader(QueueMixin):
         self._upload_dirnode = upload_dirnode
         self._inotify = get_inotify_module()
         self._notifier = self._inotify.INotify()
+        self._pending = set()
 
         if hasattr(self._notifier, 'set_pending_delay'):
             self._notifier.set_pending_delay(pending_delay)
@@ -639,9 +639,6 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._deque.extend(result)
         self._log("deque after = %r" % (self._deque,))
         self._count('objects_queued', len(result))
-        self._log("pending = %r" % (self._pending,))
-        self._pending.update(map(lambda x: x[0], result))
-        self._log("pending after = %r" % (self._pending,))
 
     def _filter_scan_batch(self, result):
         self._log("_filter_scan_batch")
@@ -728,10 +725,6 @@ class Downloader(QueueMixin, WriteFileMixin):
 
         d.addCallbacks(do_update_db, failed)
 
-        def remove_from_pending(res):
-            self._pending.remove(relpath_u)
-            return res
-        d.addBoth(remove_from_pending)
         def trap_conflicts(f):
             f.trap(ConflictError)
             return None
