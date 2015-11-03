@@ -59,8 +59,6 @@ class MagicFolder(service.MultiService):
         self._client = client
         self._db = db
 
-        self.is_ready = False
-
         upload_dirnode = self._client.create_node_from_uri(upload_dircap)
         collective_dirnode = self._client.create_node_from_uri(collective_dircap)
 
@@ -79,7 +77,6 @@ class MagicFolder(service.MultiService):
         """ready is used to signal us to start
         processing the upload and download items...
         """
-        self.is_ready = True
         d = self.uploader.start_scanning()
         d2 = self.downloader.start_scanning()
         d.addCallback(lambda ign: d2)
