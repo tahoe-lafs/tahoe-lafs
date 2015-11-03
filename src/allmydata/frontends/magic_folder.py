@@ -228,9 +228,10 @@ class Uploader(QueueMixin):
         self._log("all_files %r" % (all_relpaths,))
         for relpath_u in all_relpaths:
             fp = self._get_filepath(relpath_u)
-            self._notify(None, fp, IN_CHANGED)
+            self._notify(None, fp, self._inotify.IN_CHANGED)
 
         self._scan(u"")
+        self._advance_clock()
 
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._turn_deque())
@@ -250,7 +251,7 @@ class Uploader(QueueMixin):
             relpath_u = ("%s/%s" % (reldir_u, child)) if reldir_u else child
             if not magicpath.should_ignore_file(relpath_u):
                 child_fp = self._get_filepath(relpath_u)
-                self._notify(None, child_fp, IN_CHANGED)
+                self._notify(None, child_fp, self._inotify.IN_CHANGED)
 
     def _notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
