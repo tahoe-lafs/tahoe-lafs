@@ -266,7 +266,7 @@ class Uploader(QueueMixin):
 
         return d
 
-    def is_pending(relpath_u):
+    def is_pending(self, relpath_u):
         return relpath_u in self._pending
 
     def _notify(self, opaque, path, events_mask):
@@ -713,18 +713,18 @@ class Downloader(QueueMixin, WriteFileMixin):
                     if dmd_last_downloaded_uri != local_last_downloaded_uri:
                         is_conflict = True
                         self._count('objects_conflicted')
+                else:
+                    dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
+                    local_last_uploaded_uri = self._db.get_last_uploaded_uri(relpath_u)
+                    print ">>>>  if %r != %r" % (dmd_last_uploaded_uri, local_last_uploaded_uri)
+                    if dmd_last_uploaded_uri is not None and dmd_last_uploaded_uri != local_last_uploaded_uri:
+                        is_conflict = True
+                        self._count('objects_conflicted')
                     else:
-                        dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
-                        local_last_uploaded_uri = self._db.get_last_uploaded_uri(relpath_u)
-                        print ">>>>  if %r != %r" % (dmd_last_uploaded_uri, local_last_uploaded_uri)
-                        if dmd_last_uploaded_uri != local_last_uploaded_uri:
+                        # XXX todo: mark as conflict if file is in pending upload set
+                        if self._is_upload_pending(relpath_u):
                             is_conflict = True
                             self._count('objects_conflicted')
-                        else:
-                            # XXX todo: mark as conflict if file is in pending upload set
-                            if self._is_upload_pending(relpath_u):
-                                is_conflict = True
-                                self._count('objects_conflicted')
 
             if relpath_u.endswith(u"/"):
                 if metadata.get('deleted', False):
