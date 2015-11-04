@@ -708,25 +708,19 @@ class Downloader(QueueMixin, WriteFileMixin):
         else:
             is_conflict = False
             db_entry = self._db.get_db_entry(relpath_u)
+            dmd_last_downloaded_uri = metadata.get('last_downloaded_uri', None)
+            dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
             if db_entry:
-                dmd_last_downloaded_uri = metadata.get('last_downloaded_uri', None)
-                print "metadata %r" % (metadata,)
-                print "<<<<--- if %r != %r" % (dmd_last_downloaded_uri, db_entry.last_downloaded_uri)
                 if dmd_last_downloaded_uri is not None and db_entry.last_downloaded_uri is not None:
                     if dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
                         is_conflict = True
                         self._count('objects_conflicted')
-                else:
-                    dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
-                    print ">>>>  if %r != %r" % (dmd_last_uploaded_uri, db_entry.last_uploaded_uri)
-                    if dmd_last_uploaded_uri is not None and dmd_last_uploaded_uri != db_entry.last_uploaded_uri:
-                        is_conflict = True
-                        self._count('objects_conflicted')
-                    else:
-                        # XXX todo: mark as conflict if file is in pending upload set
-                        if self._is_upload_pending(relpath_u):
-                            is_conflict = True
-                            self._count('objects_conflicted')
+                elif dmd_last_uploaded_uri is not None and dmd_last_uploaded_uri != db_entry.last_uploaded_uri:
+                    is_conflict = True
+                    self._count('objects_conflicted')
+                elif self._is_upload_pending(relpath_u):
+                    is_conflict = True
+                    self._count('objects_conflicted')
 
             if relpath_u.endswith(u"/"):
                 if metadata.get('deleted', False):
