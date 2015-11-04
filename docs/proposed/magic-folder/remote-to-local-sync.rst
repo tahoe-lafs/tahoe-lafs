@@ -690,9 +690,9 @@ Fire Dragons: Distinguishing conflicts from overwrites
 
 When synchronizing a file that has changed remotely, the Magic Folder
 client needs to distinguish between overwrites, in which the remote
-side was aware of your most recent version and overwrote it with a
-new version, and conflicts, in which the remote side was unaware of
-your most recent version when it published its new version. Those two
+side was aware of your most recent version (if any) and overwrote it
+with a new version, and conflicts, in which the remote side was unaware
+of your most recent version when it published its new version. Those two
 cases have to be handled differently — the latter needs to be raised
 to the user as an issue the user will have to resolve and the former
 must not bother the user.
@@ -776,12 +776,11 @@ Let ``last_downloaded_uri`` be the field of that name obtained from
 the directory entry metadata for ``foo`` in Bob's DMD (this field
 may be absent). Then the algorithm is:
 
-* 2a. If Alice has no local copy of ``foo``, classify as an overwrite.
+* 2a. Attempt to "stat" ``foo`` to get its *current statinfo* (size
+  in bytes, ``mtime``, and ``ctime``). If Alice has no local copy
+  of ``foo``, classify as an overwrite.
 
-* 2b. Otherwise, "stat" ``foo`` to get its *current statinfo* (size
-  in bytes, ``mtime``, and ``ctime``).
-
-* 2c. Read the following information for the path ``foo`` from the
+* 2b. Read the following information for the path ``foo`` from the
   local magic folder db:
 
   * the *last-uploaded statinfo*, if any (this is the size in
@@ -791,11 +790,12 @@ may be absent). Then the algorithm is:
     for this file, which is the URI under which the file was last
     uploaded.
 
-* 2d. If any of the following are true, then classify as a conflict:
+* 2c. If any of the following are true, then classify as a conflict:
 
   * there are pending notifications of changes to ``foo``;
-  * the last-uploaded statinfo is either absent, or different
-    from the current statinfo;
+  * the last-uploaded statinfo is either absent (i.e. there is no
+    entry in the database for this path), or different from the
+    current statinfo;
   * either ``last_downloaded_uri`` or ``last_uploaded_uri``
     (or both) are absent, or they are different.
 
