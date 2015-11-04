@@ -80,18 +80,19 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         row = c.fetchone()
         self.failUnlessEqual(row, (pathinfo.size, pathinfo.mtime, pathinfo.ctime))
 
-        # Second test uses db.is_new_file instead of SQL query directly
+        # Second test uses magic_folder.is_new_file instead of SQL query directly
         # to confirm the previous upload entry in the db.
         relpath2 = u"myFile2"
         path2 = os.path.join(self.basedir, relpath2)
         fileutil.write(path2, "meow\n")
         pathinfo = fileutil.get_pathinfo(path2)
         db.did_upload_version(relpath2, 0, 'URI:LIT:2', 'URI:LIT:1', 0, pathinfo)
-        self.failUnlessFalse(db.is_new_file(pathinfo, relpath2))
+        db_entry = db.get_db_entry(relpath2)
+        self.failUnlessFalse(magic_folder.is_new_file(pathinfo, db_entry))
 
         different_pathinfo = fileutil.PathInfo(isdir=False, isfile=True, islink=False,
                                                exists=True, size=0, mtime=pathinfo.mtime, ctime=pathinfo.ctime)
-        self.failUnlessTrue(db.is_new_file(different_pathinfo, relpath2))
+        self.failUnlessTrue(magic_folder.is_new_file(different_pathinfo, db_entry))
 
     def test_magicfolder_start_service(self):
         self.set_up_grid()
