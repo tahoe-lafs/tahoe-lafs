@@ -96,20 +96,3 @@ class MagicFolderDB(object):
                                 (pathinfo.size, pathinfo.mtime, pathinfo.ctime, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, relpath_u))
         self.connection.commit()
         print "committed"
-
-    def is_new_file(self, pathinfo, relpath_u):
-        """
-        Returns true if the file's current pathinfo (size, mtime, and ctime) has
-        changed from the pathinfo previously stored in the db.
-        """
-        c = self.cursor
-        c.execute("SELECT size, mtime, ctime"
-                  " FROM local_files"
-                  " WHERE path=?",
-                  (relpath_u,))
-        row = self.cursor.fetchone()
-        if not row:
-            return True
-        if not pathinfo.exists and row[0] is None:
-            return False
-        return (pathinfo.size, pathinfo.mtime, pathinfo.ctime) != row
