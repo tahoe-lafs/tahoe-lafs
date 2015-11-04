@@ -717,21 +717,20 @@ class Downloader(QueueMixin, WriteFileMixin):
                 raise ConflictError("download failed: already conflicted: %r" % (relpath_u,))
             d.addCallback(fail)
         else:
-            is_conflict = False
+            pathinfo = get_pathinfo(abspath_u)
+
             db_entry = self._db.get_db_entry(relpath_u)
             dmd_last_downloaded_uri = metadata.get('last_downloaded_uri', None)
-            dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
-            if db_entry:
-                if dmd_last_downloaded_uri is not None and db_entry.last_downloaded_uri is not None:
-                    if dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
-                        is_conflict = True
-                        self._count('objects_conflicted')
-                elif dmd_last_uploaded_uri is not None and dmd_last_uploaded_uri != db_entry.last_uploaded_uri:
-                    is_conflict = True
-                    self._count('objects_conflicted')
-                elif self._is_upload_pending(relpath_u):
-                    is_conflict = True
-                    self._count('objects_conflicted')
+
+            # See <docs/proposed/magic-folder/remote-to-local-sync.rst#conflictoverwrite-decision-algorithm>.
+            is_conflict = (   not pathinfo.exists  # 2a
+                           or self._is_upload_pending(relpath_u)  # 2c.i.
+                           or (db_entry is None or is_new_file(pathinfo, db_entry))  # 2c.ii.
+                           or (dmd_last_downloaded_uri is None or db_entry.last_uploaded_uri is None
+                               or dmd_last_downloaded_uri != db_entry.last_uploaded_uri)  # 2c.iii.
+                          )
+            if is_conflict:
+                self._count('objects_conflicted')
 
             if relpath_u.endswith(u"/"):
                 if metadata.get('deleted', False):
