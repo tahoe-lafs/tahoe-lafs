@@ -27,7 +27,6 @@ zope.interface-*.egg
 /tmp*
 /*.patch
 /dist/
-/twisted/plugins/dropin.cache
 /tahoe-deps/
 /tahoe-deps.tar.gz
 /.coverage
@@ -36,3 +35,4 @@ zope.interface-*.egg
 /miscaptures.txt
 /violations.txt
 /.tox/
+/smoke_magicfolder/
