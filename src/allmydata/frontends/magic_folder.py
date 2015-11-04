@@ -535,7 +535,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         files = self._db.get_all_relpaths()
         self._log("all files %s" % files)
 
-        d = self._scan_remote_collective()
+        d = self._scan_remote_collective(scan_self=True)
         d.addBoth(self._logcb, "after _scan_remote_collective 0")
         self._turn_deque()
         return d
@@ -629,7 +629,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         d.addBoth(self._logcb, "end of _scan_remote_dmd")
         return d
 
-    def _scan_remote_collective(self):
+    def _scan_remote_collective(self, scan_self=False):
         self._log("_scan_remote_collective")
         scan_batch = {}  # path -> [(filenode, metadata)]
 
@@ -638,7 +638,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             d2 = defer.succeed(None)
             for dir_name in dirmap:
                 (dirnode, metadata) = dirmap[dir_name]
-                if dirnode.get_readonly_uri() != self._upload_readonly_dircap:
+                if scan_self is True or dirnode.get_readonly_uri() != self._upload_readonly_dircap:
                     d2.addCallback(lambda ign, dir_name=dir_name, dirnode=dirnode:
                                    self._scan_remote_dmd(dir_name, dirnode, scan_batch))
                     def _err(f, dir_name=dir_name):
