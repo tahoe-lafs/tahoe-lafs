@@ -638,7 +638,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             d2 = defer.succeed(None)
             for dir_name in dirmap:
                 (dirnode, metadata) = dirmap[dir_name]
-                if scan_self is True or dirnode.get_readonly_uri() != self._upload_readonly_dircap:
+                if scan_self or dirnode.get_readonly_uri() != self._upload_readonly_dircap:
                     d2.addCallback(lambda ign, dir_name=dir_name, dirnode=dirnode:
                                    self._scan_remote_dmd(dir_name, dirnode, scan_batch))
                     def _err(f, dir_name=dir_name):
