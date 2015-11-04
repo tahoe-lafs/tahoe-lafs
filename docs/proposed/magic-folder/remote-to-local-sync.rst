@@ -768,6 +768,9 @@ metadata. This will have the effect of making other clients treat
 this change as a conflict whenever they already have a copy of the
 file.
 
+Conflict/overwrite decision algorithm
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Now we are ready to describe the algorithm for determining whether a
 download for the file ``foo`` is an overwrite or a conflict (refining
 step 2 of the procedure from the `Earth Dragons`_ section).
@@ -792,11 +795,11 @@ may be absent). Then the algorithm is:
 
 * 2c. If any of the following are true, then classify as a conflict:
 
-  * there are pending notifications of changes to ``foo``;
-  * the last-uploaded statinfo is either absent (i.e. there is no
-    entry in the database for this path), or different from the
+  * i. there are pending notifications of changes to ``foo``;
+  * ii. the last-uploaded statinfo is either absent (i.e. there is
+    no entry in the database for this path), or different from the
     current statinfo;
-  * either ``last_downloaded_uri`` or ``last_uploaded_uri``
+  * iii. either ``last_downloaded_uri`` or ``last_uploaded_uri``
     (or both) are absent, or they are different.
 
   Otherwise, classify as an overwrite.
