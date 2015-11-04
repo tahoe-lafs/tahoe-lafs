@@ -42,6 +42,17 @@ def get_inotify_module():
         raise
 
 
+def is_new_file(pathinfo, db_entry):
+    if db_entry is None:
+        return True
+
+    if not pathinfo.exists and db_entry.size is None:
+        return False
+
+    return ((pathinfo.size, pathinfo.ctime, pathinfo.mtime) !=
+            (db_entry.size, db_entry.ctime, db_entry.mtime))
+
+
 class MagicFolder(service.MultiService):
     name = 'magic-folder'
 
@@ -336,7 +347,7 @@ class Uploader(QueueMixin):
 
                 last_downloaded_timestamp = now  # is this correct?
 
-                if self._db.is_new_file(pathinfo, relpath_u):
+                if is_new_file(pathinfo, db_entry):
                     new_version = db_entry.version + 1
                 else:
                     self._log("Not uploading %r" % (relpath_u,))
@@ -389,7 +400,7 @@ class Uploader(QueueMixin):
 
                 if db_entry is None:
                     new_version = 0
-                elif self._db.is_new_file(pathinfo, relpath_u):
+                elif is_new_file(pathinfo, db_entry):
                     new_version = db_entry.version + 1
                 else:
                     self._log("Not uploading %r" % (relpath_u,))
