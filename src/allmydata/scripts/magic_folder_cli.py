@@ -152,8 +152,9 @@ def join(options):
 
     dmd_cap_file = os.path.join(options["node-directory"], u"private", u"magic_folder_dircap")
     collective_readcap_file = os.path.join(options["node-directory"], u"private", u"collective_dircap")
+    magic_folder_db_file = os.path.join(options["node-directory"], u"private", u"magicfolderdb.sqlite")
 
-    if os.path.exists(dmd_cap_file) or os.path.exists(collective_readcap_file):
+    if os.path.exists(dmd_cap_file) or os.path.exists(collective_readcap_file) or os.path.exists(magic_folder_db_file):
         raise usage.UsageError("Cannot join. Already joined.")
 
     fileutil.write(dmd_cap_file, dmd_write_cap)
