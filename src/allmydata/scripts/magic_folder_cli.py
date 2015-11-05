@@ -166,11 +166,28 @@ def join(options):
                    % (options.local_dir.encode('utf-8'),), mode="ab")
     return 0
 
+class LeaveOptions(BasedirOptions):
+    synopsis = ""
+    def parseArgs(self):
+        BasedirOptions.parseArgs(self)
+
+def leave(options):
+    dmd_cap_file = os.path.join(options["node-directory"], u"private", u"magic_folder_dircap")
+    collective_readcap_file = os.path.join(options["node-directory"], u"private", u"collective_dircap")
+    magic_folder_db_file = os.path.join(options["node-directory"], u"private", u"magicfolderdb.sqlite")
+    for f in [dmd_cap_file, collective_readcap_file, magic_folder_db_file]:
+        try:
+            os.remove(f)
+        except OSError,e:
+            pass
+    return 0
+
 class MagicFolderCommand(BaseOptions):
     subCommands = [
         ["create", None, CreateOptions, "Create a Magic Folder."],
         ["invite", None, InviteOptions, "Invite someone to a Magic Folder."],
         ["join", None, JoinOptions, "Join a Magic Folder."],
+        ["leave", None, LeaveOptions, "Leave a Magic Folder."],
     ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
@@ -189,6 +206,7 @@ subDispatch = {
     "create": create,
     "invite": invite,
     "join": join,
+    "leave": leave,
 }
 
 def do_magic_folder(options):
