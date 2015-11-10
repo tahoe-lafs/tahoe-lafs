@@ -172,9 +172,19 @@ class LeaveOptions(BasedirOptions):
         BasedirOptions.parseArgs(self)
 
 def leave(options):
+    from ConfigParser import SafeConfigParser
+
     dmd_cap_file = os.path.join(options["node-directory"], u"private", u"magic_folder_dircap")
     collective_readcap_file = os.path.join(options["node-directory"], u"private", u"collective_dircap")
     magic_folder_db_file = os.path.join(options["node-directory"], u"private", u"magicfolderdb.sqlite")
+
+    parser = SafeConfigParser()
+    parser.read(os.path.join(options["node-directory"], u"tahoe.cfg"))
+    parser.remove_section("magic_folder")
+    f = open(os.path.join(options["node-directory"], u"tahoe.cfg"), "w")
+    parser.write(f)
+    f.close()
+
     for f in [dmd_cap_file, collective_readcap_file, magic_folder_db_file]:
         try:
             os.remove(f)
