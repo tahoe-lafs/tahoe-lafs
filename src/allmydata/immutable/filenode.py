@@ -8,7 +8,7 @@ from twisted.internet import defer
 from allmydata import uri
 from twisted.internet.interfaces import IConsumer
 from allmydata.interfaces import IImmutableFileNode, IUploadResults
-from allmydata.util import consumer
+from allmydata.util import consumer, progress
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.util.dictutil import DictOfSets
 from allmydata.util.happinessutil import servers_of_happiness
