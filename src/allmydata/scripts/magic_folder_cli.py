@@ -196,6 +196,17 @@ def leave(options):
             print >>options.stderr, ("Warning: unable to remove %s due to %s: %s"
                 % (quote_local_unicode_path(f), e.__class__.__name__, str(e)))
 
+class StatusOptions(BasedirOptions):
+    nickname = None
+    synopsis = ""
+    stdin = StringIO("")
+    def parseArgs(self):
+        BasedirOptions.parseArgs(self)
+        node_url_file = os.path.join(self['node-directory'], u"node.url")
+        self['node-url'] = open(node_url_file, "r").read().strip()
+
+def status(options):
+    # XXX todo: use http interface to ask about our magic-folder upload status
     return 0
 
 class MagicFolderCommand(BaseOptions):
