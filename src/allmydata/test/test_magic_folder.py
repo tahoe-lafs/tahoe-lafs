@@ -1,5 +1,6 @@
 
 import os, sys
+import shutil
 
 from twisted.trial import unittest
 from twisted.internet import defer, task
