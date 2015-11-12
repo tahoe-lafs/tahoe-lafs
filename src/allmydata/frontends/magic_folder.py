@@ -15,6 +15,7 @@ from allmydata.util import log
 from allmydata.util.fileutil import precondition_abspath, get_pathinfo, ConflictError
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.deferredutil import HookMixin
+from allmydata.util.progress import PercentProgress
 from allmydata.util.encodingutil import listdir_filepath, to_filepath, \
      extend_filepath, unicode_from_filepath, unicode_segments_from, \
      quote_filepath, quote_local_unicode_path, quote_output, FilenameEncodingError
@@ -128,9 +129,20 @@ class QueueMixin(HookMixin):
                                  % quote_local_unicode_path(self._local_path_u))
 
         self._deque = deque()
+        # do we also want to bound on "maximum age"?
+        self._process_history = deque(maxlen=10)
         self._lazy_tail = defer.succeed(None)
         self._stopped = False
         self._turn_delay = 0
+
+    def get_status(self):
+        """
+        Returns an iterable of instances that implement IQueuedItem
+        """
+        for item in self._deque:
+            yield item
+        for item in self._process_history:
+            yield item
 
     def _get_filepath(self, relpath_u):
         self._log("_get_filepath(%r)" % (relpath_u,))
@@ -163,8 +175,10 @@ class QueueMixin(HookMixin):
             self._log("stopped")
             return
         try:
-            item = self._deque.pop()
-            self._log("popped %r" % (item,))
+            item = IQueuedItem(self._deque.pop())
+            self._process_history.append(item)
+
+            self._log("popped %r, now have %d" % (item, len(self._deque)))
             self._count('objects_queued', -1)
         except IndexError:
             self._log("deque is now empty")
@@ -174,6 +188,44 @@ class QueueMixin(HookMixin):
             self._lazy_tail.addBoth(self._call_hook, 'processed')
             self._lazy_tail.addErrback(log.err)
             self._lazy_tail.addCallback(lambda ign: task.deferLater(self._clock, self._turn_delay, self._turn_deque))
+
+
+from zope.interface import Interface, implementer
+
+class IQueuedItem(Interface):
+    pass
+
+
+@implementer(IQueuedItem)
+class QueuedItem(object):
+    def __init__(self, relpath_u, progress):
+        self.relpath_u = relpath_u
+        self.progress = progress
+        self._status_history = dict()
+
+    def set_status(self, status, current_time=None):
+        if current_time is None:
+            current_time = time.time()
+        self._status_history[status] = current_time
+
+    def status_time(self, state):
+        """
+        Returns None if there's no status-update for 'state', else returns
+        the timestamp when that state was reached.
+        """
+        return self._status_history.get(state, None)
+
+    def status_history(self):
+        """
+        Returns a list of 2-tuples of (state, timestamp) sorted by timestamp
+        """
+        hist = self._status_history.items()
+        hist.sort(lambda a, b: cmp(a[1], b[1]))
+        return hist
+
+
+class UploadItem(QueuedItem):
+    pass
 
 
 class Uploader(QueueMixin):
@@ -212,10 +264,6 @@ class Uploader(QueueMixin):
         self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
-    def get_status(self):
-        for fname in sorted(self._pending):
-            yield 'uploading: "%s"' % (fname,)
-
     def start_monitoring(self):
         self._log("start_monitoring")
         d = defer.succeed(None)
@@ -244,8 +292,17 @@ class Uploader(QueueMixin):
         def _add_pending(ign):
             # This adds all of the files that were in the db but not already processed
             # (normally because they have been deleted on disk).
+
+            # XXX I don't see how ^ can be true; _scan() adds
+            # everything that is already in the database, but isn't
+            # ignorable...
             self._log("adding %r" % (self._pending))
-            self._deque.extend(self._pending)
+            for relpath_u in self._pending:
+                progress = PercentProgress()
+                item = UploadItem(relpath_u, progress)
+                item.set_status('queued', self._clock.seconds())
+                self._deque.append(item)
+
         d.addCallback(_add_pending)
         d.addCallback(lambda ign: self._turn_deque())
         return d
@@ -272,7 +329,11 @@ class Uploader(QueueMixin):
                     return None
 
                 self._pending.add(relpath_u)
-                return relpath_u
+                progress = PercentProgress()
+                item = UploadItem(relpath_u, progress)
+                # self._process() needs a QueuedItem; probably should
+                # fix as per the comment below, though...
+                return item
             d.addCallback(_add_pending)
             # This call to _process doesn't go through the deque, and probably should.
             d.addCallback(self._process)
@@ -307,7 +368,10 @@ class Uploader(QueueMixin):
             return
 
         self._log("appending %r to deque" % (relpath_u,))
-        self._deque.append(relpath_u)
+        item = UploadItem(relpath_u, PercentProgress())
+        item.set_status('queued', self._clock.seconds())
+        self._deque.append(item)
+
         self._pending.add(relpath_u)
         self._count('objects_queued')
         if self.is_ready:
@@ -319,10 +383,14 @@ class Uploader(QueueMixin):
     def _when_queue_is_empty(self):
         return defer.succeed(None)
 
-    def _process(self, relpath_u):
+    def _process(self, item):
         # Uploader
+        relpath_u = item.relpath_u
         self._log("_process(%r)" % (relpath_u,))
+        item.set_status('started', self._clock.seconds())
+
         if relpath_u is None:
+            item.set_status('invalid_path', self._clock.seconds())
             return
         precondition(isinstance(relpath_u, unicode), relpath_u)
         precondition(not relpath_u.endswith(u'/'), relpath_u)
@@ -365,8 +433,12 @@ class Uploader(QueueMixin):
                     metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
 
                 empty_uploadable = Data("", self._client.convergence)
-                d2 = self._upload_dirnode.add_file(encoded_path_u, empty_uploadable,
-                                                   metadata=metadata, overwrite=True)
+                d2 = self._upload_dirnode.add_file(
+                    encoded_path_u, empty_uploadable,
+                    metadata=metadata,
+                    overwrite=True,
+                    progress=item.progress,
+                )
 
                 def _add_db_entry(filenode):
                     filecap = filenode.get_uri()
@@ -387,7 +459,12 @@ class Uploader(QueueMixin):
                 uploadable = Data("", self._client.convergence)
                 encoded_path_u += magicpath.path2magic(u"/")
                 self._log("encoded_path_u =  %r" % (encoded_path_u,))
-                upload_d = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata={"version":0}, overwrite=True)
+                upload_d = self._upload_dirnode.add_file(
+                    encoded_path_u, uploadable,
+                    metadata={"version":0},
+                    overwrite=True,
+                    progress=item.progress,
+                )
                 def _succeeded(ign):
                     self._log("created subdirectory %r" % (relpath_u,))
                     self._count('directories_created')
@@ -417,8 +494,12 @@ class Uploader(QueueMixin):
                     metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
 
                 uploadable = FileName(unicode_from_filepath(fp), self._client.convergence)
-                d2 = self._upload_dirnode.add_file(encoded_path_u, uploadable,
-                                                   metadata=metadata, overwrite=True)
+                d2 = self._upload_dirnode.add_file(
+                    encoded_path_u, uploadable,
+                    metadata=metadata,
+                    overwrite=True,
+                    progress=item.progress,
+                )
 
                 def _add_db_entry(filenode):
                     filecap = filenode.get_uri()
@@ -437,10 +518,12 @@ class Uploader(QueueMixin):
 
         def _succeeded(res):
             self._count('objects_succeeded')
+            item.set_status('success', self._clock.seconds())
             return res
         def _failed(f):
             self._count('objects_failed')
             self._log("%s while processing %r" % (f, relpath_u))
+            item.set_status('failure', self._clock.seconds())
             return f
         d.addCallbacks(_succeeded, _failed)
         return d
@@ -529,6 +612,13 @@ class WriteFileMixin(object):
         return abspath_u
 
 
+class DownloadItem(QueuedItem):
+    def __init__(self, relpath_u, progress, filenode, metadata):
+        super(DownloadItem, self).__init__(relpath_u, progress)
+        self.file_node = filenode
+        self.metadata = metadata
+
+
 class Downloader(QueueMixin, WriteFileMixin):
     REMOTE_SCAN_INTERVAL = 3  # facilitates tests
 
@@ -548,6 +638,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._is_upload_pending = is_upload_pending
         self._umask = umask
         self._pending = set()
+
+        self._turn_delay = self.REMOTE_SCAN_INTERVAL
 
     def start_scanning(self):
         self._log("start_scanning")
@@ -676,7 +768,15 @@ class Downloader(QueueMixin, WriteFileMixin):
                 file_node, metadata = max(scan_batch[relpath_u], key=lambda x: x[1]['version'])
 
                 if self._should_download(relpath_u, metadata['version']):
-                    self._deque.append( (relpath_u, file_node, metadata) )
+                    to_dl = DownloadItem(
+                        relpath_u,
+                        PercentProgress(file_node.get_size()),
+                        file_node,
+                        metadata,
+                    )
+                    to_dl.set_status('queued', self._clock.seconds())
+                    self._deque.append(to_dl)
+                    self._pending.add( (relpath_u, metadata['version']) )
                 else:
                     self._log("Excluding %r" % (relpath_u,))
                     self._call_hook(None, 'processed')
@@ -694,42 +794,49 @@ class Downloader(QueueMixin, WriteFileMixin):
     def _process(self, item, now=None):
         # Downloader
         self._log("_process(%r)" % (item,))
-        if now is None:
-            now = time.time()
-        (relpath_u, file_node, metadata) = item
-        fp = self._get_filepath(relpath_u)
+        if now is None:  # XXX why can we pass in now?
+            now = time.time()  # self._clock.seconds()
+
+        self._log("started! %s" % (now,))
+        item.set_status('started', now)
+        fp = self._get_filepath(item.relpath_u)
         abspath_u = unicode_from_filepath(fp)
         conflict_path_u = self._get_conflicted_filename(abspath_u)
 
         d = defer.succeed(None)
 
         def do_update_db(written_abspath_u):
-            filecap = file_node.get_uri()
-            last_uploaded_uri = metadata.get('last_uploaded_uri', None)
+            filecap = item.file_node.get_uri()
+            last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
             last_downloaded_uri = filecap
             last_downloaded_timestamp = now
             written_pathinfo = get_pathinfo(written_abspath_u)
 
-            if not written_pathinfo.exists and not metadata.get('deleted', False):
+            if not written_pathinfo.exists and not item.metadata.get('deleted', False):
                 raise Exception("downloaded object %s disappeared" % quote_local_unicode_path(written_abspath_u))
 
-            self._db.did_upload_version(relpath_u, metadata['version'], last_uploaded_uri,
-                                        last_downloaded_uri, last_downloaded_timestamp, written_pathinfo)
+            self._db.did_upload_version(
+                item.relpath_u, item.metadata['version'], last_uploaded_uri,
+                last_downloaded_uri, last_downloaded_timestamp, written_pathinfo,
+            )
             self._count('objects_downloaded')
+            item.set_status('success', self._clock.seconds())
+
         def failed(f):
+            item.set_status('failure', self._clock.seconds())
             self._log("download failed: %s" % (str(f),))
             self._count('objects_failed')
             return f
 
         if os.path.isfile(conflict_path_u):
             def fail(res):
-                raise ConflictError("download failed: already conflicted: %r" % (relpath_u,))
+                raise ConflictError("download failed: already conflicted: %r" % (item.relpath_u,))
             d.addCallback(fail)
         else:
             is_conflict = False
-            db_entry = self._db.get_db_entry(relpath_u)
-            dmd_last_downloaded_uri = metadata.get('last_downloaded_uri', None)
-            dmd_last_uploaded_uri = metadata.get('last_uploaded_uri', None)
+            db_entry = self._db.get_db_entry(item.relpath_u)
+            dmd_last_downloaded_uri = item.metadata.get('last_downloaded_uri', None)
+            dmd_last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
             if db_entry:
                 if dmd_last_downloaded_uri is not None and db_entry.last_downloaded_uri is not None:
                     if dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
@@ -738,28 +845,28 @@ class Downloader(QueueMixin, WriteFileMixin):
                 elif dmd_last_uploaded_uri is not None and dmd_last_uploaded_uri != db_entry.last_uploaded_uri:
                     is_conflict = True
                     self._count('objects_conflicted')
-                elif self._is_upload_pending(relpath_u):
+                elif self._is_upload_pending(item.relpath_u):
                     is_conflict = True
                     self._count('objects_conflicted')
 
-            if relpath_u.endswith(u"/"):
-                if metadata.get('deleted', False):
+            if item.relpath_u.endswith(u"/"):
+                if item.metadata.get('deleted', False):
                     self._log("rmdir(%r) ignored" % (abspath_u,))
                 else:
                     self._log("mkdir(%r)" % (abspath_u,))
                     d.addCallback(lambda ign: fileutil.make_dirs(abspath_u))
                     d.addCallback(lambda ign: abspath_u)
             else:
-                if metadata.get('deleted', False):
+                if item.metadata.get('deleted', False):
                     d.addCallback(lambda ign: self._rename_deleted_file(abspath_u))
                 else:
-                    d.addCallback(lambda ign: file_node.download_best_version())
+                    d.addCallback(lambda ign: item.file_node.download_best_version(progress=item.progress))
                     d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents,
                                                                                is_conflict=is_conflict))
 
         d.addCallbacks(do_update_db, failed)
         def remove_from_pending(result):
-            self._pending.remove( (relpath_u, metadata['version']) )
+            self._pending.remove( (item.relpath_u, item.metadata['version']) )
             return result
         d.addBoth(remove_from_pending)
         def trap_conflicts(f):

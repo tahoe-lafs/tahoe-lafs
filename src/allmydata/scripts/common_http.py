@@ -31,6 +31,7 @@ class BadResponse(object):
     def __init__(self, url, err):
         self.status = -1
         self.reason = "Error trying to connect to %s: %s" % (url, err)
+        self.error = err
     def read(self):
         return ""
 

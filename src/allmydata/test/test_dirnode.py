@@ -1519,7 +1519,7 @@ class FakeMutableFile:
     def get_write_uri(self):
         return self.uri.to_string()
 
-    def download_best_version(self):
+    def download_best_version(self, progress=None):
         return defer.succeed(self.data)
 
     def get_writekey(self):

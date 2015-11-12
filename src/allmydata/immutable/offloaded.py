@@ -137,7 +137,8 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     def __init__(self, storage_index,
                  helper, storage_broker, secret_holder,
                  incoming_file, encoding_file,
-                 log_number):
+                 log_number, progress=None):
+        upload.CHKUploader.__init__(self, storage_broker, secret_holder, progress=progress)
         self._storage_index = storage_index
         self._helper = helper
         self._incoming_file = incoming_file
