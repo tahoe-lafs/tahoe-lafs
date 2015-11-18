@@ -212,6 +212,10 @@ class Uploader(QueueMixin):
         self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
                              recursive=True)
 
+    def get_status(self):
+        for fname in sorted(self._pending):
+            yield 'uploading: "%s"' % (fname,)
+
     def start_monitoring(self):
         self._log("start_monitoring")
         d = defer.succeed(None)
@@ -543,6 +547,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._upload_readonly_dircap = upload_readonly_dircap
         self._is_upload_pending = is_upload_pending
         self._umask = umask
+        self._pending = set()
 
     def start_scanning(self):
         self._log("start_scanning")
@@ -567,6 +572,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         latest version wins.
         """
         self._log("_should_download(%r, %r)" % (relpath_u, remote_version))
+        if (relpath_u, remote_version) in self._pending:
+            return False
         if magicpath.should_ignore_file(relpath_u):
             self._log("nope")
             return False
@@ -751,7 +758,10 @@ class Downloader(QueueMixin, WriteFileMixin):
                                                                                is_conflict=is_conflict))
 
         d.addCallbacks(do_update_db, failed)
-
+        def remove_from_pending(result):
+            self._pending.remove( (relpath_u, metadata['version']) )
+            return result
+        d.addBoth(remove_from_pending)
         def trap_conflicts(f):
             f.trap(ConflictError)
             return None
