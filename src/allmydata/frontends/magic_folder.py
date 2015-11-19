@@ -538,6 +538,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._collective_dirnode = collective_dirnode
         self._upload_readonly_dircap = upload_readonly_dircap
         self._is_upload_pending = is_upload_pending
+        self._pending = set()
 
         self._turn_delay = self.REMOTE_SCAN_INTERVAL
 
@@ -564,6 +565,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         latest version wins.
         """
         self._log("_should_download(%r, %r)" % (relpath_u, remote_version))
+        if (relpath_u, remote_version) in self._pending:
+            return False
         if magicpath.should_ignore_file(relpath_u):
             self._log("nope")
             return False
@@ -667,6 +670,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
                 if self._should_download(relpath_u, metadata['version']):
                     self._deque.append( (relpath_u, file_node, metadata) )
+                    self._pending.add( (relpath_u, metadata['version']) )
                 else:
                     self._log("Excluding %r" % (relpath_u,))
                     self._count('objects_excluded')
@@ -749,7 +753,10 @@ class Downloader(QueueMixin, WriteFileMixin):
                                                                                is_conflict=is_conflict))
 
         d.addCallbacks(do_update_db, failed)
-
+        def remove_from_pending(result):
+            self._pending.remove( (relpath_u, metadata['version']) )
+            return result
+        d.addBoth(remove_from_pending)
         def trap_conflicts(f):
             f.trap(ConflictError)
             return None
