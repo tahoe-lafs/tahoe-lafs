@@ -298,6 +298,19 @@ class CreateNode(unittest.TestCase):
         self.failUnless(os.path.exists(n3))
         self.failUnless(os.path.exists(os.path.join(n3, tac)))
 
+        if kind in ("client", "node", "introducer"):
+            # test that the output (without --quiet) includes the base directory
+            n4 = os.path.join(basedir, command + "-n4")
+            argv = [command, n4]
+            rc, out, err = self.run_tahoe(argv)
+            self.failUnlessEqual(err, "")
+            self.failUnlessIn(" created in ", out)
+            self.failUnlessIn(n4, out)
+            self.failIfIn("\\\\?\\", out)
+            self.failUnlessEqual(rc, 0)
+            self.failUnless(os.path.exists(n4))
+            self.failUnless(os.path.exists(os.path.join(n4, tac)))
+
         # make sure it rejects too many arguments
         argv = [command, "basedir", "extraarg"]
         self.failUnlessRaises(usage.UsageError,
