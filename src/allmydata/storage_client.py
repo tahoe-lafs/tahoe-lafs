@@ -62,10 +62,11 @@ class StorageFarmBroker:
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, tub, permute_peers):
+    def __init__(self, tub, permute_peers, preferred_peers=()):
         self.tub = tub
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
+        self.preferred_peers = preferred_peers
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
         # own Reconnector, and will give us a RemoteReference when we ask
@@ -121,10 +122,13 @@ class StorageFarmBroker:
     def get_servers_for_psi(self, peer_selection_index):
         # return a list of server objects (IServers)
         assert self.permute_peers == True
+        connected_servers = self.get_connected_servers()
+        preferred_servers = frozenset(s for s in connected_servers if s.get_longname() in self.preferred_peers)
         def _permuted(server):
             seed = server.get_permutation_seed()
-            return sha1(peer_selection_index + seed).digest()
-        return sorted(self.get_connected_servers(), key=_permuted)
+            is_unpreferred = server not in preferred_servers
+            return (is_unpreferred, sha1(peer_selection_index + seed).digest())
+        return sorted(connected_servers, key=_permuted)
 
     def get_all_serverids(self):
         return frozenset(self.servers.keys())
