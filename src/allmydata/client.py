@@ -344,7 +344,8 @@ class Client(node.Node, pollmixin.PollMixin):
     def init_client_storage_broker(self):
         # create a StorageFarmBroker object, for use by Uploader/Downloader
         # (and everybody else who wants to use storage servers)
-        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True)
+        preferred_peers = [p.strip() for p in self.get_config("client", "peers.preferred", "").split(",") if p != ""]
+        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True, preferred_peers=preferred_peers)
         self.storage_broker = sb
 
         # load static server specifications from tahoe.cfg, if any.

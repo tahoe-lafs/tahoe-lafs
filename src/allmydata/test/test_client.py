@@ -262,6 +262,18 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         sb.servers.clear()
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
+    def test_permute_with_preferred(self):
+        sb = StorageFarmBroker(None, True, ['1','4'])
+        for k in ["%d" % i for i in range(5)]:
+            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+                   "permutation-seed-base32": base32.b2a(k) }
+            sb.test_add_rref(k, "rref", ann)
+
+        self.failUnlessReallyEqual(self._permute(sb, "one"), ['1','4','3','0','2'])
+        self.failUnlessReallyEqual(self._permute(sb, "two"), ['4','1','0','2','3'])
+        sb.servers.clear()
+        self.failUnlessReallyEqual(self._permute(sb, "one"), [])
+
     def test_versions(self):
         basedir = "test_client.Basic.test_versions"
         os.mkdir(basedir)
