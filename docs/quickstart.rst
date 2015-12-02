@@ -31,13 +31,13 @@ Install Python
 --------------
 
 Check if you already have an adequate version of Python installed by running
-``python -V``. Python v2.6 (v2.6.6 or greater recommended) or Python v2.7
-will work. Python v3 does not work. On Windows, we recommend the use of
-native Python v2.7, not Cygwin Python. If you don't have one of these
-versions of Python installed, `download`_ and install the latest version of
-Python v2.7. Make sure that the path to the installation directory has no
-spaces in it (e.g. on Windows, do not install Python in the "Program Files"
-directory).
+``python -V``. The latest version of Python v2.7 is recommended. Python v2.6.x
+is no longer officially supported, but might still work. Python v3 does not
+work. On Windows, we recommend the use of native Python v2.7, not Cygwin
+Python. If you don't have one of these versions of Python installed,
+`download`_ and install the latest version of Python v2.7. Make sure that the
+path to the installation directory has no spaces in it (e.g. on Windows, do not
+install Python in the "Program Files" directory).
 
 .. _download: https://www.python.org/downloads/
 
