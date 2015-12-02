@@ -10,7 +10,8 @@ from allmydata.util.assertutil import precondition
 from .common import BaseOptions, BasedirOptions, get_aliases
 from .cli import MakeDirectoryOptions, LnOptions, CreateAliasOptions
 import tahoe_mv
-from allmydata.util.encodingutil import argv_to_abspath, argv_to_unicode, to_str
+from allmydata.util.encodingutil import argv_to_abspath, argv_to_unicode, to_str, \
+    quote_local_unicode_path
 from allmydata.util import fileutil
 from allmydata import uri
 
@@ -155,7 +156,9 @@ def join(options):
     magic_folder_db_file = os.path.join(options["node-directory"], u"private", u"magicfolderdb.sqlite")
 
     if os.path.exists(dmd_cap_file) or os.path.exists(collective_readcap_file) or os.path.exists(magic_folder_db_file):
-        raise usage.UsageError("Cannot join. Already joined.")
+        print >>options.stderr, ("\nThis client has already joined a magic folder."
+                                 "\nUse the 'tahoe magic-folder leave' command first.\n")
+        return 1
 
     fileutil.write(dmd_cap_file, dmd_write_cap)
     fileutil.write(collective_readcap_file, magic_readonly_cap)
@@ -187,9 +190,11 @@ def leave(options):
 
     for f in [dmd_cap_file, collective_readcap_file, magic_folder_db_file]:
         try:
-            os.remove(f)
-        except OSError,e:
-            pass
+            fileutil.remove(f)
+        except Exception as e:
+            print >>options.stderr, ("Warning: unable to remove %s due to %s: %s"
+                % (quote_local_unicode_path(f), e.__class__.__name__, str(e)))
+
     return 0
 
 class MagicFolderCommand(BaseOptions):
