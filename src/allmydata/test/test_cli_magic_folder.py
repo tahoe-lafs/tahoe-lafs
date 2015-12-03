@@ -102,7 +102,6 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return d
 
     def cleanup(self, res):
-        #print "cleanup", res
         d = defer.succeed(None)
         if self.magicfolder is not None:
             d.addCallback(lambda ign: self.magicfolder.finish())
@@ -269,4 +268,95 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
             code = result[0]
             self.failIfEqual(code, 0)
         d.addCallback(get_results)
+        return d
+
+    def test_join_leave_join(self):
+        self.basedir = "cli/MagicFolder/create-join-leave-join"
+        os.makedirs(self.basedir)
+        self.set_up_grid()
+        local_dir = os.path.join(self.basedir, "magic")
+        abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
+
+        self.invite_code = None
+        d = self.do_create_magic_folder(0)
+        d.addCallback(lambda ign: self.do_invite(0, u"Alice"))
+        def get_invite_code_and_join((rc, stdout, stderr)):
+            self.invite_code = stdout.strip()
+            return self.do_join(0, unicode(local_dir), self.invite_code)
+        d.addCallback(get_invite_code_and_join)
+        def get_caps(ign):
+            self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
+        d.addCallback(get_caps)
+        d.addCallback(lambda ign: self.check_joined_config(0, self.upload_dircap))
+        d.addCallback(lambda ign: self.check_config(0, abs_local_dir_u))
+
+        def leave(ignore):
+            return self.do_cli("magic-folder", "leave", client_num=0)
+        d.addCallback(leave)
+
+        def check_join_again(invite_code):
+            d2 = defer.succeed(None)
+            def join_again(ignore):
+                return self.do_join(0, unicode(local_dir), self.invite_code)
+                #return self.do_cli("magic-folder", "join", invite_code, unicode(local_dir), client_num=0)
+            d2.addCallback(join_again)
+            def get_results(result):
+                code = result[0]
+                #self.failIfEqual(code, 0)
+            d2.addCallback(get_results)
+            return d2
+
+        d.addCallback(lambda ign, invite_code: check_join_again(invite_code), self.invite_code)
+        def get_caps(ign):
+            self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
+        d.addCallback(get_caps)
+        d.addCallback(lambda ign: self.check_joined_config(0, self.upload_dircap))
+        d.addCallback(lambda ign: self.check_config(0, abs_local_dir_u))
+
+        return d
+
+    def test_join_failures(self):
+        self.basedir = "cli/MagicFolder/create-join-failures"
+        os.makedirs(self.basedir)
+        self.set_up_grid()
+        local_dir = os.path.join(self.basedir, "magic")
+        abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
+
+        self.invite_code = None
+        d = self.do_create_magic_folder(0)
+        d.addCallback(lambda ign: self.do_invite(0, u"Alice"))
+        def get_invite_code_and_join((rc, stdout, stderr)):
+            self.invite_code = stdout.strip()
+            return self.do_join(0, unicode(local_dir), self.invite_code)
+        d.addCallback(get_invite_code_and_join)
+        def get_caps(ign):
+            self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
+        d.addCallback(get_caps)
+        d.addCallback(lambda ign: self.check_joined_config(0, self.upload_dircap))
+        d.addCallback(lambda ign: self.check_config(0, abs_local_dir_u))
+
+        def leave(ignore):
+            return self.do_cli("magic-folder", "leave", client_num=0)
+        d.addCallback(leave)
+
+        collective_dircap_file = os.path.join(self.get_clientdir(i=0), u"private", u"collective_dircap")
+        upload_dircap = os.path.join(self.get_clientdir(i=0), u"private", u"magic_folder_dircap")
+        magic_folder_db_file = os.path.join(self.get_clientdir(i=0), u"private", u"magicfolderdb.sqlite")
+
+        def check_join_if_file(my_file):
+            fileutil.write(my_file, "my file data")
+            d2 = defer.succeed(None)
+            def join_again(ignore):
+                return self.do_cli("magic-folder", "join", self.invite_code, local_dir, client_num=0)
+            d2.addCallback(join_again)
+            def get_results(result):
+                code = result[0]
+                self.failIfEqual(code, 0)
+            d2.addCallback(get_results)
+            return d2
+
+        for my_file in [collective_dircap_file, upload_dircap, magic_folder_db_file]:
+            d.addCallback(lambda ign, my_file: check_join_if_file(my_file), my_file)
+            d.addCallback(leave)
+
         return d
