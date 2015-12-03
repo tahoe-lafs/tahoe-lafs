@@ -243,3 +243,30 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
             self.failUnlessIn("cannot start with '-'", str(e))
         else:
             self.fail("expected UsageError")
+
+    def test_join_twice_failure(self):
+        self.basedir = "cli/MagicFolder/create-join-twice-failure"
+        os.makedirs(self.basedir)
+        self.set_up_grid()
+        local_dir = os.path.join(self.basedir, "magic")
+        abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
+
+        d = self.do_create_magic_folder(0)
+        d.addCallback(lambda ign: self.do_invite(0, u"Alice"))
+        def get_invite_code_and_join((rc, stdout, stderr)):
+            self.invite_code = stdout.strip()
+            return self.do_join(0, unicode(local_dir), self.invite_code)
+        d.addCallback(get_invite_code_and_join)
+        def get_caps(ign):
+            self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
+        d.addCallback(get_caps)
+        d.addCallback(lambda ign: self.check_joined_config(0, self.upload_dircap))
+        d.addCallback(lambda ign: self.check_config(0, abs_local_dir_u))
+        def join_again(ignore):
+            return self.do_cli("magic-folder", "join", self.invite_code, local_dir, client_num=0)
+        d.addCallback(join_again)
+        def get_results(result):
+            code = result[0]
+            self.failIfEqual(code, 0)
+        d.addCallback(get_results)
+        return d
