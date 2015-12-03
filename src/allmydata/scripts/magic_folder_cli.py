@@ -10,7 +10,8 @@ from allmydata.util.assertutil import precondition
 from .common import BaseOptions, BasedirOptions, get_aliases
 from .cli import MakeDirectoryOptions, LnOptions, CreateAliasOptions
 import tahoe_mv
-from allmydata.util.encodingutil import argv_to_abspath, argv_to_unicode, to_str
+from allmydata.util.encodingutil import argv_to_abspath, argv_to_unicode, to_str, \
+    quote_local_unicode_path
 from allmydata.util import fileutil
 from allmydata import uri
 
@@ -152,6 +153,12 @@ def join(options):
 
     dmd_cap_file = os.path.join(options["node-directory"], u"private", u"magic_folder_dircap")
     collective_readcap_file = os.path.join(options["node-directory"], u"private", u"collective_dircap")
+    magic_folder_db_file = os.path.join(options["node-directory"], u"private", u"magicfolderdb.sqlite")
+
+    if os.path.exists(dmd_cap_file) or os.path.exists(collective_readcap_file) or os.path.exists(magic_folder_db_file):
+        print >>options.stderr, ("\nThis client has already joined a magic folder."
+                                 "\nUse the 'tahoe magic-folder leave' command first.\n")
+        return 1
 
     fileutil.write(dmd_cap_file, dmd_write_cap)
     fileutil.write(collective_readcap_file, magic_readonly_cap)
@@ -162,11 +169,40 @@ def join(options):
                    % (options.local_dir.encode('utf-8'),), mode="ab")
     return 0
 
+class LeaveOptions(BasedirOptions):
+    synopsis = ""
+    def parseArgs(self):
+        BasedirOptions.parseArgs(self)
+
+def leave(options):
+    from ConfigParser import SafeConfigParser
+
+    dmd_cap_file = os.path.join(options["node-directory"], u"private", u"magic_folder_dircap")
+    collective_readcap_file = os.path.join(options["node-directory"], u"private", u"collective_dircap")
+    magic_folder_db_file = os.path.join(options["node-directory"], u"private", u"magicfolderdb.sqlite")
+
+    parser = SafeConfigParser()
+    parser.read(os.path.join(options["node-directory"], u"tahoe.cfg"))
+    parser.remove_section("magic_folder")
+    f = open(os.path.join(options["node-directory"], u"tahoe.cfg"), "w")
+    parser.write(f)
+    f.close()
+
+    for f in [dmd_cap_file, collective_readcap_file, magic_folder_db_file]:
+        try:
+            fileutil.remove(f)
+        except Exception as e:
+            print >>options.stderr, ("Warning: unable to remove %s due to %s: %s"
+                % (quote_local_unicode_path(f), e.__class__.__name__, str(e)))
+
+    return 0
+
 class MagicFolderCommand(BaseOptions):
     subCommands = [
         ["create", None, CreateOptions, "Create a Magic Folder."],
         ["invite", None, InviteOptions, "Invite someone to a Magic Folder."],
         ["join", None, JoinOptions, "Join a Magic Folder."],
+        ["leave", None, LeaveOptions, "Leave a Magic Folder."],
     ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
@@ -185,6 +221,7 @@ subDispatch = {
     "create": create,
     "invite": invite,
     "join": join,
+    "leave": leave,
 }
 
 def do_magic_folder(options):
