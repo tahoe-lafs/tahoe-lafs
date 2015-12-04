@@ -112,6 +112,46 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 0))
         return d
 
+    def test_scan_once_on_startup(self):
+        self.set_up_grid()
+        self.local_dir = abspath_expanduser_unicode(u"test_scan_once_on_startup", base=self.basedir)
+        self.mkdir_nonascii(self.local_dir)
+        self.collective_dircap = ""
+
+        alice_clock = task.Clock()
+        bob_clock = task.Clock()
+        d = self.setup_alice_and_bob(alice_clock, bob_clock)
+
+        def upload_stuff(ignore):
+            uploadable = Data("", self.alice_magicfolder._client.convergence)
+            return self.alice_magicfolder._client.upload(uploadable)
+        d.addCallback(upload_stuff)
+        def check_is_upload(ignore):
+            alice_clock.advance(99)
+            d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 0, magic=self.alice_magicfolder))
+            d.addCallback(lambda ign: self._check_uploader_count('objects_queued', 0, magic=self.alice_magicfolder))
+            d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
+            d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 0, magic=self.alice_magicfolder))
+            d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
+            d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 0, magic=self.alice_magicfolder))
+
+        d.addCallback(check_is_upload)
+        def _cleanup(ign, magicfolder, clock):
+            if magicfolder is not None:
+                d2 = magicfolder.finish()
+                clock.advance(0)
+                return d2
+        def cleanup_Alice_and_Bob(result):
+            print "cleanup alice bob test\n"
+            d = defer.succeed(None)
+            d.addCallback(_cleanup, self.alice_magicfolder, alice_clock)
+            d.addCallback(_cleanup, self.bob_magicfolder, bob_clock)
+            d.addCallback(lambda ign: result)
+            return d
+
+        d.addBoth(cleanup_Alice_and_Bob)
+        return d
+
     def test_move_tree(self):
         self.set_up_grid()
 
