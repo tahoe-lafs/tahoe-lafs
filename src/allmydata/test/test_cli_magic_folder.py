@@ -298,11 +298,10 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
             d2 = defer.succeed(None)
             def join_again(ignore):
                 return self.do_join(0, unicode(local_dir), self.invite_code)
-                #return self.do_cli("magic-folder", "join", invite_code, unicode(local_dir), client_num=0)
             d2.addCallback(join_again)
             def get_results(result):
                 code = result[0]
-                #self.failIfEqual(code, 0)
+                self.failUnlessEqual(code, 0)
             d2.addCallback(get_results)
             return d2
 
