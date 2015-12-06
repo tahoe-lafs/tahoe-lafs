@@ -327,7 +327,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         c = client.Client(basedir)
         self.failUnless(isinstance(c.tub._connectionHandlers['tcp'], SocksPlugin))
         self.failUnlessReallyEqual(c.tub._connectionHandlers['tcp'].socks_host, '127.0.0.1')
-        self.failUnlessReallyEqual(c.tub._connectionHandlers['tcp'].socks_port, '9050')
+        self.failUnlessReallyEqual(c.tub._connectionHandlers['tcp'].socks_port, 9050)
 
     def test_create_drop_uploader(self):
         class MockDropUploader(service.MultiService):
