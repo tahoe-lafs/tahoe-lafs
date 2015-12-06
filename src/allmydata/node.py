@@ -212,7 +212,7 @@ class Node(service.MultiService):
         self.tub = Tub(certFile=certfile)
 
         # XXX add socks plugin if specified in the config
-        self.tub.add_socks_client_plugin()
+        self.add_socks_client_plugins()
 
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
