@@ -204,7 +204,7 @@ class Node(service.MultiService):
         for hint_type in hint_types:
             socks_host, socks_port = get_socks_config(hint_type)
             if socks_host != "" and socks_port != "":
-                handler = SocksPlugin(socks_host=socks_host, socks_port=socks_port)
+                handler = SocksPlugin(socks_host=socks_host, socks_port=int(socks_port))
                 self.tub.addConnectionHintHandler(hint_type, handler)
 
     def create_tub(self):
