@@ -6,6 +6,7 @@ from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap.api import Tub, eventually, app_versions
 import foolscap.logging.log
+from foolscap.connection_plugins import SocksPlugin
 from allmydata import get_package_versions, get_package_versions_string
 from allmydata.util import log
 from allmydata.util import fileutil, iputil, observer
@@ -189,9 +190,30 @@ class Node(service.MultiService):
             twlog.msg(e)
             raise e
 
+    def add_socks_client_plugins(self):
+        """
+        This functions adds the Socks client foolscap transport plugin if it is
+        specified in the config.
+        """
+        def get_socks_config(hint_type):
+            socks_host = self.get_config("connections", "%s.socks_host" % hint_type, "")
+            socks_port = self.get_config("connections", "%s.socks_port" % hint_type, "")
+            return socks_host, socks_port
+
+        hint_types = ["tcp", "tor"] # XXX
+        for hint_type in hint_types:
+            socks_host, socks_port = get_socks_config(hint_type)
+            if socks_host != "" and socks_port != "":
+                handler = SocksPlugin(socks_host=socks_host, socks_port=socks_port)
+                self.tub.addConnectionHintHandler(hint_type, handler)
+
     def create_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
         self.tub = Tub(certFile=certfile)
+
+        # XXX add socks plugin if specified in the config
+        self.tub.add_socks_client_plugin()
+
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
         self.tub.setOption("expose-remote-exception-types", False)
