@@ -16,6 +16,7 @@ from allmydata.util import base32, fileutil
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
+from foolscap.connection_plugins import SocksPlugin
 import allmydata.test.common_util as testutil
 
 
@@ -313,6 +314,20 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         _check("helper.furl = \n", None)
         _check("helper.furl = None", None)
         _check("helper.furl = pb://blah\n", "pb://blah")
+
+    def test_socks_client_config(self):
+        basedir = "test_client.Basic.test_client_pluggable"
+        os.mkdir(basedir)
+
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG + \
+                       "[connections]\n" + \
+                       "tcp.socks_host = 127.0.0.1\n" + \
+                       "tcp.socks_port = 9050\n")
+        c = client.Client(basedir)
+        self.failUnless(isinstance(c.tub._connectionHandlers['tcp'], SocksPlugin))
+        self.failUnlessReallyEqual(c.tub._connectionHandlers['tcp'].socks_host, '127.0.0.1')
+        self.failUnlessReallyEqual(c.tub._connectionHandlers['tcp'].socks_port, '9050')
 
     def test_create_drop_uploader(self):
         class MockDropUploader(service.MultiService):
