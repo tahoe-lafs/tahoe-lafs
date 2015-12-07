@@ -13,6 +13,7 @@ import tahoe_mv
 from allmydata.util.encodingutil import argv_to_abspath, argv_to_unicode, to_str, \
     quote_local_unicode_path
 from allmydata.util import fileutil
+from allmydata.util import configutil
 from allmydata import uri
 
 INVITE_SEPARATOR = "+"
@@ -145,40 +146,6 @@ class JoinOptions(BasedirOptions):
         self.local_dir = None if local_dir is None else argv_to_abspath(local_dir, long_path=False)
         self.invite_code = to_str(argv_to_unicode(invite_code))
 
-def get_config(tahoe_cfg):
-    from ConfigParser import SafeConfigParser
-    config = SafeConfigParser()
-    try:
-        f = open(tahoe_cfg, "rb")
-        try:
-            # Skip any initial Byte Order Mark. Since this is an ordinary file, we
-            # don't need to handle incomplete reads, and can assume seekability.
-            if f.read(3) != '\xEF\xBB\xBF':
-                f.seek(0)
-            config.readfp(f)
-        finally:
-            f.close()
-    except EnvironmentError:
-        if os.path.exists(tahoe_cfg):
-            raise
-    return config
-
-def write_config(tahoe_cfg, config):
-    try:
-        f = open(tahoe_cfg, "wb")
-        try:
-            config.write(f)
-        finally:
-            f.close()
-    except EnvironmentError:
-        raise
-
-def set_config(config, section, option, value):
-    if not config.has_section(section):
-        config.add_section(section)
-    config.set(section, option, value)
-    assert config.get(section, option) == value
-
 def join(options):
     fields = options.invite_code.split(INVITE_SEPARATOR)
     if len(fields) != 2:
@@ -198,10 +165,10 @@ def join(options):
     fileutil.write(collective_readcap_file, magic_readonly_cap)
 
     # FIXME: modify any existing [magic_folder] fields, rather than appending.
-    config = get_config(os.path.join(options["node-directory"], u"tahoe.cfg"))
-    set_config(config, "magic_folder", "enabled", "True")
-    set_config(config, "magic_folder", "local.directory", options.local_dir.encode('utf-8'))
-    write_config(os.path.join(options["node-directory"], u"tahoe.cfg"), config)
+    config = configutil.get_config(os.path.join(options["node-directory"], u"tahoe.cfg"))
+    configutil.set_config(config, "magic_folder", "enabled", "True")
+    configutil.set_config(config, "magic_folder", "local.directory", options.local_dir.encode('utf-8'))
+    configutil.write_config(os.path.join(options["node-directory"], u"tahoe.cfg"), config)
     return 0
 
 class LeaveOptions(BasedirOptions):
