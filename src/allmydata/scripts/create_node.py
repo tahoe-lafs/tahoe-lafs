@@ -153,14 +153,6 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.write("enabled = false\n")
     c.write("\n")
 
-    c.write("[magic_folder]\n")
-    c.write("# Shall this node automatically upload files created or modified in a local directory?\n")
-    c.write("#enabled = false\n")
-    c.write("# To specify the target of uploads, a mutable directory writecap URI must be placed\n"
-            "# in '%s'.\n" % os.path.join('private', 'magic_folder_dircap'))
-    c.write("#local.directory = \n")
-    c.write("\n")
-
     c.close()
 
     from allmydata.util import fileutil
