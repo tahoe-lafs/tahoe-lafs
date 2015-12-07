@@ -669,7 +669,6 @@ class Downloader(QueueMixin, WriteFileMixin):
                     self._deque.append( (relpath_u, file_node, metadata) )
                 else:
                     self._log("Excluding %r" % (relpath_u,))
-                    self._count('objects_excluded')
                     self._call_hook(None, 'processed')
 
             self._log("deque after = %r" % (self._deque,))
