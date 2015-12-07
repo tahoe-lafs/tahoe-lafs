@@ -855,7 +855,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         def Alice_tries_to_p0wn_Bob(ign):
             print "Alice tries to p0wn Bob\n"
-            self.objects_excluded = self._get_count('downloader.objects_excluded', client=self.bob_magicfolder._client)
             processed_d = self.bob_magicfolder.downloader.set_hook('processed')
 
             # upload a file that would provoke the security bug from #2506
@@ -870,7 +869,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addCallback(lambda ign: self.failIf(os.path.exists(path_u)))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, encoded_path_u, None))
-        d.addCallback(lambda ign: self._check_downloader_count('objects_excluded', self.objects_excluded+1))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 3))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0))
@@ -915,8 +913,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             return d2
 
         d.addCallback(lambda ign: Alice_conflicts_with_Bobs_last_downloaded_uri())
-        # XXX fix the code so that it doesn't increment objects_excluded each turn
-        #d.addCallback(lambda ign: self._check_downloader_count('objects_excluded', 1))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 4))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 1))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1, magic=self.alice_magicfolder))
