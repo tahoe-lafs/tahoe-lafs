@@ -485,10 +485,12 @@ class WriteFileMixin(object):
         # ensure parent directory exists
         head, tail = os.path.split(abspath_u)
 
-        old_mask = os.umask(self._umask)
-        fileutil.make_dirs(head, ~ self._umask)
-        fileutil.write(replacement_path_u, file_contents)
-        os.umask(old_mask)
+        try:
+            old_mask = os.umask(self._umask)
+            fileutil.make_dirs(head, (~ self._umask) & 0777)
+            fileutil.write(replacement_path_u, file_contents)
+        finally:
+            os.umask(old_mask)
 
         os.utime(replacement_path_u, (now, now - self.FUDGE_SECONDS))
         if is_conflict:
