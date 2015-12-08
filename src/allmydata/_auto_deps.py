@@ -16,8 +16,8 @@
 # >=, <= and != operators.)
 
 install_requires = [
-    # We require newer versions of setuptools (actually
-    # zetuptoolz) to build, but can handle older versions to run.
+    # We require newer versions of setuptools to build, but can handle
+    # older versions to run.
     "setuptools >= 0.6c6",
 
     "zfec >= 1.1.0",

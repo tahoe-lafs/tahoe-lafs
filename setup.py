@@ -53,7 +53,7 @@ else:
         print("Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR))
         sys.exit(-1)
 
-# setuptools/zetuptoolz looks in __main__.__requires__ for a list of
+# setuptools looks in __main__.__requires__ for a list of
 # requirements. When running "python setup.py test", __main__ is
 # setup.py, so we put the list here so that the requirements will be
 # available for tests:
@@ -72,9 +72,7 @@ if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
 
 __requires__ = install_requires[:]
 
-egg = os.path.realpath('setuptools-0.6c16dev6.egg')
-sys.path.insert(0, egg)
-import setuptools; setuptools.bootstrap_install_from = egg
+import setuptools
 
 from setuptools import setup
 from setuptools.command import sdist
