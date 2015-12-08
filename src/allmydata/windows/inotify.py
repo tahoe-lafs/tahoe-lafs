@@ -272,11 +272,12 @@ class INotify(PollMixin):
                             self._pending.add(path)
                             def _do_callbacks():
                                 self._pending.remove(path)
-                                for cb in self._callbacks:
-                                    try:
-                                        cb(None, path, IN_CHANGED)
-                                    except Exception, e:
-                                        log.err(e)
+                                if self._callbacks:
+                                    for cb in self._callbacks:
+                                        try:
+                                            cb(None, path, IN_CHANGED)
+                                        except Exception, e:
+                                            log.err(e)
                             reactor.callLater(self._pending_delay, _do_callbacks)
                     reactor.callFromThread(_maybe_notify, path)
         except Exception, e:
