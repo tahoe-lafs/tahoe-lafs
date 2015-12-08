@@ -485,8 +485,8 @@ class WriteFileMixin(object):
         # ensure parent directory exists
         head, tail = os.path.split(abspath_u)
 
+        old_mask = os.umask(self._umask)
         try:
-            old_mask = os.umask(self._umask)
             fileutil.make_dirs(head, (~ self._umask) & 0777)
             fileutil.write(replacement_path_u, file_contents)
         finally:
