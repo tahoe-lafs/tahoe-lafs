@@ -1122,6 +1122,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
                 pass
 
         writefile = TestWriteFileMixin()
+        writefile._umask = 0123
 
         # create a file with name "foobar" with content "foo"
         # write downloaded file content "bar" into "foobar" with is_conflict = False
