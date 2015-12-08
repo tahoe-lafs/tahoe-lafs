@@ -511,8 +511,8 @@ class Client(node.Node, pollmixin.PollMixin):
             dbfile = abspath_expanduser_unicode(dbfile)
 
             from allmydata.frontends import magic_folder
-
-            s = magic_folder.MagicFolder(self, upload_dircap, collective_dircap, local_dir, dbfile)
+            umask = self.get_config("magic_folder", "download.umask", 0077)
+            s = magic_folder.MagicFolder(self, upload_dircap, collective_dircap, local_dir, dbfile, umask)
             s.setServiceParent(self)
             s.startService()
 
