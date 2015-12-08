@@ -56,7 +56,7 @@ def is_new_file(pathinfo, db_entry):
 class MagicFolder(service.MultiService):
     name = 'magic-folder'
 
-    def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile,
+    def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask,
                  pending_delay=1.0, clock=None):
         precondition_abspath(local_path_u)
 
@@ -77,7 +77,7 @@ class MagicFolder(service.MultiService):
 
         self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock, immediate)
         self.downloader = Downloader(client, local_path_u, db, collective_dirnode,
-                                     upload_dirnode.get_readonly_uri(), clock, self.uploader.is_pending)
+                                     upload_dirnode.get_readonly_uri(), clock, self.uploader.is_pending, umask)
 
     def startService(self):
         # TODO: why is this being called more than once?
@@ -527,7 +527,7 @@ class Downloader(QueueMixin, WriteFileMixin):
     REMOTE_SCAN_INTERVAL = 3  # facilitates tests
 
     def __init__(self, client, local_path_u, db, collective_dirnode,
-                 upload_readonly_dircap, clock, is_upload_pending, umask = 0123):
+                 upload_readonly_dircap, clock, is_upload_pending, umask):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
