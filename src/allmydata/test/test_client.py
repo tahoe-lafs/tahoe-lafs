@@ -318,10 +318,11 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         class MockMagicFolder(service.MultiService):
             name = 'magic-folder'
 
-            def __init__(self, client, upload_dircap, collective_dircap, local_dir, dbfile, inotify=None,
+            def __init__(self, client, upload_dircap, collective_dircap, local_dir, dbfile, umask, inotify=None,
                          pending_delay=1.0):
                 service.MultiService.__init__(self)
                 self.client = client
+                self._umask = umask
                 self.upload_dircap = upload_dircap
                 self.collective_dircap = collective_dircap
                 self.local_dir = local_dir
