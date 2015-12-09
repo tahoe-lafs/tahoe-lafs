@@ -48,6 +48,16 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d = self.do_cli("magic-folder", "join", invite_code, local_dir_arg, client_num=client_num)
         def _done((rc, stdout, stderr)):
             self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(stdout, "")
+            self.failUnlessEqual(stderr, "")
+            return (rc, stdout, stderr)
+        d.addCallback(_done)
+        return d
+
+    def do_leave(self, client_num):
+        d = self.do_cli("magic-folder", "leave", client_num=client_num)
+        def _done((rc, stdout, stderr)):
+            self.failUnlessEqual(rc, 0)
             return (rc, stdout, stderr)
         d.addCallback(_done)
         return d
@@ -289,20 +299,13 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         d.addCallback(get_caps)
         d.addCallback(lambda ign: self.check_joined_config(0, self.upload_dircap))
         d.addCallback(lambda ign: self.check_config(0, abs_local_dir_u))
-
-        def leave(ignore):
-            return self.do_cli("magic-folder", "leave", client_num=0)
-        d.addCallback(leave)
+        d.addCallback(lambda ign: self.do_leave(0))
 
         def check_join_again(invite_code):
             d2 = defer.succeed(None)
             def join_again(ignore):
                 return self.do_join(0, unicode(local_dir), self.invite_code)
             d2.addCallback(join_again)
-            def get_results(result):
-                code = result[0]
-                self.failUnlessEqual(code, 0)
-            d2.addCallback(get_results)
             return d2
 
         d.addCallback(lambda ign, invite_code: check_join_again(invite_code), self.invite_code)
