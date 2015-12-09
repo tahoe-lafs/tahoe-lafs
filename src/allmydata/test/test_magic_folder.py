@@ -1093,23 +1093,23 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             readonly_dircap = n.get_readonly_uri()
 
             self.shouldFail(AssertionError, 'nonexistent local.directory', 'there is no directory',
-                            MagicFolder, client, upload_dircap, '', doesnotexist, magicfolderdb)
+                            MagicFolder, client, upload_dircap, '', doesnotexist, magicfolderdb, 0077)
             self.shouldFail(AssertionError, 'non-directory local.directory', 'is not a directory',
-                            MagicFolder, client, upload_dircap, '', not_a_dir, magicfolderdb)
+                            MagicFolder, client, upload_dircap, '', not_a_dir, magicfolderdb, 0077)
             self.shouldFail(AssertionError, 'bad upload.dircap', 'does not refer to a directory',
-                            MagicFolder, client, 'bad', '', errors_dir, magicfolderdb)
+                            MagicFolder, client, 'bad', '', errors_dir, magicfolderdb, 0077)
             self.shouldFail(AssertionError, 'non-directory upload.dircap', 'does not refer to a directory',
-                            MagicFolder, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb)
+                            MagicFolder, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb, 0077)
             self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
-                            MagicFolder, client, readonly_dircap, '', errors_dir, magicfolderdb)
+                            MagicFolder, client, readonly_dircap, '', errors_dir, magicfolderdb, 0077)
             self.shouldFail(AssertionError, 'collective dircap', 'is not a readonly cap to a directory',
-                            MagicFolder, client, upload_dircap, upload_dircap, errors_dir, magicfolderdb)
+                            MagicFolder, client, upload_dircap, upload_dircap, errors_dir, magicfolderdb, 0077)
 
             def _not_implemented():
                 raise NotImplementedError("blah")
             self.patch(magic_folder, 'get_inotify_module', _not_implemented)
             self.shouldFail(NotImplementedError, 'unsupported', 'blah',
-                            MagicFolder, client, upload_dircap, '', errors_dir, magicfolderdb)
+                            MagicFolder, client, upload_dircap, '', errors_dir, magicfolderdb, 0077)
         d.addCallback(_check_errors)
         return d
 
