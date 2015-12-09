@@ -276,6 +276,11 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         d.addCallback(join_again)
         def get_results(result):
             code = result[0]
+            stdout = result[1]
+            stderr = result[2]
+            self.failUnlessEqual(stdout, "")
+            self.failUnlessEqual(stderr, "\nThis client has already joined a magic folder."
+                                 "\nUse the 'tahoe magic-folder leave' command first.\n\n")
             self.failIfEqual(code, 0)
         d.addCallback(get_results)
         return d
