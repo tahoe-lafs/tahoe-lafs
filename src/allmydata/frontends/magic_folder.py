@@ -56,7 +56,7 @@ def is_new_file(pathinfo, db_entry):
 class MagicFolder(service.MultiService):
     name = 'magic-folder'
 
-    def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile,
+    def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask,
                  pending_delay=1.0, clock=None):
         precondition_abspath(local_path_u)
 
@@ -77,7 +77,7 @@ class MagicFolder(service.MultiService):
 
         self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock, immediate)
         self.downloader = Downloader(client, local_path_u, db, collective_dirnode,
-                                     upload_dirnode.get_readonly_uri(), clock, self.uploader.is_pending)
+                                     upload_dirnode.get_readonly_uri(), clock, self.uploader.is_pending, umask)
 
     def startService(self):
         # TODO: why is this being called more than once?
@@ -484,10 +484,14 @@ class WriteFileMixin(object):
 
         # ensure parent directory exists
         head, tail = os.path.split(abspath_u)
-        mode = 0777 # XXX
-        fileutil.make_dirs(head, mode)
 
-        fileutil.write(replacement_path_u, file_contents)
+        old_mask = os.umask(self._umask)
+        try:
+            fileutil.make_dirs(head, (~ self._umask) & 0777)
+            fileutil.write(replacement_path_u, file_contents)
+        finally:
+            os.umask(old_mask)
+
         os.utime(replacement_path_u, (now, now - self.FUDGE_SECONDS))
         if is_conflict:
             print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
@@ -525,7 +529,7 @@ class Downloader(QueueMixin, WriteFileMixin):
     REMOTE_SCAN_INTERVAL = 3  # facilitates tests
 
     def __init__(self, client, local_path_u, db, collective_dirnode,
-                 upload_readonly_dircap, clock, is_upload_pending):
+                 upload_readonly_dircap, clock, is_upload_pending, umask):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
@@ -538,7 +542,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._collective_dirnode = collective_dirnode
         self._upload_readonly_dircap = upload_readonly_dircap
         self._is_upload_pending = is_upload_pending
-
+        self._umask = umask
         self._turn_delay = self.REMOTE_SCAN_INTERVAL
 
     def start_scanning(self):
