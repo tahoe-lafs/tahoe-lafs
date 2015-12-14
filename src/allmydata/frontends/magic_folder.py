@@ -543,7 +543,6 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._upload_readonly_dircap = upload_readonly_dircap
         self._is_upload_pending = is_upload_pending
         self._umask = umask
-        self._turn_delay = self.REMOTE_SCAN_INTERVAL
 
     def start_scanning(self):
         self._log("start_scanning")
@@ -680,7 +679,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         return d
 
     def _when_queue_is_empty(self):
-        d = task.deferLater(self._clock, self._turn_delay, self._scan_remote_collective)
+        d = task.deferLater(self._clock, self.REMOTE_SCAN_INTERVAL, self._scan_remote_collective)
         d.addBoth(self._logcb, "after _scan_remote_collective 1")
         d.addCallback(lambda ign: self._turn_deque())
         return d
