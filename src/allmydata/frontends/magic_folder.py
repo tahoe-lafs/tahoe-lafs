@@ -234,6 +234,9 @@ class Uploader(QueueMixin):
     def start_scanning(self):
         self._log("start_scanning")
         self.is_ready = True
+        return self._full_scan()
+
+    def _full_scan(self):
         self._pending = self._db.get_all_relpaths()
         self._log("all_files %r" % (self._pending))
         d = self._scan(u"")
