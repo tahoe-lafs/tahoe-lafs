@@ -234,16 +234,13 @@ class Uploader(QueueMixin):
     def start_scanning(self):
         self._log("start_scanning")
         self.is_ready = True
+        return self._full_scan()
+
+    def _full_scan(self):
+        print "FULL SCAN"
         self._pending = self._db.get_all_relpaths()
         self._log("all_files %r" % (self._pending))
         d = self._scan(u"")
-        def _add_pending(ign):
-            # This adds all of the files that were in the db but not already processed
-            # (normally because they have been deleted on disk).
-            self._log("adding %r" % (self._pending))
-            self._deque.extend(self._pending)
-        d.addCallback(_add_pending)
-        d.addCallback(lambda ign: self._turn_deque())
         return d
 
     def _scan(self, reldir_u):
@@ -268,13 +265,11 @@ class Uploader(QueueMixin):
                     return None
 
                 self._pending.add(relpath_u)
-                return relpath_u
             d.addCallback(_add_pending)
-            # This call to _process doesn't go through the deque, and probably should.
-            d.addCallback(self._process)
-            d.addBoth(self._call_hook, 'processed')
-            d.addErrback(log.err)
-
+        def _add_pending(ign):
+            self._log("adding %r" % (self._pending))
+            self._deque.extend(self._pending)
+        d.addCallback(_add_pending)
         return d
 
     def is_pending(self, relpath_u):
