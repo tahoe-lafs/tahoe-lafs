@@ -974,14 +974,6 @@ class TrialOptions(twisted_trial.Options):
 def trial(config):
     sys.argv = ['trial'] + config.trial_args
 
-    from allmydata._version import full_version
-    if full_version.endswith("-dirty"):
-        print >>sys.stderr
-        print >>sys.stderr, "WARNING: the source tree has been modified since the last commit."
-        print >>sys.stderr, "(It is usually preferable to commit, then test, then amend the commit(s)"
-        print >>sys.stderr, "if the tests fail.)"
-        print >>sys.stderr
-
     # This does not return.
     twisted_trial.run()
 
