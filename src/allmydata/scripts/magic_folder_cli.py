@@ -161,6 +161,7 @@ def join(options):
                                  "\nUse the 'tahoe magic-folder leave' command first.\n")
         return 1
 
+    print("ZINGA", dmd_cap_file)
     fileutil.write(dmd_cap_file, dmd_write_cap)
     fileutil.write(collective_readcap_file, magic_readonly_cap)
 

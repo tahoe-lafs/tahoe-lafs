@@ -1,5 +1,6 @@
 
 import os, sys
+import shutil
 
 from twisted.trial import unittest
 from twisted.internet import defer, task
@@ -21,6 +22,8 @@ from allmydata import magicfolderdb, magicpath
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import Data
 
+from twisted.internet.base import DelayedCall
+#DelayedCall.debug = True
 
 class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
     """
@@ -863,7 +866,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         def Alice_to_delete_file():
             print "Alice deletes the file!\n"
-            os.unlink(self.file_path)
+            shutil.move(self.file_path, self.file_path + u'.backup')
             self.notify(to_filepath(self.file_path), self.inotify.IN_DELETE, magic=self.alice_magicfolder)
         d.addCallback(_wait_for, Alice_to_delete_file)
 
@@ -875,6 +878,9 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             bob_clock.advance(0)
             return d0
         d.addCallback(notify_bob_moved)
+
+        # so on just-windows the above doesn't do IN_MOVED_FROM nor
+        # simulate same in RealTest; trying to compare to unix
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 1))
@@ -1206,7 +1212,10 @@ class RealTest(MagicFolderTestMixin, unittest.TestCase):
         # Writing to the filesystem causes the notification.
         # However, flushing filesystem buffers may be necessary on Windows.
         if flush:
-            fileutil.flush_volume(path.path)
+            try:
+                pass#fileutil.flush_volume(path.path)
+            except Exception:
+                pass  # e.g. permission errors
 
 try:
     magic_folder.get_inotify_module()

@@ -47,8 +47,13 @@ def is_new_file(pathinfo, db_entry):
         return True
 
     if not pathinfo.exists and db_entry.size is None:
+        print("NOT because", pathinfo.exists, db_entry.size)
         return False
 
+    print("NOT because", pathinfo.size, pathinfo.ctime, pathinfo.mtime,
+          db_entry.size, db_entry.ctime, db_entry.mtime,
+          ((pathinfo.size, pathinfo.ctime, pathinfo.mtime) !=
+           (db_entry.size, db_entry.ctime, db_entry.mtime)))
     return ((pathinfo.size, pathinfo.ctime, pathinfo.mtime) !=
             (db_entry.size, db_entry.ctime, db_entry.mtime))
 
@@ -210,7 +215,8 @@ class Uploader(QueueMixin):
                     | IN_EXCL_UNLINK
                     )
         self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
-                             recursive=True)
+                             recursive=False)#True)
+        print "WATCHING", self._local_filepath
 
     def start_monitoring(self):
         self._log("start_monitoring")
