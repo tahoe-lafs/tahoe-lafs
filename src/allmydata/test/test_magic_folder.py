@@ -577,11 +577,17 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             # cleanup
             d0 = self.alice_magicfolder.finish()
             alice_clock.advance(0)
-            yield d0
+            try:
+                yield d0
+            except Exception as e:
+                print("WARNING:", e)
 
             d1 = self.bob_magicfolder.finish()
             bob_clock.advance(0)
-            yield d1
+            try:
+                yield d1
+            except Exception as e:
+                print("WARNING:", e)
 
     @defer.inlineCallbacks
     def test_alice_delete_and_restore(self):
@@ -789,6 +795,21 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         alice_clock = task.Clock()
         bob_clock = task.Clock()
         d = self.setup_alice_and_bob(alice_clock, bob_clock)
+        def _cleanup(ign, magicfolder, clock):
+            if magicfolder is not None:
+                d2 = magicfolder.finish()
+                clock.advance(0)
+                return d2
+
+        def cleanup_Alice_and_Bob(result):
+            print "cleanup alice bob test\n"
+            d = defer.succeed(None)
+            d.addCallback(_cleanup, self.alice_magicfolder, alice_clock)
+            d.addCallback(_cleanup, self.bob_magicfolder, bob_clock)
+            d.addCallback(lambda ign: result)
+            return d
+        # callback version is added at the end...
+        d.addErrback(cleanup_Alice_and_Bob)
 
         def _wait_for_Alice(ign, downloaded_d):
             print "Now waiting for Alice to download\n"
@@ -1078,22 +1099,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 3, magic=self.alice_magicfolder))
 
-
-
-        def _cleanup(ign, magicfolder, clock):
-            if magicfolder is not None:
-                d2 = magicfolder.finish()
-                clock.advance(0)
-                return d2
-
-        def cleanup_Alice_and_Bob(result):
-            print "cleanup alice bob test\n"
-            d = defer.succeed(None)
-            d.addCallback(_cleanup, self.alice_magicfolder, alice_clock)
-            d.addCallback(_cleanup, self.bob_magicfolder, bob_clock)
-            d.addCallback(lambda ign: result)
-            return d
-        d.addBoth(cleanup_Alice_and_Bob)
+        d.addCallback(cleanup_Alice_and_Bob)
         return d
 
 
