@@ -24,6 +24,8 @@ from allmydata.util.fileutil import get_pathinfo
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import Data
 
+from twisted.internet.base import DelayedCall
+#DelayedCall.debug = True
 
 class MagicFolderDbTests(unittest.TestCase):
 
@@ -1393,7 +1395,10 @@ class RealTest(MagicFolderTestMixin, unittest.TestCase):
         # Writing to the filesystem causes the notification.
         # However, flushing filesystem buffers may be necessary on Windows.
         if flush:
-            fileutil.flush_volume(path.path)
+            try:
+                pass#fileutil.flush_volume(path.path)
+            except Exception:
+                pass  # e.g. permission errors
 
 try:
     magic_folder.get_inotify_module()

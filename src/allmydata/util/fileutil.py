@@ -588,6 +588,7 @@ if sys.platform == "win32":
                               None
                              )
         if hVolume == INVALID_HANDLE_VALUE:
+            print("ZINGA", abspath)
             raise WinError(get_last_error())
 
         if FlushFileBuffers(hVolume) == 0:
