@@ -35,6 +35,10 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.magicfolder = None
         self.patch(Downloader, 'REMOTE_SCAN_INTERVAL', 0)
 
+    def _print(self, res, msg):
+        print msg
+        return res
+
     def _get_count(self, name, client=None):
         counters = (client or self.get_client()).stats_provider.get_stats()["counters"]
         return counters.get('magic_folder.%s' % (name,), 0)
@@ -719,6 +723,16 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
     def _check_version_in_dmd(self, magicfolder, relpath_u, expected_version):
         encoded_name_u = magicpath.path2magic(relpath_u)
+        d = magicfolder.uploader._upload_dirnode.get_child_and_metadata(encoded_name_u)
+        def check_version(result):
+            if result[0] is not None:
+                node, metadata = result
+                d.addCallback(lambda ign: self.failUnlessEqual(metadata['version'], expected_version))
+        d.addCallback(check_version)
+        return d
+
+    def _check_version_latest(self, magicfolder, relpath_u, expected_version):
+        encoded_name_u = magicpath.path2magic(relpath_u)
         d = magicfolder.downloader._get_collective_latest_file(encoded_name_u)
         def check_latest(result):
             if result[0] is not None:
@@ -823,7 +837,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 1, magic=self.bob_magicfolder))
 
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 1))
-        d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 1))
+        d.addCallback(lambda ign: self._check_version_latest(self.bob_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_file_gone(self.bob_magicfolder, u"file1"))
         d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 2))
@@ -845,7 +859,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0))
 
-        d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 2))
+        d.addCallback(lambda ign: self._check_version_latest(self.bob_magicfolder, u"file1", 2))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 2))
         d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 3))
@@ -891,11 +905,19 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_uploader_count('directories_created', 0, magic=self.bob_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0))
 
-        d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 3))
+        d.addCallback(self._print, "XXX 1")
+        d.addCallback(lambda ign: self._check_version_latest(self.alice_magicfolder, u"file1", 3))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 3))
         d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
+
+        # The state at this point is that:
+        # * Alice's DMD has version 2 of file1
+        # * Bob's DMD has version 3 of file1
+        #
+        # XXX this would be simpler to understand if it used a different file to the
+        # previous checks.
 
         def Alice_conflicts_with_Bobs_last_downloaded_uri():
             print "Alice conflicts with Bob\n"
@@ -921,7 +943,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         # prepare to perform another conflict test
         def Alice_to_write_file2():
-            print "Alice writes a file\n"
+            print "Alice writes a file 2\n"
             self.file_path = abspath_expanduser_unicode(u"file2", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "something")
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
@@ -931,7 +953,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
 
         def Bob_to_rewrite_file2():
-            print "Bob rewrites file\n"
+            print "Bob rewrites file 2\n"
             self.file_path = abspath_expanduser_unicode(u"file2", base=self.bob_magicfolder.uploader._local_path_u)
             print "---- bob's file is %r" % (self.file_path,)
             fileutil.write(self.file_path, "roger roger. what vector?")
