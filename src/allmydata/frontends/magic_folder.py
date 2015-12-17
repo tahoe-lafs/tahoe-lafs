@@ -194,6 +194,8 @@ class Uploader(QueueMixin):
         self._notifier = self._inotify.INotify()
         self._pending = set()  # of unicode relpaths
 
+        self._periodic_full_scan_duration = 10 * 60 # perform a full scan every 10 minutes
+
         if hasattr(self._notifier, 'set_pending_delay'):
             self._notifier.set_pending_delay(pending_delay)
 
@@ -222,6 +224,7 @@ class Uploader(QueueMixin):
         self._log("stop")
         self._notifier.stopReading()
         self._count('dirs_monitored', -1)
+        self.periodic_callid.cancel()
         if hasattr(self._notifier, 'wait_until_stopped'):
             d = self._notifier.wait_until_stopped()
         else:
@@ -239,7 +242,7 @@ class Uploader(QueueMixin):
         for relpath_u in all_relpaths:
             self._add_pending(relpath_u)
 
-        self._full_scan()
+        self._periodic_full_scan()
         self._extend_queue_and_keep_going(self._pending)
 
     def _extend_queue_and_keep_going(self, relpaths_u):
@@ -252,6 +255,10 @@ class Uploader(QueueMixin):
                 self._turn_deque()
             else:
                 self._clock.callLater(0, self._turn_deque)
+
+    def _periodic_full_scan(self):
+        self.periodic_callid = self._clock.callLater(self._periodic_full_scan_duration, self._periodic_full_scan)
+        self._full_scan()
 
     def _full_scan(self):
         print "FULL SCAN"
