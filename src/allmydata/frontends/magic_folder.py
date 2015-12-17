@@ -255,7 +255,7 @@ class Uploader(QueueMixin):
 
     def _full_scan(self):
         print "FULL SCAN"
-        self._log("all_files %r" % (self._pending))
+        self._log("_pending %r" % (self._pending))
         self._scan(u"")
 
     def _add_pending(self, relpath_u):
@@ -381,14 +381,15 @@ class Uploader(QueueMixin):
                 encoded_path_u += magicpath.path2magic(u"/")
                 self._log("encoded_path_u =  %r" % (encoded_path_u,))
                 upload_d = self._upload_dirnode.add_file(encoded_path_u, uploadable, metadata={"version":0}, overwrite=True)
-                def _succeeded(ign):
+                def _dir_succeeded(ign):
                     self._log("created subdirectory %r" % (relpath_u,))
                     self._count('directories_created')
-                def _failed(f):
+                def _dir_failed(f):
                     self._log("failed to create subdirectory %r" % (relpath_u,))
                     return f
-                upload_d.addCallbacks(_succeeded, _failed)
+                upload_d.addCallbacks(_dir_succeeded, _dir_failed)
                 upload_d.addCallback(lambda ign: self._scan(relpath_u))
+                upload_d.addCallback(lambda ign: self._extend_queue_and_keep_going(self._pending))
                 return upload_d
             elif pathinfo.isfile:
                 db_entry = self._db.get_db_entry(relpath_u)
