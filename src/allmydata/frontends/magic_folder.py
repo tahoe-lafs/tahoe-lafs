@@ -258,7 +258,8 @@ class Uploader(QueueMixin):
 
     def _periodic_full_scan(self):
         self.periodic_callid = self._clock.callLater(self._periodic_full_scan_duration, self._periodic_full_scan)
-        self._full_scan()
+        if len(self._pending) == 0:
+            self._full_scan()
 
     def _full_scan(self):
         print "FULL SCAN"
