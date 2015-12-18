@@ -242,7 +242,7 @@ class Uploader(QueueMixin):
         for relpath_u in all_relpaths:
             self._add_pending(relpath_u)
 
-        self._periodic_full_scan()
+        self._periodic_full_scan(ignore_pending=True)
         self._extend_queue_and_keep_going(self._pending)
 
     def _extend_queue_and_keep_going(self, relpaths_u):
@@ -256,10 +256,13 @@ class Uploader(QueueMixin):
             else:
                 self._clock.callLater(0, self._turn_deque)
 
-    def _periodic_full_scan(self):
+    def _periodic_full_scan(self, ignore_pending=False):
         self.periodic_callid = self._clock.callLater(self._periodic_full_scan_duration, self._periodic_full_scan)
-        if len(self._pending) == 0:
+        if ignore_pending:
             self._full_scan()
+        else:
+            if len(self._pending) == 0:
+                self._full_scan()
 
     def _full_scan(self):
         print "FULL SCAN"
