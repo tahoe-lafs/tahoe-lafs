@@ -1215,11 +1215,8 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
         new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
 
-        #d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
-        d.addCallback(self._restart_client)
-
         def _check_move_empty_tree(res):
-            print "_check_move_empty_tree"
+            print "CHECK MOVE EMPTY TREE"
             uploaded_d = self.magicfolder.uploader.set_hook('processed')
             self.mkdir_nonascii(empty_tree_dir)
             os.rename(empty_tree_dir, new_empty_tree_dir)
@@ -1232,17 +1229,17 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 1))
 
-        self.uploaded_d = None
         def _create_file_without_event(res):
-            self.uploaded_d = self.magicfolder.uploader.set_hook('processed', ignore_count=0)
+            print "CREATE FILE WITHOUT EMITTING EVENT"
             what_path = abspath_expanduser_unicode(u"what", base=new_empty_tree_dir)
             fileutil.write(what_path, "say when")
-            return None
         d.addCallback(_create_file_without_event)
         def advance_clock(res):
             alice_clock.advance(20)
         d.addCallback(advance_clock)
-        d.addCallback(lambda ign: self.uploaded_d)
+        def hook(res):
+            uploaded_d = self.magicfolder.uploader.set_hook('processed')
+            return uploaded_d
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1))
         d.addCallback(lambda ign: self.magicfolder.finish())
         return d
