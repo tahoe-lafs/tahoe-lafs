@@ -1188,6 +1188,64 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         # .tmp file shouldn't exist
         self.failIf(os.path.exists(local_file + u".tmp"))
 
+    def test_periodic_full_scan(self):
+        self.set_up_grid()
+        self.local_dir = abspath_expanduser_unicode(u"test_periodic_full_scan",base=self.basedir)
+        self.mkdir_nonascii(self.local_dir)
+
+        alice_clock = task.Clock()
+        d = self.do_create_magic_folder(0)
+        d.addCallback(lambda ign: self.do_invite(0, u"Alice\u00F8"))
+        def get_invite_code(result):
+            self.invite_code = result[1].strip()
+        d.addCallback(get_invite_code)
+        d.addCallback(lambda ign: self.do_join(0, self.local_dir, self.invite_code))
+        def get_alice_caps(ign):
+            self.alice_collective_dircap, self.alice_upload_dircap = self.get_caps_from_files(0)
+        d.addCallback(get_alice_caps)
+        d.addCallback(lambda ign: self.check_joined_config(0, self.alice_upload_dircap))
+        d.addCallback(lambda ign: self.check_config(0, self.local_dir))
+        def get_Alice_magicfolder(result):
+            self.magicfolder = self.init_magicfolder(0, self.alice_upload_dircap,
+                                                           self.alice_collective_dircap,
+                                                           self.local_dir, alice_clock)
+            return result
+        d.addCallback(get_Alice_magicfolder)
+        empty_tree_name = self.unicode_or_fallback(u"empty_tr\u00EAe", u"empty_tree")
+        empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
+        new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
+
+        #d = self.create_invite_join_magic_folder(u"Alice", self.local_dir)
+        d.addCallback(self._restart_client)
+
+        def _check_move_empty_tree(res):
+            print "_check_move_empty_tree"
+            uploaded_d = self.magicfolder.uploader.set_hook('processed')
+            self.mkdir_nonascii(empty_tree_dir)
+            os.rename(empty_tree_dir, new_empty_tree_dir)
+            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
+            return uploaded_d
+        d.addCallback(_check_move_empty_tree)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 1))
+
+        self.uploaded_d = None
+        def _create_file_without_event(res):
+            self.uploaded_d = self.magicfolder.uploader.set_hook('processed', ignore_count=0)
+            what_path = abspath_expanduser_unicode(u"what", base=new_empty_tree_dir)
+            fileutil.write(what_path, "say when")
+            return None
+        d.addCallback(_create_file_without_event)
+        def advance_clock(res):
+            alice_clock.advance(20)
+        d.addCallback(advance_clock)
+        d.addCallback(lambda ign: self.uploaded_d)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1))
+        d.addCallback(lambda ign: self.magicfolder.finish())
+        return d
 
 class RealTest(MagicFolderTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
