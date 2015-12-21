@@ -275,13 +275,11 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
             return self.do_cli("magic-folder", "join", self.invite_code, local_dir, client_num=0)
         d.addCallback(join_again)
         def get_results(result):
-            code = result[0]
-            stdout = result[1]
-            stderr = result[2]
-            self.failUnlessEqual(stdout, "")
-            self.failUnlessEqual(stderr, "\nThis client has already joined a magic folder."
-                                 "\nUse the 'tahoe magic-folder leave' command first.\n\n")
-            self.failIfEqual(code, 0)
+            (rc, out, err) = result
+            self.failUnlessEqual(out, "")
+            self.failUnlessIn("This client has already joined a magic folder.", err)
+            self.failUnlessIn("Use the 'tahoe magic-folder leave' command first.", err)
+            self.failIfEqual(rc, 0)
         d.addCallback(get_results)
         return d
 
@@ -296,6 +294,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         d = self.do_create_magic_folder(0)
         d.addCallback(lambda ign: self.do_invite(0, u"Alice"))
         def get_invite_code_and_join((rc, stdout, stderr)):
+            self.failUnlessEqual(rc, 0)
             self.invite_code = stdout.strip()
             return self.do_join(0, unicode(local_dir), self.invite_code)
         d.addCallback(get_invite_code_and_join)
@@ -306,14 +305,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.check_config(0, abs_local_dir_u))
         d.addCallback(lambda ign: self.do_leave(0))
 
-        def check_join_again(invite_code):
-            d2 = defer.succeed(None)
-            def join_again(ignore):
-                return self.do_join(0, unicode(local_dir), self.invite_code)
-            d2.addCallback(join_again)
-            return d2
-
-        d.addCallback(lambda ign, invite_code: check_join_again(invite_code), self.invite_code)
+        d.addCallback(lambda ign: self.do_join(0, unicode(local_dir), self.invite_code))
         def get_caps(ign):
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
         d.addCallback(get_caps)
@@ -333,6 +325,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         d = self.do_create_magic_folder(0)
         d.addCallback(lambda ign: self.do_invite(0, u"Alice"))
         def get_invite_code_and_join((rc, stdout, stderr)):
+            self.failUnlessEqual(rc, 0)
             self.invite_code = stdout.strip()
             return self.do_join(0, unicode(local_dir), self.invite_code)
         d.addCallback(get_invite_code_and_join)
@@ -342,9 +335,17 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.check_joined_config(0, self.upload_dircap))
         d.addCallback(lambda ign: self.check_config(0, abs_local_dir_u))
 
-        def leave(ignore):
+        def check_success(result):
+            (rc, out, err) = result
+            self.failUnlessEqual(rc, 0)
+        def check_failure(result):
+            (rc, out, err) = result
+            self.failIfEqual(rc, 0)
+
+        def leave(ign):
             return self.do_cli("magic-folder", "leave", client_num=0)
         d.addCallback(leave)
+        d.addCallback(check_success)
 
         collective_dircap_file = os.path.join(self.get_clientdir(i=0), u"private", u"collective_dircap")
         upload_dircap = os.path.join(self.get_clientdir(i=0), u"private", u"magic_folder_dircap")
@@ -352,18 +353,13 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
         def check_join_if_file(my_file):
             fileutil.write(my_file, "my file data")
-            d2 = defer.succeed(None)
-            def join_again(ignore):
-                return self.do_cli("magic-folder", "join", self.invite_code, local_dir, client_num=0)
-            d2.addCallback(join_again)
-            def get_results(result):
-                code = result[0]
-                self.failIfEqual(code, 0)
-            d2.addCallback(get_results)
+            d2 = self.do_cli("magic-folder", "join", self.invite_code, local_dir, client_num=0)
+            d2.addCallback(check_failure)
             return d2
 
         for my_file in [collective_dircap_file, upload_dircap, magic_folder_db_file]:
             d.addCallback(lambda ign, my_file: check_join_if_file(my_file), my_file)
             d.addCallback(leave)
+            d.addCallback(check_success)
 
         return d
