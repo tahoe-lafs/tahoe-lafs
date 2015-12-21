@@ -13,6 +13,7 @@ import tahoe_mv
 from allmydata.util.encodingutil import argv_to_abspath, argv_to_unicode, to_str, \
     quote_local_unicode_path
 from allmydata.util import fileutil
+from allmydata.util import configutil
 from allmydata import uri
 
 INVITE_SEPARATOR = "+"
@@ -163,10 +164,10 @@ def join(options):
     fileutil.write(dmd_cap_file, dmd_write_cap)
     fileutil.write(collective_readcap_file, magic_readonly_cap)
 
-    # FIXME: modify any existing [magic_folder] fields, rather than appending.
-    fileutil.write(os.path.join(options["node-directory"], u"tahoe.cfg"),
-                   "[magic_folder]\nenabled = True\nlocal.directory = %s\n"
-                   % (options.local_dir.encode('utf-8'),), mode="ab")
+    config = configutil.get_config(os.path.join(options["node-directory"], u"tahoe.cfg"))
+    configutil.set_config(config, "magic_folder", "enabled", "True")
+    configutil.set_config(config, "magic_folder", "local.directory", options.local_dir.encode('utf-8'))
+    configutil.write_config(os.path.join(options["node-directory"], u"tahoe.cfg"), config)
     return 0
 
 class LeaveOptions(BasedirOptions):
