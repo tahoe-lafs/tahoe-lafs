@@ -1240,6 +1240,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         def hook(res):
             uploaded_d = self.magicfolder.uploader.set_hook('processed')
             return uploaded_d
+        d.addCallback(hook)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1))
         d.addCallback(lambda ign: self.magicfolder.finish())
         return d
