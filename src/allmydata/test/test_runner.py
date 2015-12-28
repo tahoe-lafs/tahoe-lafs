@@ -7,7 +7,8 @@ from twisted.python import usage, runtime
 from twisted.internet import threads
 
 from allmydata.util import fileutil, pollmixin
-from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, get_filesystem_encoding
+from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, \
+    get_filesystem_encoding
 from allmydata.scripts import runner
 from allmydata.client import Client
 from allmydata.test import common_util
@@ -264,8 +265,6 @@ class CreateNode(unittest.TestCase):
             else:
                 self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = true\n", content), content)
                 self.failUnless("\nreserved_space = 1G\n" in content)
-
-            self.failUnless(re.search(r"\n\[drop_upload\]\n#.*\nenabled = false\n", content), content)
 
         # creating the node a second time should be rejected
         rc, out, err = self.run_tahoe(argv)
