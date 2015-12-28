@@ -68,7 +68,7 @@ Client/server nodes provide one or more of the following services:
 * web-API service
 * SFTP service
 * FTP service
-* drop-upload service
+* Magic Folder service
 * helper service
 * storage service.
 
@@ -453,16 +453,16 @@ SFTP, FTP
     instructions on configuring these services, and the ``[sftpd]`` and
     ``[ftpd]`` sections of ``tahoe.cfg``.
 
-Drop-Upload
+Magic Folder
 
-    As of Tahoe-LAFS v1.9.0, a node running on Linux can be configured to
-    automatically upload files that are created or changed in a specified
-    local directory. See drop-upload.rst_ for details.
+    A node running on Linux or Windows can be configured to automatically
+    upload files that are created or changed in a specified local directory.
+    See `magic-folder.rst`_ for details.
 
 .. _download-status.rst: frontends/download-status.rst
 .. _CLI.rst: frontends/CLI.rst
 .. _FTP-and-SFTP.rst: frontends/FTP-and-SFTP.rst
-.. _drop-upload.rst: frontends/drop-upload.rst
+.. _magic-folder.rst: frontends/magic-folder.rst
 
 
 Storage Server Configuration
