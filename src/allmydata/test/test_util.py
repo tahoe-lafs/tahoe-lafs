@@ -460,12 +460,14 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
         saved_cwd = os.path.normpath(os.getcwdu())
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
+        abspath_cwd_notlong = fileutil.abspath_expanduser_unicode(u".", long_path=False)
         self.failUnless(isinstance(saved_cwd, unicode), saved_cwd)
         self.failUnless(isinstance(abspath_cwd, unicode), abspath_cwd)
         if sys.platform == "win32":
             self.failUnlessReallyEqual(abspath_cwd, fileutil.to_windows_long_path(saved_cwd))
         else:
             self.failUnlessReallyEqual(abspath_cwd, saved_cwd)
+        self.failUnlessReallyEqual(abspath_cwd_notlong, saved_cwd)
 
         self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\?\\foo"), u"\\\\?\\foo")
         self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\.\\foo"), u"\\\\.\\foo")
@@ -494,7 +496,19 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
             self.failUnlessReallyEqual(baz[4], bar[4])  # same drive
 
+            baz_notlong = fileutil.abspath_expanduser_unicode(u"\\baz", long_path=False)
+            self.failIf(baz_notlong.startswith(u"\\\\?\\"), baz_notlong)
+            self.failUnlessReallyEqual(baz_notlong[1 :], u":\\baz")
+
+            bar_notlong = fileutil.abspath_expanduser_unicode(u"\\bar", base=baz_notlong, long_path=False)
+            self.failIf(bar_notlong.startswith(u"\\\\?\\"), bar_notlong)
+            self.failUnlessReallyEqual(bar_notlong[1 :], u":\\bar")
+            # not u":\\baz\\bar", because \bar is absolute on the current drive.
+
+            self.failUnlessReallyEqual(baz_notlong[0], bar_notlong[0])  # same drive
+
         self.failIfIn(u"~", fileutil.abspath_expanduser_unicode(u"~"))
+        self.failIfIn(u"~", fileutil.abspath_expanduser_unicode(u"~", long_path=False))
 
         cwds = ['cwd']
         try:
@@ -510,6 +524,9 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
                 for upath in (u'', u'fuu', u'f\xf9\xf9', u'/fuu', u'U:\\', u'~'):
                     uabspath = fileutil.abspath_expanduser_unicode(upath)
                     self.failUnless(isinstance(uabspath, unicode), uabspath)
+
+                    uabspath_notlong = fileutil.abspath_expanduser_unicode(upath, long_path=False)
+                    self.failUnless(isinstance(uabspath_notlong, unicode), uabspath_notlong)
             finally:
                 os.chdir(saved_cwd)
 
