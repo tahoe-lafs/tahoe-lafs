@@ -11,6 +11,11 @@ if sys.platform == "win32":
         create_unicode_buffer, get_last_error
     from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID, HANDLE
 
+if sys.platform == "win32":
+    from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_ulonglong, \
+        create_unicode_buffer, get_last_error
+    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR
+
 from twisted.python import log
 
 from pycryptopp.cipher.aes import AES
