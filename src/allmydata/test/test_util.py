@@ -584,6 +584,60 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         disk = fileutil.get_disk_stats('.', 2**128)
         self.failUnlessEqual(disk['avail'], 0)
 
+    def test_get_pathinfo(self):
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        # create a directory
+        self.mkdir(basedir, "a")
+        dirinfo = fileutil.get_pathinfo(basedir)
+        self.failUnlessTrue(dirinfo.isdir)
+        self.failUnlessTrue(dirinfo.exists)
+        self.failUnlessFalse(dirinfo.isfile)
+        self.failUnlessFalse(dirinfo.islink)
+
+        # create a file
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
+        fileinfo = fileutil.get_pathinfo(f)
+        self.failUnlessTrue(fileinfo.isfile)
+        self.failUnlessTrue(fileinfo.exists)
+        self.failUnlessFalse(fileinfo.isdir)
+        self.failUnlessFalse(fileinfo.islink)
+        self.failUnlessEqual(fileinfo.size, 10)
+
+        # path at which nothing exists
+        dnename = os.path.join(basedir, "doesnotexist")
+        now = time.time()
+        dneinfo = fileutil.get_pathinfo(dnename, now=now)
+        self.failUnlessFalse(dneinfo.exists)
+        self.failUnlessFalse(dneinfo.isfile)
+        self.failUnlessFalse(dneinfo.isdir)
+        self.failUnlessFalse(dneinfo.islink)
+        self.failUnlessEqual(dneinfo.size, None)
+        self.failUnlessEqual(dneinfo.mtime, now)
+        self.failUnlessEqual(dneinfo.ctime, now)
+
+    def test_get_pathinfo_symlink(self):
+        if not hasattr(os, 'symlink'):
+            raise unittest.SkipTest("can't create symlinks on this platform")
+
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
+
+        # create a symlink pointing to 1.txt
+        slname = os.path.join(basedir, "linkto1.txt")
+        os.symlink(f, slname)
+        symlinkinfo = fileutil.get_pathinfo(slname)
+        self.failUnlessTrue(symlinkinfo.islink)
+        self.failUnlessTrue(symlinkinfo.exists)
+        self.failUnlessFalse(symlinkinfo.isfile)
+        self.failUnlessFalse(symlinkinfo.isdir)
+
+
 class PollMixinTests(unittest.TestCase):
     def setUp(self):
         self.pm = pollmixin.PollMixin()

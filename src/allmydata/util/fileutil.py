@@ -3,6 +3,8 @@ Futz with files like a pro.
 """
 
 import sys, exceptions, os, stat, tempfile, time, binascii
+from collections import namedtuple
+from errno import ENOENT
 
 from twisted.python import log
 
@@ -514,3 +516,32 @@ def get_available_space(whichdir, reserved_space):
     except EnvironmentError:
         log.msg("OS call to get disk statistics failed")
         return 0
+
+
+PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime ctime')
+
+def get_pathinfo(path_u, now=None):
+    try:
+        statinfo = os.lstat(path_u)
+        mode = statinfo.st_mode
+        return PathInfo(isdir =stat.S_ISDIR(mode),
+                        isfile=stat.S_ISREG(mode),
+                        islink=stat.S_ISLNK(mode),
+                        exists=True,
+                        size  =statinfo.st_size,
+                        mtime =statinfo.st_mtime,
+                        ctime =statinfo.st_ctime,
+                       )
+    except OSError as e:
+        if e.errno == ENOENT:
+            if now is None:
+                now = time.time()
+            return PathInfo(isdir =False,
+                            isfile=False,
+                            islink=False,
+                            exists=False,
+                            size  =None,
+                            mtime =now,
+                            ctime =now,
+                           )
+        raise
