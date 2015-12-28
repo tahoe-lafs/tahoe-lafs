@@ -341,10 +341,9 @@ if sys.platform == "win32":
 
     # <http://msdn.microsoft.com/en-us/library/windows/desktop/ms683188%28v=vs.85%29.aspx>
     GetEnvironmentVariableW = WINFUNCTYPE(
-        DWORD,
-          LPCWSTR, LPWSTR, DWORD,
+        DWORD,  LPCWSTR, LPWSTR, DWORD,
         use_last_error=True
-      )(("GetEnvironmentVariableW", windll.kernel32))
+    )(("GetEnvironmentVariableW", windll.kernel32))
 
     try:
         # <http://msdn.microsoft.com/en-us/library/aa383742%28v=VS.85%29.aspx>
@@ -352,10 +351,9 @@ if sys.platform == "win32":
 
         # <http://msdn.microsoft.com/en-us/library/aa364937%28VS.85%29.aspx>
         GetDiskFreeSpaceExW = WINFUNCTYPE(
-            BOOL,
-              LPCWSTR, PULARGE_INTEGER, PULARGE_INTEGER, PULARGE_INTEGER,
+            BOOL,  LPCWSTR, PULARGE_INTEGER, PULARGE_INTEGER, PULARGE_INTEGER,
             use_last_error=True
-          )(("GetDiskFreeSpaceExW", windll.kernel32))
+        )(("GetDiskFreeSpaceExW", windll.kernel32))
 
         have_GetDiskFreeSpaceExW = True
     except Exception:
@@ -403,8 +401,8 @@ def windows_getenv(name):
         err = get_last_error()
         if err == ERROR_ENVVAR_NOT_FOUND:
             return None
-        raise OSError("Windows error %d attempting to read size of environment variable %r"
-                      % (err, name))
+        raise OSError("WinError: %s\n attempting to read size of environment variable %r"
+                      % (WinError(err), name))
     if n == 1:
         # Avoid an ambiguity between a zero-length string and an error in the return value of the
         # call to GetEnvironmentVariableW below.
@@ -416,8 +414,8 @@ def windows_getenv(name):
         err = get_last_error()
         if err == ERROR_ENVVAR_NOT_FOUND:
             return None
-        raise OSError("Windows error %d attempting to read environment variable %r"
-                      % (err, name))
+        raise OSError("WinError: %s\n attempting to read environment variable %r"
+                      % (WinError(err), name))
     if retval >= n:
         raise OSError("Unexpected result %d (expected less than %d) from GetEnvironmentVariableW attempting to read environment variable %r"
                       % (retval, n, name))
@@ -459,8 +457,8 @@ def get_disk_stats(whichdir, reserved_space=0):
                                                byref(n_total),
                                                byref(n_free_for_root))
         if retval == 0:
-            raise OSError("Windows error %d attempting to get disk statistics for %r"
-                          % (get_last_error(), whichdir))
+            raise OSError("WinError: %s\n attempting to get disk statistics for %r"
+                          % (WinError(get_last_error()), whichdir))
         free_for_nonroot = n_free_for_nonroot.value
         total            = n_total.value
         free_for_root    = n_free_for_root.value
