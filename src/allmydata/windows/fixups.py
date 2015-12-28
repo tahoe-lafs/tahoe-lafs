@@ -9,13 +9,18 @@ def initialize():
     done = True
 
     import codecs, re
-    from ctypes import WINFUNCTYPE, windll, POINTER, byref, c_int
+    from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_int, get_last_error
     from ctypes.wintypes import BOOL, HANDLE, DWORD, UINT, LPWSTR, LPCWSTR, LPVOID
+
     from allmydata.util import log
     from allmydata.util.encodingutil import canonical_encoding
 
     # <https://msdn.microsoft.com/en-us/library/ms680621%28VS.85%29.aspx>
-    SetErrorMode = WINFUNCTYPE(UINT, UINT)(("SetErrorMode", windll.kernel32))
+    SetErrorMode = WINFUNCTYPE(
+        UINT,  UINT,
+        use_last_error=True
+    )(("SetErrorMode", windll.kernel32))
+
     SEM_FAILCRITICALERRORS = 0x0001
     SEM_NOOPENFILEERRORBOX = 0x8000
 
@@ -50,13 +55,27 @@ def initialize():
         # <https://msdn.microsoft.com/en-us/library/ms683167(VS.85).aspx>
         # BOOL WINAPI GetConsoleMode(HANDLE hConsole, LPDWORD lpMode);
 
-        GetStdHandle = WINFUNCTYPE(HANDLE, DWORD)(("GetStdHandle", windll.kernel32))
+        GetStdHandle = WINFUNCTYPE(
+            HANDLE,  DWORD,
+            use_last_error=True
+        )(("GetStdHandle", windll.kernel32))
+
         STD_OUTPUT_HANDLE = DWORD(-11)
         STD_ERROR_HANDLE  = DWORD(-12)
-        GetFileType = WINFUNCTYPE(DWORD, DWORD)(("GetFileType", windll.kernel32))
+
+        GetFileType = WINFUNCTYPE(
+            DWORD,  DWORD,
+            use_last_error=True
+        )(("GetFileType", windll.kernel32))
+
         FILE_TYPE_CHAR   = 0x0002
         FILE_TYPE_REMOTE = 0x8000
-        GetConsoleMode = WINFUNCTYPE(BOOL, HANDLE, POINTER(DWORD))(("GetConsoleMode", windll.kernel32))
+
+        GetConsoleMode = WINFUNCTYPE(
+            BOOL,  HANDLE, POINTER(DWORD),
+            use_last_error=True
+        )(("GetConsoleMode", windll.kernel32))
+
         INVALID_HANDLE_VALUE = DWORD(-1).value
 
         def not_a_console(handle):
@@ -88,11 +107,14 @@ def initialize():
                 real_stderr = False
 
         if real_stdout or real_stderr:
+            # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms687401%28v=vs.85%29.aspx>
             # BOOL WINAPI WriteConsoleW(HANDLE hOutput, LPWSTR lpBuffer, DWORD nChars,
             #                           LPDWORD lpCharsWritten, LPVOID lpReserved);
 
-            WriteConsoleW = WINFUNCTYPE(BOOL, HANDLE, LPWSTR, DWORD, POINTER(DWORD), LPVOID) \
-                                (("WriteConsoleW", windll.kernel32))
+            WriteConsoleW = WINFUNCTYPE(
+                BOOL,  HANDLE, LPWSTR, DWORD, POINTER(DWORD), LPVOID,
+                use_last_error=True
+            )(("WriteConsoleW", windll.kernel32))
 
             class UnicodeOutput:
                 def __init__(self, hConsole, stream, fileno, name):
@@ -139,8 +161,10 @@ def initialize():
                                 # There is a shorter-than-documented limitation on the length of the string
                                 # passed to WriteConsoleW (see #1232).
                                 retval = WriteConsoleW(self._hConsole, text, min(remaining, 10000), byref(n), None)
-                                if retval == 0 or n.value == 0:
-                                    raise IOError("WriteConsoleW returned %r, n.value = %r" % (retval, n.value))
+                                if retval == 0:
+                                    raise IOError("WriteConsoleW failed with WinError: %s" % (WinError(get_last_error()),))
+                                if n.value == 0:
+                                    raise IOError("WriteConsoleW returned %r, n.value = 0" % (retval,))
                                 remaining -= n.value
                                 if remaining == 0: break
                                 text = text[n.value:]
@@ -169,12 +193,23 @@ def initialize():
         _complain("exception %r while fixing up sys.stdout and sys.stderr" % (e,))
 
     # This works around <http://bugs.python.org/issue2128>.
-    GetCommandLineW = WINFUNCTYPE(LPWSTR)(("GetCommandLineW", windll.kernel32))
-    CommandLineToArgvW = WINFUNCTYPE(POINTER(LPWSTR), LPCWSTR, POINTER(c_int)) \
-                            (("CommandLineToArgvW", windll.shell32))
+
+    # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms683156%28v=vs.85%29.aspx>
+    GetCommandLineW = WINFUNCTYPE(
+        LPWSTR,
+        use_last_error=True
+    )(("GetCommandLineW", windll.kernel32))
+
+    # <https://msdn.microsoft.com/en-us/library/windows/desktop/bb776391%28v=vs.85%29.aspx>
+    CommandLineToArgvW = WINFUNCTYPE(
+        POINTER(LPWSTR),  LPCWSTR, POINTER(c_int),
+        use_last_error=True
+    )(("CommandLineToArgvW", windll.shell32))
 
     argc = c_int(0)
     argv_unicode = CommandLineToArgvW(GetCommandLineW(), byref(argc))
+    if argv_unicode is None:
+        raise WinError(get_last_error())
 
     # Because of <http://bugs.python.org/issue8775> (and similar limitations in
     # twisted), the 'bin/tahoe' script cannot invoke us with the actual Unicode arguments.
