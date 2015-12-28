@@ -9,7 +9,7 @@ from errno import ENOENT
 if sys.platform == "win32":
     from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_ulonglong, \
         create_unicode_buffer, get_last_error
-    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID
+    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID, HANDLE
 
 from twisted.python import log
 
@@ -517,6 +517,60 @@ def get_available_space(whichdir, reserved_space):
     except EnvironmentError:
         log.msg("OS call to get disk statistics failed")
         return 0
+
+
+if sys.platform == "win32":
+    # <http://msdn.microsoft.com/en-us/library/aa363858%28v=vs.85%29.aspx>
+    CreateFileW = WINFUNCTYPE(
+        HANDLE,  LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE,
+        use_last_error=True
+    )(("CreateFileW", windll.kernel32))
+
+    GENERIC_WRITE        = 0x40000000
+    FILE_SHARE_READ      = 0x00000001
+    FILE_SHARE_WRITE     = 0x00000002
+    OPEN_EXISTING        = 3
+    INVALID_HANDLE_VALUE = 0xFFFFFFFF
+
+    # <http://msdn.microsoft.com/en-us/library/aa364439%28v=vs.85%29.aspx>
+    FlushFileBuffers = WINFUNCTYPE(
+        BOOL,  HANDLE,
+        use_last_error=True
+    )(("FlushFileBuffers", windll.kernel32))
+
+    # <http://msdn.microsoft.com/en-us/library/ms724211%28v=vs.85%29.aspx>
+    CloseHandle = WINFUNCTYPE(
+        BOOL,  HANDLE,
+        use_last_error=True
+    )(("CloseHandle", windll.kernel32))
+
+    # <http://social.msdn.microsoft.com/forums/en-US/netfxbcl/thread/4465cafb-f4ed-434f-89d8-c85ced6ffaa8/>
+    def flush_volume(path):
+        abspath = os.path.realpath(path)
+        if abspath.startswith("\\\\?\\"):
+            abspath = abspath[4 :]
+        drive = os.path.splitdrive(abspath)[0]
+
+        print "flushing %r" % (drive,)
+        hVolume = CreateFileW(u"\\\\.\\" + drive,
+                              GENERIC_WRITE,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE,
+                              None,
+                              OPEN_EXISTING,
+                              0,
+                              None
+                             )
+        if hVolume == INVALID_HANDLE_VALUE:
+            raise WinError(get_last_error())
+
+        if FlushFileBuffers(hVolume) == 0:
+            raise WinError(get_last_error())
+
+        CloseHandle(hVolume)
+else:
+    def flush_volume(path):
+        # use sync()?
+        pass
 
 
 class ConflictError(Exception):
