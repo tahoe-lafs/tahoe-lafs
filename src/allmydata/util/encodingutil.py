@@ -6,8 +6,9 @@ unicode and back.
 import sys, os, re, locale
 from types import NoneType
 
-from allmydata.util.assertutil import precondition
+from allmydata.util.assertutil import precondition, _assert
 from twisted.python import usage
+from twisted.python.filepath import FilePath
 from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
@@ -35,9 +36,10 @@ def check_encoding(encoding):
 filesystem_encoding = None
 io_encoding = None
 is_unicode_platform = False
+use_unicode_filepath = False
 
 def _reload():
-    global filesystem_encoding, io_encoding, is_unicode_platform
+    global filesystem_encoding, io_encoding, is_unicode_platform, use_unicode_filepath
 
     filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
     check_encoding(filesystem_encoding)
@@ -60,6 +62,12 @@ def _reload():
     check_encoding(io_encoding)
 
     is_unicode_platform = sys.platform in ["win32", "darwin"]
+
+    # Despite the Unicode-mode FilePath support added to Twisted in
+    # <https://twistedmatrix.com/trac/ticket/7805>, we can't yet use
+    # Unicode-mode FilePaths with INotify on non-Windows platforms
+    # due to <https://twistedmatrix.com/trac/ticket/7928>.
+    use_unicode_filepath = sys.platform == "win32"
 
 _reload()
 
@@ -249,6 +257,54 @@ def quote_local_unicode_path(path, quotemarks=True):
 
     return quote_output(path, quotemarks=quotemarks, quote_newlines=True)
 
+def quote_filepath(path, quotemarks=True):
+    return quote_local_unicode_path(unicode_from_filepath(path), quotemarks=quotemarks)
+
+def extend_filepath(fp, segments):
+    # We cannot use FilePath.preauthChild, because
+    # * it has the security flaw described in <https://twistedmatrix.com/trac/ticket/6527>;
+    # * it may return a FilePath in the wrong mode.
+
+    for segment in segments:
+        fp = fp.child(segment)
+
+    if isinstance(fp.path, unicode) and not use_unicode_filepath:
+        return FilePath(fp.path.encode(filesystem_encoding))
+    else:
+        return fp
+
+def to_filepath(path):
+    precondition(isinstance(path, unicode if use_unicode_filepath else basestring),
+                 path=path)
+
+    if isinstance(path, unicode) and not use_unicode_filepath:
+        path = path.encode(filesystem_encoding)
+
+    if sys.platform == "win32":
+        _assert(isinstance(path, unicode), path=path)
+        if path.startswith(u"\\\\?\\") and len(path) > 4:
+            # FilePath normally strips trailing path separators, but not in this case.
+            path = path.rstrip(u"\\")
+
+    return FilePath(path)
+
+def _decode(s):
+    precondition(isinstance(s, basestring), s=s)
+
+    if isinstance(s, bytes):
+        return s.decode(filesystem_encoding)
+    else:
+        return s
+
+def unicode_from_filepath(fp):
+    precondition(isinstance(fp, FilePath), fp=fp)
+    return _decode(fp.path)
+
+def unicode_segments_from(base_fp, ancestor_fp):
+    precondition(isinstance(base_fp, FilePath), base_fp=base_fp)
+    precondition(isinstance(ancestor_fp, FilePath), ancestor_fp=ancestor_fp)
+
+    return base_fp.asTextMode().segmentsFrom(ancestor_fp.asTextMode())
 
 def unicode_platform():
     """
@@ -296,3 +352,6 @@ def listdir_unicode(path):
         return os.listdir(path)
     else:
         return listdir_unicode_fallback(path)
+
+def listdir_filepath(fp):
+    return listdir_unicode(unicode_from_filepath(fp))
