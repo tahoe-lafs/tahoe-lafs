@@ -173,6 +173,8 @@ class BackupDB_v2:
         """
 
         path = abspath_expanduser_unicode(path)
+
+        # TODO: consider using get_pathinfo.
         s = os.stat(path)
         size = s[stat.ST_SIZE]
         ctime = s[stat.ST_CTIME]
