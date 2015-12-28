@@ -235,7 +235,7 @@ leave some corner cases of the write coordination problem unsolved.
 +------------------------------------------------+------+------+------+------+------+------+
 | Must traverse immutable directory structure    |      |      |‒ ‒   |      |‒ ‒   |      |
 +------------------------------------------------+------+------+------+------+------+------+
-| Must traverse mutable directory structure      |      |‒ ‒   |      |‒ ‒   |      |      |
+| Must traverse mutable directory structure      |      |‒ ‒ ‒ |      |‒ ‒ ‒ |      |      |
 +------------------------------------------------+------+------+------+------+------+------+
 | Must suppress duplicate representation changes |      |      |      |‒ ‒   |‒ ‒   |      |
 +------------------------------------------------+------+------+------+------+------+------+
@@ -375,7 +375,12 @@ this procedure for an overwrite in response to a remote change:
    conflict. (This takes as input the ``last_downloaded_uri``
    field from the directory entry of the changed ``foo``.)
 3. Set the ``mtime`` of the replacement file to be *T* seconds
-   before the current local time.
+   before the current local time. Stat the replacement file
+   to obtain its ``mtime`` and ``ctime`` as stored in the local
+   filesystem, and update the file's last-seen statinfo in
+   the magic folder db with this information. (Note that the
+   retrieved ``mtime`` may differ from the one that was set due
+   to rounding.)
 4. Perform a ''file replacement'' operation (explained below)
    with backup filename ``foo.backup``, replaced file ``foo``,
    and replacement file ``.foo.tmp``. If any step of this
@@ -409,10 +414,10 @@ set in step 3. The move operation in step 4b will cause a
 step 4c will cause an ``IN_CREATE`` event for ``foo``.
 However, these events will not trigger an upload, because they
 are guaranteed to be processed only after the file replacement
-has finished, at which point the metadata recorded in the
-database entry will exactly match the metadata for the file's
-inode on disk. (The two hard links — ``foo`` and,  while it
-still exists, ``.foo.tmp`` — share the same inode and
+has finished, at which point the last-seen statinfo recorded
+in the database entry will exactly match the metadata for the
+file's inode on disk. (The two hard links — ``foo`` and, while
+it still exists, ``.foo.tmp`` — share the same inode and
 therefore the same metadata.)
 
 .. _`magic folder db`: filesystem_integration.rst#local-scanning-and-database
@@ -786,7 +791,7 @@ may be absent). Then the algorithm is:
 * 2b. Read the following information for the path ``foo`` from the
   local magic folder db:
 
-  * the *last-uploaded statinfo*, if any (this is the size in
+  * the *last-seen statinfo*, if any (this is the size in
     bytes, ``mtime``, and ``ctime`` stored in the ``local_files``
     table when the file was last uploaded);
   * the ``last_uploaded_uri`` field of the ``local_files`` table
@@ -796,7 +801,7 @@ may be absent). Then the algorithm is:
 * 2c. If any of the following are true, then classify as a conflict:
 
   * i. there are pending notifications of changes to ``foo``;
-  * ii. the last-uploaded statinfo is either absent (i.e. there is
+  * ii. the last-seen statinfo is either absent (i.e. there is
     no entry in the database for this path), or different from the
     current statinfo;
   * iii. either ``last_downloaded_uri`` or ``last_uploaded_uri``
