@@ -251,7 +251,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
-        sb = StorageFarmBroker(None, True)
+        sb = StorageFarmBroker(None, True, 0, None)
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
                    "permutation-seed-base32": base32.b2a(k) }
@@ -263,7 +263,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
     def test_permute_with_preferred(self):
-        sb = StorageFarmBroker(None, True, ['1','4'])
+        sb = StorageFarmBroker(None, True, 0, None, ['1','4'])
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
                    "permutation-seed-base32": base32.b2a(k) }
