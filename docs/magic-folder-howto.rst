@@ -37,7 +37,7 @@ Linux
 Install ``git`` from your distribution's package manager.
 Then run these commands::
 
-  git clone -b 2438.magic-folder-stable.5 https://github.com/tahoe-lafs/tahoe-lafs.git
+  git clone -b 2438.magic-folder-stable.8 https://github.com/tahoe-lafs/tahoe-lafs.git
   cd tahoe-lafs
   python setup.py test
 
@@ -223,7 +223,7 @@ other directory will be renamed to a filename ending in ``.backup``.
 Deleting a directory will have no effect.
 
 For other known issues and limitations, see
-https://github.com/tahoe-lafs/tahoe-lafs/blob/2438.magic-folder-stable.5/docs/frontends/magic-folder.rst#known-issues-and-limitations
+https://github.com/tahoe-lafs/tahoe-lafs/blob/2438.magic-folder-stable.8/docs/frontends/magic-folder.rst#known-issues-and-limitations
 
 As mentioned earlier, it is also possible to run the nodes on
 different machines, to synchronize between three or more clients,
