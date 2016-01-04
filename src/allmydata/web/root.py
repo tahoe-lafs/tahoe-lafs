@@ -14,7 +14,7 @@ from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
-     get_arg, RenderMixin, get_format, get_mutable_type, TIME_FORMAT
+     get_arg, RenderMixin, get_format, get_mutable_type, render_time
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -171,7 +171,7 @@ class Root(rend.Page):
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
-        return time.strftime(TIME_FORMAT, time.localtime())
+        return render_time(time.time())
     def data_version(self, ctx, data):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):
@@ -309,10 +309,8 @@ class Root(rend.Page):
         ctx.fillSlots("connected", connected)
         ctx.fillSlots("connected_alt", self._connectedalts[connected])
         ctx.fillSlots("connected-bool", bool(rhost))
-        ctx.fillSlots("since", time.strftime(TIME_FORMAT,
-                                             time.localtime(since)))
-        ctx.fillSlots("announced", time.strftime(TIME_FORMAT,
-                                                 time.localtime(announced)))
+        ctx.fillSlots("since", render_time(since))
+        ctx.fillSlots("announced", render_time(announced))
         ctx.fillSlots("version", version)
         ctx.fillSlots("service_name", service_name)
         ctx.fillSlots("available_space", available_space)
