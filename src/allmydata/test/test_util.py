@@ -1006,6 +1006,21 @@ class TimeFormat(unittest.TestCase):
     def test_parse_date(self):
         self.failUnlessEqual(time_format.parse_date("2010-02-21"), 1266710400)
 
+    def test_format_time(self):
+        self.failUnlessEqual(time_format.format_time(time.gmtime(0)), '1970-01-01 00:00:00')
+        self.failUnlessEqual(time_format.format_time(time.gmtime(60)), '1970-01-01 00:01:00')
+        self.failUnlessEqual(time_format.format_time(time.gmtime(60*60)), '1970-01-01 01:00:00')
+        seconds_per_day = 60*60*24
+        leap_years_1970_to_2014_inclusive = ((2012 - 1968) // 4)
+        self.failUnlessEqual(time_format.format_time(time.gmtime(seconds_per_day*((2015 - 1970)*365+leap_years_1970_to_2014_inclusive))), '2015-01-01 00:00:00')
+
+    def test_format_time_y2038(self):
+        seconds_per_day = 60*60*24
+        leap_years_1970_to_2047_inclusive = ((2044 - 1968) // 4)
+        self.failUnlessEqual(time_format.format_time(time.gmtime(seconds_per_day*((2048 - 1970)*365+leap_years_1970_to_2047_inclusive))), '2048-01-01 00:00:00')
+
+    test_format_time_y2038.todo = "one day we'll move beyond 32-bit time"
+
 class CacheDir(unittest.TestCase):
     def test_basic(self):
         basedir = "test_util/CacheDir/test_basic"
