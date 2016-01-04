@@ -347,6 +347,8 @@ class Root(rend.Page):
         ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
         ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)
         ctx.fillSlots("last_received_data_rel_time", last_received_data_rel_time)
+        ctx.fillSlots("since", render_time(since))
+        ctx.fillSlots("announced", render_time(announced))
         ctx.fillSlots("version", version)
         ctx.fillSlots("available_space", available_space)
 
