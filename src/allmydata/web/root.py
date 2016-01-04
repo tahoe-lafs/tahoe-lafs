@@ -10,11 +10,12 @@ from nevow.util import resource_filename
 import allmydata # to display import path
 from allmydata import get_package_versions_string
 from allmydata.util import log
+from allmydata.util.time_format import format_time
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
-     get_arg, RenderMixin, get_format, get_mutable_type, TIME_FORMAT
+     get_arg, RenderMixin, get_format, get_mutable_type
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -171,7 +172,7 @@ class Root(rend.Page):
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
-        return time.strftime(TIME_FORMAT, time.localtime())
+        return format_time(time.localtime())
     def data_version(self, ctx, data):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):
@@ -309,10 +310,8 @@ class Root(rend.Page):
         ctx.fillSlots("connected", connected)
         ctx.fillSlots("connected_alt", self._connectedalts[connected])
         ctx.fillSlots("connected-bool", bool(rhost))
-        ctx.fillSlots("since", time.strftime(TIME_FORMAT,
-                                             time.localtime(since)))
-        ctx.fillSlots("announced", time.strftime(TIME_FORMAT,
-                                                 time.localtime(announced)))
+        ctx.fillSlots("since", format_time(time.localtime(since)))
+        ctx.fillSlots("announced", format_time(time.localtime(announced)))
         ctx.fillSlots("version", version)
         ctx.fillSlots("service_name", service_name)
         ctx.fillSlots("available_space", available_space)

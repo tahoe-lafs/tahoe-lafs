@@ -3,6 +3,9 @@
 
 import calendar, datetime, re, time
 
+def format_time(t):
+    return time.strftime("%H:%M:%S %d-%b-%Y", t)
+
 def iso_utc_date(now=None, t=time.time):
     if now is None:
         now = t()

@@ -16,8 +16,6 @@ from allmydata.util import abbreviate
 from allmydata.util.encodingutil import to_str, quote_output
 
 
-TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-
 def get_filenode_metadata(filenode):
     metadata = {'mutable': filenode.is_mutable()}
     if metadata['mutable']:

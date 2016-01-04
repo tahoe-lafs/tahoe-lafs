@@ -7,7 +7,8 @@ import allmydata
 import simplejson
 from allmydata import get_package_versions_string
 from allmydata.util import idlib
-from allmydata.web.common import getxmlfile, get_arg, TIME_FORMAT
+from allmydata.util.time_format import format_time
+from allmydata.web.common import getxmlfile, get_arg
 
 
 class IntroducerRoot(rend.Page):
@@ -53,7 +54,7 @@ class IntroducerRoot(rend.Page):
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
-        return time.strftime(TIME_FORMAT, time.localtime())
+        return format_time(time.localtime())
     def data_version(self, ctx, data):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):
