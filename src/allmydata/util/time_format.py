@@ -4,7 +4,7 @@
 import calendar, datetime, re, time
 
 def format_time(t):
-    return time.strftime("%H:%M:%S %d-%b-%Y", t)
+    return time.strftime("%Y-%m-%d %H:%M:%S", t)
 
 def iso_utc_date(now=None, t=time.time):
     if now is None:
@@ -70,4 +70,28 @@ def parse_date(s):
     # return seconds-since-epoch for the UTC midnight that starts the given
     # day
     return int(iso_utc_time_to_seconds(s + "T00:00:00"))
+
+def format_delta(time_1, time_2):
+    if time_1 is None:
+        return "N/A"
+    if time_1 > time_2:
+        return '-'
+    delta = int(time_2 - time_1)
+    seconds = delta % 60
+    delta  -= seconds
+    minutes = (delta / 60) % 60
+    delta  -= minutes * 60
+    hours   = delta / (60*60) % 24
+    delta  -= hours * 24
+    days    = delta / (24*60*60)
+    if not days:
+        if not hours:
+            if not minutes:
+                return "%ss" % (seconds)
+            else:
+                return "%sm %ss" % (minutes, seconds)
+        else:
+            return "%sh %sm %ss" % (hours, minutes, seconds)
+    else:
+        return "%sd %sh %sm %ss" % (days, hours, minutes, seconds)
 
