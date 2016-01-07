@@ -78,7 +78,7 @@ class IIntroducerClient(Interface):
     publish their services to the rest of the world, and I help them learn
     about services available on other nodes."""
 
-    def publish(service_name, ann, signing_key=None):
+    def publish(service_name, ann, current_seqnum, current_nonce, signing_key=None):
         """Publish the given announcement dictionary (which must be
         JSON-serializable), plus some additional keys, to the world.
 
@@ -87,6 +87,10 @@ class IIntroducerClient(Interface):
         later one will replace the earlier one. The serverid is derived from
         the signing_key, if present, otherwise it is derived from the
         'anonymous-storage-FURL' key.
+
+        current_seqnum and current_nonce both will (in the future) be used
+        by the Client and IntroducerClient to determine when to publish
+        an announcement.
 
         If signing_key= is set to an instance of SigningKey, it will be
         used to sign the announcement."""

@@ -103,7 +103,7 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
 
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {})
         self.failUnless(isinstance(ic, IntroducerClient))
 
     def test_listen(self):
@@ -135,7 +135,7 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
         i = IntroducerService()
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {})
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
         keyid = keyutil.remove_prefix(vk_s, "pub-v0-")
@@ -184,7 +184,7 @@ class Client(unittest.TestCase):
     def test_duplicate_receive_v1(self):
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {})
         announcements = []
         ic.subscribe_to("storage",
                         lambda key_s,ann: announcements.append(ann))
@@ -233,12 +233,12 @@ class Client(unittest.TestCase):
     def test_duplicate_receive_v2(self):
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, fakeseq)
+                               "ver23", "oldest_version", {})
         # we use a second client just to create a different-looking
         # announcement
         ic2 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver24","oldest_version",{}, fakeseq)
+                               "ver24","oldest_version",{})
         announcements = []
         def _received(key_s, ann):
             announcements.append( (key_s, ann) )
@@ -341,7 +341,7 @@ class Client(unittest.TestCase):
         # not replace the other)
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {})
         announcements = []
         ic.subscribe_to("storage",
                         lambda key_s,ann: announcements.append(ann))
@@ -379,7 +379,7 @@ class Server(unittest.TestCase):
         i = IntroducerService()
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, realseq)
+                               "ver23", "oldest_version", {})
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
 
         privkey_s, _ = keyutil.make_keypair()
@@ -481,7 +481,7 @@ class Queue(SystemTestMixin, unittest.TestCase):
         tub2 = Tub()
         tub2.setServiceParent(self.parent)
         c = IntroducerClient(tub2, ifurl,
-                             u"nickname", "version", "oldest", {}, fakeseq)
+                             u"nickname", "version", "oldest", {})
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -491,7 +491,7 @@ class Queue(SystemTestMixin, unittest.TestCase):
             # now that the introducer server is offline, create a client and
             # publish some messages
             c.setServiceParent(self.parent) # this starts the reconnector
-            c.publish("storage", make_ann(furl1), sk)
+            c.publish("storage", make_ann(furl1), 0, "", sk)
 
             introducer.setServiceParent(self.parent) # restart the server
             # now wait for the messages to be delivered
@@ -569,7 +569,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 c = IntroducerClient(tub, self.introducer_furl,
                                      NICKNAME % str(i),
                                      "version", "oldest",
-                                     {"component": "component-v1"}, fakeseq)
+                                     {"component": "component-v1"})
             received_announcements[c] = {}
             def got(key_s_or_tubid, ann, announcements, i):
                 if i == 0:
@@ -591,14 +591,14 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                     privkey_s, pubkey_s = keyutil.make_keypair()
                     privkey, _ignored = keyutil.parse_privkey(privkey_s)
                     privkeys[c] = privkey
-                    c.publish("storage", make_ann(node_furl), privkey)
+                    c.publish("storage", make_ann(node_furl), 0, "", privkey)
                     if server_version == V1:
                         printable_serverids[i] = get_tubid_string(node_furl)
                     else:
                         assert pubkey_s.startswith("pub-")
                         printable_serverids[i] = pubkey_s[len("pub-"):]
                 else:
-                    c.publish("storage", make_ann(node_furl))
+                    c.publish("storage", make_ann(node_furl), 0, "")
                     printable_serverids[i] = get_tubid_string(node_furl)
                 publishing_clients.append(c)
             else:
@@ -615,7 +615,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             if i == 2:
                 # also publish something that nobody cares about
                 boring_furl = tub.registerReference(Referenceable())
-                c.publish("boring", make_ann(boring_furl))
+                c.publish("boring", make_ann(boring_furl), 0, "")
 
             c.setServiceParent(self.parent)
             clients.append(c)
@@ -888,8 +888,7 @@ class ClientInfo(unittest.TestCase):
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
-                                     "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     "my_version", "oldest", app_versions)
         #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         #ann_s = make_ann_t(client_v2, furl1, None, 10)
         #introducer.remote_publish_v2(ann_s, Referenceable())
@@ -950,8 +949,7 @@ class Announcements(unittest.TestCase):
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
-                                     "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     "my_version", "oldest", app_versions)
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         tubid = "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
         ann_s0 = make_ann_t(client_v2, furl1, None, 10)
@@ -972,8 +970,7 @@ class Announcements(unittest.TestCase):
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
-                                     "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     "my_version", "oldest", app_versions)
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -1019,7 +1016,7 @@ class ClientSeqnums(unittest.TestCase):
         f.write("introducer.furl = nope\n")
         f.close()
         c = TahoeClient(basedir)
-        ic = c.introducer_client
+        ic = c.introducer_clients[0]
         outbound = ic._outbound_announcements
         published = ic._published_announcements
         def read_seqnum():
@@ -1027,8 +1024,8 @@ class ClientSeqnums(unittest.TestCase):
             seqnum = f.read().strip()
             f.close()
             return int(seqnum)
-
-        ic.publish("sA", {"key": "value1"}, c._node_key)
+        current_seqnum, current_nonce = c._sequencer()
+        ic.publish("sA", {"key": "value1"}, current_seqnum, current_nonce, c._node_key)
         self.failUnlessEqual(read_seqnum(), 1)
         self.failUnless("sA" in outbound)
         self.failUnlessEqual(outbound["sA"]["seqnum"], 1)
@@ -1040,7 +1037,8 @@ class ClientSeqnums(unittest.TestCase):
 
         # publishing a second service causes both services to be
         # re-published, with the next higher sequence number
-        ic.publish("sB", {"key": "value2"}, c._node_key)
+        current_seqnum, current_nonce = c._sequencer()
+        ic.publish("sB", {"key": "value2"}, current_seqnum, current_nonce, c._node_key)
         self.failUnlessEqual(read_seqnum(), 2)
         self.failUnless("sB" in outbound)
         self.failUnlessEqual(outbound["sB"]["seqnum"], 2)
@@ -1083,8 +1081,7 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         tub.setLocation("localhost:%d" % portnum)
 
         c = IntroducerClient(tub, self.introducer_furl,
-                             u"nickname-client", "version", "oldest", {},
-                             fakeseq)
+                             u"nickname-client", "version", "oldest", {})
         announcements = {}
         def got(key_s, ann):
             announcements[key_s] = ann

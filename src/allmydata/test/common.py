@@ -676,7 +676,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
     def _check_connections(self):
         for c in self.clients:
-            if not c.connected_to_introducer():
+            if True not in c.introducer_connection_statuses():
                 return False
             sb = c.get_storage_broker()
             if len(sb.get_connected_servers()) != self.numclients:

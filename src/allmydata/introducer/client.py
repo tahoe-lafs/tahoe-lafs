@@ -50,7 +50,7 @@ class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions, sequencer):
+                 app_versions):
         self._tub = tub
         self.introducer_furl = introducer_furl
 
@@ -59,7 +59,6 @@ class IntroducerClient(service.Service, Referenceable):
         self._my_version = my_version
         self._oldest_supported = oldest_supported
         self._app_versions = app_versions
-        self._sequencer = sequencer
 
         self._my_subscriber_info = { "version": 0,
                                      "nickname": self._nickname,
@@ -75,6 +74,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._canary = Referenceable()
 
         self._publisher = None
+        self._since = None
 
         self._local_subscribers = [] # (servicename,cb,args,kwargs) tuples
         self._subscribed_service_names = set()
@@ -138,6 +138,7 @@ class IntroducerClient(service.Service, Referenceable):
         if not (V1 in publisher.version or V2 in publisher.version):
             raise InsufficientVersionError("V1 or V2", publisher.version)
         self._publisher = publisher
+        self._since = int(time.time())
         publisher.notifyOnDisconnect(self._disconnected)
         self._maybe_publish()
         self._maybe_subscribe()
@@ -145,6 +146,7 @@ class IntroducerClient(service.Service, Referenceable):
     def _disconnected(self):
         self.log("bummer, we've lost our connection to the introducer")
         self._publisher = None
+        self._since = int(time.time())
         self._subscriptions.clear()
 
     def log(self, *args, **kwargs):
@@ -199,7 +201,7 @@ class IntroducerClient(service.Service, Referenceable):
             self.publish("stub_client",
                          { "anonymous-storage-FURL": furl,
                            "permutation-seed-base32": get_tubid_string(furl),
-                           })
+                           }, 0, "")
         d.addCallback(_publish_stub_client)
         return d
 
@@ -217,10 +219,8 @@ class IntroducerClient(service.Service, Referenceable):
         ann_d.update(ann)
         return ann_d
 
-    def publish(self, service_name, ann, signing_key=None):
+    def publish(self, service_name, ann, current_seqnum, current_nonce, signing_key=None):
         # we increment the seqnum every time we publish something new
-        current_seqnum, current_nonce = self._sequencer()
-
         ann_d = self.create_announcement_dict(service_name, ann)
         self._outbound_announcements[service_name] = ann_d
 
@@ -359,3 +359,13 @@ class IntroducerClient(service.Service, Referenceable):
 
     def connected_to_introducer(self):
         return bool(self._publisher)
+
+    def get_since(self):
+        return self._since
+
+    def get_last_received_data_time(self):
+        if self._publisher is None:
+            return None
+        else:
+            return self._publisher.getDataLastReceivedAt()
+
