@@ -1,6 +1,5 @@
 #!/usr/bin/python
 import unittest, os
-from mock import Mock, patch
 
 from allmydata.util.fileutil import write, remove
 from allmydata.client import Client, MULTI_INTRODUCERS_CFG
@@ -28,38 +27,6 @@ def cfg_cleanup():
     # clean-up all cfg files
     remove("tahoe.cfg")
     remove(MULTI_INTRODUCERS_CFG)
-
-class TestRoot(unittest.TestCase):
-
-    def setUp(self):
-        cfg_setup()
-
-    def tearDown(self):
-        cfg_cleanup()
-
-    @patch('allmydata.web.root.Root')
-    def test_introducer_furls(self, MockRoot):
-        """Ensure that a client's 'welcome page can fetch all introducer FURLs
-         loaded by the Client"""
-
-        # mock setup
-        mockctx = Mock()
-        mockdata = Mock()
-
-        # get the Client and furl count
-        myclient = Client()
-        furls = myclient.introducer_furls
-        furl_count = len(furls)
-
-        # Pass mock value to Root
-        myroot = Root(myclient)
-
-        # make the call
-        s = myroot.data_introducers(mockctx, mockdata)
-
-        #assertions: compare return value with preset value
-        self.failUnlessEqual(furl_count, len(s))
-
 
 
 class TestClient(unittest.TestCase):
