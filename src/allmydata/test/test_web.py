@@ -661,6 +661,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 return self.connected
             def get_since(self):
                 return 0
+            def get_last_received_data_time(self):
+                return 0
 
         d = defer.succeed(None)
 

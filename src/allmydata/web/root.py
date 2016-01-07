@@ -253,8 +253,7 @@ class Root(rend.Page):
 
     def render_introducers_row(self, ctx, s):
         (furl, connected, ic) = s
-        status = "yes" if connected else "no"
-        service_connection_status = self._connectedalts[status]
+        service_connection_status = "yes" if connected else "no"
 
         since = ic.get_since()
         service_connection_status_rel_time = render_time_delta(since, self.now_fn())
@@ -265,9 +264,9 @@ class Root(rend.Page):
         last_received_data_abs_time = render_time_attr(last_received_data_time)
 
         ctx.fillSlots("introducer_furl", "%s" % (furl))
-#        ctx.fillSlots("connected-bool", "%s" % (connected))
         ctx.fillSlots("service_connection_status", "%s" % (service_connection_status,))
-#        ctx.fillSlots("connected", "%s" % (status[int(connected)]))
+        ctx.fillSlots("service_connection_status_alt",
+            self._connectedalts[service_connection_status])
         ctx.fillSlots("service_connection_status_abs_time", service_connection_status_abs_time)
         ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
         ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)
@@ -357,8 +356,8 @@ class Root(rend.Page):
             available_space = abbreviate_size(available_space)
         ctx.fillSlots("address", addr)
         ctx.fillSlots("service_connection_status", service_connection_status)
-        ctx.fillSlots("service_connection_status_alt", self._connectedalts[service_connection_status])
-        ctx.fillSlots("connected-bool", bool(rhost))
+        ctx.fillSlots("service_connection_status_alt",
+            self._connectedalts[service_connection_status])
         ctx.fillSlots("service_connection_status_abs_time", service_connection_status_abs_time)
         ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
         ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)
