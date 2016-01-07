@@ -664,7 +664,10 @@ class IReadable(Interface):
         the last byte has been given to it, or because the consumer threw an
         exception during write(), possibly because it no longer wants to
         receive data). The portion downloaded will start at 'offset' and
-        contain 'size' bytes (or the remainder of the file if size==None).
+        contain 'size' bytes (or the remainder of the file if size==None). It
+        is an error to read beyond the end of the file: callers must use
+        get_size() and clip any non-default offset= and size= parameters. It
+        is permissible to read zero bytes.
 
         The consumer will be used in non-streaming mode: an IPullProducer
         will be attached to it.
@@ -1290,7 +1293,8 @@ class IDirectoryNode(IFilesystemNode):
         is a file, or if must_be_file is True and the child is a directory,
         I raise ChildOfWrongTypeError."""
 
-    def create_subdirectory(name, initial_children={}, overwrite=True, metadata=None):
+    def create_subdirectory(name, initial_children={}, overwrite=True,
+                            mutable=True, mutable_version=None, metadata=None):
         """I create and attach a directory at the given name. The new
         directory can be empty, or it can be populated with children
         according to 'initial_children', which takes a dictionary in the same
@@ -2628,26 +2632,13 @@ class RIControlClient(RemoteInterface):
         storage servers.
         """
 
-    def upload_from_file_to_uri(filename=str,
-                                convergence=ChoiceOf(None,
-                                                     StringConstraint(2**20))):
-        """Upload a file to the grid. This accepts a filename (which must be
-        absolute) that points to a file on the node's local disk. The node will
-        read the contents of this file, upload it to the grid, then return the
-        URI at which it was uploaded.  If convergence is None then a random
-        encryption key will be used, else the plaintext will be hashed, then
-        that hash will be mixed together with the "convergence" string to form
-        the encryption key.
-        """
-        return URI
+    # debug stuff
 
-    def download_from_uri_to_file(uri=URI, filename=str):
-        """Download a file from the grid, placing it on the node's local disk
-        at the given filename (which must be absolute[?]). Returns the
-        absolute filename where the file was written."""
+    def upload_random_data_from_file(size=int, convergence=str):
         return str
 
-    # debug stuff
+    def download_to_tempfile_and_delete(uri=str):
+        return None
 
     def get_memory_usage():
         """Return a dict describes the amount of memory currently in use. The

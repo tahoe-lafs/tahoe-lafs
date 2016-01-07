@@ -198,23 +198,6 @@ the outbound TCP queue), publishing nodes will start dropping log events when
 the outbound queue grows too large. When this occurs, there will be gaps
 (non-sequential event numbers) in the log-gatherer's flogfiles.
 
-Local twistd.log files
-======================
-
-[TODO: not yet true, requires foolscap-0.3.1 and a change to ``allmydata.node``]
-
-In addition to the foolscap-based event logs, certain high-level events will
-be recorded directly in human-readable text form, in the
-``BASEDIR/logs/twistd.log`` file (and its rotated old versions:
-``twistd.log.1``, ``twistd.log.2``, etc). This form does not contain as much
-information as the flogfiles available through the means described
-previously, but they are immediately available to the curious developer, and
-are retained until the twistd.log.NN files are explicitly deleted.
-
-Only events at the ``log.OPERATIONAL`` level or higher are bridged to
-``twistd.log`` (i.e. not the ``log.NOISY`` debugging events). In addition,
-foolscap internal events (like connection negotiation messages) are not
-bridged to ``twistd.log``.
 
 Adding log messages
 ===================

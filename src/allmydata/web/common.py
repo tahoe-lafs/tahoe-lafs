@@ -1,5 +1,7 @@
 
+import time
 import simplejson
+
 from twisted.web import http, server
 from twisted.python import log
 from zope.interface import Interface
@@ -14,10 +16,9 @@ from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      IntroducerlessConfigDisabledError, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate
+from allmydata.util.time_format import format_time, format_delta
 from allmydata.util.encodingutil import to_str, quote_output
 
-
-TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
 
 def get_filenode_metadata(filenode):
     metadata = {'mutable': filenode.is_mutable()}
@@ -207,8 +208,20 @@ def plural(sequence_or_length):
 def text_plain(text, ctx):
     req = IRequest(ctx)
     req.setHeader("content-type", "text/plain")
-    req.setHeader("content-length", len(text))
+    req.setHeader("content-length", b"%d" % len(text))
     return text
+
+def spaces_to_nbsp(text):
+    return unicode(text).replace(u' ', u'\u00A0')
+
+def render_time_delta(time_1, time_2):
+    return spaces_to_nbsp(format_delta(time_1, time_2))
+
+def render_time(t):
+    return spaces_to_nbsp(format_time(time.localtime(t)))
+
+def render_time_attr(t):
+    return format_time(time.localtime(t))
 
 class WebError(Exception):
     def __init__(self, text, code=http.BAD_REQUEST):
@@ -319,7 +332,7 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
         req.setHeader("content-type", "text/plain;charset=utf-8")
         if isinstance(text, unicode):
             text = text.encode("utf-8")
-        req.setHeader("content-length", str(len(text)))
+        req.setHeader("content-length", b"%d" % len(text))
         req.write(text)
         # TODO: consider putting the requested URL here
         req.finishRequest(False)

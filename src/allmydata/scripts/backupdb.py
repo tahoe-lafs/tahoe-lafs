@@ -6,6 +6,8 @@ from allmydata.util.hashutil import backupdb_dirhash
 from allmydata.util import base32
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import to_str
+from allmydata.util.dbutil import get_db, DBError
+
 
 DAY = 24*60*60
 MONTH = 30*DAY
@@ -58,47 +60,22 @@ UPDATE_v1_to_v2 = TABLE_DIRECTORY + """
 UPDATE version SET version=2;
 """
 
+UPDATERS = {
+    2: UPDATE_v1_to_v2,
+}
 
 def get_backupdb(dbfile, stderr=sys.stderr,
                  create_version=(SCHEMA_v2, 2), just_create=False):
-    # open or create the given backupdb file. The parent directory must
+    # Open or create the given backupdb file. The parent directory must
     # exist.
-    import sqlite3
-
-    must_create = not os.path.exists(dbfile)
     try:
-        db = sqlite3.connect(dbfile)
-    except (EnvironmentError, sqlite3.OperationalError), e:
-        print >>stderr, "Unable to create/open backupdb file %s: %s" % (dbfile, e)
-        return None
-
-    c = db.cursor()
-    if must_create:
-        schema, version = create_version
-        c.executescript(schema)
-        c.execute("INSERT INTO version (version) VALUES (?)", (version,))
-        db.commit()
-
-    try:
-        c.execute("SELECT version FROM version")
-        version = c.fetchone()[0]
-    except sqlite3.DatabaseError, e:
-        # this indicates that the file is not a compatible database format.
-        # Perhaps it was created with an old version, or it might be junk.
-        print >>stderr, "backupdb file is unusable: %s" % e
-        return None
-
-    if just_create: # for tests
-        return True
-
-    if version == 1:
-        c.executescript(UPDATE_v1_to_v2)
-        db.commit()
-        version = 2
-    if version == 2:
+        (sqlite3, db) = get_db(dbfile, stderr, create_version, updaters=UPDATERS,
+                               just_create=just_create, dbname="backupdb")
         return BackupDB_v2(sqlite3, db)
-    print >>stderr, "Unable to handle backupdb version %s" % version
-    return None
+    except DBError, e:
+        print >>stderr, e
+        return None
+
 
 class FileResult:
     def __init__(self, bdb, filecap, should_check,
@@ -127,6 +104,7 @@ class FileResult:
     def did_check_healthy(self, results):
         self.bdb.did_check_file_healthy(self.filecap, results)
 
+
 class DirectoryResult:
     def __init__(self, bdb, dirhash, dircap, should_check):
         self.bdb = bdb
@@ -147,6 +125,7 @@ class DirectoryResult:
 
     def did_check_healthy(self, results):
         self.bdb.did_check_directory_healthy(self.dircap, results)
+
 
 class BackupDB_v2:
     VERSION = 2
@@ -180,7 +159,7 @@ class BackupDB_v2:
         is not healthy, please upload the file and call r.did_upload(filecap)
         when you're done.
 
-        I use_timestamps=True (the default), I will compare ctime and mtime
+        If use_timestamps=True (the default), I will compare ctime and mtime
         of the local file against an entry in my database, and consider the
         file to be unchanged if ctime, mtime, and filesize are all the same
         as the earlier version. If use_timestamps=False, I will not trust the

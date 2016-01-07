@@ -173,14 +173,14 @@ class FakeHistory:
 
 class FakeDisplayableServer(StubServer):
     def __init__(self, serverid, nickname, connected,
-                            last_connect_time, last_lost_time, last_rx):
+                 last_connect_time, last_loss_time, last_rx_time):
         StubServer.__init__(self, serverid)
         self.announcement = {"my-version": "allmydata-tahoe-fake",
                              "service-name": "storage",
                              "nickname": nickname}
         self.connected = connected
-        self.last_lost_time = last_lost_time
-        self.last_rx = last_rx
+        self.last_loss_time = last_loss_time
+        self.last_rx_time = last_rx_time
         self.last_connect_time = last_connect_time
     def is_connected(self):
         return self.connected
@@ -189,9 +189,9 @@ class FakeDisplayableServer(StubServer):
     def get_remote_host(self):
         return ""
     def get_last_loss_time(self):
-        return self.last_lost_time
+        return self.last_loss_time
     def get_last_received_data_time(self):
-        return self.last_rx
+        return self.last_rx_time
     def get_last_connect_time(self):
         return self.last_connect_time
     def get_announcement(self):
@@ -251,11 +251,12 @@ class FakeClient(Client):
         self.storage_broker.test_add_server("other_nodeid",
             FakeDisplayableServer(
                 serverid="other_nodeid", nickname=u"other_nickname \u263B", connected = True,
-                last_connect_time = 10, last_lost_time = 20, last_rx = 30))
+                last_connect_time = 10, last_loss_time = 20, last_rx_time = 30))
         self.storage_broker.test_add_server("disconnected_nodeid",
             FakeDisplayableServer(
                 serverid="other_nodeid", nickname=u"disconnected_nickname \u263B", connected = False,
-                last_connect_time = 15, last_lost_time = 25, last_rx = 35))
+                last_connect_time = 15, last_loss_time = 25, last_rx_time = 35))
+        self.introducer_client = None
         self.introducer_clients = None
         self.history = FakeHistory()
         self.uploader = FakeUploader()
@@ -283,15 +284,16 @@ class FakeClient(Client):
 
     MUTABLE_SIZELIMIT = FakeMutableFileNode.MUTABLE_SIZELIMIT
 
-class WebMixin(object):
+class WebMixin(testutil.TimezoneMixin):
     def setUp(self):
+        self.setTimezone('UTC-13:00')
         self.s = FakeClient()
         self.s.startService()
         self.staticdir = self.mktemp()
         self.clock = Clock()
         self.fakeTime = 86460 # 1d 0h 1m 0s
         self.ws = webish.WebishServer(self.s, "0", staticdir=self.staticdir,
-                                      clock=self.clock, now=lambda:self.fakeTime)
+                                      clock=self.clock, now_fn=lambda:self.fakeTime)
         self.ws.setServiceParent(self.s)
         self.webish_port = self.ws.getPortnum()
         self.webish_url = self.ws.getURL()
@@ -617,7 +619,6 @@ class WebMixin(object):
             self.fail("%s was supposed to Error(302), not get '%s'" %
                       (which, res))
 
-
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, unittest.TestCase):
 
     def test_create(self):
@@ -636,11 +637,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             res_u = res.decode('utf-8')
             self.failUnlessIn(u'<td>fake_nickname \u263A</td>', res_u)
             self.failUnlessIn(u'<div class="nickname">other_nickname \u263B</div>', res_u)
-            self.failUnlessIn('Connected to <span>1</span>\n              of <span>2</span> known storage servers', res_u)
-            self.failUnlessIn('<div class="status-indicator service-Connected"></div>\n<div class="status-description">Connected<br /><a class="timestamp" title="00:00:10 01-Jan-1970">1d0h0m50s</a></div></td>', res_u)
-            self.failUnlessIn('<div class="status-indicator service-Disconnected"></div>\n<div class="status-description">Disconnected<br /><a class="timestamp" title="00:00:25 01-Jan-1970">1d0h0m35s</a></div></td>', res_u)
-            self.failUnlessIn('<td class="service-last-received-data"><a class="timestamp" title="00:00:30 01-Jan-1970">1d0h0m30s</a></td>', res)
-            self.failUnlessIn('<td class="service-last-received-data"><a class="timestamp" title="00:00:35 01-Jan-1970">1d0h0m25s</a></td>', res)
+            self.failUnlessIn(u'Connected to <span>1</span>\n              of <span>2</span> known storage servers', res_u)
+            self.failUnlessIn(u'<div class="status-indicator"><img src="img/connected-yes.png" alt="Connected" /></div>\n                <a class="timestamp" title="1970-01-01 13:00:10">1d\u00A00h\u00A00m\u00A050s</a>', res_u)
+            self.failUnlessIn(u'<div class="status-indicator"><img src="img/connected-no.png" alt="Disconnected" /></div>\n                <a class="timestamp" title="1970-01-01 13:00:25">1d\u00A00h\u00A00m\u00A035s</a>', res_u)
+            self.failUnlessIn(u'<td class="service-last-received-data"><a class="timestamp" title="1970-01-01 13:00:30">1d\u00A00h\u00A00m\u00A030s</a></td>', res_u)
+            self.failUnlessIn(u'<td class="service-last-received-data"><a class="timestamp" title="1970-01-01 13:00:35">1d\u00A00h\u00A00m\u00A025s</a></td>', res_u)
             self.failUnlessIn(u'\u00A9 <a href="https://tahoe-lafs.org/">Tahoe-LAFS Software Foundation', res_u)
             self.failUnlessIn('<td><h3>Available</h3></td>', res)
             self.failUnlessIn('123.5kB', res)
@@ -673,7 +674,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<div class="status-indicator connected-no"></div>[ ]*<div>No introducers connected</div>', html), res)
+            self.failUnless(re.search('<img src="img/connected-no.png" alt="Disconnected" />[ ]*<div>No introducers connected</div>', html), res)
         d.addCallback(_check_introducer_not_connected_unguessable)
 
         # introducer connected, unguessable furl
@@ -686,7 +687,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>1 introducer connected</div>', html), res)
+            self.failUnless(re.search('<img src="img/connected-yes.png" alt="Connected" />[ ]*<div>1 introducer connected</div>', html), res)
         d.addCallback(_check_introducer_connected_unguessable)
 
         # introducer connected, guessable furl
@@ -698,7 +699,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check_introducer_connected_guessable(res):
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/introducer</div>', html)
-            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>1 introducer connected</div>', html), res)
+            self.failUnless(re.search('<img src="img/connected-yes.png" alt="Connected" />[ ]*<div>1 introducer connected</div>', html), res)
         d.addCallback(_check_introducer_connected_guessable)
         return d
 
@@ -712,7 +713,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_no_helper)
         def _check_no_helper(res):
             html = res.replace('\n', ' ')
-            self.failUnless(re.search('<div class="status-indicator connected-not-configured"></div>[ ]*<div>Helper</div>', html), res)
+            self.failUnless(re.search('<img src="img/connected-not-configured.png" alt="Not Configured" />', html), res)
         d.addCallback(_check_no_helper)
 
         # enable helper, not connected
@@ -725,7 +726,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someHelper/[censored]</div>', html)
             self.failIfIn('pb://someHelper/secret', html)
-            self.failUnless(re.search('<div class="status-indicator connected-no"></div>[ ]*<div>Helper not connected</div>', html), res)
+            self.failUnless(re.search('<img src="img/connected-no.png" alt="Disconnected" />', html), res)
         d.addCallback(_check_helper_not_connected)
 
         # enable helper, connected
@@ -738,7 +739,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someHelper/[censored]</div>', html)
             self.failIfIn('pb://someHelper/secret', html)
-            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>Helper</div>', html), res)
+            self.failUnless(re.search('<img src="img/connected-yes.png" alt="Connected" />', html), res)
         d.addCallback(_check_helper_connected)
         return d
 
@@ -4439,7 +4440,11 @@ class IntroducerWeb(unittest.TestCase):
     def test_welcome(self):
         basedir = "web.IntroducerWeb.test_welcome"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), "[node]\nweb.port = tcp:0\n")
+        cfg = "\n".join(["[node]",
+                         "tub.location = 127.0.0.1:1",
+                         "web.port = tcp:0",
+                         ]) + "\n"
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), cfg)
         self.node = IntroducerNode(basedir)
         self.ws = self.node.getServiceNamed("webish")
 

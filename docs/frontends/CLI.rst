@@ -203,8 +203,8 @@ The Tahoe-LAFS CLI commands use the same path syntax as ``scp`` and
 ``rsync`` -- an optional ``ALIAS:`` prefix, followed by the pathname or
 filename. Some commands (like "``tahoe cp``") use the lack of an alias to
 mean that you want to refer to a local file, instead of something from the
-Tahoe-LAFS filesystem. [TODO] Another way to indicate this is to start
-the pathname with a dot, slash, or tilde.
+Tahoe-LAFS filesystem. Another way to indicate this is to start the
+pathname with "./", "~/", "~username/", or "/".
 
 When you're dealing a single starting directory, the ``tahoe:`` alias is
 all you need. But when you want to refer to something that isn't yet
@@ -454,6 +454,21 @@ Command Examples
  the new folder ``tahoe:my_dir``. Note that the trailing slash is not required:
  all source arguments which are directories will be copied into new
  subdirectories of the target.
+
+ The behavior of ``tahoe cp``, like the regular UNIX ``/bin/cp``, is subtly
+ different depending upon the exact form of the arguments. In particular:
+
+* Trailing slashes indicate directories, but are not required.
+* If the target object does not already exist:
+  * and if the source is a single file, it will be copied into the target;
+  * otherwise, the target will be created as a directory.
+* If there are multiple sources, the target must be a directory.
+* If the target is a pre-existing file, the source must be a single file.
+* If the target is a directory, each source must be a named file, a named
+  directory, or an unnamed directory. It is not possible to copy an unnamed
+  file (e.g. a raw filecap) into a directory, as there is no way to know what
+  the new file should be named.
+
 
 ``tahoe unlink uploaded.txt``
 

@@ -6,6 +6,7 @@ from sys import platform
 # from Twisted
 from twisted.internet import defer, threads, reactor
 from twisted.internet.protocol import DatagramProtocol
+from twisted.internet.error import CannotListenError
 from twisted.python.procutils import which
 from twisted.python import log
 
@@ -125,23 +126,26 @@ def get_local_ip_for(target):
         # avoid this DNS lookup. This also makes node startup fractionally
         # faster.
         return None
-    udpprot = DatagramProtocol()
-    port = reactor.listenUDP(0, udpprot)
+
     try:
+        udpprot = DatagramProtocol()
+        port = reactor.listenUDP(0, udpprot)
         udpprot.transport.connect(target_ipaddr, 7)
         localip = udpprot.transport.getHost().host
-    except socket.error:
+        d = port.stopListening()
+        d.addErrback(log.err)
+    except (socket.error, CannotListenError):
         # no route to that host
         localip = None
-    d = port.stopListening()
-    d.addErrback(log.err)
     return localip
 
 
 # Wow, I'm really amazed at home much mileage we've gotten out of calling
 # the external route.exe program on windows...  It appears to work on all
-# versions so far.  Still, the real system calls would much be preferred...
+# versions so far.
 # ... thus wrote Greg Smith in time immemorial...
+# Also, the Win32 APIs for this are really klunky and error-prone. --Daira
+
 _win32_re = re.compile(r'^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
 _win32_commands = (('route.exe', ('print',), _win32_re),)
 

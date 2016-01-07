@@ -16,7 +16,7 @@ from allmydata.immutable.filenode import ImmutableFileNode
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.util.verlib import NormalizedVersion
-from allmydata.util.encodingutil import quote_output, unicode_to_argv, get_filesystem_encoding
+from allmydata.util.encodingutil import quote_output, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
 from allmydata.scripts import runner
@@ -812,8 +812,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                                      {"storage": 5})
                 self.failUnlessEqual(data["announcement_summary"],
                                      {"storage": 5})
-                self.failUnlessEqual(data["announcement_distinct_hosts"],
-                                     {"storage": 1})
             except unittest.FailTest:
                 print
                 print "GET %s?t=json output was:" % self.introweb_url
@@ -1114,7 +1112,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(lambda res: getPage(self.helper_webish_url))
         def _got_welcome_helper(page):
             html = page.replace('\n', ' ')
-            self.failUnless(re.search(r'<div class="status-indicator connected-yes"></div>\s*<div>Helper</div>', html), page)
+            self.failUnless(re.search('<img src="img/connected-yes.png" alt="Connected" />', html), page)
             self.failUnlessIn("Not running helper", page)
         d.addCallback(_got_welcome_helper)
 
@@ -1399,18 +1397,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(self._test_control2, control_furl_file)
         return d
     def _test_control2(self, rref, filename):
-        d = rref.callRemote("upload_from_file_to_uri",
-                            filename.encode(get_filesystem_encoding()), convergence=None)
-        downfile = os.path.join(self.basedir, "control.downfile").encode(get_filesystem_encoding())
-        d.addCallback(lambda uri:
-                      rref.callRemote("download_from_uri_to_file",
-                                      uri, downfile))
-        def _check(res):
-            self.failUnlessEqual(res, downfile)
-            data = open(downfile, "r").read()
-            expected_data = open(filename, "r").read()
-            self.failUnlessEqual(data, expected_data)
-        d.addCallback(_check)
+        d = defer.succeed(None)
         d.addCallback(lambda res: rref.callRemote("speed_test", 1, 200, False))
         if sys.platform in ("linux2", "linux3"):
             d.addCallback(lambda res: rref.callRemote("get_memory_usage"))

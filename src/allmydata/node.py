@@ -93,12 +93,11 @@ class Node(service.MultiService):
         iputil.increase_rlimits()
 
     def init_tempdir(self):
-        local_tempdir_utf8 = "tmp" # default is NODEDIR/tmp/
-        tempdir = self.get_config("node", "tempdir", local_tempdir_utf8).decode('utf-8')
-        tempdir = os.path.join(self.basedir, tempdir)
+        tempdir_config = self.get_config("node", "tempdir", "tmp").decode('utf-8')
+        tempdir = abspath_expanduser_unicode(tempdir_config, base=self.basedir)
         if not os.path.exists(tempdir):
             fileutil.make_dirs(tempdir)
-        tempfile.tempdir = abspath_expanduser_unicode(tempdir)
+        tempfile.tempdir = tempdir
         # this should cause twisted.web.http (which uses
         # tempfile.TemporaryFile) to put large request bodies in the given
         # directory. Without this, the default temp dir is usually /tmp/,
@@ -220,11 +219,12 @@ class Node(service.MultiService):
     def setup_ssh(self):
         ssh_port = self.get_config("node", "ssh.port", "")
         if ssh_port:
-            ssh_keyfile = self.get_config("node", "ssh.authorized_keys_file").decode('utf-8')
+            ssh_keyfile_config = self.get_config("node", "ssh.authorized_keys_file").decode('utf-8')
+            ssh_keyfile = abspath_expanduser_unicode(ssh_keyfile_config, base=self.basedir)
             from allmydata import manhole
-            m = manhole.AuthorizedKeysManhole(ssh_port, ssh_keyfile.encode(get_filesystem_encoding()))
+            m = manhole.AuthorizedKeysManhole(ssh_port, ssh_keyfile)
             m.setServiceParent(self)
-            self.log("AuthorizedKeysManhole listening on %s" % ssh_port)
+            self.log("AuthorizedKeysManhole listening on %s" % (ssh_port,))
 
     def get_app_versions(self):
         # TODO: merge this with allmydata.get_package_versions
@@ -326,7 +326,6 @@ class Node(service.MultiService):
 
         service.MultiService.startService(self)
         d = defer.succeed(None)
-        d.addCallback(lambda res: iputil.get_local_addresses_async())
         d.addCallback(self._setup_tub)
         def _ready(res):
             self.log("%s running" % self.NODETYPE)
@@ -382,14 +381,14 @@ class Node(service.MultiService):
             self.tub.setOption("log-gatherer-furl", lgfurl)
         self.tub.setOption("log-gatherer-furlfile",
                            os.path.join(self.basedir, "log_gatherer.furl"))
-        self.tub.setOption("bridge-twisted-logs", True)
+
         incident_dir = os.path.join(self.basedir, "logs", "incidents")
         foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
 
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
 
-    def _setup_tub(self, local_addresses):
+    def _setup_tub(self, ign):
         # we can't get a dynamically-assigned portnum until our Tub is
         # running, which means after startService.
         l = self.tub.getListeners()[0]
@@ -398,13 +397,29 @@ class Node(service.MultiService):
         # next time
         fileutil.write_atomically(self._portnumfile, "%d\n" % portnum, mode="")
 
-        base_location = ",".join([ "%s:%d" % (addr, portnum)
-                                   for addr in local_addresses ])
-        location = self.get_config("node", "tub.location", base_location)
-        self.log("Tub location set to %s" % location)
-        self.tub.setLocation(location)
+        location = self.get_config("node", "tub.location", "AUTO")
 
-        return self.tub
+        # Replace the location "AUTO", if present, with the detected local addresses.
+        split_location = location.split(",")
+        if "AUTO" in split_location:
+            d = iputil.get_local_addresses_async()
+            def _add_local(local_addresses):
+                while "AUTO" in split_location:
+                    split_location.remove("AUTO")
+
+                split_location.extend([ "%s:%d" % (addr, portnum)
+                                        for addr in local_addresses ])
+                return ",".join(split_location)
+            d.addCallback(_add_local)
+        else:
+            d = defer.succeed(location)
+
+        def _got_location(location):
+            self.log("Tub location set to %s" % (location,))
+            self.tub.setLocation(location)
+            return self.tub
+        d.addCallback(_got_location)
+        return d
 
     def when_tub_ready(self):
         return self._tub_ready_observerlist.when_fired()

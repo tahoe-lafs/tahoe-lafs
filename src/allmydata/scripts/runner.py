@@ -6,13 +6,13 @@ from twisted.python import usage
 
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, startstop_node, cli, keygen, stats_gatherer, admin
-from allmydata.util.encodingutil import quote_output, get_io_encoding
+from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 
 def GROUP(s):
     # Usage.parseOptions compares argv[1] against command[0], so it will
     # effectively ignore any "subcommand" that starts with a newline. We use
     # these to insert section headers into the --help output.
-    return [("\n" + s, None, None, None)]
+    return [("\n(%s)" % s, None, None, None)]
 
 
 _default_nodedir = get_default_nodedir()
@@ -25,7 +25,7 @@ NODEDIR_HELP = ("Specify which Tahoe node directory should be used. The "
                 "' which contains the mapping from alias name to root "
                 "dirnode URI.")
 if _default_nodedir:
-    NODEDIR_HELP += " [default for most commands: " + quote_output(_default_nodedir) + "]"
+    NODEDIR_HELP += " [default for most commands: " + quote_local_unicode_path(_default_nodedir) + "]"
 
 class Options(usage.Options):
     # unit tests can override these to point at StringIO instances
@@ -66,11 +66,15 @@ class Options(usage.Options):
         print >>self.stdout, allmydata.get_package_versions_string(show_paths=True, debug=True)
         self.no_command_needed = True
 
-    def getSynopsis(self):
-        return "\nUsage: tahoe [global-opts] <command> [command-options]"
+    def __str__(self):
+        return ("\nUsage: tahoe [global-options] <command> [command-options]\n"
+                + self.getUsage())
+
+    synopsis = "\nUsage: tahoe [global-options]" # used only for subcommands
 
     def getUsage(self, **kwargs):
         t = usage.Options.getUsage(self, **kwargs)
+        t = t.replace("Options:", "\nGlobal options:", 1)
         return t + "\nPlease run 'tahoe <command> --help' for more details on each command.\n"
 
     def postOptions(self):

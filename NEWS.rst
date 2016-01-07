@@ -4,6 +4,238 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
+Release 1.10.2 (2015-07-30)
+'''''''''''''''''''''''''''
+
+Packaging Changes
+-----------------
+
+This release no longer requires the ``mock`` library (which was previously
+used in the unit test suite). Shortly after the Tahoe-LAFS 1.10.1 release, a
+new version of ``mock`` was released (1.1.0) that proved to be incompatible
+with Tahoe's fork of setuptools, preventing Tahoe-1.10.1 from building at
+all. `#2465`_
+
+The ``tahoe --version`` output is now less likely to include scary diagnostic
+warnings that look deceptively like stack traces. `#2436`_
+
+The pyasn1 requirement was increased to >= 0.1.8.
+
+.. _`#2465`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2465
+.. _`#2436`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2436
+
+Other Fixes
+-----------
+
+A WebAPI ``GET`` would sometimes hang when using the HTTP Range header to
+read just part of the file. `#2459`_
+
+Using ``tahoe cp`` to copy two different files of the same name into the same
+target directory now raises an error, rather than silently overwriting one of
+them. `#2447`_
+
+All tickets closed in this release: 2328 2436 2446 2447 2459 2460 2461 2462
+2465 2470.
+
+.. _`#2459`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2459
+.. _`#2447`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2447
+
+
+Release 1.10.1 (2015-06-15)
+'''''''''''''''''''''''''''
+
+User Interface / Configuration Changes
+--------------------------------------
+
+The "``tahoe cp``" CLI command's ``--recursive`` option is now more predictable,
+but behaves slightly differently than before. See below for details. Tickets
+`#712`_, `#2329`_.
+
+The SFTP server can now use public-key authentication (instead of only
+password-based auth). Public keys are configured through an "account file",
+just like passwords. See docs/frontends/FTP-and-SFTP for examples of the
+format. `#1411`_
+
+The Tahoe node can now be configured to disable automatic IP-address
+detection. Using "AUTO" in tahoe.cfg [node]tub.location= (which is now the
+default) triggers autodetection. Omit "AUTO" to disable autodetection. "AUTO"
+can be combined with static addresses to e.g. use both a stable
+UPnP-configured tunneled address and a DHCP-assigned dynamic (local subnet
+only) address. See `configuration.rst`_ for details. `#754`_
+
+The web-based user interface ("WUI") Directory and Welcome pages have been
+redesigned, with improved CSS for narrow windows and more-accessible icons
+(using distinctive shapes instead of just colors). `#1931`_ `#1961`_ `#1966`_
+`#1972`_ `#1901`_
+
+.. _`#712`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/712
+.. _`#754`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/754
+.. _`#1411`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1411
+.. _`#1901`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1901
+.. _`#1931`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1931
+.. _`#1961`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1961
+.. _`#1966`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1966
+.. _`#1972`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1972
+.. _`#2329`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2329
+.. _`configuration.rst`: docs/configuration.rst
+
+"tahoe cp" changes
+------------------
+
+The many ``cp``-like tools in the Unix world (POSIX ``/bin/cp``, the ``scp``
+provided by SSH, ``rsync``) all behave slightly differently in unusual
+circumstances, especially when copying whole directories into a target that
+may or may not already exist. The most common difference is whether the user
+is referring to the source directory as a whole, or to its contents. For
+example, should "``cp -r foodir bardir``" create a new directory named
+"``bardir/foodir``"? Or should it behave more like "``cp -r foodir/* bardir``"?
+Some tools use the presence of a trailing slash to indicate which behavior
+you want. Others ignore trailing slashes.
+
+"``tahoe cp``" is no exception to having exceptional cases. This release fixes
+some bad behavior and attempts to establish a consistent rationale for its
+behavior. The new rule is:
+
+- If the thing being copied is a directory, and it has a name (e.g. it's not
+  a raw Tahoe-LAFS directorycap), then you are referring to the directory
+  itself.
+- If the thing being copied is an unnamed directory (e.g. raw dircap or
+  alias), then you are referring to the contents.
+- Trailing slashes do not affect the behavior of the copy (although putting
+  a trailing slash on a file-like target is an error).
+- The "``-r``" (``--recursive``) flag does not affect the behavior of the
+  copy (although omitting ``-r`` when the source is a directory is an error).
+- If the target refers to something that does not yet exist:
+  - and if the source is a single file, then create a new file;
+  - otherwise, create a directory.
+
+There are two main cases where the behavior of Tahoe-LAFS v1.10.1 differs
+from that of the previous v1.10.0 release:
+
+- "``cp DIRCAP/file.txt ./local/missing``" , where "``./local``" is a
+  directory but "``./local/missing``" does not exist. The implication is
+  that you want Tahoe to create a new file named "``./local/missing``" and
+  fill it with the contents of the Tahoe-side ``DIRCAP/file.txt``. In
+  v1.10.0, a plain "``cp``" would do just this, but "``cp -r``" would do
+  "``mkdir ./local/missing``" and then create a file named
+  "``./local/missing/file.txt``". In v1.10.1, both "``cp``" and "``cp -r``"
+  create a file named "``./local/missing``".
+- "``cp -r PARENTCAP/dir ./local/missing``", where ``PARENTCAP/dir/``
+  contains "``file.txt``", and again "``./local``" is a directory but
+  "``./local/missing``" does not exist. In both v1.10.0 and v1.10.1, this
+  first does "``mkdir ./local/missing``". In v1.10.0, it would then copy
+  the contents of the source directory into the new directory, resulting
+  in "``./local/missing/file.txt``". In v1.10.1, following the new rule
+  of "a named directory source refers to the directory itself", the tool
+  creates "``./local/missing/dir/file.txt``".
+
+Compatibility and Dependency Updates
+------------------------------------
+
+Windows now requires Python 2.7. Unix/OS-X platforms can still use either
+Python 2.6 or 2.7, however this is probably the last release that will
+support 2.6 (it is no longer receiving security updates, and most OS
+distributions have switched to 2.7). Tahoe-LAFS now has the following
+dependencies:
+
+- Twisted >= 13.0.0
+- Nevow >= 0.11.1
+- foolscap >= 0.8.0
+- service-identity
+- characteristic >= 14.0.0
+- pyasn1 >= 0.1.4
+- pyasn1-modules >= 0.0.5
+
+On Windows, if pywin32 is not installed then the dependencies on Twisted
+and Nevow become:
+
+- Twisted >= 11.1.0, <= 12.1.0
+- Nevow >= 0.9.33, <= 0.10
+
+On all platforms, if pyOpenSSL >= 0.14 is installed, then it will be used,
+but if not then only pyOpenSSL >= 0.13, <= 0.13.1 will be built when directly
+invoking `setup.py build` or `setup.py install`.
+
+We strongly advise OS packagers to take the option of making a tahoe-lafs
+package depend on pyOpenSSL >= 0.14. In order for that to work, the following
+additional Python dependencies are needed:
+
+- cryptography
+- cffi >= 0.8
+- six >= 1.4.1
+- enum34
+- pycparser
+
+as well as libffi (for Debian/Ubuntu, the name of the needed OS package is
+`libffi6`).
+
+Tahoe-LAFS is now compatible with Setuptools version 8 and Pip version 6 or
+later, which should fix execution on Ubuntu 15.04 (it now tolerates PEP440
+semantics in dependency specifications). `#2354`_ `#2242`_
+
+Tahoe-LAFS now depends upon foolscap-0.8.0, which creates better private keys
+and certificates than previous versions. To benefit from the improvements
+(2048-bit RSA keys and SHA256-based certificates), you must re-generate your
+Tahoe nodes (which changes their TubIDs and FURLs). `#2400`_
+
+.. _`#2242`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2242
+.. _`#2354`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2354
+.. _`#2400`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2400
+
+Packaging
+---------
+
+A preliminary OS-X package, named "``tahoe-lafs-VERSION-osx.pkg``", is now
+being generated. It is a standard double-clickable installer, which creates
+``/Applications/tahoe.app`` that embeds a complete runtime tree. However
+launching the ``.app`` only brings up a notice on how to run tahoe from the
+command line. A future release may turn this into a fully-fledged application
+launcher. `#182`_ `#2393`_ `#2323`_
+
+Preliminary Docker support was added. Tahoe container images may be available
+on DockerHub. `PR#165`_ `#2419`_ `#2421`_
+
+Old and obsolete Debian packaging tools have been removed. `#2282`_
+
+.. _`#182`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/182
+.. _`#2282`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2282
+.. _`#2323`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2323
+.. _`#2393`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2393
+.. _`#2419`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2419
+.. _`#2421`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2421
+.. _`PR#165`: https://github.com/tahoe-lafs/tahoe-lafs/pull/165
+
+Minor Changes
+-------------
+
+- Welcome page: add per-server "(space) Available" column. `#648`_
+- check/deep-check learned to accept multiple location arguments. `#740`_
+- Checker reports: remove needs-rebalancing, add count-happiness. `#1784`_ `#2105`_
+- CLI ``--help``: cite (but don't list) global options on each command. `#2233`_
+- Fix ftp "``ls``" to work with Twisted 15.0.0. `#2394`_
+
+.. _`#648`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/648
+.. _`#740`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/740
+.. _`#1784`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1784
+.. _`#2105`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2105
+.. _`#2233`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2233
+.. _`#2394`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2394
+
+Roughly 75 tickets were closed in this release: 623 648 712 740 754 898 1146
+1159 1336 1381 1411 1634 1674 1698 1707 1717 1737 1784 1800 1807 1842 1847
+1901 1918 1953 1960 1961 1966 1969 1972 1974 1988 1992 2005 2008 2023 2027
+2028 2034 2048 2067 2086 2105 2121 2128 2165 2193 2208 2209 2233 2235 2242
+2245 2248 2249 2249 2280 2281 2282 2290 2305 2312 2323 2340 2354 2380 2393
+2394 2398 2400 2415 2416 2417 2433. Another dozen were referenced but not
+closed: 182 666 982 1064 1258 1531 1536 1742 1834 1931 1935 2286. Roughly 40
+GitHub pull-requests were closed: 32 48 50 56 57 61 62 62 63 64 69 73 81 82
+84 85 87 91 94 95 96 103 107 109 112 114 120 122 125 126 133 135 136 137 142
+146 149 152 165.
+
+For more information about any ticket, visit e.g.
+https://tahoe-lafs.org/trac/tahoe-lafs/ticket/754
+
+
 Release 1.10.0 (2013-05-01)
 '''''''''''''''''''''''''''
 

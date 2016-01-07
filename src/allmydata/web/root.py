@@ -15,8 +15,7 @@ from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations, \
                                                 storage, introducerless_config
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
-     get_arg, RenderMixin, get_format, get_mutable_type, TIME_FORMAT
-from allmydata.util.time_format import format_delta
+     get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -134,15 +133,19 @@ class Root(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
-    def __init__(self, client, clock=None, now=None):
+    _connectedalts = {
+        "not-configured": "Not Configured",
+        "yes": "Connected",
+        "no": "Disconnected",
+        }
+
+    def __init__(self, client, clock=None, now_fn=None):
         rend.Page.__init__(self, client)
         self.client = client
         # If set, clock is a twisted.internet.task.Clock that the tests
         # use to test ophandle expiration.
         self.child_operations = operations.OphandleTable(clock)
-        self.now = now
-        if self.now is None:
-            self.now = time.time
+        self.now_fn = now_fn
         try:
             s = client.getServiceNamed("storage")
         except KeyError:
@@ -171,7 +174,7 @@ class Root(rend.Page):
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
-        return time.strftime(TIME_FORMAT, time.localtime())
+        return render_time(time.time())
     def data_version(self, ctx, data):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):
@@ -227,6 +230,9 @@ class Root(rend.Page):
             return "yes"
         return "no"
 
+    def data_connected_to_at_least_one_introducer_alt(self, ctx, data):
+        return self._connectedalts[self.data_connected_to_at_least_one_introducer(ctx, data)]
+
     # In case we configure multiple introducers
     def data_introducers(self, ctx, data):
         connection_statuses = self.client.introducer_connection_statuses()
@@ -247,15 +253,25 @@ class Root(rend.Page):
 
     def render_introducers_row(self, ctx, s):
         (furl, connected, ic) = s
-        service_connection_status = ["Disconnected", "Connected"][connected]
-        service_connection_status_abs_time, service_connection_status_rel_time = format_delta(ic.get_since(), self.now())
-        status = ("no", "yes")
+        status = "yes" if connected else "no"
+        service_connection_status = self._connectedalts[status]
+
+        since = ic.get_since()
+        service_connection_status_rel_time = render_time_delta(since, self.now_fn())
+        service_connection_status_abs_time = render_time_attr(since)
+
+        last_received_data_time = ic.get_last_received_data_time()
+        last_received_data_rel_time = render_time_delta(last_received_data_time, self.now_fn())
+        last_received_data_abs_time = render_time_attr(last_received_data_time)
+
         ctx.fillSlots("introducer_furl", "%s" % (furl))
-        ctx.fillSlots("connected-bool", "%s" % (connected))
+#        ctx.fillSlots("connected-bool", "%s" % (connected))
         ctx.fillSlots("service_connection_status", "%s" % (service_connection_status,))
-        ctx.fillSlots("connected", "%s" % (status[int(connected)]))
+#        ctx.fillSlots("connected", "%s" % (status[int(connected)]))
         ctx.fillSlots("service_connection_status_abs_time", service_connection_status_abs_time)
         ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
+        ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)
+        ctx.fillSlots("last_received_data_rel_time", last_received_data_rel_time)
         return ctx.tag
 
     def data_helper_furl_prefix(self, ctx, data):
@@ -288,6 +304,9 @@ class Root(rend.Page):
             return "yes"
         return "no"
 
+    def data_connected_to_helper_alt(self, ctx, data):
+        return self._connectedalts[self.data_connected_to_helper(ctx, data)]
+
     def data_known_storage_servers(self, ctx, data):
         sb = self.client.get_storage_broker()
         return len(sb.get_all_serverids())
@@ -314,14 +333,20 @@ class Root(rend.Page):
             else:
                 rhost_s = str(rhost)
             addr = rhost_s
-            service_connection_status = "Connected"
-            service_connection_status_abs_time, service_connection_status_rel_time = format_delta(server.get_last_connect_time(), self.now())
+            service_connection_status = "yes"
+            last_connect_time = server.get_last_connect_time()
+            service_connection_status_rel_time = render_time_delta(last_connect_time, self.now_fn())
+            service_connection_status_abs_time = render_time_attr(last_connect_time)
         else:
             addr = "N/A"
-            service_connection_status = "Disconnected"
-            service_connection_status_abs_time, service_connection_status_rel_time = format_delta(server.get_last_loss_time(), self.now())
+            service_connection_status = "no"
+            last_loss_time = server.get_last_loss_time()
+            service_connection_status_rel_time = render_time_delta(last_loss_time, self.now_fn())
+            service_connection_status_abs_time = render_time_attr(last_loss_time)
 
-        last_received_data_abs_time, last_received_data_rel_time = format_delta(server.get_last_received_data_time(), self.now())
+        last_received_data_time = server.get_last_received_data_time()
+        last_received_data_rel_time = render_time_delta(last_received_data_time, self.now_fn())
+        last_received_data_abs_time = render_time_attr(last_received_data_time)
 
         announcement = server.get_announcement()
         version = announcement["my-version"]
@@ -332,6 +357,8 @@ class Root(rend.Page):
             available_space = abbreviate_size(available_space)
         ctx.fillSlots("address", addr)
         ctx.fillSlots("service_connection_status", service_connection_status)
+        ctx.fillSlots("service_connection_status_alt", self._connectedalts[service_connection_status])
+        ctx.fillSlots("connected-bool", bool(rhost))
         ctx.fillSlots("service_connection_status_abs_time", service_connection_status_abs_time)
         ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
         ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)

@@ -27,12 +27,12 @@
 # pycrypto: 2.6.1 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pycrypto-2.6.1-py2.7-macosx-10.9-intel.egg)
 # pyasn1: 0.1.7 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pyasn1-0.1.7-py2.7.egg)
 # mock: 1.0.1 (/Applications/tahoe.app/support/lib/python2.7/site-packages)
-# setuptools: 0.6c16dev5 (/Applications/tahoe.app/support/lib/python2.7/site-packages/setuptools-0.6c16dev5.egg)
+# setuptools: 0.6c16dev6 (/Applications/tahoe.app/support/lib/python2.7/site-packages/setuptools-0.6c16dev6.egg)
 # service-identity: 14.0.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages/service_identity-14.0.0-py2.7.egg)
 # characteristic: 14.1.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages)
 # pyasn1-modules: 0.0.5 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pyasn1_modules-0.0.5-py2.7.egg)
 
-import os, re, subprocess, tempfile, shutil
+import os, re, shutil, subprocess, sys, tempfile
 
 def test_osx_pkg(pkgfile):
     """ Return on success, raise exception on failure. """
@@ -54,7 +54,7 @@ def test_osx_pkg(pkgfile):
 
     # cat Payload | gunzip -dc | cpio -i
     cat_process = subprocess.Popen(['cat', 'Payload'], stdout=subprocess.PIPE)
-    gunzip_process = subprocess.Popen(['gunzip', '-dc'], 
+    gunzip_process = subprocess.Popen(['gunzip', '-dc'],
                                       stdin=cat_process.stdout,
                                       stdout=subprocess.PIPE)
     cpio_process = subprocess.Popen(['cpio', '-i'],
@@ -85,7 +85,11 @@ def test_osx_pkg(pkgfile):
 
 
 if __name__ == '__main__':
-    print "Testing..."
-    test_osx_pkg('tahoe-lafs-osx.pkg')
+    pkgs = [fn for fn in os.listdir(".") if fn.endswith("-osx.pkg")]
+    if len(pkgs) != 1:
+        print "ERR: unable to find a single .pkg file:", pkgs
+        sys.exit(1)
+    print "Testing %s ..." % pkgs[0]
+    test_osx_pkg(pkgs[0])
     print "Looks OK!"
 

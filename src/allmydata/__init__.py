@@ -146,17 +146,40 @@ def get_platform():
 from allmydata.util import verlib
 def normalized_version(verstr, what=None):
     try:
-        return verlib.NormalizedVersion(verlib.suggest_normalized_version(verstr))
+        suggested = verlib.suggest_normalized_version(verstr) or verstr
+        return verlib.NormalizedVersion(suggested)
     except (StandardError, verlib.IrrationalVersionError):
         cls, value, trace = sys.exc_info()
         raise PackagingError, ("could not parse %s due to %s: %s"
                                % (what or repr(verstr), cls.__name__, value)), trace
 
+def get_openssl_version():
+    try:
+        from OpenSSL import SSL
+        return extract_openssl_version(SSL)
+    except Exception:
+        return ("unknown", None, None)
+
+def extract_openssl_version(ssl_module):
+    openssl_version = ssl_module.SSLeay_version(ssl_module.SSLEAY_VERSION)
+    if openssl_version.startswith('OpenSSL '):
+        openssl_version = openssl_version[8 :]
+
+    (version, _, comment) = openssl_version.partition(' ')
+
+    try:
+        openssl_cflags = ssl_module.SSLeay_version(ssl_module.SSLEAY_CFLAGS)
+        if '-DOPENSSL_NO_HEARTBEATS' in openssl_cflags.split(' '):
+            comment += ", no heartbeats"
+    except Exception:
+        pass
+
+    return (version, None, comment if comment else None)
 
 def get_package_versions_and_locations():
     import warnings
     from _auto_deps import package_imports, global_deprecation_messages, deprecation_messages, \
-        runtime_warning_messages, warning_imports
+        runtime_warning_messages, warning_imports, ignorable
 
     def package_dir(srcfile):
         return os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
@@ -188,8 +211,17 @@ def get_package_versions_and_locations():
 
     packages = []
 
-    def get_version(module, attr):
-        return str(getattr(module, attr, 'unknown'))
+    def get_version(module):
+        if hasattr(module, '__version__'):
+            return str(getattr(module, '__version__'))
+        elif hasattr(module, 'version'):
+            ver = getattr(module, 'version')
+            if isinstance(ver, tuple):
+                return '.'.join(map(str, ver))
+            else:
+                return str(ver)
+        else:
+            return 'unknown'
 
     for pkgname, modulename in [(__appname__, 'allmydata')] + package_imports:
         if modulename:
@@ -207,21 +239,41 @@ def get_package_versions_and_locations():
                 elif pkgname == 'setuptools' and hasattr(module, '_distribute'):
                     # distribute does not report its version in any module variables
                     comment = 'distribute'
-                packages.append( (pkgname, (get_version(module, '__version__'), package_dir(module.__file__), comment)) )
+                packages.append( (pkgname, (get_version(module), package_dir(module.__file__), comment)) )
         elif pkgname == 'python':
             packages.append( (pkgname, (platform.python_version(), sys.executable, None)) )
         elif pkgname == 'platform':
             packages.append( (pkgname, (get_platform(), None, None)) )
+        elif pkgname == 'OpenSSL':
+            packages.append( (pkgname, get_openssl_version()) )
 
-    return packages
+    cross_check_errors = []
+
+    if not hasattr(sys, 'frozen'):
+        import pkg_resources
+        from _auto_deps import install_requires
+
+        pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
+                                            for p in pkg_resources.require(install_requires)])
+
+        imported_packages = set([p.lower() for (p, _) in packages])
+        extra_packages = []
+
+        for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
+            if pr_name not in imported_packages and pr_name not in ignorable:
+                extra_packages.append( (pr_name, (pr_ver, pr_loc, "according to pkg_resources")) )
+
+        cross_check_errors = cross_check(pkg_resources_vers_and_locs, packages)
+        packages += extra_packages
+
+    return packages, cross_check_errors
 
 
 def check_requirement(req, vers_and_locs):
-    # TODO: check [] options
-    # We support only disjunctions of <=, >=, and ==
+    # We support only conjunctions of <=, >=, and !=
 
     reqlist = req.split(',')
-    name = reqlist[0].split('<=')[0].split('>=')[0].split('==')[0].strip(' ').split('[')[0]
+    name = reqlist[0].split('<=')[0].split('>=')[0].split('!=')[0].strip(' ').split('[')[0]
     if name not in vers_and_locs:
         raise PackagingError("no version info for %s" % (name,))
     if req.strip(' ') == name:
@@ -234,57 +286,47 @@ def check_requirement(req, vers_and_locs):
         return
     actualver = normalized_version(actual, what="actual version %r of %s from %r" % (actual, name, location))
 
+    if not match_requirement(req, reqlist, actualver):
+        msg = ("We require %s, but could only find version %s.\n" % (req, actual))
+        if location and location != 'unknown':
+            msg += "The version we found is from %r.\n" % (location,)
+        msg += ("To resolve this problem, uninstall that version, either using your\n"
+                "operating system's package manager or by moving aside the directory.")
+        raise PackagingError(msg)
+
+
+def match_requirement(req, reqlist, actualver):
     for r in reqlist:
         s = r.split('<=')
         if len(s) == 2:
             required = s[1].strip(' ')
-            if actualver <= normalized_version(required, what="required maximum version %r in %r" % (required, req)):
-                return  # maximum requirement met
+            if not (actualver <= normalized_version(required, what="required maximum version %r in %r" % (required, req))):
+                return False  # maximum requirement not met
         else:
             s = r.split('>=')
             if len(s) == 2:
                 required = s[1].strip(' ')
-                if actualver >= normalized_version(required, what="required minimum version %r in %r" % (required, req)):
-                    return  # minimum requirement met
+                if not (actualver >= normalized_version(required, what="required minimum version %r in %r" % (required, req))):
+                    return False  # minimum requirement not met
             else:
-                s = r.split('==')
+                s = r.split('!=')
                 if len(s) == 2:
                     required = s[1].strip(' ')
-                    if actualver == normalized_version(required, what="required exact version %r in %r" % (required, req)):
-                        return  # exact requirement met
+                    if not (actualver != normalized_version(required, what="excluded version %r in %r" % (required, req))):
+                        return False  # not-equal requirement not met
                 else:
                     raise PackagingError("no version info or could not understand requirement %r" % (req,))
 
-    msg = ("We require %s, but could only find version %s.\n" % (req, actual))
-    if location and location != 'unknown':
-        msg += "The version we found is from %r.\n" % (location,)
-    msg += ("To resolve this problem, uninstall that version, either using your\n"
-            "operating system's package manager or by moving aside the directory.")
-    raise PackagingError(msg)
-
-
-_vers_and_locs_list = get_package_versions_and_locations()
-
-
-def cross_check_pkg_resources_versus_import():
-    """This function returns a list of errors due to any failed cross-checks."""
-
-    import pkg_resources
-    from _auto_deps import install_requires
-
-    pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
-                                        for p in pkg_resources.require(install_requires)])
-
-    return cross_check(pkg_resources_vers_and_locs, _vers_and_locs_list)
+    return True
 
 
 def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     """This function returns a list of errors due to any failed cross-checks."""
 
-    from _auto_deps import not_import_versionable, ignorable
+    from _auto_deps import not_import_versionable
 
     errors = []
-    not_pkg_resourceable = ['python', 'platform', __appname__.lower()]
+    not_pkg_resourceable = ['python', 'platform', __appname__.lower(), 'openssl']
 
     for name, (imp_ver, imp_loc, imp_comment) in imported_vers_and_locs_list:
         name = name.lower()
@@ -308,6 +350,11 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                 errors.append("Warning: dependency %r could not be imported. pkg_resources thought it should be possible "
                               "to import version %r from %r.\nThe exception trace was %r."
                               % (name, pr_ver, pr_loc, imp_comment))
+                continue
+
+            # If the pkg_resources version is identical to the imported version, don't attempt
+            # to normalize them, since it is unnecessary and may fail (ticket #2499).
+            if imp_ver != 'unknown' and pr_ver == imp_ver:
                 continue
 
             try:
@@ -339,13 +386,10 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                                               "by pkg_resources, but version %r (normalized to %r, from %r) by import."
                                               % (name, pr_ver, str(pr_normver), pr_loc, imp_ver, str(imp_normver), imp_loc))
 
-    imported_packages = set([p.lower() for (p, _) in imported_vers_and_locs_list])
-    for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
-        if pr_name not in imported_packages and pr_name not in ignorable:
-            errors.append("Warning: dependency %r (version %r) found by pkg_resources not found by import."
-                          % (pr_name, pr_ver))
-
     return errors
+
+
+_vers_and_locs_list, _cross_check_errors = get_package_versions_and_locations()
 
 
 def get_error_string(errors, debug=False):
@@ -368,7 +412,7 @@ def check_all_requirements():
 
     from allmydata._auto_deps import install_requires
 
-    errors = []
+    fatal_errors = []
 
     # We require at least 2.6 on all platforms.
     # (On Python 3, we'll have failed long before this point.)
@@ -377,18 +421,18 @@ def check_all_requirements():
             version_string = ".".join(map(str, sys.version_info))
         except Exception:
             version_string = repr(sys.version_info)
-        errors.append("Tahoe-LAFS currently requires Python v2.6 or greater (but less than v3), not %s"
-                      % (version_string,))
+        fatal_errors.append("Tahoe-LAFS currently requires Python v2.6 or greater (but less than v3), not %s"
+                            % (version_string,))
 
     vers_and_locs = dict(_vers_and_locs_list)
     for requirement in install_requires:
         try:
             check_requirement(requirement, vers_and_locs)
         except (ImportError, PackagingError), e:
-            errors.append("%s: %s" % (e.__class__.__name__, e))
+            fatal_errors.append("%s: %s" % (e.__class__.__name__, e))
 
-    if errors:
-        raise PackagingError(get_error_string(errors, debug=True))
+    if fatal_errors:
+        raise PackagingError(get_error_string(fatal_errors + _cross_check_errors, debug=True))
 
 check_all_requirements()
 
@@ -411,9 +455,7 @@ def get_package_versions_string(show_paths=False, debug=False):
 
     output = "\n".join(res) + "\n"
 
-    if not hasattr(sys, 'frozen'):
-        errors = cross_check_pkg_resources_versus_import()
-        if errors:
-            output += get_error_string(errors, debug=debug)
+    if _cross_check_errors:
+        output += get_error_string(_cross_check_errors, debug=debug)
 
     return output

@@ -19,8 +19,8 @@ want to read `the "historical known issues" document`_.
 .. _the "historical known issues" document: historical/historical_known_issues.txt
 
 
-Known Issues in Tahoe-LAFS v1.10, released 01-May-2013
-======================================================
+Known Issues in Tahoe-LAFS v1.10.2, released 30-Jul-2015
+========================================================
 
   *  `Unauthorized access by JavaScript in unrelated files`_
   *  `Disclosure of file through embedded hyperlinks or JavaScript in that file`_

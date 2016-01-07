@@ -11,6 +11,7 @@ export PYTHON
 
 TAHOE=$(PYTHON) bin/tahoe
 SOURCES=src/allmydata src/buildtest static misc bin/tahoe-script.template setup.py
+APPNAME=allmydata-tahoe
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
@@ -32,33 +33,20 @@ build:
 	touch .built
 
 # Build OS X pkg packages.
-# The editing of .egg-link and .pth files ensures that we reference the source at the correct path.
-.PHONY: build-osx-pkg
-build-osx-pkg:
-	$(PYTHON) setup.py build
-	find support -name allmydata-tahoe.egg-link -execdir sh -c "echo >> {}; echo /Applications/tahoe.app/src >> {}" \;
-	find support -name easy-install.pth -execdir sed -i.bak 's|^.*/src$$|../../../../src|' '{}' \;
-	touch .built
+.PHONY: build-osx-pkg test-osx-pkg upload-osx-pkg
+build-osx-pkg: build
+	misc/build_helpers/build-osx-pkg.sh $(APPNAME)
 
-# create component pkg
-	pkgbuild --root $(shell pwd) \
-	--identifier com.leastauthority.tahoe \
-	--version $(shell sh -c "cat src/allmydata/_version.py | grep verstr | head -n 1 | cut -d' ' -f 3") \
-	--ownership recommended \
-	--install-location /Applications/tahoe.app \
-	--scripts $(shell pwd)/misc/build_helpers/osx/scripts \
-	tahoe-lafs.pkg
-
-# create product archive
-	productbuild --distribution $(shell pwd)/misc/build_helpers/osx/Distribution.xml \
-	--package-path . \
-	tahoe-lafs-osx.pkg
-
-# remove intermediate pkg
-	rm -f tahoe-lafs.pkg
-
-# test the result
+test-osx-pkg:
 	$(PYTHON) misc/build_helpers/test-osx-pkg.py
+
+upload-osx-pkg:
+	@echo "uploading to ~tahoe-tarballs/OS-X-packages/ via flappserver"
+	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then \
+	  flappclient --furlfile ~/.tahoe-osx-pkg-upload.furl upload-file tahoe-lafs-*-osx.pkg; \
+	 else \
+	  echo not uploading tahoe-lafs-osx-pkg because this is not trunk but is branch \"${BB_BRANCH}\" ; \
+	fi
 
 # TESTING
 
@@ -300,6 +288,9 @@ test-desert-island:
 	$(MAKE) 2>&1 | tee make.out
 	$(PYTHON) misc/build_helpers/check-build.py make.out no-downloads
 
+.PHONY: test-pip-install
+test-pip-install:
+	$(PYTHON) misc/build_helpers/test-pip-install.py
 
 # TARBALL GENERATION
 .PHONY: tarballs
@@ -310,4 +301,4 @@ tarballs:
 
 .PHONY: upload-tarballs
 upload-tarballs:
-	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/allmydata-tahoe-*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi
+	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/$(APPNAME)-*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi

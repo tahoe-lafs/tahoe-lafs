@@ -27,30 +27,18 @@ def trap_deadref(f):
     return trap_and_discard(f, DeadReferenceError)
 
 
-def hosts_for_rref(rref, ignore_localhost=True):
-    # actually, this only returns hostnames
-    advertised = []
-    for hint in rref.getLocationHints():
-        # Foolscap-0.2.5 and earlier used strings in .locationHints, but we
-        # require a newer version that uses tuples of ("ipv4", host, port)
-        assert not isinstance(hint, str), hint
-        if hint[0] == "ipv4":
-            host = hint[1]
-            if ignore_localhost and host == "127.0.0.1":
-                continue
-            advertised.append(host)
-    return advertised
-
-def hosts_for_furl(furl, ignore_localhost=True):
-    advertised = []
-    for hint in SturdyRef(furl).locationHints:
-        assert not isinstance(hint, str), hint
-        if hint[0] == "ipv4":
-            host = hint[1]
-            if ignore_localhost and host == "127.0.0.1":
-                continue
-            advertised.append(host)
-    return advertised
+def connection_hints_for_furl(furl):
+    hints = []
+    for h in SturdyRef(furl).locationHints:
+        # Foolscap-0.2.5 and earlier used strings in .locationHints, 0.2.6
+        # through 0.6.4 used tuples of ("ipv4",host,port), 0.6.5 through
+        # 0.8.0 used tuples of ("tcp",host,port), and >=0.9.0 uses strings
+        # again. Tolerate them all.
+        if isinstance(h, tuple):
+            hints.append(":".join([str(s) for s in h]))
+        else:
+            hints.append(h)
+    return hints
 
 def stringify_remote_address(rref):
     remote = rref.getPeer()

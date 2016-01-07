@@ -1,18 +1,23 @@
-import os
+import os, sys
+import twisted
 from twisted.trial import unittest
 from twisted.application import service
 
 import allmydata
+import allmydata.frontends.drop_upload
+import allmydata.util.log
+
 from allmydata.node import Node, OldConfigError, OldConfigOptionError, MissingConfigEntry, UnescapedHashError
+from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
+from allmydata.manhole import AuthorizedKeysManhole
 from allmydata.util import base32, fileutil
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
 
-import mock
 
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
@@ -53,8 +58,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
             client.Client(basedir)
 
 
-    @mock.patch('twisted.python.log.msg')
-    def test_error_on_old_config_files(self, mock_log_msg):
+    def test_error_on_old_config_files(self):
         basedir = "test_client.Basic.test_error_on_old_config_files"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
@@ -67,26 +71,30 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "readonly_storage"), "")
         fileutil.write(os.path.join(basedir, "debug_discard_storage"), "")
 
+        logged_messages = []
+        self.patch(twisted.python.log, 'msg', logged_messages.append)
+
         e = self.failUnlessRaises(OldConfigError, client.Client, basedir)
-        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "introducer.furl")), e.args[0])
-        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "no_storage")), e.args[0])
-        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "readonly_storage")), e.args[0])
-        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "debug_discard_storage")), e.args[0])
+        abs_basedir = fileutil.abspath_expanduser_unicode(unicode(basedir)).encode(sys.getfilesystemencoding())
+        self.failUnlessIn(os.path.join(abs_basedir, "introducer.furl"), e.args[0])
+        self.failUnlessIn(os.path.join(abs_basedir, "no_storage"), e.args[0])
+        self.failUnlessIn(os.path.join(abs_basedir, "readonly_storage"), e.args[0])
+        self.failUnlessIn(os.path.join(abs_basedir, "debug_discard_storage"), e.args[0])
 
         for oldfile in ['introducer.furl', 'no_storage', 'readonly_storage',
                         'debug_discard_storage']:
-            logged = [ m for m in mock_log_msg.call_args_list if
-                       ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m[0][0]) and oldfile in str(m[0][0])) ]
-            self.failUnless(logged, (oldfile, mock_log_msg.call_args_list))
+            logged = [ m for m in logged_messages if
+                       ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m) and oldfile in str(m)) ]
+            self.failUnless(logged, (oldfile, logged_messages))
 
         for oldfile in [
             'nickname', 'webport', 'keepalive_timeout', 'log_gatherer.furl',
             'disconnect_timeout', 'advertised_ip_addresses', 'helper.furl',
             'key_generator.furl', 'stats_gatherer.furl', 'sizelimit',
             'run_helper']:
-            logged = [ m for m in mock_log_msg.call_args_list if
-                       ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m[0][0]) and oldfile in str(m[0][0])) ]
-            self.failIf(logged, oldfile)
+            logged = [ m for m in logged_messages if
+                       ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m) and oldfile in str(m)) ]
+            self.failIf(logged, (oldfile, logged_messages))
 
     def test_secrets(self):
         basedir = "test_client.Basic.test_secrets"
@@ -173,6 +181,72 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            "reserved_space = bogus\n")
         self.failUnlessRaises(ValueError, client.Client, basedir)
 
+    def test_web_staticdir(self):
+        basedir = u"client.Basic.test_web_staticdir"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG +
+                       "[node]\n" +
+                       "web.port = tcp:0:interface=127.0.0.1\n" +
+                       "web.static = relative\n")
+        c = client.Client(basedir)
+        w = c.getServiceNamed("webish")
+        abs_basedir = fileutil.abspath_expanduser_unicode(basedir)
+        expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
+        self.failUnlessReallyEqual(w.staticdir, expected)
+
+    def test_manhole_keyfile(self):
+        basedir = u"client.Basic.test_manhole_keyfile"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG +
+                       "[node]\n" +
+                       "ssh.port = tcp:0:interface=127.0.0.1\n" +
+                       "ssh.authorized_keys_file = relative\n")
+        c = client.Client(basedir)
+        m = [s for s in c if isinstance(s, AuthorizedKeysManhole)][0]
+        abs_basedir = fileutil.abspath_expanduser_unicode(basedir)
+        expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
+        self.failUnlessReallyEqual(m.keyfile, expected)
+
+    # TODO: also test config options for SFTP.
+
+    def test_ftp_auth_keyfile(self):
+        basedir = u"client.Basic.test_ftp_auth_keyfile"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       (BASECONFIG +
+                        "[ftpd]\n"
+                        "enabled = true\n"
+                        "port = tcp:0:interface=127.0.0.1\n"
+                        "accounts.file = private/accounts\n"))
+        os.mkdir(os.path.join(basedir, "private"))
+        fileutil.write(os.path.join(basedir, "private", "accounts"), "\n")
+        c = client.Client(basedir) # just make sure it can be instantiated
+        del c
+
+    def test_ftp_auth_url(self):
+        basedir = u"client.Basic.test_ftp_auth_url"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       (BASECONFIG +
+                        "[ftpd]\n"
+                        "enabled = true\n"
+                        "port = tcp:0:interface=127.0.0.1\n"
+                        "accounts.url = http://0.0.0.0/\n"))
+        c = client.Client(basedir) # just make sure it can be instantiated
+        del c
+
+    def test_ftp_auth_no_accountfile_or_url(self):
+        basedir = u"client.Basic.test_ftp_auth_no_accountfile_or_url"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       (BASECONFIG +
+                        "[ftpd]\n"
+                        "enabled = true\n"
+                        "port = tcp:0:interface=127.0.0.1\n"))
+        self.failUnlessRaises(NeedRootcapLookupScheme, client.Client, basedir)
+
     def _permute(self, sb, key):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
@@ -185,6 +259,18 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         self.failUnlessReallyEqual(self._permute(sb, "one"), ['3','1','0','4','2'])
         self.failUnlessReallyEqual(self._permute(sb, "two"), ['0','4','2','1','3'])
+        sb.servers.clear()
+        self.failUnlessReallyEqual(self._permute(sb, "one"), [])
+
+    def test_permute_with_preferred(self):
+        sb = StorageFarmBroker(None, True, ['1','4'])
+        for k in ["%d" % i for i in range(5)]:
+            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+                   "permutation-seed-base32": base32.b2a(k) }
+            sb.test_add_rref(k, "rref", ann)
+
+        self.failUnlessReallyEqual(self._permute(sb, "one"), ['1','4','3','0','2'])
+        self.failUnlessReallyEqual(self._permute(sb, "two"), ['4','1','0','2','3'])
         sb.servers.clear()
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
@@ -228,9 +314,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         _check("helper.furl = None", None)
         _check("helper.furl = pb://blah\n", "pb://blah")
 
-    @mock.patch('allmydata.util.log.msg')
-    @mock.patch('allmydata.frontends.drop_upload.DropUploader')
-    def test_create_drop_uploader(self, mock_drop_uploader, mock_log_msg):
+    def test_create_drop_uploader(self):
         class MockDropUploader(service.MultiService):
             name = 'drop-upload'
 
@@ -241,7 +325,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                 self.local_dir_utf8 = local_dir_utf8
                 self.inotify = inotify
 
-        mock_drop_uploader.side_effect = MockDropUploader
+        self.patch(allmydata.frontends.drop_upload, 'DropUploader', MockDropUploader)
 
         upload_dircap = "URI:DIR2:blah"
         local_dir_utf8 = u"loc\u0101l_dir".encode('utf-8')
@@ -278,7 +362,14 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         class Boom(Exception):
             pass
-        mock_drop_uploader.side_effect = Boom()
+        def BoomDropUploader(client, upload_dircap, local_dir_utf8, inotify=None):
+            raise Boom()
+
+        logged_messages = []
+        def mock_log(*args, **kwargs):
+            logged_messages.append("%r %r" % (args, kwargs))
+        self.patch(allmydata.util.log, 'msg', mock_log)
+        self.patch(allmydata.frontends.drop_upload, 'DropUploader', BoomDropUploader)
 
         basedir2 = "test_client.Basic.test_create_drop_uploader2"
         os.mkdir(basedir2)
@@ -291,8 +382,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir2, "private", "drop_upload_dircap"), "URI:DIR2:blah")
         c2 = client.Client(basedir2)
         self.failUnlessRaises(KeyError, c2.getServiceNamed, 'drop-upload')
-        self.failUnless([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg)],
-                        mock_log_msg.call_args_list)
+        self.failUnless([True for arg in logged_messages if "Boom" in arg],
+                        logged_messages)
 
 
 def flush_but_dont_ignore(res):

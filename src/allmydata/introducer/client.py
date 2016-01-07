@@ -363,3 +363,9 @@ class IntroducerClient(service.Service, Referenceable):
     def get_since(self):
         return self._since
 
+    def get_last_received_data_time(self):
+        if self._publisher is None:
+            return None
+        else:
+            return self._publisher.getDataLastReceivedAt()
+

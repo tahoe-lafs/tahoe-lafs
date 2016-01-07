@@ -9,7 +9,9 @@
     allmydata-tahoe-X.Y.Z.zip source code file, or else to point to a
     directory which contains only allmydata-tahoe-X.Y.Z.* source code files
   - [ ] git pull
-  - [ ] git tag allmydata-tahoe-X.Y.Z
+  - [ ] git tag -s -u 68666A7A allmydata-tahoe-X.Y.Z
+    - produces a "signed tag"
+    - tag body: allmydata-tahoe-X.Y.Z
   - [ ] build locally to make sure the release is reporting itself as the
     intended version
   - [ ] make sure buildbot is green
@@ -23,7 +25,8 @@
   - [ ] download tarballs, sign with "gpg -ba -u 68666a7a TAR", upload *.asc
   - [ ] symlink the release tarball on tahoe-lafs.org:
     /var/www/source/tahoe-lafs/releases/
-  - [ ] update Wiki: front page news, news, old news, parade of release notes
+  - [ ] update Wiki: front page news, news, old news, parade of release
+    notes ("Doc"), Installation
   - [ ] send out relnotes.txt:
     - modify to include hashes of tarballs, git revision
     - GPG-sign the email

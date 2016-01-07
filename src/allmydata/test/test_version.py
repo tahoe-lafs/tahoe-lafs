@@ -1,58 +1,114 @@
 
+import sys
+import pkg_resources
+from pkg_resources import Requirement
+
 from twisted.trial import unittest
 
-from allmydata import check_requirement, cross_check, PackagingError
+from allmydata import check_requirement, cross_check, get_package_versions_and_locations, \
+     extract_openssl_version, PackagingError
 from allmydata.util.verlib import NormalizedVersion as V, \
                                   IrrationalVersionError, \
                                   suggest_normalized_version as suggest
 
 
+class MockSSL(object):
+    SSLEAY_VERSION = 0
+    SSLEAY_CFLAGS = 2
+
+    def __init__(self, version, compiled_without_heartbeats=False):
+        self.opts = {
+            self.SSLEAY_VERSION: version,
+            self.SSLEAY_CFLAGS: compiled_without_heartbeats and 'compiler: gcc -DOPENSSL_NO_HEARTBEATS'
+                                                             or 'compiler: gcc',
+        }
+
+    def SSLeay_version(self, which):
+        return self.opts[which]
+
+
 class CheckRequirement(unittest.TestCase):
     def test_check_requirement(self):
-        check_requirement("setuptools >= 0.6c6", {"setuptools": ("0.6", "", None)})
-        check_requirement("setuptools >= 0.6c6", {"setuptools": ("0.6", "", "distribute")})
-        check_requirement("pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.1.0", "", None)})
-        check_requirement("pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.4.0", "", None)})
-        check_requirement("zope.interface <= 3.6.2, >= 3.6.6", {"zope.interface": ("3.6.1", "", None)})
-        check_requirement("zope.interface <= 3.6.2, >= 3.6.6", {"zope.interface": ("3.6.6", "", None)})
+        self._check_success("setuptools >= 0.6c6", {"setuptools": ("0.6", "", None)})
+        self._check_success("setuptools >= 0.6c6", {"setuptools": ("0.6", "", "distribute")})
+        self._check_success("pycrypto >= 2.1.0, != 2.2, != 2.4", {"pycrypto": ("2.1.0", "", None)})
+        self._check_success("pycrypto >= 2.1.0, != 2.2, != 2.4", {"pycrypto": ("2.3.0", "", None)})
+        self._check_success("pycrypto >= 2.1.0, != 2.2, != 2.4", {"pycrypto": ("2.4.1", "", None)})
+        self._check_success("Twisted >= 11.0.0, <= 12.2.0", {"Twisted": ("11.0.0", "", None)})
+        self._check_success("Twisted >= 11.0.0, <= 12.2.0", {"Twisted": ("12.2.0", "", None)})
 
-        check_requirement("zope.interface", {"zope.interface": ("unknown", "", None)})
-        check_requirement("mock", {"mock": ("0.6.0", "", None)})
-        check_requirement("foo >= 1.0", {"foo": ("1.0", "", None), "bar": ("2.0", "", None)})
+        self._check_success("zope.interface", {"zope.interface": ("unknown", "", None)})
+        self._check_success("mock", {"mock": ("0.6.0", "", None)})
+        self._check_success("foo >= 1.0", {"foo": ("1.0", "", None), "bar": ("2.0", "", None)})
 
-        check_requirement("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.7.0", "", None)})
+        self._check_success("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.7.0", "", None)})
 
         try:
-            check_requirement("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.6.1+", "", None)})
+            self._check_success("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.6.1+", "", None)})
             # succeeding is ok
         except PackagingError, e:
             self.failUnlessIn("could not parse", str(e))
 
-        self.failUnlessRaises(PackagingError, check_requirement,
-                              "foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.5.1", "", None)})
-        self.failUnlessRaises(PackagingError, check_requirement,
-                              "pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.2.0", "", None)})
-        self.failUnlessRaises(PackagingError, check_requirement,
-                              "zope.interface <= 3.6.2, >= 3.6.6", {"zope.interface": ("3.6.4", "", None)})
-        self.failUnlessRaises(PackagingError, check_requirement,
-                              "foo >= 1.0", {})
-        self.failUnlessRaises(PackagingError, check_requirement,
-                              "foo >= 1.0", {"foo": ("irrational", "", None)})
+        self._check_failure("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.5.1", "", None)})
+        self._check_failure("pycrypto >= 2.1.0, != 2.2, != 2.4", {"pycrypto": ("2.2.0", "", None)})
+        self._check_failure("pycrypto >= 2.1.0, != 2.2, != 2.4", {"pycrypto": ("2.0.0", "", None)})
+        self._check_failure("Twisted >= 11.0.0, <= 12.2.0", {"Twisted": ("10.2.0", "", None)})
+        self._check_failure("Twisted >= 11.0.0, <= 12.2.0", {"Twisted": ("13.0.0", "", None)})
+        self._check_failure("foo >= 1.0", {})
+        self._check_failure("foo >= 1.0", {"foo": ("irrational", "", None)})
 
         self.failUnlessRaises(ImportError, check_requirement,
                               "foo >= 1.0", {"foo": (None, None, "foomodule")})
 
-    def test_cross_check_ticket_1355(self):
+    def _check_success(self, req, vers_and_locs):
+        check_requirement(req, vers_and_locs)
+
+        for pkg, ver in vers_and_locs.items():
+            self.failUnless(ver[0] in Requirement.parse(req), str((ver, req)))
+
+    def _check_failure(self, req, vers_and_locs):
+        self.failUnlessRaises(PackagingError, check_requirement, req, vers_and_locs)
+
+        for pkg, ver in vers_and_locs.items():
+            self.failIf(ver[0] in Requirement.parse(req), str((ver, req)))
+
+    def test_packages_from_pkg_resources(self):
+        if hasattr(sys, 'frozen'):
+            raise unittest.SkipTest("This test doesn't apply to frozen builds.")
+
+        class MockPackage(object):
+            def __init__(self, project_name, version, location):
+                self.project_name = project_name
+                self.version = version
+                self.location = location
+
+        def call_pkg_resources_require(*args):
+            return [MockPackage("Foo", "1.0", "/path")]
+        self.patch(pkg_resources, 'require', call_pkg_resources_require)
+
+        (packages, errors) = get_package_versions_and_locations()
+        self.failUnlessIn(("foo", ("1.0", "/path", "according to pkg_resources")), packages)
+        self.failIfEqual(errors, [])
+        self.failUnlessEqual([e for e in errors if "was not found by pkg_resources" not in e], [])
+
+    def test_cross_check_unparseable_versions(self):
         # The bug in #1355 is triggered when a version string from either pkg_resources or import
         # is not parseable at all by normalized_version.
 
         res = cross_check({"foo": ("unparseable", "")}, [("foo", ("1.0", "", None))])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("by pkg_resources could not be parsed", res[0])
+        self.failUnlessIn("due to IrrationalVersionError", res[0])
 
         res = cross_check({"foo": ("1.0", "")}, [("foo", ("unparseable", "", None))])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn(") could not be parsed", res[0])
+        self.failUnlessIn("due to IrrationalVersionError", res[0])
+
+        # However, an error should not be triggered when the version strings are unparseable
+        # but equal (#2499).
+        res = cross_check({"foo": ("unparseable", "")}, [("foo", ("unparseable", "", None))])
+        self.failUnlessEqual(res, [])
 
     def test_cross_check(self):
         res = cross_check({}, [])
@@ -62,18 +118,17 @@ class CheckRequirement(unittest.TestCase):
         self.failUnlessEqual(res, [])
 
         res = cross_check({"foo": ("unparseable", "")}, [])
-        self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn("not found by import", res[0])
+        self.failUnlessEqual(res, [])
 
         res = cross_check({"argparse": ("unparseable", "")}, [])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({}, [("foo", ("unparseable", "", None))])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("not found by pkg_resources", res[0])
 
         res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere", "distribute"))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere", None))])
         self.failUnlessEqual(len(res), 1)
@@ -84,27 +139,47 @@ class CheckRequirement(unittest.TestCase):
         self.failUnlessIn("location mismatch", res[0])
 
         res = cross_check({"zope.interface": ("1.0", "")}, [("zope.interface", ("unknown", "", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
+
+        res = cross_check({"zope.interface": ("unknown", "")}, [("zope.interface", ("unknown", "", None))])
+        self.failUnlessEqual(len(res), 1)
+        self.failUnlessIn("could not be parsed", res[0])
 
         res = cross_check({"foo": ("1.0", "")}, [("foo", ("unknown", "", None))])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("could not find a version number", res[0])
 
+        res = cross_check({"foo": ("unknown", "")}, [("foo", ("unknown", "", None))])
+        self.failUnlessEqual(len(res), 1)
+        self.failUnlessIn("could not be parsed", res[0])
+
         # When pkg_resources and import both find a package, there is only a warning if both
         # the version and the path fail to match.
 
         res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("1.0", "/somewhere_different", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({"foo": ("1.0-r123", "/somewhere")}, [("foo", ("1.0.post123", "/somewhere_different", None))])
-        self.failUnlessEqual(len(res), 0)
+        self.failUnlessEqual(res, [])
 
         res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere_different", None))])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("but version '2.0'", res[0])
+
+    def test_extract_openssl_version(self):
+        self.failUnlessEqual(extract_openssl_version(MockSSL("")),
+                                                     ("", None, None))
+        self.failUnlessEqual(extract_openssl_version(MockSSL("NotOpenSSL a.b.c foo")),
+                                                     ("NotOpenSSL", None, "a.b.c foo"))
+        self.failUnlessEqual(extract_openssl_version(MockSSL("OpenSSL a.b.c")),
+                                                     ("a.b.c", None, None))
+        self.failUnlessEqual(extract_openssl_version(MockSSL("OpenSSL 1.0.1e 11 Feb 2013")),
+                                                     ("1.0.1e", None, "11 Feb 2013"))
+        self.failUnlessEqual(extract_openssl_version(MockSSL("OpenSSL 1.0.1e 11 Feb 2013", compiled_without_heartbeats=True)),
+                                                     ("1.0.1e", None, "11 Feb 2013, no heartbeats"))
 
 
 # based on https://bitbucket.org/tarek/distutilsversion/src/17df9a7d96ef/test_verlib.py

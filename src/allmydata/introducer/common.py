@@ -100,20 +100,18 @@ class SubscriberDescriptor:
     .nickname: their self-provided nickname, or "?" (unicode)
     .version: their self-provided version (string)
     .app_versions: versions of each library they use (dict str->str)
-    .advertised_addresses: what hosts they listen on (list of strings)
     .remote_address: the external address from which they connected (string)
     .tubid: for subscribers connecting with Foolscap, their tubid (string)
     """
 
     def __init__(self, service_name, when,
                  nickname, version, app_versions,
-                 advertised_addresses, remote_address, tubid):
+                 remote_address, tubid):
         self.service_name = service_name
         self.when = when
         self.nickname = nickname
         self.version = version
         self.app_versions = app_versions
-        self.advertised_addresses = advertised_addresses
         self.remote_address = remote_address
         self.tubid = tubid
 
@@ -133,9 +131,9 @@ class AnnouncementDescriptor:
      .nickname: their self-provided nickname, or "" (unicode)
      .serverid: the server identifier. This is a pubkey (for V2 clients),
                 or a tubid (for V1 clients).
-     .advertised_addresses: which hosts they listen on (list of strings)
-                            if the announcement included a key for
-                            'anonymous-storage-FURL', else an empty list.
+     .connection_hints: where they listen (list of strings) if the
+                        announcement included a key for
+                        'anonymous-storage-FURL', else an empty list.
     """
 
     def __init__(self, when, index, canary, ann_d):
@@ -150,6 +148,6 @@ class AnnouncementDescriptor:
         self.serverid = key_s or tubid_s
         furl = ann_d.get("anonymous-storage-FURL")
         if furl:
-            self.advertised_addresses = rrefutil.hosts_for_furl(furl)
+            self.connection_hints = rrefutil.connection_hints_for_furl(furl)
         else:
-            self.advertised_addresses = []
+            self.connection_hints = []

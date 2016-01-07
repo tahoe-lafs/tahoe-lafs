@@ -46,7 +46,7 @@ body {
     margin-bottom: 20px;
 }
 
-.grid-status .status-indicator {
+.grid-status {
     margin-top: 5px;
     float: left;
 }
@@ -83,36 +83,15 @@ body {
 }
 
 .status-indicator {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    display: inline-block;
-    vertical-align: top;
-    margin-right: 4px;
-    margin-top: 2px;
-}
-.status-description {
-    display:inline-block;
+    float: left;
+    margin: 5px;
 }
 
-.status-description .timestamp {
-    font-size: smaller;
+.nickname-and-peerid .timestamp {
+    float: right;
 }
 
 a.timestamp {
     color: inherit;
     text-decoration:none;
-}
-
-.connected-yes, .service-Connected {
-    background: #468847;
-}
-
-.connected-no, .service-Disconnected {
-    background: #B94A48;
-}
-
-.connected-not-configured {
-    background: #444444;
 }

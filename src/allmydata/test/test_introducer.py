@@ -28,7 +28,7 @@ class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
         log.msg(msg, **kw)
 
-class Node(testutil.SignalMixin, unittest.TestCase):
+class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
     def test_furl(self):
         basedir = "introducer.IntroducerNode.test_furl"
         os.mkdir(basedir)
@@ -73,6 +73,20 @@ class Node(testutil.SignalMixin, unittest.TestCase):
             return d2
         d.addCallback(_check_furl)
         return d
+
+    def test_web_static(self):
+        basedir = u"introducer.Node.test_web_static"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       "[node]\n" +
+                       "web.port = tcp:0:interface=127.0.0.1\n" +
+                       "web.static = relative\n")
+        c = IntroducerNode(basedir)
+        w = c.getServiceNamed("webish")
+        abs_basedir = fileutil.abspath_expanduser_unicode(basedir)
+        expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
+        self.failUnlessReallyEqual(w.staticdir, expected)
+
 
 class ServiceMixin:
     def setUp(self):
@@ -863,8 +877,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 class FakeRemoteReference:
     def notifyOnDisconnect(self, *args, **kwargs): pass
     def getRemoteTubID(self): return "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
-    def getLocationHints(self): return [("ipv4", "here.example.com", "1234"),
-                                        ("ipv4", "there.example.com", "2345")]
+    def getLocationHints(self): return ["tcp:here.example.com:1234",
+                                        "tcp:there.example.com2345"]
     def getPeer(self): return address.IPv4Address("TCP", "remote.example.com",
                                                   3456)
 

@@ -3,12 +3,11 @@ Functions used to convert inputs from whatever encoding used in the system to
 unicode and back.
 """
 
-import sys
-import os
-import re
+import sys, os, re, locale
+from types import NoneType
+
 from allmydata.util.assertutil import precondition
 from twisted.python import usage
-import locale
 from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
@@ -127,6 +126,12 @@ def to_str(s):
         return s
     return s.encode('utf-8')
 
+def from_utf8_or_none(s):
+    precondition(isinstance(s, (NoneType, str)), s)
+    if s is None:
+        return s
+    return s.decode('utf-8')
+
 PRINTABLE_ASCII = re.compile(r'^[\n\r\x20-\x7E]*$',          re.DOTALL)
 PRINTABLE_8BIT  = re.compile(r'^[\n\r\x20-\x7E\x80-\xFF]*$', re.DOTALL)
 
@@ -229,6 +234,16 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
 
 def quote_path(path, quotemarks=True):
     return quote_output("/".join(map(to_str, path)), quotemarks=quotemarks, quote_newlines=True)
+
+def quote_local_unicode_path(path, quotemarks=True):
+    precondition(isinstance(path, unicode), path)
+
+    if sys.platform == "win32" and path.startswith(u"\\\\?\\"):
+        path = path[4 :]
+        if path.startswith(u"UNC\\"):
+            path = u"\\\\" + path[4 :]
+
+    return quote_output(path, quotemarks=quotemarks, quote_newlines=True)
 
 
 def unicode_platform():

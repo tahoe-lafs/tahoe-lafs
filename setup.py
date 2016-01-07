@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.6 and 2.7.x inclusive."
+import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
 
 # Tahoe-LAFS -- secure, distributed storage grid
 #
@@ -64,6 +64,7 @@ else:
 adglobals = {}
 execfile('src/allmydata/_auto_deps.py', adglobals)
 install_requires = adglobals['install_requires']
+setup_requires = adglobals['setup_requires']
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
     del sys.argv[1]
@@ -71,7 +72,7 @@ if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
 
 __requires__ = install_requires[:]
 
-egg = os.path.realpath('setuptools-0.6c16dev5.egg')
+egg = os.path.realpath('setuptools-0.6c16dev6.egg')
 sys.path.insert(0, egg)
 import setuptools; setuptools.bootstrap_install_from = egg
 
@@ -100,7 +101,6 @@ trove_classifiers=[
     "Programming Language :: C",
     "Programming Language :: Python",
     "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.6",
     "Programming Language :: Python :: 2.7",
     "Topic :: Utilities",
     "Topic :: System :: Systems Administration",
@@ -112,23 +112,6 @@ trove_classifiers=[
     "Topic :: System :: Archiving",
     ]
 
-
-setup_requires = []
-
-# Nevow imports itself when building, which causes Twisted and zope.interface
-# to be imported. We need to make sure that the versions of Twisted and
-# zope.interface used at build time satisfy Nevow's requirements. If not
-# then there are two problems:
-#  - prior to Nevow v0.9.33, Nevow didn't declare its dependency on Twisted
-#    in a way that enabled setuptools to satisfy that requirement at
-#    build time.
-#  - some versions of zope.interface, e.g. v3.6.4, are incompatible with
-#    Nevow, and we need to avoid those both at build and run-time.
-#
-# This only matters when compatible versions of Twisted and zope.interface
-# are not already installed. Retire this hack when
-# https://bugs.launchpad.net/nevow/+bug/812537 has been fixed.
-setup_requires += [req for req in install_requires if req.startswith('Twisted') or req.startswith('zope.interface')]
 
 # We no longer have any requirements specific to tests.
 tests_require=[]
@@ -262,10 +245,10 @@ __version__ = verstr
 '''
 
 def run_command(args, cwd=None):
+    use_shell = sys.platform == "win32"
     try:
-        # remember shell=False, so use git.cmd on windows, not just git
-        p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd)
-    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 2.6+
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd, shell=use_shell)
+    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 2.7+
         print("Warning: unable to run %r." % (" ".join(args),))
         print(e)
         return None
@@ -303,10 +286,7 @@ def versions_from_git(tag_prefix):
         print("Warning: unable to find version because we could not obtain the source directory.")
         print(e)
         return {}
-    GIT = "git"
-    if sys.platform == "win32":
-        GIT = "git.cmd"
-    stdout = run_command([GIT, "describe", "--tags", "--dirty", "--always"],
+    stdout = run_command(["git", "describe", "--tags", "--dirty", "--always"],
                          cwd=source_dir)
     if stdout is None:
         # run_command already complained.
@@ -321,7 +301,7 @@ def versions_from_git(tag_prefix):
     else:
         normalized_version = "%s.post%s" % (pieces[0], pieces[1])
 
-    stdout = run_command([GIT, "rev-parse", "HEAD"], cwd=source_dir)
+    stdout = run_command(["git", "rev-parse", "HEAD"], cwd=source_dir)
     if stdout is None:
         # run_command already complained.
         return {}
@@ -331,7 +311,7 @@ def versions_from_git(tag_prefix):
         normalized_version += ".dev0"
 
     # Thanks to Jistanidiot at <http://stackoverflow.com/questions/6245570/get-current-branch-name>.
-    stdout = run_command([GIT, "rev-parse", "--abbrev-ref", "HEAD"], cwd=source_dir)
+    stdout = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=source_dir)
     branch = (stdout or "unknown").strip()
 
     return {"version": version, "normalized": normalized_version, "full": full, "branch": branch}
@@ -438,7 +418,7 @@ if version:
     setup_args["version"] = version
 
 setup(name=APPNAME,
-      description='secure, decentralized, fault-tolerant filesystem',
+      description='secure, decentralized, fault-tolerant file store',
       long_description=open('README.rst', 'rU').read(),
       author='the Tahoe-LAFS project',
       author_email='tahoe-dev@tahoe-lafs.org',

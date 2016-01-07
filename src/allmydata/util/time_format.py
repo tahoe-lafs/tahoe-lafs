@@ -3,6 +3,9 @@
 
 import calendar, datetime, re, time
 
+def format_time(t):
+    return time.strftime("%Y-%m-%d %H:%M:%S", t)
+
 def iso_utc_date(now=None, t=time.time):
     if now is None:
         now = t()
@@ -12,11 +15,6 @@ def iso_utc(now=None, sep='_', t=time.time):
     if now is None:
         now = t()
     return datetime.datetime.utcfromtimestamp(now).isoformat(sep)
-
-def iso_local(now=None, sep='_', t=time.time):
-    if now is None:
-        now = t()
-    return datetime.datetime.fromtimestamp(now).isoformat(sep)
 
 def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})[T_ ](?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(?P<subsecond>\.\d+)?")):
     """
@@ -69,27 +67,26 @@ def parse_date(s):
     return int(iso_utc_time_to_seconds(s + "T00:00:00"))
 
 def format_delta(time_1, time_2):
-    TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
     if time_1 is None:
-        absolute_str, relative_str = "N/A", "N/A"
-    else:
-        delta = int( time_2 - time_1 )
-        seconds = delta % 60
-        delta  -= seconds
-        minutes = (delta / 60) % 60
-        delta  -= minutes * 60
-        hours   = delta / (60*60) % 24
-        delta  -=  hours * 24
-        days    = delta / (24*60*60)
-        if not days:
-            if not hours:
-                if not minutes:
-                    relative_str = "%ss" % (seconds)
-                else:
-                    relative_str = "%sm%ss" % (minutes, seconds)
+        return "N/A"
+    if time_1 > time_2:
+        return '-'
+    delta = int(time_2 - time_1)
+    seconds = delta % 60
+    delta  -= seconds
+    minutes = (delta / 60) % 60
+    delta  -= minutes * 60
+    hours   = delta / (60*60) % 24
+    delta  -= hours * 24
+    days    = delta / (24*60*60)
+    if not days:
+        if not hours:
+            if not minutes:
+                return "%ss" % (seconds)
             else:
-                relative_str = "%sh%sm%ss" % (hours, minutes, seconds)
+                return "%sm %ss" % (minutes, seconds)
         else:
-            relative_str = "%sd%sh%sm%ss" % (days, hours, minutes, seconds)
-        absolute_str = time.strftime(TIME_FORMAT, time.localtime(time_1))
-    return absolute_str, relative_str
+            return "%sh %sm %ss" % (hours, minutes, seconds)
+    else:
+        return "%sd %sh %sm %ss" % (days, hours, minutes, seconds)
+

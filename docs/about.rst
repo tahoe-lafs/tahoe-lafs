@@ -45,7 +45,7 @@ Here's how it works:
 A "storage grid" is made up of a number of storage servers.  A storage server
 has direct attached storage (typically one or more hard disks).  A "gateway"
 communicates with storage nodes, and uses them to provide access to the
-filesystem over protocols such as HTTP(S), SFTP or FTP.
+file store over protocols such as HTTP(S), SFTP or FTP.
 
 Note that you can find "client" used to refer to gateway nodes (which act as
 a client to storage servers), and also to processes or programs connecting to
@@ -72,7 +72,7 @@ An alternate deployment mode is that the gateway runs on a remote machine and
 the user connects to it over HTTPS or SFTP.  This means that the operator of
 the gateway can view and modify the user's data (the user *relies on* the
 gateway for confidentiality and integrity), but the advantage is that the
-user can access the filesystem with a client that doesn't have the gateway
+user can access the file store with a client that doesn't have the gateway
 software installed, such as an Internet kiosk or cell phone.
 
 Access Control

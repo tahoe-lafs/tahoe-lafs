@@ -1,8 +1,8 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.10
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.10.2
 
-The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.10.0 of Tahoe-LAFS, an extremely
-reliable distributed storage system. Get it here:
+The Tahoe-LAFS team is pleased to announce version 1.10.2 of
+Tahoe-LAFS, an extremely reliable decentralized storage system.
+Get it here:
 
 https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.rst
 
@@ -14,24 +14,22 @@ unique security and fault-tolerance properties:
 
 https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/about.rst
 
-The previous stable release of Tahoe-LAFS was v1.9.2, released
-on July 3, 2012.
+The previous stable release of Tahoe-LAFS was v1.10.1, released
+on June 15, 2015.
 
-v1.10.0 is a feature release which adds a new Introducer
-protocol, improves the appearance of the web-based user
-interface, improves grid security by making introducer FURLs
-unguessable, and fixes many bugs. See the NEWS file [1] for
-details.
+v1.10.2 is a small bugfix release, which fixes a critical
+packaging error that prevented v1.10.1 from building against the
+latest version of the upstream "mock" library. A few small bugs
+were fixed too. See the NEWS file [1] for details.
 
 
 WHAT IS IT GOOD FOR?
 
-With Tahoe-LAFS, you distribute your filesystem across
-multiple servers, and even if some of the servers fail or are
-taken over by an attacker, the entire filesystem continues to
-work correctly, and continues to preserve your privacy and
-security. You can easily share specific files and directories
-with other people.
+With Tahoe-LAFS, you distribute your data across multiple
+servers. Even if some of the servers fail or are taken over
+by an attacker, the entire file store continues to function
+correctly, preserving your privacy and security. You can
+easily share specific files and directories with other people.
 
 In addition to the core storage system itself, volunteers
 have built other projects on top of Tahoe-LAFS and have
@@ -74,7 +72,7 @@ compatible with older clients and introducer servers, however
 some features will be unavailable when an older node is
 involved. Please see docs/nodekeys.rst [14] for details.
 
-This is the eighteenth release in the version 1 series. This
+This is the nineteenth release in the version 1 series. This
 series of Tahoe-LAFS will be actively supported and maintained
 for the foreseeable future, and future versions of Tahoe-LAFS
 will retain the ability to read and write files compatible
@@ -131,22 +129,22 @@ HACK TAHOE-LAFS!
 
 If you can find a security flaw in Tahoe-LAFS which is serious
 enough that we feel compelled to warn our users and issue a fix,
-then we will award you with a customized t-shirts with your
+then we will award you with a customized t-shirt with your
 exploit printed on it and add you to the "Hack Tahoe-LAFS Hall
 Of Fame" [13].
 
 
 ACKNOWLEDGEMENTS
 
-This is the twelfth release of Tahoe-LAFS to be created solely
-as a labor of love by volunteers. Thank you very much to the
-team of "hackers in the public interest" who make Tahoe-LAFS
-possible.
+This is the fourteenth release of Tahoe-LAFS to be created
+solely as a labor of love by volunteers. Thank you very much
+to the team of "hackers in the public interest" who make
+Tahoe-LAFS possible.
 
 Brian Warner
 on behalf of the Tahoe-LAFS team
 
-May 1, 2013
+July 30, 2015
 San Francisco, California, USA
 
 
