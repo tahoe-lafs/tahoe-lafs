@@ -46,9 +46,12 @@ body {
     margin-bottom: 20px;
 }
 
+.grid-status h3 {
+    clear: left;
+}
+
 .grid-status {
     margin-top: 5px;
-    float: left;
 }
 
 .furl {
@@ -72,14 +75,6 @@ body {
 .minutia {
     font-size: 0.8em;
     width: 50%;
-}
-
-.service-connection-status {
-    white-space: nowrap;
-}
-
-.service-connection-string {
-    display: inline-block;
 }
 
 .status-indicator {
