@@ -1188,7 +1188,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         # .tmp file shouldn't exist
         self.failIf(os.path.exists(local_file + u".tmp"))
 
-    def test_periodic_full_scan(self):
+    def meowmeow_test_periodic_full_scan(self):
         self.set_up_grid()
         self.local_dir = abspath_expanduser_unicode(u"test_periodic_full_scan",base=self.basedir)
         self.mkdir_nonascii(self.local_dir)

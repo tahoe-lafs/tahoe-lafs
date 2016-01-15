@@ -156,27 +156,31 @@ class QueueMixin(HookMixin):
         #open("events", "ab+").write(msg)
 
     def _turn_deque(self):
-        self._log("_turn_deque")
-        if self._stopped:
-            self._log("stopped")
-            return
         try:
-            item = self._deque.pop()
-            self._log("popped %r" % (item,))
-            self._count('objects_queued', -1)
-        except IndexError:
-            self._log("deque is now empty")
-            self._lazy_tail.addCallback(lambda ign: self._when_queue_is_empty())
-        else:
-            print "_turn_deque else clause"
-            def whawhat(result):
-                print "result %r" % (result,)
-                return result
-            self._lazy_tail.addBoth(whawhat)
-            self._lazy_tail.addCallback(lambda ign: self._process(item))
-            self._lazy_tail.addBoth(self._call_hook, 'processed')
-            self._lazy_tail.addErrback(log.err)
-            self._lazy_tail.addCallback(lambda ign: task.deferLater(self._clock, self._turn_delay, self._turn_deque))
+            self._log("_turn_deque")
+            if self._stopped:
+                self._log("stopped")
+                return
+            try:
+                item = self._deque.pop()
+                self._log("popped %r" % (item,))
+                self._count('objects_queued', -1)
+            except IndexError:
+                self._log("deque is now empty")
+                self._lazy_tail.addCallback(lambda ign: self._when_queue_is_empty())
+            else:
+                self._log("_turn_deque else clause")
+                def whawhat(result):
+                    self._log("whawhat result %r" % (result,))
+                    return result
+                self._lazy_tail.addBoth(whawhat)
+                self._lazy_tail.addCallback(lambda ign: self._process(item))
+                self._lazy_tail.addBoth(self._call_hook, 'processed')
+                self._lazy_tail.addErrback(log.err)
+                self._lazy_tail.addCallback(lambda ign: task.deferLater(self._clock, self._turn_delay, self._turn_deque))
+        except Exception as e:
+            self._log("turn deque exception %s" % (e,))
+            raise
 
 
 class Uploader(QueueMixin):
@@ -333,6 +337,7 @@ class Uploader(QueueMixin):
         d = defer.succeed(None)
 
         def _maybe_upload(val, now=None):
+            self._log("_maybe_upload(%r, now=%r)" % (val, now))
             if now is None:
                 now = time.time()
             fp = self._get_filepath(relpath_u)
