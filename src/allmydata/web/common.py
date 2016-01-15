@@ -15,7 +15,7 @@ from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      MustBeReadonlyError, MustNotBeUnknownRWError, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate
-from allmydata.util.time_format import format_time
+from allmydata.util.time_format import format_time, format_delta
 from allmydata.util.encodingutil import to_str, quote_output
 
 
@@ -213,8 +213,14 @@ def text_plain(text, ctx):
 def spaces_to_nbsp(text):
     return unicode(text).replace(u' ', u'\u00A0')
 
+def render_time_delta(time_1, time_2):
+    return spaces_to_nbsp(format_delta(time_1, time_2))
+
 def render_time(t):
     return spaces_to_nbsp(format_time(time.localtime(t)))
+
+def render_time_attr(t):
+    return format_time(time.localtime(t))
 
 class WebError(Exception):
     def __init__(self, text, code=http.BAD_REQUEST):
