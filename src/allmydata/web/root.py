@@ -12,7 +12,7 @@ from allmydata import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
-from allmydata.web import storage, magic_folder
+from allmydata.web import storage, magic_folder, introducerless_config
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
      get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
 
@@ -438,3 +438,10 @@ class Root(rend.Page):
             T.input(type="submit", value=u"Save \u00BB"),
             ]]
         return T.div[form]
+
+    def render_show_introducerless_config(self, ctx, data):
+        if self.client.get_config("node", "web.reveal_storage_furls", default=False, boolean=True):
+            return ctx.tag[T.a(href="introducerless_config")["Introducerless Config"]]
+        else:
+            return ""
+
