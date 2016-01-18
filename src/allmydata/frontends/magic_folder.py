@@ -612,9 +612,12 @@ class Downloader(QueueMixin, WriteFileMixin):
             node = None
             for success, result in deferredList:
                 if success:
-                    if result[1]['version'] > max_version:
-                        node, metadata = result
-                        max_version = result[1]['version']
+                    if 'version' not in result[1]:
+                        self._log("invalid remote metadata detected")
+                    else:
+                        if result[1]['version'] > max_version:
+                            node, metadata = result
+                            max_version = result[1]['version']
             return node, metadata
         collective_dirmap_d.addCallback(highest_version)
         return collective_dirmap_d
@@ -629,10 +632,14 @@ class Downloader(QueueMixin, WriteFileMixin):
 
                 file_node, metadata = listing_map[encoded_relpath_u]
                 local_version = self._get_local_latest(relpath_u)
-                remote_version = metadata.get('version', None)
+                if 'version' not in metadata:
+                    self._log("invalid tahoe remote metadata detected")
+                    continue
+                else:
+                    remote_version = metadata['version']
                 self._log("%r has local version %r, remote version %r" % (relpath_u, local_version, remote_version))
 
-                if local_version is None or remote_version is None or local_version < remote_version:
+                if local_version is None or local_version < remote_version:
                     self._log("%r added to download queue" % (relpath_u,))
                     if scan_batch.has_key(relpath_u):
                         scan_batch[relpath_u] += [(file_node, metadata)]
