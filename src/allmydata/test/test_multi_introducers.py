@@ -2,7 +2,7 @@
 import unittest, os
 
 from allmydata.util.fileutil import write, remove
-from allmydata.client import Client, MULTI_INTRODUCERS_CFG
+from allmydata.client import Client
 from allmydata.scripts.create_node import write_node_config
 from allmydata.web.root import Root
 
@@ -10,7 +10,7 @@ INTRODUCERS_CFG_FURLS=['furl1', 'furl2']
 INTRODUCERS_CFG_FURLS_COMMENTED=['furl1', '#furl2', 'furl3']
 
 def cfg_setup():
-    # setup tahoe.cfg and basedir/introducers
+    # setup tahoe.cfg and basedir/private/introducers
     # create a custom tahoe.cfg
     c = open(os.path.join("tahoe.cfg"), "w")
     config = {}
@@ -19,14 +19,16 @@ def cfg_setup():
     c.write("[client]\n")
     c.write("introducer.furl = %s\n" % fake_furl)
     c.close()
+    os.mkdir("private")
+    self.introducers_file = os.path.join("private", "introducers")
 
-    # create a basedir/introducers
-    write(MULTI_INTRODUCERS_CFG, '\n'.join(INTRODUCERS_CFG_FURLS))
+    # create a basedir/private/introducers
+    write(self.introducers_file, '\n'.join(INTRODUCERS_CFG_FURLS))
 
 def cfg_cleanup():
     # clean-up all cfg files
     remove("tahoe.cfg")
-    remove(MULTI_INTRODUCERS_CFG)
+    remove(self.introducers_file)
 
 
 class TestClient(unittest.TestCase):
@@ -38,8 +40,8 @@ class TestClient(unittest.TestCase):
 
     def test_introducer_count(self):
         """ Ensure that the Client creates same number of introducer clients
-        as found in "basedir/introducers" config file. """
-        write(MULTI_INTRODUCERS_CFG, '\n'.join(INTRODUCERS_CFG_FURLS))
+        as found in "basedir/private/introducers" config file. """
+        write(self.introducers_file, '\n'.join(INTRODUCERS_CFG_FURLS))
 
         # get a client and count of introducer_clients
         myclient = Client()
@@ -50,9 +52,9 @@ class TestClient(unittest.TestCase):
 
     def test_introducer_count_commented(self):
         """ Ensure that the Client creates same number of introducer clients
-        as found in "basedir/introducers" config file when there'is one
+        as found in "basedir/private/introducers" config file when there is one
         commented."""
-        write(MULTI_INTRODUCERS_CFG, '\n'.join(INTRODUCERS_CFG_FURLS_COMMENTED))
+        write(self.introducers_file, '\n'.join(INTRODUCERS_CFG_FURLS_COMMENTED))
         # get a client and count of introducer_clients
         myclient = Client()
         ic_count = len(myclient.introducer_clients)
@@ -80,7 +82,8 @@ class TestClient(unittest.TestCase):
         self.failUnlessEqual(fake_furl, tahoe_cfg_furl)
 
     def test_warning(self):
-        """ Ensure that the Client warns user if the the introducer.furl config item from the tahoe.cfg file is copied to "introducers" cfg file """
+        """ Ensure that the Client warns user if the the introducer.furl config
+        item from the tahoe.cfg file is copied to "introducers" cfg file. """
         # prepare tahoe.cfg
         c = open(os.path.join("tahoe.cfg"), "w")
         config = {}
@@ -90,8 +93,8 @@ class TestClient(unittest.TestCase):
         c.write("introducer.furl = %s\n" % fake_furl)
         c.close()
 
-        # prepare "basedir/introducers"
-        write(MULTI_INTRODUCERS_CFG, '\n'.join(INTRODUCERS_CFG_FURLS))
+        # prepare "basedir/private/introducers"
+        write(self.introducers_file, '\n'.join(INTRODUCERS_CFG_FURLS))
 
         # get a client
         myclient = Client()

@@ -82,7 +82,7 @@ lost, clients can be reconfigured to use a new introducer.
 
 By deploying multiple introducers in a Tahoe-LAFS grid, the above SPoF
 challenge can be overcome. In that case if one introducer fails clients are
-still be able to get announcement about new servers from remaining introducers.
+still be able to get announcements about new servers from remaining introducers.
 This is our first step towards implementing a fully distributed introduction.
 
 File Encoding

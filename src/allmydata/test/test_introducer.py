@@ -47,7 +47,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
             ifurl = ifurl.strip()
             self.failIf(ifurl.endswith("/introducer"), ifurl)
 
-            # old nodes created guessable furls in BASEDIR/introducer.furl
+            # old nodes created guessable furls in BASEDIR/private/introducer.furl
             guessable = ifurl[:ifurl.rfind("/")] + "/introducer"
             fileutil.write(public_fn, guessable+"\n", mode="w") # text
 
