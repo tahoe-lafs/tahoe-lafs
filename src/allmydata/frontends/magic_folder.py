@@ -492,6 +492,10 @@ class WriteFileMixin(object):
         finally:
             os.umask(old_mask)
 
+        # FUDGE_SECONDS is used to determine if another process
+        # has written to the same file concurrently. This is described
+        # in the Earth Dragon section of our design document:
+        # docs/proposed/magic-folder/remote-to-local-sync.rst
         os.utime(replacement_path_u, (now, now - self.FUDGE_SECONDS))
         if is_conflict:
             print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
