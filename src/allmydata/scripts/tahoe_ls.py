@@ -61,7 +61,7 @@ def list(options):
 
     nodetype, d = parsed
     children = {}
-    if nodetype == "dirnode":
+    if nodetype == "dirnode" and not options['directory']:
         children = d['children']
     else:
         # paths returned from get_alias are always valid UTF-8
