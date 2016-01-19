@@ -17,12 +17,12 @@ CREATE TABLE local_files
  path                VARCHAR(1024) PRIMARY KEY, -- UTF-8 filename relative to local magic folder dir
  -- note that size is before mtime and ctime here, but after in function parameters
  size                INTEGER,                   -- ST_SIZE, or NULL if the file has been deleted
- mtime               NUMBER,                      -- ST_MTIME
- ctime               NUMBER,                      -- ST_CTIME
+ mtime               REAL,                      -- ST_MTIME
+ ctime               REAL,                      -- ST_CTIME
  version             INTEGER,
  last_uploaded_uri   VARCHAR(256),                -- URI:CHK:...
  last_downloaded_uri VARCHAR(256),                -- URI:CHK:...
- last_downloaded_timestamp TIMESTAMP
+ last_downloaded_timestamp REAL
 );
 """
 
