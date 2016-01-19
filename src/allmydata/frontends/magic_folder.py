@@ -462,7 +462,7 @@ class WriteFileMixin(object):
     def _get_conflicted_filename(self, abspath_u):
         return abspath_u + u".conflict"
 
-    def _write_downloaded_file(self, abspath_u, file_contents, is_conflict=False, now=None):
+    def _write_downloaded_file(self, local_path_u, abspath_u, file_contents, is_conflict=False, now=None):
         self._log("_write_downloaded_file(%r, <%d bytes>, is_conflict=%r, now=%r)"
                   % (abspath_u, len(file_contents), is_conflict, now))
 
@@ -485,12 +485,17 @@ class WriteFileMixin(object):
         # ensure parent directory exists
         head, tail = os.path.split(abspath_u)
 
-        old_mask = os.umask(self._umask)
-        try:
-            fileutil.make_dirs(head, (~ self._umask) & 0777)
-            fileutil.write(replacement_path_u, file_contents)
-        finally:
-            os.umask(old_mask)
+        fileutil.make_dirs(head)
+        os.chmod(head, (~ self._umask) & 0777)
+        while head and head != os.path.abspath(local_path_u):
+            head, tail = os.path.split(head)
+            if head == os.path.abspath(local_path_u):
+                break
+            else:
+                os.chmod(head, (~ self._umask) & 0777)
+
+        fileutil.write(replacement_path_u, file_contents)
+        os.chmod(replacement_path_u, (~ self._umask) & 0777)
 
         # FUDGE_SECONDS is used to determine if another process
         # has written to the same file concurrently. This is described
@@ -751,7 +756,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                     d.addCallback(lambda ign: self._rename_deleted_file(abspath_u))
                 else:
                     d.addCallback(lambda ign: file_node.download_best_version())
-                    d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents,
+                    d.addCallback(lambda contents: self._write_downloaded_file(self._local_path_u, abspath_u, contents,
                                                                                is_conflict=is_conflict))
 
         d.addCallbacks(do_update_db, failed)
