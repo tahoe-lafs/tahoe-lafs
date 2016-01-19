@@ -12,7 +12,7 @@ from nevow.inevow import IRequest
 
 from foolscap.api import fireEventually
 
-from allmydata.util import base32, time_format
+from allmydata.util import base32
 from allmydata.util.encodingutil import to_str
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
@@ -26,7 +26,7 @@ from allmydata.web.common import text_plain, WebError, \
      boolean_of_arg, get_arg, get_root, parse_replace_arg, \
      should_create_intermediate_directories, \
      getxmlfile, RenderMixin, humanize_failure, convert_children_json, \
-     get_format, get_mutable_type, get_filenode_metadata
+     get_format, get_mutable_type, get_filenode_metadata, render_time
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.check_results import CheckResultsRenderer, \
@@ -702,21 +702,21 @@ class DirectoryAsHTML(rend.Page):
         times = []
         linkcrtime = metadata.get('tahoe', {}).get("linkcrtime")
         if linkcrtime is not None:
-            times.append("lcr: " + time_format.iso_local(linkcrtime))
+            times.append("lcr: " + render_time(linkcrtime))
         else:
             # For backwards-compatibility with links last modified by Tahoe < 1.4.0:
             if "ctime" in metadata:
-                ctime = time_format.iso_local(metadata["ctime"])
+                ctime = render_time(metadata["ctime"])
                 times.append("c: " + ctime)
         linkmotime = metadata.get('tahoe', {}).get("linkmotime")
         if linkmotime is not None:
             if times:
                 times.append(T.br())
-            times.append("lmo: " + time_format.iso_local(linkmotime))
+            times.append("lmo: " + render_time(linkmotime))
         else:
             # For backwards-compatibility with links last modified by Tahoe < 1.4.0:
             if "mtime" in metadata:
-                mtime = time_format.iso_local(metadata["mtime"])
+                mtime = render_time(metadata["mtime"])
                 if times:
                     times.append(T.br())
                 times.append("m: " + mtime)

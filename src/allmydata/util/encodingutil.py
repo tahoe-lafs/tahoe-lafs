@@ -88,12 +88,16 @@ def argv_to_unicode(s):
         raise usage.UsageError("Argument %s cannot be decoded as %s." %
                                (quote_output(s), io_encoding))
 
-def argv_to_abspath(s):
+def argv_to_abspath(s, **kwargs):
     """
     Convenience function to decode an argv element to an absolute path, with ~ expanded.
     If this fails, raise a UsageError.
     """
-    return abspath_expanduser_unicode(argv_to_unicode(s))
+    decoded = argv_to_unicode(s)
+    if decoded.startswith(u'-'):
+        raise usage.UsageError("Path argument %s cannot start with '-'.\nUse %s if you intended to refer to a file."
+                               % (quote_output(s), quote_output(os.path.join('.', s))))
+    return abspath_expanduser_unicode(decoded, **kwargs)
 
 def unicode_to_argv(s, mangle=False):
     """
