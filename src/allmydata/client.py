@@ -205,7 +205,6 @@ class Client(node.Node, pollmixin.PollMixin):
             if furl_count > 1:
                 self.warn_flag = True
                 self.log("introducers config file modified.")
-                print "Warning! introducers config file modified."
 
         # create a pool of introducer_clients
         self.introducer_clients = []

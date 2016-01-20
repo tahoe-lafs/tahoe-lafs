@@ -1,6 +1,7 @@
 #!/usr/bin/python
-import unittest, os
+import os
 
+from twisted.trial import unittest
 from allmydata.util.fileutil import write, remove
 from allmydata.client import Client
 from allmydata.scripts.create_node import write_node_config
@@ -9,34 +10,24 @@ from allmydata.web.root import Root
 INTRODUCERS_CFG_FURLS=['furl1', 'furl2']
 INTRODUCERS_CFG_FURLS_COMMENTED=['furl1', '#furl2', 'furl3']
 
-def cfg_setup():
-    # setup tahoe.cfg and basedir/private/introducers
-    # create a custom tahoe.cfg
-    c = open(os.path.join("tahoe.cfg"), "w")
-    config = {}
-    write_node_config(c, config)
-    fake_furl = "furl1"
-    c.write("[client]\n")
-    c.write("introducer.furl = %s\n" % fake_furl)
-    c.close()
-    os.mkdir("private")
-    self.introducers_file = os.path.join("private", "introducers")
+class MultiIntroTests(unittest.TestCase):
 
-    # create a basedir/private/introducers
-    write(self.introducers_file, '\n'.join(INTRODUCERS_CFG_FURLS))
-
-def cfg_cleanup():
-    # clean-up all cfg files
-    remove("tahoe.cfg")
-    remove(self.introducers_file)
-
-
-class TestClient(unittest.TestCase):
     def setUp(self):
-        cfg_setup()
+        # setup tahoe.cfg and basedir/private/introducers
+        # create a custom tahoe.cfg
+        self.basedir = os.path.dirname(self.mktemp())
+        c = open(os.path.join(self.basedir, "tahoe.cfg"), "w")
+        config = {}
+        write_node_config(c, config)
+        fake_furl = "furl1"
+        c.write("[client]\n")
+        c.write("introducer.furl = %s\n" % fake_furl)
+        c.close()
+        os.mkdir(os.path.join(self.basedir,"private"))
+        self.introducers_file = os.path.join(self.basedir,"private", "introducers")
 
-    def tearDown(self):
-        cfg_cleanup()
+        # create a basedir/private/introducers
+        write(self.introducers_file, '\n'.join(INTRODUCERS_CFG_FURLS))
 
     def test_introducer_count(self):
         """ Ensure that the Client creates same number of introducer clients
@@ -44,7 +35,7 @@ class TestClient(unittest.TestCase):
         write(self.introducers_file, '\n'.join(INTRODUCERS_CFG_FURLS))
 
         # get a client and count of introducer_clients
-        myclient = Client()
+        myclient = Client(self.basedir)
         ic_count = len(myclient.introducer_clients)
 
         # assertions
@@ -56,7 +47,7 @@ class TestClient(unittest.TestCase):
         commented."""
         write(self.introducers_file, '\n'.join(INTRODUCERS_CFG_FURLS_COMMENTED))
         # get a client and count of introducer_clients
-        myclient = Client()
+        myclient = Client(self.basedir)
         ic_count = len(myclient.introducer_clients)
 
         # assertions
@@ -66,7 +57,7 @@ class TestClient(unittest.TestCase):
         """ Ensure that the Client reads the introducer.furl config item from
         the tahoe.cfg file. """
         # create a custom tahoe.cfg
-        c = open(os.path.join("tahoe.cfg"), "w")
+        c = open(os.path.join(self.basedir, "tahoe.cfg"), "w")
         config = {}
         write_node_config(c, config)
         fake_furl = "furl1"
@@ -75,7 +66,7 @@ class TestClient(unittest.TestCase):
         c.close()
 
         # get a client and first introducer_furl
-        myclient = Client()
+        myclient = Client(self.basedir)
         tahoe_cfg_furl = myclient.introducer_furls[0]
 
         # assertions
@@ -85,7 +76,7 @@ class TestClient(unittest.TestCase):
         """ Ensure that the Client warns user if the the introducer.furl config
         item from the tahoe.cfg file is copied to "introducers" cfg file. """
         # prepare tahoe.cfg
-        c = open(os.path.join("tahoe.cfg"), "w")
+        c = open(os.path.join(self.basedir,"tahoe.cfg"), "w")
         config = {}
         write_node_config(c, config)
         fake_furl = "furl0"
@@ -97,7 +88,7 @@ class TestClient(unittest.TestCase):
         write(self.introducers_file, '\n'.join(INTRODUCERS_CFG_FURLS))
 
         # get a client
-        myclient = Client()
+        myclient = Client(self.basedir)
 
         # assertions: we expect a warning as tahoe_cfg furl is different
         self.failUnlessEqual(True, myclient.warn_flag)
