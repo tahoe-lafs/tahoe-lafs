@@ -634,7 +634,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                 file_node, metadata = listing_map[encoded_relpath_u]
                 local_version = self._get_local_latest(relpath_u)
                 if 'version' not in metadata:
-                    self._log("invalid tahoe remote metadata detected")
+                    self._log("invalid remote metadata detected for %r" % (relpath_u,))
                     continue
                 else:
                     remote_version = metadata['version']
