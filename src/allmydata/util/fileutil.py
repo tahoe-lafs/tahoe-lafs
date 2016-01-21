@@ -143,6 +143,27 @@ class EncryptedTemporaryFile:
         self.file.truncate(newsize)
 
 
+def make_dirs_with_absolute_mode(parent, dirname, mode,):
+    """
+    Make directory `dirname` and chmod it to `mode` afterwards.
+    We chmod all parent directories of `dirname` until we reach
+    `parent`.
+    """
+    make_dirs(dirname)
+    os.chmod(dirname, mode)
+    initial, last = os.path.split(dirname)
+    if initial == os.path.abspath(parent):
+        os.chmod(initial, mode)
+    else:
+        return
+    while initial and initial != os.path.abspath(parent):
+        initial, last = os.path.split(initial)
+        if initial == os.path.abspath(parent):
+            break
+        else:
+            os.chmod(initial, mode)
+
+
 def make_dirs(dirname, mode=0777):
     """
     An idempotent version of os.makedirs().  If the dir already exists, do
