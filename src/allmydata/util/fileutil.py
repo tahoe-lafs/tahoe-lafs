@@ -152,13 +152,13 @@ def make_dirs_with_absolute_mode(parent, dirname, mode,):
     make_dirs(dirname)
     os.chmod(dirname, mode)
     initial, last = os.path.split(dirname)
-    if initial == os.path.abspath(parent):
-        os.chmod(initial, mode)
-    else:
+    if os.path.abspath(initial) == os.path.abspath(parent):
         return
-    while initial and initial != os.path.abspath(parent):
+    else:
+        os.chmod(initial, mode)
+    while initial and os.path.abspath(initial) != os.path.abspath(parent):
         initial, last = os.path.split(initial)
-        if initial == os.path.abspath(parent):
+        if os.path.abspath(initial) == os.path.abspath(parent):
             break
         else:
             os.chmod(initial, mode)
