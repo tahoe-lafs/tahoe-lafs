@@ -482,18 +482,8 @@ class WriteFileMixin(object):
         if now is None:
             now = time.time()
 
-        # ensure parent directory exists
-        head, tail = os.path.split(abspath_u)
-
-        fileutil.make_dirs(head)
-        os.chmod(head, (~ self._umask) & 0777)
-        while head and head != os.path.abspath(local_path_u):
-            head, tail = os.path.split(head)
-            if head == os.path.abspath(local_path_u):
-                break
-            else:
-                os.chmod(head, (~ self._umask) & 0777)
-
+        initial, last = os.path.split(abspath_u)
+        fileutil.make_dirs_with_absolute_mode(local_path_u, initial, (~ self._umask) & 0777)
         fileutil.write(replacement_path_u, file_contents)
         os.chmod(replacement_path_u, (~ self._umask) & 0777)
 
