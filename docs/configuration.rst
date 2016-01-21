@@ -322,8 +322,8 @@ Client Configuration
 ``introducer.furl = (FURL string, optional)``
 
     This option is kept for backward compatibility. If set, its value will be
-    appended to the ``BASEDIR/introducers`` file if it is not already present
-    there.
+    appended to the ``BASEDIR/private/introducers`` file if it is not already
+    present there.
 
 ``helper.furl = (FURL string, optional)``
 
