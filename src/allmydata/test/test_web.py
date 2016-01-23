@@ -172,28 +172,21 @@ class FakeHistory:
         return []
 
 class FakeDisplayableServer(StubServer):
-    def __init__(self, serverid, nickname, connected,
-                 last_connect_time, last_loss_time, last_rx_time):
+    def __init__(self, serverid, nickname):
         StubServer.__init__(self, serverid)
         self.announcement = {"my-version": "allmydata-tahoe-fake",
                              "service-name": "storage",
                              "nickname": nickname}
-        self.connected = connected
-        self.last_loss_time = last_loss_time
-        self.last_rx_time = last_rx_time
-        self.last_connect_time = last_connect_time
     def is_connected(self):
-        return self.connected
+        return True
     def get_permutation_seed(self):
         return ""
     def get_remote_host(self):
         return ""
     def get_last_loss_time(self):
-        return self.last_loss_time
-    def get_last_received_data_time(self):
-        return self.last_rx_time
-    def get_last_connect_time(self):
-        return self.last_connect_time
+        return None
+    def get_announcement_time(self):
+        return None
     def get_announcement(self):
         return self.announcement
     def get_nickname(self):
@@ -249,13 +242,7 @@ class FakeClient(Client):
         self.storage_broker = StorageFarmBroker(None, permute_peers=True)
         # fake knowledge of another server
         self.storage_broker.test_add_server("other_nodeid",
-            FakeDisplayableServer(
-                serverid="other_nodeid", nickname=u"other_nickname \u263B", connected = True,
-                last_connect_time = 10, last_loss_time = 20, last_rx_time = 30))
-        self.storage_broker.test_add_server("disconnected_nodeid",
-            FakeDisplayableServer(
-                serverid="other_nodeid", nickname=u"disconnected_nickname \u263B", connected = False,
-                last_connect_time = 15, last_loss_time = 25, last_rx_time = 35))
+                                            FakeDisplayableServer("other_nodeid", u"other_nickname \u263B"))
         self.introducer_client = None
         self.history = FakeHistory()
         self.uploader = FakeUploader()
@@ -281,16 +268,14 @@ class FakeClient(Client):
 
     MUTABLE_SIZELIMIT = FakeMutableFileNode.MUTABLE_SIZELIMIT
 
-class WebMixin(testutil.TimezoneMixin):
+class WebMixin(object):
     def setUp(self):
-        self.setTimezone('UTC-13:00')
         self.s = FakeClient()
         self.s.startService()
         self.staticdir = self.mktemp()
         self.clock = Clock()
-        self.fakeTime = 86460 # 1d 0h 1m 0s
         self.ws = webish.WebishServer(self.s, "0", staticdir=self.staticdir,
-                                      clock=self.clock, now_fn=lambda:self.fakeTime)
+                                      clock=self.clock)
         self.ws.setServiceParent(self.s)
         self.webish_port = self.ws.getPortnum()
         self.webish_url = self.ws.getURL()
@@ -616,6 +601,7 @@ class WebMixin(testutil.TimezoneMixin):
             self.fail("%s was supposed to Error(302), not get '%s'" %
                       (which, res))
 
+
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, unittest.TestCase):
     def test_create(self):
         pass
@@ -633,11 +619,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             res_u = res.decode('utf-8')
             self.failUnlessIn(u'<td>fake_nickname \u263A</td>', res_u)
             self.failUnlessIn(u'<div class="nickname">other_nickname \u263B</div>', res_u)
-            self.failUnlessIn(u'Connected to <span>1</span>\n              of <span>2</span> known storage servers', res_u)
-            self.failUnlessIn(u'<div class="status-indicator"><img src="img/connected-yes.png" alt="Connected" /></div>\n                <a class="timestamp" title="1970-01-01 13:00:10">1d\u00A00h\u00A00m\u00A050s</a>', res_u)
-            self.failUnlessIn(u'<div class="status-indicator"><img src="img/connected-no.png" alt="Disconnected" /></div>\n                <a class="timestamp" title="1970-01-01 13:00:25">1d\u00A00h\u00A00m\u00A035s</a>', res_u)
-            self.failUnlessIn(u'<td class="service-last-received-data"><a class="timestamp" title="1970-01-01 13:00:30">1d\u00A00h\u00A00m\u00A030s</a></td>', res_u)
-            self.failUnlessIn(u'<td class="service-last-received-data"><a class="timestamp" title="1970-01-01 13:00:35">1d\u00A00h\u00A00m\u00A025s</a></td>', res_u)
             self.failUnlessIn(u'\u00A9 <a href="https://tahoe-lafs.org/">Tahoe-LAFS Software Foundation', res_u)
             self.failUnlessIn('<td><h3>Available</h3></td>', res)
             self.failUnlessIn('123.5kB', res)

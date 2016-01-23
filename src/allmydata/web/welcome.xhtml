@@ -1,5 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0
-      Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!DOCTYPE html>
 <html lang="en" xmlns:n="http://nevow.com/ns/nevow/0.1">
   <head>
     <meta charset="utf-8"/>
@@ -170,24 +169,27 @@
               <tr n:pattern="header">
                 <td><h3>Nickname</h3></td>
                 <td><h3>Address</h3></td>
-                <td><h3>Last&nbsp;RX</h3></td>
+                <td><h3>Service</h3></td>
+                <td><h3>Since</h3></td>
+                <td><h3>Announced</h3></td>
                 <td><h3>Version</h3></td>
                 <td><h3>Available</h3></td>
               </tr>
             </thead>
             <tr n:pattern="item" n:render="service_row">
               <td class="nickname-and-peerid">
-                <div class="status-indicator"><img><n:attr name="src">img/connected-<n:slot name="service_connection_status" />.png</n:attr><n:attr name="alt"><n:slot name="service_connection_status_alt" /></n:attr></img></div>
-                <a class="timestamp"><n:attr name="title"><n:slot name="service_connection_status_abs_time"/></n:attr><n:slot name="service_connection_status_rel_time"/></a>
+              <div class="status-indicator"><img><n:attr name="src">img/connected-<n:slot name="connected" />.png</n:attr><n:attr name="alt"><n:slot name="connected_alt" /></n:attr></img></div>
                 <div class="nickname"><n:slot name="nickname"/></div>
                 <div class="nodeid"><n:slot name="peerid"/></div>
               </td>
               <td class="address"><n:slot name="address"/></td>
-              <td class="service-last-received-data"><a class="timestamp"><n:attr name="title"><n:slot name="last_received_data_abs_time"/></n:attr><n:slot name="last_received_data_rel_time"/></a></td>
+            <td class="service-service-name"><n:slot name="service_name"/></td>
+              <td class="service-since timestamp"><n:slot name="since"/></td>
+              <td class="service-announced timestamp"><n:slot name="announced"/></td>
               <td class="service-version"><n:slot name="version"/></td>
               <td class="service-available-space"><n:slot name="available_space"/></td>
             </tr>
-            <tr n:pattern="empty"><td colspan="5">You are not presently connected to any peers</td></tr>
+            <tr n:pattern="empty"><td>You are not presently connected to any peers</td></tr>
           </table>
         </div><!--/span-->
       </div><!--/row-->

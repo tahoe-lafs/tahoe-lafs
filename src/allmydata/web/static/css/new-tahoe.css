@@ -77,12 +77,3 @@ body {
     float: left;
     margin: 5px;
 }
-
-.nickname-and-peerid .timestamp {
-    float: right;
-}
-
-a.timestamp {
-    color: inherit;
-    text-decoration:none;
-}

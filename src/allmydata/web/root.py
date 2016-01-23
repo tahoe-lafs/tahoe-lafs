@@ -14,7 +14,7 @@ from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
-     get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
+     get_arg, RenderMixin, get_format, get_mutable_type, render_time
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -138,13 +138,12 @@ class Root(rend.Page):
         "no": "Disconnected",
         }
 
-    def __init__(self, client, clock=None, now_fn=None):
+    def __init__(self, client, clock=None):
         rend.Page.__init__(self, client)
         self.client = client
         # If set, clock is a twisted.internet.task.Clock that the tests
         # use to test ophandle expiration.
         self.child_operations = operations.OphandleTable(clock)
-        self.now_fn = now_fn
         try:
             s = client.getServiceNamed("storage")
         except KeyError:
@@ -283,7 +282,7 @@ class Root(rend.Page):
         ctx.fillSlots("peerid", server.get_longname())
         ctx.fillSlots("nickname", server.get_nickname())
         rhost = server.get_remote_host()
-        if server.is_connected():
+        if rhost:
             if nodeid == self.client.nodeid:
                 rhost_s = "(loopback)"
             elif isinstance(rhost, address.IPv4Address):
@@ -291,37 +290,29 @@ class Root(rend.Page):
             else:
                 rhost_s = str(rhost)
             addr = rhost_s
-            service_connection_status = "yes"
-            last_connect_time = server.get_last_connect_time()
-            service_connection_status_rel_time = render_time_delta(last_connect_time, self.now_fn())
-            service_connection_status_abs_time = render_time_attr(last_connect_time)
+            connected = "yes"
+            since = server.get_last_connect_time()
         else:
             addr = "N/A"
-            service_connection_status = "no"
-            last_loss_time = server.get_last_loss_time()
-            service_connection_status_rel_time = render_time_delta(last_loss_time, self.now_fn())
-            service_connection_status_abs_time = render_time_attr(last_loss_time)
-
-        last_received_data_time = server.get_last_received_data_time()
-        last_received_data_rel_time = render_time_delta(last_received_data_time, self.now_fn())
-        last_received_data_abs_time = render_time_attr(last_received_data_time)
-
+            connected = "no"
+            since = server.get_last_loss_time()
+        announced = server.get_announcement_time()
         announcement = server.get_announcement()
         version = announcement["my-version"]
+        service_name = announcement["service-name"]
         available_space = server.get_available_space()
         if available_space is None:
             available_space = "N/A"
         else:
             available_space = abbreviate_size(available_space)
         ctx.fillSlots("address", addr)
-        ctx.fillSlots("service_connection_status", service_connection_status)
-        ctx.fillSlots("service_connection_status_alt", self._connectedalts[service_connection_status])
+        ctx.fillSlots("connected", connected)
+        ctx.fillSlots("connected_alt", self._connectedalts[connected])
         ctx.fillSlots("connected-bool", bool(rhost))
-        ctx.fillSlots("service_connection_status_abs_time", service_connection_status_abs_time)
-        ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
-        ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)
-        ctx.fillSlots("last_received_data_rel_time", last_received_data_rel_time)
+        ctx.fillSlots("since", render_time(since))
+        ctx.fillSlots("announced", render_time(announced))
         ctx.fillSlots("version", version)
+        ctx.fillSlots("service_name", service_name)
         ctx.fillSlots("available_space", available_space)
 
         return ctx.tag
