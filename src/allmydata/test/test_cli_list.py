@@ -99,7 +99,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + ":./" + good_arg))
             d.addCallback(_check4)
             # listing a directory with the -d option should return just the cap of the directory
-            d.addCallback(lambda ign: self.do_cli("ls", "-d", "--uri"))
+            d.addCallback(lambda ign: self.do_cli("ls", "--directory", "--uri"))
             d.addCallback(lambda (_, out, err): self.failUnlessReallyEqual(len(out.splitlines()), 1))
 
         def _check5((rc, out, err)):
