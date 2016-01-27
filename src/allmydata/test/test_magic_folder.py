@@ -1,5 +1,6 @@
 
 import os, sys
+import random
 
 from twisted.trial import unittest
 from twisted.internet import defer, task
@@ -13,6 +14,7 @@ from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
+from allmydata.test import common
 from .test_cli_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
@@ -1193,9 +1195,14 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         bob_clock = task.Clock()
         d = self.setup_alice_and_bob(alice_clock, bob_clock)
 
-        def delete_shares(uri):
-            print "DELETE SHARES"
-            self.delete_shares_numbered(uri, range(8))
+        def _shuffled(num_shnums):
+            shnums = range(10)
+            random.shuffle(shnums)
+            return shnums[:num_shnums]
+
+        def _corrupt_8(uri):
+            c = common._corrupt_sharedata_version_number
+            self.corrupt_shares_numbered(uri, _shuffled(8), c)
 
         def _wait_for_Alice(ign, downloaded_d):
             print "Now waiting for Alice to download\n"
@@ -1214,11 +1221,10 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             print "Waiting for Alice to upload\n"
             alice_clock.advance(0)
             def get_uri(res):
-                db_entry = self._db.get_db_entry(u"")
-                print "GET URI %r" % (db_entry[4],)
-                return db_entry[4]
-            upload_d.addCallback(get_uri)
-            uploaded_d.addCallback(lambda uri: delete_shares(uri))
+                db_entry = self.alice_magicfolder.uploader._db.get_db_entry(u"file1")
+                return str(db_entry[4])
+            uploaded_d.addCallback(get_uri)
+            uploaded_d.addCallback(_corrupt_8)
             uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
             return uploaded_d
 
@@ -1227,18 +1233,15 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+
         d.addCallback(_wait_for, Alice_to_write_a_file)
-
-
-        d.addCallback(lambda ign: self._check_downloader_count('directories_created', 0, magic=self.bob_magicfolder))
-        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('directories_created', 0, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder))
-        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 1, magic=self.bob_magicfolder))
-        d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 1, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 1, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 1, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_uploader_count('objects_queued', 0, magic=self.bob_magicfolder))
-        d.addCallback(lambda ign: self._check_uploader_count('directories_created', 0, magic=self.bob_magicfolder))
-        d.addCallback(lambda ign: self._check_uploader_count('objects_conflicted', 0, magic=self.bob_magicfolder))
-
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1, magic=self.bob_magicfolder))
 
         def _cleanup(ign, magicfolder, clock):
             if magicfolder is not None:
@@ -1248,11 +1251,11 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
 
         def cleanup_Alice_and_Bob(result):
             print "cleanup alice bob test\n"
-            d = defer.succeed(None)
-            d.addCallback(_cleanup, self.alice_magicfolder, alice_clock)
-            d.addCallback(_cleanup, self.bob_magicfolder, bob_clock)
-            d.addCallback(lambda ign: result)
-            return d
+            d2 = defer.succeed(None)
+            d2.addCallback(_cleanup, self.alice_magicfolder, alice_clock)
+            d2.addCallback(_cleanup, self.bob_magicfolder, bob_clock)
+            d2.addCallback(lambda ign: result)
+            return d2
 
         d.addBoth(cleanup_Alice_and_Bob)
         return d
