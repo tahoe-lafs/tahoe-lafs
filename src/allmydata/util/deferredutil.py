@@ -124,7 +124,7 @@ class HookMixin:
             self._hooks[name] = (d, ignore_count - 1)
         else:
             self._hooks[name] = None
-            _with_log(d.callback, res)
+            _with_log(eventually_callback(d), res)
         return res
 
     def _log(self, msg):
