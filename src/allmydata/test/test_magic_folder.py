@@ -18,8 +18,87 @@ from .test_cli_magic_folder import MagicFolderCLITestMixin
 from allmydata.frontends import magic_folder
 from allmydata.frontends.magic_folder import MagicFolder, Downloader, WriteFileMixin
 from allmydata import magicfolderdb, magicpath
+from allmydata.util.fileutil import get_pathinfo
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import Data
+
+
+class MagicFolderDbTests(unittest.TestCase):
+
+    def setUp(self):
+        self.temp = abspath_expanduser_unicode(unicode(self.mktemp()))
+        os.mkdir(self.temp)
+        dbfile = abspath_expanduser_unicode(u"testdb.sqlite", base=self.temp)
+        self.db = magicfolderdb.get_magicfolderdb(dbfile, create_version=(magicfolderdb.SCHEMA_v1, 1))
+        self.failUnless(self.db, "unable to create magicfolderdb from %r" % (dbfile,))
+        self.failUnlessEqual(self.db.VERSION, 1)
+
+    def tearDown(self):
+        shutil.rmtree(self.temp)
+
+    def test_create(self):
+        self.db.did_upload_version(
+            relpath_u=u'fake_path',
+            version=0,
+            last_uploaded_uri=None,
+            last_downloaded_uri='URI:foo',
+            last_downloaded_timestamp=1234.5,
+            pathinfo=get_pathinfo(self.temp),  # a directory, but should be fine for test
+        )
+
+        entry = self.db.get_db_entry(u'fake_path')
+        self.assertTrue(entry is not None)
+        self.assertEqual(entry.last_downloaded_uri, 'URI:foo')
+
+    def test_update(self):
+        self.db.did_upload_version(
+            relpath_u=u'fake_path',
+            version=0,
+            last_uploaded_uri=None,
+            last_downloaded_uri='URI:foo',
+            last_downloaded_timestamp=1234.5,
+            pathinfo=get_pathinfo(self.temp),  # a directory, but should be fine for test
+        )
+        self.db.did_upload_version(
+            relpath_u=u'fake_path',
+            version=1,
+            last_uploaded_uri=None,
+            last_downloaded_uri='URI:bar',
+            last_downloaded_timestamp=1234.5,
+            pathinfo=get_pathinfo(self.temp),  # a directory, but should be fine for test
+        )
+
+        entry = self.db.get_db_entry(u'fake_path')
+        self.assertTrue(entry is not None)
+        self.assertEqual(entry.last_downloaded_uri, 'URI:bar')
+        self.assertEqual(entry.version, 1)
+
+    def test_same_content_different_path(self):
+        content_uri = 'URI:CHK:27d2yruqwk6zb2w7hkbbfxxbue:ipmszjysmn4vdeaxz7rtxtv3gwv6vrqcg2ktrdmn4oxqqucltxxq:2:4:1052835840'
+        self.db.did_upload_version(
+            relpath_u=u'path0',
+            version=0,
+            last_uploaded_uri=None,
+            last_downloaded_uri=content_uri,
+            last_downloaded_timestamp=1234.5,
+            pathinfo=get_pathinfo(self.temp),  # a directory, but should be fine for test
+        )
+        self.db.did_upload_version(
+            relpath_u=u'path1',
+            version=0,
+            last_uploaded_uri=None,
+            last_downloaded_uri=content_uri,
+            last_downloaded_timestamp=1234.5,
+            pathinfo=get_pathinfo(self.temp),  # a directory, but should be fine for test
+        )
+
+        entry = self.db.get_db_entry(u'path0')
+        self.assertTrue(entry is not None)
+        self.assertEqual(entry.last_downloaded_uri, content_uri)
+
+        entry = self.db.get_db_entry(u'path1')
+        self.assertTrue(entry is not None)
+        self.assertEqual(entry.last_downloaded_uri, content_uri)
 
 
 class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):

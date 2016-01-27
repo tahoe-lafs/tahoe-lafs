@@ -12,7 +12,7 @@ from allmydata import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
-from allmydata.web import storage
+from allmydata.web import storage, magic_folder
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
      get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
 
@@ -153,6 +153,9 @@ class Root(rend.Page):
 
         self.child_uri = URIHandler(client)
         self.child_cap = URIHandler(client)
+
+        # handler for "/magic_folder" URIs
+        self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
 
         self.child_file = FileHandler(client)
         self.child_named = FileHandler(client)

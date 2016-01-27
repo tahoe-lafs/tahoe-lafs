@@ -588,7 +588,7 @@ class DirectoryNode:
         return d
 
 
-    def add_file(self, namex, uploadable, metadata=None, overwrite=True):
+    def add_file(self, namex, uploadable, metadata=None, overwrite=True, progress=None):
         """I upload a file (using the given IUploadable), then attach the
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
@@ -596,7 +596,7 @@ class DirectoryNode:
         name = normalize(namex)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
-        d = self._uploader.upload(uploadable)
+        d = self._uploader.upload(uploadable, progress=progress)
         d.addCallback(lambda results:
                       self._create_and_validate_node(results.get_uri(), None,
                                                      name))

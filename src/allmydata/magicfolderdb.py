@@ -20,8 +20,8 @@ CREATE TABLE local_files
  mtime               NUMBER,                      -- ST_MTIME
  ctime               NUMBER,                      -- ST_CTIME
  version             INTEGER,
- last_uploaded_uri   VARCHAR(256),                -- URI:CHK:...
- last_downloaded_uri VARCHAR(256),                -- URI:CHK:...
+ last_uploaded_uri   VARCHAR(256),              -- URI:CHK:...
+ last_downloaded_uri VARCHAR(256),              -- URI:CHK:...
  last_downloaded_timestamp TIMESTAMP
 );
 """
@@ -65,6 +65,7 @@ class MagicFolderDB(object):
                   (relpath_u,))
         row = self.cursor.fetchone()
         if not row:
+            print "found nothing for", relpath_u
             return None
         else:
             (size, mtime, ctime, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp) = row
