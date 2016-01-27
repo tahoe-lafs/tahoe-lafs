@@ -1,5 +1,7 @@
 import simplejson  # XXX why not built-in "json"
 
+from twisted.web.server import UnsupportedMethod
+
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
 
@@ -12,7 +14,6 @@ class MagicFolderWebApi(rend.Page):
     """
 
     def __init__(self, client):
-        ##rend.Page.__init__(self, storage)
         super(MagicFolderWebApi, self).__init__(client)
         self.client = client
 
@@ -47,6 +48,13 @@ class MagicFolderWebApi(rend.Page):
     def renderHTTP(self, ctx):
         req = IRequest(ctx)
         t = get_arg(req, "t", None)
+        if req.method != 'POST':
+            raise UnsupportedMethod(('POST',))
+
+        token = get_arg(req, "token", None)
+        # XXX need constant-time comparison?
+        if token is None or token != self.client.get_auth_token():
+            raise WebError("Missing or invalid token.", 400)
 
         if t is None:
             return rend.Page.renderHTTP(self, ctx)

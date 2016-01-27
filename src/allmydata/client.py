@@ -1,5 +1,6 @@
 import os, stat, time, weakref
 from allmydata import node
+from base64 import urlsafe_b64encode
 
 from zope.interface import implements
 from twisted.internet import reactor, defer
@@ -334,6 +335,9 @@ class Client(node.Node, pollmixin.PollMixin):
         DEP["n"] = int(self.get_config("client", "shares.total", DEP["n"]))
         DEP["happy"] = int(self.get_config("client", "shares.happy", DEP["happy"]))
 
+        # for the CLI to authenticate to local JSON endpoints
+        self._auth_token = self._create_or_read_auth_token()
+
         self.init_client_storage_broker()
         self.history = History(self.stats_provider)
         self.terminator = Terminator()
@@ -342,6 +346,33 @@ class Client(node.Node, pollmixin.PollMixin):
                                   self.history))
         self.init_blacklist()
         self.init_nodemaker()
+
+    def get_auth_token(self):
+        """
+        This returns a local authentication token, which is just some
+        random data in "api_auth_token" which must be echoed to API
+        calls.
+
+        Currently only the URI '/magic' for magic-folder status; other
+        endpoints are invited to include this as well, as appropriate.
+        """
+        return self._auth_token
+
+    def _create_or_read_auth_token(self):
+        """
+        This returns the current auth-token data, possibly creating it and
+        writing 'private/api_auth_token' in the process.
+        """
+        fname = os.path.join(self.basedir, 'private', 'api_auth_token')
+        try:
+            with open(fname, 'rb') as f:
+                data = f.read()
+        except (OSError, IOError):
+            log.msg("Creating '%s'." % (fname,))
+            with open(fname, 'wb') as f:
+                data = urlsafe_b64encode(os.urandom(32))
+                f.write(data)
+        return data
 
     def init_client_storage_broker(self):
         # create a StorageFarmBroker object, for use by Uploader/Downloader
