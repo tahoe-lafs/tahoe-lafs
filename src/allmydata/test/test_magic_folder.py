@@ -1195,14 +1195,9 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         bob_clock = task.Clock()
         d = self.setup_alice_and_bob(alice_clock, bob_clock)
 
-        def _shuffled(num_shnums):
-            shnums = range(10)
-            random.shuffle(shnums)
-            return shnums[:num_shnums]
-
-        def _corrupt_8(uri):
-            c = common._corrupt_sharedata_version_number
-            self.corrupt_shares_numbered(uri, _shuffled(8), c)
+        def _grid_fail(res):
+            for server_id in self.g.get_all_serverids():
+                self.g.break_server(server_id, count=1)
 
         def _wait_for_Alice(ign, downloaded_d):
             print "Now waiting for Alice to download\n"
@@ -1214,8 +1209,13 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             bob_clock.advance(0)
             return downloaded_d
 
+        def advance_bob(res):
+            bob_clock.advance(0)
+            alice_clock.advance(0)
+
         def _wait_for(ign, something_to_do):
-            downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
+            #downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
+            downloaded_d = defer.succeed(None)
             uploaded_d = self.alice_magicfolder.uploader.set_hook('processed')
             something_to_do()
             print "Waiting for Alice to upload\n"
@@ -1223,8 +1223,9 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             def get_uri(res):
                 db_entry = self.alice_magicfolder.uploader._db.get_db_entry(u"file1")
                 return str(db_entry[4])
-            uploaded_d.addCallback(get_uri)
-            uploaded_d.addCallback(_corrupt_8)
+            uploaded_d.addCallback(_grid_fail)
+
+            uploaded_d.addCallback(advance_bob)
             uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
             return uploaded_d
 
@@ -1235,6 +1236,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
 
         d.addCallback(_wait_for, Alice_to_write_a_file)
+        d.addCallback(advance_bob)
         d.addCallback(lambda ign: self._check_downloader_count('directories_created', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder))
