@@ -1188,7 +1188,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         # .tmp file shouldn't exist
         self.failIf(os.path.exists(local_file + u".tmp"))
 
-    def meowmeow_test_periodic_full_scan(self):
+    def test_periodic_full_scan(self):
         self.set_up_grid()
         self.local_dir = abspath_expanduser_unicode(u"test_periodic_full_scan",base=self.basedir)
         self.mkdir_nonascii(self.local_dir)
@@ -1235,9 +1235,15 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             what_path = abspath_expanduser_unicode(u"what", base=new_empty_tree_dir)
             fileutil.write(what_path, "say when")
             print "ADVANCE CLOCK"
-            alice_clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
+            #alice_clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
             return uploaded_d
         d.addCallback(_create_file_without_event)
+        def _advance_clock(res):
+            print "_advance_clock"
+            alice_clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
+        d.addCallback(_advance_clock)
+        d.addCallback(_advance_clock)
+        d.addCallback(_advance_clock)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1))
         d.addCallback(lambda ign: self.magicfolder.finish())
         return d
