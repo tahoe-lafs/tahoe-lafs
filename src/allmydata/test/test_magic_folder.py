@@ -1245,7 +1245,11 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             return processed_d
         d.addCallback(_advance_clock)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1))
-        d.addCallback(lambda ign: self.magicfolder.finish())
+        def cleanup(res):
+            d2 = self.magicfolder.finish()
+            alice_clock.advance(0)
+            return d2
+        d.addCallback(cleanup)
         return d
 
 class RealTest(MagicFolderTestMixin, unittest.TestCase):
