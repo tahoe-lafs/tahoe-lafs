@@ -1231,18 +1231,18 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
 
         def _create_file_without_event(res):
             print "CREATE FILE WITHOUT EMITTING EVENT"
-            uploaded_d = self.magicfolder.uploader.set_hook('processed')
+            processed_d = self.magicfolder.uploader.set_hook('processed')
             what_path = abspath_expanduser_unicode(u"what", base=new_empty_tree_dir)
             fileutil.write(what_path, "say when")
             print "ADVANCE CLOCK"
-            #alice_clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
-            return uploaded_d
+            alice_clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
+            return processed_d
         d.addCallback(_create_file_without_event)
         def _advance_clock(res):
             print "_advance_clock"
-            alice_clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
-        d.addCallback(_advance_clock)
-        d.addCallback(_advance_clock)
+            processed_d = self.magicfolder.uploader.set_hook('processed')
+            alice_clock.advance(0)
+            return processed_d
         d.addCallback(_advance_clock)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1))
         d.addCallback(lambda ign: self.magicfolder.finish())
