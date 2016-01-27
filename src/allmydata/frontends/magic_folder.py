@@ -337,8 +337,8 @@ class Uploader(QueueMixin):
 
         d = defer.succeed(None)
 
-        def _maybe_upload(val, now=None):
-            self._log("_maybe_upload(%r, now=%r)" % (val, now))
+        def _maybe_upload(ign, now=None):
+            self._log("_maybe_upload: relpath_u=%r, now=%r" % (relpath_u, now))
             if now is None:
                 now = time.time()
             fp = self._get_filepath(relpath_u)
