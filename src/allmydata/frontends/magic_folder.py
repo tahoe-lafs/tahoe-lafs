@@ -570,6 +570,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         return d
 
     def stop(self):
+        self._log("stop")
         self._stopped = True
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._lazy_tail)
