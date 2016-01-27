@@ -167,19 +167,20 @@ class QueueMixin(HookMixin):
                 self._count('objects_queued', -1)
             except IndexError:
                 self._log("deque is now empty")
+                self._lazy_tail.addBoth(self._logcb, "whawhat empty")
                 self._lazy_tail.addCallback(lambda ign: self._when_queue_is_empty())
+                self._lazy_tail.addBoth(self._logcb, "got past _when_queue_is_empty")
             else:
                 self._log("_turn_deque else clause")
-                def whawhat(result):
-                    self._log("whawhat result %r" % (result,))
-                    return result
-                self._lazy_tail.addBoth(whawhat)
+                self._lazy_tail.addBoth(self._logcb, "whawhat else %r" % (item,))
                 self._lazy_tail.addCallback(lambda ign: self._process(item))
+                self._lazy_tail.addBoth(self._logcb, "got past _process")
                 self._lazy_tail.addBoth(self._call_hook, 'processed')
-                self._lazy_tail.addErrback(log.err)
+                self._lazy_tail.addBoth(self._logcb, "got past _call_hook (turn_delay = %r)" % (self._turn_delay,))
                 self._lazy_tail.addCallback(lambda ign: task.deferLater(self._clock, self._turn_delay, self._turn_deque))
+                self._lazy_tail.addBoth(self._logcb, "got past deferLater")
         except Exception as e:
-            self._log("turn deque exception %s" % (e,))
+            self._log("---- turn deque exception %s" % (e,))
             raise
 
 
