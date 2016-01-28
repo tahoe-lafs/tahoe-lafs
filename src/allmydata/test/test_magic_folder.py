@@ -849,8 +849,12 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         def notify_bob_moved(ign):
             d0 = self.bob_magicfolder.uploader.set_hook('processed')
             p = abspath_expanduser_unicode(u"file1", base=self.bob_magicfolder.uploader._local_path_u)
-            self.notify(to_filepath(p), self.inotify.IN_MOVED_FROM, magic=self.bob_magicfolder, flush=False)
-            self.notify(to_filepath(p + u'.backup'), self.inotify.IN_MOVED_TO, magic=self.bob_magicfolder)
+            if sys.platform == "win32":
+                self.notify(to_filepath(p), self.inotify.IN_MOVED_FROM, magic=self.bob_magicfolder, flush=False)
+                self.notify(to_filepath(p + u'.backup'), self.inotify.IN_MOVED_TO, magic=self.bob_magicfolder)
+            else:
+                self.notify(to_filepath(p + u'.backup'), self.inotify.IN_CREATE, magic=self.bob_magicfolder, flush=False)
+                self.notify(to_filepath(p), self.inotify.IN_DELETE, magic=self.bob_magicfolder)
             bob_clock.advance(0)
             return d0
         d.addCallback(notify_bob_moved)
