@@ -22,7 +22,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
     def do_create_magic_folder(self, client_num):
         d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
         def _done((rc,stdout,stderr)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(rc, 0, stdout + stderr)
             self.failUnlessIn("Alias 'magic' created", stdout)
             self.failUnlessEqual(stderr, "")
             aliases = get_aliases(self.get_clientdir(i=client_num))
@@ -100,7 +100,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         local_dir_arg = unicode_to_argv(local_dir)
         d = self.do_cli("magic-folder", "create", "magic:", nickname_arg, local_dir_arg)
         def _done((rc, stdout, stderr)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(rc, 0, stdout + stderr)
 
             client = self.get_client()
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
@@ -111,10 +111,16 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(lambda ign: self.check_config(0, local_dir))
         return d
 
+    # XXX should probably just be "tearDown"...
     def cleanup(self, res):
         d = defer.succeed(None)
-        if self.magicfolder is not None:
-            d.addCallback(lambda ign: self.magicfolder.finish())
+        def _clean(ign):
+            d = self.magicfolder.finish()
+            self.magicfolder.uploader._clock.advance(self.magicfolder.uploader.scan_interval + 1)
+            self.magicfolder.downloader._clock.advance(self.magicfolder.downloader.scan_interval + 1)
+            return d
+
+        d.addCallback(_clean)
         d.addCallback(lambda ign: res)
         return d
 
