@@ -1098,6 +1098,78 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addBoth(cleanup_Alice_and_Bob)
         return d
 
+    def test_download_failure(self):
+        alice_clock = task.Clock()
+        bob_clock = task.Clock()
+        d = self.setup_alice_and_bob(alice_clock, bob_clock)
+
+        def _grid_fail(res):
+            for server_id in self.g.get_all_serverids():
+                self.g.break_server(server_id, count=1)
+
+        def _wait_for_Alice(ign, downloaded_d):
+            print "Now waiting for Alice to download\n"
+            alice_clock.advance(0)
+            return downloaded_d
+
+        def _wait_for_Bob(ign, downloaded_d):
+            print "Now waiting for Bob to download\n"
+            bob_clock.advance(0)
+            return downloaded_d
+
+        def advance_both(res):
+            bob_clock.advance(0)
+            alice_clock.advance(0)
+
+        def _wait_for(ign, something_to_do):
+            #downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
+            downloaded_d = defer.succeed(None)
+            uploaded_d = self.alice_magicfolder.uploader.set_hook('processed')
+            something_to_do()
+            print "Waiting for Alice to upload\n"
+            alice_clock.advance(0)
+            #def get_uri(res):
+            #    db_entry = self.alice_magicfolder.uploader._db.get_db_entry(u"file1")
+            #    return str(db_entry[4])
+            uploaded_d.addCallback(_grid_fail)
+            uploaded_d.addCallback(lambda ign: bob_clock.advance(0))
+            uploaded_d.addCallback(lambda ign: alice_clock.advance(0))
+            uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
+            return uploaded_d
+
+        def Alice_to_write_a_file():
+            print "Alice writes a file\n"
+            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
+            fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
+            self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+
+        d.addCallback(_wait_for, Alice_to_write_a_file)
+        d.addCallback(advance_both)
+        #uploaded_d = self.bob_magicfolder.uploader.set_hook('processed')
+        d.addCallback(lambda ign: self._check_downloader_count('directories_created', 0, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 1, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 1, magic=self.alice_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_queued', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1, magic=self.bob_magicfolder))
+
+        def _cleanup(ign, magicfolder, clock):
+            if magicfolder is not None:
+                d2 = magicfolder.finish()
+                clock.advance(0)
+            return d2
+
+        def cleanup_Alice_and_Bob(result):
+            print "cleanup alice bob test\n"
+            d2 = defer.succeed(None)
+            d2.addCallback(_cleanup, self.alice_magicfolder, alice_clock)
+            d2.addCallback(_cleanup, self.bob_magicfolder, bob_clock)
+            d2.addCallback(lambda ign: result)
+            return d2
+
+        d.addBoth(cleanup_Alice_and_Bob)
+        return d
 
 class MockTest(MagicFolderTestMixin, unittest.TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
@@ -1190,77 +1262,6 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         # .tmp file shouldn't exist
         self.failIf(os.path.exists(local_file + u".tmp"))
 
-    def test_download_failure(self):
-        alice_clock = task.Clock()
-        bob_clock = task.Clock()
-        d = self.setup_alice_and_bob(alice_clock, bob_clock)
-
-        def _grid_fail(res):
-            for server_id in self.g.get_all_serverids():
-                self.g.break_server(server_id, count=1)
-
-        def _wait_for_Alice(ign, downloaded_d):
-            print "Now waiting for Alice to download\n"
-            alice_clock.advance(0)
-            return downloaded_d
-
-        def _wait_for_Bob(ign, downloaded_d):
-            print "Now waiting for Bob to download\n"
-            bob_clock.advance(0)
-            return downloaded_d
-
-        def advance_bob(res):
-            bob_clock.advance(0)
-            alice_clock.advance(0)
-
-        def _wait_for(ign, something_to_do):
-            #downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
-            downloaded_d = defer.succeed(None)
-            uploaded_d = self.alice_magicfolder.uploader.set_hook('processed')
-            something_to_do()
-            print "Waiting for Alice to upload\n"
-            alice_clock.advance(0)
-            def get_uri(res):
-                db_entry = self.alice_magicfolder.uploader._db.get_db_entry(u"file1")
-                return str(db_entry[4])
-            uploaded_d.addCallback(_grid_fail)
-
-            uploaded_d.addCallback(advance_bob)
-            uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
-            return uploaded_d
-
-        def Alice_to_write_a_file():
-            print "Alice writes a file\n"
-            self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
-            fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
-            self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-
-        d.addCallback(_wait_for, Alice_to_write_a_file)
-        d.addCallback(advance_bob)
-        d.addCallback(lambda ign: self._check_downloader_count('directories_created', 0, magic=self.alice_magicfolder))
-        d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
-        d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder))
-        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 1, magic=self.alice_magicfolder))
-        d.addCallback(lambda ign: self._check_uploader_count('files_uploaded', 1, magic=self.alice_magicfolder))
-        d.addCallback(lambda ign: self._check_uploader_count('objects_queued', 0, magic=self.bob_magicfolder))
-        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1, magic=self.bob_magicfolder))
-
-        def _cleanup(ign, magicfolder, clock):
-            if magicfolder is not None:
-                d2 = magicfolder.finish()
-                clock.advance(0)
-            return d2
-
-        def cleanup_Alice_and_Bob(result):
-            print "cleanup alice bob test\n"
-            d2 = defer.succeed(None)
-            d2.addCallback(_cleanup, self.alice_magicfolder, alice_clock)
-            d2.addCallback(_cleanup, self.bob_magicfolder, bob_clock)
-            d2.addCallback(lambda ign: result)
-            return d2
-
-        d.addBoth(cleanup_Alice_and_Bob)
-        return d
 
 class RealTest(MagicFolderTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""

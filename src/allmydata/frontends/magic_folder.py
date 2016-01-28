@@ -13,6 +13,7 @@ from allmydata.util import fileutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import precondition_abspath, get_pathinfo, ConflictError
+from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.encodingutil import listdir_filepath, to_filepath, \
@@ -681,6 +682,10 @@ class Downloader(QueueMixin, WriteFileMixin):
     def _when_queue_is_empty(self):
         d = task.deferLater(self._clock, self.REMOTE_SCAN_INTERVAL, self._scan_remote_collective)
         d.addBoth(self._logcb, "after _scan_remote_collective 1")
+        def before(res):
+            print "before turn deque"
+            return res
+        d.addCallback(before)
         d.addCallback(lambda ign: self._turn_deque())
         return d
 
@@ -755,5 +760,10 @@ class Downloader(QueueMixin, WriteFileMixin):
         def trap_conflicts(f):
             f.trap(ConflictError)
             return None
+        def trap_unrecoverable(f):
+            f.trap(UnrecoverableFileError)
+            print "UnrecoverableFileError --------------- !!!"
+            return None            
         d.addErrback(trap_conflicts)
+        d.addErrback(trap_unrecoverable)
         return d
