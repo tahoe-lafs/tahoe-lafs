@@ -115,6 +115,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d = defer.succeed(None)
         if self.magicfolder is not None:
             d.addCallback(lambda ign: self.magicfolder.finish())
+        self.up_clock.advance(4)
+        self.down_clock.advance(4)
         d.addCallback(lambda ign: res)
         return d
 
