@@ -65,7 +65,7 @@ class MagicFolderDB(object):
                   (relpath_u,))
         row = self.cursor.fetchone()
         if not row:
-            print "found nothing for", relpath_u
+            print "no dbentry for %r" % (relpath_u,)
             return None
         else:
             (size, mtime, ctime, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp) = row
