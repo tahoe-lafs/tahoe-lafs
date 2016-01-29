@@ -766,7 +766,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             node = None
             for success, result in deferredList:
                 if success:
-                    if result[1]['version'] > max_version:
+                    if node is None or result[1]['version'] > max_version:
                         node, metadata = result
                         max_version = result[1]['version']
             return node, metadata
