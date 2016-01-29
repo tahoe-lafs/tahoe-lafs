@@ -124,7 +124,24 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
-        self.patch(Downloader, 'REMOTE_SCAN_INTERVAL', 0)
+        self.patch(Downloader, 'REMOTE_SCAN_INTERVAL', 0)# XXX FIXME remove
+
+        # factored out of (some?) tests. if the answer isn't "all
+        # tests in this class", then "something" should change. Soooo
+        # much nicer to have py.test @fixture things for this stuf
+        # though :/
+        self.set_up_grid()
+        self.local_dir = os.path.join(self.basedir, u"local_dir")
+        self.mkdir_nonascii(self.local_dir)
+
+        d = self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
+        d.addCallback(self._restart_client)
+        return d
+
+    def tearDown(self):
+        d = GridTestMixin.tearDown(self)
+        d.addCallback(self.cleanup)
+        return d
 
     def _get_count(self, name, client=None):
         counters = (client or self.get_client()).stats_provider.get_stats()["counters"]
@@ -379,39 +396,33 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addBoth(self.cleanup)
         return d
 
+    # all this "self.*" state via 9000 mix-ins is really really
+    # hard to read, keep track of, etc. Very hard to understand
+    # what each test uses for setup, etc. :(
+
     @defer.inlineCallbacks
     def test_delete(self):
-        self.set_up_grid()
-        self.local_dir = os.path.join(self.basedir, u"local_dir")
-        self.mkdir_nonascii(self.local_dir)
+        # setup: create a file 'foo'
+        path = os.path.join(self.local_dir, u'foo')
+        fileutil.write(path, 'foo\n')
+        self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
+        yield iterate_uploader(self.magicfolder)
+        self.assertTrue(os.path.exists(path))
+        node, metadata = yield self.magicfolder.downloader._get_collective_latest_file(u'foo')
+        self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
 
-        yield self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
-        yield self._restart_client(None)
+        # the test: delete the file (and do fake notifies)
+        os.unlink(path)
+        self.notify(to_filepath(path), self.inotify.IN_DELETE)
 
-        try:
-            path = os.path.join(self.local_dir, u'foo')
-            fileutil.write(path, 'foo\n')
-            self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
+        yield iterate_uploader(self.magicfolder)
+        self.assertFalse(os.path.exists(path))
 
-            yield iterate_uploader(self.magicfolder)
-            self.assertTrue(os.path.exists(path))
-
-            # the real test part: delete the file and fake notifies
-            os.unlink(path)
-            self.notify(to_filepath(path), self.inotify.IN_DELETE)
-
-            yield iterate_uploader(self.magicfolder)
-            self.assertFalse(os.path.exists(path))
-            print("DID DELETE")
-
-            yield iterate_downloader(self.magicfolder)
-            # ensure we still have a DB entry, and that the version is 1
-            node, metadata = yield self.magicfolder.downloader._get_collective_latest_file(u'foo')
-            self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
-            self.failUnlessEqual(metadata['version'], 1)
-
-        finally:
-            yield self.cleanup(None)
+        yield iterate_downloader(self.magicfolder)
+        # ensure we still have a DB entry, and that the version is 1
+        node, metadata = yield self.magicfolder.downloader._get_collective_latest_file(u'foo')
+        self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
+        self.failUnlessEqual(metadata['version'], 1)
 
     @defer.inlineCallbacks
     def test_delete_and_restore(self):
@@ -1221,9 +1232,10 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
 
     def setUp(self):
-        MagicFolderTestMixin.setUp(self)
+        d = MagicFolderTestMixin.setUp(self)
         self.inotify = fake_inotify
         self.patch(magic_folder, 'get_inotify_module', lambda: self.inotify)
+        return d
 
     def notify(self, path, mask, magic=None, flush=True):
         if magic is None:
