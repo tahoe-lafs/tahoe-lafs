@@ -3,7 +3,7 @@ import os, sys
 import shutil, simplejson
 
 from twisted.trial import unittest
-from twisted.internet import defer, task
+from twisted.internet import defer, task, reactor
 
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util.assertutil import precondition
@@ -405,7 +405,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         # setup: create a file 'foo'
         path = os.path.join(self.local_dir, u'foo')
         fileutil.write(path, 'foo\n')
-        self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
+        yield self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
         yield iterate_uploader(self.magicfolder)
         self.assertTrue(os.path.exists(path))
         node, metadata = yield self.magicfolder.downloader._get_collective_latest_file(u'foo')
@@ -413,7 +413,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         # the test: delete the file (and do fake notifies)
         os.unlink(path)
-        self.notify(to_filepath(path), self.inotify.IN_DELETE)
+        yield self.notify(to_filepath(path), self.inotify.IN_DELETE)
 
         yield iterate_uploader(self.magicfolder)
         self.assertFalse(os.path.exists(path))
@@ -429,13 +429,13 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         # setup: create a file
         path = os.path.join(self.local_dir, u'foo')
         fileutil.write(path, 'foo\n')
-        self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
+        yield self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
         yield iterate_uploader(self.magicfolder)
         self.assertTrue(os.path.exists(path))
 
         # ...and delete the file
         os.unlink(path)
-        self.notify(to_filepath(path), self.inotify.IN_DELETE)
+        yield self.notify(to_filepath(path), self.inotify.IN_DELETE)
         yield iterate_uploader(self.magicfolder)
         self.assertFalse(os.path.exists(path))
 
@@ -447,7 +447,7 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         # restore the file, with different contents
         path = os.path.join(self.local_dir, u'foo')
         fileutil.write(path, 'bar\n')
-        self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
+        yield self.notify(to_filepath(path), self.inotify.IN_CLOSE_WRITE)
         yield iterate_uploader(self.magicfolder)
 
         # ensure we still have a DB entry, and that the version is 2
@@ -1224,6 +1224,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             magic = self.magicfolder
         magic.uploader._notifier.event(path, mask)
         # no flush for the mock test.
+        return task.deferLater(reactor, 0.1, lambda: None)
 
     def test_errors(self):
         self.set_up_grid()
@@ -1406,14 +1407,19 @@ class RealTest(MagicFolderTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
 
     def setUp(self):
-        MagicFolderTestMixin.setUp(self)
+        d = MagicFolderTestMixin.setUp(self)
         self.inotify = magic_folder.get_inotify_module()
+        return d
 
     def notify(self, path, mask, magic=None, flush=True):
         # Writing to the filesystem causes the notification.
         # However, flushing filesystem buffers may be necessary on Windows.
         if flush:
             fileutil.flush_volume(path.path)
+        # actually, there's no way to know when the actual
+        # notification will occur, and anyway we're not waiting for
+        # them in any case...so we'll just fudge it and home 100ms is enough.
+        return task.deferLater(reactor, 0.1, lambda: None)
 
 try:
     magic_folder.get_inotify_module()
