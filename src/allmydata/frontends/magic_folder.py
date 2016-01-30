@@ -492,6 +492,10 @@ class WriteFileMixin(object):
         finally:
             os.umask(old_mask)
 
+        # FUDGE_SECONDS is used to determine if another process
+        # has written to the same file concurrently. This is described
+        # in the Earth Dragon section of our design document:
+        # docs/proposed/magic-folder/remote-to-local-sync.rst
         os.utime(replacement_path_u, (now, now - self.FUDGE_SECONDS))
         if is_conflict:
             print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
@@ -612,6 +616,10 @@ class Downloader(QueueMixin, WriteFileMixin):
             node = None
             for success, result in deferredList:
                 if success:
+                    if 'version' not in result[1]:
+                        self._log("invalid remote metadata detected")
+                        continue
+
                     if result[1]['version'] > max_version:
                         node, metadata = result
                         max_version = result[1]['version']
@@ -629,10 +637,15 @@ class Downloader(QueueMixin, WriteFileMixin):
 
                 file_node, metadata = listing_map[encoded_relpath_u]
                 local_version = self._get_local_latest(relpath_u)
-                remote_version = metadata.get('version', None)
+
+                if 'version' not in metadata:
+                    self._log("invalid remote metadata detected for %r" % (relpath_u,))
+                    continue
+
+                remote_version = metadata['version']
                 self._log("%r has local version %r, remote version %r" % (relpath_u, local_version, remote_version))
 
-                if local_version is None or remote_version is None or local_version < remote_version:
+                if local_version is None or local_version < remote_version:
                     self._log("%r added to download queue" % (relpath_u,))
                     if scan_batch.has_key(relpath_u):
                         scan_batch[relpath_u] += [(file_node, metadata)]
