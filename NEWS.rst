@@ -4,6 +4,14 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
+Release ??? (???)
+
+Compatibility and Dependency Updates
+------------------------------------
+
+Tahoe now requires Python 2.7 on all platforms. (#2445)
+
+
 Release 1.10.2 (2015-07-30)
 '''''''''''''''''''''''''''
 
