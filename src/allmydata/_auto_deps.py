@@ -54,6 +54,8 @@ install_requires = [
     "pyasn1 >= 0.1.8",          # latest pyasn1-modules depends on this version
     "pyasn1-modules >= 0.0.5",  # service-identity depends on this
 
+    "humanize >= 0.5.1",        # might not *need* to be this new
+
     # * On Linux we need at least Twisted 10.1.0 for inotify support
     #   used by the drop-upload frontend.
     # * We also need Twisted 10.1.0 for the FTP frontend in order for
@@ -117,6 +119,7 @@ package_imports = [
     ('six',              'six'),
     ('enum34',           'enum'),
     ('pycparser',        'pycparser'),
+    ('humanize',         'humanize'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
