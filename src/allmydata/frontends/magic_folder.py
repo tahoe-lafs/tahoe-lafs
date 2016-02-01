@@ -130,7 +130,7 @@ class QueueMixin(HookMixin):
 
         self._deque = deque()
         # do we also want to bound on "maximum age"?
-        self._process_history = deque(maxlen=10)
+        self._process_history = deque(maxlen=20)
         self._lazy_tail = defer.succeed(None)
         self._stopped = False
         self._turn_delay = 0
