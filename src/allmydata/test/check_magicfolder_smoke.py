@@ -358,6 +358,17 @@ if True:
             print("   %r not there yet" % (alice_foo,))
         time.sleep(1)
 
+if True:
+    # bob leaves
+    print 'bob leaves'
+    data_dir = join(data_base, 'bob')
+    subprocess.check_call(
+        [
+            python, tahoe_bin, 'magic-folder', 'leave', '--basedir', data_dir,
+        ]
+    )
+
+
 # XXX test .backup (delete a file)
 
 # port david's clock.advance stuff
