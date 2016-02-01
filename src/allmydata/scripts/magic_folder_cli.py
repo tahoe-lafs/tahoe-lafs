@@ -204,6 +204,8 @@ def leave(options):
         except Exception as e:
             print >>options.stderr, ("Warning: unable to remove %s due to %s: %s"
                 % (quote_local_unicode_path(f), e.__class__.__name__, str(e)))
+    # if this doesn't return 0, then the CLI stuff fails
+    return 0
 
 class StatusOptions(BasedirOptions):
     nickname = None
