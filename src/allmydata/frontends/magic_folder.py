@@ -250,6 +250,9 @@ class QueuedItem(object):
 
 
 class UploadItem(QueuedItem):
+    """
+    Represents a single item the _deque of the Uploader
+    """
     pass
 
 
@@ -634,6 +637,9 @@ class WriteFileMixin(object):
 
 
 class DownloadItem(QueuedItem):
+    """
+    Represents a single item in the _deque of the Downloader
+    """
     def __init__(self, relpath_u, progress, filenode, metadata):
         super(DownloadItem, self).__init__(relpath_u, progress)
         self.file_node = filenode
