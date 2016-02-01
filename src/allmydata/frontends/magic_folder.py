@@ -9,6 +9,8 @@ from twisted.python.failure import Failure
 from twisted.python import runtime
 from twisted.application import service
 
+from zope.interface import Interface, Attribute, implementer
+
 from allmydata.util import fileutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
@@ -199,10 +201,24 @@ class QueueMixin(HookMixin):
             raise
 
 
-from zope.interface import Interface, implementer
-
+# this isn't in interfaces.py because it's very specific to QueueMixin
 class IQueuedItem(Interface):
-    pass
+    relpath_u = Attribute("The path this item represents")
+    progress = Attribute("A PercentProgress instance")
+
+    def set_status(self, status, current_time=None):
+        """
+        """
+
+    def status_time(self, state):
+        """
+        Get the time of particular state change, or None
+        """
+
+    def status_history(self):
+        """
+        All status changes, sorted latest -> oldest
+        """
 
 
 @implementer(IQueuedItem)
