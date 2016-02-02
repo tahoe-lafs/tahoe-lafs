@@ -177,18 +177,23 @@ class TestMixin(SignalMixin):
 class TimezoneMixin(object):
 
     def setTimezone(self, timezone):
+        def tzset_if_possible():
+            # Windows doesn't have time.tzset().
+            if hasattr(time, 'tzset'):
+                time.tzset()
+
         unset = object()
         originalTimezone = os.environ.get('TZ', unset)
         def restoreTimezone():
             if originalTimezone is unset:
                 del os.environ['TZ']
-                time.tzset()
             else:
                 os.environ['TZ'] = originalTimezone
-                time.tzset()
+            tzset_if_possible()
+
         os.environ['TZ'] = timezone
-        time.tzset()
         self.addCleanup(restoreTimezone)
+        tzset_if_possible()
 
 
 try:
