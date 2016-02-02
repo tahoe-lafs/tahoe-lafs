@@ -115,7 +115,11 @@ class QueueMixin(HookMixin):
         self._db = db
         self._name = name
         self._clock = clock
-        self._hooks = {'processed': None, 'started': None}
+        self._hooks = {
+            'processed': None,
+            'started': None,
+            'iteration': None,
+        }
         self.started_d = self.set_hook('started')
 
         if not self._local_filepath.exists():
@@ -133,6 +137,7 @@ class QueueMixin(HookMixin):
         self._stopped = False
         # XXX pass in an initial value for this; it seems like .10 broke this and it's always 0
         self._turn_delay = delay
+        self._log('delay is %f' % self._turn_delay)
 
         # a Deferred to wait for the _do_processing() loop to exit
         # (gets set to the return from _do_processing() if we get that
@@ -176,13 +181,16 @@ class QueueMixin(HookMixin):
         seconds.
         """
         while not self._stopped:
+            d = task.deferLater(self._clock, self._turn_delay, lambda: None)
             yield self._process_deque()
-            # pause, asynchronously, for _turn_delay seconds (if we're
-            # going to keep going)
+            self._log("one loop; call_hook iteration %r" % self)
+            self._call_hook(None, 'iteration')
+            # we want to have our callLater queued in the reactor
+            # *before* we trigger the 'iteration' hook, so that hook
+            # can successfully advance the Clock and bypass the delay
+            # if required (e.g. in the tests).
             if not self._stopped:
-                self._log("defer-later %f %r" % (self._turn_delay, self._clock))
-                # i.e. sleep(self._turn_delay)
-                yield task.deferLater(self._clock, self._turn_delay, lambda: None)
+                yield d
 
         self._log("stopped")
 
@@ -842,9 +850,16 @@ class Downloader(QueueMixin, WriteFileMixin):
         return d
 
     def _when_queue_is_empty(self):
+        # XXX so, effectively this means the process-loop will *only*
+        # run after the REMOTE_SCAN_INTERVAL expires -- which is
+        # ... counter-intuitive. So, on .10 this means that each
+        # process-iteration, if the _deque was empty, we'd pause for
+        # 10 seconds, then do another loop (and if we processed
+        # anything, only pause 3 seconds or whatever). Note that we
+        # monkey-patch this in the tests to just do a
+        # _scan_remote_collective.
         d = task.deferLater(self._clock, self.REMOTE_SCAN_INTERVAL, self._scan_remote_collective)
         d.addBoth(self._logcb, "after _scan_remote_collective 1")
-##        d.addCallback(lambda ign: self._turn_deque())
         return d
 
     def _process(self, item, now=None):
