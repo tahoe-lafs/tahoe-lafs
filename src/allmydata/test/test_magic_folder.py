@@ -178,20 +178,12 @@ class CheckerMixin(object):
             yield self.failUnlessReallyEqual(self._get_count('uploader.objects_disappeared'),
                                              previously_disappeared + 1)
         else:
-            def _here(res, n):
-                print "here %r %r" % (n, res)
-                return res
-            print "here 1"
             yield self.magicfolder.uploader._upload_dirnode.list()
-            print "here 1.5"
             x = yield self.magicfolder.uploader._upload_dirnode.get(encoded_name_u)
-            print "here 2"
             actual_data = yield download_to_data(x)
-            print "here 3"
             self.failUnlessReallyEqual(actual_data, data)
             self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'),
                                        previously_uploaded + 1)
-            print "here 5"
 
         self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0)
 
