@@ -8,6 +8,7 @@ from allmydata.interfaces import IDirectoryNode
 from allmydata.util.assertutil import precondition
 
 from allmydata.util import fake_inotify, fileutil
+from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
@@ -840,14 +841,16 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1))
         d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 0, magic=self.bob_magicfolder))
 
-        def Alice_to_delete_file():
-            print "Alice deletes the file!\n"
-            os.unlink(self.file_path)
-            self.notify(to_filepath(self.file_path), self.inotify.IN_DELETE, magic=self.alice_magicfolder)
-        d.addCallback(_wait_for, Alice_to_delete_file)
+        def check_delete_file(ign):
+            d_bob = self.bob_magicfolder.uploader.set_hook('processed')
+            def Alice_to_delete_file():
+                print "Alice deletes the file!\n"
+                os.unlink(self.file_path)
+                self.notify(to_filepath(self.file_path), self.inotify.IN_DELETE, magic=self.alice_magicfolder)
 
-        def notify_bob_moved(ign):
-            d0 = self.bob_magicfolder.uploader.set_hook('processed')
+            d_alice = defer.succeed(None)
+            d_alice.addCallback(_wait_for, Alice_to_delete_file)
+
             p = abspath_expanduser_unicode(u"file1", base=self.bob_magicfolder.uploader._local_path_u)
             if sys.platform == "win32":
                 self.notify(to_filepath(p), self.inotify.IN_MOVED_FROM, magic=self.bob_magicfolder, flush=False)
@@ -855,9 +858,10 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             else:
                 self.notify(to_filepath(p + u'.backup'), self.inotify.IN_CREATE, magic=self.bob_magicfolder, flush=False)
                 self.notify(to_filepath(p), self.inotify.IN_DELETE, magic=self.bob_magicfolder)
-            bob_clock.advance(0)
-            return d0
-        d.addCallback(notify_bob_moved)
+
+            d_alice.addCallback(lambda ign: bob_clock.advance(0))
+            return DeferredListShouldSucceed([d_alice, d_bob])
+        d.addCallback(check_delete_file)
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 1))
