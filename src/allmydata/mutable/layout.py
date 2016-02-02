@@ -1171,7 +1171,7 @@ class MDMFSlotWriteProxy:
             else:
                 if on_success: on_success()
             return results
-        d.addCallback(_result)
+        d.addBoth(_result)
         return d
 
 def _handle_bad_struct(f):
