@@ -32,7 +32,452 @@ def iterate_uploader(magic):
     return magic.uploader._process_deque()
 
 
-class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
+
+class CheckerMixin(object):
+    """
+    Factored out of one of the many test classes.
+
+    *Ideally* these should just be bare helper methods, but many of
+    them already depended upon self.* state. One major problem is that
+    they're using self.magicfolder *but* some of the alice/bob tests
+    use this, too, and they just do "self.magicfolder =
+    self.bob_magicfolder" or whatever before calling them, which is
+    *horrible*.
+    """
+    def _check_mkdir(self, name_u):
+        return self._check_file(name_u + u"/", "", directory=True)
+
+    def _check_file(self, name_u, data, temporary=False, directory=False):
+        precondition(not (temporary and directory), temporary=temporary, directory=directory)
+
+        print "%r._check_file(%r, %r, temporary=%r, directory=%r)" % (self, name_u, data, temporary, directory)
+        previously_uploaded = self._get_count('uploader.objects_succeeded')
+        previously_disappeared = self._get_count('uploader.objects_disappeared')
+
+        d = self.magicfolder.uploader.set_hook('processed')
+
+        path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
+        path = to_filepath(path_u)
+
+        if directory:
+            os.mkdir(path_u)
+            event_mask = self.inotify.IN_CREATE | self.inotify.IN_ISDIR
+        else:
+            # We don't use FilePath.setContent() here because it creates a temporary file that
+            # is renamed into place, which causes events that the test is not expecting.
+            f = open(path_u, "wb")
+            try:
+                if temporary and sys.platform != "win32":
+                    os.unlink(path_u)
+                f.write(data)
+            finally:
+                f.close()
+            if temporary and sys.platform == "win32":
+                os.unlink(path_u)
+                self.notify(path, self.inotify.IN_DELETE, flush=False)
+            event_mask = self.inotify.IN_CLOSE_WRITE
+
+        self.notify(path, event_mask)
+        encoded_name_u = magicpath.path2magic(name_u)
+
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
+        if temporary:
+            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_disappeared'),
+                                                                 previously_disappeared + 1))
+        else:
+            def _here(res, n):
+                print "here %r %r" % (n, res)
+                return res
+            d.addBoth(_here, 1)
+            d.addCallback(lambda ign: self.upload_dirnode.list())
+            d.addBoth(_here, 1.5)
+            d.addCallback(lambda ign: self.upload_dirnode.get(encoded_name_u))
+            d.addBoth(_here, 2)
+            d.addCallback(download_to_data)
+            d.addBoth(_here, 3)
+            d.addCallback(lambda actual_data: self.failUnlessReallyEqual(actual_data, data))
+            d.addBoth(_here, 4)
+            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'),
+                                                                 previously_uploaded + 1))
+
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
+        return d
+
+    @defer.inlineCallbacks
+    def _check_version_in_dmd(self, magicfolder, relpath_u, expected_version):
+        encoded_name_u = magicpath.path2magic(relpath_u)
+        result = yield magicfolder.downloader._get_collective_latest_file(encoded_name_u)
+        self.assertTrue(result is not None)
+        node, metadata = result
+        print("NODE", node, metadata)
+        self.failUnlessEqual(metadata['version'], expected_version)
+
+    def _check_version_in_local_db(self, magicfolder, relpath_u, expected_version):
+        db_entry = magicfolder._db.get_db_entry(relpath_u)
+        if db_entry is not None:
+            #print "_check_version_in_local_db: %r has version %s" % (relpath_u, version)
+            self.failUnlessEqual(db_entry.version, expected_version)
+
+    def _check_file_gone(self, magicfolder, relpath_u):
+        path = os.path.join(magicfolder.uploader._local_path_u, relpath_u)
+        self.assertTrue(not os.path.exists(path))
+
+    def _check_uploader_count(self, name, expected, magic=None):
+        self.failUnlessReallyEqual(self._get_count('uploader.'+name, client=(magic or self.alice_magicfolder)._client),
+                                   expected)
+
+    def _check_downloader_count(self, name, expected, magic=None):
+        self.failUnlessReallyEqual(self._get_count('downloader.'+name, client=(magic or self.bob_magicfolder)._client),
+                                   expected)
+
+    def _get_count(self, name, client=None):
+        counters = (client or self.get_client()).stats_provider.get_stats()["counters"]
+        return counters.get('magic_folder.%s' % (name,), 0)
+
+
+
+class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin, CheckerMixin):
+
+    def setUp(self):
+        # super(MagicFolderAliceBobTestMixin, self).setUp() # XXX huh, why isn't this working?
+        GridTestMixin.setUp(self) # XXX totally wrong
+        temp = self.mktemp()
+        self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
+        # set_up_grid depends on self.basedir existing
+        self.set_up_grid(num_clients=2)
+
+        self.alice_clock = task.Clock()
+        self.bob_clock = task.Clock()
+
+        # this is all just .setup_alice_and_bob(), essentially
+        self.alice_magicfolder = None
+        self.bob_magicfolder = None
+
+        self.alice_magic_dir = abspath_expanduser_unicode(u"Alice-magic", base=self.basedir)
+        self.mkdir_nonascii(self.alice_magic_dir)
+        self.bob_magic_dir = abspath_expanduser_unicode(u"Bob-magic", base=self.basedir)
+        self.mkdir_nonascii(self.bob_magic_dir)
+
+        # Alice creates a Magic Folder,
+        # invites herself then and joins.
+        d = self.do_create_magic_folder(0)
+        d.addCallback(lambda ign: self.do_invite(0, u"Alice\u00F8"))
+        def get_invite_code(result):
+            self.invite_code = result[1].strip()
+        d.addCallback(get_invite_code)
+        d.addCallback(lambda ign: self.do_join(0, self.alice_magic_dir, self.invite_code))
+        def get_alice_caps(ign):
+            self.alice_collective_dircap, self.alice_upload_dircap = self.get_caps_from_files(0)
+        d.addCallback(get_alice_caps)
+        d.addCallback(lambda ign: self.check_joined_config(0, self.alice_upload_dircap))
+        d.addCallback(lambda ign: self.check_config(0, self.alice_magic_dir))
+        def get_Alice_magicfolder(result):
+            self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap,
+                                                           self.alice_collective_dircap,
+                                                           self.alice_magic_dir, self.alice_clock)
+            return result
+        d.addCallback(get_Alice_magicfolder)
+
+        # Alice invites Bob. Bob joins.
+        d.addCallback(lambda ign: self.do_invite(0, u"Bob\u00F8"))
+        def get_invite_code(result):
+            self.invite_code = result[1].strip()
+        d.addCallback(get_invite_code)
+        d.addCallback(lambda ign: self.do_join(1, self.bob_magic_dir, self.invite_code))
+        def get_bob_caps(ign):
+            self.bob_collective_dircap, self.bob_upload_dircap = self.get_caps_from_files(1)
+        d.addCallback(get_bob_caps)
+        d.addCallback(lambda ign: self.check_joined_config(1, self.bob_upload_dircap))
+        d.addCallback(lambda ign: self.check_config(1, self.bob_magic_dir))
+        def get_Bob_magicfolder(result):
+            self.bob_magicfolder = self.init_magicfolder(1, self.bob_upload_dircap,
+                                                         self.bob_collective_dircap,
+                                                         self.bob_magic_dir, self.bob_clock)
+            return result
+        d.addCallback(get_Bob_magicfolder)
+        return d
+
+    def tearDown(self):
+        print("TEARDOWN!")
+        d = GridTestMixin.tearDown(self)
+        if self.alice_magicfolder:
+            d.addCallback(lambda ign: self.alice_magicfolder.finish())
+        if self.bob_magicfolder:
+            d.addCallback(lambda ign: self.bob_magicfolder.finish())
+        self.alice_magicfolder.uploader._clock.advance(4)
+        self.alice_magicfolder.downloader._clock.advance(4)
+        self.bob_magicfolder.uploader._clock.advance(4)
+        self.bob_magicfolder.downloader._clock.advance(4)
+        # XXX double-check: are self.mktemp() dirs blown away automagically?
+        return d
+
+    @defer.inlineCallbacks
+    def test_alice_delete_bob_restore(self):
+        alice_fname = os.path.join(self.alice_magic_dir, 'blam')
+        bob_fname = os.path.join(self.bob_magic_dir, 'blam')
+
+        print("writing", alice_fname)
+        alice_up = self.alice_magicfolder.uploader.set_hook('processed')
+        fileutil.write(alice_fname, 'contents0\n')
+        self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+
+        # alice uploads
+        yield iterate_uploader(self.alice_magicfolder)
+        yield alice_up
+        print("BOOOOOM\n\n\n")
+
+        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
+        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
+
+        # bob downloads
+        yield iterate_downloader(self.bob_magicfolder)
+
+        # check the state
+        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
+        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
+        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
+        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+        yield self.failUnlessReallyEqual(
+            self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+            0
+        )
+        yield self.failUnlessReallyEqual(
+            self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
+            1
+        )
+
+        print("BOB DELETE")
+        # now bob deletes it (bob should upload, alice download)
+        bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
+        alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
+        os.unlink(bob_fname)
+        self.notify(to_filepath(bob_fname), self.inotify.IN_DELETE, magic=self.bob_magicfolder)
+
+        yield iterate_uploader(self.bob_magicfolder)
+        yield bob_proc
+        yield iterate_downloader(self.alice_magicfolder)
+        yield alice_proc
+
+        # check versions
+        node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
+        self.assertTrue(metadata['deleted'])
+        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
+        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
+        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
+        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
+
+        print("ALICE RESTORE")
+        # now alice restores it (alice should upload, bob download)
+        alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
+        bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+        fileutil.write(alice_fname, 'new contents\n')
+        self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+
+        yield iterate_uploader(self.alice_magicfolder)
+        yield alice_proc
+        yield iterate_downloader(self.bob_magicfolder)
+        yield bob_proc
+
+        # check versions
+        node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
+        self.assertTrue('deleted' not in metadata or not metadata['deleted'])
+        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 2)
+        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 2)
+        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 2)
+        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 2)
+
+    @defer.inlineCallbacks
+    def test_alice_sees_bobs_delete_with_error(self):
+        # alice creates a file, bob deletes it -- and we also arrange
+        # for Alice's file to have "gone missing" as well.
+        alice_fname = os.path.join(self.alice_magic_dir, 'blam')
+        bob_fname = os.path.join(self.bob_magic_dir, 'blam')
+
+        # alice creates a file, bob downloads it
+        alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
+        bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+
+        fileutil.write(alice_fname, 'contents0\n')
+        self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+
+        yield iterate_uploader(self.alice_magicfolder)
+        yield alice_proc  # alice uploads
+
+        yield iterate_downloader(self.bob_magicfolder)
+        yield bob_proc    # bob downloads
+
+        # check the state (XXX I had to switch the versions to 0; is that really right? why?)
+        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
+        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
+        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
+        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+        yield self.failUnlessReallyEqual(
+            self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+            0
+        )
+        yield self.failUnlessReallyEqual(
+            self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
+            1
+        )
+
+        # now bob deletes it (bob should upload, alice download)
+        bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
+        alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
+        os.unlink(bob_fname)
+        self.notify(to_filepath(bob_fname), self.inotify.IN_DELETE, magic=self.bob_magicfolder)
+        # just after notifying bob, we also delete alice's,
+        # covering the 'except' flow in _rename_deleted_file()
+        os.unlink(alice_fname)
+
+        yield iterate_uploader(self.bob_magicfolder)
+        yield bob_proc
+        yield iterate_downloader(self.alice_magicfolder)
+        yield alice_proc
+
+        # check versions
+        node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
+        self.assertTrue(metadata['deleted'])
+        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
+        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
+        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
+        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
+
+    @defer.inlineCallbacks
+    def test_alice_create_bob_update(self):
+        alice_fname = os.path.join(self.alice_magic_dir, 'blam')
+        bob_fname = os.path.join(self.bob_magic_dir, 'blam')
+
+        # alice creates a file, bob downloads it
+        alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
+        bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+
+        fileutil.write(alice_fname, 'contents0\n')
+        self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+
+        yield iterate_uploader(self.alice_magicfolder)
+        yield alice_proc  # alice uploads
+
+        yield iterate_downloader(self.bob_magicfolder)
+        yield bob_proc    # bob downloads
+
+        # check the state (XXX ditto, had to switch to veresion 0; right?)
+        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
+        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
+        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
+        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+        yield self.failUnlessReallyEqual(
+            self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+            0
+        )
+        yield self.failUnlessReallyEqual(
+            self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
+            1
+        )
+
+        # now bob updates it (bob should upload, alice download)
+        bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
+        alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
+        fileutil.write(bob_fname, 'bob wuz here\n')
+        self.notify(to_filepath(bob_fname), self.inotify.IN_CLOSE_WRITE, magic=self.bob_magicfolder)
+
+        yield iterate_uploader(self.bob_magicfolder)
+        yield bob_proc
+        yield iterate_downloader(self.alice_magicfolder)
+        yield alice_proc
+
+        # check the state
+        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
+        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
+        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
+        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
+
+    @defer.inlineCallbacks
+    def test_alice_delete_and_restore(self):
+        alice_clock = task.Clock()
+        bob_clock = task.Clock()
+        yield self.setup_alice_and_bob(alice_clock, bob_clock)
+        alice_dir = self.alice_magicfolder.uploader._local_path_u
+        bob_dir = self.bob_magicfolder.uploader._local_path_u
+        alice_fname = os.path.join(alice_dir, 'blam')
+        bob_fname = os.path.join(bob_dir, 'blam')
+
+        try:
+            # alice creates a file, bob downloads it
+            alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
+            bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+
+            fileutil.write(alice_fname, 'contents0\n')
+            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+
+            alice_clock.advance(4)
+            yield alice_proc  # alice uploads
+
+            bob_clock.advance(4)
+            yield bob_proc    # bob downloads
+
+            # check the state
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+                0
+            )
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
+                1
+            )
+            self.failUnless(os.path.exists(bob_fname))
+
+            # now alice deletes it (alice should upload, bob download)
+            alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
+            bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+            os.unlink(alice_fname)
+            self.notify(to_filepath(alice_fname), self.inotify.IN_DELETE, magic=self.alice_magicfolder)
+
+            alice_clock.advance(4)
+            yield alice_proc
+            bob_clock.advance(4)
+            yield bob_proc
+
+            # check the state
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
+            self.failIf(os.path.exists(bob_fname))
+
+            # now alice restores the file (with new contents)
+            alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
+            bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+            fileutil.write(alice_fname, 'alice wuz here\n')
+            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+
+            alice_clock.advance(4)
+            yield alice_proc
+            bob_clock.advance(4)
+            yield bob_proc
+
+            # check the state
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 2)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 2)
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 2)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 2)
+            self.failUnless(os.path.exists(bob_fname))
+
+        finally:
+            # cleanup
+            d0 = self.alice_magicfolder.finish()
+            alice_clock.advance(4)
+            yield d0
+
+            d1 = self.bob_magicfolder.finish()
+            bob_clock.advance(4)
+            yield d1
+
+
+class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
     """
     These tests will be run both with a mock notifier, and (on platforms that support it)
     with the real INotify.
@@ -61,10 +506,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d = GridTestMixin.tearDown(self)
         d.addCallback(self.cleanup)
         return d
-
-    def _get_count(self, name, client=None):
-        counters = (client or self.get_client()).stats_provider.get_stats()["counters"]
-        return counters.get('magic_folder.%s' % (name,), 0)
 
     def _createdb(self):
         dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
@@ -374,323 +815,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
         self.failUnlessEqual(metadata['version'], 2)
 
-    @defer.inlineCallbacks
-    def __test_alice_delete_bob_restore(self):
-        # XXX FIXME put this is a separate test-case class with a
-        # setUp() that knows how to do alice + bob tests.
-        alice_clock = task.Clock()
-        bob_clock = task.Clock()
-        yield self.setup_alice_and_bob(alice_clock, bob_clock)
-        alice_dir = self.alice_magicfolder.uploader._local_path_u
-        bob_dir = self.bob_magicfolder.uploader._local_path_u
-        alice_fname = os.path.join(alice_dir, 'blam')
-        bob_fname = os.path.join(bob_dir, 'blam')
-
-        try:
-            print("writing", alice_fname)
-            alice_up = self.alice_magicfolder.uploader.set_hook('processed')
-            fileutil.write(alice_fname, 'contents0\n')
-            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-
-            # alice uploads
-            alice_clock.advance(4)
-            yield alice_up
-            print("BOOOOOM\n\n\n")
-
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
-
-            # bob downloads
-            yield self.bob_magicfolder.downloader.drain_queue()
-
-            # check the state
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
-            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
-            yield self.failUnlessReallyEqual(
-                self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
-                0
-            )
-            yield self.failUnlessReallyEqual(
-                self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
-                1
-            )
-
-            alice_clock.advance(4)
-            bob_clock.advance(4)
-            print("BOB DELETE")
-            # now bob deletes it (bob should upload, alice download)
-            bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
-            alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
-            os.unlink(bob_fname)
-            self.notify(to_filepath(bob_fname), self.inotify.IN_DELETE, magic=self.bob_magicfolder)
-
-            bob_clock.advance(4)
-            yield bob_proc
-            alice_clock.advance(4)
-            yield alice_proc
-
-            # check versions
-            node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
-            self.assertTrue(metadata['deleted'])
-            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
-
-            print("ALICE RESTORE")
-            # now alice restores it (alice should upload, bob download)
-            alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
-            bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-            fileutil.write(alice_fname, 'new contents\n')
-            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-
-            alice_clock.advance(4)
-            yield alice_proc
-            bob_clock.advance(4)
-            yield bob_proc
-
-            # check versions
-            node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
-            self.assertTrue('deleted' not in metadata or not metadata['deleted'])
-            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 2)
-            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 2)
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 2)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 2)
-
-        finally:
-            # cleanup
-            d0 = self.alice_magicfolder.finish()
-            alice_clock.advance(4)
-            yield d0
-
-            d1 = self.bob_magicfolder.finish()
-            bob_clock.advance(4)
-            yield d1
-
-    @defer.inlineCallbacks
-    def test_alice_sees_bobs_delete_with_error(self):
-        # alice creates a file, bob deletes it -- and we also arrange
-        # for Alice's file to have "gone missing" as well.
-        alice_clock = task.Clock()
-        bob_clock = task.Clock()
-        yield self.setup_alice_and_bob(alice_clock, bob_clock)
-        alice_dir = self.alice_magicfolder.uploader._local_path_u
-        bob_dir = self.bob_magicfolder.uploader._local_path_u
-        alice_fname = os.path.join(alice_dir, 'blam')
-        bob_fname = os.path.join(bob_dir, 'blam')
-
-        try:
-            # alice creates a file, bob downloads it
-            alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
-            bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-
-            fileutil.write(alice_fname, 'contents0\n')
-            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-
-            alice_clock.advance(4)
-            yield alice_proc  # alice uploads
-
-            bob_clock.advance(4)
-            yield bob_proc    # bob downloads
-
-            # check the state
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
-            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
-            yield self.failUnlessReallyEqual(
-                self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
-                0
-            )
-            yield self.failUnlessReallyEqual(
-                self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
-                1
-            )
-
-            # now bob deletes it (bob should upload, alice download)
-            bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
-            alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
-            os.unlink(bob_fname)
-            self.notify(to_filepath(bob_fname), self.inotify.IN_DELETE, magic=self.bob_magicfolder)
-            # just after notifying bob, we also delete alice's,
-            # covering the 'except' flow in _rename_deleted_file()
-            os.unlink(alice_fname)
-
-            bob_clock.advance(4)
-            yield bob_proc
-            alice_clock.advance(4)
-            yield alice_proc
-
-            # check versions
-            node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
-            self.assertTrue(metadata['deleted'])
-            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
-
-        finally:
-            # cleanup
-            d0 = self.alice_magicfolder.finish()
-            alice_clock.advance(4)
-            yield d0
-
-            d1 = self.bob_magicfolder.finish()
-            bob_clock.advance(4)
-            yield d1
-
-    @defer.inlineCallbacks
-    def test_alice_create_bob_update(self):
-        alice_clock = task.Clock()
-        bob_clock = task.Clock()
-        yield self.setup_alice_and_bob(alice_clock, bob_clock)
-        alice_dir = self.alice_magicfolder.uploader._local_path_u
-        bob_dir = self.bob_magicfolder.uploader._local_path_u
-        alice_fname = os.path.join(alice_dir, 'blam')
-        bob_fname = os.path.join(bob_dir, 'blam')
-
-        try:
-            # alice creates a file, bob downloads it
-            alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
-            bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-
-            fileutil.write(alice_fname, 'contents0\n')
-            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-
-            alice_clock.advance(4)
-            yield alice_proc  # alice uploads
-
-            bob_clock.advance(4)
-            yield bob_proc    # bob downloads
-
-            # check the state
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
-            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
-            yield self.failUnlessReallyEqual(
-                self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
-                0
-            )
-            yield self.failUnlessReallyEqual(
-                self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
-                1
-            )
-
-            # now bob updates it (bob should upload, alice download)
-            bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
-            alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
-            fileutil.write(bob_fname, 'bob wuz here\n')
-            self.notify(to_filepath(bob_fname), self.inotify.IN_CLOSE_WRITE, magic=self.bob_magicfolder)
-
-            bob_clock.advance(4)
-            yield bob_proc
-            alice_clock.advance(4)
-            yield alice_proc
-
-            # check the state
-            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
-
-        finally:
-            # cleanup
-            d0 = self.alice_magicfolder.finish()
-            alice_clock.advance(4)
-            yield d0
-
-            d1 = self.bob_magicfolder.finish()
-            bob_clock.advance(4)
-            yield d1
-
-    @defer.inlineCallbacks
-    def test_alice_delete_and_restore(self):
-        alice_clock = task.Clock()
-        bob_clock = task.Clock()
-        yield self.setup_alice_and_bob(alice_clock, bob_clock)
-        alice_dir = self.alice_magicfolder.uploader._local_path_u
-        bob_dir = self.bob_magicfolder.uploader._local_path_u
-        alice_fname = os.path.join(alice_dir, 'blam')
-        bob_fname = os.path.join(bob_dir, 'blam')
-
-        try:
-            # alice creates a file, bob downloads it
-            alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
-            bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-
-            fileutil.write(alice_fname, 'contents0\n')
-            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-
-            alice_clock.advance(4)
-            yield alice_proc  # alice uploads
-
-            bob_clock.advance(4)
-            yield bob_proc    # bob downloads
-
-            # check the state
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
-            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
-            yield self.failUnlessReallyEqual(
-                self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
-                0
-            )
-            yield self.failUnlessReallyEqual(
-                self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
-                1
-            )
-            self.failUnless(os.path.exists(bob_fname))
-
-            # now alice deletes it (alice should upload, bob download)
-            alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
-            bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-            os.unlink(alice_fname)
-            self.notify(to_filepath(alice_fname), self.inotify.IN_DELETE, magic=self.alice_magicfolder)
-
-            alice_clock.advance(4)
-            yield alice_proc
-            bob_clock.advance(4)
-            yield bob_proc
-
-            # check the state
-            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
-            self.failIf(os.path.exists(bob_fname))
-
-            # now alice restores the file (with new contents)
-            alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
-            bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-            fileutil.write(alice_fname, 'alice wuz here\n')
-            self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-
-            alice_clock.advance(4)
-            yield alice_proc
-            bob_clock.advance(4)
-            yield bob_proc
-
-            # check the state
-            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 2)
-            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 2)
-            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 2)
-            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 2)
-            self.failUnless(os.path.exists(bob_fname))
-
-        finally:
-            # cleanup
-            d0 = self.alice_magicfolder.finish()
-            alice_clock.advance(4)
-            yield d0
-
-            d1 = self.bob_magicfolder.finish()
-            bob_clock.advance(4)
-            yield d1
-
     def test_magic_folder(self):
         self.set_up_grid()
         self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
@@ -720,93 +844,6 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         d.addBoth(self.cleanup)
         return d
-
-    def _check_mkdir(self, name_u):
-        return self._check_file(name_u + u"/", "", directory=True)
-
-    def _check_file(self, name_u, data, temporary=False, directory=False):
-        precondition(not (temporary and directory), temporary=temporary, directory=directory)
-
-        print "%r._check_file(%r, %r, temporary=%r, directory=%r)" % (self, name_u, data, temporary, directory)
-        previously_uploaded = self._get_count('uploader.objects_succeeded')
-        previously_disappeared = self._get_count('uploader.objects_disappeared')
-
-        d = self.magicfolder.uploader.set_hook('processed')
-
-        path_u = abspath_expanduser_unicode(name_u, base=self.local_dir)
-        path = to_filepath(path_u)
-
-        if directory:
-            os.mkdir(path_u)
-            event_mask = self.inotify.IN_CREATE | self.inotify.IN_ISDIR
-        else:
-            # We don't use FilePath.setContent() here because it creates a temporary file that
-            # is renamed into place, which causes events that the test is not expecting.
-            f = open(path_u, "wb")
-            try:
-                if temporary and sys.platform != "win32":
-                    os.unlink(path_u)
-                f.write(data)
-            finally:
-                f.close()
-            if temporary and sys.platform == "win32":
-                os.unlink(path_u)
-                self.notify(path, self.inotify.IN_DELETE, flush=False)
-            event_mask = self.inotify.IN_CLOSE_WRITE
-
-        self.notify(path, event_mask)
-        encoded_name_u = magicpath.path2magic(name_u)
-
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
-        if temporary:
-            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_disappeared'),
-                                                                 previously_disappeared + 1))
-        else:
-            def _here(res, n):
-                print "here %r %r" % (n, res)
-                return res
-            d.addBoth(_here, 1)
-            d.addCallback(lambda ign: self.upload_dirnode.list())
-            d.addBoth(_here, 1.5)
-            d.addCallback(lambda ign: self.upload_dirnode.get(encoded_name_u))
-            d.addBoth(_here, 2)
-            d.addCallback(download_to_data)
-            d.addBoth(_here, 3)
-            d.addCallback(lambda actual_data: self.failUnlessReallyEqual(actual_data, data))
-            d.addBoth(_here, 4)
-            d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'),
-                                                                 previously_uploaded + 1))
-
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
-        return d
-
-    def _check_version_in_dmd(self, magicfolder, relpath_u, expected_version):
-        encoded_name_u = magicpath.path2magic(relpath_u)
-        d = magicfolder.downloader._get_collective_latest_file(encoded_name_u)
-        def check_latest(result):
-            if result[0] is not None:
-                node, metadata = result
-                d.addCallback(lambda ign: self.failUnlessEqual(metadata['version'], expected_version))
-        d.addCallback(check_latest)
-        return d
-
-    def _check_version_in_local_db(self, magicfolder, relpath_u, expected_version):
-        db_entry = magicfolder._db.get_db_entry(relpath_u)
-        if db_entry is not None:
-            #print "_check_version_in_local_db: %r has version %s" % (relpath_u, version)
-            self.failUnlessEqual(db_entry.version, expected_version)
-
-    def _check_file_gone(self, magicfolder, relpath_u):
-        path = os.path.join(magicfolder.uploader._local_path_u, relpath_u)
-        self.assertTrue(not os.path.exists(path))
-
-    def _check_uploader_count(self, name, expected, magic=None):
-        self.failUnlessReallyEqual(self._get_count('uploader.'+name, client=(magic or self.alice_magicfolder)._client),
-                                   expected)
-
-    def _check_downloader_count(self, name, expected, magic=None):
-        self.failUnlessReallyEqual(self._get_count('downloader.'+name, client=(magic or self.bob_magicfolder)._client),
-                                   expected)
 
     def test_alice_bob(self):
         alice_clock = task.Clock()
@@ -1120,11 +1157,27 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         return d
 
 
-class MockTest(MagicFolderTestMixin, unittest.TestCase):
+class MockTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
+    def setUp(self):
+        d = super(MockTestAliceBob, self).setUp()
+        self.inotify = fake_inotify
+        self.patch(magic_folder, 'get_inotify_module', lambda: self.inotify)
+        return d
+
+    def notify(self, path, mask, magic=None, flush=True):
+        if magic is None:
+            magic = self.magicfolder
+        magic.uploader._notifier.event(path, mask)
+        # no flush for the mock test.
+        return task.deferLater(reactor, 0.1, lambda: None)
+
+
+
+class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
 
     def setUp(self):
-        d = MagicFolderTestMixin.setUp(self)
+        d = super(MockTest, self).setUp()
         self.inotify = fake_inotify
         self.patch(magic_folder, 'get_inotify_module', lambda: self.inotify)
         return d
@@ -1214,7 +1267,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         self.failIf(os.path.exists(local_file + u".tmp"))
 
 
-class RealTest(MagicFolderTestMixin, unittest.TestCase):
+class RealTest(SingleMagicFolderTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
 
     def setUp(self):

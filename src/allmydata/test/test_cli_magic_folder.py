@@ -22,7 +22,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
     def do_create_magic_folder(self, client_num):
         d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
         def _done((rc,stdout,stderr)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(rc, 0, stdout + stderr)
             self.failUnlessIn("Alias 'magic' created", stdout)
             self.failUnlessEqual(stderr, "")
             aliases = get_aliases(self.get_clientdir(i=client_num))
