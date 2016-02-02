@@ -100,7 +100,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         local_dir_arg = unicode_to_argv(local_dir)
         d = self.do_cli("magic-folder", "create", "magic:", nickname_arg, local_dir_arg)
         def _done((rc, stdout, stderr)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(rc, 0, stdout + stderr)
 
             client = self.get_client()
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
