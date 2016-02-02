@@ -108,7 +108,7 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(HookMixin):
-    def __init__(self, client, local_path_u, db, name, clock):
+    def __init__(self, client, local_path_u, db, name, clock, delay=0):
         self._client = client
         self._local_path_u = local_path_u
         self._local_filepath = to_filepath(local_path_u)
@@ -131,7 +131,9 @@ class QueueMixin(HookMixin):
         # do we also want to bound on "maximum age"?
         self._process_history = deque(maxlen=20)
         self._stopped = False
-        self._turn_delay = 4  # FIXME why was this 0?!
+        # XXX pass in an initial value for this; it seems like .10 broke this and it's always 0
+        self._turn_delay = delay
+
         # a Deferred to wait for the _do_processing() loop to exit
         # (gets set to the return from _do_processing() if we get that
         # far)
@@ -286,7 +288,7 @@ class UploadItem(QueuedItem):
 
 class Uploader(QueueMixin):
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
-        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock)
+        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock, delay=pending_delay)
 
         self.is_ready = False
 
@@ -681,7 +683,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def __init__(self, client, local_path_u, db, collective_dirnode,
                  upload_readonly_dircap, clock, is_upload_pending, umask):
-        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
+        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock, delay=self.REMOTE_SCAN_INTERVAL)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
