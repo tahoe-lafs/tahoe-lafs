@@ -103,14 +103,22 @@ class MagicFolderDbTests(unittest.TestCase):
         self.assertEqual(entry.last_downloaded_uri, content_uri)
 
 
+@defer.inlineCallbacks
 def iterate_downloader(magic):
-    d = magic.downloader._process_deque()
+    #d = magic.downloader._process_deque()
+    d = magic.downloader.set_hook('iteration')
+    print("downloader; awaiting iteration", magic.downloader, magic.downloader._clock)
+    magic.downloader._clock.advance(4)
+    yield d
+    print("doing next advance")
     magic.downloader._clock.advance(Downloader.REMOTE_SCAN_INTERVAL)
-    return d
 
 
 def iterate_uploader(magic):
-    return magic.uploader._process_deque()
+    d = magic.uploader.set_hook('iteration')
+    magic.uploader._clock.advance(4)
+    return d
+    #return magic.uploader._process_deque()
 
 
 
@@ -256,6 +264,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap,
                                                            self.alice_collective_dircap,
                                                            self.alice_magic_dir, self.alice_clock)
+            self.alice_clock.advance(4)
             return result
         d.addCallback(get_Alice_magicfolder)
 
@@ -274,6 +283,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.bob_magicfolder = self.init_magicfolder(1, self.bob_upload_dircap,
                                                          self.bob_collective_dircap,
                                                          self.bob_magic_dir, self.bob_clock)
+            self.bob_clock.advance(4)
             return result
         d.addCallback(get_Bob_magicfolder)
         return d
@@ -425,21 +435,30 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
 
     @defer.inlineCallbacks
     def test_alice_create_bob_update(self):
+        print("XX", self.bob_clock)
+        print("YY", self.alice_clock)
+        for x in range(10):
+            print("BOOM")
+            d = self.bob_magicfolder.downloader.set_hook('iteration')
+            self.bob_clock.advance(4)
+            x = yield d
+
+    def _foo(self):
+        print("ENTER TEST", self.bob_magicfolder.downloader._deque)
+        print("ENTER TEST", self.bob_magicfolder.uploader._deque)
+        print("ENTER TEST", self.alice_magicfolder.downloader._deque)
+        print("ENTER TEST", self.alice_magicfolder.uploader._deque)
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
         bob_fname = os.path.join(self.bob_magic_dir, 'blam')
 
         # alice creates a file, bob downloads it
-        alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
-        bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-
         fileutil.write(alice_fname, 'contents0\n')
         self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
 
         yield iterate_uploader(self.alice_magicfolder)
-        yield alice_proc  # alice uploads
-
+        print("OHAI!")
         yield iterate_downloader(self.bob_magicfolder)
-        yield bob_proc    # bob downloads
+        print("OHAI!")
 
         # check the state (XXX ditto, had to switch to veresion 0; right?)
         yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
@@ -456,15 +475,11 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         )
 
         # now bob updates it (bob should upload, alice download)
-        bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
-        alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
         fileutil.write(bob_fname, 'bob wuz here\n')
         self.notify(to_filepath(bob_fname), self.inotify.IN_CLOSE_WRITE, magic=self.bob_magicfolder)
 
         yield iterate_uploader(self.bob_magicfolder)
-        yield bob_proc
         yield iterate_downloader(self.alice_magicfolder)
-        yield alice_proc
 
         # check the state
         yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
