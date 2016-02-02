@@ -15,7 +15,7 @@ from allmydata.util import limiter, time_format, pollmixin, cachedir
 from allmydata.util import statistics, dictutil, pipeline
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
-from allmydata.test.common_util import ReallyEqualMixin
+from allmydata.test.common_util import ReallyEqualMixin, TimezoneMixin
 
 
 class Base32(unittest.TestCase):
@@ -918,7 +918,7 @@ class Limiter(unittest.TestCase):
         d.addCallback(_all_done)
         return d
 
-class TimeFormat(unittest.TestCase):
+class TimeFormat(unittest.TestCase, TimezoneMixin):
     def test_epoch(self):
         return self._help_test_epoch()
 
@@ -932,19 +932,8 @@ class TimeFormat(unittest.TestCase):
         # time_format.iso_utc_time_to_localseconds() breaks if the timezone is
         # Europe/London.  (As soon as this unit test is done then I'll change
         # that implementation to something that works even in this case...)
-        origtz = os.environ.get('TZ')
-        os.environ['TZ'] = "Europe/London"
-        if hasattr(time, 'tzset'):
-            time.tzset()
-        try:
-            return self._help_test_epoch()
-        finally:
-            if origtz is None:
-                del os.environ['TZ']
-            else:
-                os.environ['TZ'] = origtz
-            if hasattr(time, 'tzset'):
-                time.tzset()
+        self.setTimezone("Europe/London")
+        return self._help_test_epoch()
 
     def _help_test_epoch(self):
         origtzname = time.tzname
