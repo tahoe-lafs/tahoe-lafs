@@ -107,6 +107,8 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(HookMixin):
+    scan_interval = 0
+
     def __init__(self, client, local_path_u, db, name, clock, delay=0):
         self._client = client
         self._local_path_u = local_path_u
@@ -189,8 +191,19 @@ class QueueMixin(HookMixin):
         (processing each item). After that we yield for _turn_deque
         seconds.
         """
+        # we subtract here so there's a scan on the very first iteration
+        last_scan = self._clock.seconds() - self.scan_interval
         while not self._stopped:
             d = task.deferLater(self._clock, self._turn_delay, lambda: None)
+            # ">=" is important here in scan scan_interval is 0
+            if self._clock.seconds() - last_scan >= self.scan_interval:
+                yield self._scan(None)
+                last_scan = self._clock.seconds()
+                self._log("did scan; now %d" % last_scan)
+            else:
+                self._log("skipped scan")
+
+            # process anything in our queue
             yield self._process_deque()
             self._log("one loop; call_hook iteration %r" % self)
             self._call_hook(None, 'iteration')
@@ -206,8 +219,6 @@ class QueueMixin(HookMixin):
     @defer.inlineCallbacks
     def _process_deque(self):
         self._log("_process_deque")
-        yield self._when_queue_is_empty()
-
         # process everything currently in the queue. we're turning it
         # into a list so that if any new items get added while we're
         # processing, they'll not run until next time)
@@ -228,6 +239,7 @@ class QueueMixin(HookMixin):
 
 
 class Uploader(QueueMixin):
+
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
         QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock, delay=pending_delay)
 
@@ -287,7 +299,7 @@ class Uploader(QueueMixin):
         self.is_ready = True
         self._pending = self._db.get_all_relpaths()
         self._log("all_files %r" % (self._pending))
-        d = self._scan(u"")
+        d = self._scan(None)
         def _add_pending(ign):
             # This adds all of the files that were in the db but not already processed
             # (normally because they have been deleted on disk).
@@ -358,8 +370,11 @@ class Uploader(QueueMixin):
         self._pending.add(relpath_u)
         self._count('objects_queued')
 
-    def _when_queue_is_empty(self):
+    def _scan(self, _):
         return defer.succeed(None)
+
+#    def _when_queue_is_empty(self):
+#        return defer.succeed(None)
 
     def _process(self, relpath_u):
         # Uploader
@@ -543,11 +558,15 @@ class WriteFileMixin(object):
             print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
+            print("BLAMMMO", abspath_u)
             try:
                 fileutil.replace_file(abspath_u, replacement_path_u, backup_path_u)
+                self._log("fooo %r" % abspath_u)
                 return abspath_u
             except fileutil.ConflictError:
+                print("EXCEPT!!!")
                 return self._rename_conflicted_file(abspath_u, replacement_path_u)
+        print ("NOOOOOOOO")
 
     def _rename_conflicted_file(self, abspath_u, replacement_path_u):
         self._log("_rename_conflicted_file(%r, %r)" % (abspath_u, replacement_path_u))
@@ -572,11 +591,11 @@ class WriteFileMixin(object):
 
 
 class Downloader(QueueMixin, WriteFileMixin):
-    REMOTE_SCAN_INTERVAL = 3  # facilitates tests
+    scan_interval = 3
 
     def __init__(self, client, local_path_u, db, collective_dirnode,
                  upload_readonly_dircap, clock, is_upload_pending, umask):
-        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock, delay=self.REMOTE_SCAN_INTERVAL)
+        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock, delay=self.scan_interval)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
@@ -725,18 +744,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         d.addCallback(_filter_batch_to_deque)
         return d
 
-    def _when_queue_is_empty(self):
-        # XXX so, effectively this means the process-loop will *only*
-        # run after the REMOTE_SCAN_INTERVAL expires -- which is
-        # ... counter-intuitive. So, on .10 this means that each
-        # process-iteration, if the _deque was empty, we'd pause for
-        # 10 seconds, then do another loop (and if we processed
-        # anything, only pause 3 seconds or whatever). Note that we
-        # monkey-patch this in the tests to just do a
-        # _scan_remote_collective.
-        d = task.deferLater(self._clock, self.REMOTE_SCAN_INTERVAL, self._scan_remote_collective)
-        d.addBoth(self._logcb, "after _scan_remote_collective 1")
-        return d
+    def _scan(self, ign):
+        return self._scan_remote_collective()
 
     def _process(self, item, now=None):
         # Downloader
@@ -751,6 +760,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         d = defer.succeed(None)
 
         def do_update_db(written_abspath_u):
+            self._log("DOUPDATEDB %r" % written_abspath_u)
             filecap = file_node.get_uri()
             last_uploaded_uri = metadata.get('last_uploaded_uri', None)
             last_downloaded_uri = filecap
@@ -803,11 +813,18 @@ class Downloader(QueueMixin, WriteFileMixin):
                     d.addCallback(lambda ign: file_node.download_best_version())
                     d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents,
                                                                                is_conflict=is_conflict))
+                    def foo(arg):
+                        print("AAAAAAAAA", arg)
+                        return arg
+                    d.addCallback(foo)
 
-        d.addCallbacks(do_update_db, failed)
+        self._log("adding do_update_db! !!!!")
+        d.addCallbacks(do_update_db)
+        d.addErrback(failed)
 
         def trap_conflicts(f):
             f.trap(ConflictError)
+            self._log("IGNORE CONFLICT ERROR %r" % f)
             return None
         d.addErrback(trap_conflicts)
         return d
