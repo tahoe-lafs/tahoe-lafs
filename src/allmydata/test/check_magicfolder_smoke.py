@@ -360,7 +360,7 @@ if True:
 
 if True:
     # bob leaves
-    print 'bob leaves'
+    print('bob leaves')
     data_dir = join(data_base, 'bob')
     subprocess.check_call(
         [
