@@ -1146,13 +1146,25 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             return uploaded_d
 
         def Alice_to_write_a_file():
+            uploaded_d = self.alice_magicfolder.downloader.set_hook('processed')
+            downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
+            
             print "Alice writes a file\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
 
+            return downloaded_d.addCallback(lambda res: uploaded_d)
+
         d.addCallback(_wait_for, Alice_to_write_a_file)
         d.addCallback(advance_both)
+
+        def do_more_stuff(res):
+            downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
+            bob_clock.advance(0)
+            return downloaded_d
+        d.addCallback(do_more_stuff)
+
         #uploaded_d = self.bob_magicfolder.uploader.set_hook('processed')
         d.addCallback(lambda ign: self._check_downloader_count('directories_created', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
