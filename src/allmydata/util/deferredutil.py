@@ -95,7 +95,10 @@ class HookMixin:
             d = defer.Deferred()
         _assert(ignore_count >= 0, ignore_count=ignore_count)
         _assert(name in self._hooks, name=name)
-        _assert(self._hooks[name] is None, name=name, hook=self._hooks[name])
+        # XXX why? can't have multiple listeners?
+        #_assert(self._hooks[name] is None, name=name, hook=self._hooks[name])
+        if self._hooks[name] is not None:
+            print("OH NOES!", name, self._hooks[name])
         _assert(isinstance(d, defer.Deferred), d=d)
 
         self._hooks[name] = (d, ignore_count)
