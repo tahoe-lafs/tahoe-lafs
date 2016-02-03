@@ -176,7 +176,7 @@ class QueueMixin(HookMixin):
                 self._lazy_tail.addBoth(self._logcb, "whawhat else %r" % (item,))
                 self._lazy_tail.addCallback(lambda ign: self._process(item))
                 self._lazy_tail.addBoth(self._logcb, "got past _process")
-                self._lazy_tail.addBoth(self._call_hook, 'processed')
+                self._lazy_tail.addBoth(self._call_hook, 'processed', async=True)
                 self._lazy_tail.addBoth(self._logcb, "got past _call_hook (turn_delay = %r)" % (self._turn_delay,))
                 self._lazy_tail.addCallback(lambda ign: task.deferLater(self._clock, self._turn_delay, self._turn_deque))
                 self._lazy_tail.addBoth(self._logcb, "got past deferLater")
@@ -689,7 +689,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                     self._deque.append( (relpath_u, file_node, metadata) )
                 else:
                     self._log("Excluding %r" % (relpath_u,))
-                    self._call_hook(None, 'processed')
+                    self._call_hook(None, 'processed', async=True)
 
             self._log("deque after = %r" % (self._deque,))
         d.addCallback(_filter_batch_to_deque)

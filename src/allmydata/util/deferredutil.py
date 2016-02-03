@@ -101,7 +101,7 @@ class HookMixin:
         self._hooks[name] = (d, ignore_count)
         return d
 
-    def _call_hook(self, res, name):
+    def _call_hook(self, res, name, async=False):
         """
         Called to trigger the hook, with argument 'res'. This is a no-op if
         the hook is unset. If the hook's ignore_count is positive, it will be
@@ -124,7 +124,10 @@ class HookMixin:
             self._hooks[name] = (d, ignore_count - 1)
         else:
             self._hooks[name] = None
-            _with_log(eventually_callback(d), res)
+            if async:
+                _with_log(eventually_callback(d), res)
+            else:
+                _with_log(d.callback, res)
         return res
 
     def _log(self, msg):
