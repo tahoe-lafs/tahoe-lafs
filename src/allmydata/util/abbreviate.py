@@ -1,5 +1,6 @@
 
 import re
+from datetime import timedelta
 
 HOUR = 3600
 DAY = 24*3600
@@ -8,24 +9,40 @@ MONTH = 30*DAY
 YEAR = 365*DAY
 
 def abbreviate_time(s):
+    postfix = ''
+    if isinstance(s, timedelta):
+        # this feels counter-intuitive that positive numbers in a
+        # time-delta are "the past"; but if you "do math" on two
+        # datetime instances as below, you get a "positve seconds"
+        # timedelta instance:
+        # a = datetime.utcnow()
+        # time.sleep(1)
+        # b = datetime.utcnow()
+        # print(b - a)  # 0:00:01.001203
+        s = s.total_seconds()
+        if s >= 0.0:
+            postfix = ' ago'
+        else:
+            postfix = ' in the future'
+            s = -s
     def _plural(count, unit):
         count = int(count)
         if count == 1:
-            return "%d %s" % (count, unit)
-        return "%d %ss" % (count, unit)
+            return "%d %s%s" % (count, unit, postfix)
+        return "%d %ss%s" % (count, unit, postfix)
     if s is None:
         return "unknown"
     if s < 120:
         return _plural(s, "second")
     if s < 3*HOUR:
-        return _plural(s/60, "minute")
+        return _plural(s / 60, "minute")
     if s < 2*DAY:
-        return _plural(s/HOUR, "hour")
+        return _plural(s / HOUR, "hour")
     if s < 2*MONTH:
-        return _plural(s/DAY, "day")
+        return _plural(s / DAY, "day")
     if s < 4*YEAR:
-        return _plural(s/MONTH, "month")
-    return _plural(s/YEAR, "year")
+        return _plural(s / MONTH, "month")
+    return _plural(s / YEAR, "year")
 
 def abbreviate_space(s, SI=True):
     if s is None:

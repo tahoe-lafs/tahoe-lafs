@@ -3,6 +3,7 @@ def foo(): pass # keep the line number constant
 
 import os, time, sys
 from StringIO import StringIO
+from datetime import timedelta
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
@@ -74,6 +75,42 @@ class HumanReadable(unittest.TestCase):
             self.failUnless(
                 hr(e) == "<NoArgumentException>" # python-2.4
                 or hr(e) == "NoArgumentException()") # python-2.5
+
+    def test_abbrev_time_1s(self):
+        diff = timedelta(seconds=1)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('1 second ago', s)
+
+    def test_abbrev_time_25s(self):
+        diff = timedelta(seconds=25)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('25 seconds ago', s)
+
+    def test_abbrev_time_future_5_minutes(self):
+        diff = timedelta(minutes=-5)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('5 minutes in the future', s)
+
+    def test_abbrev_time_hours(self):
+        diff = timedelta(hours=4)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('4 hours ago', s)
+
+    def test_abbrev_time_day(self):
+        diff = timedelta(hours=49)  # must be more than 2 days
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('2 days ago', s)
+
+    def test_abbrev_time_month(self):
+        diff = timedelta(days=91)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('3 months ago', s)
+
+    def test_abbrev_time_year(self):
+        diff = timedelta(weeks=(5 * 52) + 1)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('5 years ago', s)
+
 
 
 class MyList(list):
