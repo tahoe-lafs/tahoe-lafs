@@ -188,7 +188,7 @@ class QueueMixin(HookMixin):
             d = task.deferLater(self._clock, self._turn_delay, lambda: None)
             # ">=" is important here in scan scan_interval is 0
             if self._clock.seconds() - last_scan >= self.scan_interval:
-                yield self._scan(None)
+                yield self._scan(u'')#None)
                 last_scan = self._clock.seconds()
                 self._log("did scan; now %d" % last_scan)
             else:
