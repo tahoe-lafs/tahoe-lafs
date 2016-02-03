@@ -1,5 +1,6 @@
 
 import re
+from datetime import timedelta
 
 HOUR = 3600
 DAY = 24*3600
@@ -8,11 +9,18 @@ MONTH = 30*DAY
 YEAR = 365*DAY
 
 def abbreviate_time(s):
+    postfix = ''
+    if isinstance(s, timedelta):
+        s = s.total_seconds()
+        if s >= 0.0:
+            postfix = ' ago'
+        else:
+            postfix = ' in the future'
     def _plural(count, unit):
         count = int(count)
         if count == 1:
-            return "%d %s" % (count, unit)
-        return "%d %ss" % (count, unit)
+            return "%d %s%s" % (count, unit, postfix)
+        return "%d %ss%s" % (count, unit, postfix)
     if s is None:
         return "unknown"
     if s < 120:
