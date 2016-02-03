@@ -663,12 +663,9 @@ class WriteFileMixin(object):
             print("BLAMMMO", abspath_u)
             try:
                 fileutil.replace_file(abspath_u, replacement_path_u, backup_path_u)
-                self._log("fooo %r" % abspath_u)
                 return abspath_u
             except fileutil.ConflictError:
-                print("EXCEPT!!!")
                 return self._rename_conflicted_file(abspath_u, replacement_path_u)
-        print ("NOOOOOOOO")
 
     def _rename_conflicted_file(self, abspath_u, replacement_path_u):
         self._log("_rename_conflicted_file(%r, %r)" % (abspath_u, replacement_path_u))
