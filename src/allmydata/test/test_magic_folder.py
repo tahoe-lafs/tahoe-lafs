@@ -560,7 +560,6 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             return downloaded_d
 
         def _wait_for(ign, something_to_do, alice=True):
-            print("DING", ign, something_to_do, alice)
             if alice:
                 downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
                 uploaded_d = self.alice_magicfolder.uploader.set_hook('processed')
@@ -888,11 +887,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.magicfolder.uploader._clock = self.up_clock
         self.magicfolder.downloader._clock = self.down_clock
 
-        def scan():
-            print("immediate scan")
-            return self.magicfolder.downloader._scan_remote_collective()
-        self.magicfolder.downloader._when_queue_is_empty = scan
-
         # XXX should probably be passing the reactor to instances when
         # they're created, but that's a ton of re-factoring, so we
         # side-step that issue by hacking it in here. However, we
@@ -909,10 +903,8 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
     def test_scan_once_on_startup(self):
         #self.collective_dircap = ""
         uploadable = Data("", self.magicfolder._client.convergence)
-        print "UP", uploadable
         self.magicfolder.uploader._clock.advance(99)
 
-        print "OHAI"
         yield self._check_uploader_count('files_uploaded', 0, magic=self.magicfolder)
         yield self._check_uploader_count('objects_queued', 0, magic=self.magicfolder)
         yield self._check_downloader_count('objects_conflicted', 0, magic=self.magicfolder)
