@@ -6,7 +6,6 @@ from types import NoneType
 from cStringIO import StringIO
 from datetime import datetime
 
-import humanize
 import simplejson
 
 from twisted.python import usage
@@ -23,6 +22,7 @@ from allmydata.scripts.common_http import do_http, format_http_success, \
 from allmydata.util import fileutil
 from allmydata.util import configutil
 from allmydata import uri
+from allmydata.util.abbreviate import abbreviate_space, abbreviate_time
 
 
 INVITE_SEPARATOR = "+"
@@ -250,7 +250,7 @@ def _print_item_status(item, now, longest):
     paddedname = (' ' * (longest - len(item['path']))) + item['path']
     if 'failure_at' in item:
         ts = datetime.fromtimestamp(item['started_at'])
-        prog = 'Failed %s (%s)' % (humanize.naturaltime(now - ts), ts)
+        prog = 'Failed %s (%s)' % (abbreviate_time(now - ts), ts)
     elif item['percent_done'] < 100.0:
         if 'started_at' not in item:
             prog = 'not yet started'
@@ -262,7 +262,7 @@ def _print_item_status(item, now, longest):
                     time_left = (100.0 - item['percent_done']) / rate
                     prog = '%2.1f%% done, around %s left' % (
                         item['percent_done'],
-                        humanize.naturaldelta(time_left),
+                        abbreviate_time(time_left),
                     )
                 else:
                     time_left = None
@@ -275,7 +275,7 @@ def _print_item_status(item, now, longest):
             keyname = verb + '_at'
             if keyname in item:
                 when = datetime.fromtimestamp(item[keyname])
-                prog = '%s %s' % (verb, humanize.naturaltime(now - when))
+                prog = '%s %s' % (verb, abbreviate_time(now - when))
                 break
 
     print "  %s: %s" % (paddedname, prog)
@@ -305,8 +305,8 @@ def status(options):
         size = meta['size']
         created = datetime.fromtimestamp(meta['metadata']['tahoe']['linkcrtime'])
         version = meta['metadata']['version']
-        nice_size = humanize.naturalsize(size)
-        nice_created = humanize.naturaltime(now - created)
+        nice_size = abbreviate_space(size)
+        nice_created = abbreviate_time(now - created)
         if captype != 'filenode':
             print "%20s: error, should be a filecap" % name
             continue
@@ -332,8 +332,8 @@ def status(options):
             size = meta['size']
             created = datetime.fromtimestamp(meta['metadata']['tahoe']['linkcrtime'])
             version = meta['metadata']['version']
-            nice_size = humanize.naturalsize(size)
-            nice_created = humanize.naturaltime(now - created)
+            nice_size = abbreviate_space(size)
+            nice_created = abbreviate_time(now - created)
             print "    %s (%s): %s, version=%s, created %s" % (n, nice_size, status, version, nice_created)
 
     with open(os.path.join(nodedir, u'private', u'api_auth_token'), 'rb') as f:
