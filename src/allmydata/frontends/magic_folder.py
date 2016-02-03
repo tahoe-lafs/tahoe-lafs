@@ -197,7 +197,7 @@ class QueueMixin(HookMixin):
             d = task.deferLater(self._clock, self._turn_delay, lambda: None)
             # ">=" is important here in scan scan_interval is 0
             if self._clock.seconds() - last_scan >= self.scan_interval:
-                yield self._scan(None)
+                yield self._scan(u'')#None)
                 last_scan = self._clock.seconds()
                 self._log("did scan; now %d" % last_scan)
             else:
@@ -299,7 +299,7 @@ class Uploader(QueueMixin):
         self.is_ready = True
         self._pending = self._db.get_all_relpaths()
         self._log("all_files %r" % (self._pending))
-        d = self._scan(None)
+        d = self._scan(u'')#None)
         def _add_pending(ign):
             # This adds all of the files that were in the db but not already processed
             # (normally because they have been deleted on disk).
