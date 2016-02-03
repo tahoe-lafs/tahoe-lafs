@@ -11,6 +11,8 @@ Compatibility and Dependency Updates
 
 Tahoe now requires Python 2.7 on all platforms. (#2445)
 
+Tahoe now requires Foolscap 0.10.1, which fixes incompatibilities with recent
+Twisted releases. (#2722, #2567)
 
 Release 1.10.2 (2015-07-30)
 '''''''''''''''''''''''''''
