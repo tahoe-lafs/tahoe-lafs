@@ -5,6 +5,8 @@ default: build
 
 PYTHON=python
 export PYTHON
+PYFLAKES=pyflakes
+export PYFLAKES
 
 # setup.py will extend sys.path to include our support/lib/... directory
 # itself. It will also create it in the beginning of the 'develop' command.
@@ -132,7 +134,7 @@ check-miscaptures:
 
 .PHONY: pyflakes
 pyflakes:
-	@$(PYTHON) -OOu `which pyflakes` $(SOURCES) |sort |uniq
+	$(PYFLAKES) $(SOURCES) |sort |uniq
 	@echo
 
 .PHONY: check-umids
