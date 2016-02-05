@@ -95,9 +95,6 @@ class WrapV1SubscriberInV2Interface: # for_v1
     def wrap_announce_v2(self, announcements):
         anns_v1 = [convert_announcement_v2_to_v1(ann) for ann in announcements]
         return self.original.callRemote("announce", set(anns_v1))
-    def wrap_set_encoding_parameters(self, parameters):
-        # note: unused
-        return self.original.callRemote("set_encoding_parameters", parameters)
     def notifyOnDisconnect(self, *args, **kwargs):
         return self.original.notifyOnDisconnect(*args, **kwargs)
 
