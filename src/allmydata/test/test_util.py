@@ -1006,9 +1006,10 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
     def test_format_time_y2038(self):
         seconds_per_day = 60*60*24
         leap_years_1970_to_2047_inclusive = ((2044 - 1968) // 4)
-        self.failUnlessEqual(time_format.format_time(time.gmtime(seconds_per_day*((2048 - 1970)*365+leap_years_1970_to_2047_inclusive))), '2048-01-01 00:00:00')
-
-    test_format_time_y2038.todo = "This test is known to fail on systems with 32-bit time_t."
+        try:
+            self.failUnlessEqual(time_format.format_time(time.gmtime(seconds_per_day*((2048 - 1970)*365+leap_years_1970_to_2047_inclusive))), '2048-01-01 00:00:00')
+        except unittest.FailTest:
+            raise unittest.SkipTest("Note: this system cannot handle dates after 2037.")
 
     def test_format_delta(self):
         time_1 = 1389812723
