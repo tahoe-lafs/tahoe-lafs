@@ -932,6 +932,10 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
         # time_format.iso_utc_time_to_localseconds() breaks if the timezone is
         # Europe/London.  (As soon as this unit test is done then I'll change
         # that implementation to something that works even in this case...)
+
+        if not self.have_working_tzset():
+            raise unittest.SkipTest("This test can't be run on a platform without time.tzset().")
+
         self.setTimezone("Europe/London")
         return self._help_test_epoch()
 
