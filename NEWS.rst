@@ -12,7 +12,37 @@ Compatibility and Dependency Updates
 Tahoe now requires Python 2.7 on all platforms. (#2445)
 
 Tahoe now requires Foolscap 0.10.1, which fixes incompatibilities with recent
-Twisted releases. (#2722, #2567)
+Twisted releases. (#2510, #2722, #2567)
+
+Tests should work with both Nevow 0.11 and 0.12 (#2663)
+
+Configuration Changes
+---------------------
+
+Leif's "preferred storage servers" was landed in revision 96eaca6. This adds
+"peers.preferred" to tahoe.cfg
+
+Aliases can (probably) be unicode.
+
+The introducer's "set_encoding_parameters" feature was removed.
+
+Other Fixes
+-----------
+
+Note: if these tickets are not user visible, they do not need to be explained
+here: merely listing the ticket numbers is sufficient.
+
+#2493: OS-X packaging improvements, so new installs will remove previous ones
+
+2499, 2511, 2567, 2556, 2663, 2723, 2543
+
+#1077: use standard time format in all WUI messages
+
+#1973: welcome-page cleanup: durations instead of timestamps, replace
+"announced" with "last received", remove "storage" column
+
+#1949, #2137: tahoe ls: remove -u shortcut for "--uri", leaving it for
+global --node-url option.
 
 Release 1.10.2 (2015-07-30)
 '''''''''''''''''''''''''''
