@@ -195,6 +195,9 @@ class TimezoneMixin(object):
         self.addCleanup(restoreTimezone)
         tzset_if_possible()
 
+    def have_working_tzset(self):
+        return hasattr(time, 'tzset')
+
 
 try:
     import win32file
