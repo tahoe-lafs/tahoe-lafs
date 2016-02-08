@@ -1,5 +1,5 @@
 
-import time, pprint, itertools
+import pprint, itertools
 import simplejson
 from twisted.internet import defer
 from nevow import rend, inevow, tags as T
@@ -103,8 +103,8 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         d = self.upload_results()
         def _convert(r):
             file_size = r.get_file_size()
-            time = r.get_timings().get(name)
-            return compute_rate(file_size, time)
+            duration = r.get_timings().get(name)
+            return compute_rate(file_size, duration)
         d.addCallback(_convert)
         return d
 
@@ -137,8 +137,8 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         d = self.upload_results()
         def _convert(r):
             fetch_size = r.get_ciphertext_fetched()
-            time = r.get_timings().get("cumulative_fetch")
-            return compute_rate(fetch_size, time)
+            duration = r.get_timings().get("cumulative_fetch")
+            return compute_rate(fetch_size, duration)
         d.addCallback(_convert)
         return d
 
@@ -287,8 +287,8 @@ class DownloadResultsRendererMixin(RateAndTimeMixin):
         d = self.download_results()
         def _convert(r):
             file_size = r.file_size
-            time = r.timings.get(name)
-            return compute_rate(file_size, time)
+            duration = r.timings.get(name)
+            return compute_rate(file_size, duration)
         d.addCallback(_convert)
         return d
 
@@ -721,8 +721,8 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
 
     def _get_rate(self, data, name):
         file_size = self.retrieve_status.get_size()
-        time = self.retrieve_status.timings.get(name)
-        return compute_rate(file_size, time)
+        duration = self.retrieve_status.timings.get(name)
+        return compute_rate(file_size, duration)
 
     def data_time_total(self, ctx, data):
         return self.retrieve_status.timings.get("total")
@@ -821,8 +821,8 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
 
     def _get_rate(self, data, name):
         file_size = self.publish_status.get_size()
-        time = self.publish_status.timings.get(name)
-        return compute_rate(file_size, time)
+        duration = self.publish_status.timings.get(name)
+        return compute_rate(file_size, duration)
 
     def data_time_total(self, ctx, data):
         return self.publish_status.timings.get("total")

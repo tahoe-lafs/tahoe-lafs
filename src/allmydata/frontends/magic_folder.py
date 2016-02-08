@@ -698,10 +698,6 @@ class Downloader(QueueMixin, WriteFileMixin):
     def _when_queue_is_empty(self):
         d = task.deferLater(self._clock, self.REMOTE_SCAN_INTERVAL, self._scan_remote_collective)
         d.addBoth(self._logcb, "after _scan_remote_collective 1")
-        def before(res):
-            print "before turn deque"
-            return res
-        d.addCallback(before)
         d.addCallback(lambda ign: self._turn_deque())
         return d
 

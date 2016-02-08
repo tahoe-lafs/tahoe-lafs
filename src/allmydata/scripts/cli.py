@@ -86,7 +86,7 @@ class ListAliasesOptions(FilesystemOptions):
 class ListOptions(FilesystemOptions):
     optFlags = [
         ("long", "l", "Use long format: show file sizes, and timestamps."),
-        ("uri", "u", "Show file/directory URIs."),
+        ("uri", None, "Show file/directory URIs."),
         ("readonly-uri", None, "Show read-only file/directory URIs."),
         ("classify", "F", "Append '/' to directory names, and '*' to mutable."),
         ("json", None, "Show the raw JSON output."),
