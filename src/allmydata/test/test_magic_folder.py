@@ -8,6 +8,7 @@ from allmydata.interfaces import IDirectoryNode
 from allmydata.util.assertutil import precondition
 
 from allmydata.util import fake_inotify, fileutil
+from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
@@ -840,20 +841,27 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1))
         d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 0, magic=self.bob_magicfolder))
 
-        def Alice_to_delete_file():
-            print "Alice deletes the file!\n"
-            os.unlink(self.file_path)
-            self.notify(to_filepath(self.file_path), self.inotify.IN_DELETE, magic=self.alice_magicfolder)
-        d.addCallback(_wait_for, Alice_to_delete_file)
+        def check_delete_file(ign):
+            d_bob = self.bob_magicfolder.uploader.set_hook('processed')
+            def Alice_to_delete_file():
+                print "Alice deletes the file!\n"
+                os.unlink(self.file_path)
+                self.notify(to_filepath(self.file_path), self.inotify.IN_DELETE, magic=self.alice_magicfolder)
 
-        def notify_bob_moved(ign):
-            d0 = self.bob_magicfolder.uploader.set_hook('processed')
+            d_alice = defer.succeed(None)
+            d_alice.addCallback(_wait_for, Alice_to_delete_file)
+
             p = abspath_expanduser_unicode(u"file1", base=self.bob_magicfolder.uploader._local_path_u)
-            self.notify(to_filepath(p), self.inotify.IN_MOVED_FROM, magic=self.bob_magicfolder, flush=False)
-            self.notify(to_filepath(p + u'.backup'), self.inotify.IN_MOVED_TO, magic=self.bob_magicfolder)
-            bob_clock.advance(0)
-            return d0
-        d.addCallback(notify_bob_moved)
+            if sys.platform == "win32":
+                self.notify(to_filepath(p), self.inotify.IN_MOVED_FROM, magic=self.bob_magicfolder, flush=False)
+                self.notify(to_filepath(p + u'.backup'), self.inotify.IN_MOVED_TO, magic=self.bob_magicfolder)
+            else:
+                self.notify(to_filepath(p + u'.backup'), self.inotify.IN_CREATE, magic=self.bob_magicfolder, flush=False)
+                self.notify(to_filepath(p), self.inotify.IN_DELETE, magic=self.bob_magicfolder)
+
+            d_alice.addCallback(lambda ign: bob_clock.advance(0))
+            return DeferredListShouldSucceed([d_alice, d_bob])
+        d.addCallback(check_delete_file)
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 1))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 1))
@@ -1188,6 +1196,69 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         # .tmp file shouldn't exist
         self.failIf(os.path.exists(local_file + u".tmp"))
 
+    def test_periodic_full_scan(self):
+        self.set_up_grid()
+        self.local_dir = abspath_expanduser_unicode(u"test_periodic_full_scan",base=self.basedir)
+        self.mkdir_nonascii(self.local_dir)
+
+        alice_clock = task.Clock()
+        d = self.do_create_magic_folder(0)
+        d.addCallback(lambda ign: self.do_invite(0, u"Alice\u00F8"))
+        def get_invite_code(result):
+            self.invite_code = result[1].strip()
+        d.addCallback(get_invite_code)
+        d.addCallback(lambda ign: self.do_join(0, self.local_dir, self.invite_code))
+        def get_alice_caps(ign):
+            self.alice_collective_dircap, self.alice_upload_dircap = self.get_caps_from_files(0)
+        d.addCallback(get_alice_caps)
+        d.addCallback(lambda ign: self.check_joined_config(0, self.alice_upload_dircap))
+        d.addCallback(lambda ign: self.check_config(0, self.local_dir))
+        def get_Alice_magicfolder(result):
+            self.magicfolder = self.init_magicfolder(0, self.alice_upload_dircap,
+                                                           self.alice_collective_dircap,
+                                                           self.local_dir, alice_clock)
+            return result
+        d.addCallback(get_Alice_magicfolder)
+        empty_tree_name = self.unicode_or_fallback(u"empty_tr\u00EAe", u"empty_tree")
+        empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
+        new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
+
+        def _check_move_empty_tree(res):
+            print "CHECK MOVE EMPTY TREE"
+            uploaded_d = self.magicfolder.uploader.set_hook('processed')
+            self.mkdir_nonascii(empty_tree_dir)
+            os.rename(empty_tree_dir, new_empty_tree_dir)
+            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
+            return uploaded_d
+        d.addCallback(_check_move_empty_tree)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 1))
+
+        def _create_file_without_event(res):
+            print "CREATE FILE WITHOUT EMITTING EVENT"
+            processed_d = self.magicfolder.uploader.set_hook('processed')
+            what_path = abspath_expanduser_unicode(u"what", base=new_empty_tree_dir)
+            fileutil.write(what_path, "say when")
+            print "ADVANCE CLOCK"
+            alice_clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
+            return processed_d
+        d.addCallback(_create_file_without_event)
+        def _advance_clock(res):
+            print "_advance_clock"
+            processed_d = self.magicfolder.uploader.set_hook('processed')
+            alice_clock.advance(0)
+            return processed_d
+        d.addCallback(_advance_clock)
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1))
+        def cleanup(res):
+            d2 = self.magicfolder.finish()
+            alice_clock.advance(0)
+            return d2
+        d.addCallback(cleanup)
+        return d
 
 class RealTest(MagicFolderTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""

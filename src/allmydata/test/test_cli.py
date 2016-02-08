@@ -1242,6 +1242,19 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
         self.failUnlessEqual(o.where, u"")
 
+        # -u for --node-url used to clash with -u for --uri (tickets #1949 and #2137).
+        o = parse2(["-u", "http://example.org:8111/"])
+        self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.where, u"")
+        self.failIf(o["uri"])
+
+        o = parse2(["-u", "http://example.org:8111/", "--uri"])
+        self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.where, u"")
+        self.failUnless(o["uri"])
+
         o = parse2(["--dir-cap", "root"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], "root")
