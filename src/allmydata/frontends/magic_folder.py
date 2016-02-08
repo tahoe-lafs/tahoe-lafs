@@ -13,6 +13,7 @@ from allmydata.util import fileutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import precondition_abspath, get_pathinfo, ConflictError
+from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.encodingutil import listdir_filepath, to_filepath, \
@@ -771,5 +772,10 @@ class Downloader(QueueMixin, WriteFileMixin):
         def trap_conflicts(f):
             f.trap(ConflictError)
             return None
+        def trap_unrecoverable(f):
+            f.trap(UnrecoverableFileError)
+            print "UnrecoverableFileError --------------- !!!"
+            return None            
         d.addErrback(trap_conflicts)
+        d.addErrback(trap_unrecoverable)
         return d
