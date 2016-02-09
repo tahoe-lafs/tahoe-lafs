@@ -484,16 +484,22 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             else:
                 downloaded_d = self.alice_magicfolder.downloader.set_hook('processed')
                 uploaded_d = self.bob_magicfolder.uploader.set_hook('processed')
-            something_to_do()
-            if alice:
-                print "Waiting for Alice to upload\n"
-                alice_clock.advance(4)
-                uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
-            else:
-                print "Waiting for Bob to upload\n"
-                bob_clock.advance(4)
-                uploaded_d.addCallback(_wait_for_Alice, downloaded_d)
-            return uploaded_d
+
+            d = something_to_do()
+
+            def advance(ign):
+                if alice:
+                    print "Waiting for Alice to upload 3\n"
+                    alice_clock.advance(4)
+                    alice_clock.advance(4)
+                    uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
+                else:
+                    print "Waiting for Bob to upload\n"
+                    bob_clock.advance(4)
+                    uploaded_d.addCallback(_wait_for_Alice, downloaded_d)
+                return uploaded_d
+            d.addCallback(advance)
+            return d
 
         def Alice_to_write_a_file():
             print "Alice writes a file\n"
