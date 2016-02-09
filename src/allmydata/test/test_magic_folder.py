@@ -639,7 +639,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             print "Alice rewrites file\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "Alice suddenly sees the white rabbit running into the forest.")
-            self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+            return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
         d.addCallback(_wait_for, Alice_to_rewrite_file)
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 2))
