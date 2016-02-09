@@ -1193,53 +1193,28 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             for server_id in self.g.get_all_serverids():
                 self.g.break_server(server_id, count=1)
 
-        def _wait_for_Alice(ign, downloaded_d):
-            print "Now waiting for Alice to download\n"
-            alice_clock.advance(0)
-            return downloaded_d
-
-        def _wait_for_Bob(ign, downloaded_d):
-            print "Now waiting for Bob to download\n"
-            bob_clock.advance(0)
-            return downloaded_d
-
-        def advance_both(res):
-            bob_clock.advance(0)
-            alice_clock.advance(0)
-
-        def _wait_for(ign, something_to_do):
-            downloaded_d = defer.succeed(None)
+        def test_download_retry(res):
             uploaded_d = self.alice_magicfolder.uploader.set_hook('processed')
-            something_to_do()
-            print "Waiting for Alice to upload\n"
-            alice_clock.advance(0)
-            uploaded_d.addCallback(_grid_fail)
-            uploaded_d.addCallback(lambda ign: bob_clock.advance(0))
-            uploaded_d.addCallback(lambda ign: alice_clock.advance(0))
-            uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
-            return uploaded_d
-
-        def Alice_to_write_a_file():
-            uploaded_d = self.alice_magicfolder.downloader.set_hook('processed')
-            downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
-
             print "Alice writes a file\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-
-            return downloaded_d.addCallback(lambda res: uploaded_d)
-
-        d.addCallback(_wait_for, Alice_to_write_a_file)
-        d.addCallback(advance_both)
-
-        def do_more_stuff(res):
+            alice_clock.advance(0)
             downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
             bob_clock.advance(0)
-            return downloaded_d
-        d.addCallback(do_more_stuff)
 
-        #uploaded_d = self.bob_magicfolder.uploader.set_hook('processed')
+            def after_upload(res):
+                print "AFTER UPLOAD"
+                return uploaded_d
+            uploaded_d.addCallback(after_upload)
+            def download(res):
+                print "WAIT FOR BOB DOWNLOAD"
+                bob_clock.advance(0)
+                return downloaded_d
+            uploaded_d.addCallback(download)
+            return uploaded_d
+
+        d.addCallback(test_download_retry)
         d.addCallback(lambda ign: self._check_downloader_count('directories_created', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder))
