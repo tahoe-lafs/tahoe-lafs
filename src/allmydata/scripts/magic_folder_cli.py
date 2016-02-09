@@ -17,8 +17,7 @@ from .cli import MakeDirectoryOptions, LnOptions, CreateAliasOptions
 import tahoe_mv
 from allmydata.util.encodingutil import argv_to_abspath, argv_to_unicode, to_str, \
     quote_local_unicode_path
-from allmydata.scripts.common_http import do_http, format_http_success, \
-    format_http_error, BadResponse
+from allmydata.scripts.common_http import do_http, BadResponse
 from allmydata.util import fileutil
 from allmydata.util import configutil
 from allmydata import uri
