@@ -1,14 +1,14 @@
 
 import binascii
-import time
-now = time.time
+from time import time as now
+
 from zope.interface import implements
 from twisted.internet import defer
 
 from allmydata import uri
 from twisted.internet.interfaces import IConsumer
 from allmydata.interfaces import IImmutableFileNode, IUploadResults
-from allmydata.util import consumer, progress
+from allmydata.util import consumer
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.util.dictutil import DictOfSets
 from allmydata.util.happinessutil import servers_of_happiness
