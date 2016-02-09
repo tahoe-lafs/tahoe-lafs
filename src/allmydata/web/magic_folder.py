@@ -2,10 +2,10 @@ import simplejson
 
 from twisted.web.server import UnsupportedMethod
 
-from nevow import rend, url, tags as T
+from nevow import rend
 from nevow.inevow import IRequest
 
-from allmydata.web.common import getxmlfile, get_arg, WebError
+from allmydata.web.common import get_arg, WebError
 
 
 class MagicFolderWebApi(rend.Page):
