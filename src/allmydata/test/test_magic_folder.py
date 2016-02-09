@@ -738,13 +738,14 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
 
-        # don't we need to wait for bob to download it?
-        def foo(ign):
+        def advance(ign):
             alice_clock.advance(4)
             bob_clock.advance(4)
-            print("foo!")
-        d.addCallback(foo)
-        d.addCallback(lambda ign: task.deferLater(reactor, 2.0, lambda: None))
+            # don't we need to wait for bob to download it (otherwise
+            # bob has version 0 too)? hacking in via a pause
+            # instead. No idea how/why this worked before.
+            return task.deferLater(reactor, 2.0, lambda: None)
+        d.addCallback(advance)
 
         def Bob_to_rewrite_file2():
             print "Bob rewrites file\n"
