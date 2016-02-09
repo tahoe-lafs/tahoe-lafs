@@ -728,7 +728,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
 
         # prepare to perform another conflict test
         def Alice_to_write_file2():
-            print "Alice writes a file\n"
+            print "Alice writes a file2\n"
             self.file_path = abspath_expanduser_unicode(u"file2", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "something")
             return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
@@ -741,14 +741,17 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         def advance(ign):
             alice_clock.advance(4)
             bob_clock.advance(4)
-            # don't we need to wait for bob to download it (otherwise
-            # bob has version 0 too)? hacking in via a pause
-            # instead. No idea how/why this worked before.
-            return task.deferLater(reactor, 2.0, lambda: None)
+            # we need to pause here, or make "is_new_file()" more
+            # robust, because this is now fast enough that the mtime
+            # of the allegedly-new file matches, so Bob decides not to
+            # upload (and the test hangs). Not sure why it worked
+            # before; must have been *just* slow enough?
+            return task.deferLater(reactor, 0.1, lambda: None)
         d.addCallback(advance)
+        d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file2", 0))
 
         def Bob_to_rewrite_file2():
-            print "Bob rewrites file\n"
+            print "Bob rewrites file2\n"
             self.file_path = abspath_expanduser_unicode(u"file2", base=self.bob_magicfolder.uploader._local_path_u)
             print "---- bob's file is %r" % (self.file_path,)
             fileutil.write(self.file_path, "roger roger. what vector?")
