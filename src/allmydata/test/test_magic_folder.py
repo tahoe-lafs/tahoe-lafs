@@ -646,8 +646,17 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
         d.addCallback(_wait_for, Alice_to_write_file2)
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file2", 0))
+        d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file2", 0))
         d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
+
+        # don't we need to wait for bob to download it?
+        def foo(ign):
+            alice_clock.advance(4)
+            bob_clock.advance(4)
+            print("foo!")
+        d.addCallback(foo)
+        d.addCallback(lambda ign: task.deferLater(reactor, 2.0, lambda: None))
 
         def Bob_to_rewrite_file2():
             print "Bob rewrites file\n"
@@ -713,10 +722,13 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 2, magic=self.alice_magicfolder))
 
-        alice_clock.advance(6)
-        bob_clock.advance(6)
-        alice_clock.advance(6)
-        bob_clock.advance(6)
+        def foo(ign):
+            alice_clock.advance(6)
+            bob_clock.advance(6)
+            alice_clock.advance(6)
+            bob_clock.advance(6)
+            print("ZINGAU")
+        d.addCallback(foo)
 
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 2, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
