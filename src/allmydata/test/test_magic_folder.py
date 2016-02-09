@@ -1195,21 +1195,17 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
 
         def test_download_retry(res):
             uploaded_d = self.alice_magicfolder.uploader.set_hook('processed')
+            downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
             print "Alice writes a file\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-            alice_clock.advance(0)
-            downloaded_d = self.bob_magicfolder.downloader.set_hook('processed')
-            bob_clock.advance(0)
+            alice_clock.advance(3)
+            bob_clock.advance(3)
 
-            def after_upload(res):
-                print "AFTER UPLOAD"
-                return uploaded_d
-            uploaded_d.addCallback(after_upload)
             def download(res):
                 print "WAIT FOR BOB DOWNLOAD"
-                bob_clock.advance(0)
+                bob_clock.advance(3)
                 return downloaded_d
             uploaded_d.addCallback(download)
             return uploaded_d
