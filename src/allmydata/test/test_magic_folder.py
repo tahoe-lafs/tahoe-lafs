@@ -1200,12 +1200,12 @@ class MagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqual
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
             self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-            alice_clock.advance(3)
-            bob_clock.advance(3)
+            alice_clock.advance(0)
+            bob_clock.advance(0)
 
             def download(res):
                 print "WAIT FOR BOB DOWNLOAD"
-                bob_clock.advance(3)
+                bob_clock.advance(0)
                 return downloaded_d
             uploaded_d.addCallback(download)
             return uploaded_d
