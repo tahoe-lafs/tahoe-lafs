@@ -20,13 +20,16 @@
   <li>Files Retrieved (mutable): <span n:render="retrieves" /></li>
 </ul>
 
-<h2>Drop-Uploader</h2>
+<h2>Magic Folder</h2>
 
 <ul>
-  <li>Local Directories Monitored: <span n:render="drop_monitored" /></li>
-  <li>Files Uploaded: <span n:render="drop_uploads" /></li>
-  <li>File Changes Queued: <span n:render="drop_queued" /></li>
-  <li>Failed Uploads: <span n:render="drop_failed" /></li>
+  <li>Local Directories Monitored: <span n:render="magic_uploader_monitored" /></li>
+  <li>Files Uploaded: <span n:render="magic_uploader_succeeded" /></li>
+  <li>Files Queued for Upload: <span n:render="magic_uploader_queued" /></li>
+  <li>Failed Uploads: <span n:render="magic_uploader_failed" /></li>
+  <li>Files Downloaded: <span n:render="magic_downloader_succeeded" /></li>
+  <li>Files Queued for Download: <span n:render="magic_downloader_queued" /></li>
+  <li>Failed Downloads: <span n:render="magic_downloader_failed" /></li>
 </ul>
 
 <h2>Raw Stats:</h2>
