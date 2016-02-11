@@ -716,6 +716,22 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     # the key, which should cause the download to fail the post-download
     # plaintext_hash check.
 
+    def test_statistics_for_magic_folder(self):
+        self.basedir = "system/SystemTest/test_statistics_for_magic_folder"
+        d = self.set_up_nodes()
+        # see if the statistics page exists
+        d.addCallback(lambda res: self.GET("statistics"))
+        def _got_stats(res):
+            self.failUnlessIn("Operational Statistics", res)
+            self.failUnlessIn("Magic Folder", res)
+        d.addCallback(_got_stats)
+        d.addCallback(lambda res: self.GET("statistics?t=json"))
+        def _got_stats_json(res):
+            data = simplejson.loads(res)
+            #self.failUnlessEqual(data["counters"]["uploader.files_uploaded"], 0)
+        d.addCallback(_got_stats_json)
+        return d                                                                                                            
+
     def test_filesystem(self):
         self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
