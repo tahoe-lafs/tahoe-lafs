@@ -601,9 +601,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
     def test_make_dirs_with_absolute_mode(self):
         workdir = u"test_make_dirs_with_absolute_mode"
         fileutil.make_dirs(workdir)
-        fileutil.make_dirs_with_absolute_mode(workdir, os.path.join(workdir,"a/b/c/d"), 0766)
-        new_mode = os.stat(os.path.join(workdir,"a/b/c/d")).st_mode & 0777
-        self.failUnlessEqual(new_mode, 0766)
+        fileutil.make_dirs_with_absolute_mode(workdir, os.path.join(workdir,"a/b/c"), 0766)
         new_mode = os.stat(os.path.join(workdir,"a/b/c")).st_mode & 0777
         self.failUnlessEqual(new_mode, 0766)
         new_mode = os.stat(os.path.join(workdir,"a/b")).st_mode & 0777
