@@ -170,7 +170,7 @@ def is_ancestor_path(parent, dirname):
             return False
     return True
 
-def make_dirs_with_absolute_mode(parent, dirname, mode,):
+def make_dirs_with_absolute_mode(parent, dirname, mode):
     """
     Make directory `dirname` and chmod it to `mode` afterwards.
     We chmod all parent directories of `dirname` until we reach
