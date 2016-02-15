@@ -142,27 +142,31 @@ class EncryptedTemporaryFile:
         old end-of-file are unspecified. The file position after this operation is unspecified."""
         self.file.truncate(newsize)
 
-
 def make_dirs_with_absolute_mode(parent, dirname, mode):
     """
     Make directory `dirname` and chmod it to `mode` afterwards.
     We chmod all parent directories of `dirname` until we reach
     `parent`.
     """
-    make_dirs(dirname)
-    os.chmod(dirname, mode)
-    initial, last = os.path.split(dirname)
-    if os.path.abspath(initial) == os.path.abspath(parent):
-        return
-    else:
-        os.chmod(initial, mode)
-    while initial and os.path.abspath(initial) != os.path.abspath(parent):
-        initial, last = os.path.split(initial)
-        if os.path.abspath(initial) == os.path.abspath(parent):
-            break
-        else:
-            os.chmod(initial, mode)
+    precondition_abspath(parent)
+    precondition_abspath(dirname)
+    if not is_ancestor_path(parent, dirname):
+        raise AssertionError("dirname must be a descendant of parent")
 
+    make_dirs(dirname)
+    while dirname != parent:
+        os.chmod(dirname, mode)
+        # FIXME: doesn't seem to work on Windows for long paths
+        old_dirname, dirname = dirname, os.path.dirname(dirname)
+        _assert(len(dirname) < len(old_dirname), dirname=dirname, old_dirname=old_dirname)
+
+def is_ancestor_path(parent, dirname):
+    while dirname != parent:
+        # FIXME: doesn't seem to work on Windows for long paths
+        old_dirname, dirname = dirname, os.path.dirname(dirname)
+        if len(dirname) >= len(old_dirname):
+            return False
+    return True
 
 def make_dirs(dirname, mode=0777):
     """
