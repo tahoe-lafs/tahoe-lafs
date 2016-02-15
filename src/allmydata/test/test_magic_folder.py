@@ -1238,8 +1238,8 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         return d
 
     def test_write_downloaded_file(self):
-        workdir = u"cli/MagicFolder/write-downloaded-file"
-        local_file = fileutil.abspath_expanduser_unicode(os.path.join(workdir, "foobar"))
+        workdir = fileutil.abspath_expanduser_unicode(u"cli/MagicFolder/write-downloaded-file")
+        local_file = fileutil.abspath_expanduser_unicode(u"foobar", base=workdir)
 
         class TestWriteFileMixin(WriteFileMixin):
             def _log(self, msg):
