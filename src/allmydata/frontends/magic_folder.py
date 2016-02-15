@@ -593,8 +593,8 @@ class WriteFileMixin(object):
         if now is None:
             now = time.time()
 
-        initial, last = os.path.split(abspath_u)
-        fileutil.make_dirs_with_absolute_mode(local_path_u, initial, (~ self._umask) & 0777)
+        initial_path_u = os.path.dirname(abspath_u)
+        fileutil.make_dirs_with_absolute_mode(local_path_u, initial_path_u, (~ self._umask) & 0777)
         fileutil.write(replacement_path_u, file_contents)
         os.chmod(replacement_path_u, (~ self._umask) & 0777)
 
