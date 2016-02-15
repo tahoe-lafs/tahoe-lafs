@@ -15,6 +15,8 @@ from twisted.python import log
 
 from pycryptopp.cipher.aes import AES
 
+from allmydata.util.assertutil import _assert
+
 
 def rename(src, dst, tries=4, basedelay=0.1):
     """ Here is a superkludge to workaround the fact that occasionally on
