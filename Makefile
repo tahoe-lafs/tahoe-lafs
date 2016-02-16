@@ -12,7 +12,7 @@ export PYFLAKES
 # itself. It will also create it in the beginning of the 'develop' command.
 
 TAHOE=$(PYTHON) bin/tahoe
-SOURCES=src/allmydata src/buildtest static misc bin/tahoe-script.template setup.py
+SOURCES=src/allmydata src/buildtest static misc setup.py
 APPNAME=allmydata-tahoe
 
 # This is necessary only if you want to automatically produce a new
