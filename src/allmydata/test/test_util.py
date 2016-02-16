@@ -598,6 +598,20 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
             finally:
                 os.chdir(saved_cwd)
 
+    def test_make_dirs_with_absolute_mode(self):
+        workdir = fileutil.abspath_expanduser_unicode(u"test_make_dirs_with_absolute_mode")
+        fileutil.make_dirs(workdir)
+        abspath = fileutil.abspath_expanduser_unicode(u"a/b/c", base=workdir)
+        fileutil.make_dirs_with_absolute_mode(workdir, abspath, 0766)
+        new_mode = os.stat(os.path.join(workdir,"a/b/c")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir,"a/b")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir,"a")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(workdir).st_mode & 0777
+        self.failIfEqual(new_mode, 0766)
+
     def test_create_long_path(self):
         workdir = u"test_create_long_path"
         fileutil.make_dirs(workdir)

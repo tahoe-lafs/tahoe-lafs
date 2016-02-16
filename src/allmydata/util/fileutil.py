@@ -15,6 +15,8 @@ from twisted.python import log
 
 from pycryptopp.cipher.aes import AES
 
+from allmydata.util.assertutil import _assert
+
 
 def rename(src, dst, tries=4, basedelay=0.1):
     """ Here is a superkludge to workaround the fact that occasionally on
@@ -142,6 +144,31 @@ class EncryptedTemporaryFile:
         old end-of-file are unspecified. The file position after this operation is unspecified."""
         self.file.truncate(newsize)
 
+def make_dirs_with_absolute_mode(parent, dirname, mode):
+    """
+    Make directory `dirname` and chmod it to `mode` afterwards.
+    We chmod all parent directories of `dirname` until we reach
+    `parent`.
+    """
+    precondition_abspath(parent)
+    precondition_abspath(dirname)
+    if not is_ancestor_path(parent, dirname):
+        raise AssertionError("dirname must be a descendant of parent")
+
+    make_dirs(dirname)
+    while dirname != parent:
+        os.chmod(dirname, mode)
+        # FIXME: doesn't seem to work on Windows for long paths
+        old_dirname, dirname = dirname, os.path.dirname(dirname)
+        _assert(len(dirname) < len(old_dirname), dirname=dirname, old_dirname=old_dirname)
+
+def is_ancestor_path(parent, dirname):
+    while dirname != parent:
+        # FIXME: doesn't seem to work on Windows for long paths
+        old_dirname, dirname = dirname, os.path.dirname(dirname)
+        if len(dirname) >= len(old_dirname):
+            return False
+    return True
 
 def make_dirs(dirname, mode=0777):
     """

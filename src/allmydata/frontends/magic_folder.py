@@ -573,7 +573,7 @@ class WriteFileMixin(object):
     def _get_conflicted_filename(self, abspath_u):
         return abspath_u + u".conflict"
 
-    def _write_downloaded_file(self, abspath_u, file_contents, is_conflict=False, now=None):
+    def _write_downloaded_file(self, local_path_u, abspath_u, file_contents, is_conflict=False, now=None):
         self._log("_write_downloaded_file(%r, <%d bytes>, is_conflict=%r, now=%r)"
                   % (abspath_u, len(file_contents), is_conflict, now))
 
@@ -593,16 +593,15 @@ class WriteFileMixin(object):
         if now is None:
             now = time.time()
 
-        # ensure parent directory exists
-        head, tail = os.path.split(abspath_u)
+        initial_path_u = os.path.dirname(abspath_u)
+        fileutil.make_dirs_with_absolute_mode(local_path_u, initial_path_u, (~ self._umask) & 0777)
+        fileutil.write(replacement_path_u, file_contents)
+        os.chmod(replacement_path_u, (~ self._umask) & 0777)
 
-        old_mask = os.umask(self._umask)
-        try:
-            fileutil.make_dirs(head, (~ self._umask) & 0777)
-            fileutil.write(replacement_path_u, file_contents)
-        finally:
-            os.umask(old_mask)
-
+        # FUDGE_SECONDS is used to determine if another process
+        # has written to the same file concurrently. This is described
+        # in the Earth Dragon section of our design document:
+        # docs/proposed/magic-folder/remote-to-local-sync.rst
         os.utime(replacement_path_u, (now, now - self.FUDGE_SECONDS))
         if is_conflict:
             print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
@@ -884,7 +883,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                     d.addCallback(lambda ign: self._rename_deleted_file(abspath_u))
                 else:
                     d.addCallback(lambda ign: item.file_node.download_best_version(progress=item.progress))
-                    d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents,
+                    d.addCallback(lambda contents: self._write_downloaded_file(self._local_path_u, abspath_u, contents,
                                                                                is_conflict=is_conflict))
 
         d.addCallbacks(do_update_db, failed)

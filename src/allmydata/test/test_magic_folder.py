@@ -1238,8 +1238,8 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         return d
 
     def test_write_downloaded_file(self):
-        workdir = u"cli/MagicFolder/write-downloaded-file"
-        local_file = fileutil.abspath_expanduser_unicode(os.path.join(workdir, "foobar"))
+        workdir = fileutil.abspath_expanduser_unicode(u"cli/MagicFolder/write-downloaded-file")
+        local_file = fileutil.abspath_expanduser_unicode(u"foobar", base=workdir)
 
         class TestWriteFileMixin(WriteFileMixin):
             def _log(self, msg):
@@ -1254,7 +1254,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         fileutil.write(local_file, "foo")
 
         # if is_conflict is False, then the .conflict file shouldn't exist.
-        writefile._write_downloaded_file(local_file, "bar", False, None)
+        writefile._write_downloaded_file(workdir, local_file, "bar", False, None)
         conflicted_path = local_file + u".conflict"
         self.failIf(os.path.exists(conflicted_path))
 
@@ -1270,7 +1270,7 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         self.failUnlessEqual(fileutil.read(local_file), "bar")
 
         # now a test for conflicted case
-        writefile._write_downloaded_file(local_file, "bar", True, None)
+        writefile._write_downloaded_file(workdir, local_file, "bar", True, None)
         self.failUnless(os.path.exists(conflicted_path))
 
         # .tmp file shouldn't exist
