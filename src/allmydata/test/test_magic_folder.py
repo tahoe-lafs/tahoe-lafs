@@ -1,6 +1,6 @@
 
 import os, sys
-import shutil
+import shutil, simplejson
 
 from twisted.trial import unittest
 from twisted.internet import defer, task
@@ -1339,6 +1339,33 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
             return d2
         d.addCallback(cleanup)
         return d
+
+    def test_statistics(self):
+        self.set_up_grid()
+        self.local_dir = abspath_expanduser_unicode(u"test_statistics", base=self.basedir)
+        self.mkdir_nonascii(self.local_dir)
+
+        d = self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
+        d.addCallback(self._restart_client)
+
+        # Write something short enough for a LIT file.
+        d.addCallback(lambda ign: self._check_file(u"short", "test"))
+
+        # test magic-folder statistics
+        d.addCallback(lambda res: self.GET("statistics"))
+        def _got_stats(res):
+            self.failUnlessIn("Operational Statistics", res)
+            self.failUnlessIn("Magic Folder", res)
+        d.addCallback(_got_stats)
+        d.addCallback(lambda res: self.GET("statistics?t=json"))
+        def _got_stats_json(res):
+            data = simplejson.loads(res)
+            print data["counters"]
+            self.failUnlessEqual(data["counters"]["magic_folder.uploader.files_uploaded"], 1)
+        d.addCallback(_got_stats_json)
+        d.addBoth(self.cleanup)
+        return d
+
 
 class RealTest(MagicFolderTestMixin, unittest.TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
