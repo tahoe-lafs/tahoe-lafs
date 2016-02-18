@@ -1356,12 +1356,21 @@ class MockTest(MagicFolderTestMixin, unittest.TestCase):
         def _got_stats(res):
             self.failUnlessIn("Operational Statistics", res)
             self.failUnlessIn("Magic Folder", res)
+            self.failUnlessIn("<li>Local Directories Monitored: 1 directories</li>", res)
+            self.failUnlessIn("<li>Files Uploaded: 1 files</li>", res)
+            self.failUnlessIn("<li>Files Queued for Upload: 0 files</li>", res)
+            self.failUnlessIn("<li>Failed Uploads: 0 files</li>", res)
+            self.failUnlessIn("<li>Files Downloaded: 0 files</li>", res)
+            self.failUnlessIn("<li>Files Queued for Download: 0 files</li>", res)
+            self.failUnlessIn("<li>Failed Downloads: 0 files</li>", res)
         d.addCallback(_got_stats)
         d.addCallback(lambda res: self.GET("statistics?t=json"))
         def _got_stats_json(res):
             data = simplejson.loads(res)
-            print data["counters"]
+            self.failUnlessEqual(data["counters"]["magic_folder.uploader.dirs_monitored"], 1)
+            self.failUnlessEqual(data["counters"]["magic_folder.uploader.objects_succeeded"], 1)
             self.failUnlessEqual(data["counters"]["magic_folder.uploader.files_uploaded"], 1)
+            self.failUnlessEqual(data["counters"]["magic_folder.uploader.objects_queued"], 0)
         d.addCallback(_got_stats_json)
         d.addBoth(self.cleanup)
         return d
