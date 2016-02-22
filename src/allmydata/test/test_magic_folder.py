@@ -38,6 +38,8 @@ class MagicFolderDbTests(unittest.TestCase):
         self.failUnlessEqual(self.db.VERSION, 1)
 
     def tearDown(self):
+        if hasattr(self, 'db'):
+            self.db.close()
         shutil.rmtree(self.temp)
 
     def test_create(self):

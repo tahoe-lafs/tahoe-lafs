@@ -53,6 +53,9 @@ class MagicFolderDB(object):
         self.connection = connection
         self.cursor = connection.cursor()
 
+    def close(self):
+        self.connection.close()
+
     def get_db_entry(self, relpath_u):
         """
         Retrieve the entry in the database for a given path, or return None
