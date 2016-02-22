@@ -129,6 +129,7 @@ def print_py_pkg_ver(pkgname, modulename=None):
 print_platform()
 print
 print_python_ver()
+print_stdout(['virtualenv', '--version'])
 print
 print_stdout(['locale'])
 print_python_encoding_settings()
