@@ -148,7 +148,9 @@ def normalized_version(verstr, what=None):
     try:
         suggested = verlib.suggest_normalized_version(verstr) or verstr
         return verlib.NormalizedVersion(suggested)
-    except (StandardError, verlib.IrrationalVersionError):
+    except verlib.IrrationalVersionError:
+        raise
+    except StandardError:
         cls, value, trace = sys.exc_info()
         raise PackagingError, ("could not parse %s due to %s: %s"
                                % (what or repr(verstr), cls.__name__, value)), trace
@@ -284,9 +286,15 @@ def check_requirement(req, vers_and_locs):
         raise ImportError("for requirement %r: %s" % (req, comment))
     if actual == 'unknown':
         return
-    actualver = normalized_version(actual, what="actual version %r of %s from %r" % (actual, name, location))
+    try:
+        actualver = normalized_version(actual, what="actual version %r of %s from %r" %
+                                               (actual, name, location))
+        matched = match_requirement(req, reqlist, actualver)
+    except verlib.IrrationalVersionError:
+        # meh, it probably doesn't matter
+        return
 
-    if not match_requirement(req, reqlist, actualver):
+    if not matched:
         msg = ("We require %s, but could only find version %s.\n" % (req, actual))
         if location and location != 'unknown':
             msg += "The version we found is from %r.\n" % (location,)
@@ -359,6 +367,8 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
 
             try:
                 pr_normver = normalized_version(pr_ver)
+            except verlib.IrrationalVersionError:
+                continue
             except Exception, e:
                 errors.append("Warning: version number %r found for dependency %r by pkg_resources could not be parsed. "
                               "The version found by import was %r from %r. "
@@ -374,6 +384,8 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                 else:
                     try:
                         imp_normver = normalized_version(imp_ver)
+                    except verlib.IrrationalVersionError:
+                        continue
                     except Exception, e:
                         errors.append("Warning: version number %r found for dependency %r (imported from %r) could not be parsed. "
                                       "pkg_resources thought it should be version %r at %r. "
