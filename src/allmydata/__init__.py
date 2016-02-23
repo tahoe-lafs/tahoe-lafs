@@ -212,6 +212,14 @@ def get_package_versions_and_locations():
             warnings.filters.pop()
 
     packages = []
+    pkg_resources_vers_and_locs = dict()
+
+    if not hasattr(sys, 'frozen'):
+        import pkg_resources
+        from _auto_deps import install_requires
+
+        pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
+                                            for p in pkg_resources.require(install_requires)])
 
     def get_version(module):
         if hasattr(module, '__version__'):
@@ -241,7 +249,13 @@ def get_package_versions_and_locations():
                 elif pkgname == 'setuptools' and hasattr(module, '_distribute'):
                     # distribute does not report its version in any module variables
                     comment = 'distribute'
-                packages.append( (pkgname, (get_version(module), package_dir(module.__file__), comment)) )
+                ver = get_version(module)
+                loc = package_dir(module.__file__)
+                if ver == "unknown" and pkgname in pkg_resources_vers_and_locs:
+                    (pr_ver, pr_loc) = pkg_resources_vers_and_locs[pkgname]
+                    if loc == os.path.normcase(os.path.realpath(pr_loc)):
+                        ver = pr_ver
+                packages.append( (pkgname, (ver, loc, comment)) )
         elif pkgname == 'python':
             packages.append( (pkgname, (platform.python_version(), sys.executable, None)) )
         elif pkgname == 'platform':
@@ -251,13 +265,7 @@ def get_package_versions_and_locations():
 
     cross_check_errors = []
 
-    if not hasattr(sys, 'frozen'):
-        import pkg_resources
-        from _auto_deps import install_requires
-
-        pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
-                                            for p in pkg_resources.require(install_requires)])
-
+    if len(pkg_resources_vers_and_locs) > 0:
         imported_packages = set([p.lower() for (p, _) in packages])
         extra_packages = []
 
