@@ -75,6 +75,8 @@ __requires__ = install_requires[:]
 from setuptools import setup
 from setuptools.command import sdist
 from setuptools import Command
+from setuptools.command import install
+
 
 trove_classifiers=[
     "Development Status :: 5 - Production/Stable",
@@ -180,7 +182,7 @@ class Trial(Command):
 
 class MakeExecutable(Command):
     description = "make the 'bin%stahoe' scripts" % (os.sep,)
-    user_options = []
+    user_options = install.install.user_options
 
     def initialize_options(self):
         pass
@@ -314,7 +316,7 @@ def versions_from_git(tag_prefix):
 
 class UpdateVersion(Command):
     description = "update _version.py from revision-control metadata"
-    user_options = []
+    user_options = install.install.user_options
 
     def initialize_options(self):
         pass
