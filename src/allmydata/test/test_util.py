@@ -1353,7 +1353,8 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(d.item_with_largest_value(), ("b", 6))
 
         d = dictutil.NumDict({"a": 1, "b": 2})
-        self.failUnlessEqual(repr(d), "{'a': 1, 'b': 2}")
+        self.failUnlessIn(repr(d), ("{'a': 1, 'b': 2}",
+                                    "{'b': 2, 'a': 1}"))
         self.failUnless("a" in d)
 
         d2 = dictutil.NumDict({"c": 3, "d": 4})
