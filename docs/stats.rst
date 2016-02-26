@@ -310,13 +310,14 @@ given port. The portnum file is actually a "strports specification string",
 as described in :doc:`configuration`.
 
 Once running, the stats gatherer will create a standard python "pickle" file
-in $BASEDIR/stats.pickle . Once a minute, the gatherer will pull stats
+in ``$BASEDIR/stats.pickle``, and a standard JSON file in
+``$BASEDIR/stats.json``. Once a minute, the gatherer will pull stats
 information from every connected node and write them into the pickle. The
 pickle will contain a dictionary, in which node identifiers (known as "tubid"
-strings) are the keys, and the values are a dict with 'timestamp',
-'nickname', and 'stats' keys. d[tubid][stats] will contain the stats
-dictionary as made available at http://localhost:3456/statistics?t=json . The
-pickle file will only contain the most recent update from each node.
+strings) are the keys, and the values are a dict with 'timestamp', 'nickname',
+and 'stats' keys. d[tubid][stats] will contain the stats dictionary as made
+available at http://localhost:3456/statistics?t=json . The pickle file will
+only contain the most recent update from each node.
 
 Other tools can be built to examine these stats and render them into
 something useful. For example, a tool could sum the
