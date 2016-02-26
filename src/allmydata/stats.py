@@ -1,4 +1,5 @@
 
+import json
 import os
 import pickle
 import pprint
@@ -250,6 +251,7 @@ class PickleStatsGatherer(StdOutStatsGatherer):
         self.verbose = verbose
         StatsGatherer.__init__(self, basedir)
         self.picklefile = os.path.join(basedir, "stats.pickle")
+        self.jsonfile = os.path.join(basedir, "stats.json")
 
         if os.path.exists(self.picklefile):
             f = open(self.picklefile, 'rb')
@@ -270,6 +272,7 @@ class PickleStatsGatherer(StdOutStatsGatherer):
         s['nickname'] = nickname
         s['stats'] = stats
         self.dump_pickle()
+        self.dump_json()
 
     def dump_pickle(self):
         tmp = "%s.tmp" % (self.picklefile,)
@@ -279,6 +282,16 @@ class PickleStatsGatherer(StdOutStatsGatherer):
         if os.path.exists(self.picklefile):
             os.unlink(self.picklefile)
         os.rename(tmp, self.picklefile)
+
+    def dump_json(self):
+        # Same logic as pickle, but using JSON instead.
+        tmp = "%s.tmp" % (self.jsonfile,)
+        f = open(tmp, 'wb')
+        json.dump(self.gathered_stats, f)
+        f.close()
+        if os.path.exists(self.jsonfile):
+            os.unlink(self.jsonfile)
+        os.rename(tmp, self.jsonfile)
 
 class StatsGathererService(service.MultiService):
     furl_file = "stats_gatherer.furl"
