@@ -22,7 +22,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
     def do_create_magic_folder(self, client_num):
         d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
         def _done((rc,stdout,stderr)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(rc, 0, stdout + stderr)
             self.failUnlessIn("Alias 'magic' created", stdout)
             self.failUnlessEqual(stderr, "")
             aliases = get_aliases(self.get_clientdir(i=client_num))
@@ -100,7 +100,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         local_dir_arg = unicode_to_argv(local_dir)
         d = self.do_cli("magic-folder", "create", "magic:", nickname_arg, local_dir_arg)
         def _done((rc, stdout, stderr)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(rc, 0, stdout + stderr)
 
             client = self.get_client()
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
@@ -115,6 +115,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d = defer.succeed(None)
         if self.magicfolder is not None:
             d.addCallback(lambda ign: self.magicfolder.finish())
+        self.up_clock.advance(4)
+        self.down_clock.advance(4)
         d.addCallback(lambda ign: res)
         return d
 
@@ -123,6 +125,11 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         magicfolder = MagicFolder(self.get_client(client_num), upload_dircap, collective_dircap, local_magic_dir,
                                        dbfile, 0077, pending_delay=0.2, clock=clock)
         magicfolder.downloader._turn_delay = 0
+
+        def scan():
+            print("immediate scan")
+            return magicfolder.downloader._scan_remote_collective()
+        magicfolder.downloader._when_queue_is_empty = scan
 
         magicfolder.setServiceParent(self.get_client(client_num))
         magicfolder.ready()

@@ -62,7 +62,6 @@ class MagicFolder(service.MultiService):
 
         service.MultiService.__init__(self)
 
-        immediate = clock is not None
         clock = clock or reactor
         db = magicfolderdb.get_magicfolderdb(dbfile, create_version=(magicfolderdb.SCHEMA_v1, 1))
         if db is None:
@@ -75,7 +74,7 @@ class MagicFolder(service.MultiService):
         upload_dirnode = self._client.create_node_from_uri(upload_dircap)
         collective_dirnode = self._client.create_node_from_uri(collective_dircap)
 
-        self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock, immediate)
+        self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock)
         self.downloader = Downloader(client, local_path_u, db, collective_dirnode,
                                      upload_dirnode.get_readonly_uri(), clock, self.uploader.is_pending, umask)
 
@@ -108,14 +107,20 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(HookMixin):
-    def __init__(self, client, local_path_u, db, name, clock):
+    scan_interval = 0
+
+    def __init__(self, client, local_path_u, db, name, clock, delay=0):
         self._client = client
         self._local_path_u = local_path_u
         self._local_filepath = to_filepath(local_path_u)
         self._db = db
         self._name = name
         self._clock = clock
-        self._hooks = {'processed': None, 'started': None}
+        self._hooks = {
+            'processed': None,
+            'started': None,
+            'iteration': None,
+        }
         self.started_d = self.set_hook('started')
 
         if not self._local_filepath.exists():
@@ -128,9 +133,15 @@ class QueueMixin(HookMixin):
                                  % quote_local_unicode_path(self._local_path_u))
 
         self._deque = deque()
-        self._lazy_tail = defer.succeed(None)
         self._stopped = False
-        self._turn_delay = 0
+        # XXX pass in an initial value for this; it seems like .10 broke this and it's always 0
+        self._turn_delay = delay
+        self._log('delay is %f' % self._turn_delay)
+
+        # a Deferred to wait for the _do_processing() loop to exit
+        # (gets set to the return from _do_processing() if we get that
+        # far)
+        self._processing = defer.succeed(None)
 
     def _get_filepath(self, relpath_u):
         self._log("_get_filepath(%r)" % (relpath_u,))
@@ -157,32 +168,82 @@ class QueueMixin(HookMixin):
         print s
         #open("events", "ab+").write(msg)
 
-    def _turn_deque(self):
-        self._log("_turn_deque")
-        if self._stopped:
-            self._log("stopped")
-            return
-        try:
-            item = self._deque.pop()
-            self._log("popped %r" % (item,))
-            self._count('objects_queued', -1)
-        except IndexError:
-            self._log("deque is now empty")
-            self._lazy_tail.addCallback(lambda ign: self._when_queue_is_empty())
-        else:
-            self._lazy_tail.addCallback(lambda ign: self._process(item))
-            self._lazy_tail.addBoth(self._call_hook, 'processed')
-            self._lazy_tail.addErrback(log.err)
-            self._lazy_tail.addCallback(lambda ign: task.deferLater(self._clock, self._turn_delay, self._turn_deque))
+    def _begin_processing(self, res):
+        self._log("starting processing loop")
+        self._processing = self._do_processing()
+
+        # if there are any errors coming out of _do_processing then
+        # our loop is done and we're hosed (i.e. _do_processing()
+        # itself has a bug in it)
+        def fatal_error(f):
+            self._log("internal error: %s" % (f.value))
+            self._log(f)
+        self._processing.addErrback(fatal_error)
+        return res
+
+    @defer.inlineCallbacks
+    def _do_processing(self):
+        """
+        This is an infinite loop that processes things out of the _deque.
+
+        One iteration runs self._process_deque which calls
+        _when_queue_is_empty() and then completely drains the _deque
+        (processing each item). After that we yield for _turn_deque
+        seconds.
+        """
+        # we subtract here so there's a scan on the very first iteration
+        last_scan = self._clock.seconds() - self.scan_interval
+        while not self._stopped:
+            d = task.deferLater(self._clock, self._turn_delay, lambda: None)
+            # ">=" is important here in scan scan_interval is 0
+            if self._clock.seconds() - last_scan >= self.scan_interval:
+                yield self._scan(u'')#None)
+                last_scan = self._clock.seconds()
+                self._log("did scan; now %d" % last_scan)
+            else:
+                self._log("skipped scan")
+
+            # process anything in our queue
+            yield self._process_deque()
+            self._log("one loop; call_hook iteration %r" % self)
+            self._call_hook(None, 'iteration')
+            # we want to have our callLater queued in the reactor
+            # *before* we trigger the 'iteration' hook, so that hook
+            # can successfully advance the Clock and bypass the delay
+            # if required (e.g. in the tests).
+            if not self._stopped:
+                yield d
+
+        self._log("stopped")
+
+    @defer.inlineCallbacks
+    def _process_deque(self):
+        self._log("_process_deque")
+        # process everything currently in the queue. we're turning it
+        # into a list so that if any new items get added while we're
+        # processing, they'll not run until next time)
+        to_process = list(self._deque)
+        self._deque.clear()
+        self._count('objects_queued', -len(to_process))
+
+        self._log("%d items to process" % len(to_process), )
+        for item in to_process:
+            try:
+                self._log("  processing '%r'" % (item,))
+                proc = yield self._process(item)
+            except Exception as e:
+                log.err("processing '%r' failed: %s" % (item, e))
+                proc = None  # actually in old _lazy_tail way, proc would be Failure
+            # XXX can we just get rid of the hooks now?
+            yield self._call_hook(proc, 'processed')
 
 
 class Uploader(QueueMixin):
-    def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock,
-                 immediate=False):
-        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock)
+
+    def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
+        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock, delay=pending_delay)
 
         self.is_ready = False
-        self._immediate = immediate
 
         if not IDirectoryNode.providedBy(upload_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
@@ -228,7 +289,9 @@ class Uploader(QueueMixin):
             d = self._notifier.wait_until_stopped()
         else:
             d = defer.succeed(None)
-        d.addCallback(lambda ign: self._lazy_tail)
+        self._stopped = True
+        # wait for processing loop to actually exit
+        d.addCallback(lambda ign: self._processing)
         return d
 
     def start_scanning(self):
@@ -236,14 +299,14 @@ class Uploader(QueueMixin):
         self.is_ready = True
         self._pending = self._db.get_all_relpaths()
         self._log("all_files %r" % (self._pending))
-        d = self._scan(u"")
+        d = self._scan(u'')#None)
         def _add_pending(ign):
             # This adds all of the files that were in the db but not already processed
             # (normally because they have been deleted on disk).
             self._log("adding %r" % (self._pending))
             self._deque.extend(self._pending)
         d.addCallback(_add_pending)
-        d.addCallback(lambda ign: self._turn_deque())
+        d.addCallback(self._begin_processing)
         return d
 
     def _scan(self, reldir_u):
@@ -306,20 +369,18 @@ class Uploader(QueueMixin):
         self._deque.append(relpath_u)
         self._pending.add(relpath_u)
         self._count('objects_queued')
-        if self.is_ready:
-            if self._immediate:  # for tests
-                self._turn_deque()
-            else:
-                self._clock.callLater(0, self._turn_deque)
 
-    def _when_queue_is_empty(self):
+    def _scan(self, _):
         return defer.succeed(None)
+
+#    def _when_queue_is_empty(self):
+#        return defer.succeed(None)
 
     def _process(self, relpath_u):
         # Uploader
         self._log("_process(%r)" % (relpath_u,))
         if relpath_u is None:
-            return
+            return  # FIXME XXX should *always* return Deferred, since this method is async
         precondition(isinstance(relpath_u, unicode), relpath_u)
         precondition(not relpath_u.endswith(u'/'), relpath_u)
 
@@ -497,6 +558,7 @@ class WriteFileMixin(object):
             print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
+            print("BLAMMMO", abspath_u)
             try:
                 fileutil.replace_file(abspath_u, replacement_path_u, backup_path_u)
                 return abspath_u
@@ -526,11 +588,11 @@ class WriteFileMixin(object):
 
 
 class Downloader(QueueMixin, WriteFileMixin):
-    REMOTE_SCAN_INTERVAL = 3  # facilitates tests
+    scan_interval = 3
 
     def __init__(self, client, local_path_u, db, collective_dirnode,
                  upload_readonly_dircap, clock, is_upload_pending, umask):
-        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
+        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock, delay=self.scan_interval)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
@@ -551,13 +613,14 @@ class Downloader(QueueMixin, WriteFileMixin):
 
         d = self._scan_remote_collective(scan_self=True)
         d.addBoth(self._logcb, "after _scan_remote_collective 0")
-        self._turn_deque()
+        d.addCallback(self._begin_processing)
         return d
 
     def stop(self):
         self._stopped = True
         d = defer.succeed(None)
-        d.addCallback(lambda ign: self._lazy_tail)
+        # wait for processing loop to actually exit
+        d.addCallback(lambda ign: self._processing)
         return d
 
     def _should_download(self, relpath_u, remote_version):
@@ -612,7 +675,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             node = None
             for success, result in deferredList:
                 if success:
-                    if result[1]['version'] > max_version:
+                    if node is None or result[1]['version'] > max_version:
                         node, metadata = result
                         max_version = result[1]['version']
             return node, metadata
@@ -672,17 +735,14 @@ class Downloader(QueueMixin, WriteFileMixin):
                     self._deque.append( (relpath_u, file_node, metadata) )
                 else:
                     self._log("Excluding %r" % (relpath_u,))
-                    self._call_hook(None, 'processed')
+                    self._call_hook(None, 'processed')  # await this maybe-Deferred??
 
             self._log("deque after = %r" % (self._deque,))
         d.addCallback(_filter_batch_to_deque)
         return d
 
-    def _when_queue_is_empty(self):
-        d = task.deferLater(self._clock, self.REMOTE_SCAN_INTERVAL, self._scan_remote_collective)
-        d.addBoth(self._logcb, "after _scan_remote_collective 1")
-        d.addCallback(lambda ign: self._turn_deque())
-        return d
+    def _scan(self, ign):
+        return self._scan_remote_collective()
 
     def _process(self, item, now=None):
         # Downloader
@@ -697,6 +757,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         d = defer.succeed(None)
 
         def do_update_db(written_abspath_u):
+            self._log("DOUPDATEDB %r" % written_abspath_u)
             filecap = file_node.get_uri()
             last_uploaded_uri = metadata.get('last_uploaded_uri', None)
             last_downloaded_uri = filecap
@@ -749,11 +810,18 @@ class Downloader(QueueMixin, WriteFileMixin):
                     d.addCallback(lambda ign: file_node.download_best_version())
                     d.addCallback(lambda contents: self._write_downloaded_file(abspath_u, contents,
                                                                                is_conflict=is_conflict))
+                    def foo(arg):
+                        print("AAAAAAAAA", arg)
+                        return arg
+                    d.addCallback(foo)
 
-        d.addCallbacks(do_update_db, failed)
+        self._log("adding do_update_db! !!!!")
+        d.addCallbacks(do_update_db)
+        d.addErrback(failed)
 
         def trap_conflicts(f):
             f.trap(ConflictError)
+            self._log("IGNORE CONFLICT ERROR %r" % f)
             return None
         d.addErrback(trap_conflicts)
         return d
