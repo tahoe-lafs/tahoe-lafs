@@ -1004,7 +1004,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
             os.rename(empty_tree_dir, new_empty_tree_dir)
             yield self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             yield iterate(self.magicfolder)
-            print "DONE _check_move_empty_tree"
 
         d.addCallback(_check_move_empty_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))

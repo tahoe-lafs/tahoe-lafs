@@ -258,7 +258,6 @@ def write_atomically(target, contents, mode="b"):
 def write(path, data, mode="wb"):
     with open(path, mode) as f:
         f.write(data)
-    print("WROTE", path)
 
 def read(path):
     rf = open(path, "rb")
