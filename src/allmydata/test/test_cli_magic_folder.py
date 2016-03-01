@@ -111,12 +111,16 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(lambda ign: self.check_config(0, local_dir))
         return d
 
+    # XXX should probably just be "tearDown"...
     def cleanup(self, res):
         d = defer.succeed(None)
-        if self.magicfolder is not None:
-            d.addCallback(lambda ign: self.magicfolder.finish())
-        self.up_clock.advance(4)
-        self.down_clock.advance(4)
+        def _clean(ign):
+            d = self.magicfolder.finish()
+            self.magicfolder.uploader._clock.advance(self.magicfolder.uploader.scan_interval + 1)
+            self.magicfolder.downloader._clock.advance(self.magicfolder.downloader.scan_interval + 1)
+            return d
+
+        d.addCallback(_clean)
         d.addCallback(lambda ign: res)
         return d
 
@@ -125,11 +129,6 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         magicfolder = MagicFolder(self.get_client(client_num), upload_dircap, collective_dircap, local_magic_dir,
                                        dbfile, 0077, pending_delay=0.2, clock=clock)
         magicfolder.downloader._turn_delay = 0
-
-        def scan():
-            print("immediate scan")
-            return magicfolder.downloader._scan_remote_collective()
-        magicfolder.downloader._when_queue_is_empty = scan
 
         magicfolder.setServiceParent(self.get_client(client_num))
         magicfolder.ready()

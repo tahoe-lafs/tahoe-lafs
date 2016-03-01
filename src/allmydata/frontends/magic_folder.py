@@ -4,7 +4,7 @@ import os.path
 from collections import deque
 import time
 
-from twisted.internet import defer, reactor, task
+from twisted.internet import defer, reactor, task, error
 from twisted.python.failure import Failure
 from twisted.python import runtime
 from twisted.application import service
@@ -167,7 +167,7 @@ class QueueMixin(HookMixin):
         # our loop is done and we're hosed (i.e. _do_processing()
         # itself has a bug in it)
         def fatal_error(f):
-            self._log("internal error: %s" % (f.value))
+            self._log("internal error: %s" % (f.value,))
             self._log(f)
         self._processing.addErrback(fatal_error)
         return res
@@ -185,11 +185,14 @@ class QueueMixin(HookMixin):
         # we subtract here so there's a scan on the very first iteration
         last_scan = self._clock.seconds() - self.scan_interval
         while not self._stopped:
+            self._log("doing iteration")
             d = task.deferLater(self._clock, self._turn_delay, lambda: None)
-            # ">=" is important here in scan scan_interval is 0
+            # ">=" is important here if scan scan_interval is 0
             if self._clock.seconds() - last_scan >= self.scan_interval:
-                yield self._scan(u'')#None)
+                # XXX can't we unify the "_full_scan" vs what
+                # Downloader does...
                 last_scan = self._clock.seconds()
+                yield self._when_queue_is_empty()  # (this no-op for us, only Downloader uses it...)
                 self._log("did scan; now %d" % last_scan)
             else:
                 self._log("skipped scan")
@@ -203,13 +206,17 @@ class QueueMixin(HookMixin):
             # can successfully advance the Clock and bypass the delay
             # if required (e.g. in the tests).
             if not self._stopped:
+                self._log("waiting... %r" % d)
                 yield d
 
         self._log("stopped")
 
+    def _when_queue_is_empty(self):
+        return
+
     @defer.inlineCallbacks
     def _process_deque(self):
-        self._log("_process_deque")
+        self._log("_process_deque %r" % (self._deque,))
         # process everything currently in the queue. we're turning it
         # into a list so that if any new items get added while we're
         # processing, they'll not run until next time)
@@ -222,6 +229,7 @@ class QueueMixin(HookMixin):
             try:
                 self._log("  processing '%r'" % (item,))
                 proc = yield self._process(item)
+                self._log("  done: %r" % proc)
             except Exception as e:
                 log.err("processing '%r' failed: %s" % (item, e))
                 proc = None  # actually in old _lazy_tail way, proc would be Failure
@@ -236,8 +244,8 @@ class QueueMixin(HookMixin):
 
     def _count(self, counter_name, delta=1):
         ctr = 'magic_folder.%s.%s' % (self._name, counter_name)
-        self._log("%s += %r" % (counter_name, delta))
         self._client.stats_provider.count(ctr, delta)
+        self._log("%s += %r (now %r)" % (counter_name, delta, self._client.stats_provider.counters[ctr]))
 
     def _logcb(self, res, msg):
         self._log("%s: %r" % (msg, res))
@@ -379,39 +387,34 @@ class Uploader(QueueMixin):
         # *really* just call this synchronously.
         return self._begin_processing(None)
 
-    def _extend_queue_and_keep_going(self, relpaths_u):
-        self._log("_extend_queue_and_keep_going %r" % (relpaths_u,))
-        for relpath_u in relpaths_u:
-            progress = PercentProgress()
-            item = UploadItem(relpath_u, progress)
-            item.set_status('queued', self._clock.seconds())
-            self._deque.append(item)
-
-        self._count('objects_queued', len(relpaths_u))
-
-        if self.is_ready:
-            if self._immediate:  # for tests
-                self._turn_deque()
-            else:
-                self._clock.callLater(0, self._turn_deque)
-
     def _full_scan(self):
         self.periodic_callid = self._clock.callLater(self._periodic_full_scan_duration, self._full_scan)
-        print "FULL SCAN"
+        self._log("FULL SCAN")
         self._log("_pending %r" % (self._pending))
         self._scan(u"")
-        self._extend_queue_and_keep_going(self._pending)
 
     def _add_pending(self, relpath_u):
         self._log("add pending %r" % (relpath_u,))
-        if not magicpath.should_ignore_file(relpath_u):
-            self._pending.add(relpath_u)
+        if magicpath.should_ignore_file(relpath_u):
+            self._log("_add_pending %r but should_ignore()==True" % (relpath_u,))
+            return
+        if relpath_u in self._pending:
+            self._log("_add_pending %r but already pending" % (relpath_u,))
+            return
+
+        self._pending.add(relpath_u)
+        progress = PercentProgress()
+        item = UploadItem(relpath_u, progress)
+        item.set_status('queued', self._clock.seconds())
+        self._deque.append(item)
+        self._count('objects_queued')
+        self._log("_add_pending(%r) queued item" % (relpath_u,))
 
     def _scan(self, reldir_u):
         # Scan a directory by (synchronously) adding the paths of all its children to self._pending.
         # Note that this doesn't add them to the deque -- that will
 
-        self._log("scan %r" % (reldir_u,))
+        self._log("SCAN '%r'" % (reldir_u,))
         fp = self._get_filepath(reldir_u)
         try:
             children = listdir_filepath(fp)
@@ -423,6 +426,7 @@ class Uploader(QueueMixin):
                             % quote_filepath(fp))
 
         for child in children:
+            self._log("   scan; child %r" % (child,))
             _assert(isinstance(child, unicode), child=child)
             self._add_pending("%s/%s" % (reldir_u, child) if reldir_u != u"" else child)
 
@@ -451,11 +455,7 @@ class Uploader(QueueMixin):
             self._log("ignoring event for %r (ignorable path)" % (relpath_u,))
             return
 
-        self._pending.add(relpath_u)
-        self._extend_queue_and_keep_going([relpath_u])
-
-    def _scan(self, _):
-        return defer.succeed(None)
+        self._add_pending(relpath_u)
 
     def _process(self, item):
         # Uploader
@@ -465,7 +465,7 @@ class Uploader(QueueMixin):
 
         if relpath_u is None:
             item.set_status('invalid_path', self._clock.seconds())
-            return  # FIXME XXX should *always* return Deferred, since this method is async
+            return defer.succeed(None)
         precondition(isinstance(relpath_u, unicode), relpath_u)
         precondition(not relpath_u.endswith(u'/'), relpath_u)
 
@@ -480,7 +480,10 @@ class Uploader(QueueMixin):
 
             self._log("about to remove %r from pending set %r" %
                       (relpath_u, self._pending))
-            self._pending.remove(relpath_u)
+            try:
+                self._pending.remove(relpath_u)
+            except KeyError:
+                self._log("WRONG that %r wasn't in pending" % (relpath_u,))
             encoded_path_u = magicpath.path2magic(relpath_u)
 
             if not pathinfo.exists:
@@ -501,9 +504,11 @@ class Uploader(QueueMixin):
                     self._count('objects_not_uploaded')
                     return
 
-                metadata = { 'version': new_version,
-                             'deleted': True,
-                             'last_downloaded_timestamp': last_downloaded_timestamp }
+                metadata = {
+                    'version': new_version,
+                    'deleted': True,
+                    'last_downloaded_timestamp': last_downloaded_timestamp,
+                }
                 if db_entry.last_downloaded_uri is not None:
                     metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
 
@@ -528,9 +533,15 @@ class Uploader(QueueMixin):
                 self.warn("WARNING: cannot upload symlink %s" % quote_filepath(fp))
                 return None
             elif pathinfo.isdir:
-                print "ISDIR "
+                self._log("ISDIR")
                 if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
                     self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
+
+                db_entry = self._db.get_db_entry(relpath_u)
+                self._log("isdir dbentry %r" % (db_entry,))
+                if not is_new_file(pathinfo, db_entry):
+                    self._log("NOT A NEW FILE")
+                    return defer.succeed(None)
 
                 uploadable = Data("", self._client.convergence)
                 encoded_path_u += magicpath.path2magic(u"/")
@@ -549,7 +560,6 @@ class Uploader(QueueMixin):
                     return f
                 upload_d.addCallbacks(_dir_succeeded, _dir_failed)
                 upload_d.addCallback(lambda ign: self._scan(relpath_u))
-                upload_d.addCallback(lambda ign: self._extend_queue_and_keep_going(self._pending))
                 return upload_d
             elif pathinfo.isfile:
                 db_entry = self._db.get_db_entry(relpath_u)
@@ -565,8 +575,10 @@ class Uploader(QueueMixin):
                     self._count('objects_not_uploaded')
                     return None
 
-                metadata = { 'version': new_version,
-                             'last_downloaded_timestamp': last_downloaded_timestamp }
+                metadata = {
+                    'version': new_version,
+                    'last_downloaded_timestamp': last_downloaded_timestamp,
+                }
                 if db_entry is not None and db_entry.last_downloaded_uri is not None:
                     metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
 
@@ -660,7 +672,6 @@ class WriteFileMixin(object):
             print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
-            print("BLAMMMO", abspath_u)
             try:
                 fileutil.replace_file(abspath_u, replacement_path_u, backup_path_u)
                 return abspath_u
@@ -720,7 +731,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def start_downloading(self):
         self._log("start_downloading")
-        self._turn_delay = self.REMOTE_SCAN_INTERVAL
+        self._turn_delay = self.scan_interval
         files = self._db.get_all_relpaths()
         self._log("all files %s" % files)
 
@@ -862,14 +873,17 @@ class Downloader(QueueMixin, WriteFileMixin):
         d.addCallback(_filter_batch_to_deque)
         return d
 
+    # XXX fixme
+    def _when_queue_is_empty(self):
+        return self._scan(None)
+
     def _scan(self, ign):
         return self._scan_remote_collective()
 
-    def _process(self, item, now=None):
+    def _process(self, item):
         # Downloader
         self._log("_process(%r)" % (item,))
-        if now is None:  # XXX why can we pass in now?
-            now = time.time()  # self._clock.seconds()
+        now = self._clock.seconds()
 
         self._log("started! %s" % (now,))
         item.set_status('started', now)
@@ -938,12 +952,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                     d.addCallback(lambda ign: item.file_node.download_best_version(progress=item.progress))
                     d.addCallback(lambda contents: self._write_downloaded_file(self._local_path_u, abspath_u, contents,
                                                                                is_conflict=is_conflict))
-                    def foo(arg):
-                        print("AAAAAAAAA", arg)
-                        return arg
-                    d.addCallback(foo)
 
-        self._log("adding do_update_db! !!!!")
         d.addCallbacks(do_update_db)
         d.addErrback(failed)
 
