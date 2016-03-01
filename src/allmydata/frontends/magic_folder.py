@@ -455,7 +455,6 @@ class Uploader(QueueMixin):
             self._log("ignoring event for %r (ignorable path)" % (relpath_u,))
             return
 
-        # XXX FIXME why isn't this going through _add_pending?
         self._add_pending(relpath_u)
 
     def _process(self, item):
@@ -466,7 +465,7 @@ class Uploader(QueueMixin):
 
         if relpath_u is None:
             item.set_status('invalid_path', self._clock.seconds())
-            return  # FIXME XXX should *always* return Deferred, since this method is async
+            return defer.succeed(None)
         precondition(isinstance(relpath_u, unicode), relpath_u)
         precondition(not relpath_u.endswith(u'/'), relpath_u)
 
@@ -560,7 +559,6 @@ class Uploader(QueueMixin):
                     self._log("failed to create subdirectory %r" % (relpath_u,))
                     return f
                 upload_d.addCallbacks(_dir_succeeded, _dir_failed)
-                # XXX FIXME this is silly; we have to call _extend_queue_and_keep_going after every scan()?!!!
                 upload_d.addCallback(lambda ign: self._scan(relpath_u))
                 return upload_d
             elif pathinfo.isfile:
