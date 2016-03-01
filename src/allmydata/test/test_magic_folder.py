@@ -278,19 +278,15 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.bob_magicfolder = self.init_magicfolder(1, self.bob_upload_dircap,
                                                          self.bob_collective_dircap,
                                                          self.bob_magic_dir, self.bob_clock)
-            self.bob_clock.advance(4)
+            self.bob_clock.advance(self.alice_magicfolder.uploader.scan_interval + 1)
             return result
         d.addCallback(get_Bob_magicfolder)
         return d
 
     def tearDown(self):
         d = GridTestMixin.tearDown(self)
-        print("BOLLLAMMO", d)
-        if self.alice_magicfolder:
-            print("CALLING FINISH", self.alice_magicfolder)
-            d.addCallback(lambda ign: self.alice_magicfolder.finish())
-        if self.bob_magicfolder:
-            d.addCallback(lambda ign: self.bob_magicfolder.finish())
+        d.addCallback(lambda ign: self.alice_magicfolder.finish())
+        d.addCallback(lambda ign: self.bob_magicfolder.finish())
         self.alice_magicfolder.uploader._clock.advance(4)
         self.alice_magicfolder.downloader._clock.advance(4)
         self.bob_magicfolder.uploader._clock.advance(4)
