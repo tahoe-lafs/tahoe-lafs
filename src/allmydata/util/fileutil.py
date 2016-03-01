@@ -256,11 +256,9 @@ def write_atomically(target, contents, mode="b"):
     move_into_place(target+".tmp", target)
 
 def write(path, data, mode="wb"):
-    wf = open(path, mode)
-    try:
-        wf.write(data)
-    finally:
-        wf.close()
+    with open(path, mode) as f:
+        f.write(data)
+    print("WROTE", path)
 
 def read(path):
     rf = open(path, "rb")
