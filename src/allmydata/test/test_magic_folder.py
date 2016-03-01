@@ -1286,34 +1286,25 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         self.failIf(os.path.exists(local_file + u".tmp"))
 
     def test_periodic_full_scan(self):
-        empty_tree_name = self.unicode_or_fallback(u"empty_tr\u00EAe", u"empty_tree")
-        empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
-        new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
+        """
+        Create a file in a subdir without doing a notify on it and
+        fast-forward time to prove we do a full scan periodically.
+        """
+        sub_dir = abspath_expanduser_unicode(u"subdir", base=self.local_dir)
+        self.mkdir_nonascii(sub_dir)
 
         d = defer.succeed(None)
-        @defer.inlineCallbacks
-        def _check_move_empty_tree(res):
-            print "CHECK MOVE EMPTY TREE"
-            uploaded_d = self.magicfolder.uploader.set_hook('processed')
-            self.mkdir_nonascii(empty_tree_dir)
-            os.rename(empty_tree_dir, new_empty_tree_dir)
-            yield self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
-            yield iterate(self.magicfolder)
-            yield uploaded_d
-        d.addCallback(_check_move_empty_tree)
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 1))
 
         def _create_file_without_event(res):
             print "CREATE FILE WITHOUT EMITTING EVENT"
             processed_d = self.magicfolder.uploader.set_hook('processed')
-            what_path = abspath_expanduser_unicode(u"what", base=new_empty_tree_dir)
+            what_path = abspath_expanduser_unicode(u"what", base=sub_dir)
             fileutil.write(what_path, "say when")
             print "ADVANCE CLOCK"
             self.magicfolder.uploader._clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
+            # this will have now done the full scan, so we have to do
+            # an iteration to process anything from it
+            iterate_uploader(self.magicfolder)
             return processed_d
         d.addCallback(_create_file_without_event)
         def _advance_clock(res):
