@@ -13,7 +13,6 @@ from allmydata.interfaces import IDirectoryNode
 from allmydata.util.assertutil import precondition
 
 from allmydata.util import fake_inotify, fileutil
-from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
@@ -22,7 +21,7 @@ from allmydata.test.common import ShouldFailMixin
 from .test_cli_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
-from allmydata.frontends.magic_folder import MagicFolder, Downloader, WriteFileMixin
+from allmydata.frontends.magic_folder import MagicFolder, WriteFileMixin
 from allmydata import magicfolderdb, magicpath
 from allmydata.util.fileutil import get_pathinfo
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -984,8 +983,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     @defer.inlineCallbacks
     def test_scan_once_on_startup(self):
-        #self.collective_dircap = ""
-        uploadable = Data("", self.magicfolder._client.convergence)
+        # What is this test? Maybe it is just a stub and needs finishing.
         self.magicfolder.uploader._clock.advance(99)
 
         yield self._check_uploader_count('files_uploaded', 0, magic=self.magicfolder)
