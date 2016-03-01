@@ -111,12 +111,17 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         d.addCallback(lambda ign: self.check_config(0, local_dir))
         return d
 
+    # XXX should probably just be "tearDown"...
     def cleanup(self, res):
         d = defer.succeed(None)
-        if self.magicfolder is not None:
-            d.addCallback(lambda ign: self.magicfolder.finish())
-        self.up_clock.advance(4)
-        self.down_clock.advance(4)
+        def _clean(ign):
+            # HACK ATTACK XXX
+            d = self.magicfolder.finish()
+            self.magicfolder.uploader._clock.advance(4)
+            self.magicfolder.downloader._clock.advance(4)
+            return d
+
+        d.addCallback(_clean)
         d.addCallback(lambda ign: res)
         return d
 

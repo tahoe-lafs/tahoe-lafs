@@ -41,6 +41,7 @@ class MagicFolderDbTests(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.temp)
+        return super(MagicFolderDbTests, self).tearDown()
 
     def test_create(self):
         self.db.did_upload_version(
@@ -107,7 +108,6 @@ class MagicFolderDbTests(unittest.TestCase):
         self.assertEqual(entry.last_downloaded_uri, content_uri)
 
 
-@defer.inlineCallbacks
 def iterate_downloader(magic):
     # can do either of these:
     #d = magic.downloader._process_deque()
@@ -285,8 +285,9 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
 
     def tearDown(self):
         d = GridTestMixin.tearDown(self)
+        print("BOLLLAMMO", d)
         if self.alice_magicfolder:
-            print("CALLING FINISH")
+            print("CALLING FINISH", self.alice_magicfolder)
             d.addCallback(lambda ign: self.alice_magicfolder.finish())
         if self.bob_magicfolder:
             d.addCallback(lambda ign: self.bob_magicfolder.finish())
@@ -871,7 +872,8 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
     """
 
     def setUp(self):
-        GridTestMixin.setUp(self)
+        x = super(SingleMagicFolderTestMixin, self).setUp()
+        print("SETTTTTUP", x)
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
@@ -881,10 +883,12 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
         d = self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
         d.addCallback(self._restart_client)
+        # _restart_client ultimately sets self.magicfolder
         return d
 
     def tearDown(self):
-        d = GridTestMixin.tearDown(self)
+        print("TEAAAAR down")
+        d = super(SingleMagicFolderTestMixin, self).tearDown()
         d.addCallback(self.cleanup)
         return d
 
@@ -981,6 +985,14 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         return d
 
     def test_move_tree(self):
+        """
+        create an empty directory tree and 'mv' it into the magic folder,
+        noting the new directory and uploading it.
+
+        also creates a directory tree with one file in it and 'mv's it
+        into the magic folder, so we upload the file and record the
+        directory. (XXX split to separate test)
+        """
         empty_tree_name = self.unicode_or_fallback(u"empty_tr\u00EAe", u"empty_tree")
         empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
         new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
@@ -998,6 +1010,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
             os.rename(empty_tree_dir, new_empty_tree_dir)
             yield self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
             yield iterate(self.magicfolder)
+            print "DONE _check_move_empty_tree"
 
         d.addCallback(_check_move_empty_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
@@ -1015,11 +1028,16 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
             os.rename(small_tree_dir, new_small_tree_dir)
             yield self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
             yield iterate(self.magicfolder)
+            # when we add the dir, we queue a scan of it; so we want
+            # the upload to "go" as well...
+            yield iterate(self.magicfolder)
+            yield iterate(self.magicfolder)
+            yield iterate(self.magicfolder)
 
         d.addCallback(_check_move_small_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
-        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 3))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1))
+        d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 3))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 2))
 
