@@ -746,7 +746,9 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             # of the allegedly-new file matches, so Bob decides not to
             # upload (and the test hangs). Not sure why it worked
             # before; must have been *just* slow enough?
-            return task.deferLater(reactor, 0.1, lambda: None)
+            # XXX FIXME for the new real-test had to jack this to 0.5;
+            # related to the 0.1 notify pause??
+            return task.deferLater(reactor, 0.5, lambda: None)
         d.addCallback(advance)
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file2", 0))
 
