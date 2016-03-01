@@ -131,11 +131,6 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
                                        dbfile, 0077, pending_delay=0.2, clock=clock)
         magicfolder.downloader._turn_delay = 0
 
-        def scan():
-            print("immediate scan")
-            return magicfolder.downloader._scan_remote_collective()
-        magicfolder.downloader._when_queue_is_empty = scan
-
         magicfolder.setServiceParent(self.get_client(client_num))
         magicfolder.ready()
         return magicfolder
