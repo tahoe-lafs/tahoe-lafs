@@ -355,12 +355,10 @@ class NoNetworkGrid(service.MultiService):
 
 class GridTestMixin:
     def setUp(self):
-        print("set up grid")
         self.s = service.MultiService()
         self.s.startService()
 
     def tearDown(self):
-        print("tear down grid", self.s)
         return self.s.stopService()
 
     def set_up_grid(self, num_clients=1, num_servers=10,

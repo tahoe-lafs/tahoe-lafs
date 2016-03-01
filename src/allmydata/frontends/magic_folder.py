@@ -608,12 +608,10 @@ class Uploader(QueueMixin):
         d.addCallback(_maybe_upload)
 
         def _succeeded(res):
-            print("a thing worked!", res)
             self._count('objects_succeeded')
             item.set_status('success', self._clock.seconds())
             return res
         def _failed(f):
-            print("a thing failed!", f)
             self._count('objects_failed')
             self._log("%s while processing %r" % (f, relpath_u))
             item.set_status('failure', self._clock.seconds())
@@ -676,7 +674,6 @@ class WriteFileMixin(object):
             print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
-            print("BLAMMMO", abspath_u)
             try:
                 fileutil.replace_file(abspath_u, replacement_path_u, backup_path_u)
                 return abspath_u
@@ -957,12 +954,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                     d.addCallback(lambda ign: item.file_node.download_best_version(progress=item.progress))
                     d.addCallback(lambda contents: self._write_downloaded_file(self._local_path_u, abspath_u, contents,
                                                                                is_conflict=is_conflict))
-                    def foo(arg):
-                        print("AAAAAAAAA", arg)
-                        return arg
-                    d.addCallback(foo)
 
-        self._log("adding do_update_db! !!!!")
         d.addCallbacks(do_update_db)
         d.addErrback(failed)
 

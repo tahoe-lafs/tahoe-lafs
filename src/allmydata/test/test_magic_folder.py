@@ -306,7 +306,6 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         # alice uploads
         yield iterate_uploader(self.alice_magicfolder)
         yield alice_up
-        print("BOOOOOM\n\n\n")
 
         yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
         yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
@@ -539,19 +538,19 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
     def test_alice_bob(self):
         d = defer.succeed(None)
 
-        # XXX FIXME just quickly porting this test via aliases
+        # XXX FIXME just quickly porting this test via aliases -- the
+        # "real" solution is to break out any relevant test-cases as
+        # their own (smaller!) tests.
         alice_clock = self.alice_magicfolder.uploader._clock
         bob_clock = self.bob_magicfolder.uploader._clock
 
         def _wait_for_Alice(ign, downloaded_d):
             print "Now waiting for Alice to download\n"
-            #return iterate(self.alice_magicfolder)
             alice_clock.advance(4)
             return downloaded_d
 
         def _wait_for_Bob(ign, downloaded_d):
             print "Now waiting for Bob to download\n"
-            #return iterate(self.bob_magicfolder)
             bob_clock.advance(4)
             return downloaded_d
 
@@ -815,7 +814,6 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             bob_clock.advance(6)
             alice_clock.advance(6)
             bob_clock.advance(6)
-            print("ZINGAU")
         d.addCallback(foo)
 
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 2, magic=self.alice_magicfolder))
@@ -867,7 +865,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     def setUp(self):
         x = super(SingleMagicFolderTestMixin, self).setUp()
-        print("SETTTTTUP", x)
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
@@ -877,11 +874,10 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
         d = self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
         d.addCallback(self._restart_client)
-        # _restart_client ultimately sets self.magicfolder
+        # note: _restart_client ultimately sets self.magicfolder to not-None
         return d
 
     def tearDown(self):
-        print("TEAAAAR down")
         d = super(SingleMagicFolderTestMixin, self).tearDown()
         d.addCallback(self.cleanup)
         return d
