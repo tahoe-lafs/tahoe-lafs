@@ -1326,13 +1326,7 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         return d
 
     def test_statistics(self):
-        self.set_up_grid()
-        self.local_dir = abspath_expanduser_unicode(u"test_statistics", base=self.basedir)
-        self.mkdir_nonascii(self.local_dir)
-
-        d = self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
-        d.addCallback(self._restart_client)
-
+        d = defer.succeed(None)
         # Write something short enough for a LIT file.
         d.addCallback(lambda ign: self._check_file(u"short", "test"))
 
@@ -1357,7 +1351,6 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
             self.failUnlessEqual(data["counters"]["magic_folder.uploader.files_uploaded"], 1)
             self.failUnlessEqual(data["counters"]["magic_folder.uploader.objects_queued"], 0)
         d.addCallback(_got_stats_json)
-        d.addBoth(self.cleanup)
         return d
 
 
