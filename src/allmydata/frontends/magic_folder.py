@@ -167,7 +167,7 @@ class QueueMixin(HookMixin):
         # our loop is done and we're hosed (i.e. _do_processing()
         # itself has a bug in it)
         def fatal_error(f):
-            self._log("internal error: %s" % (f.value))
+            self._log("internal error: %s" % (f.value,))
             self._log(f)
         self._processing.addErrback(fatal_error)
         return res
@@ -185,13 +185,14 @@ class QueueMixin(HookMixin):
         # we subtract here so there's a scan on the very first iteration
         last_scan = self._clock.seconds() - self.scan_interval
         while not self._stopped:
+            self._log("doing iteration")
             d = task.deferLater(self._clock, self._turn_delay, lambda: None)
             # ">=" is important here if scan scan_interval is 0
             if self._clock.seconds() - last_scan >= self.scan_interval:
                 # XXX can't we unify the "_full_scan" vs what
                 # Downloader does...
                 last_scan = self._clock.seconds()
-                self._when_queue_is_empty()  # (this no-op for us, only Downloader uses it...)
+                yield self._when_queue_is_empty()  # (this no-op for us, only Downloader uses it...)
                 self._log("did scan; now %d" % last_scan)
             else:
                 self._log("skipped scan")
@@ -205,6 +206,7 @@ class QueueMixin(HookMixin):
             # can successfully advance the Clock and bypass the delay
             # if required (e.g. in the tests).
             if not self._stopped:
+                self._log("waiting... %r" % d)
                 yield d
 
         self._log("stopped")
@@ -214,7 +216,7 @@ class QueueMixin(HookMixin):
 
     @defer.inlineCallbacks
     def _process_deque(self):
-        self._log("_process_deque")
+        self._log("_process_deque %r" % (self._deque,))
         # process everything currently in the queue. we're turning it
         # into a list so that if any new items get added while we're
         # processing, they'll not run until next time)
@@ -578,8 +580,10 @@ class Uploader(QueueMixin):
                     self._count('objects_not_uploaded')
                     return None
 
-                metadata = { 'version': new_version,
-                             'last_downloaded_timestamp': last_downloaded_timestamp }
+                metadata = {
+                    'version': new_version,
+                    'last_downloaded_timestamp': last_downloaded_timestamp,
+                }
                 if db_entry is not None and db_entry.last_downloaded_uri is not None:
                     metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
 

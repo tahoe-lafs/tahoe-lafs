@@ -398,11 +398,11 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
         yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
         yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
-        yield self.failUnlessReallyEqual(
+        self.failUnlessReallyEqual(
             self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
             0
         )
-        yield self.failUnlessReallyEqual(
+        self.failUnlessReallyEqual(
             self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
             1
         )
@@ -438,19 +438,19 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         fileutil.write(alice_fname, 'contents0\n')
         yield self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
 
-        yield iterate_uploader(self.alice_magicfolder)
-        yield iterate_downloader(self.bob_magicfolder)
+        yield iterate(self.alice_magicfolder)
+        yield iterate(self.bob_magicfolder)
 
         # check the state (XXX ditto, had to switch to veresion 0; right?)
         yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
+        self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
         yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
-        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
-        yield self.failUnlessReallyEqual(
+        self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+        self.failUnlessReallyEqual(
             self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
             0
         )
-        yield self.failUnlessReallyEqual(
+        self.failUnlessReallyEqual(
             self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
             1
         )
@@ -459,14 +459,14 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         fileutil.write(bob_fname, 'bob wuz here\n')
         yield self.notify(to_filepath(bob_fname), self.inotify.IN_CLOSE_WRITE, magic=self.bob_magicfolder)
 
-        yield iterate_uploader(self.bob_magicfolder)
-        yield iterate_downloader(self.alice_magicfolder)
+        yield iterate(self.bob_magicfolder)
+        yield iterate(self.alice_magicfolder)
 
         # check the state
         yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
+        self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
         yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
+        self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
 
     @defer.inlineCallbacks
     def test_alice_delete_and_restore(self):
