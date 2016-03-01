@@ -1286,39 +1286,20 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         self.failIf(os.path.exists(local_file + u".tmp"))
 
     def test_periodic_full_scan(self):
-        self.set_up_grid()
-        self.local_dir = abspath_expanduser_unicode(u"test_periodic_full_scan",base=self.basedir)
-        self.mkdir_nonascii(self.local_dir)
-
-        alice_clock = task.Clock()
-        d = self.do_create_magic_folder(0)
-        d.addCallback(lambda ign: self.do_invite(0, u"Alice\u00F8"))
-        def get_invite_code(result):
-            self.invite_code = result[1].strip()
-        d.addCallback(get_invite_code)
-        d.addCallback(lambda ign: self.do_join(0, self.local_dir, self.invite_code))
-        def get_alice_caps(ign):
-            self.alice_collective_dircap, self.alice_upload_dircap = self.get_caps_from_files(0)
-        d.addCallback(get_alice_caps)
-        d.addCallback(lambda ign: self.check_joined_config(0, self.alice_upload_dircap))
-        d.addCallback(lambda ign: self.check_config(0, self.local_dir))
-        def get_Alice_magicfolder(result):
-            self.magicfolder = self.init_magicfolder(0, self.alice_upload_dircap,
-                                                           self.alice_collective_dircap,
-                                                           self.local_dir, alice_clock)
-            return result
-        d.addCallback(get_Alice_magicfolder)
         empty_tree_name = self.unicode_or_fallback(u"empty_tr\u00EAe", u"empty_tree")
         empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
         new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
 
+        d = defer.succeed(None)
+        @defer.inlineCallbacks
         def _check_move_empty_tree(res):
             print "CHECK MOVE EMPTY TREE"
             uploaded_d = self.magicfolder.uploader.set_hook('processed')
             self.mkdir_nonascii(empty_tree_dir)
             os.rename(empty_tree_dir, new_empty_tree_dir)
-            self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
-            return uploaded_d
+            yield self.notify(to_filepath(new_empty_tree_dir), self.inotify.IN_MOVED_TO)
+            yield iterate(self.magicfolder)
+            yield uploaded_d
         d.addCallback(_check_move_empty_tree)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 1))
@@ -1332,21 +1313,16 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
             what_path = abspath_expanduser_unicode(u"what", base=new_empty_tree_dir)
             fileutil.write(what_path, "say when")
             print "ADVANCE CLOCK"
-            alice_clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
+            self.magicfolder.uploader._clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
             return processed_d
         d.addCallback(_create_file_without_event)
         def _advance_clock(res):
             print "_advance_clock"
             processed_d = self.magicfolder.uploader.set_hook('processed')
-            alice_clock.advance(0)
+            self.magicfolder.uploader._clock.advance(4)
             return processed_d
         d.addCallback(_advance_clock)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1))
-        def cleanup(res):
-            d2 = self.magicfolder.finish()
-            alice_clock.advance(0)
-            return d2
-        d.addCallback(cleanup)
         return d
 
     def test_statistics(self):
