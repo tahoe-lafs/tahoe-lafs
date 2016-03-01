@@ -686,8 +686,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.bob_magicfolder.uploader._local_path_u)
             print "---- bob's file is %r" % (self.file_path,)
             fileutil.write(self.file_path, "No white rabbit to be found.")
-            self.magicfolder = self.bob_magicfolder
-            return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
+            return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.bob_magicfolder)
         d.addCallback(lambda ign: _wait_for(None, Bob_to_rewrite_file, alice=False))
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file1", 3))
@@ -756,8 +755,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.file_path = abspath_expanduser_unicode(u"file2", base=self.bob_magicfolder.uploader._local_path_u)
             print "---- bob's file is %r" % (self.file_path,)
             fileutil.write(self.file_path, "roger roger. what vector?")
-            self.magicfolder = self.bob_magicfolder
-            return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
+            return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.bob_magicfolder)
         d.addCallback(lambda ign: _wait_for(None, Bob_to_rewrite_file2, alice=False))
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file2", 1))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 5))
@@ -843,12 +841,11 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
 
         def Bob_to_rewrite_file3():
-            print "Bob rewrites file\n"
+            print "Bob rewrites file3\n"
             self.file_path = abspath_expanduser_unicode(u"file3", base=self.bob_magicfolder.uploader._local_path_u)
             print "---- bob's file is %r" % (self.file_path,)
             fileutil.write(self.file_path, "roger roger")
-            self.magicfolder = self.bob_magicfolder
-            return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE)
+            return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.bob_magicfolder)
         d.addCallback(lambda ign: _wait_for(None, Bob_to_rewrite_file3, alice=False))
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file3", 1))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 7))
