@@ -112,13 +112,13 @@ def iterate_downloader(magic):
     # can do either of these:
     #d = magic.downloader._process_deque()
     d = magic.downloader.set_hook('iteration')
-    magic.downloader._clock.advance(4)
+    magic.downloader._clock.advance(magic.downloader.scan_interval + 1)
     return d
 
 
 def iterate_uploader(magic):
     d = magic.uploader.set_hook('iteration')
-    magic.uploader._clock.advance(4)
+    magic.uploader._clock.advance(magic.uploader.scan_interval + 1)
     return d
 
 @defer.inlineCallbacks
@@ -259,7 +259,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap,
                                                            self.alice_collective_dircap,
                                                            self.alice_magic_dir, self.alice_clock)
-            self.alice_clock.advance(4)
+            self.alice_clock.advance(self.alice_magicfolder.uploader.scan_interval + 1)
             return result
         d.addCallback(get_Alice_magicfolder)
 
