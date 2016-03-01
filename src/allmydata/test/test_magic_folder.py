@@ -1028,9 +1028,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
             yield self.notify(to_filepath(new_small_tree_dir), self.inotify.IN_MOVED_TO)
             yield iterate(self.magicfolder)
             # when we add the dir, we queue a scan of it; so we want
-            # the upload to "go" as well...
-            yield iterate(self.magicfolder)
-            yield iterate(self.magicfolder)
+            # the upload to "go" as well requiring 1 more iteration
             yield iterate(self.magicfolder)
 
         d.addCallback(_check_move_small_tree)
