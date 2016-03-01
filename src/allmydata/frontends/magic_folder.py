@@ -4,7 +4,7 @@ import os.path
 from collections import deque
 import time
 
-from twisted.internet import defer, reactor, task
+from twisted.internet import defer, reactor, task, error
 from twisted.python.failure import Failure
 from twisted.python import runtime
 from twisted.application import service
@@ -360,7 +360,10 @@ class Uploader(QueueMixin):
         self._log("stop")
         self._notifier.stopReading()
         self._count('dirs_monitored', -1)
-        self.periodic_callid.cancel()
+        try:
+            self.periodic_callid.cancel()
+        except error.AlreadyCancelled:
+            print("peridoic call already cancelled")
         if hasattr(self._notifier, 'wait_until_stopped'):
             d = self._notifier.wait_until_stopped()
         else:
@@ -387,7 +390,7 @@ class Uploader(QueueMixin):
 
     def _full_scan(self):
         self.periodic_callid = self._clock.callLater(self._periodic_full_scan_duration, self._full_scan)
-        print "FULL SCAN"
+        self._log("FULL SCAN")
         self._log("_pending %r" % (self._pending))
         self._scan(u"")
 
@@ -881,11 +884,10 @@ class Downloader(QueueMixin, WriteFileMixin):
     def _scan(self, ign):
         return self._scan_remote_collective()
 
-    def _process(self, item, now=None):
+    def _process(self, item):
         # Downloader
         self._log("_process(%r)" % (item,))
-        if now is None:  # XXX why can we pass in now?
-            now = time.time()  # self._clock.seconds()
+        now = self._clock.seconds()
 
         self._log("started! %s" % (now,))
         item.set_status('started', now)
