@@ -362,10 +362,7 @@ class Uploader(QueueMixin):
         self._log("stop")
         self._notifier.stopReading()
         self._count('dirs_monitored', -1)
-        try:
-            self.periodic_callid.cancel()
-        except error.AlreadyCancelled:
-            print("peridoic call already cancelled")
+        self.periodic_callid.cancel()
         if hasattr(self._notifier, 'wait_until_stopped'):
             d = self._notifier.wait_until_stopped()
         else:
