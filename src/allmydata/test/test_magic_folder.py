@@ -287,10 +287,9 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d = GridTestMixin.tearDown(self)
         d.addCallback(lambda ign: self.alice_magicfolder.finish())
         d.addCallback(lambda ign: self.bob_magicfolder.finish())
-        self.alice_magicfolder.uploader._clock.advance(4)
-        self.alice_magicfolder.downloader._clock.advance(4)
-        self.bob_magicfolder.uploader._clock.advance(4)
-        self.bob_magicfolder.downloader._clock.advance(4)
+        for mf in [self.alice_magicfolder, self.bob_magicfolder]:
+            for loader in [mf.uploader, mf.downloader]:
+                loader._clock.advance(loader.scan_interval + 1)
         # XXX double-check: are self.mktemp() dirs blown away automagically?
         return d
 
