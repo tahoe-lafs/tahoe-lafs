@@ -130,6 +130,7 @@ print_platform()
 print
 print_python_ver()
 print_stdout(['virtualenv', '--version'])
+print_stdout(['tox', '--version'])
 print
 print_stdout(['locale'])
 print_python_encoding_settings()
