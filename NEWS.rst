@@ -6,6 +6,59 @@ User-Visible Changes in Tahoe-LAFS
 
 Release ??? (???)
 
+New Build Process
+-----------------
+
+`pip install` (in a virtualenv) is now the recommended way to install
+Tahoe-LAFS. The old "bin/tahoe" script (created inside the source tree,
+rather than in a virtualenv) has been removed, as has the ancient
+"zetuptoolz" fork of setuptools.
+
+Tahoe was started in 2006, and predates pip and virtualenv. From the very
+beginning it used a home-made build process that attempted to make `setup.py
+build` behave somewhat like a modern `pip install --editable .`. It included
+a local copy of `setuptools` (to avoid requiring it to be pre-installed),
+which was then forked as `zetuptoolz` to fix bugs during the bad old days of
+setuptools non-maintenance. The pseudo-virtualenv used a script named
+`bin/tahoe`, created during `setup.py build`, to set up the $PATH and
+$PYTHONPATH as necessary.
+
+Starting with this release, all the custom build process has been removed,
+and Tahoe should be installable with standard modern tools. You will need
+`virtualenv` installed (which provides `pip` and setuptools). Many Python
+installers include `virtualenv` already, and Debian-like systems can use
+`apt-get install python-virtualenv`. If the command is not available on your
+system, follow the installation instructions at
+https://virtualenv.pypa.io/en/latest/ .
+
+Then, to install the latest version, create a virtualenv and use `pip`::
+
+    virtualenv tahoe
+    source tahoe/bin/activate
+    pip install tahoe-lafs
+    tahoe --version
+
+
+To run Tahoe from a source checkout (so you can hack on Tahoe), use `pip
+install --editable .` from the git tree::
+
+    git clone https://github.com/tahoe-lafs/tahoe-lafs.git
+    cd tahoe-lafs
+    virtualenv tahoe
+    source tahoe/bin/activate
+    pip install --editable .
+    tahoe --version
+
+The `pip install` will download and install all necessary Python
+dependencies. Some dependencies require a C compiler and system libraries to
+build: on Debian/Ubuntu-like systems, use `apt-get install build-essential
+python-dev libffi-dev libssl-dev`. On Windows and OS-X platforms,
+pre-compiled binary wheels may be available, removing the need for a
+compiler.
+
+(#1582, #2445)
+
+
 Compatibility and Dependency Updates
 ------------------------------------
 
