@@ -34,3 +34,4 @@ zope.interface-*.egg
 /coverage-html/
 /miscaptures.txt
 /violations.txt
+/.tox/
