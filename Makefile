@@ -166,22 +166,6 @@ count-lines:
 	@echo -n "XXX: "
 	@grep XXX `find src -name '*.py' |grep -v /build/` | wc -l
 
-.PHONY: check-memory
-check-memory: .built
-	rm -rf _test_memory
-	$(TAHOE) @src/allmydata/test/check_memory.py upload
-	$(TAHOE) @src/allmydata/test/check_memory.py upload-self
-	$(TAHOE) @src/allmydata/test/check_memory.py upload-POST
-	$(TAHOE) @src/allmydata/test/check_memory.py download
-	$(TAHOE) @src/allmydata/test/check_memory.py download-GET
-	$(TAHOE) @src/allmydata/test/check_memory.py download-GET-slow
-	$(TAHOE) @src/allmydata/test/check_memory.py receive
-
-.PHONY: check-memory-once
-check-memory-once: .built
-	rm -rf _test_memory
-	$(TAHOE) @src/allmydata/test/check_memory.py $(MODE)
-
 # The check-speed target uses a pre-established client node to run a canned
 # set of performance tests against a test network that is also
 # pre-established (probably on a remote machine). Provide it with the path to
