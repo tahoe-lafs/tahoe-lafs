@@ -20,10 +20,12 @@ too many flavors of Linux and of BSD to list.
 In Case Of Trouble
 ------------------
 
-There are a few 3rd party libraries that Tahoe-LAFS depends on that might not
-be easy to set up on your platform. If the following instructions don't Just
-Work without any further effort on your part, then please write to `the
-tahoe-dev mailing list`_ where friendly hackers will help you out.
+In some cases these instructions may fail due to peculiarities of your
+platform.
+
+If the following instructions don't Just Work without any further effort on
+your part, then please write to `the tahoe-dev mailing list`_ where friendly
+hackers will help you out.
 
 .. _the tahoe-dev mailing list: https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 
