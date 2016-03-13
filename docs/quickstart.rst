@@ -52,7 +52,7 @@ Download the latest stable release, `Tahoe-LAFS v1.10.2`_.
 Set Up Tahoe-LAFS
 -----------------
 
-Unpack the zip file and cd into the top-level directory.
+Unpack the zip file and cd into the top-level directory that is thus created.
 
 Run "``python setup.py build``" to generate the ``tahoe`` executable in a
 subdirectory of the current directory named ``bin``. This will download and
