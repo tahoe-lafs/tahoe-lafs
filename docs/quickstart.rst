@@ -20,10 +20,12 @@ too many flavors of Linux and of BSD to list.
 In Case Of Trouble
 ------------------
 
-There are a few 3rd party libraries that Tahoe-LAFS depends on that might not
-be easy to set up on your platform. If the following instructions don't Just
-Work without any further effort on your part, then please write to `the
-tahoe-dev mailing list`_ where friendly hackers will help you out.
+In some cases these instructions may fail due to peculiarities of your
+platform.
+
+If the following instructions don't Just Work without any further effort on
+your part, then please write to `the tahoe-dev mailing list`_ where friendly
+hackers will help you out.
 
 .. _the tahoe-dev mailing list: https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 
@@ -31,9 +33,9 @@ Install Python
 --------------
 
 Check if you already have an adequate version of Python installed by running
-``python -V``. The latest version of Python v2.7 is recommended. Python
-v2.6.x and v3 do not work. On Windows, we recommend the use of native Python
-v2.7, not Cygwin Python. If you don't have one of these versions of Python
+``python -V``. The latest version of Python v2.7 is required. Python v2.6.x
+and v3 do not work. On Windows, we recommend the use of native Python v2.7,
+not Cygwin Python. If you don't have one of these versions of Python
 installed, `download`_ and install the latest version of Python v2.7. Make
 sure that the path to the installation directory has no spaces in it (e.g. on
 Windows, do not install Python in the "Program Files" directory).
@@ -50,7 +52,7 @@ Download the latest stable release, `Tahoe-LAFS v1.10.2`_.
 Set Up Tahoe-LAFS
 -----------------
 
-Unpack the zip file and cd into the top-level directory.
+Unpack the zip file and cd into the top-level directory that is thus created.
 
 Run "``python setup.py build``" to generate the ``tahoe`` executable in a
 subdirectory of the current directory named ``bin``. This will download and
