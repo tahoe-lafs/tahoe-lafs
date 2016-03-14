@@ -873,14 +873,16 @@ class Downloader(QueueMixin, WriteFileMixin):
         d.addCallback(_filter_batch_to_deque)
         return d
 
-    # XXX fixme
     @defer.inlineCallbacks
     def _when_queue_is_empty(self):
+        # XXX can we amalgamate all the "scan" stuff and just call it
+        # directly from QueueMixin?
+        x = None
         try:
             x = yield self._scan(None)
-            defer.returnValue(x)
-        except:
-            self._log("_scan failed")
+        except Exception as e:
+            self._log("_scan failed: %s" % (repr(e),))
+        defer.returnValue(x)
 
     def _scan(self, ign):
         return self._scan_remote_collective()
