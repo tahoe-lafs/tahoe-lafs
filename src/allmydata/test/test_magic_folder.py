@@ -467,30 +467,54 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
         bob_fname = os.path.join(self.bob_magic_dir, 'blam')
 
-        # alice creates a file, bob downloads it
-        fileutil.write(alice_fname, 'contents0\n')
+        # Alice creates a file
+        fileutil.write(alice_fname, ''.join(['contents-%04d\n' % i for i in range(1024)]))
         yield self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
-
         yield iterate(self.alice_magicfolder)
-
-        for server_id in self.g.get_all_serverids():
-            self.g.break_server(server_id, count=1)
-        yield iterate(self.bob_magicfolder)
-        #yield iterate(self.bob_magicfolder)
-
-        # check the state
+        # check alice created the file
         yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
         self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
-        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
+
+        # now, we ONLY want to do the scan, not a full iteration of
+        # the process loop. So we do just the scan part "by hand" in
+        # Bob's downloader
+        yield self.bob_magicfolder.downloader._when_queue_is_empty()
+        # while we're delving into internals, I guess we might as well
+        # confirm that we did queue up an item to download
+        self.assertEqual(1, len(self.bob_magicfolder.downloader._deque))
+
+        # break all the servers so the download fails. the count is 2
+        # because the "full iteration" will do a scan (downloading the
+        # metadata file) and then process the deque (trying to
+        # download the item we queued up already)
+        for server_id in self.g.get_all_serverids():
+            self.g.break_server(server_id, count=2)
+
+        # now let bob try to do the download
+        yield iterate(self.bob_magicfolder)
+
+        # ...however Bob shouldn't have downloaded anything
         self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+        # bob should *not* have downloaded anything, as we failed all the servers
         self.failUnlessReallyEqual(
-            self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+            self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
             0
         )
+        self.failUnlessReallyEqual(
+            self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+            1
+        )
+
+        # now we let Bob try again
+        yield iterate(self.bob_magicfolder)
+
+        # ...and he should have succeeded
         self.failUnlessReallyEqual(
             self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
             1
         )
+        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
+
 
     @defer.inlineCallbacks
     def test_alice_delete_and_restore(self):
