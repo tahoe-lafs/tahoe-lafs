@@ -874,8 +874,13 @@ class Downloader(QueueMixin, WriteFileMixin):
         return d
 
     # XXX fixme
+    @defer.inlineCallbacks
     def _when_queue_is_empty(self):
-        return self._scan(None)
+        try:
+            x = yield self._scan(None)
+            defer.returnValue(x)
+        except:
+            self._log("_scan failed")
 
     def _scan(self, ign):
         return self._scan_remote_collective()
