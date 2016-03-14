@@ -463,6 +463,36 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
 
     @defer.inlineCallbacks
+    def test_download_retry(self):
+        alice_fname = os.path.join(self.alice_magic_dir, 'blam')
+        bob_fname = os.path.join(self.bob_magic_dir, 'blam')
+
+        # alice creates a file, bob downloads it
+        fileutil.write(alice_fname, 'contents0\n')
+        yield self.notify(to_filepath(alice_fname), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+
+        yield iterate(self.alice_magicfolder)
+
+        for server_id in self.g.get_all_serverids():
+            self.g.break_server(server_id, count=1)
+        yield iterate(self.bob_magicfolder)
+        #yield iterate(self.bob_magicfolder)
+
+        # check the state
+        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
+        self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
+        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
+        self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+        self.failUnlessReallyEqual(
+            self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+            0
+        )
+        self.failUnlessReallyEqual(
+            self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
+            1
+        )
+
+    @defer.inlineCallbacks
     def test_alice_delete_and_restore(self):
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
         bob_fname = os.path.join(self.bob_magic_dir, 'blam')
