@@ -10,7 +10,7 @@ import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Pyt
 #
 # See the docs/about.rst file for licensing information.
 
-import os, stat, subprocess, re
+import os, subprocess, re
 
 ##### sys.path management
 
@@ -53,7 +53,7 @@ else:
         print("Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR))
         sys.exit(-1)
 
-# setuptools/zetuptoolz looks in __main__.__requires__ for a list of
+# setuptools looks in __main__.__requires__ for a list of
 # requirements. When running "python setup.py test", __main__ is
 # setup.py, so we put the list here so that the requirements will be
 # available for tests:
@@ -72,13 +72,11 @@ if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
 
 __requires__ = install_requires[:]
 
-egg = os.path.realpath('setuptools-0.6c16dev6.egg')
-sys.path.insert(0, egg)
-import setuptools; setuptools.bootstrap_install_from = egg
-
 from setuptools import setup
 from setuptools.command import sdist
 from setuptools import Command
+from setuptools.command import install
+
 
 trove_classifiers=[
     "Development Status :: 5 - Production/Stable",
@@ -184,53 +182,47 @@ class Trial(Command):
 
 class MakeExecutable(Command):
     description = "make the 'bin%stahoe' scripts" % (os.sep,)
-    user_options = []
+    user_options = install.install.user_options
 
     def initialize_options(self):
         pass
     def finalize_options(self):
         pass
     def run(self):
-        bin_tahoe_template = os.path.join("bin", "tahoe-script.template")
+        # A bin/tahoe (or bin/tahoe-script.py) is only necessary for the
+        # test_runner tests which exercise CLI invocation of a brand new
+        # tahoe process. It is also handy for users who are accustomed to
+        # running bin/tahoe (and have not yet gotten used to the new
+        # virtualenv-based "just run tahoe" world). Eventually this will be
+        # removed.
 
-        # tahoe.pyscript is really only necessary for Windows, but we also
-        # create it on Unix for consistency.
-        script_names = ["tahoe.pyscript", "tahoe"]
+        # This must be run *after* a 'pip install' (hopefully inside a
+        # virtualenv), because it needs to locate the tahoe executable (named
+        # 'tahoe' or 'tahoe.exe' or 'tahoe-script.py' or something) on $PATH.
 
-        # Create the tahoe script file under the 'bin' directory. This
-        # file is exactly the same as the 'tahoe-script.template' script
-        # except that the shebang line is rewritten to use our sys.executable
-        # for the interpreter.
-        f = open(bin_tahoe_template, "rU")
-        script_lines = f.readlines()
-        f.close()
-        script_lines[0] = '#!%s\n' % (sys.executable,)
-        for script_name in script_names:
-            tahoe_script = os.path.join("bin", script_name)
-            try:
-                os.remove(tahoe_script)
-            except Exception:
-                if os.path.exists(tahoe_script):
-                   raise
-            f = open(tahoe_script, "wb")
-            for line in script_lines:
-                f.write(line)
-            f.close()
+        # This is safe because we're run after 'install', which installed
+        # Twisted. It would not be safe to run before that. Note that this
+        # uses $PATHEXT for a list of executable suffixes.
+        from twisted.python.procutils import which
 
-        # chmod +x
-        unix_script = os.path.join("bin", "tahoe")
-        old_mode = stat.S_IMODE(os.stat(unix_script)[stat.ST_MODE])
-        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
-                               stat.S_IXGRP | stat.S_IRGRP |
-                               stat.S_IXOTH | stat.S_IROTH )
-        os.chmod(unix_script, new_mode)
+        installed_tahoes = which("tahoe")
+        if not installed_tahoes:
+            err = ("Cannot find installed 'tahoe' binary "
+                   "('setup.py make_executable' must be run after"
+                   " 'setup.py install')")
+            raise RuntimeError(err)
 
-        old_tahoe_exe = os.path.join("bin", "tahoe.exe")
-        try:
-            os.remove(old_tahoe_exe)
-        except Exception:
-            if os.path.exists(old_tahoe_exe):
-                raise
+        if not os.path.isdir("bin"):
+            os.mkdir("bin")
+
+        installed_tahoe = installed_tahoes[0]
+        bin_tahoe = os.path.join("bin", "tahoe")
+        with open(installed_tahoe, "rb") as inf:
+            with open(bin_tahoe, "wb") as outf:
+                outf.write(inf.read())
+
+        # copy file mode
+        os.chmod(bin_tahoe, os.stat(installed_tahoe).st_mode)
 
 
 GIT_VERSION_BODY = '''
@@ -324,7 +316,7 @@ def versions_from_git(tag_prefix):
 
 class UpdateVersion(Command):
     description = "update _version.py from revision-control metadata"
-    user_options = []
+    user_options = install.install.user_options
 
     def initialize_options(self):
         pass

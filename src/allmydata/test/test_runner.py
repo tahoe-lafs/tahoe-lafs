@@ -34,16 +34,18 @@ rootdir = get_root_from_file(srcfile)
 
 if hasattr(sys, 'frozen'):
     bintahoe = os.path.join(rootdir, 'tahoe')
-    if sys.platform == "win32" and os.path.exists(bintahoe + '.exe'):
-        bintahoe += '.exe'
 else:
     bintahoe = os.path.join(rootdir, 'bin', 'tahoe')
-    if sys.platform == "win32":
-        bintahoe += '.pyscript'
-        if not os.path.exists(bintahoe):
-            alt_bintahoe = os.path.join(rootdir, 'Scripts', 'tahoe.pyscript')
-            if os.path.exists(alt_bintahoe):
-                bintahoe = alt_bintahoe
+
+if sys.platform == "win32" and not os.path.exists(bintahoe):
+    scriptsdir = os.path.join(rootdir, 'Scripts')
+    for alt_bintahoe in (bintahoe + '.pyscript',
+                         bintahoe + '-script.py',
+                         os.path.join(scriptsdir, 'tahoe.pyscript'),
+                         os.path.join(scriptsdir, 'tahoe-script.py'),):
+        if os.path.exists(alt_bintahoe):
+            bintahoe = alt_bintahoe
+            break
 
 
 class RunBinTahoeMixin:
