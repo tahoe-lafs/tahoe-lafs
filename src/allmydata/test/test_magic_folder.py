@@ -259,10 +259,12 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.alice_magicfolder = self.init_magicfolder(0, self.alice_upload_dircap,
                                                            self.alice_collective_dircap,
                                                            self.alice_magic_dir, self.alice_clock)
-            d = self.alice_magicfolder.uploader.set_hook('iteration')
+            d0 = self.alice_magicfolder.uploader.set_hook('iteration')
+            d1 = self.alice_magicfolder.downloader.set_hook('iteration')
             self.alice_clock.advance(self.alice_magicfolder.uploader.scan_interval + 1)
-            d.addCallback(lambda ign: result)
-            return d
+            d0.addCallback(lambda ign: d1)
+            d1.addCallback(lambda ign: result)
+            return d1
         d.addCallback(get_Alice_magicfolder)
 
         # Alice invites Bob. Bob joins.
@@ -280,10 +282,12 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.bob_magicfolder = self.init_magicfolder(1, self.bob_upload_dircap,
                                                          self.bob_collective_dircap,
                                                          self.bob_magic_dir, self.bob_clock)
-            d = self.bob_magicfolder.uploader.set_hook('iteration')
+            d0 = self.bob_magicfolder.uploader.set_hook('iteration')
+            d1 = self.bob_magicfolder.downloader.set_hook('iteration')
             self.bob_clock.advance(self.alice_magicfolder.uploader.scan_interval + 1)
-            d.addCallback(lambda ign: result)
-            return d
+            d0.addCallback(lambda ign: d1)
+            d1.addCallback(lambda ign: result)
+            return d1
         d.addCallback(get_Bob_magicfolder)
         return d
 
@@ -468,6 +472,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
 
     @defer.inlineCallbacks
     def test_download_retry(self):
+        print("starting actual download_retry test")
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
         bob_fname = os.path.join(self.bob_magic_dir, 'blam')
 
