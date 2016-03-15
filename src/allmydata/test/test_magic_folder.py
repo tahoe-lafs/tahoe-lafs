@@ -263,8 +263,8 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             d1 = self.alice_magicfolder.downloader.set_hook('iteration')
             self.alice_clock.advance(self.alice_magicfolder.uploader.scan_interval + 1)
             d0.addCallback(lambda ign: d1)
-            d1.addCallback(lambda ign: result)
-            return d1
+            d0.addCallback(lambda ign: result)
+            return d0
         d.addCallback(get_Alice_magicfolder)
 
         # Alice invites Bob. Bob joins.
@@ -286,8 +286,8 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             d1 = self.bob_magicfolder.downloader.set_hook('iteration')
             self.bob_clock.advance(self.alice_magicfolder.uploader.scan_interval + 1)
             d0.addCallback(lambda ign: d1)
-            d1.addCallback(lambda ign: result)
-            return d1
+            d0.addCallback(lambda ign: result)
+            return d0
         d.addCallback(get_Bob_magicfolder)
         return d
 
