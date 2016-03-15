@@ -53,11 +53,6 @@ else:
         print("Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR))
         sys.exit(-1)
 
-# setuptools looks in __main__.__requires__ for a list of
-# requirements. When running "python setup.py test", __main__ is
-# setup.py, so we put the list here so that the requirements will be
-# available for tests:
-
 # Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
 # the _auto_deps.install_requires list, which is used in the call to setup()
 # below.
@@ -69,8 +64,6 @@ setup_requires = adglobals['setup_requires']
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
     del sys.argv[1]
     install_requires += ["fakedependency >= 1.0.0"]
-
-__requires__ = install_requires[:]
 
 from setuptools import setup
 from setuptools.command import sdist
