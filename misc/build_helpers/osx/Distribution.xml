@@ -32,14 +32,16 @@
 <pkg-ref id="com.leastauthority.tahoe" version="1.10.0" auth="Root">tahoe-lafs.pkg</pkg-ref>
 
 <license language="en" mime-type="text/plain"><![CDATA[
-Copyright 2006-2014 The Tahoe-LAFS Software Foundation
+Copyright 2006-2016 The Tahoe-LAFS Software Foundation
 
-You may use this package under the GNU General Public License, version 2 or, at
-your option, any later version.  You may use this package under the Transitive
-Grace Period Public Licence, version 1.0, or at your option, any later
-version. (You may choose to use this package under the terms of either licence,
-at your option.)  See the file 'COPYING.GPL' for the terms of the GNU General
-Public License, version 2.  See the file 'COPYING.TGPPL.rst' for the terms of
-the Transitive Grace Period Public Licence, version 1.0.
+You may use this package under the GNU General Public License,
+version 2 or, at your option, any later version. You may use
+this package under the Transitive Grace Period Public Licence,
+version 1.0, or at your option, any later version. (You may
+choose to use this package under the terms of either licence,
+at your option.) See the file 'COPYING.GPL' for the terms of
+the GNU General Public License, version 2. See the file
+'COPYING.TGPPL.rst' for the terms of the Transitive Grace
+Period Public Licence, version 1.0.
 ]]></license>
 </installer-script>
