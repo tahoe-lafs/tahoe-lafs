@@ -186,8 +186,11 @@ class Node(service.MultiService):
             socks_host = self.get_config("connections", "%s.socks_host" % hint_type, "")
             socks_port = self.get_config("connections", "%s.socks_port" % hint_type, "")
             return socks_host, socks_port
+        try:
+            connection_items = self.config.options("connections")
+        except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+            return
 
-        connection_items = self.config.options("connections")
         hint_types = set()
         for item in connection_items:
             if item.endswith(".socks_host") or item.endswith(".socks_port"):
