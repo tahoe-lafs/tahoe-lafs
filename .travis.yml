@@ -1,5 +1,8 @@
 sudo: false
 language: python
+cache: pip
+before_cache:
+  - rm -f $HOME/.cache/pip/log/debug.log
 python:
   - "2.7"
   - "pypy"
