@@ -15,7 +15,7 @@ Pre-packaged versions are available for several operating systems:
 * Debian and Ubuntu users can `apt-get install tahoe-lafs`
 * NixOS, NetBSD (pkgsrc), ArchLinux, Slackware, and Gentoo have packages
   available, see `OSPackages`_ for details
-* Mac and Windows installers are in development.
+* `Mac`_ and Windows installers are in development.
 
 If you don't use an OS package, you'll need Python 2.7 and `pip`_. You may
 also need a C compiler, and the development headers for python, libffi, and
@@ -62,6 +62,7 @@ the Transitive Grace Period Public Licence, version 1.0.
 See `TGPPL.PDF`_ for why the TGPPL exists, graphically illustrated on three slides.
 
 .. _OSPackages: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/OSPackages
+.. _Mac: docs/OS-X.rst
 .. _pip: https://pip.pypa.io/en/stable/installing/
 .. _WindowsInstall: docs/windows.rst
 .. _docs/running.rst: docs/running.rst
