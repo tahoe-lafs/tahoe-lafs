@@ -173,51 +173,6 @@ class Trial(Command):
         sys.exit(rc)
 
 
-class MakeExecutable(Command):
-    description = "make the 'bin%stahoe' scripts" % (os.sep,)
-    user_options = install.install.user_options
-
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        # A bin/tahoe (or bin/tahoe-script.py) is only necessary for the
-        # test_runner tests which exercise CLI invocation of a brand new
-        # tahoe process. It is also handy for users who are accustomed to
-        # running bin/tahoe (and have not yet gotten used to the new
-        # virtualenv-based "just run tahoe" world). Eventually this will be
-        # removed.
-
-        # This must be run *after* a 'pip install' (hopefully inside a
-        # virtualenv), because it needs to locate the tahoe executable (named
-        # 'tahoe' or 'tahoe.exe' or 'tahoe-script.py' or something) on $PATH.
-
-        # This is safe because we're run after 'install', which installed
-        # Twisted. It would not be safe to run before that. Note that this
-        # uses $PATHEXT for a list of executable suffixes.
-        from twisted.python.procutils import which
-
-        installed_tahoes = which("tahoe")
-        if not installed_tahoes:
-            err = ("Cannot find installed 'tahoe' binary "
-                   "('setup.py make_executable' must be run after"
-                   " 'setup.py install')")
-            raise RuntimeError(err)
-
-        if not os.path.isdir("bin"):
-            os.mkdir("bin")
-
-        installed_tahoe = installed_tahoes[0]
-        bin_tahoe = os.path.join("bin", "tahoe")
-        with open(installed_tahoe, "rb") as inf:
-            with open(bin_tahoe, "wb") as outf:
-                outf.write(inf.read())
-
-        # copy file mode
-        os.chmod(bin_tahoe, os.stat(installed_tahoe).st_mode)
-
-
 GIT_VERSION_BODY = '''
 # This _version.py is generated from git metadata by the tahoe setup.py.
 
@@ -410,7 +365,6 @@ setup(name=APPNAME,
       url='https://tahoe-lafs.org/',
       license='GNU GPL', # see README.rst -- there is an alternative licence
       cmdclass={"trial": Trial,
-                "make_executable": MakeExecutable,
                 "update_version": UpdateVersion,
                 "sdist": MySdist,
                 },
