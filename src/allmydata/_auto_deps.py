@@ -16,7 +16,11 @@
 # >=, <= and != operators.)
 
 install_requires = [
-    "setuptools >= 20.3", # current version at this moment
+    # we don't need much out of setuptools, but the __init__.py stuff does
+    # need pkg_resources . We use >=11.3 here because that's what
+    # "cryptography" requires (which is a sub-dependency of TLS-using
+    # packages), so there's no point in requiring less.
+    "setuptools >= 11.3",
 
     "zfec >= 1.1.0",
 
