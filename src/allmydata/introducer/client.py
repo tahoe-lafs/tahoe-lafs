@@ -28,9 +28,6 @@ class WrapV2ClientInV1Interface(Referenceable): # for_v1
                        for ann_v1 in announcements])
         return self.original.got_announcements(anns_v1, lp)
 
-    def remote_set_encoding_parameters(self, parameters):
-        self.original.remote_set_encoding_parameters(parameters)
-
 class RIStubClient(RemoteInterface): # for_v1
     """Each client publishes a service announcement for a dummy object called
     the StubClient. This object doesn't actually offer any services, but the
@@ -88,8 +85,6 @@ class IntroducerClient(service.Service, Referenceable):
         # from updates. It also provides memory for clients who subscribe
         # after startup.
         self._inbound_announcements = {}
-
-        self.encoding_parameters = None
 
         # hooks for unit tests
         self._debug_counts = {
@@ -353,9 +348,6 @@ class IntroducerClient(service.Service, Referenceable):
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
-
-    def remote_set_encoding_parameters(self, parameters):
-        self.encoding_parameters = parameters
 
     def connected_to_introducer(self):
         return bool(self._publisher)

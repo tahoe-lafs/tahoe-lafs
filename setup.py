@@ -10,7 +10,7 @@ import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Pyt
 #
 # See the docs/about.rst file for licensing information.
 
-import os, stat, subprocess, re
+import os, subprocess, re
 
 ##### sys.path management
 
@@ -53,11 +53,6 @@ else:
         print("Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR))
         sys.exit(-1)
 
-# setuptools/zetuptoolz looks in __main__.__requires__ for a list of
-# requirements. When running "python setup.py test", __main__ is
-# setup.py, so we put the list here so that the requirements will be
-# available for tests:
-
 # Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
 # the _auto_deps.install_requires list, which is used in the call to setup()
 # below.
@@ -70,15 +65,11 @@ if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
     del sys.argv[1]
     install_requires += ["fakedependency >= 1.0.0"]
 
-__requires__ = install_requires[:]
-
-egg = os.path.realpath('setuptools-0.6c16dev6.egg')
-sys.path.insert(0, egg)
-import setuptools; setuptools.bootstrap_install_from = egg
-
 from setuptools import setup
 from setuptools.command import sdist
 from setuptools import Command
+from setuptools.command import install
+
 
 trove_classifiers=[
     "Development Status :: 5 - Production/Stable",
@@ -182,57 +173,6 @@ class Trial(Command):
         sys.exit(rc)
 
 
-class MakeExecutable(Command):
-    description = "make the 'bin%stahoe' scripts" % (os.sep,)
-    user_options = []
-
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        bin_tahoe_template = os.path.join("bin", "tahoe-script.template")
-
-        # tahoe.pyscript is really only necessary for Windows, but we also
-        # create it on Unix for consistency.
-        script_names = ["tahoe.pyscript", "tahoe"]
-
-        # Create the tahoe script file under the 'bin' directory. This
-        # file is exactly the same as the 'tahoe-script.template' script
-        # except that the shebang line is rewritten to use our sys.executable
-        # for the interpreter.
-        f = open(bin_tahoe_template, "rU")
-        script_lines = f.readlines()
-        f.close()
-        script_lines[0] = '#!%s\n' % (sys.executable,)
-        for script_name in script_names:
-            tahoe_script = os.path.join("bin", script_name)
-            try:
-                os.remove(tahoe_script)
-            except Exception:
-                if os.path.exists(tahoe_script):
-                   raise
-            f = open(tahoe_script, "wb")
-            for line in script_lines:
-                f.write(line)
-            f.close()
-
-        # chmod +x
-        unix_script = os.path.join("bin", "tahoe")
-        old_mode = stat.S_IMODE(os.stat(unix_script)[stat.ST_MODE])
-        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
-                               stat.S_IXGRP | stat.S_IRGRP |
-                               stat.S_IXOTH | stat.S_IROTH )
-        os.chmod(unix_script, new_mode)
-
-        old_tahoe_exe = os.path.join("bin", "tahoe.exe")
-        try:
-            os.remove(old_tahoe_exe)
-        except Exception:
-            if os.path.exists(old_tahoe_exe):
-                raise
-
-
 GIT_VERSION_BODY = '''
 # This _version.py is generated from git metadata by the tahoe setup.py.
 
@@ -324,7 +264,7 @@ def versions_from_git(tag_prefix):
 
 class UpdateVersion(Command):
     description = "update _version.py from revision-control metadata"
-    user_options = []
+    user_options = install.install.user_options
 
     def initialize_options(self):
         pass
@@ -425,7 +365,6 @@ setup(name=APPNAME,
       url='https://tahoe-lafs.org/',
       license='GNU GPL', # see README.rst -- there is an alternative licence
       cmdclass={"trial": Trial,
-                "make_executable": MakeExecutable,
                 "update_version": UpdateVersion,
                 "sdist": MySdist,
                 },

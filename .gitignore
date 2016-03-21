@@ -23,6 +23,7 @@ zope.interface-*.egg
 .pc
 
 /_trial_temp*
+/_test_memory/
 /tmp*
 /*.patch
 /dist/
@@ -34,3 +35,4 @@ zope.interface-*.egg
 /coverage-html/
 /miscaptures.txt
 /violations.txt
+/.tox/

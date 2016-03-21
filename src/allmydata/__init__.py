@@ -148,7 +148,9 @@ def normalized_version(verstr, what=None):
     try:
         suggested = verlib.suggest_normalized_version(verstr) or verstr
         return verlib.NormalizedVersion(suggested)
-    except (StandardError, verlib.IrrationalVersionError):
+    except verlib.IrrationalVersionError:
+        raise
+    except StandardError:
         cls, value, trace = sys.exc_info()
         raise PackagingError, ("could not parse %s due to %s: %s"
                                % (what or repr(verstr), cls.__name__, value)), trace
@@ -210,6 +212,14 @@ def get_package_versions_and_locations():
             warnings.filters.pop()
 
     packages = []
+    pkg_resources_vers_and_locs = dict()
+
+    if not hasattr(sys, 'frozen'):
+        import pkg_resources
+        from _auto_deps import install_requires
+
+        pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
+                                            for p in pkg_resources.require(install_requires)])
 
     def get_version(module):
         if hasattr(module, '__version__'):
@@ -239,7 +249,13 @@ def get_package_versions_and_locations():
                 elif pkgname == 'setuptools' and hasattr(module, '_distribute'):
                     # distribute does not report its version in any module variables
                     comment = 'distribute'
-                packages.append( (pkgname, (get_version(module), package_dir(module.__file__), comment)) )
+                ver = get_version(module)
+                loc = package_dir(module.__file__)
+                if ver == "unknown" and pkgname in pkg_resources_vers_and_locs:
+                    (pr_ver, pr_loc) = pkg_resources_vers_and_locs[pkgname]
+                    if loc == os.path.normcase(os.path.realpath(pr_loc)):
+                        ver = pr_ver
+                packages.append( (pkgname, (ver, loc, comment)) )
         elif pkgname == 'python':
             packages.append( (pkgname, (platform.python_version(), sys.executable, None)) )
         elif pkgname == 'platform':
@@ -249,13 +265,7 @@ def get_package_versions_and_locations():
 
     cross_check_errors = []
 
-    if not hasattr(sys, 'frozen'):
-        import pkg_resources
-        from _auto_deps import install_requires
-
-        pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
-                                            for p in pkg_resources.require(install_requires)])
-
+    if len(pkg_resources_vers_and_locs) > 0:
         imported_packages = set([p.lower() for (p, _) in packages])
         extra_packages = []
 
@@ -284,9 +294,15 @@ def check_requirement(req, vers_and_locs):
         raise ImportError("for requirement %r: %s" % (req, comment))
     if actual == 'unknown':
         return
-    actualver = normalized_version(actual, what="actual version %r of %s from %r" % (actual, name, location))
+    try:
+        actualver = normalized_version(actual, what="actual version %r of %s from %r" %
+                                               (actual, name, location))
+        matched = match_requirement(req, reqlist, actualver)
+    except verlib.IrrationalVersionError:
+        # meh, it probably doesn't matter
+        return
 
-    if not match_requirement(req, reqlist, actualver):
+    if not matched:
         msg = ("We require %s, but could only find version %s.\n" % (req, actual))
         if location and location != 'unknown':
             msg += "The version we found is from %r.\n" % (location,)
@@ -359,6 +375,8 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
 
             try:
                 pr_normver = normalized_version(pr_ver)
+            except verlib.IrrationalVersionError:
+                continue
             except Exception, e:
                 errors.append("Warning: version number %r found for dependency %r by pkg_resources could not be parsed. "
                               "The version found by import was %r from %r. "
@@ -374,6 +392,8 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                 else:
                     try:
                         imp_normver = normalized_version(imp_ver)
+                    except verlib.IrrationalVersionError:
+                        continue
                     except Exception, e:
                         errors.append("Warning: version number %r found for dependency %r (imported from %r) could not be parsed. "
                                       "pkg_resources thought it should be version %r at %r. "

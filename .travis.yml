@@ -1,5 +1,8 @@
 sudo: false
 language: python
+cache: pip
+before_cache:
+  - rm -f $HOME/.cache/pip/log/debug.log
 python:
   - "2.7"
   - "pypy"
@@ -11,8 +14,10 @@ before_install:
   - python misc/build_helpers/show-tool-versions.py
 install:
   - pip install coverage coveralls
-before_script: python setup.py build
-script: bin/tahoe @coverage run --branch --source=src/allmydata @tahoe --version-and-path debug trial --rterrors --reporter=timing
+before_script:
+  - pip install -e .
+script:
+  - coverage run --branch --source=src/allmydata `which tahoe` --version-and-path debug trial --rterrors --reporter=timing
 after_success:
   coveralls
 notifications:
