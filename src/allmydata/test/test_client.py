@@ -319,15 +319,16 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         basedir = "test_client.Basic.test_client_pluggable"
         os.mkdir(basedir)
 
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       BASECONFIG + \
-                       "[connections]\n" + \
-                       "tcp.socks_host = 127.0.0.1\n" + \
-                       "tcp.socks_port = 9050\n")
-        c = client.Client(basedir)
-        self.failUnless(isinstance(c.tub._connectionHandlers['tcp'], SocksPlugin))
-        self.failUnlessReallyEqual(c.tub._connectionHandlers['tcp'].socks_host, '127.0.0.1')
-        self.failUnlessReallyEqual(c.tub._connectionHandlers['tcp'].socks_port, 9050)
+        for hint_type in ("tcp", "tor", "fancy-new-protocol"):
+            fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                           (BASECONFIG + \
+                            "[connections]\n" + \
+                            "%s.socks_host = 127.0.0.1\n" + \
+                            "%s.socks_port = 9050\n") % (hint_type, hint_type))
+            c = client.Client(basedir)
+            self.failUnless(isinstance(c.tub._connectionHandlers[hint_type], SocksPlugin))
+            self.failUnlessReallyEqual(c.tub._connectionHandlers[hint_type].socks_host, '127.0.0.1')
+            self.failUnlessReallyEqual(c.tub._connectionHandlers[hint_type].socks_port, 9050)
 
     def test_create_drop_uploader(self):
         class MockDropUploader(service.MultiService):
