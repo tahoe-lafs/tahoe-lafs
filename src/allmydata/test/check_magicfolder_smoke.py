@@ -39,9 +39,14 @@ import subprocess
 from os.path import join, abspath, curdir, exists
 from os import mkdir, listdir, unlink
 
+is_windows = (sys.platform == 'win32')
+
 tahoe_base = abspath(curdir)
 data_base = join(tahoe_base, 'smoke_magicfolder')
-tahoe_bin = join(tahoe_base, 'bin', 'tahoe')
+if is_windows:
+    tahoe_bin = join(tahoe_base, 'venv', 'Scripts', 'tahoe.exe')
+else:
+    tahoe_bin = join(tahoe_base, 'bin', 'tahoe')
 python = sys.executable
 
 if not exists(data_base):
@@ -57,7 +62,7 @@ if 'kill' in sys.argv:
         print("killing", d)
         subprocess.call(
             [
-                python, tahoe_bin, 'stop', join(data_base, d),
+                tahoe_bin, 'stop', join(data_base, d),
             ]
         )
     sys.exit(0)
@@ -65,7 +70,7 @@ if 'kill' in sys.argv:
 if not exists(join(data_base, 'introducer')):
     subprocess.check_call(
         [
-            python, tahoe_bin, 'create-introducer', join(data_base, 'introducer'),
+            tahoe_bin, 'create-introducer', join(data_base, 'introducer'),
         ]
     )
 with open(join(data_base, 'introducer', 'tahoe.cfg'), 'w') as f:
@@ -75,11 +80,19 @@ nickname = introducer0
 web.port = 4560
 ''')
 
-subprocess.check_call(
-    [
-        python, tahoe_bin, 'start', join(data_base, 'introducer'),
-    ]
-)
+if not is_windows:
+    subprocess.check_call(
+        [
+            tahoe_bin, 'start', join(data_base, 'introducer'),
+        ]
+    )
+else:
+    time.sleep(5)
+    intro = subprocess.Popen(
+        [
+            tahoe_bin, 'start', join(data_base, 'introducer'),
+        ]
+    )
 
 furl_fname = join(data_base, 'introducer', 'private', 'introducer.furl')
 while not exists(furl_fname):
@@ -87,12 +100,13 @@ while not exists(furl_fname):
 furl = open(furl_fname, 'r').read()
 print("FURL", furl)
 
+nodes = []
 for x in range(5):
     data_dir = join(data_base, 'node%d' % x)
     if not exists(data_dir):
         subprocess.check_call(
             [
-                python, tahoe_bin, 'create-node',
+                tahoe_bin, 'create-node',
                 '--nickname', 'node%d' % (x,),
                 '--introducer', furl,
                 data_dir,
@@ -113,29 +127,38 @@ shares.needed = 2
 shares.happy = 3
 shares.total = 4
 ''' % {'node_id':x, 'furl':furl, 'tub_port':(9900 + x)})
-    subprocess.check_call(
-        [
-            python, tahoe_bin, 'start', data_dir,
-        ]
-    )
-
+    if not is_windows:
+        subprocess.check_call(
+            [
+                tahoe_bin, 'start', data_dir,
+            ]
+        )
+    else:
+        time.sleep(5)
+        node = subprocess.Popen(
+            [
+                tahoe_bin, 'start', data_dir,
+            ]
+        )
+        nodes.append(node)
 
 
 # alice and bob clients
 do_invites = False
 node_id = 0
+clients = []
 for name in ['alice', 'bob']:
     data_dir = join(data_base, name)
     magic_dir = join(data_base, '%s-magic' % (name,))
     try:
         mkdir(magic_dir)
-    except OSError:
+    except Exception:
         pass
     if not exists(data_dir):
         do_invites = True
         subprocess.check_call(
             [
-                python, tahoe_bin, 'create-node',
+                tahoe_bin, 'create-node',
                 '--no-storage',
                 '--nickname', name,
                 '--introducer', furl,
@@ -156,15 +179,26 @@ shares.needed = 2
 shares.happy = 3
 shares.total = 4
 ''' % {'name':name, 'node_id':node_id, 'furl':furl})
-    subprocess.check_call(
-        [
-            python, tahoe_bin, 'start', data_dir,
-        ]
-    )
+    if not is_windows:
+        subprocess.check_call(
+            [
+                tahoe_bin, 'start', data_dir,
+            ]
+        )
+    else:
+        time.sleep(5)
+        x = subprocess.Popen(
+            [
+                tahoe_bin, 'start', data_dir,
+            ]
+        )
+        clients.append(x)
     node_id += 1
 
 # okay, now we have alice + bob (alice, bob)
 # now we have alice create a magic-folder, and invite bob to it
+
+time.sleep(5)
 
 if do_invites:
     data_dir = join(data_base, 'alice')
@@ -172,14 +206,14 @@ if do_invites:
     print("Alice creates a magic-folder")
     subprocess.check_call(
         [
-            python, tahoe_bin, 'magic-folder', 'create', '--basedir', data_dir, 'magik:', 'alice',
+            tahoe_bin, 'magic-folder', 'create', '--basedir', data_dir, 'magik:', 'alice',
             join(data_base, 'alice-magic'),
         ]
     )
     print("Alice invites Bob")
     invite = subprocess.check_output(
         [
-            python, tahoe_bin, 'magic-folder', 'invite', '--basedir', data_dir, 'magik:', 'bob',
+            tahoe_bin, 'magic-folder', 'invite', '--basedir', data_dir, 'magik:', 'bob',
         ]
     )
     print("  invite:", invite)
@@ -189,23 +223,40 @@ if do_invites:
     data_dir = join(data_base, 'bob')
     subprocess.check_call(
         [
-            python, tahoe_bin, 'magic-folder', 'join', '--basedir', data_dir, invite,
+            tahoe_bin, 'magic-folder', 'join', '--basedir', data_dir, invite,
             join(data_base, 'bob-magic'),
         ]
     )
     print("Bob has joined.")
 
     print("Restarting alice + bob clients")
-    subprocess.check_call(
-        [
-            python, tahoe_bin, 'restart', '--basedir', join(data_base, 'alice'),
-        ]
-    )
-    subprocess.check_call(
-        [
-            python, tahoe_bin, 'restart', '--basedir', join(data_base, 'bob'),
-        ]
-    )
+    if not is_windows:
+        subprocess.check_call(
+            [
+                tahoe_bin, 'restart', '--basedir', join(data_base, 'alice'),
+            ]
+        )
+        subprocess.check_call(
+            [
+                tahoe_bin, 'restart', '--basedir', join(data_base, 'bob'),
+            ]
+        )
+    else:
+        for x in clients:
+            x.terminate()
+        clients = []
+        a = subprocess.Popen(
+            [
+                tahoe_bin, 'start', '--basedir', join(data_base, 'alice'),
+            ]
+        )
+        b = subprocess.Popen(
+            [
+                tahoe_bin, 'start', '--basedir', join(data_base, 'bob'),
+            ]
+        )
+        clients.append(a)
+        clients.append(b)
 
 if True:
     for name in ['alice', 'bob']:
@@ -367,7 +418,7 @@ if True:
     data_dir = join(data_base, 'bob')
     subprocess.check_call(
         [
-            python, tahoe_bin, 'magic-folder', 'leave', '--basedir', data_dir,
+            tahoe_bin, 'magic-folder', 'leave', '--basedir', data_dir,
         ]
     )
 
