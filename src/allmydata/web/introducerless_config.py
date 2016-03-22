@@ -1,4 +1,4 @@
-
+import yaml
 from twisted.internet import defer
 from nevow import rend, inevow, tags as T
 from allmydata.web.common import getxmlfile
@@ -20,18 +20,11 @@ class IntroducerlessConfig(rend.Page):
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
     def render_server_config(self, ctx, server):
-
         announcement = server.get_announcement()
-        seed = announcement['permutation-seed-base32']
-        furl = announcement['anonymous-storage-FURL']
-        peerid = server.get_longname()
-        nickname = server.get_nickname()
-
-        config = """
-server.%s.type = tahoe-foolscap
-server.%s.nickname = %s
-server.%s.seed = %s
-server.%s.furl = %s
-""" % (peerid, peerid, nickname, peerid, seed, peerid, furl)
-
-        return config
+        config = {
+            'peerid': server.get_longname(),
+            'nickname': server.get_nickname(),
+            'anonymous-storage-FURL': announcement['anonymous-storage-FURL'],
+            'seed': announcement['permutation-seed-base32'],
+        }
+        return yaml.dump(config)
