@@ -95,75 +95,6 @@ trove_classifiers=[
     ]
 
 
-# We no longer have any requirements specific to tests.
-tests_require=[]
-
-
-class Trial(Command):
-    description = "run trial (use 'bin%stahoe debug trial' for the full set of trial options)" % (os.sep,)
-    # This is just a subset of the most useful options, for compatibility.
-    user_options = [ ("no-rterrors", None, "Don't print out tracebacks as they occur."),
-                     ("rterrors", "e", "Print out tracebacks as they occur (default, so ignored)."),
-                     ("until-failure", "u", "Repeat a test (specified by -s) until it fails."),
-                     ("reporter=", None, "The reporter to use for this test run."),
-                     ("suite=", "s", "Specify the test suite."),
-                     ("quiet", None, "Don't display version numbers and paths of Tahoe dependencies."),
-                     ("coverage", "c", "Collect branch coverage information."),
-                   ]
-
-    def initialize_options(self):
-        self.rterrors = False
-        self.no_rterrors = False
-        self.until_failure = False
-        self.reporter = None
-        self.suite = "allmydata"
-        self.quiet = False
-        self.coverage = False
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        args = [sys.executable, os.path.join('bin', 'tahoe')]
-
-        if self.coverage:
-            from errno import ENOENT
-            coverage_cmd = 'coverage'
-            try:
-                subprocess.call([coverage_cmd, 'help'])
-            except OSError as e:
-                if e.errno != ENOENT:
-                    raise
-                coverage_cmd = 'python-coverage'
-                try:
-                    rc = subprocess.call([coverage_cmd, 'help'])
-                except OSError as e:
-                    if e.errno != ENOENT:
-                        raise
-                    print >>sys.stderr
-                    print >>sys.stderr, "Couldn't find the command 'coverage' nor 'python-coverage'."
-                    print >>sys.stderr, "coverage can be installed using 'pip install coverage', or on Debian-based systems, 'apt-get install python-coverage'."
-                    sys.exit(1)
-
-            args += ['@' + coverage_cmd, 'run', '--branch', '--source=src/allmydata', '@tahoe']
-
-        if not self.quiet:
-            args.append('--version-and-path')
-        args += ['debug', 'trial']
-        if self.rterrors and self.no_rterrors:
-            raise AssertionError("--rterrors and --no-rterrors conflict.")
-        if not self.no_rterrors:
-            args.append('--rterrors')
-        if self.until_failure:
-            args.append('--until-failure')
-        if self.reporter:
-            args.append('--reporter=' + self.reporter)
-        if self.suite:
-            args.append(self.suite)
-        rc = subprocess.call(args)
-        sys.exit(rc)
-
-
 GIT_VERSION_BODY = '''
 # This _version.py is generated from git metadata by the tahoe setup.py.
 
@@ -305,8 +236,7 @@ setup(name=APPNAME,
       author_email='tahoe-dev@tahoe-lafs.org',
       url='https://tahoe-lafs.org/',
       license='GNU GPL', # see README.rst -- there is an alternative licence
-      cmdclass={"trial": Trial,
-                "update_version": UpdateVersion,
+      cmdclass={"update_version": UpdateVersion,
                 },
       package_dir = {'':'src'},
       packages=['allmydata',
@@ -325,7 +255,6 @@ setup(name=APPNAME,
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
       install_requires=install_requires,
-      tests_require=tests_require,
       package_data={"allmydata.web": ["*.xhtml",
                                       "static/*.js", "static/*.png", "static/*.css",
                                       "static/img/*.png",
