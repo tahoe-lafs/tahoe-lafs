@@ -4,7 +4,8 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release ??? (???)
+Release 1.11.0 (???)
+''''''''''''''''''''
 
 New Build Process
 -----------------
