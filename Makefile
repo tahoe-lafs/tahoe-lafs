@@ -191,26 +191,17 @@ find-trailing-spaces:
 	-$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r $(SOURCES)
 	@echo
 
-# The test-desert-island target grabs the tahoe-deps tarball, unpacks it,
-# does a build, then asserts that the build did not try to download anything
-# as it ran. Invoke this on a new tree, or after a 'clean', to make sure the
-# support/lib/ directory is gone.
-
 .PHONY: fetch-and-unpack-deps
 fetch-and-unpack-deps:
-	test -f tahoe-deps.tar.gz || wget https://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-lafs-deps.tar.gz
-	rm -rf tahoe-deps
-	tar xzf tahoe-lafs-deps.tar.gz
+	@echo "test-and-unpack-deps is obsolete"
 
 .PHONY: test-desert-island
 test-desert-island:
-	$(MAKE) fetch-and-unpack-deps
-	$(MAKE) 2>&1 | tee make.out
-	$(PYTHON) misc/build_helpers/check-build.py make.out no-downloads
+	@echo "test-desert-island is obsolete"
 
 .PHONY: test-pip-install
 test-pip-install:
-	$(PYTHON) misc/build_helpers/test-pip-install.py
+	@echo "test-pip-install is obsolete"
 
 # TARBALL GENERATION
 .PHONY: tarballs
