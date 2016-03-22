@@ -171,8 +171,6 @@ clean:
 	rm -rf support dist
 	rm -rf `ls -d *.egg | grep -vEe"setuptools-|setuptools_darcs-|darcsver-"`
 	rm -rf *.pyc
-	rm -rf misc/dependencies/build misc/dependencies/temp
-	rm -rf misc/dependencies/tahoe_deps.egg-info
 	rm -f bin/tahoe bin/tahoe.pyscript
 	rm -f *.pkg
 
