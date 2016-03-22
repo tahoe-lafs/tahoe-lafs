@@ -74,7 +74,8 @@ install_requires = [
     #   13.0.0 yet, so if this is inconvenient, feel free to downgrade this
     #   dependency to "Twisted >= 13.0.0" as long as your OS package declares
     #   a dependency on everything that Twisted needs to provide TLS support.
-    "Twisted[tls] >= 15.1.0",
+    # * The Magic Folder frontend depends on Twisted >= 15.2.0.
+    "Twisted[tls] >= 15.2.0",
 
     # We need Nevow >= 0.11.1 which can be installed using pip.
     "Nevow >= 0.11.1",
