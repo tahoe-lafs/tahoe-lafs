@@ -63,7 +63,8 @@ install_requires = [
     # * The FTP frontend depends on Twisted >= 11.1.0 for
     #   filepath.Permissions
     # * Nevow 0.11.1 depends on Twisted >= 13.0.0.
-    "Twisted >= 13.0.0",
+    # * The Magic Folder frontend depends on Twisted >= 15.2.0.
+    "Twisted >= 15.2.0",
 
     # We need Nevow >= 0.11.1 which can be installed using pip.
     "Nevow >= 0.11.1",
