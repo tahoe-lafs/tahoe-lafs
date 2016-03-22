@@ -1,4 +1,4 @@
-import os, stat, time, weakref
+import os, stat, time, weakref, yaml
 from allmydata import node
 
 from zope.interface import implements
@@ -385,22 +385,15 @@ class Client(node.Node, pollmixin.PollMixin):
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
         sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True, preferred_peers=preferred_peers)
         self.storage_broker = sb
+        self.init_client_static_storage_config()
+        for ic in self.introducer_clients:
+            sb.use_introducer(ic)
 
-        if self.config.has_section("client-server-selection"):
-            server_params = {} # maps serverid to dict of parameters
-            for (name, value) in self.config.items("client-server-selection"):
-                serverid = None
-                pieces   = name.split(".")
-
-                if pieces[0] == "server":
-                    serverid = pieces[1]
-                    if serverid not in server_params:
-                        server_params[serverid] = {}
-                    server_params[serverid][pieces[2]] = value
-                else:
-                    # if not a server line then skip
-                    continue
-
+    def init_client_static_storage_config(self):
+        if os.path.exists(os.path.join(self.basedir, "storage_servers.yaml")):
+            f = open("storage_servers.yaml")
+            server_params = yaml.safe_load(f)
+            f.close()
             for serverid, params in server_params.items():
                 server_type = params.pop("type")
                 if server_type == "tahoe-foolscap":
@@ -413,9 +406,6 @@ class Client(node.Node, pollmixin.PollMixin):
                            "tahoe.cfg [client-server-selection]server.%s.type"
                            % (server_type, serverid))
                     raise storage_client.UnknownServerTypeError(msg)
-
-        for ic in self.introducer_clients:
-            sb.use_introducer(ic)
 
     def get_storage_broker(self):
         return self.storage_broker
