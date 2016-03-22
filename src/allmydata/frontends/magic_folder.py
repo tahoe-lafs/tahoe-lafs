@@ -865,6 +865,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                     )
                     to_dl.set_status('queued', self._clock.seconds())
                     self._deque.append(to_dl)
+                    self._count("objects_queued")
                 else:
                     self._log("Excluding %r" % (relpath_u,))
                     self._call_hook(None, 'processed', async=True)  # await this maybe-Deferred??
