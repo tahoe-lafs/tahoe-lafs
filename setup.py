@@ -58,7 +58,6 @@ if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
     install_requires += ["fakedependency >= 1.0.0"]
 
 from setuptools import setup
-from setuptools.command import sdist
 from setuptools import Command
 from setuptools.command import install
 
@@ -295,56 +294,6 @@ Warning: no version information found. This may cause tests to fail.
         return versions.get("normalized", None)
 
 
-class MySdist(sdist.sdist):
-    """ A hook in the sdist command so that we can determine whether this the
-    tarball should be 'SUMO' or not, i.e. whether or not to include the
-    external dependency tarballs. Note that we always include
-    misc/dependencies/* in the tarball; --sumo controls whether tahoe-deps/*
-    is included as well.
-    """
-
-    user_options = sdist.sdist.user_options + \
-        [('sumo', 's',
-          "create a 'sumo' sdist which includes the contents of tahoe-deps/*"),
-         ]
-    boolean_options = ['sumo']
-
-    def initialize_options(self):
-        sdist.sdist.initialize_options(self)
-        self.sumo = False
-
-    def make_distribution(self):
-        # add our extra files to the list just before building the
-        # tarball/zipfile. We override make_distribution() instead of run()
-        # because setuptools.command.sdist.run() does not lend itself to
-        # easy/robust subclassing (the code we need to add goes right smack
-        # in the middle of a 12-line method). If this were the distutils
-        # version, we'd override get_file_list().
-
-        if self.sumo:
-            # If '--sumo' was specified, include tahoe-deps/* in the sdist.
-            # We assume that the user has fetched the tahoe-deps.tar.gz
-            # tarball and unpacked it already.
-            self.filelist.extend([os.path.join("tahoe-deps", fn)
-                                  for fn in os.listdir("tahoe-deps")])
-            # In addition, we want the tarball/zipfile to have -SUMO in the
-            # name, and the unpacked directory to have -SUMO too. The easiest
-            # way to do this is to patch self.distribution and override the
-            # get_fullname() method. (an alternative is to modify
-            # self.distribution.metadata.version, but that also affects the
-            # contents of PKG-INFO).
-            fullname = self.distribution.get_fullname()
-            def get_fullname():
-                return fullname + "-SUMO"
-            self.distribution.get_fullname = get_fullname
-
-        try:
-            old_mask = os.umask(int("022", 8))
-            return sdist.sdist.make_distribution(self)
-        finally:
-            os.umask(old_mask)
-
-
 setup_args = {}
 if version:
     setup_args["version"] = version
@@ -358,7 +307,6 @@ setup(name=APPNAME,
       license='GNU GPL', # see README.rst -- there is an alternative licence
       cmdclass={"trial": Trial,
                 "update_version": UpdateVersion,
-                "sdist": MySdist,
                 },
       package_dir = {'':'src'},
       packages=['allmydata',
