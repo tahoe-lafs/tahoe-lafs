@@ -217,7 +217,6 @@ test-pip-install:
 tarballs:
 	$(MAKE) make-version
 	$(PYTHON) setup.py sdist --formats=bztar,gztar,zip
-	$(PYTHON) setup.py sdist --sumo --formats=bztar,gztar,zip
 
 .PHONY: upload-tarballs
 upload-tarballs:
