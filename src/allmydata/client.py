@@ -391,7 +391,7 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_client_static_storage_config(self):
         if os.path.exists(os.path.join(self.basedir, "storage_servers.yaml")):
-            f = open("storage_servers.yaml")
+            f = open(os.path.join(self.basedir, "storage_servers.yaml"))
             server_params = yaml.safe_load(f)
             f.close()
             for serverid, params in server_params.items():
