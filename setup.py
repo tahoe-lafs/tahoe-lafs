@@ -14,15 +14,7 @@ import os, subprocess, re
 
 ##### sys.path management
 
-def pylibdir(prefixdir):
-    pyver = "python%d.%d" % (sys.version_info[:2])
-    if sys.platform == "win32":
-        return os.path.join(prefixdir, "Lib", "site-packages")
-    else:
-        return os.path.join(prefixdir, "lib", pyver, "site-packages")
-
 basedir = os.path.dirname(os.path.abspath(__file__))
-supportlib = pylibdir(os.path.join(basedir, "support"))
 
 # locate our version number
 
