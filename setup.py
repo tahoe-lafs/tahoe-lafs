@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
+import sys
 
 # Tahoe-LAFS -- secure, distributed storage grid
 #
@@ -11,8 +11,6 @@ import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Pyt
 # See the docs/about.rst file for licensing information.
 
 import os, subprocess, re
-
-##### sys.path management
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 
@@ -49,7 +47,12 @@ else:
 # the _auto_deps.install_requires list, which is used in the call to setup()
 # below.
 adglobals = {}
-execfile('src/allmydata/_auto_deps.py', adglobals)
+auto_deps_fn = "src/allmydata/_auto_deps.py"
+if sys.version_info[0] >= 3:
+    exec(compile(open(auto_deps_fn, 'rb').read(), auto_deps_fn, "exec"),
+         adglobals, adglobals)
+else:
+    execfile(auto_deps_fn, adglobals)
 install_requires = adglobals['install_requires']
 setup_requires = adglobals['setup_requires']
 
@@ -98,11 +101,11 @@ trove_classifiers=[
 GIT_VERSION_BODY = '''
 # This _version.py is generated from git metadata by the tahoe setup.py.
 
-__pkgname__ = %(pkgname)r
-real_version = %(version)r
-full_version = %(full)r
-branch = %(branch)r
-verstr = %(normalized)r
+__pkgname__ = "%(pkgname)s"
+real_version = "%(version)s"
+full_version = "%(full)s"
+branch = "%(branch)s"
+verstr = "%(normalized)s"
 __version__ = verstr
 '''
 
@@ -153,6 +156,7 @@ def versions_from_git(tag_prefix):
     if stdout is None:
         # run_command already complained.
         return {}
+    stdout = stdout.decode("ascii")
     if not stdout.startswith(tag_prefix):
         print("Warning: tag %r doesn't start with prefix %r." % (stdout, tag_prefix))
         return {}
@@ -167,16 +171,18 @@ def versions_from_git(tag_prefix):
     if stdout is None:
         # run_command already complained.
         return {}
-    full = stdout.strip()
+    full = stdout.decode("ascii").strip()
     if version.endswith("-dirty"):
         full += "-dirty"
         normalized_version += ".dev0"
 
     # Thanks to Jistanidiot at <http://stackoverflow.com/questions/6245570/get-current-branch-name>.
     stdout = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=source_dir)
-    branch = (stdout or "unknown").strip()
+    branch = (stdout or b"unknown").decode("ascii").strip()
 
-    return {"version": version, "normalized": normalized_version, "full": full, "branch": branch}
+    # this returns native strings (bytes on py2, unicode on py3)
+    return {"version": version, "normalized": normalized_version,
+            "full": full, "branch": branch}
 
 # setup.cfg has an [aliases] section which runs "update_version" before many
 # commands (like "build" and "sdist") that need to know our package version
@@ -210,15 +216,21 @@ Warning: no version information found. This may cause tests to fail.
     def try_from_git(self):
         # If we change APPNAME, the release tag names should also change from then on.
         versions = versions_from_git(APPNAME + '-')
+
+        # setup.py might be run by either py2 or py3 (when run by tox, which
+        # uses py3 on modern debian/ubuntu distros). We want this generated
+        # file to contain native strings on both (str=bytes in py2,
+        # str=unicode in py3)
         if versions:
+            body = GIT_VERSION_BODY % {
+                "pkgname": self.distribution.get_name(),
+                "version": versions["version"],
+                "normalized": versions["normalized"],
+                "full": versions["full"],
+                "branch": versions["branch"],
+                }
             f = open(VERSION_PY_FILENAME, "wb")
-            f.write(GIT_VERSION_BODY %
-                    { "pkgname": self.distribution.get_name(),
-                      "version": versions["version"],
-                      "normalized": versions["normalized"],
-                      "full": versions["full"],
-                      "branch": versions["branch"],
-                    })
+            f.write(body.encode("ascii"))
             f.close()
             print("Wrote normalized version %r into '%s'" % (versions["normalized"], VERSION_PY_FILENAME))
 

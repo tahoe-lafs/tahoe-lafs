@@ -93,6 +93,8 @@ def runner(argv,
            stdin=None, stdout=None, stderr=None,
            install_node_control=True, additional_commands=None):
 
+    assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
+
     stdin  = stdin  or sys.stdin
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
