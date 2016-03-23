@@ -9,7 +9,7 @@ export PYTHON
 PYFLAKES=pyflakes
 export PYFLAKES
 
-SOURCES=src/allmydata src/buildtest static misc setup.py
+SOURCES=src/allmydata static misc setup.py
 APPNAME=allmydata-tahoe
 
 # This is necessary only if you want to automatically produce a new
