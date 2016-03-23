@@ -12,8 +12,7 @@ import allmydata # to display import path
 from allmydata import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
-from allmydata.web import filenode, directory, unlinked, status, operations, storage, \
-     introducerless_config
+from allmydata.web import filenode, directory, unlinked, status, operations, storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
      get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
 
@@ -159,7 +158,6 @@ class Root(rend.Page):
         self.child_named = FileHandler(client)
         self.child_status = status.Status(client.get_history())
         self.child_statistics = status.Statistics(client.stats_provider)
-        self.child_introducerless_config = introducerless_config.IntroducerlessConfig(client)
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
             self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
@@ -453,10 +451,3 @@ class Root(rend.Page):
             T.input(type="submit", value=u"Save \u00BB"),
             ]]
         return T.div[form]
-
-    def render_show_introducerless_config(self, ctx, data):
-        if self.client.get_config("node", "web.reveal_storage_furls", default=False, boolean=True):
-            return ctx.tag[T.a(href="introducerless_config")["Introducerless Config"]]
-        else:
-            return ""
-
