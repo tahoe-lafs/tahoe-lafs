@@ -1,5 +1,5 @@
 
-import time
+import time, os
 from zope.interface import implements
 from twisted.application import service
 from foolscap.api import Referenceable, eventually, RemoteInterface
@@ -47,9 +47,11 @@ class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions):
+                 app_versions, config_file, storage_broker):
         self._tub = tub
         self.introducer_furl = introducer_furl
+        self.config_file = config_file # XXX yaml file to store/load announcements
+        self.storage_broker = storage_broker
 
         assert type(nickname) is unicode
         self._nickname = nickname
@@ -112,6 +114,28 @@ class IntroducerClient(service.Service, Referenceable):
                      level=log.WEIRD, failure=failure, umid="c5MqUQ")
         d = self._tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
+
+    def load_announcements(self):
+        if os.path.exists(self.config_file):
+            f = open(self.config_file)
+            server_params = yaml.safe_load(f)
+            f.close()
+            for server_dict in server_params.items():
+                serverid = params['serverid']
+                server_type = params['type']
+                if server_type == "tahoe-foolscap":
+                    ann = { 'nickname': params['nickname'], 'anonymous-storage-FURL':params['furl'], 'permutation-seed-base32':params['seed'], 'service-name':'storage','my-version':'unknown'}
+                    s = storage_client.NativeStorageServer(serverid, ann.copy())
+                    self.storage_broker._got_announcement(serverid, ann)
+                    #add_server(s.get_serverid(), s)
+                else:
+                    msg = ("unrecognized server type '%s' in "
+                           "tahoe.cfg [client-server-selection]server.%s.type"
+                           % (server_type, serverid))
+                    raise storage_client.UnknownServerTypeError(msg)
+
+    def _save_announcement(self, announcement):
+        pass
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")

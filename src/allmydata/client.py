@@ -209,11 +209,16 @@ class Client(node.Node, pollmixin.PollMixin):
         # create a pool of introducer_clients
         self.introducer_clients = []
         for introducer_furl in self.introducer_furls:
+            # XXX or how shall we name this YAML configuration file?
+            # This file specifies all the storage servers we've received an announcement
+            # for from this introducer server.
+            cfg = os.path.join(self.basedir, "private", "%s.introduced.yaml" % self.nickname)
             ic = IntroducerClient(self.tub, introducer_furl,
                               self.nickname,
                               str(allmydata.__full_version__),
                               str(self.OLDEST_SUPPORTED_VERSION),
-                              self.get_app_versions())
+                              self.get_app_versions(),
+                                  cfg, self.storage_broker)
             self.introducer_clients.append(ic)
         # init introducer_clients as usual
         for ic in self.introducer_clients:
@@ -385,27 +390,8 @@ class Client(node.Node, pollmixin.PollMixin):
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
         sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True, preferred_peers=preferred_peers)
         self.storage_broker = sb
-        self.init_client_static_storage_config()
         for ic in self.introducer_clients:
             sb.use_introducer(ic)
-
-    def init_client_static_storage_config(self):
-        if os.path.exists(os.path.join(self.basedir, "storage_servers.yaml")):
-            f = open(os.path.join(self.basedir, "storage_servers.yaml"))
-            server_params = yaml.safe_load(f)
-            f.close()
-            for serverid, params in server_params.items():
-                server_type = params.pop("type")
-                if server_type == "tahoe-foolscap":
-                    ann = { 'nickname': server_params[serverid]['nickname'], 'anonymous-storage-FURL':server_params[serverid]['furl'], 'permutation-seed-base32':server_params[serverid]['seed'], 'service-name':'storage','my-version':'unknown'}
-                    s = storage_client.NativeStorageServer(serverid, ann.copy())
-                    sb._got_announcement(serverid, ann)
-                    #add_server(s.get_serverid(), s)
-                else:
-                    msg = ("unrecognized server type '%s' in "
-                           "tahoe.cfg [client-server-selection]server.%s.type"
-                           % (server_type, serverid))
-                    raise storage_client.UnknownServerTypeError(msg)
 
     def get_storage_broker(self):
         return self.storage_broker
