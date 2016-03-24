@@ -117,8 +117,8 @@ class IntroducerClient(service.Service, Referenceable):
     def load_announcements(self, storage_broker):
         if self.config_filepath.exists():
             with self.config_filepath.open() as f:
-            server_params = yaml.safe_load(f)
-            f.close()
+                server_params = yaml.safe_load(f)
+                f.close()
             if not isinstance(server_dict, dict):
                 msg = "Invalid cached storage server announcement encountered. No key/values found."
                 self.log(msg,
@@ -142,10 +142,10 @@ class IntroducerClient(service.Service, Referenceable):
                     raise storage_client.UnknownServerTypeError(msg)
 
     def _save_announcement(self, ann):
-        if os.path.exists(self.config_filepath):
-            with self.config_filepath.open() as f
-            announcements = yaml.safe_load(f)
-            f.close()
+        if self.config_filepath.exists():
+            with self.config_filepath.open() as f:
+                announcements = yaml.safe_load(f)
+                f.close()
         else:
             announcements = []
         if ann in announcements:
