@@ -144,7 +144,7 @@ class IntroducerClient(service.Service, Referenceable):
     def _save_announcement(self, ann):
         if self.config_filepath.exists():
             with self.config_filepath.open() as f:
-                announcements = yaml.safe_load(f)
+                announcements = yaml.load(f)
                 f.close()
         else:
             announcements = []
