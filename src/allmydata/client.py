@@ -1,4 +1,5 @@
 import os, stat, time, weakref, yaml
+from twisted.python.filepath import FilePath
 from foolscap.furl import decode_furl
 from allmydata import node
 
@@ -211,12 +212,12 @@ class Client(node.Node, pollmixin.PollMixin):
         self.introducer_clients = []
         for introducer_furl in self.introducer_furls:
             tubID, location_hints, name = decode_furl(introducer_furl)
-            cfg = os.path.join(self.basedir, "private", "%s.introduced.yaml" % name)
+            config_filepath = FilePath(os.path.join(self.basedir, "private", "%s.introduced.yaml" % name))
             ic = IntroducerClient(self.tub, introducer_furl,
                               self.nickname,
                               str(allmydata.__full_version__),
                               str(self.OLDEST_SUPPORTED_VERSION),
-                                  self.get_app_versions(), cfg)
+                                  self.get_app_versions(), config_filepath)
             self.introducer_clients.append(ic)
         # init introducer_clients as usual
         for ic in self.introducer_clients:

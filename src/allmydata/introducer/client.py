@@ -47,10 +47,10 @@ class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions, config_file):
+                 app_versions, config_filepath):
         self._tub = tub
         self.introducer_furl = introducer_furl
-        self.config_file = config_file # XXX yaml file to store/load announcements
+        self.config_filepath = config_filepath
 
         assert type(nickname) is unicode
         self._nickname = nickname
@@ -115,18 +115,26 @@ class IntroducerClient(service.Service, Referenceable):
         d.addErrback(connect_failed)
 
     def load_announcements(self, storage_broker):
-        if os.path.exists(self.config_file):
-            f = open(self.config_file)
+        if self.config_filepath.exists():
+            with self.config_filepath.open() as f:
             server_params = yaml.safe_load(f)
             f.close()
+            if not isinstance(server_dict, dict):
+                msg = "Invalid cached storage server announcement encountered. No key/values found."
+                self.log(msg,
+                         level=log.WEIRD)
+                raise storage_client.UnknownServerTypeError(msg)
+            if 'serverid' or 'type' not in server_params.keys():
+                msg = "Invalid cached storage server announcement encountered. No serverid or type found."
+                self.log(msg,
+                         level=log.WEIRD)
+                raise storage_client.UnknownServerTypeError(msg)
             for server_dict in server_params.items():
-                serverid = params['serverid']
-                server_type = params['type']
+                serverid = server_params['serverid']
+                server_type = server_params['type']
                 if server_type == "tahoe-foolscap":
                     ann = params
-                    s = storage_client.NativeStorageServer(serverid, ann.copy())
                     storage_broker._got_announcement(serverid, ann)
-                    #add_server(s.get_serverid(), s)
                 else:
                     msg = ("unrecognized server type '%s' in "
                            "tahoe.cfg [client-server-selection]server.%s.type"
