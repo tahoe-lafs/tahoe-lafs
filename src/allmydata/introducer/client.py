@@ -142,8 +142,8 @@ class IntroducerClient(service.Service, Referenceable):
                     raise storage_client.UnknownServerTypeError(msg)
 
     def _save_announcement(self, ann):
-        if os.path.exists(self.config_file):
-            f = open(self.config_file)
+        if os.path.exists(self.config_filepath):
+            with self.config_filepath.open() as f
             announcements = yaml.safe_load(f)
             f.close()
         else:
@@ -151,9 +151,8 @@ class IntroducerClient(service.Service, Referenceable):
         if ann in announcements:
             return
         announcements.append(ann)
-        f = open(self.config_file, 'w')
-        f.write(yaml.dump(announcements))
-        f.close()
+        ann_yaml = yaml.dump(announcements)
+        self.config_filepath.setContent(ann_yaml)
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")
