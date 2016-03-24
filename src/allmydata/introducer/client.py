@@ -1,5 +1,5 @@
 
-import time, os
+import time, os, yaml
 from zope.interface import implements
 from twisted.application import service
 from foolscap.api import Referenceable, eventually, RemoteInterface
@@ -47,11 +47,10 @@ class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions, config_file, storage_broker):
+                 app_versions, config_file):
         self._tub = tub
         self.introducer_furl = introducer_furl
         self.config_file = config_file # XXX yaml file to store/load announcements
-        self.storage_broker = storage_broker
 
         assert type(nickname) is unicode
         self._nickname = nickname
@@ -115,7 +114,7 @@ class IntroducerClient(service.Service, Referenceable):
         d = self._tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
 
-    def load_announcements(self):
+    def load_announcements(self, storage_broker):
         if os.path.exists(self.config_file):
             f = open(self.config_file)
             server_params = yaml.safe_load(f)
@@ -124,9 +123,9 @@ class IntroducerClient(service.Service, Referenceable):
                 serverid = params['serverid']
                 server_type = params['type']
                 if server_type == "tahoe-foolscap":
-                    ann = { 'nickname': params['nickname'], 'anonymous-storage-FURL':params['furl'], 'permutation-seed-base32':params['seed'], 'service-name':'storage','my-version':'unknown'}
+                    ann = params
                     s = storage_client.NativeStorageServer(serverid, ann.copy())
-                    self.storage_broker._got_announcement(serverid, ann)
+                    storage_broker._got_announcement(serverid, ann)
                     #add_server(s.get_serverid(), s)
                 else:
                     msg = ("unrecognized server type '%s' in "
@@ -134,8 +133,17 @@ class IntroducerClient(service.Service, Referenceable):
                            % (server_type, serverid))
                     raise storage_client.UnknownServerTypeError(msg)
 
-    def _save_announcement(self, announcement):
-        pass
+    def _save_announcement(self, ann):
+        if os.path.exists(self.config_file):
+            f = open(self.config_file)
+            announcements = yaml.safe_load(f)
+            f.close()
+        else:
+            announcements = []
+        announcements.append(ann)
+        f = open(self.config_file, 'w')
+        f.write(yaml.dump(announcements))
+        f.close()
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")
@@ -372,6 +380,8 @@ class IntroducerClient(service.Service, Referenceable):
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
+
+        self._save_announcement(ann)
 
     def connected_to_introducer(self):
         return bool(self._publisher)

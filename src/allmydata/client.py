@@ -209,16 +209,12 @@ class Client(node.Node, pollmixin.PollMixin):
         # create a pool of introducer_clients
         self.introducer_clients = []
         for introducer_furl in self.introducer_furls:
-            # XXX or how shall we name this YAML configuration file?
-            # This file specifies all the storage servers we've received an announcement
-            # for from this introducer server.
             cfg = os.path.join(self.basedir, "private", "%s.introduced.yaml" % self.nickname)
             ic = IntroducerClient(self.tub, introducer_furl,
                               self.nickname,
                               str(allmydata.__full_version__),
                               str(self.OLDEST_SUPPORTED_VERSION),
-                              self.get_app_versions(),
-                                  cfg, self.storage_broker)
+                                  self.get_app_versions(), cfg)
             self.introducer_clients.append(ic)
         # init introducer_clients as usual
         for ic in self.introducer_clients:

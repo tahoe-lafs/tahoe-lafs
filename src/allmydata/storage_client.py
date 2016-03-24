@@ -87,7 +87,7 @@ class StorageFarmBroker:
     def use_introducer(self, introducer_client):
         self.introducer_client = ic = introducer_client
         ic.subscribe_to("storage", self._got_announcement)
-        ic.load_announcements()
+        ic.load_announcements(self)
     def _got_announcement(self, key_s, ann):
         if key_s is not None:
             precondition(isinstance(key_s, str), key_s)
