@@ -211,8 +211,12 @@ class Client(node.Node, pollmixin.PollMixin):
         # create a pool of introducer_clients
         self.introducer_clients = []
         for introducer_furl in self.introducer_furls:
-            tubID, location_hints, name = decode_furl(introducer_furl)
-            config_filepath = FilePath(os.path.join(self.basedir, "private", "%s.introduced.yaml" % name))
+            try:
+                tubID, location_hints, name = decode_furl(introducer_furl)
+                config_filepath = FilePath(os.path.join(self.basedir, "private", "%s.introduced.yaml" % name))
+            except ValueError, e:
+                config_filepath = FilePath(os.path.join(self.basedir, "private", "%s.introduced.yaml" % introducer_furl))
+
             ic = IntroducerClient(self.tub, introducer_furl,
                               self.nickname,
                               str(allmydata.__full_version__),
