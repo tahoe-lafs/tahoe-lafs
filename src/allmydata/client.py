@@ -1,4 +1,5 @@
 import os, stat, time, weakref, yaml
+from foolscap.furl import decode_furl
 from allmydata import node
 
 from zope.interface import implements
@@ -209,7 +210,8 @@ class Client(node.Node, pollmixin.PollMixin):
         # create a pool of introducer_clients
         self.introducer_clients = []
         for introducer_furl in self.introducer_furls:
-            cfg = os.path.join(self.basedir, "private", "%s.introduced.yaml" % self.nickname)
+            tubID, location_hints, name = decode_furl(introducer_furl)
+            cfg = os.path.join(self.basedir, "private", "%s.introduced.yaml" % name)
             ic = IntroducerClient(self.tub, introducer_furl,
                               self.nickname,
                               str(allmydata.__full_version__),
