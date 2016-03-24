@@ -140,6 +140,8 @@ class IntroducerClient(service.Service, Referenceable):
             f.close()
         else:
             announcements = []
+        if ann in announcements:
+            return
         announcements.append(ann)
         f = open(self.config_file, 'w')
         f.write(yaml.dump(announcements))
