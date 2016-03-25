@@ -1,10 +1,23 @@
 
 import os, sys
+
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path
-import allmydata
+from allmydata.util import fileutil
+
+
+dummy_tac = """
+import sys
+print("Nodes created by Tahoe-LAFS v1.11.0 or later cannot be run by")
+print("releases of Tahoe-LAFS before v1.10.0.")
+sys.exit(1)
+"""
+
+def write_tac(basedir, nodetype):
+    fileutil.write(os.path.join(basedir, "tahoe-%s.tac" % (nodetype,)), dummy_tac)
+
 
 class _CreateBaseOptions(BasedirOptions):
     optParameters = [
@@ -40,36 +53,6 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
     subcommand_name = "create-introducer"
     description = "Create a Tahoe-LAFS introducer."
 
-
-client_tac = """
-# -*- python -*-
-
-import pkg_resources
-pkg_resources.require('%s')
-pkg_resources.require('twisted')
-from allmydata import client
-from twisted.application import service
-
-c = client.Client()
-
-application = service.Application("allmydata_client")
-c.setServiceParent(application)
-""" % (allmydata.__appname__,)
-
-introducer_tac = """
-# -*- python -*-
-
-import pkg_resources
-pkg_resources.require('%s')
-pkg_resources.require('twisted')
-from allmydata import introducer
-from twisted.application import service
-
-c = introducer.IntroducerNode()
-
-application = service.Application("allmydata_introducer")
-c.setServiceParent(application)
-""" % (allmydata.__appname__,)
 
 def write_node_config(c, config):
     # this is shared between clients and introducers
@@ -116,9 +99,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
-    f = open(os.path.join(basedir, "tahoe-client.tac"), "w")
-    f.write(client_tac)
-    f.close()
+    write_tac(basedir, "client")
 
     c = open(os.path.join(basedir, "tahoe.cfg"), "w")
 
@@ -192,9 +173,7 @@ def create_introducer(config, out=sys.stdout, err=sys.stderr):
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
-    f = open(os.path.join(basedir, "tahoe-introducer.tac"), "w")
-    f.write(introducer_tac)
-    f.close()
+    write_tac(basedir, "introducer")
 
     c = open(os.path.join(basedir, "tahoe.cfg"), "w")
     write_node_config(c, config)

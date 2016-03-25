@@ -30,7 +30,7 @@ def read_version_py(infname):
 VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
-APPNAME='allmydata-tahoe'
+APPNAME='tahoe-lafs'
 APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')
 APPNAMEFILESTR = "__appname__ = '%s'" % (APPNAME,)
 try:

@@ -13,6 +13,7 @@ from allmydata.scripts import runner
 from allmydata.client import Client
 from allmydata.test import common_util
 import allmydata
+from allmydata._appname import __appname__
 
 
 timeout = 240
@@ -74,7 +75,7 @@ class RunBinTahoeMixin:
         self.assertEqual(rc_or_sig, 0, res)
         lines = out.splitlines()
         tahoe_pieces = lines[0].split()
-        self.assertEqual(tahoe_pieces[0], "allmydata-tahoe:", (tahoe_pieces, res))
+        self.assertEqual(tahoe_pieces[0], "%s:" % (__appname__,), (tahoe_pieces, res))
         CACHED_IMPORT_PATH[bintahoe] = tahoe_pieces[-1].strip("()")
         returnValue(CACHED_IMPORT_PATH[bintahoe])
 

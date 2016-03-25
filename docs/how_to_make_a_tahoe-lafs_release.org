@@ -6,12 +6,12 @@
     - CREDITS
     - docs/known_issues.rst
   - [ ] change docs/quickstart.rst to point to just the current
-    allmydata-tahoe-X.Y.Z.zip source code file, or else to point to a
-    directory which contains only allmydata-tahoe-X.Y.Z.* source code files
+    tahoe-lafs-X.Y.Z.zip source code file, or else to point to a
+    directory which contains only tahoe-lafs-X.Y.Z.* source code files
   - [ ] git pull
-  - [ ] git tag -s -u 68666A7A allmydata-tahoe-X.Y.Z
+  - [ ] git tag -s -u 68666A7A tahoe-lafs-X.Y.Z
     - produces a "signed tag"
-    - tag body: allmydata-tahoe-X.Y.Z
+    - tag body: tahoe-lafs-X.Y.Z
   - [ ] build locally to make sure the release is reporting itself as the
     intended version
   - [ ] make sure buildbot is green

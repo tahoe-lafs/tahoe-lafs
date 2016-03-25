@@ -175,7 +175,7 @@ class FakeDisplayableServer(StubServer):
     def __init__(self, serverid, nickname, connected,
                  last_connect_time, last_loss_time, last_rx_time):
         StubServer.__init__(self, serverid)
-        self.announcement = {"my-version": "allmydata-tahoe-fake",
+        self.announcement = {"my-version": "tahoe-lafs-fake",
                              "service-name": "storage",
                              "nickname": nickname}
         self.connected = connected

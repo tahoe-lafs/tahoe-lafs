@@ -10,7 +10,7 @@ PYFLAKES=pyflakes
 export PYFLAKES
 
 SOURCES=src/allmydata static misc setup.py
-APPNAME=allmydata-tahoe
+APPNAME=tahoe-lafs
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
