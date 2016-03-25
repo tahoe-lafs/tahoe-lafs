@@ -132,7 +132,7 @@ class IntroducerClient(service.Service, Referenceable):
                              level=log.WEIRD)
                     raise storage_client.UnknownServerTypeError(msg)
                 ann = server_params
-                storage_broker._got_announcement(serverid, ann)
+                storage_broker._got_announcement(ann['serverid'], ann)
 
     def _save_announcement(self, ann):
         if self.config_filepath.exists():
@@ -330,9 +330,11 @@ class IntroducerClient(service.Service, Referenceable):
         desc_bits = []
         if key_s:
             desc_bits.append("serverid=" + key_s[:20])
+            serverid = key_s[:20]
         if "anonymous-storage-FURL" in ann:
             tubid_s = get_tubid_string_from_ann(ann)
             desc_bits.append("tubid=" + tubid_s[:8])
+            serverid = tubid_s[:8]
         description = "/".join(desc_bits)
 
         # the index is used to track duplicates
@@ -383,6 +385,7 @@ class IntroducerClient(service.Service, Referenceable):
             if service_name2 == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
 
+        ann['serverid'] = "v0-" + serverid
         self._save_announcement(ann)
 
     def connected_to_introducer(self):
