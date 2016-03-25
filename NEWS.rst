@@ -59,6 +59,20 @@ compiler.
 
 (#1582, #2445)
 
+New PyPI Distribution Name
+--------------------------
+
+Tahoe-LAFS is now known on PyPI as `tahoe-lafs`. It was formerly known as
+`allmydata-tahoe`. This affects `pip install` commands. (#2011)
+
+Because of this change, if you use a git checkout, you may need to run `make
+distclean` (to delete the machine-generated `src/allmydata/_appname.py`
+file). You may also need to remove `allmydata-tahoe` from any virtualenvs
+you've created, before installing `tahoe-lafs` into them.
+
+Note that the importable *package* name is still `allmydata`. This is
+scheduled to be changed in a future release. (#1950)
+
 
 Compatibility and Dependency Updates
 ------------------------------------
