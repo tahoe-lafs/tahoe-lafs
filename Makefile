@@ -176,7 +176,7 @@ clean:
 
 .PHONY: distclean
 distclean: clean
-	rm -rf src/allmydata_tahoe.egg-info
+	rm -rf src/*.egg-info
 	rm -f src/allmydata/_version.py
 	rm -f src/allmydata/_appname.py
 
