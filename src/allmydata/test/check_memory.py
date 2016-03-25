@@ -10,7 +10,7 @@ from allmydata.util import fileutil, pollmixin
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding
 from foolscap.api import Tub, fireEventually, flushEventualQueue
-from twisted.python import log
+from twisted.python import log, procutils
 
 class StallableHTTPGetterDiscarder(tw_client.HTTPPageGetter):
     full_speed_ahead = False
@@ -268,7 +268,10 @@ this file are ignored.
         pp = ClientWatcher()
         self.proc_done = pp.d = defer.Deferred()
         logfile = os.path.join(self.basedir, "client.log")
-        cmd = ["twistd", "-n", "-y", "tahoe-client.tac", "-l", logfile]
+        tahoes = procutils.which("tahoe")
+        if not tahoes:
+            raise RuntimeError("unable to find a 'tahoe' executable")
+        cmd = [tahoes[0], "run", ".", "-l", logfile]
         env = os.environ.copy()
         self.proc = reactor.spawnProcess(pp, cmd[0], cmd, env, path=clientdir_str)
         log.msg("CLIENT STARTED")
