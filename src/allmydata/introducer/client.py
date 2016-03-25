@@ -9,6 +9,7 @@ from allmydata.introducer.interfaces import IIntroducerClient, \
 from allmydata.introducer.common import sign_to_foolscap, unsign_from_foolscap,\
      convert_announcement_v1_to_v2, convert_announcement_v2_to_v1, \
      make_index, get_tubid_string_from_ann, get_tubid_string
+from allmydata import storage_client
 from allmydata.util import log
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.keyutil import BadSignatureError
@@ -117,29 +118,21 @@ class IntroducerClient(service.Service, Referenceable):
     def load_announcements(self, storage_broker):
         if self.config_filepath.exists():
             with self.config_filepath.open() as f:
-                server_params = yaml.safe_load(f)
+                servers = yaml.load(f)
                 f.close()
-            if not isinstance(server_dict, dict):
-                msg = "Invalid cached storage server announcement encountered. No key/values found."
+            if not isinstance(servers, list):
+                msg = "Invalid cached storage server announcements. No list encountered."
                 self.log(msg,
                          level=log.WEIRD)
                 raise storage_client.UnknownServerTypeError(msg)
-            if 'serverid' or 'type' not in server_params.keys():
-                msg = "Invalid cached storage server announcement encountered. No serverid or type found."
-                self.log(msg,
-                         level=log.WEIRD)
-                raise storage_client.UnknownServerTypeError(msg)
-            for server_dict in server_params.items():
-                serverid = server_params['serverid']
-                server_type = server_params['type']
-                if server_type == "tahoe-foolscap":
-                    ann = params
-                    storage_broker._got_announcement(serverid, ann)
-                else:
-                    msg = ("unrecognized server type '%s' in "
-                           "tahoe.cfg [client-server-selection]server.%s.type"
-                           % (server_type, serverid))
+            for server_params in servers:
+                if not isinstance(server_params, dict):
+                    msg = "Invalid cached storage server announcement encountered. No key/values found in %s" % server_params
+                    self.log(msg,
+                             level=log.WEIRD)
                     raise storage_client.UnknownServerTypeError(msg)
+                ann = server_params
+                storage_broker._got_announcement(serverid, ann)
 
     def _save_announcement(self, ann):
         if self.config_filepath.exists():
