@@ -63,10 +63,12 @@ install_requires = [
     # * The FTP frontend depends on Twisted >= 11.1.0 for
     #   filepath.Permissions
     # * Nevow 0.11.1 depends on Twisted >= 13.0.0.
-    # * The SFTP frontend and manhole depend on the conch extra.
+    # * The SFTP frontend and manhole depend on the conch extra. However, we
+    #   can't explicitly declare that without an undesirable dependency on gmpy,
+    #   as explained in ticket #2740.
     # * Due to a setuptools bug, we need to declare a dependency on the tls
     #   extra even though we only depend on it via foolscap.
-    "Twisted[tls,conch] >= 13.0.0",
+    "Twisted[tls] >= 13.0.0",
 
     # We need Nevow >= 0.11.1 which can be installed using pip.
     "Nevow >= 0.11.1",
