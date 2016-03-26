@@ -5,9 +5,7 @@ Getting Tahoe-LAFS
 ==================
 
 Welcome to `the Tahoe-LAFS project`_, a secure, decentralized, fault-tolerant
-storage system.
-
-`about Tahoe-LAFS <about.rst>`__
+storage system. See `about.rst`_ for an overview of the architecture and security properties of the system.
 
 .. _the Tahoe-LAFS project: https://tahoe-lafs.org
 
@@ -17,8 +15,8 @@ How To Get Tahoe-LAFS
 This procedure has been verified to work on Windows, Mac, OpenSolaris, and
 too many flavors of Linux and of BSD to list.
 
-In Case Of Trouble
-------------------
+First: In Case Of Trouble
+-------------------------
 
 In some cases these instructions may fail due to peculiarities of your
 platform.
@@ -34,7 +32,7 @@ Pre-Packaged Versions
 
 You may not need to build Tahoe at all.
 
-If you are on Windows, please see `windows.rst`_ for platform-specific
+If you are on Windows, please see `./windows.rst`_ for platform-specific
 instructions.
 
 If you are on a Mac, you can either follow these instructions, or use the
