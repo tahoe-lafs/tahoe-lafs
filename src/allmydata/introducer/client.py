@@ -131,8 +131,7 @@ class IntroducerClient(service.Service, Referenceable):
                     self.log(msg,
                              level=log.WEIRD)
                     raise storage_client.UnknownServerTypeError(msg)
-                ann = server_params
-                storage_broker._got_announcement(ann['serverid'], ann)
+                storage_broker._got_announcement(server_params['key_s'], server_params['ann'])
 
     def _save_announcement(self, ann):
         if self.config_filepath.exists():
@@ -385,8 +384,10 @@ class IntroducerClient(service.Service, Referenceable):
             if service_name2 == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
 
-        ann['serverid'] = "v0-" + serverid
-        self._save_announcement(ann)
+        server_params = {}
+        server_params['ann'] = ann
+        server_params['key_s'] = key_s
+        self._save_announcement(server_params)
 
     def connected_to_introducer(self):
         return bool(self._publisher)
