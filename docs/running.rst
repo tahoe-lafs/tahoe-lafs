@@ -12,10 +12,10 @@ This is how to run a Tahoe-LAFS client or a complete Tahoe-LAFS grid.
 First you have to install the Tahoe-LAFS software, as documented in
 INSTALL.rst_.
 
-The ``tahoe`` program in the ``bin`` directory is used to create,
-start, and stop nodes. Each node lives in a separate base directory, in
-which there is a configuration file named ``tahoe.cfg``. Nodes read and
-write files within this base directory.
+The ``tahoe`` program in your virtualenv's ``bin`` directory is used to
+create, start, and stop nodes. Each node lives in a separate base
+directory, in which there is a configuration file named ``tahoe.cfg``.
+Nodes read and write files within this base directory.
 
 A grid consists of a set of *storage nodes* and *client nodes* running
 the Tahoe-LAFS code. There is also an *introducer node* that is
@@ -25,9 +25,6 @@ If you're getting started we recommend you try connecting to the `public test
 grid`_ as you only need to create a client node. When you want to create your
 own grid you'll need to create the introducer and several initial storage
 nodes (see the note about small grids below).
-
-If the Tahoe-LAFS ``bin`` directory is not on your PATH, then in all
-the command lines below, specify the full path to ``bin/tahoe``.
 
 To construct a client node, run “``tahoe create-client``”, which will create
 ``~/.tahoe`` to be the node's base directory. Acquire the ``introducer.furl``
@@ -174,3 +171,13 @@ You can chat with other users of and hackers of this software on the
 list`_.
 
 .. _tahoe-dev mailing list: https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
+
+
+Complain
+========
+
+Bugs can be filed on the Tahoe-LAFS "Trac" instance, at
+https://tahoe-lafs.org/trac/ .
+
+You can also "fork" the repo and submit Pull Requests on Github:
+https://github.com/tahoe-lafs/tahoe-lafs .
