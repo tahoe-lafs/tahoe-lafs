@@ -329,11 +329,9 @@ class IntroducerClient(service.Service, Referenceable):
         desc_bits = []
         if key_s:
             desc_bits.append("serverid=" + key_s[:20])
-            serverid = key_s[:20]
         if "anonymous-storage-FURL" in ann:
             tubid_s = get_tubid_string_from_ann(ann)
             desc_bits.append("tubid=" + tubid_s[:8])
-            serverid = tubid_s[:8]
         description = "/".join(desc_bits)
 
         # the index is used to track duplicates
