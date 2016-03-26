@@ -5,7 +5,8 @@ Getting Tahoe-LAFS
 ==================
 
 Welcome to `the Tahoe-LAFS project`_, a secure, decentralized, fault-tolerant
-storage system. See `about.rst`_ for an overview of the architecture and security properties of the system.
+storage system. See `<about.rst>`_ for an overview of the architecture and
+security properties of the system.
 
 .. _the Tahoe-LAFS project: https://tahoe-lafs.org
 
@@ -32,18 +33,19 @@ Pre-Packaged Versions
 
 You may not need to build Tahoe at all.
 
-If you are on Windows, please see `./windows.rst`_ for platform-specific
+If you are on Windows, please see `<windows.rst>`_ for platform-specific
 instructions.
 
 If you are on a Mac, you can either follow these instructions, or use the
-pre-packaged bundle described in `OS-X.rst`_. The Tahoe project hosts
+pre-packaged bundle described in `<OS-X.rst>`_. The Tahoe project hosts
 pre-compiled "wheels" for all dependencies, so use the ``--find-links=``
 option described below to avoid needing a compiler.
 
 Many Linux distributions include Tahoe-LAFS packages. Debian and Ubuntu users
-can ``apt-get install tahoe-lafs``. See `OSPackages.rst`_ for other
+can ``apt-get install tahoe-lafs``. See `OSPackages`_ for other
 platforms.
 
+.. _OSPackages: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/OSPackages
 
 
 Preliminaries
@@ -67,7 +69,7 @@ Xcode and its command-line tools.
 * python 2.7
 
 Check if you already have an adequate version of Python installed by running
-``python -V``. The latest version of Python v2.7 is required, which is 2.7.10
+``python -V``. The latest version of Python v2.7 is required, which is 2.7.11
 as of this writing. Python v2.6.x and v3 do not work. On Windows, we
 recommend the use of native Python v2.7, not Cygwin Python. If you don't have
 one of these versions of Python installed, `download`_ and install the latest
@@ -270,4 +272,4 @@ Run Tahoe-LAFS
 
 Now you are ready to deploy a decentralized filesystem. The ``tahoe``
 executable can configure and launch your Tahoe-LAFS nodes. See
-`<running.rst>`__ for instructions on how to do that.
+`<running.rst>`_ for instructions on how to do that.
