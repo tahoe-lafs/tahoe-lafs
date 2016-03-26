@@ -105,9 +105,9 @@ For more technical detail, please see the `the doc page`_ on the Wiki.
 Get Started
 ===========
 
-To use Tahoe-LAFS, please see quickstart.rst_.
+To use Tahoe-LAFS, please see INSTALL.rst_.
 
-.. _quickstart.rst: quickstart.rst
+.. _INSTALL.rst: INSTALL.rst
 
 License
 =======

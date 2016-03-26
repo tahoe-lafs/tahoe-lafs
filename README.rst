@@ -66,7 +66,7 @@ See `TGPPL.PDF`_ for why the TGPPL exists, graphically illustrated on three slid
 .. _pip: https://pip.pypa.io/en/stable/installing/
 .. _WindowsInstall: docs/windows.rst
 .. _docs/running.rst: docs/running.rst
-.. _quickstart.rst: https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/quickstart.rst
+.. _INSTALL.rst: https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/INSTALL.rst
 .. _COPYING.GPL: https://github.com/tahoe-lafs/tahoe-lafs/blob/master/COPYING.GPL
 .. _COPYING.TGPPL.rst: https://github.com/tahoe-lafs/tahoe-lafs/blob/master/COPYING.TGPPL.rst
 .. _TGPPL.PDF: https://tahoe-lafs.org/~zooko/tgppl.pdf

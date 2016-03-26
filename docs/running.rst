@@ -10,7 +10,7 @@ Intro
 
 This is how to run a Tahoe-LAFS client or a complete Tahoe-LAFS grid.
 First you have to install the Tahoe-LAFS software, as documented in
-quickstart.rst_.
+INSTALL.rst_.
 
 The ``tahoe`` program in the ``bin`` directory is used to create,
 start, and stop nodes. Each node lives in a separate base directory, in
@@ -60,7 +60,7 @@ See configuration.rst_ for more details about how to configure Tahoe-LAFS,
 including how to get other clients to connect to your node if it is behind a
 firewall or NAT device.
 
-.. _quickstart.rst: quickstart.rst
+.. _INSTALL.rst: INSTALL.rst
 .. _public test grid: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid
 .. _TestGrid page: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid
 .. _configuration.rst: configuration.rst
