@@ -36,3 +36,4 @@ zope.interface-*.egg
 /miscaptures.txt
 /violations.txt
 /.tox/
+/docs/_build/
