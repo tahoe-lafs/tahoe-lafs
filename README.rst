@@ -32,10 +32,9 @@ pre-release code), you should create a virtualenv and install into that:
 
 * ``git clone https://github.com/tahoe-lafs/tahoe-lafs.git``
 * ``cd tahoe-lafs``
-* ``virtualenv tahoe``
-* ``. tahoe/bin/activate``
-* ``pip install --editable .``
-* ``tahoe --version``
+* ``virtualenv venv``
+* ``venv/bin/pip install --editable .``
+* ``venv/bin/tahoe --version``
 
 To run the unit test suite:
 
