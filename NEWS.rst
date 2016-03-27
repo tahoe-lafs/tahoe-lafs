@@ -10,68 +10,76 @@ Release 1.11.0 (???)
 New Build Process
 -----------------
 
-`pip install` (in a virtualenv) is now the recommended way to install
+``pip install`` (in a virtualenv) is now the recommended way to install
 Tahoe-LAFS. The old "bin/tahoe" script (created inside the source tree,
 rather than in a virtualenv) has been removed, as has the ancient
 "zetuptoolz" fork of setuptools.
 
-Tahoe was started in 2006, and predates pip and virtualenv. From the very
-beginning it used a home-made build process that attempted to make `setup.py
-build` behave somewhat like a modern `pip install --editable .`. It included
-a local copy of `setuptools` (to avoid requiring it to be pre-installed),
-which was then forked as `zetuptoolz` to fix bugs during the bad old days of
-setuptools non-maintenance. The pseudo-virtualenv used a script named
-`bin/tahoe`, created during `setup.py build`, to set up the $PATH and
-$PYTHONPATH as necessary.
+Tahoe was started in 2006, and predates pip and virtualenv. From the
+very beginning it used a home-made build process that attempted to make
+``setup.py build`` behave somewhat like a modern ``pip
+install --editable .``. It included a local copy of ``setuptools`` (to
+avoid requiring it to be pre-installed), which was then forked as
+``zetuptoolz`` to fix bugs during the bad old days of setuptools
+non-maintenance. The pseudo-virtualenv used a script named
+``bin/tahoe``, created during ``setup.py build``, to set up the $PATH
+and $PYTHONPATH as necessary.
 
-Starting with this release, all the custom build process has been removed,
-and Tahoe should be installable with standard modern tools. You will need
-`virtualenv` installed (which provides `pip` and setuptools). Many Python
-installers include `virtualenv` already, and Debian-like systems can use
-`apt-get install python-virtualenv`. If the command is not available on your
-system, follow the installation instructions at
-https://virtualenv.pypa.io/en/latest/ .
+Starting with this release, all the custom build process has been
+removed, and Tahoe should be installable with standard modern tools. You
+will need ``virtualenv`` installed (which provides ``pip`` and
+setuptools). Many Python installers include ``virtualenv`` already, and
+Debian-like systems can use ``apt-get install python-virtualenv``. If
+the command is not available on your system, follow the installation
+instructions at https://virtualenv.pypa.io/en/latest/ .
 
-Then, to install the latest version, create a virtualenv and use `pip`::
+Then, to install the latest version, create a virtualenv and use
+``pip``::
 
-    virtualenv tahoe
-    source tahoe/bin/activate
-    pip install tahoe-lafs
-    tahoe --version
+    virtualenv venv
+    . venv/bin/activate
+    (venv) pip install tahoe-lafs
+    (venv) tahoe --version
 
 
-To run Tahoe from a source checkout (so you can hack on Tahoe), use `pip
-install --editable .` from the git tree::
+To run Tahoe from a source checkout (so you can hack on Tahoe), use
+``pip install --editable .`` from the git tree::
 
     git clone https://github.com/tahoe-lafs/tahoe-lafs.git
     cd tahoe-lafs
-    virtualenv tahoe
-    source tahoe/bin/activate
-    pip install --editable .
-    tahoe --version
+    virtualenv venv
+    . venv/bin/activate
+    (venv) pip install --editable .
+    (venv) tahoe --version
 
-The `pip install` will download and install all necessary Python
-dependencies. Some dependencies require a C compiler and system libraries to
-build: on Debian/Ubuntu-like systems, use `apt-get install build-essential
-python-dev libffi-dev libssl-dev`. On Windows and OS-X platforms,
-pre-compiled binary wheels may be available, removing the need for a
-compiler.
+The ``pip install`` will download and install all necessary Python
+dependencies. Some dependencies require a C compiler and system
+libraries to build: on Debian/Ubuntu-like systems, use ``apt-get install
+build-essential python-dev libffi-dev libssl-dev``. On Windows and OS-X
+platforms, we provide pre-compiled binary wheels at
+``https://tahoe-lafs.org/deps/``, removing the need for a compiler.
 
-(#1582, #2445)
+(#1582, #2445, also helped to close: #142, #709, #717, #799, #1220,
+#1260, #1270, #1403, #1450, #1451, #1504, #1896, #2044, #2221, #2021,
+#2028, #2066, #2077, #2247, #2255, #2286, #2306, #2473, #2475, #2530,
+#657, #2446, #2439, 2317, #1753, 1009)
 
 New PyPI Distribution Name
 --------------------------
 
-Tahoe-LAFS is now known on PyPI as `tahoe-lafs`. It was formerly known as
-`allmydata-tahoe`. This affects `pip install` commands. (#2011)
+Tahoe-LAFS is now known on PyPI as ``tahoe-lafs``. It was formerly known
+as ``allmydata-tahoe``. This affects ``pip install`` commands. (#2011)
 
-Because of this change, if you use a git checkout, you may need to run `make
-distclean` (to delete the machine-generated `src/allmydata/_appname.py`
-file). You may also need to remove `allmydata-tahoe` from any virtualenvs
-you've created, before installing `tahoe-lafs` into them.
+Because of this change, if you use a git checkout, you may need to run
+``make distclean`` (to delete the machine-generated
+``src/allmydata/_appname.py`` file). You may also need to remove
+``allmydata-tahoe`` from any virtualenvs you've created, before
+installing ``tahoe-lafs`` into them. If all else fails, make a new git
+checkout, and use a new virtualenv.
 
-Note that the importable *package* name is still `allmydata`. This is
-scheduled to be changed in a future release. (#1950)
+Note that the importable *package* name is still ``allmydata``, but this
+only affects developers, not end-users. This name scheduled to be
+changed in a future release. (#1950)
 
 
 Compatibility and Dependency Updates
@@ -79,38 +87,67 @@ Compatibility and Dependency Updates
 
 Tahoe now requires Python 2.7 on all platforms. (#2445)
 
-Tahoe now requires Foolscap 0.10.1, which fixes incompatibilities with recent
-Twisted releases. (#2510, #2722, #2567)
+Tahoe now requires Foolscap 0.10.1, which fixes incompatibilities with
+recent Twisted releases. (#2510, #2722, #2567)
 
-Tests should work with both Nevow 0.11 and 0.12 (#2663)
+Tests should now work with both Nevow 0.11 and 0.12 . (#2663)
+
+Binary wheels for Windows and OS-X (for all dependencies) have been
+built and are hosted at https://tahoe-lafs.org/deps . Use ``pip
+install --find-links=URL tahoe-lafs`` to take advantage of them. (#2001)
+
+We've removed the SUMO and tahoe-deps tarballs. Please see
+docs/desert-island.rst for instructions to build tahoe from offline
+systems. (#1009, #2530, #2446, #2439)
 
 Configuration Changes
 ---------------------
 
-Leif's "preferred storage servers" was landed in revision 96eaca6. This adds
-"peers.preferred" to tahoe.cfg
+A new "peers.preferred" item was added to the ``[client]`` section. This
+identifies servers that will be promoted to the front of the
+peer-selection list when uploading or downloading files. Servers are
+identified by their Node ID (visible on the welcome page). This may be
+useful to ensure that one full set of shares are placed on nearby
+servers, making later downloads fast (and avoid using scarce remote
+bandwidth). The remaining shares can go to distant backup servers. (git
+commit 96eaca6)
 
-Aliases can (probably) be unicode.
+Aliases can now be unicode. (git commit 46719a8b)
 
-The introducer's "set_encoding_parameters" feature was removed.
+The introducer's "set_encoding_parameters" feature was removed. Once
+upon a time, the Introducer could recommend encoding parameters
+(shares.needed and shares.total) to all clients, the idea being that the
+Introducer had a slightly better idea about the expected size of the
+storage server pool than clients might. Client-side support for this was
+removed long ago, but the Introducer itself kept delivering
+recommendations until this release. (git commit 56a9f5ad)
 
 Other Fixes
 -----------
 
-Note: if these tickets are not user visible, they do not need to be explained
-here: merely listing the ticket numbers is sufficient.
+The OS-X .pkg installer has been improved slightly, to clean up after
+previous installations better. (#2493)
 
-#2493: OS-X packaging improvements, so new installs will remove previous ones
+All WUI (Web UI) timestamps should now be a consistent format, using the
+gateway machine's local time zone. (#1077)
 
-2499, 2511, 2567, 2556, 2663, 2723, 2543
+The web "welcome page" has been improved: it shows how long a server has
+been connected (in minutes/hours/days, instead of the date+time when the
+connection was most recently established). The "announced" column has
+been replaced with "Last RX" column that shows when we last heard
+anything from the server. The mostly-useless "storage" column has been
+removed. (#1973)
 
-#1077: use standard time format in all WUI messages
+In the ``tahoe ls`` command, the ``-u`` shortcut for ``--uri`` has been
+removed, leaving the shortcut free for the global ``--node-url`` option.
+(#1949, #2137)
 
-#1973: welcome-page cleanup: durations instead of timestamps, replace
-"announced" with "last received", remove "storage" column
+Some internal logging was disabled, to avoid a temporary bug that caused
+excessive (perhaps infinite) log messages to be created. (#2567)
 
-#1949, #2137: tahoe ls: remove -u shortcut for "--uri", leaving it for
-global --node-url option.
+Other non-user-visible tickets were fixed. (#2499, #2511, #2556, #2663,
+#2723, #2543)
+
 
 Release 1.10.2 (2015-07-30)
 '''''''''''''''''''''''''''
