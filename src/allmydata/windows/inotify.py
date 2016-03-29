@@ -131,11 +131,14 @@ class FileNotifyInformation(object):
                                   None   # NULL -> no completion routine
                                  )
         if r == 0:
+            self.data = None
             raise WinError(get_last_error())
         self.data = self.buffer.raw[:bytes_returned.value]
 
     def __iter__(self):
         # Iterator implemented as generator: <http://docs.python.org/library/stdtypes.html#generator-types>
+        if self.data is None:
+            return
         pos = 0
         while True:
             bytes = self._read_dword(pos+8)
@@ -216,7 +219,10 @@ class INotify(PollMixin):
             self._state = STOPPING
 
     def wait_until_stopped(self):
-        fileutil.write(os.path.join(self._path.path, u".ignore-me"), "")
+        try:
+            fileutil.write(os.path.join(self._path.path, u".ignore-me"), "")
+        except IOError as e:
+            print "ignoring IOError: %s" % (e,)
         return self.poll(lambda: self._state == STOPPED)
 
     def watch(self, path, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
@@ -254,16 +260,13 @@ class INotify(PollMixin):
 
             while True:
                 self._state = STARTED
-                fni.read_changes(self._hDirectory, self._recursive, self._filter)
+                try:
+                    fni.read_changes(self._hDirectory, self._recursive, self._filter)
+                except WindowsError as e:
+                    if self._check_stop(): return
+                    print "ignoring WindowsError: %s" % (e,)
+                if self._check_stop(): return
                 for info in fni:
-                    if self._state == STOPPING:
-                        hDirectory = self._hDirectory
-                        self._callbacks = None
-                        self._hDirectory = None
-                        CloseHandle(hDirectory)
-                        self._state = STOPPED
-                        return
-
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
                     #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
@@ -279,7 +282,18 @@ class INotify(PollMixin):
                                         log.err(e)
                             reactor.callLater(self._pending_delay, _do_callbacks)
                     reactor.callFromThread(_maybe_notify, path)
+                    if self._check_stop(): return
         except Exception, e:
             log.err(e)
             self._state = STOPPED
             raise
+
+    def _check_stop(self):
+        if self._state == STOPPING:
+            hDirectory = self._hDirectory
+            self._callbacks = None
+            self._hDirectory = None
+            CloseHandle(hDirectory)
+            self._state = STOPPED
+
+        return self._state == STOPPED
