@@ -695,30 +695,33 @@ else:
         except EnvironmentError:
             reraise(ConflictError)
 
-PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime ctime')
+PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime_ns ctime_ns')
 
-def get_pathinfo(path_u, now=None):
+def seconds_to_ns(t):
+    return int(t * 1000000000)
+
+def get_pathinfo(path_u, now_ns=None):
     try:
         statinfo = os.lstat(path_u)
         mode = statinfo.st_mode
-        return PathInfo(isdir =stat.S_ISDIR(mode),
-                        isfile=stat.S_ISREG(mode),
-                        islink=stat.S_ISLNK(mode),
-                        exists=True,
-                        size  =statinfo.st_size,
-                        mtime =statinfo.st_mtime,
-                        ctime =statinfo.st_ctime,
+        return PathInfo(isdir   =stat.S_ISDIR(mode),
+                        isfile  =stat.S_ISREG(mode),
+                        islink  =stat.S_ISLNK(mode),
+                        exists  =True,
+                        size    =statinfo.st_size,
+                        mtime_ns=seconds_to_ns(statinfo.st_mtime),
+                        ctime_ns=seconds_to_ns(statinfo.st_ctime),
                        )
     except OSError as e:
         if e.errno == ENOENT:
-            if now is None:
-                now = time.time()
-            return PathInfo(isdir =False,
-                            isfile=False,
-                            islink=False,
-                            exists=False,
-                            size  =None,
-                            mtime =now,
-                            ctime =now,
+            if now_ns is None:
+                now_ns = seconds_to_ns(time.time())
+            return PathInfo(isdir   =False,
+                            isfile  =False,
+                            islink  =False,
+                            exists  =False,
+                            size    =None,
+                            mtime_ns=now_ns,
+                            ctime_ns=now_ns,
                            )
         raise

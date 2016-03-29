@@ -47,18 +47,20 @@ def get_inotify_module():
 
 def is_new_file(pathinfo, db_entry):
     if db_entry is None:
+        print "is_new_file: True because db_entry is None"
         return True
 
     if not pathinfo.exists and db_entry.size is None:
-        print("NOT because", pathinfo.exists, db_entry.size)
+        print("is_new_file: False because", pathinfo.exists, db_entry.size)
         return False
 
-    print("NOT because", pathinfo.size, pathinfo.ctime, pathinfo.mtime,
-          db_entry.size, db_entry.ctime, db_entry.mtime,
-          ((pathinfo.size, pathinfo.ctime, pathinfo.mtime) !=
-           (db_entry.size, db_entry.ctime, db_entry.mtime)))
-    return ((pathinfo.size, pathinfo.ctime, pathinfo.mtime) !=
-            (db_entry.size, db_entry.ctime, db_entry.mtime))
+    result = ((pathinfo.size, pathinfo.ctime_ns, pathinfo.mtime_ns) !=
+              (db_entry.size, db_entry.ctime_ns, db_entry.mtime_ns))
+
+    print("is_new_file:", result, "because",
+          pathinfo.size, pathinfo.ctime_ns, pathinfo.mtime_ns,
+          db_entry.size, db_entry.ctime_ns, db_entry.mtime_ns)
+    return result
 
 
 class MagicFolder(service.MultiService):
