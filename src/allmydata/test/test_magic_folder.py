@@ -1,5 +1,5 @@
 
-import os, sys
+import os, sys, time
 import shutil, simplejson
 
 if False:
@@ -1001,16 +1001,16 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
         relpath1 = u"myFile1"
         pathinfo = fileutil.PathInfo(isdir=False, isfile=True, islink=False,
-                                     exists=True, size=1, mtime=123, ctime=456)
+                                     exists=True, size=1, mtime_ns=123, ctime_ns=456)
         db.did_upload_version(relpath1, 0, 'URI:LIT:1', 'URI:LIT:0', 0, pathinfo)
 
         c = db.cursor
-        c.execute("SELECT size, mtime, ctime"
+        c.execute("SELECT size, mtime_ns, ctime_ns"
                   " FROM local_files"
                   " WHERE path=?",
                   (relpath1,))
         row = c.fetchone()
-        self.failUnlessEqual(row, (pathinfo.size, pathinfo.mtime, pathinfo.ctime))
+        self.failUnlessEqual(row, (pathinfo.size, pathinfo.mtime_ns, pathinfo.ctime_ns))
 
         # Second test uses magic_folder.is_new_file instead of SQL query directly
         # to confirm the previous upload entry in the db.
@@ -1023,7 +1023,8 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.failUnlessFalse(magic_folder.is_new_file(pathinfo, db_entry))
 
         different_pathinfo = fileutil.PathInfo(isdir=False, isfile=True, islink=False,
-                                               exists=True, size=0, mtime=pathinfo.mtime, ctime=pathinfo.ctime)
+                                               exists=True, size=0, mtime_ns=pathinfo.mtime_ns,
+                                               ctime_ns=pathinfo.ctime_ns)
         self.failUnlessTrue(magic_folder.is_new_file(different_pathinfo, db_entry))
 
     def _test_magicfolder_start_service(self):
@@ -1314,7 +1315,8 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         fileutil.write(local_file, "foo")
 
         # if is_conflict is False, then the .conflict file shouldn't exist.
-        writefile._write_downloaded_file(workdir, local_file, "bar", False, None)
+        now = time.time()
+        writefile._write_downloaded_file(workdir, local_file, "bar", False, now=now)
         conflicted_path = local_file + u".conflict"
         self.failIf(os.path.exists(conflicted_path))
 
@@ -1326,8 +1328,14 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         # .tmp file shouldn't exist
         self.failIf(os.path.exists(local_file + u".tmp"))
 
-        # .. and the original file should have the new content
+        # The original file should have the new content
         self.failUnlessEqual(fileutil.read(local_file), "bar")
+
+        # .. and approximately the correct timestamp.
+        pathinfo = fileutil.get_pathinfo(local_file)
+        error_ns = pathinfo.mtime_ns - fileutil.seconds_to_ns(now - WriteFileMixin.FUDGE_SECONDS)
+        permitted_error_ns = fileutil.seconds_to_ns(WriteFileMixin.FUDGE_SECONDS)/4
+        self.failUnless(abs(error_ns) < permitted_error_ns, (error_ns, permitted_error_ns))
 
         # now a test for conflicted case
         writefile._write_downloaded_file(workdir, local_file, "bar", True, None)
