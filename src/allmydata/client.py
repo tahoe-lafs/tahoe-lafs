@@ -140,15 +140,14 @@ class Client(node.Node, pollmixin.PollMixin):
         self.init_node_key()
         self.init_storage()
         self.init_control()
-        self.helper = None
-        if self.get_config("helper", "enabled", False, boolean=True):
-            self.init_helper()
         self._key_generator = KeyGenerator()
         key_gen_furl = self.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
             self.init_key_gen(key_gen_furl)
         self.init_client()
-        # ControlServer and Helper are attached after Tub startup
+        self.helper = None
+        if self.get_config("helper", "enabled", False, boolean=True):
+            self.init_helper()
         self.init_ftp_server()
         self.init_sftp_server()
         self.init_drop_uploader()
