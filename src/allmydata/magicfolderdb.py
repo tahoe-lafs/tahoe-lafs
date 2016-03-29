@@ -42,7 +42,7 @@ def get_magicfolderdb(dbfile, stderr=sys.stderr,
         print >>stderr, e
         return None
 
-PathEntry = namedtuple('PathEntry', 'size mtime_ns ctime_ns version last_uploaded_uri'
+PathEntry = namedtuple('PathEntry', 'size mtime_ns ctime_ns version last_uploaded_uri '
                                     'last_downloaded_uri last_downloaded_timestamp')
 
 class MagicFolderDB(object):
