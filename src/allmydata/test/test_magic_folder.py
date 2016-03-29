@@ -1406,12 +1406,9 @@ class RealTest(SingleMagicFolderTestMixin, unittest.TestCase):
 
     def notify(self, path, mask, magic=None, flush=True):
         # Writing to the filesystem causes the notification.
-        # However, flushing filesystem buffers may be necessary on Windows.
-        if flush:
-            fileutil.flush_volume(path.path)
-        # actually, there's no way to know when the actual
+        # Actually, there's no way to know when the actual
         # notification will occur, and anyway we're not waiting for
-        # them in any case...so we'll just fudge it and home 100ms is enough.
+        # them in any case...so we'll just fudge it and hope 100ms is enough.
         return task.deferLater(reactor, 0.1, lambda: None)
 
 
