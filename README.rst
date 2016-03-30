@@ -10,10 +10,9 @@ function correctly, preserving your privacy and security.
 For full documentation, please see
 http://tahoe-lafs.readthedocs.org/en/latest/ .
 
-.. image:: http://readthedocs.org/projects/tahoe-lafs/badge/?version=latest
-:target: http://tahoe-lafs.readthedocs.org/en/latest/?badge=latest
-:alt: Documentation Status
-
+|readthedocs|
+|travis|
+|coveralls|
 
 INSTALLING
 ==========
@@ -78,8 +77,11 @@ slides.
 
 ----
 
-.. image:: https://travis-ci.org/tahoe-lafs/tahoe-lafs.png?branch=master
-  :target: https://travis-ci.org/tahoe-lafs/tahoe-lafs
+.. |readthedocs| image:: http://readthedocs.org/projects/tahoe-lafs/badge/?version=latest
+.. _readthedocs: http://tahoe-lafs.readthedocs.org/en/latest/?badge=latest
 
-.. image:: https://coveralls.io/repos/tahoe-lafs/tahoe-lafs/badge.png?branch=master
-  :target: https://coveralls.io/r/tahoe-lafs/tahoe-lafs?branch=master
+.. |travis| image:: https://travis-ci.org/tahoe-lafs/tahoe-lafs.png?branch=master
+.. _travis: https://travis-ci.org/tahoe-lafs/tahoe-lafs
+
+.. |coveralls| image:: https://coveralls.io/repos/tahoe-lafs/tahoe-lafs/badge.png?branch=master
+.. _coveralls: https://coveralls.io/r/tahoe-lafs/tahoe-lafs?branch=master
