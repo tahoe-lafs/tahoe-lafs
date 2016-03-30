@@ -80,8 +80,6 @@ class StorageFarmBroker(service.MultiService):
         self.introducer_clients = []
 
     def startService(self):
-        precondition(reactor.running)
-        self.log("Node._startService")
         service.MultiService.startService(self)
 
     # these two are used in unit tests
@@ -102,10 +100,7 @@ class StorageFarmBroker(service.MultiService):
         if serverid in self.tubs:
             return
         self.tubs[serverid] = Tub()
-        # XXX set these options? set more options?
-        self.tubs[serverid].setOption("logLocalFailures", True)
-        self.tubs[serverid].setOption("logRemoteFailures", True)
-        self.tubs[serverid].setOption("expose-remote-exception-types", False)
+        # XXX set options?
         self.tubs[serverid].setServiceParent(self)
 
     def _got_announcement(self, key_s, ann):
