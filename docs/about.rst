@@ -127,9 +127,7 @@ For more technical detail, please see the `the doc page`_ on the Wiki.
 Get Started
 ===========
 
-To use Tahoe-LAFS, please see INSTALL.rst_.
-
-.. _INSTALL.rst: INSTALL.rst
+To use Tahoe-LAFS, please see :doc:`INSTALL`.
 
 License
 =======

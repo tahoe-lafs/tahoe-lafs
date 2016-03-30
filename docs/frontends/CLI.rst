@@ -23,21 +23,10 @@ The Tahoe-LAFS CLI commands
 Overview
 ========
 
-Tahoe-LAFS provides a single executable named "``tahoe``", which can be used to
-create and manage client/server nodes, manipulate the filesystem, and perform
-several debugging/maintenance tasks.
-
-This executable lives in the source tree at "``bin/tahoe``". Once you've done a
-build (by running "``make``" or "``python setup.py build``"), ``bin/tahoe`` can
-be run in-place: if it discovers that it is being run from within a Tahoe-LAFS
-source tree, it will modify ``sys.path`` as necessary to use all the source code
-and dependent libraries contained in that tree.
-
-If you've installed Tahoe-LAFS (using "``make install``" or
-"``python setup.py install``", or by installing a binary package), then the
-``tahoe`` executable will be available somewhere else, perhaps in
-``/usr/bin/tahoe``. In this case, it will use your platform's normal
-PYTHONPATH search path to find the Tahoe-LAFS code and other libraries.
+Tahoe-LAFS provides a single executable named "``tahoe``", which can be used
+to create and manage client/server nodes, manipulate the filesystem, and
+perform several debugging/maintenance tasks. This executable is installed
+into your virtualenv when you run ``pip install tahoe-lafs``.
 
 
 CLI Command Overview
@@ -145,7 +134,7 @@ Filesystem Manipulation
 These commands let you exmaine a Tahoe-LAFS filesystem, providing basic
 list/upload/download/unlink/rename/mkdir functionality. They can be used as
 primitives by other scripts. Most of these commands are fairly thin wrappers
-around web-API calls, which are described in `<webapi.rst>`__.
+around web-API calls, which are described in :doc:`webapi`.
 
 By default, all filesystem-manipulation commands look in ``~/.tahoe/`` to
 figure out which Tahoe-LAFS node they should use. When the CLI command makes
@@ -161,13 +150,12 @@ they ought to use a starting point. This is explained in more detail below.
 Starting Directories
 --------------------
 
-As described in `docs/architecture.rst <../architecture.rst>`__, the
-Tahoe-LAFS distributed filesystem consists of a collection of directories
-and files, each of which has a "read-cap" or a "write-cap" (also known as
-a URI). Each directory is simply a table that maps a name to a child file
-or directory, and this table is turned into a string and stored in a
-mutable file. The whole set of directory and file "nodes" are connected
-together into a directed graph.
+As described in :doc:`../architecture`, the Tahoe-LAFS distributed filesystem
+consists of a collection of directories and files, each of which has a
+"read-cap" or a "write-cap" (also known as a URI). Each directory is simply a
+table that maps a name to a child file or directory, and this table is turned
+into a string and stored in a mutable file. The whole set of directory and
+file "nodes" are connected together into a directed graph.
 
 To use this collection of files and directories, you need to choose a
 starting point: some specific directory that we will refer to as a

@@ -1,11 +1,11 @@
 ﻿.. -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
-******************
-Getting Tahoe-LAFS
-******************
+*********************
+Installing Tahoe-LAFS
+*********************
 
 Welcome to `the Tahoe-LAFS project`_, a secure, decentralized, fault-tolerant
-storage system. See `<about.rst>`_ for an overview of the architecture and
+storage system. See :doc:`about` for an overview of the architecture and
 security properties of the system.
 
 This procedure should work on Windows, Mac, OpenSolaris, and too many flavors
@@ -30,11 +30,11 @@ Pre-Packaged Versions
 
 You may not need to build Tahoe at all.
 
-If you are on Windows, please see `<windows.rst>`_ for platform-specific
+If you are on Windows, please see :doc:`windows` for platform-specific
 instructions.
 
 If you are on a Mac, you can either follow these instructions, or use the
-pre-packaged bundle described in `<OS-X.rst>`_. The Tahoe project hosts
+pre-packaged bundle described in :doc:`OS-X`. The Tahoe project hosts
 pre-compiled "wheels" for all dependencies, so use the ``--find-links=``
 option described below to avoid needing a compiler.
 
@@ -299,4 +299,4 @@ Using Tahoe-LAFS
 
 Now you are ready to deploy a decentralized filesystem. You will use the
 ``tahoe`` executable to create, configure, and launch your Tahoe-LAFS nodes.
-See `<running.rst>`_ for instructions on how to do that.
+See :doc:`running` for instructions on how to do that.

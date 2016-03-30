@@ -66,9 +66,9 @@ detect filesystem changes, we have no mechanism to register a monitor for
 changes to a Tahoe-LAFS directory. Therefore, we must periodically poll
 for changes.
 
-An important constraint on the solution is Tahoe-LAFS' "`write
-coordination directive`_", which prohibits concurrent writes by different
-storage clients to the same mutable object:
+An important constraint on the solution is Tahoe-LAFS' ":doc:`write
+coordination directive<../../write_coordination>`", which prohibits
+concurrent writes by different storage clients to the same mutable object:
 
     Tahoe does not provide locking of mutable files and directories. If
     there is more than one simultaneous attempt to change a mutable file
@@ -78,8 +78,6 @@ storage clients to the same mutable object:
     outstanding write or update request for a given file or directory at
     a time.  One convenient way to accomplish this is to make a different
     file or directory for each person or process that wants to write.
-
-.. _`write coordination directive`: ../../write_coordination.rst
 
 Since it is a goal to allow multiple users to write to a Magic Folder,
 if the write coordination directive remains the same as above, then we
@@ -141,14 +139,12 @@ Here is a summary of advantages and disadvantages of each design:
 +-------+--------------------+
 
 
-123456+: All designs have the property that a recursive add-lease
-operation starting from a *collective directory* containing all of
-the client DMDs, will find all of the files and directories used in
-the Magic Folder representation. Therefore the representation is
-compatible with `garbage collection`_, even when a pre-Magic-Folder
-client does the lease marking.
-
-.. _`garbage collection`: https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/docs/garbage-collection.rst
+123456+: All designs have the property that a recursive add-lease operation
+starting from a *collective directory* containing all of the client DMDs,
+will find all of the files and directories used in the Magic Folder
+representation. Therefore the representation is compatible with :doc:`garbage
+collection <../../garbage-collection>`, even when a pre-Magic-Folder client
+does the lease marking.
 
 123456+: All designs avoid "breaking" pre-Magic-Folder clients that read
 a directory or file that is part of the representation.
@@ -350,8 +346,9 @@ remote change has been initially classified as an overwrite.
 
 .. _`Fire Dragons`: #fire-dragons-distinguishing-conflicts-from-overwrites
 
-Note that writing a file that does not already have an entry in
-the `magic folder db`_ is initially classed as an overwrite.
+Note that writing a file that does not already have an entry in the
+:ref:`magic folder db<filesystem_integration-local-scanning-and-database>` is
+initially classed as an overwrite.
 
 A *write/download collision* occurs when another program writes
 to ``foo`` in the local filesystem, concurrently with the new
@@ -408,19 +405,18 @@ and Windows. On Unix, it can be implemented as follows:
   suppressing errors.
 
 Note that, if there is no conflict, the entry for ``foo``
-recorded in the `magic folder db`_ will reflect the ``mtime``
-set in step 3. The move operation in step 4b will cause a
-``MOVED_FROM`` event for ``foo``, and the link operation in
-step 4c will cause an ``IN_CREATE`` event for ``foo``.
-However, these events will not trigger an upload, because they
-are guaranteed to be processed only after the file replacement
-has finished, at which point the last-seen statinfo recorded
-in the database entry will exactly match the metadata for the
-file's inode on disk. (The two hard links — ``foo`` and, while
-it still exists, ``.foo.tmp`` — share the same inode and
-therefore the same metadata.)
-
-.. _`magic folder db`: filesystem_integration.rst#local-scanning-and-database
+recorded in the :ref:`magic folder
+db<filesystem_integration-local-scanning-and-database>` will
+reflect the ``mtime`` set in step 3. The move operation in step
+4b will cause a ``MOVED_FROM`` event for ``foo``, and the link
+operation in step 4c will cause an ``IN_CREATE`` event for
+``foo``. However, these events will not trigger an upload,
+because they are guaranteed to be processed only after the file
+replacement has finished, at which point the last-seen statinfo
+recorded in the database entry will exactly match the metadata
+for the file's inode on disk. (The two hard links — ``foo``
+and, while it still exists, ``.foo.tmp`` — share the same inode
+and therefore the same metadata.)
 
 On Windows, file replacement can be implemented by a call to
 the `ReplaceFileW`_ API (with the
@@ -722,7 +718,9 @@ In order to implement this policy, we need to specify how the
 
 We propose to record this information:
 
-* in the `magic folder db`_, for local files;
+* in the :ref:`magic folder
+  db<filesystem_integration-local-scanning-and-database>`, for
+  local files;
 * in the Tahoe-LAFS directory metadata, for files stored in the
   Magic Folder.
 
@@ -733,15 +731,13 @@ client downloads a file, it stores the downloaded version's URI and
 the current local timestamp in this record. Since only immutable
 files are used, the URI will be an immutable file URI, which is
 deterministically and uniquely derived from the file contents and
-the Tahoe-LAFS node's `convergence secret`_.
+the Tahoe-LAFS node's :doc:`convergence secret<../../convergence-secret>`.
 
 (Note that the last-downloaded record is updated regardless of
 whether the download is an overwrite or a conflict. The rationale
 for this to avoid "conflict loops" between clients, where every
 new version after the first conflict would be considered as another
 conflict.)
-
-.. _`convergence secret`: https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/convergence-secret.rst
 
 Later, in response to a local filesystem change at a given path, the
 Magic Folder client reads the last-downloaded record associated with

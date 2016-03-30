@@ -13,13 +13,11 @@ Overview
 ========
 
 As described in the "Swarming Download, Trickling Upload" section of
-`architecture.rst`_, Tahoe uploads require more bandwidth than downloads: you
+:doc:`architecture`, Tahoe uploads require more bandwidth than downloads: you
 must push the redundant shares during upload, but you do not need to retrieve
 them during download. With the default 3-of-10 encoding parameters, this
 means that an upload will require about 3.3x the traffic as a download of the
 same file.
-
-.. _architecture.rst: architecture.rst
 
 Unfortunately, this "expansion penalty" occurs in the same upstream direction
 that most consumer DSL lines are slow anyways. Typical ADSL lines get 8 times
@@ -132,9 +130,7 @@ Who should consider using a Helper?
 To take advantage of somebody else's Helper, take the helper furl that they
 give you, and edit your tahoe.cfg file. Enter the helper's furl into the
 value of the key "helper.furl" in the "[client]" section of tahoe.cfg, as
-described in the "Client Configuration" section of configuration.rst_.
-
-.. _configuration.rst: configuration.rst
+described in the "Client Configuration" section of :doc:`configuration`.
 
 Then restart the node. This will signal the client to try and connect to the
 helper. Subsequent uploads will use the helper rather than using direct

@@ -46,6 +46,12 @@ Contents:
    OS-X
    build/build-pyOpenSSL
 
+   specifications/index
+   proposed/index
+   filesystem-notes
+   historical/configuration
+   key-value-store
+
 Indices and tables
 ==================
 

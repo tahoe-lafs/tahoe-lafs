@@ -56,7 +56,7 @@ of ``venv\Scripts\tahoe``, you can either "`activate`_" the virtualenv (by
 running ``venv\Scripts\activate``, or you can add the Scripts directory to
 your ``%PATH%`` environment variable.
 
-Now use the docs in `<running.rst>`_ to learn how to configure your first
+Now use the docs in :doc:`running` to learn how to configure your first
 Tahoe node.
 
 .. _activate: https://virtualenv.pypa.io/en/latest/userguide.html#activate-script
