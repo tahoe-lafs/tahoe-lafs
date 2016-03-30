@@ -4,8 +4,8 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.11.0 (???)
-''''''''''''''''''''
+Release 1.11.0 (30-Mar-2016)
+''''''''''''''''''''''''''''
 
 New Build Process
 -----------------
@@ -40,7 +40,6 @@ Then, to install the latest version, create a virtualenv and use
     . venv/bin/activate
     (venv) pip install tahoe-lafs
     (venv) tahoe --version
-
 
 To run Tahoe from a source checkout (so you can hack on Tahoe), use
 ``pip install --editable .`` from the git tree::
