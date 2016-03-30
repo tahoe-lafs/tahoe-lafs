@@ -33,7 +33,7 @@ import re, time
 from zope.interface import implements
 from twisted.application import service
 
-from foolscap.api import eventually
+from foolscap.api import Tub, eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
@@ -78,6 +78,11 @@ class StorageFarmBroker(service.MultiService):
         # them for it.
         self.servers = {}
         self.introducer_clients = []
+
+    def startService(self):
+        precondition(reactor.running)
+        self.log("Node._startService")
+        service.MultiService.startService(self)
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
