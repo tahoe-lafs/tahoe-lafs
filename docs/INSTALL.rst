@@ -172,11 +172,11 @@ the unpacked source tree.
 
 Download the latest stable release, `Tahoe-LAFS v1.11.0`_.
 
-.. _Tahoe-LAFS v1.11.0: https://tahoe-lafs.org/source/tahoe-lafs/releases/tahoe-lafs-1.11.0.tar.bz2
+.. _Tahoe-LAFS v1.11.0: https://tahoe-lafs.org/downloads/tahoe-lafs-1.11.0.tar.bz2
 
 Then unpack and install (again into a virtualenv)::
 
- % wget https://tahoe-lafs.org/source/tahoe-lafs/releases/tahoe-lafs-1.11.0.tar.bz2
+ % wget https://tahoe-lafs.org/downloads/tahoe-lafs-1.11.0.tar.bz2
  ...
  
  % tar xf tahoe-lafs-1.11.0.tar.bz2
