@@ -132,8 +132,7 @@ shnum) pair. This entry stores the times when the lease was last renewed and
 when it is set to expire (if the expiration policy does not force it to
 expire earlier), represented as Unix UTC-seconds-since-epoch timestamps.
 
-For more on expiration policy, see `docs/garbage-collection.rst
-<../garbage-collection.rst>`__.
+For more on expiration policy, see :doc:`../garbage-collection`.
 
 
 Share states

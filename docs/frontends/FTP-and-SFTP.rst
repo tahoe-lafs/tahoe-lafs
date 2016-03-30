@@ -229,8 +229,8 @@ be relinked to a different file. Normally, when the path of an immutable file
 is opened for writing by SFTP, the directory entry is relinked to another
 file with the newly written contents when the file handle is closed. The old
 file is still present on the grid, and any other caps to it will remain
-valid. (See `docs/garbage-collection.rst`_ for how to reclaim the space used
-by files that are no longer needed.)
+valid. (See :doc:`../garbage-collection` for how to reclaim the space used by
+files that are no longer needed.)
 
 The 'no-write' metadata field of a directory entry can override this
 behaviour. If the 'no-write' field holds a true value, then a permission
@@ -246,8 +246,6 @@ directory, that link will become read-only.
 
 If SFTP is used to write to an existing mutable file, it will publish a new
 version when the file handle is closed.
-
-.. _docs/garbage-collection.rst: file:../garbage-collection.rst
 
 Known Issues
 ============

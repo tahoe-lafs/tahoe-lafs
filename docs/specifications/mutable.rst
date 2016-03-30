@@ -94,7 +94,7 @@ the same rate.
 
 We've decided to make it opt-in for now: mutable files default to
 SDMF format unless explicitly configured to use MDMF, either in ``tahoe.cfg``
-(see `<configuration.rst>`__) or in the WUI or CLI command that created a
+(see :doc:`../configuration`) or in the WUI or CLI command that created a
 new mutable file.
 
 The code can read and modify existing files of either format without user

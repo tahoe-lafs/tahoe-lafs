@@ -1,8 +1,6 @@
 ﻿.. -*- coding: utf-8-with-signature -*-
 
-See also `cautions.rst`_.
-
-.. _cautions.rst: cautions.rst
+See also :doc:`cautions.rst<cautions>`.
 
 ============
 Known Issues
@@ -10,16 +8,15 @@ Known Issues
 
 Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
 manage them.  The current version of this file can be found at
-https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/known_issues.rst .
+https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/known_issues.rst .
 
 If you've been using Tahoe-LAFS since v1.1 (released 2008-06-11) or if you're
-just curious about what sort of mistakes we've made in the past, then you might
-want to read `the "historical known issues" document`_.
+just curious about what sort of mistakes we've made in the past, then you
+might want to read the "historical known issues" document in
+``docs/historical/historical_known_issues.txt``.
 
-.. _the "historical known issues" document: historical/historical_known_issues.txt
 
-
-Known Issues in Tahoe-LAFS v1.10.2, released 30-Jul-2015
+Known Issues in Tahoe-LAFS v1.10.3, released 30-Mar-2016
 ========================================================
 
   *  `Unauthorized access by JavaScript in unrelated files`_
@@ -219,9 +216,9 @@ To disable the filter in Chrome:
 Known issues in the FTP and SFTP frontends
 ------------------------------------------
 
-These are documented in `docs/frontends/FTP-and-SFTP.rst`_ and on `the SftpFrontend page`_ on the wiki. 
+These are documented in :doc:`frontends/FTP-and-SFTP` and on `the
+SftpFrontend page`_ on the wiki.
 
-.. _docs/frontends/FTP-and-SFTP.rst: frontends/FTP-and-SFTP.rst
 .. _the SftpFrontend page: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend
 
 

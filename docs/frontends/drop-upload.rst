@@ -66,12 +66,11 @@ in the upload directory with the same filename. A large file may take some
 time to appear, since it is only linked into the directory after the upload
 has completed.
 
-The 'Operational Statistics' page linked from the Welcome page shows
-counts of the number of files uploaded, the number of change events currently
+The 'Operational Statistics' page linked from the Welcome page shows counts
+of the number of files uploaded, the number of change events currently
 queued, and the number of failed uploads. The 'Recent Uploads and Downloads'
-page and the node log_ may be helpful to determine the cause of any failures.
-
-.. _log: ../logging.rst
+page and the node :doc:`log<../logging>` may be helpful to determine the
+cause of any failures.
 
 
 Known Issues and Limitations
@@ -134,7 +133,7 @@ with an immutable file. (`#1712`_)
 
 If a file in the upload directory is changed (actually relinked to a new
 file), then the old file is still present on the grid, and any other caps to
-it will remain valid. See `docs/garbage-collection.rst`_ for how to reclaim
+it will remain valid. See :doc:`../garbage-collection` for how to reclaim
 the space used by files that are no longer needed.
 
 Unicode names are supported, but the local name of a file must be encoded
@@ -153,6 +152,3 @@ printed by ``python -c "import sys; print sys.getfilesystemencoding()"``.
 .. _`#1710`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1710
 .. _`#1711`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1711
 .. _`#1712`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1712
-
-.. _docs/garbage-collection.rst: ../garbage-collection.rst
-

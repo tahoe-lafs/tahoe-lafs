@@ -71,7 +71,7 @@ port 3456, on the loopback (127.0.0.1) interface.
 Basic Concepts: GET, PUT, DELETE, POST
 ======================================
 
-As described in `docs/architecture.rst`_, each file and directory in a Tahoe
+As described in :doc:`../architecture`, each file and directory in a Tahoe
 virtual filesystem is referenced by an identifier that combines the
 designation of the object with the authority to do something with it (such as
 read or modify the contents). This identifier is called a "read-cap" or
@@ -128,7 +128,6 @@ a plain text stack trace instead. If the Accept header contains ``*/*``, or
 be generated.
 
 .. _RFC3986: https://tools.ietf.org/html/rfc3986
-.. _docs/architecture.rst: ../architecture.rst
 
 
 URLs
@@ -193,12 +192,12 @@ servers is required, /uri should be used.
 Child Lookup
 ------------
 
-Tahoe directories contain named child entries, just like directories in a regular
-local filesystem. These child entries, called "dirnodes", consist of a name,
-metadata, a write slot, and a read slot. The write and read slots normally contain
-a write-cap and read-cap referring to the same object, which can be either a file
-or a subdirectory. The write slot may be empty (actually, both may be empty,
-but that is unusual).
+Tahoe directories contain named child entries, just like directories in a
+regular local filesystem. These child entries, called "dirnodes", consist of
+a name, metadata, a write slot, and a read slot. The write and read slots
+normally contain a write-cap and read-cap referring to the same object, which
+can be either a file or a subdirectory. The write slot may be empty
+(actually, both may be empty, but that is unusual).
 
 If you have a Tahoe URL that refers to a directory, and want to reference a
 named child inside it, just append the child name to the URL. For example, if
@@ -352,11 +351,11 @@ Reading a File
 
  The "Range:" header can be used to restrict which portions of the file are
  returned (see RFC 2616 section 14.35.1 "Byte Ranges"), however Tahoe only
- supports a single "bytes" range and never provides a `multipart/byteranges`
- response. An attempt to begin a read past the end of the file will provoke a
- 416 Requested Range Not Satisfiable error, but normal overruns (reads which
- start at the beginning or middle and go beyond the end) are simply
- truncated.
+ supports a single "bytes" range and never provides a
+ ``multipart/byteranges`` response. An attempt to begin a read past the end
+ of the file will provoke a 416 Requested Range Not Satisfiable error, but
+ normal overruns (reads which start at the beginning or middle and go beyond
+ the end) are simply truncated.
 
  To view files in a web browser, you may want more control over the
  Content-Type and Content-Disposition headers. Please see the next section
@@ -512,7 +511,7 @@ Creating a New Directory
 
  The metadata may have a "no-write" field. If this is set to true in the
  metadata of a link, it will not be possible to open that link for writing
- via the SFTP frontend; see FTP-and-SFTP.rst_ for details.  Also, if the
+ via the SFTP frontend; see :doc:`FTP-and-SFTP` for details. Also, if the
  "no-write" field is set to true in the metadata of a link to a mutable
  child, it will cause the link to be diminished to read-only.
 
@@ -670,8 +669,6 @@ Creating a New Directory
 
  This operation will return an error if the parent directory is immutable,
  or already has a child named NAME.
-
-.. _FTP-and-SFTP.rst: FTP-and-SFTP.rst
 
 
 Getting Information About a File Or Directory (as JSON)
@@ -1060,10 +1057,10 @@ Viewing/Downloading a File
  most browsers will refuse to display it inline). "true", "t", "1", and other
  case-insensitive equivalents are all treated the same.
 
- Character-set handling in URLs and HTTP headers is a dubious art [1]_. For
- maximum compatibility, Tahoe simply copies the bytes from the filename=
- argument into the Content-Disposition header's filename= parameter, without
- trying to interpret them in any particular way.
+ Character-set handling in URLs and HTTP headers is a :ref:`dubious
+ art<urls-and-utf8>`. For maximum compatibility, Tahoe simply copies the
+ bytes from the filename= argument into the Content-Disposition header's
+ filename= parameter, without trying to interpret them in any particular way.
 
 
 ``GET /named/$FILECAP/FILENAME``
@@ -1313,9 +1310,9 @@ Relinking ("Moving") a Child
  is still reachable through any path from which it was formerly reachable,
  and the storage space occupied by its ciphertext is not affected.
 
- The source and destination directories must be writeable. If {{{to_dir}}} is
+ The source and destination directories must be writeable. If ``to_dir`` is
  not present, the child link is renamed within the same directory. If
- {{{to_name}}} is not present then it defaults to {{{from_name}}}. If the
+ ``to_name`` is not present then it defaults to ``from_name``. If the
  destination link (directory and name) is the same as the source link, the
  operation has no effect.
 
@@ -1424,7 +1421,7 @@ mainly intended for developers.
            True. For distributed files, this dictionary has the following
            keys:
     count-happiness: the servers-of-happiness level of the file, as
-                     defined in `docs/specifications/servers-of-happiness.rst`_.
+                     defined in doc/specifications/servers-of-happiness.
     count-shares-good: the number of good shares that were found
     count-shares-needed: 'k', the number of shares required for recovery
     count-shares-expected: 'N', the number of total shares generated
@@ -1470,10 +1467,9 @@ mainly intended for developers.
               'seq%d-%s-sh%d', containing the sequence number, the
               roothash, and the share number.
 
-Before Tahoe-LAFS v1.11, the `results` dictionary also had a `needs-rebalancing`
-field, but that has been removed since it was computed incorrectly.
-
-.. _`docs/specifications/servers-of-happiness.rst`: ../specifications/servers-of-happiness.rst
+Before Tahoe-LAFS v1.11, the ``results`` dictionary also had a
+``needs-rebalancing`` field, but that has been removed since it was computed
+incorrectly.
 
 
 ``POST $URL?t=start-deep-check``    (must add &ophandle=XYZ)
@@ -2085,9 +2081,7 @@ Tahoe-1.1; back with Tahoe-1.0 the web client was responsible for serializing
 web requests themselves).
 
 For more details, please see the "Consistency vs Availability" and "The Prime
-Coordination Directive" sections of mutable.rst_.
-
-.. _mutable.rst: ../specifications/mutable.rst
+Coordination Directive" sections of :doc:`../specifications/mutable`.
 
 
 Access Blacklist
@@ -2134,8 +2128,10 @@ file/dir will bypass the blacklist.
 The node will log the SI of the file being blocked, and the reason code, into
 the ``logs/twistd.log`` file.
 
+URLs and HTTP and UTF-8
+=======================
 
-.. [1] URLs and HTTP and UTF-8, Oh My
+.. _urls-and-utf8:
 
  HTTP does not provide a mechanism to specify the character set used to
  encode non-ASCII names in URLs (`RFC3986#2.1`_).  We prefer the convention

@@ -1,5 +1,9 @@
 ﻿.. -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
+********************************
+Using Tahoe as a key-value store
+********************************
+
 There are several ways you could use Tahoe-LAFS as a key-value store.
 
 Looking only at things that are *already implemented*, there are three

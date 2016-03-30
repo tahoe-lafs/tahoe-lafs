@@ -30,7 +30,11 @@ next renewal pass.
 
 There are several tradeoffs to be considered when choosing the renewal timer
 and the lease duration, and there is no single optimal pair of values. See
-the lease-tradeoffs.svg_ diagram to get an idea for the tradeoffs involved.
+the the follwing diagram to get an idea for the tradeoffs involved:
+
+.. image:: lease-tradeoffs.svg
+
+
 If lease renewal occurs quickly and with 100% reliability, than any renewal
 time that is shorter than the lease duration will suffice, but a larger ratio
 of duration-over-renewal-time will be more robust in the face of occasional
@@ -46,7 +50,6 @@ processed) to something other than 31 days.
 Renewing leases can be expected to take about one second per file/directory,
 depending upon the number of servers and the network speeds involved.
 
-.. _lease-tradeoffs.svg: lease-tradeoffs.svg
 
 
 Client-side Renewal

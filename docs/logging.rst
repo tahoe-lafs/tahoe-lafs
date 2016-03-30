@@ -13,9 +13,8 @@ Tahoe Logging
     1.  `Incident Gatherer`_
     2.  `Log Gatherer`_
 
-6.  `Local twistd.log files`_
-7.  `Adding log messages`_
-8.  `Log Messages During Unit Tests`_
+6.  `Adding log messages`_
+7.  `Log Messages During Unit Tests`_
 
 Overview
 ========
@@ -26,18 +25,11 @@ primarily for use by programmers and grid operators who want to find out what
 went wrong.
 
 The Foolscap logging system is documented at
-`<http://foolscap.lothar.com/docs/logging.html>`__.
+`<https://github.com/warner/foolscap/blob/latest-release/doc/logging.rst>`__.
 
 The Foolscap distribution includes a utility named "``flogtool``" that is
-used to get access to many Foolscap logging features. This command only
-works when foolscap and its dependencies are installed correctly.
-Tahoe-LAFS v1.10.0 and later include a ``tahoe debug flogtool`` command
-that can be used even when foolscap is not installed; to use this, prefix
-all of the example commands below with ``tahoe debug``.
-
-For earlier versions since Tahoe-LAFS v1.8.2, installing Foolscap v0.6.1
-or later and then running ``bin/tahoe @flogtool`` from the root of a
-Tahoe-LAFS source distribution may work (but only on Unix, not Windows).
+used to get access to many Foolscap logging features. ``flogtool`` should get
+installed into the same virtualenv as the ``tahoe`` command.
 
 
 Realtime Logging
@@ -186,7 +178,7 @@ Create the Log Gatherer with the "``flogtool create-gatherer WORKDIR``"
 command, and start it with "``tahoe start``". Then copy the contents of the
 ``log_gatherer.furl`` file it creates into the ``BASEDIR/tahoe.cfg`` file
 (under the key ``log_gatherer.furl`` of the section ``[node]``) of all nodes
-that should be sending it log events. (See `<configuration.rst>`__.)
+that should be sending it log events. (See :doc:`configuration`)
 
 The "``flogtool filter``" command, described above, is useful to cut down the
 potentially large flogfiles into a more focussed form.
@@ -197,7 +189,6 @@ To avoid overwhelming the node (and using an unbounded amount of memory for
 the outbound TCP queue), publishing nodes will start dropping log events when
 the outbound queue grows too large. When this occurs, there will be gaps
 (non-sequential event numbers) in the log-gatherer's flogfiles.
-
 
 Adding log messages
 ===================
