@@ -68,7 +68,13 @@ install_requires = [
     #   as explained in ticket #2740.
     # * Due to a setuptools bug, we need to declare a dependency on the tls
     #   extra even though we only depend on it via foolscap.
-    "Twisted[tls] >= 13.0.0",
+
+    # * Twisted >= 15.1.0 is the first version that provided the [tls] extra.
+    #   Note to OS backporters: we don't really need anything newer than
+    #   13.0.0 yet, so if this is inconvenient, feel free to downgrade this
+    #   dependency to "Twisted >= 13.0.0" as long as your OS package declares
+    #   a dependency on everything that Twisted needs to provide TLS support.
+    "Twisted[tls] >= 15.1.0",
 
     # We need Nevow >= 0.11.1 which can be installed using pip.
     "Nevow >= 0.11.1",

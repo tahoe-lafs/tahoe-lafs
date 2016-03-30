@@ -91,6 +91,10 @@ Tahoe now requires Python 2.7 on all platforms. (#2445)
 Tahoe now requires Foolscap 0.10.1, which fixes incompatibilities with
 recent Twisted releases. (#2510, #2722, #2567)
 
+Tahoe requires Twisted 15.1.0 or later, so it can request the
+``Twisted[tls]`` "extra" (this asks Twisted to ask for everything it
+needs to provide proper TLS support). (#2760)
+
 Tests should now work with both Nevow 0.11 and 0.12 . (#2663)
 
 Binary wheels for Windows and OS-X (for all dependencies) have been
