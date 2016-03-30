@@ -48,10 +48,10 @@ class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions, config_filepath):
+                 app_versions, cache_filepath):
         self._tub = tub
         self.introducer_furl = introducer_furl
-        self.config_filepath = config_filepath
+        self.cache_filepath = cache_filepath
 
         assert type(nickname) is unicode
         self._nickname = nickname
@@ -112,12 +112,13 @@ class IntroducerClient(service.Service, Referenceable):
         def connect_failed(failure):
             self.log("Initial Introducer connection failed: perhaps it's down",
                      level=log.WEIRD, failure=failure, umid="c5MqUQ")
+            self.load_announcements()
         d = self._tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
 
-    def load_announcements(self, storage_broker):
-        if self.config_filepath.exists():
-            with self.config_filepath.open() as f:
+    def load_announcements(self):
+        if self.cache_filepath.exists():
+            with self.cache_filepath.open() as f:
                 servers = yaml.load(f)
                 f.close()
             if not isinstance(servers, list):
@@ -131,11 +132,11 @@ class IntroducerClient(service.Service, Referenceable):
                     self.log(msg,
                              level=log.WEIRD)
                     raise storage_client.UnknownServerTypeError(msg)
-                storage_broker._got_announcement(server_params['key_s'], server_params['ann'])
+                eventually(self._got_announcement_cb, server_params['key_s'], server_params['ann'])
 
     def _save_announcement(self, ann):
-        if self.config_filepath.exists():
-            with self.config_filepath.open() as f:
+        if self.cache_filepath.exists():
+            with self.cache_filepath.open() as f:
                 announcements = yaml.load(f)
                 f.close()
         else:
@@ -144,7 +145,7 @@ class IntroducerClient(service.Service, Referenceable):
             return
         announcements.append(ann)
         ann_yaml = yaml.dump(announcements)
-        self.config_filepath.setContent(ann_yaml)
+        self.cache_filepath.setContent(ann_yaml)
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")
@@ -183,6 +184,7 @@ class IntroducerClient(service.Service, Referenceable):
         return log.msg(*args, **kwargs)
 
     def subscribe_to(self, service_name, cb, *args, **kwargs):
+        self._got_announcement_cb = cb
         self._local_subscribers.append( (service_name,cb,args,kwargs) )
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
