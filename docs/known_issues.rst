@@ -16,7 +16,7 @@ might want to read the "historical known issues" document in
 ``docs/historical/historical_known_issues.txt``.
 
 
-Known Issues in Tahoe-LAFS v1.10.2, released 30-Jul-2015
+Known Issues in Tahoe-LAFS v1.10.3, released 30-Mar-2016
 ========================================================
 
   *  `Unauthorized access by JavaScript in unrelated files`_
