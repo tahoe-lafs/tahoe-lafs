@@ -1,21 +1,21 @@
 ﻿.. -*- coding: utf-8-with-signature-unix; fill-column: 73; -*-
 .. -*- indent-tabs-mode: nil -*-
 
-=====================
+*********************
 How To Run Tahoe-LAFS
-=====================
+*********************
 
-Intro
-=====
+Introduction
+============
 
 This is how to run a Tahoe-LAFS client or a complete Tahoe-LAFS grid.
 First you have to install the Tahoe-LAFS software, as documented in
-quickstart.rst_.
+:doc:`INSTALL`.
 
-The ``tahoe`` program in the ``bin`` directory is used to create,
-start, and stop nodes. Each node lives in a separate base directory, in
-which there is a configuration file named ``tahoe.cfg``. Nodes read and
-write files within this base directory.
+The ``tahoe`` program in your virtualenv's ``bin`` directory is used to
+create, start, and stop nodes. Each node lives in a separate base
+directory, in which there is a configuration file named ``tahoe.cfg``.
+Nodes read and write files within this base directory.
 
 A grid consists of a set of *storage nodes* and *client nodes* running
 the Tahoe-LAFS code. There is also an *introducer node* that is
@@ -25,9 +25,6 @@ If you're getting started we recommend you try connecting to the `public test
 grid`_ as you only need to create a client node. When you want to create your
 own grid you'll need to create the introducer and several initial storage
 nodes (see the note about small grids below).
-
-If the Tahoe-LAFS ``bin`` directory is not on your PATH, then in all
-the command lines below, specify the full path to ``bin/tahoe``.
 
 To construct a client node, run “``tahoe create-client``”, which will create
 ``~/.tahoe`` to be the node's base directory. Acquire the ``introducer.furl``
@@ -40,7 +37,7 @@ nodes on the grid.
 
 By default, “``tahoe create-client``” creates a client-only node, that
 does not offer its disk space to other nodes. To configure other behavior,
-use “``tahoe create-node``” or see configuration.rst_.
+use “``tahoe create-node``” or see :doc:`configuration`.
 
 To construct an introducer, create a new base directory for it (the
 name of the directory is up to you), ``cd`` into it, and run
@@ -56,14 +53,12 @@ On Unix, you can run it in the background instead by using the
 “``tahoe start``” command. To stop a node started in this way, use
 “``tahoe stop``”. ``tahoe --help`` gives a summary of all commands.
 
-See configuration.rst_ for more details about how to configure Tahoe-LAFS,
-including how to get other clients to connect to your node if it is behind a
-firewall or NAT device.
+See :doc:`configuration` for more details about how to configure
+Tahoe-LAFS, including how to get other clients to connect to your node if
+it is behind a firewall or NAT device.
 
-.. _quickstart.rst: quickstart.rst
 .. _public test grid: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid
 .. _TestGrid page: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid
-.. _configuration.rst: configuration.rst
 .. _#937:  https://tahoe-lafs.org/trac/tahoe-lafs/ticket/937
 
 
@@ -71,10 +66,10 @@ A note about small grids
 ------------------------
 
 By default, Tahoe-LAFS ships with the configuration parameter
-``shares.happy`` set to 7. If you are using Tahoe-LAFS on a grid with fewer
-than 7 storage nodes, this won't work well for you — none of your uploads
-will succeed. To fix this, see configuration.rst_ to learn how to set
-``shares.happy`` to a more suitable value for your grid.
+``shares.happy`` set to 7. If you are using Tahoe-LAFS on a grid with
+fewer than 7 storage nodes, this won't work well for you — none of your
+uploads will succeed. To fix this, see :doc:`configuration` to learn how
+to set ``shares.happy`` to a more suitable value for your grid.
 
 
 Do Stuff With It
@@ -100,14 +95,15 @@ then you can never again come back to this directory.
 The CLI
 -------
 
-Prefer the command-line? Run “``tahoe --help``” (the same command-line tool
-that is used to start and stop nodes serves to navigate and use the
-decentralized filesystem). To get started, create a new directory and mark it
-as the 'tahoe:' alias by running “``tahoe create-alias tahoe``”. Once you've
-done that, you can do “``tahoe ls tahoe:``” and “``tahoe cp LOCALFILE
-tahoe:foo.txt``” to work with your filesystem. The Tahoe-LAFS CLI uses
-similar syntax to the well-known scp and rsync tools. See CLI.rst_ for more
-details.
+Prefer the command-line? Run “``tahoe --help``” (the same command-line
+tool that is used to start and stop nodes serves to navigate and use the
+decentralized filesystem). To get started, create a new directory and
+mark it as the 'tahoe:' alias by running “``tahoe create-alias tahoe``”.
+Once you've done that, you can do “``tahoe ls tahoe:``” and “``tahoe cp
+LOCALFILE tahoe:foo.txt``” to work with your filesystem. The Tahoe-LAFS
+CLI uses similar syntax to the well-known scp and rsync tools. See
+:doc:`frontends/CLI` for more details.
+
 
 To backup a directory full of files and subdirectories, run “``tahoe backup
 LOCALDIRECTORY tahoe:``”. This will create a new LAFS subdirectory inside the
@@ -127,7 +123,7 @@ and if it gets interrupted (for example by a network outage, or by you
 rebooting your computer during the backup, or so on), it will resume right
 where it left off the next time you run ``tahoe backup``.
 
-See `<frontends/CLI.rst>`__ for more information about the ``tahoe backup``
+See :doc:`frontends/CLI` for more information about the ``tahoe backup``
 command, as well as other commands.
 
 As with the WUI (and with all current interfaces to Tahoe-LAFS), you
@@ -135,24 +131,21 @@ are responsible for remembering directory capabilities yourself. If you
 create a new directory and lose the capability to it, then you cannot
 access that directory ever again.
 
-.. _CLI.rst: frontends/CLI.rst
-
 
 The SFTP and FTP frontends
 --------------------------
 
-You can access your Tahoe-LAFS grid via any SFTP_ or FTP_ client.
-See `FTP-and-SFTP.rst`_ for how to set
-this up. On most Unix platforms, you can also use SFTP to plug
-Tahoe-LAFS into your computer's local filesystem via ``sshfs``, but see 
-the `FAQ about performance problems`_.
+You can access your Tahoe-LAFS grid via any SFTP_ or FTP_ client. See
+:doc:`frontends/FTP-and-SFTP` for how to set this up. On most Unix
+platforms, you can also use SFTP to plug Tahoe-LAFS into your computer's
+local filesystem via ``sshfs``, but see the `FAQ about performance
+problems`_.
 
 The SftpFrontend_ page on the wiki has more information about using SFTP with
 Tahoe-LAFS.
 
 .. _SFTP:  https://en.wikipedia.org/wiki/SSH_file_transfer_protocol
 .. _FTP: https://en.wikipedia.org/wiki/File_Transfer_Protocol
-.. _FTP-and-SFTP.rst: frontends/FTP-and-SFTP.rst
 .. _FAQ about performance problems: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/FAQ#Q23_FUSE
 .. _SftpFrontend: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend
 
@@ -161,9 +154,7 @@ The WAPI
 --------
 
 Want to program your Tahoe-LAFS node to do your bidding?  Easy!  See
-webapi.rst_.
-
-.. _webapi.rst: frontends/webapi.rst
+:doc:`frontends/webapi`.
 
 
 Socialize
@@ -174,3 +165,13 @@ You can chat with other users of and hackers of this software on the
 list`_.
 
 .. _tahoe-dev mailing list: https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
+
+
+Complain
+========
+
+Bugs can be filed on the Tahoe-LAFS "Trac" instance, at
+https://tahoe-lafs.org/trac/ .
+
+You can also "fork" the repo and submit Pull Requests on Github:
+https://github.com/tahoe-lafs/tahoe-lafs .

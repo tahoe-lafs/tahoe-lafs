@@ -17,7 +17,7 @@
 /bin/tahoe-script.py
 
 /.built
-/src/allmydata_tahoe.egg-info/
+/src/tahoe_lafs.egg-info/
 Twisted-*.egg
 zope.interface-*.egg
 .pc
@@ -36,3 +36,4 @@ zope.interface-*.egg
 /miscaptures.txt
 /violations.txt
 /.tox/
+/docs/_build/

@@ -1,10 +1,32 @@
 ﻿.. -*- coding: utf-8-with-signature -*-
 
+**********************
 Welcome to Tahoe-LAFS!
-======================
+**********************
+
+What is Tahoe-LAFS?
+===================
 
 Welcome to Tahoe-LAFS_, the first decentralized storage system with
 *provider-independent security*.
+
+Tahoe-LAFS is a system that helps you to store files. You run a client
+program on your computer, which talks to one or more storage servers on other
+computers. When you tell your client to store a file, it will encrypt that
+file, encode it into multiple pieces, then spread those pieces out among
+multiple servers. The pieces are all encrypted and protected against
+modifications. Later, when you ask your client to retrieve the file, it will
+find the necessary pieces, make sure they haven't been corrupted, reassemble
+them, and decrypt the result.
+
+The client creates more pieces (or "shares") than it will eventually need, so
+even if some of the servers fail, you can still get your data back. Corrupt
+shares are detected and ignored, so the system can tolerate server-side
+hard-drive errors. All files are encrypted (with a unique key) before
+uploading, so even a malicious server operator cannot read your data. The
+only thing you ask of the servers is that they can (usually) provide the
+shares when you ask for them: you aren't relying upon them for
+confidentiality, integrity, or absolute availability.
 
 .. _Tahoe-LAFS: https://tahoe-lafs.org
 
@@ -105,9 +127,7 @@ For more technical detail, please see the `the doc page`_ on the Wiki.
 Get Started
 ===========
 
-To use Tahoe-LAFS, please see quickstart.rst_.
-
-.. _quickstart.rst: quickstart.rst
+To use Tahoe-LAFS, please see :doc:`INSTALL`.
 
 License
 =======

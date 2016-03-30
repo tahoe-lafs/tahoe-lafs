@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION=`sh -c "cat src/allmydata/_version.py | grep verstr | head -n 1 | cut -d' ' -f 3" | sed "s/'//g"`
+VERSION=`sh -c "cat src/allmydata/_version.py | grep verstr | head -n 1 | cut -d' ' -f 3" | sed "s/\"//g"`
 PWD=`pwd`
 TARGET="/Applications/tahoe.app"
 

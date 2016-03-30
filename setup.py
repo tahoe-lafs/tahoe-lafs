@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
+import sys
 
 # Tahoe-LAFS -- secure, distributed storage grid
 #
@@ -12,17 +12,7 @@ import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Pyt
 
 import os, subprocess, re
 
-##### sys.path management
-
-def pylibdir(prefixdir):
-    pyver = "python%d.%d" % (sys.version_info[:2])
-    if sys.platform == "win32":
-        return os.path.join(prefixdir, "Lib", "site-packages")
-    else:
-        return os.path.join(prefixdir, "lib", pyver, "site-packages")
-
 basedir = os.path.dirname(os.path.abspath(__file__))
-supportlib = pylibdir(os.path.join(basedir, "support"))
 
 # locate our version number
 
@@ -40,7 +30,7 @@ def read_version_py(infname):
 VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
-APPNAME='allmydata-tahoe'
+APPNAME='tahoe-lafs'
 APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')
 APPNAMEFILESTR = "__appname__ = '%s'" % (APPNAME,)
 try:
@@ -57,7 +47,12 @@ else:
 # the _auto_deps.install_requires list, which is used in the call to setup()
 # below.
 adglobals = {}
-execfile('src/allmydata/_auto_deps.py', adglobals)
+auto_deps_fn = "src/allmydata/_auto_deps.py"
+if sys.version_info[0] >= 3:
+    exec(compile(open(auto_deps_fn, 'rb').read(), auto_deps_fn, "exec"),
+         adglobals, adglobals)
+else:
+    execfile(auto_deps_fn, adglobals)
 install_requires = adglobals['install_requires']
 setup_requires = adglobals['setup_requires']
 
@@ -66,7 +61,6 @@ if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
     install_requires += ["fakedependency >= 1.0.0"]
 
 from setuptools import setup
-from setuptools.command import sdist
 from setuptools import Command
 from setuptools.command import install
 
@@ -104,83 +98,14 @@ trove_classifiers=[
     ]
 
 
-# We no longer have any requirements specific to tests.
-tests_require=[]
-
-
-class Trial(Command):
-    description = "run trial (use 'bin%stahoe debug trial' for the full set of trial options)" % (os.sep,)
-    # This is just a subset of the most useful options, for compatibility.
-    user_options = [ ("no-rterrors", None, "Don't print out tracebacks as they occur."),
-                     ("rterrors", "e", "Print out tracebacks as they occur (default, so ignored)."),
-                     ("until-failure", "u", "Repeat a test (specified by -s) until it fails."),
-                     ("reporter=", None, "The reporter to use for this test run."),
-                     ("suite=", "s", "Specify the test suite."),
-                     ("quiet", None, "Don't display version numbers and paths of Tahoe dependencies."),
-                     ("coverage", "c", "Collect branch coverage information."),
-                   ]
-
-    def initialize_options(self):
-        self.rterrors = False
-        self.no_rterrors = False
-        self.until_failure = False
-        self.reporter = None
-        self.suite = "allmydata"
-        self.quiet = False
-        self.coverage = False
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        args = [sys.executable, os.path.join('bin', 'tahoe')]
-
-        if self.coverage:
-            from errno import ENOENT
-            coverage_cmd = 'coverage'
-            try:
-                subprocess.call([coverage_cmd, 'help'])
-            except OSError as e:
-                if e.errno != ENOENT:
-                    raise
-                coverage_cmd = 'python-coverage'
-                try:
-                    rc = subprocess.call([coverage_cmd, 'help'])
-                except OSError as e:
-                    if e.errno != ENOENT:
-                        raise
-                    print >>sys.stderr
-                    print >>sys.stderr, "Couldn't find the command 'coverage' nor 'python-coverage'."
-                    print >>sys.stderr, "coverage can be installed using 'pip install coverage', or on Debian-based systems, 'apt-get install python-coverage'."
-                    sys.exit(1)
-
-            args += ['@' + coverage_cmd, 'run', '--branch', '--source=src/allmydata', '@tahoe']
-
-        if not self.quiet:
-            args.append('--version-and-path')
-        args += ['debug', 'trial']
-        if self.rterrors and self.no_rterrors:
-            raise AssertionError("--rterrors and --no-rterrors conflict.")
-        if not self.no_rterrors:
-            args.append('--rterrors')
-        if self.until_failure:
-            args.append('--until-failure')
-        if self.reporter:
-            args.append('--reporter=' + self.reporter)
-        if self.suite:
-            args.append(self.suite)
-        rc = subprocess.call(args)
-        sys.exit(rc)
-
-
 GIT_VERSION_BODY = '''
 # This _version.py is generated from git metadata by the tahoe setup.py.
 
-__pkgname__ = %(pkgname)r
-real_version = %(version)r
-full_version = %(full)r
-branch = %(branch)r
-verstr = %(normalized)r
+__pkgname__ = "%(pkgname)s"
+real_version = "%(version)s"
+full_version = "%(full)s"
+branch = "%(branch)s"
+verstr = "%(normalized)s"
 __version__ = verstr
 '''
 
@@ -231,6 +156,7 @@ def versions_from_git(tag_prefix):
     if stdout is None:
         # run_command already complained.
         return {}
+    stdout = stdout.decode("ascii")
     if not stdout.startswith(tag_prefix):
         print("Warning: tag %r doesn't start with prefix %r." % (stdout, tag_prefix))
         return {}
@@ -245,16 +171,18 @@ def versions_from_git(tag_prefix):
     if stdout is None:
         # run_command already complained.
         return {}
-    full = stdout.strip()
+    full = stdout.decode("ascii").strip()
     if version.endswith("-dirty"):
         full += "-dirty"
         normalized_version += ".dev0"
 
     # Thanks to Jistanidiot at <http://stackoverflow.com/questions/6245570/get-current-branch-name>.
     stdout = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=source_dir)
-    branch = (stdout or "unknown").strip()
+    branch = (stdout or b"unknown").decode("ascii").strip()
 
-    return {"version": version, "normalized": normalized_version, "full": full, "branch": branch}
+    # this returns native strings (bytes on py2, unicode on py3)
+    return {"version": version, "normalized": normalized_version,
+            "full": full, "branch": branch}
 
 # setup.cfg has an [aliases] section which runs "update_version" before many
 # commands (like "build" and "sdist") that need to know our package version
@@ -288,69 +216,25 @@ Warning: no version information found. This may cause tests to fail.
     def try_from_git(self):
         # If we change APPNAME, the release tag names should also change from then on.
         versions = versions_from_git(APPNAME + '-')
+
+        # setup.py might be run by either py2 or py3 (when run by tox, which
+        # uses py3 on modern debian/ubuntu distros). We want this generated
+        # file to contain native strings on both (str=bytes in py2,
+        # str=unicode in py3)
         if versions:
+            body = GIT_VERSION_BODY % {
+                "pkgname": self.distribution.get_name(),
+                "version": versions["version"],
+                "normalized": versions["normalized"],
+                "full": versions["full"],
+                "branch": versions["branch"],
+                }
             f = open(VERSION_PY_FILENAME, "wb")
-            f.write(GIT_VERSION_BODY %
-                    { "pkgname": self.distribution.get_name(),
-                      "version": versions["version"],
-                      "normalized": versions["normalized"],
-                      "full": versions["full"],
-                      "branch": versions["branch"],
-                    })
+            f.write(body.encode("ascii"))
             f.close()
             print("Wrote normalized version %r into '%s'" % (versions["normalized"], VERSION_PY_FILENAME))
 
         return versions.get("normalized", None)
-
-
-class MySdist(sdist.sdist):
-    """ A hook in the sdist command so that we can determine whether this the
-    tarball should be 'SUMO' or not, i.e. whether or not to include the
-    external dependency tarballs. Note that we always include
-    misc/dependencies/* in the tarball; --sumo controls whether tahoe-deps/*
-    is included as well.
-    """
-
-    user_options = sdist.sdist.user_options + \
-        [('sumo', 's',
-          "create a 'sumo' sdist which includes the contents of tahoe-deps/*"),
-         ]
-    boolean_options = ['sumo']
-
-    def initialize_options(self):
-        sdist.sdist.initialize_options(self)
-        self.sumo = False
-
-    def make_distribution(self):
-        # add our extra files to the list just before building the
-        # tarball/zipfile. We override make_distribution() instead of run()
-        # because setuptools.command.sdist.run() does not lend itself to
-        # easy/robust subclassing (the code we need to add goes right smack
-        # in the middle of a 12-line method). If this were the distutils
-        # version, we'd override get_file_list().
-
-        if self.sumo:
-            # If '--sumo' was specified, include tahoe-deps/* in the sdist.
-            # We assume that the user has fetched the tahoe-deps.tar.gz
-            # tarball and unpacked it already.
-            self.filelist.extend([os.path.join("tahoe-deps", fn)
-                                  for fn in os.listdir("tahoe-deps")])
-            # In addition, we want the tarball/zipfile to have -SUMO in the
-            # name, and the unpacked directory to have -SUMO too. The easiest
-            # way to do this is to patch self.distribution and override the
-            # get_fullname() method. (an alternative is to modify
-            # self.distribution.metadata.version, but that also affects the
-            # contents of PKG-INFO).
-            fullname = self.distribution.get_fullname()
-            def get_fullname():
-                return fullname + "-SUMO"
-            self.distribution.get_fullname = get_fullname
-
-        try:
-            old_mask = os.umask(int("022", 8))
-            return sdist.sdist.make_distribution(self)
-        finally:
-            os.umask(old_mask)
 
 
 setup_args = {}
@@ -364,9 +248,7 @@ setup(name=APPNAME,
       author_email='tahoe-dev@tahoe-lafs.org',
       url='https://tahoe-lafs.org/',
       license='GNU GPL', # see README.rst -- there is an alternative licence
-      cmdclass={"trial": Trial,
-                "update_version": UpdateVersion,
-                "sdist": MySdist,
+      cmdclass={"update_version": UpdateVersion,
                 },
       package_dir = {'':'src'},
       packages=['allmydata',
@@ -381,11 +263,10 @@ setup(name=APPNAME,
                 'allmydata.util',
                 'allmydata.web',
                 'allmydata.windows',
-                'buildtest'],
+                ],
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
       install_requires=install_requires,
-      tests_require=tests_require,
       package_data={"allmydata.web": ["*.xhtml",
                                       "static/*.js", "static/*.png", "static/*.css",
                                       "static/img/*.png",
@@ -394,6 +275,5 @@ setup(name=APPNAME,
                     },
       setup_requires=setup_requires,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
-      zip_safe=False, # We prefer unzipped for easier access.
       **setup_args
       )

@@ -18,6 +18,8 @@ Objective 2.
 
 .. _otf-magic-folder-objective2: https://tahoe-lafs.org/trac/tahoe-lafs/query?status=!closed&keywords=~otf-magic-folder-objective2
 
+.. _filesystem_integration-local-scanning-and-database:
+
 *Local scanning and database*
 
 When a Magic-Folder-enabled node starts up, it scans all directories
