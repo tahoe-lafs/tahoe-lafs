@@ -7,6 +7,14 @@ distributes your data across multiple servers. Even if some of the servers
 fail or are taken over by an attacker, the entire file store continues to
 function correctly, preserving your privacy and security.
 
+For full documentation, please see
+http://tahoe-lafs.readthedocs.org/en/latest/ .
+
+.. image:: http://readthedocs.org/projects/tahoe-lafs/badge/?version=latest
+:target: http://tahoe-lafs.readthedocs.org/en/latest/?badge=latest
+:alt: Documentation Status
+
+
 INSTALLING
 ==========
 
