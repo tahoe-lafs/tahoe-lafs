@@ -1,12 +1,12 @@
 ﻿.. -*- coding: utf-8-with-signature-unix; fill-column: 73; -*-
 .. -*- indent-tabs-mode: nil -*-
 
-=====================
+*********************
 How To Run Tahoe-LAFS
-=====================
+*********************
 
-Intro
-=====
+Introduction
+============
 
 This is how to run a Tahoe-LAFS client or a complete Tahoe-LAFS grid.
 First you have to install the Tahoe-LAFS software, as documented in
