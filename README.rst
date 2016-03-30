@@ -10,9 +10,7 @@ function correctly, preserving your privacy and security.
 For full documentation, please see
 http://tahoe-lafs.readthedocs.org/en/latest/ .
 
-|readthedocs|
-|travis|
-|coveralls|
+|readthedocs|  |travis|  |coveralls|
 
 INSTALLING
 ==========
@@ -78,10 +76,13 @@ slides.
 ----
 
 .. |readthedocs| image:: http://readthedocs.org/projects/tahoe-lafs/badge/?version=latest
-.. _readthedocs: http://tahoe-lafs.readthedocs.org/en/latest/?badge=latest
+    :alt: documentation status
+    :target: http://tahoe-lafs.readthedocs.org/en/latest/?badge=latest
 
 .. |travis| image:: https://travis-ci.org/tahoe-lafs/tahoe-lafs.png?branch=master
-.. _travis: https://travis-ci.org/tahoe-lafs/tahoe-lafs
+    :alt: build status
+    :target: https://travis-ci.org/tahoe-lafs/tahoe-lafs
 
 .. |coveralls| image:: https://coveralls.io/repos/tahoe-lafs/tahoe-lafs/badge.png?branch=master
-.. _coveralls: https://coveralls.io/r/tahoe-lafs/tahoe-lafs?branch=master
+    :alt: test coverage percentage
+    :target: https://coveralls.io/r/tahoe-lafs/tahoe-lafs?branch=master
