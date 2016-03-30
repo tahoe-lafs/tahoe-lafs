@@ -1,8 +1,8 @@
 ﻿.. -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
-==================
+******************
 Getting Tahoe-LAFS
-==================
+******************
 
 Welcome to `the Tahoe-LAFS project`_, a secure, decentralized, fault-tolerant
 storage system. See `<about.rst>`_ for an overview of the architecture and
@@ -46,7 +46,7 @@ platforms.
 
 
 Preliminaries
--------------
+=============
 
 If you don't use a pre-packaged copy of Tahoe, you can build it yourself.
 You'll need Python2.7, pip, and virtualenv. On unix-like platforms, you will
@@ -63,11 +63,12 @@ compile the dependencies yourself (instead of using ``--find-links`` to take
 advantage of the pre-compiled ones we host), you'll also need to install
 Xcode and its command-line tools.
 
-* python 2.7
+Python 2.7
+----------
 
 Check if you already have an adequate version of Python installed by running
-``python -V``. The latest version of Python v2.7 is required, which is 2.7.11
-as of this writing. Python v2.6.x and v3 do not work. On Windows, we
+``python -V``. The latest version of Python v2.7 is recommended, which is
+2.7.11 as of this writing. Python v2.6.x and v3 do not work. On Windows, we
 recommend the use of native Python v2.7, not Cygwin Python. If you don't have
 one of these versions of Python installed, `download`_ and install the latest
 version of Python v2.7. Make sure that the path to the installation directory
@@ -79,23 +80,31 @@ Files" directory)::
 
 .. _download: https://www.python.org/downloads/
 
-* pip
+pip
+---
 
 Many Python installations already include ``pip``, but in case yours does
-not, follow the instructions at https://pip.pypa.io/en/stable/installing/ ::
+not, get it with the `pip install instructions`_::
 
     % pip --version
     pip 8.1.1 from ... (python 2.7)
 
-* virtualenv
+.. _pip install instructions: https://pip.pypa.io/en/stable/installing/
 
-Install ``virtualenv`` with the instructions at
-https://virtualenv.pypa.io/en/latest/installation.html ::
+virtualenv
+----------
+
+If you do not have an OS-provided copy of ``virtualenv``, install it with the
+instructions from the `virtualenv documentation`_::
+
 
     % virtualenv --version
     15.0.1
 
-* C compiler and libraries
+.. _virtualenv documentation: https://virtualenv.pypa.io/en/latest/installation.html
+
+C compiler and libraries
+------------------------
 
 Except on OS-X, where the Tahoe project hosts pre-compiled wheels for all
 dependencies, you will need several C libraries installed before you can
@@ -108,7 +117,7 @@ RPM-based system (like Fedora) these may be named ``python-devel``, etc,
 instead, and cam be installed with ``yum`` or ``rpm``.
 
 Install the Latest Tahoe-LAFS Release
-------------------------------------
+=====================================
 
 We recommend creating a fresh virtualenv for your Tahoe-LAFS install, to
 isolate it from any python packages that are already installed (and to
@@ -118,21 +127,35 @@ This example uses a virtualenv named ``venv``, but you can call it anything
 you like. Many people prefer to keep all their virtualenvs in one place, like
 ``~/.local/venvs/`` or ``~/venvs/``.
 
-Use the virtualenv's ``pip`` to install the latest Tahoe-LAFS release from
-PyPI with ``venv/bin/pip install tahoe-lafs``. After installation, run
+It's usually a good idea to upgrade the virtualenv's ``pip`` and
+``setuptools`` to their latest versions, with ``venv/bin/pip install -U pip
+setuptools``. Many operating systems have an older version of ``virtualenv``,
+which then includes older versions of pip and setuptools. Upgrading is easy,
+and only affects the virtualenv: not the rest of your computer.
+
+Then use the virtualenv's ``pip`` to install the latest Tahoe-LAFS release
+from PyPI with ``venv/bin/pip install tahoe-lafs``. After installation, run
 ``venv/bin/tahoe --version`` to confirm the install was successful::
 
  % virtualenv venv
  New python executable in ~/venv/bin/python2.7
  Installing setuptools, pip, wheel...done.
+ 
+ % venv/bin/pip install -U pip setuptools
+ Downloading/unpacking pip from https://pypi.python.org/...
+ ...
+ Successfully installed pip setuptools
+ 
  % venv/bin/pip install tahoe-lafs
  Collecting tahoe-lafs
  ...
  Installing collected packages: ...
  Successfully installed ...
+ 
  % venv/bin/tahoe --version
  tahoe-lafs: 1.11.0
  foolscap: ...
+ 
  %
 
 On OS-X, instead of ``pip install tahoe-lafs``, use this command to take
@@ -155,21 +178,25 @@ Then unpack and install (again into a virtualenv)::
 
  % wget https://tahoe-lafs.org/source/tahoe-lafs/releases/tahoe-lafs-1.11.0.tar.bz2
  ...
+ 
  % tar xf tahoe-lafs-1.11.0.tar.bz2
  ...
+ 
  % cd tahoe-lafs-1.11.0
+ 
  % virtualenv venv
  New python executable in ~/tahoe-lafs-1.11.0/venv/bin/python2.7
  Installing setuptools, pip, wheel...done.
+ 
  % venv/bin/pip install .
  Processing ~/tahoe-lafs-1.11.0
  ...
  Installing collected packages: ...
  Successfully installed ...
+ 
  % venv/bin/tahoe --version
  tahoe-lafs: 1.11.0
  ...
- %
 
 
 Hacking On Tahoe-LAFS
@@ -179,26 +206,25 @@ To modify the Tahoe source code, you should get a git checkout, and install
 with the ``--editable`` flag::
 
  % git clone https://github.com/tahoe-lafs/tahoe-lafs.git
- ...
+ 
  % cd tahoe-lafs
+ 
  % virtualenv venv
- New python executable in ~/tahoe-lafs/venv/bin/python2.7
- Installing setuptools, pip, wheel...done.
+ 
  % venv/bin/pip install --editable .
- Processing ~/tahoe-lafs-1.11.0
+ Obtaining file::~/tahoe-lafs
  ...
- Installing collected packages: ...
  Successfully installed ...
+ 
  % venv/bin/tahoe --version
- tahoe-lafs: 1.11.0
+ tahoe-lafs: 1.11.0.post34.dev0
  ...
- %
 
 This way, you won't have to re-run the ``pip install`` step each time you
 modify the source code.
 
-Running Tahoe-LAFS
-------------------
+Running the ``tahoe`` executable
+================================
 
 The rest of the Tahoe-LAFS documentation assumes that you can run the
 ``tahoe`` executable that you just created. You have four basic options:
@@ -223,7 +249,7 @@ symlink just the executable (into ``~/.local/bin/tahoe``). Then either add
 .. _pipsi: https://pypi.python.org/pypi/pipsi/0.9
 
 Running the Self-Tests
-----------------------
+======================
 
 To run the self-tests from a source tree, you'll need ``tox`` installed. On a
 Debian/Ubuntu system, use ``apt-get install tox``. You can also install it
@@ -233,8 +259,9 @@ Then just run ``tox``. This will create a new fresh virtualenv, install Tahoe
 (from the source tree, including any changes you have made) and all its
 dependencies into the virtualenv, then run the unit tests. This ensures that
 the tests are repeatable and match the results of other users, unaffected by
-anything else installed on your machine. On a modern computer this will take
-5-10 minutes, and should result in a "all tests passed" mesage::
+any other Python packages installed on your machine. On a modern computer
+this will take 5-10 minutes, and should result in a "all tests passed"
+mesage::
 
  % tox
  GLOB sdist-make: ~/tahoe-lafs/setup.py
@@ -255,7 +282,7 @@ anything else installed on your machine. On a modern computer this will take
    congratulations :) 
 
 Common Problems
----------------
+===============
 
 If you see an error like ``fatal error: Python.h: No such file or directory``
 while compiling the dependencies, you need the Python development headers. If
@@ -267,9 +294,9 @@ OpenSSL development headers (``libssl-dev``). Likewise ``ffi.h`` means you
 need ``libffi-dev``.
 
 
-Run Tahoe-LAFS
---------------
+Using Tahoe-LAFS
+================
 
-Now you are ready to deploy a decentralized filesystem. The ``tahoe``
-executable can configure and launch your Tahoe-LAFS nodes. See
-`<running.rst>`_ for instructions on how to do that.
+Now you are ready to deploy a decentralized filesystem. You will use the
+``tahoe`` executable to create, configure, and launch your Tahoe-LAFS nodes.
+See `<running.rst>`_ for instructions on how to do that.
