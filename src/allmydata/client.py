@@ -391,7 +391,7 @@ class Client(node.Node, pollmixin.PollMixin):
         # (and everybody else who wants to use storage servers)
         ps = self.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
-        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True, preferred_peers=preferred_peers)
+        sb = storage_client.StorageFarmBroker(permute_peers=True, preferred_peers=preferred_peers)
         self.storage_broker = sb
         for ic in self.introducer_clients:
             sb.use_introducer(ic)
