@@ -133,6 +133,7 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
+        self.introducer_clients = []
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
@@ -182,6 +183,19 @@ class Client(node.Node, pollmixin.PollMixin):
         nonce = _make_secret().strip()
         return seqnum, nonce
 
+    def load_connections_from_yaml(self):
+        connections_filepath = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
+        if connections_filepath.exists():
+            with connections_filepath.open() as f:
+                connections = yaml.load(f)
+                f.close()
+        else:
+            connections = {'introducers':{},
+                           'servers':{}
+                           }
+            connections_filepath.setContent(yaml.dump(connections))
+        return connections
+
     def load_connections(self):
         """
         Load the connections.yaml file if it exists, otherwise
@@ -189,37 +203,32 @@ class Client(node.Node, pollmixin.PollMixin):
         an error to the user if the tahoe.cfg contains an introducer
         FURL which is also found in the connections.yaml.
         """
-
-        # load yaml structure
-        connections_path = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
-        if connections_path.exists():
-            with connections_filepath.open() as f:
-                connections = yaml.load(f)
-                f.close()
-        else:
-            # XXX TODO: create default connections dict and write it to the connections.yaml file
-            pass
-
         # read introducer from tahoe.cfg and abort + error an introducer furl is specified
         # which is also found in our connections.yaml
+        self.introducer_furls = [] # XXX
         tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
-        for introducer in connections['introducers']:
-            if tahoe_cfg_introducer_furl is not None and tahoe_cfg_introducer_furl == introducer['furl']:
-                log.err("Introducer furl %s specified in both tahoe.cfg and connections.yaml; please fix impossible configuration.")
-                os.exit(1) # XXX TODO: shutdown reactor properly here
-            introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", introducer['nickname']))
-            ic = IntroducerClient(self.tub, introducer['furl'],
-                                  introducer['nickname'],
+        connections = self.load_connections_from_yaml()
+
+        if tahoe_cfg_introducer_furl in map(lambda x: x['furl'], connections['introducers']):
+            log.err("Introducer furl %s specified in both tahoe.cfg and connections.yaml; please fix impossible configuration.")
+            reactor.stop()
+
+        connections['introducers'][u'default'] = { 'furl': tahoe_cfg_introducer_furl,
+                                                   'subscribe_only': False }
+        introducers = connections['introducers']
+        for nickname in introducers.keys():
+            introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", nickname))
+            self.introducer_furls.append(introducers[nickname]['furl']) # XXX
+            ic = IntroducerClient(self.tub, introducers[nickname]['furl'],
+                                  nickname,
                                   str(allmydata.__full_version__),
                                   str(self.OLDEST_SUPPORTED_VERSION),
-                                  self.get_app_versions(), introducer_cache_filepath, introducer['subscribe_only'])
-
+                                  self.get_app_versions(), introducer_cache_filepath, introducers[nickname]['subscribe_only'])
             self.introducer_clients.append(ic)
 
         # init introducer_clients as usual
-        for ic in all_introducer_clients:
+        for ic in self.introducer_clients:
             self.init_introducer_client(ic)
-
 
     def init_introducer_client(self, ic):
         # hold off on starting the IntroducerClient until our tub has been
@@ -395,7 +404,7 @@ class Client(node.Node, pollmixin.PollMixin):
         #   key_s: "my_secret_crypto_key2"
         #   announcement: announcement_2
         #   connection_types: ...
-        servers = connections['servers']
+        servers = self.load_connections_from_yaml()['servers']
         for server_id in servers.keys():
             eventually(self.storage_farm_broker.got_static_announcement, servers[server_id]['key_s'], servers[server_id]['ann'])
 
