@@ -207,8 +207,8 @@ test-pip-install:
 .PHONY: tarballs
 tarballs:
 	$(MAKE) make-version
-	$(PYTHON) setup.py sdist --formats=bztar,gztar,zip
+	$(PYTHON) setup.py sdist --formats=bztar,gztar,zip bdist_wheel
 
 .PHONY: upload-tarballs
 upload-tarballs:
-	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/$(APPNAME)-*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi
+	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi

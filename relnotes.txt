@@ -75,7 +75,7 @@ compatible with older clients and introducer servers, however
 some features will be unavailable when an older node is
 involved. Please see docs/nodekeys.rst [14] for details.
 
-This is the nineteenth release in the version 1 series. This
+This is the twentieth release in the version 1 series. This
 series of Tahoe-LAFS will be actively supported and maintained
 for the foreseeable future, and future versions of Tahoe-LAFS
 will retain the ability to read and write files compatible
