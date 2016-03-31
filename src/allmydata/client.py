@@ -183,7 +183,7 @@ class Client(node.Node, pollmixin.PollMixin):
         nonce = _make_secret().strip()
         return seqnum, nonce
 
-    def load_connections_from_yaml(self):
+    def load_connections_from_yaml(self, furl):
         connections_filepath = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
         if connections_filepath.exists():
             exists = True
@@ -195,7 +195,10 @@ class Client(node.Node, pollmixin.PollMixin):
             connections = {'introducers':{},
                            'servers':{}
                            }
-            connections_filepath.setContent(yaml.dump(connections))
+            new_connections = connections.copy()
+            new_connections['introducers'][u'default'] = {}
+            new_connections['introducers']['default']['furl'] = furl
+            connections_filepath.setContent(yaml.dump(new_connections))
         return connections, exists
 
     def load_connections(self):
@@ -211,7 +214,7 @@ class Client(node.Node, pollmixin.PollMixin):
         tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
         self.warn_flag = False
 
-        connections, connections_yaml_exists = self.load_connections_from_yaml()
+        connections, connections_yaml_exists = self.load_connections_from_yaml(tahoe_cfg_introducer_furl)
         introducers = connections['introducers']
 
         found = False
@@ -419,7 +422,7 @@ class Client(node.Node, pollmixin.PollMixin):
         #   key_s: "my_secret_crypto_key2"
         #   announcement: announcement_2
         #   connection_types: ...
-        connections, yaml_exists= self.load_connections_from_yaml()
+        connections, yaml_exists= self.load_connections_from_yaml(None)
         servers = connections['servers']
         for server_id in servers.keys():
             eventually(self.storage_farm_broker.got_static_announcement, servers[server_id]['key_s'], servers[server_id]['ann'])
