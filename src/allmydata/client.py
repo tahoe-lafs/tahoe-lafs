@@ -186,15 +186,17 @@ class Client(node.Node, pollmixin.PollMixin):
     def load_connections_from_yaml(self):
         connections_filepath = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
         if connections_filepath.exists():
+            exists = True
             with connections_filepath.open() as f:
                 connections = yaml.load(f)
                 f.close()
         else:
+            exists = False
             connections = {'introducers':{},
                            'servers':{}
                            }
             connections_filepath.setContent(yaml.dump(connections))
-        return connections
+        return connections, exists
 
     def load_connections(self):
         """
@@ -207,18 +209,25 @@ class Client(node.Node, pollmixin.PollMixin):
         # which is also found in our connections.yaml
         self.introducer_furls = [] # XXX
         tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
-        connections = self.load_connections_from_yaml()
+        self.warn_flag = False
 
+        connections, connections_yaml_exists = self.load_connections_from_yaml()
         introducers = connections['introducers']
+
         found = False
-        if tahoe_cfg_introducer_furl is not None:
+        count = 0
+        if tahoe_cfg_introducer_furl is not None and connections_yaml_exists:
+            count += 1
             for nick in introducers.keys():
                 if tahoe_cfg_introducer_furl == introducers[nick]['furl']:
                     found = True
                     break
-            if not found:
+            if not found and count > 0:
                 log.err("Introducer furl %s specified in both tahoe.cfg and connections.yaml; please fix impossible configuration.")
                 reactor.stop()
+            if found and count > 0:
+                log.err("Introducer furl %s specified in both tahoe.cfg was also found in connections.yaml")
+                self.warn_flag = True
 
         introducers[u'default'] = { 'furl': tahoe_cfg_introducer_furl,
                                     'subscribe_only': False }
@@ -410,7 +419,8 @@ class Client(node.Node, pollmixin.PollMixin):
         #   key_s: "my_secret_crypto_key2"
         #   announcement: announcement_2
         #   connection_types: ...
-        servers = self.load_connections_from_yaml()['servers']
+        connections, yaml_exists= self.load_connections_from_yaml()
+        servers = connections['servers']
         for server_id in servers.keys():
             eventually(self.storage_farm_broker.got_static_announcement, servers[server_id]['key_s'], servers[server_id]['ann'])
 
