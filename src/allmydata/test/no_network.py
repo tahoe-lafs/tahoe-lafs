@@ -174,9 +174,9 @@ class NoNetworkStorageBroker:
         return None
 
 class NoNetworkClient(Client):
-#    def create_tub(self):
-#        pass
-    def init_introducer_client(self):
+    def create_tub(self):
+        self.tub = None
+    def init_introducer_client(self, ic):
         pass
     def setup_logging(self):
         pass

@@ -209,13 +209,19 @@ class Client(node.Node, pollmixin.PollMixin):
         tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
         connections = self.load_connections_from_yaml()
 
-        if tahoe_cfg_introducer_furl in map(lambda x: x['furl'], connections['introducers']):
-            log.err("Introducer furl %s specified in both tahoe.cfg and connections.yaml; please fix impossible configuration.")
-            reactor.stop()
-
-        connections['introducers'][u'default'] = { 'furl': tahoe_cfg_introducer_furl,
-                                                   'subscribe_only': False }
         introducers = connections['introducers']
+        found = False
+        if tahoe_cfg_introducer_furl is not None:
+            for nick in introducers.keys():
+                if tahoe_cfg_introducer_furl == introducers[nick]['furl']:
+                    found = True
+                    break
+            if not found:
+                log.err("Introducer furl %s specified in both tahoe.cfg and connections.yaml; please fix impossible configuration.")
+                reactor.stop()
+
+        introducers[u'default'] = { 'furl': tahoe_cfg_introducer_furl,
+                                    'subscribe_only': False }
         for nickname in introducers.keys():
             introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", nickname))
             self.introducer_furls.append(introducers[nickname]['furl']) # XXX
