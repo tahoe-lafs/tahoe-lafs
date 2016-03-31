@@ -2,6 +2,7 @@ import os, sys
 import twisted
 from twisted.trial import unittest
 from twisted.application import service
+from twisted.python.filepath import FilePath
 
 import allmydata
 import allmydata.frontends.drop_upload
@@ -49,11 +50,21 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         for s in should_fail:
             self.failUnless(Node._contains_unescaped_hash(s))
+            connections_filepath = FilePath(os.path.join(basedir, "private", "connections.yaml"))
+            try:
+                connections_filepath.remove()
+            except OSError, e:
+                pass
             write_config(s)
             self.failUnlessRaises(UnescapedHashError, client.Client, basedir)
 
         for s in should_not_fail:
             self.failIf(Node._contains_unescaped_hash(s))
+            connections_filepath = FilePath(os.path.join(basedir, "private", "connections.yaml"))
+            try:
+                connections_filepath.remove()
+            except OSError, e:
+                pass
             write_config(s)
             client.Client(basedir)
 
