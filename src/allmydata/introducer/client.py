@@ -48,10 +48,11 @@ class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions, cache_filepath):
+                 app_versions, cache_filepath, subscribe_only):
         self._tub = tub
         self.introducer_furl = introducer_furl
         self.cache_filepath = cache_filepath
+        self.subscribe_only = subscribe_only
 
         assert type(nickname) is unicode
         self._nickname = nickname
@@ -250,6 +251,9 @@ class IntroducerClient(service.Service, Referenceable):
         return ann_d
 
     def publish(self, service_name, ann, current_seqnum, current_nonce, signing_key=None):
+        if self.subscribe_only:
+            # no operation for subscribe-only mode
+            return
         # we increment the seqnum every time we publish something new
         ann_d = self.create_announcement_dict(service_name, ann)
         self._outbound_announcements[service_name] = ann_d

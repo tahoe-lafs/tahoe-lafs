@@ -77,6 +77,7 @@ class StorageFarmBroker(service.MultiService):
         # own Reconnector, and will give us a RemoteReference when we ask
         # them for it.
         self.servers = {}
+        self.static_servers = {}
         self.introducer_clients = []
 
     def startService(self):
@@ -103,6 +104,19 @@ class StorageFarmBroker(service.MultiService):
         # XXX set options?
         self.tubs[serverid].setServiceParent(self)
 
+    def got_static_announcement(self, key_s, ann):
+        if key_s is not None:
+            precondition(isinstance(key_s, str), key_s)
+            precondition(key_s.startswith("v0-"), key_s)
+        assert ann["service-name"] == "storage"
+        s = NativeStorageServer(key_s, ann)
+        serverid = s.get_serverid()
+        assert serverid not in self.static_servers # XXX
+        self.static_servers.append(server_id)
+        self.servers[server_id] = s
+        self._ensure_tub_created(server_id)
+        s.start_connecting(self.tubs[server_id], self._trigger_connections)
+
     def _got_announcement(self, key_s, ann):
         if key_s is not None:
             precondition(isinstance(key_s, str), key_s)
@@ -110,6 +124,11 @@ class StorageFarmBroker(service.MultiService):
         assert ann["service-name"] == "storage"
         s = NativeStorageServer(key_s, ann)
         serverid = s.get_serverid()
+        if serverid in self.static_servers:
+            # ignore announcements with server IDs that are found
+            # in our static server list; this acts as a global overrides
+            # list for our storage servers
+            return
         old = self.servers.get(serverid)
         if old:
             if old.get_announcement() == ann:
