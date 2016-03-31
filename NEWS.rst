@@ -4,8 +4,8 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.11.0 (???)
-''''''''''''''''''''
+Release 1.11.0 (30-Mar-2016)
+''''''''''''''''''''''''''''
 
 New Build Process
 -----------------
@@ -40,7 +40,6 @@ Then, to install the latest version, create a virtualenv and use
     . venv/bin/activate
     (venv) pip install tahoe-lafs
     (venv) tahoe --version
-
 
 To run Tahoe from a source checkout (so you can hack on Tahoe), use
 ``pip install --editable .`` from the git tree::
@@ -90,6 +89,10 @@ Tahoe now requires Python 2.7 on all platforms. (#2445)
 
 Tahoe now requires Foolscap 0.10.1, which fixes incompatibilities with
 recent Twisted releases. (#2510, #2722, #2567)
+
+Tahoe requires Twisted 15.1.0 or later, so it can request the
+``Twisted[tls]`` "extra" (this asks Twisted to ask for everything it
+needs to provide proper TLS support). (#2760)
 
 Tests should now work with both Nevow 0.11 and 0.12 . (#2663)
 
