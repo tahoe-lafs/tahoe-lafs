@@ -1,4 +1,4 @@
-import os, stat, time, weakref, yaml
+import os, stat, time, weakref, yaml, importlib
 from twisted.python.filepath import FilePath
 from foolscap.furl import decode_furl
 from foolscap.api import Tub, eventually
@@ -107,7 +107,6 @@ class Terminator(service.Service):
             c.stop()
         return service.Service.stopService(self)
 
-
 class Client(node.Node, pollmixin.PollMixin):
     implements(IStatsProducer)
 
@@ -192,9 +191,16 @@ class Client(node.Node, pollmixin.PollMixin):
                 f.close()
         else:
             exists = False
-            connections = {'introducers':{},
-                           'servers':{}
-                           }
+            connections = { 'introducers' : {},
+                            'servers' : {},
+                            'transport_types' : {
+                                'tcp' : {
+                                    'handler_module' : 'foolscap.connection_plugins',
+                                    'handler_name': 'DefaultTCP',
+                                    'parameters' : {}
+                                },
+                            },
+                            }
             new_connections = connections.copy()
             new_connections['introducers'][u'default'] = {}
             new_connections['introducers']['default']['furl'] = furl
@@ -216,6 +222,22 @@ class Client(node.Node, pollmixin.PollMixin):
 
         connections, connections_yaml_exists = self.load_connections_from_yaml(tahoe_cfg_introducer_furl)
         introducers = connections['introducers']
+        transports = connections['transport_types']
+
+        def getattr_qualified(obj, name):
+            for attr in name.split("."):
+                obj = getattr(obj, attr)
+            return obj
+
+        if self.tub is None:
+            return
+        self.tub.removeAllConnectionHintHandlers()
+        for name in connections['transport_types'].keys():
+            handler_module = importlib.import_module(transports[name]['handler_module'])
+            handler_func = getattr_qualified(handler_module, transports[name]['handler_name'])
+            handler_args = transports[name]['parameters']
+            handler = handler_func(**handler_args)
+            self.tub.addConnectionHintHandler(name, handler)
 
         found = False
         count = 0
