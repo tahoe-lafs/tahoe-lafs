@@ -121,7 +121,7 @@ class StorageFarmBroker(service.MultiService):
         self._ensure_tub_created(server_id, transport_plugins)
         s.start_connecting(self.tubs[server_id], self._trigger_connections)
 
-    def _got_announcement(self, key_s, ann):
+    def _got_announcement(self, key_s, ann, transport_plugins):
         if key_s is not None:
             precondition(isinstance(key_s, str), key_s)
             precondition(key_s.startswith("v0-"), key_s)
@@ -142,7 +142,7 @@ class StorageFarmBroker(service.MultiService):
             old.stop_connecting()
             # now we forget about them and start using the new one
         self.servers[serverid] = s
-        self._ensure_tub_created(serverid)
+        self._ensure_tub_created(serverid, transport_plugins)
         s.start_connecting(self.tubs[serverid], self._trigger_connections)
         # the descriptor will manage their own Reconnector, and each time we
         # need servers, we'll ask them if they're connected or not.

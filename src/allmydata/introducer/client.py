@@ -141,7 +141,7 @@ class IntroducerClient(service.MultiService, Referenceable):
                     self.log(msg,
                              level=log.WEIRD)
                     raise storage_client.UnknownServerTypeError(msg)
-                eventually(self._got_announcement_cb, server_params['key_s'], server_params['ann'])
+                eventually(self._got_announcement_cb, server_params['key_s'], server_params['ann'], self.plugins)
 
     def _save_announcement(self, ann):
         if self.cache_filepath.exists():
@@ -200,7 +200,7 @@ class IntroducerClient(service.MultiService, Referenceable):
         for index,(ann,key_s,when) in self._inbound_announcements.items():
             servicename = index[0]
             if servicename == service_name:
-                eventually(cb, key_s, ann, *args, **kwargs)
+                eventually(cb, key_s, ann, self.plugins, *args, **kwargs)
 
     def _maybe_subscribe(self):
         if not self._publisher:
@@ -394,7 +394,7 @@ class IntroducerClient(service.MultiService, Referenceable):
 
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
-                eventually(cb, key_s, ann, *args, **kwargs)
+                eventually(cb, key_s, ann, self.plugins, *args, **kwargs)
 
         server_params = {}
         server_params['ann'] = ann
