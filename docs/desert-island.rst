@@ -1,44 +1,57 @@
+******************************************
 How To Build Tahoe-LAFS On A Desert Island
-==========================================
+******************************************
 
 (or an airplane, or anywhere else without internet connectivity)
 
-Here's the story: you leave for the airport in 10 minutes, you know you want
-to do some Tahoe hacking on the flight. What can you grab right now that will
-let you build the necessary dependencies later, when you are offline?
+Here's the story: you leave for the airport in an hour, you know you want to
+do some Tahoe hacking on the flight. What can you grab right now that will
+let you install the necessary dependencies later, when you are offline?
 
 Pip can help, with a technique described in the pip documentation
 https://pip.pypa.io/en/stable/user_guide/#installing-from-local-packages .
 
+First, do two setup steps:
+
+* ``mkdir ~/.pip/wheels``
+* edit ``~/.pip/pip.conf`` to set ``[global] find-links = ~/.pip/wheels``
+
+(the filename may vary on non-unix platforms: check the pip documentation for
+details)
+
+This instructs all ``pip install`` commands to look in your local directory
+for compiled wheels, in addition to asking PyPI and the normal wheel cache.
+
 Before you get shipwrecked (or leave the internet for a while), do this from
-your tahoe source tree:
+your tahoe source tree (or any python source tree that you want to hack on):
 
-* ``pip download --dest tahoe-deps .``
+* ``pip wheel -w ~/.pip/wheels .``
 
-That will create a directory named "tahoe-deps", and download everything that
-the current project (".", i.e. tahoe) needs. It will fetch wheels if
-available, otherwise it will fetch tarballs. It will not compile anything.
+That command will require network and time: it will download and compile
+whatever is necessary right away. Schedule your shipwreck for *after* it
+completes.
 
-Later, on the plane, do this (in an active virtualenv):
+Specifically, it will get wheels for everything that the current project
+(".", i.e. tahoe) needs, and write them to the ``~/.pip/wheels`` directory.
+It will query PyPI to learn the current version of every dependency, then
+acquire wheels from the first source that has one:
 
-* ``pip install --no-index --find-links=tahoe-deps --editable .``
+* copy from our ``~/.pip/wheels`` directory
+* copy from the local wheel cache (see below for where this lives)
+* download a wheel from PyPI
+* build a wheel from a tarball (cached or downloaded)
 
-That tells pip to not try to contact PyPI (--no-index) and to use the
-tarballs and wheels in ``tahoe-deps/`` instead. That will compile anything
-necessary, create (and cache) wheels, and install them.
+Later, on the plane, do this:
 
-If you need to rebuild the virtualenv for whatever reason, run the "pip
-install" command again: it will re-use the cached wheels and skip the compile
-step.
+* ``virtualenv --no-download ve``
+* ``. ve/bin/activate``
+* ``pip install --no-index --editable .``
 
-Compiling Ahead Of Time
------------------------
+That tells virtualenv/pip to not try to contact PyPI, and your ``pip.conf``
+"find-links" tells them to use the wheels in ``~/.pip/wheels/`` instead.
 
-If you want to save some battery on the flight, you can compile the wheels
-ahead of time. Just do the install step before you go offline. The wheels
-will be cached as a side-effect. Later, on the plane, you can populate a new
-virtualenv with the same ``pip install`` command above, and it will use the
-cached wheels instead of recompiling them.
+How This Works
+==============
 
 The pip wheel cache
 -------------------
@@ -53,20 +66,19 @@ earlier), it will not actually build anything.
 
 If it cannot contact PyPI, it will fail. The ``--no-index`` above is to tell
 it to skip the PyPI step, but that leaves it with no source of packages. The
-``--find-links=`` argument is what provides an alternate source of packages.
+``find-links`` setting is what provides an alternate source of packages.
 
 The HTTP and wheel caches are not single flat directories: they use a
 hierarchy of subdirectories, named after a hash of the URL or name of the
 object being stored (this is to avoid filesystem limitations on the size of a
 directory). As a result, the wheel cache is not suitable for use as a
-``--find-links=`` target (but see below).
+``find-links`` target (but see below).
 
 There is a command named ``pip wheel`` which only creates wheels (and stores
 them in ``--wheel-dir=``, which defaults to the current directory). This
 command does not populate the wheel cache: it reads from (and writes to) the
 HTTP cache, and reads from the wheel cache, but will only save the generated
-wheels into the directory you specify with ``--wheel-dir=``. It does not also
-write them to the cache.
+wheels into the directory you specify with ``--wheel-dir=``.
 
 Where Does The Cache Live?
 --------------------------
@@ -126,43 +138,3 @@ downloaded wheel like this, it will say::
 Note that older versions of pip do not always use wheels, or the cache. Pip
 8.0.0 or newer should be ok. The version of setuptools may also be
 significant.
-
-Another Approach
-----------------
-
-An alternate approach is to set your ``pip.conf`` to install wheels into the
-same directory that it will search for links, and use ``pip wheel`` to add
-wheels to the cache. The ``pip.conf`` will look like::
-
-    [global]
-    wheel-dir = ~/.pip/wheels
-    find-links = ~/.pip/wheels
-
-(see https://pip.pypa.io/en/stable/user_guide/#configuration to find out
-where your ``pip.conf`` lives, but ``~/.pip/pip.conf`` probably works)
-
-While online, you populate the wheel-dir (from a tahoe source tree) with:
-
-* ``pip wheel .``
-
-That compiles everything, so it may take a little while. Note that you can
-also add specific packages (and their dependencies) any time you like, with
-something like ``pip wheel zfec``.
-
-Later, you do the offline install (in a virtualenv) with just:
-
-* ``pip install --no-index --editable .``
-
-If/when you have network access, omit the ``--no-index`` and it will check
-with PyPI for the most recent versions (and still use the stashed wheels if
-appropriate).
-
-The upside is that the only extra ``pip install`` argument is ``--no-index``,
-and you don't need to remember the ``--find-links`` or ``--dest`` arguments.
-
-The downside of this approach is that ``pip install`` does not populate the
-wheel-dir (it populates the normal wheel cache, but not ~/.pip/wheels). Only
-an explicit ``pip wheel`` will populate ~/.pip/wheels. So if you do a ``pip
-install`` (but not a ``pip wheel``), then go offline, a second ``pip install
---no-index`` may fail: the wheels it needs may be somewhere in the
-wheel-cache, but not in the ``--find-links=`` directory.
