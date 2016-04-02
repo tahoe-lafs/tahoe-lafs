@@ -107,6 +107,26 @@ class Terminator(service.Service):
             c.stop()
         return service.Service.stopService(self)
 
+def load_plugins(transport_dict):
+    """
+    load_plugins( transport_dict ) -> plugins_dict
+    transform a transport specification dict into.
+    plugins_dict of type plugin_name -> plugin_handler
+    """
+    plugins = {}
+    def getattr_qualified(obj, name):
+        for attr in name.split("."):
+            obj = getattr(obj, attr)
+        return obj
+    for name in transport_dict.keys():
+        handler_dict = transport_dict[name]
+        handler_module = importlib.import_module(handler_dict['handler_module'])
+        handler_func = getattr_qualified(handler_module, handler_dict['handler_name'])
+        handler_args = handler_dict['parameters']
+        handler = handler_func(**handler_args)
+        plugins[name] = handler
+    return plugins
+
 class Client(node.Node, pollmixin.PollMixin):
     implements(IStatsProducer)
 
@@ -130,8 +150,9 @@ class Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": 128*KiB,
                                    }
 
-    def __init__(self, basedir="."):
+    def __init__(self, basedir=".", testing=False):
         node.Node.__init__(self, basedir)
+        self.testing = testing
         self.introducer_clients = []
         self.started_timestamp = time.time()
         self.logSource="Client"
@@ -193,7 +214,7 @@ class Client(node.Node, pollmixin.PollMixin):
             exists = False
             connections = { 'introducers' : {},
                             'servers' : {},
-                            'transport_types' : {
+                            'transport_plugins' : {
                                 'tcp' : {
                                     'handler_module' : 'foolscap.connection_plugins',
                                     'handler_name': 'DefaultTCP',
@@ -222,21 +243,12 @@ class Client(node.Node, pollmixin.PollMixin):
 
         connections, connections_yaml_exists = self.load_connections_from_yaml(tahoe_cfg_introducer_furl)
         introducers = connections['introducers']
-        transports = connections['transport_types']
-
-        def getattr_qualified(obj, name):
-            for attr in name.split("."):
-                obj = getattr(obj, attr)
-            return obj
-
+        transports = connections['transport_plugins']
         if self.tub is None:
             return
+        plugins = load_plugins(connections['transport_plugins'])
         self.tub.removeAllConnectionHintHandlers()
-        for name in connections['transport_types'].keys():
-            handler_module = importlib.import_module(transports[name]['handler_module'])
-            handler_func = getattr_qualified(handler_module, transports[name]['handler_name'])
-            handler_args = transports[name]['parameters']
-            handler = handler_func(**handler_args)
+        for name, handler in plugins.items():
             self.tub.addConnectionHintHandler(name, handler)
 
         found = False
@@ -257,13 +269,18 @@ class Client(node.Node, pollmixin.PollMixin):
         introducers[u'default'] = { 'furl': tahoe_cfg_introducer_furl,
                                     'subscribe_only': False }
         for nickname in introducers.keys():
+            if introducers[nickname].has_key('transport_plugins'):
+                plugins = load_plugins(introducers[nickname]['transport_plugins'])
             introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", nickname))
             self.introducer_furls.append(introducers[nickname]['furl']) # XXX
-            ic = IntroducerClient(self.tub, introducers[nickname]['furl'],
+            ic = IntroducerClient(introducers[nickname]['furl'],
                                   nickname,
                                   str(allmydata.__full_version__),
                                   str(self.OLDEST_SUPPORTED_VERSION),
-                                  self.get_app_versions(), introducer_cache_filepath, introducers[nickname]['subscribe_only'])
+                                  self.get_app_versions(),
+                                  introducer_cache_filepath,
+                                  introducers[nickname]['subscribe_only'],
+                                  plugins)
             self.introducer_clients.append(ic)
 
         # init introducer_clients as usual
@@ -439,15 +456,14 @@ class Client(node.Node, pollmixin.PollMixin):
         sb.setServiceParent(self)
 
         # initialize StorageFarmBroker with our static server selection
-        #
-        # server_id_2:
-        #   key_s: "my_secret_crypto_key2"
-        #   announcement: announcement_2
-        #   connection_types: ...
         connections, yaml_exists= self.load_connections_from_yaml(None)
         servers = connections['servers']
         for server_id in servers.keys():
-            eventually(self.storage_farm_broker.got_static_announcement, servers[server_id]['key_s'], servers[server_id]['ann'])
+            plugins = load_plugins(servers[server_id]['transport_plugins'])
+            if self.testing:
+                self.storage_broker.got_static_announcement(servers[server_id]['key_s'], servers[server_id]['announcement'], plugins)
+            else:
+                eventually(self.storage_broker.got_static_announcement, servers[server_id]['key_s'], servers[server_id]['announcement'], plugins)
 
         for ic in self.introducer_clients:
             sb.use_introducer(ic)

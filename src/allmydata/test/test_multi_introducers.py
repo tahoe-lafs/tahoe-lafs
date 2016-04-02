@@ -13,7 +13,7 @@ INTRODUCERS_CFG_FURLS_COMMENTED="""introducers:
   !!python/unicode 'intro1': {furl: furl1, subscribe_only: false}
 #  !!python/unicode 'intro2': {furl: furl4, subscribe_only: false}
 servers: {}
-transport_types: {}
+transport_plugins: {}
         """
 
 class MultiIntroTests(unittest.TestCase):
@@ -42,7 +42,7 @@ class MultiIntroTests(unittest.TestCase):
                   'subscribe_only': False }
         },
                        'servers':{},
-                       'transport_types':{}
+                       'transport_plugins':{}
         }
         connections_filepath = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
         connections_filepath.setContent(yaml.dump(connections))

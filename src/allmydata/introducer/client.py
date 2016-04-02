@@ -3,6 +3,7 @@ import time, os, yaml
 from zope.interface import implements
 from twisted.application import service
 from foolscap.api import Referenceable, eventually, RemoteInterface
+from foolscap.api import Tub
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
      RIIntroducerSubscriberClient_v1, RIIntroducerSubscriberClient_v2
@@ -43,16 +44,22 @@ class StubClient(Referenceable): # for_v1
 V1 = "http://allmydata.org/tahoe/protocols/introducer/v1"
 V2 = "http://allmydata.org/tahoe/protocols/introducer/v2"
 
-class IntroducerClient(service.Service, Referenceable):
+class IntroducerClient(service.MultiService, Referenceable):
     implements(RIIntroducerSubscriberClient_v2, IIntroducerClient)
 
-    def __init__(self, tub, introducer_furl,
+    def __init__(self, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions, cache_filepath, subscribe_only):
-        self._tub = tub
+                 app_versions, cache_filepath, subscribe_only, plugins):
+        service.MultiService.__init__(self)
+
+        self._tub = Tub()
+        #self._tub.setOption("expose-remote-exception-types", False) # XXX
+        for name, handler in plugins.items():
+            self._tub.addConnectionHintHandler(name, handler)
         self.introducer_furl = introducer_furl
         self.cache_filepath = cache_filepath
         self.subscribe_only = subscribe_only
+        self.plugins = plugins
 
         assert type(nickname) is unicode
         self._nickname = nickname
@@ -106,8 +113,9 @@ class IntroducerClient(service.Service, Referenceable):
         return res
 
     def startService(self):
-        service.Service.startService(self)
+        service.MultiService.startService(self)
         self._introducer_error = None
+        self._tub.setServiceParent(self)
         rc = self._tub.connectTo(self.introducer_furl, self._got_introducer)
         self._introducer_reconnector = rc
         def connect_failed(failure):
