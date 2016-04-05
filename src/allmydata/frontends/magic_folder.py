@@ -473,11 +473,11 @@ class Uploader(QueueMixin):
 
         if relpath_u is None:
             item.set_status('invalid_path', self._clock.seconds())
-            return defer.succeed(None)
+            return defer.succeed(False)
         precondition(isinstance(relpath_u, unicode), relpath_u)
         precondition(not relpath_u.endswith(u'/'), relpath_u)
 
-        d = defer.succeed(None)
+        d = defer.succeed(False)
 
         def _maybe_upload(ign, now=None):
             self._log("_maybe_upload: relpath_u=%r, now=%r" % (relpath_u, now))
@@ -501,7 +501,7 @@ class Uploader(QueueMixin):
 
                 db_entry = self._db.get_db_entry(relpath_u)
                 if db_entry is None:
-                    return None
+                    return False
 
                 last_downloaded_timestamp = now  # is this correct?
 
@@ -510,7 +510,7 @@ class Uploader(QueueMixin):
                 else:
                     self._log("Not uploading %r" % (relpath_u,))
                     self._count('objects_not_uploaded')
-                    return
+                    return False
 
                 metadata = {
                     'version': new_version,
@@ -536,10 +536,11 @@ class Uploader(QueueMixin):
                                                 pathinfo)
                     self._count('files_uploaded')
                 d2.addCallback(_add_db_entry)
+                d2.addCallback(lambda ign: True)
                 return d2
             elif pathinfo.islink:
                 self.warn("WARNING: cannot upload symlink %s" % quote_filepath(fp))
-                return None
+                return False
             elif pathinfo.isdir:
                 self._log("ISDIR")
                 if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
@@ -549,7 +550,7 @@ class Uploader(QueueMixin):
                 self._log("isdir dbentry %r" % (db_entry,))
                 if not is_new_file(pathinfo, db_entry):
                     self._log("NOT A NEW FILE")
-                    return defer.succeed(None)
+                    return False
 
                 uploadable = Data("", self._client.convergence)
                 encoded_path_u += magicpath.path2magic(u"/")
@@ -568,6 +569,7 @@ class Uploader(QueueMixin):
                     return f
                 upload_d.addCallbacks(_dir_succeeded, _dir_failed)
                 upload_d.addCallback(lambda ign: self._scan(relpath_u))
+                upload_d.addCallback(lambda ign: True)
                 return upload_d
             elif pathinfo.isfile:
                 db_entry = self._db.get_db_entry(relpath_u)
@@ -581,7 +583,7 @@ class Uploader(QueueMixin):
                 else:
                     self._log("Not uploading %r" % (relpath_u,))
                     self._count('objects_not_uploaded')
-                    return None
+                    return False
 
                 metadata = {
                     'version': new_version,
@@ -605,16 +607,20 @@ class Uploader(QueueMixin):
                                                 last_downloaded_uri, last_downloaded_timestamp,
                                                 pathinfo)
                     self._count('files_uploaded')
+                    return True
                 d2.addCallback(_add_db_entry)
                 return d2
             else:
                 self.warn("WARNING: cannot process special file %s" % quote_filepath(fp))
-                return None
+                return False
 
         d.addCallback(_maybe_upload)
 
         def _succeeded(res):
-            self._count('objects_succeeded')
+            self._log("_succeeded(%r)" % (res,))
+            if res:
+                self._count('objects_succeeded')
+            # TODO: maybe we want the status to be 'ignored' if res is False
             item.set_status('success', self._clock.seconds())
             return res
         def _failed(f):
@@ -907,7 +913,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         abspath_u = unicode_from_filepath(fp)
         conflict_path_u = self._get_conflicted_filename(abspath_u)
 
-        d = defer.succeed(None)
+        d = defer.succeed(False)
 
         def do_update_db(written_abspath_u):
             filecap = item.file_node.get_uri()
@@ -926,6 +932,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             )
             self._count('objects_downloaded')
             item.set_status('success', self._clock.seconds())
+            return True
 
         def failed(f):
             item.set_status('failure', self._clock.seconds())
@@ -975,6 +982,6 @@ class Downloader(QueueMixin, WriteFileMixin):
         def trap_conflicts(f):
             f.trap(ConflictError)
             self._log("IGNORE CONFLICT ERROR %r" % f)
-            return None
+            return False
         d.addErrback(trap_conflicts)
         return d
