@@ -18,11 +18,11 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update; fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew install python; fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=/usr/local/bin:$PATH; fi
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then pip install --upgrade pip; fi
   - pip install coverage coveralls
 before_script:
   - env
   - which python && python --version
-  - pip install --upgrade pip
   - pip install -e .
 script:
   - coverage run --branch --source=src/allmydata `which tahoe` --version-and-path debug trial --rterrors --reporter=timing
