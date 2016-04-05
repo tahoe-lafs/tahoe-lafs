@@ -21,7 +21,8 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then sudo apt-get update; fi
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then sudo apt-get install -y python-pip; fi
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then export PATH=/usr/bin:$PATH; fi
-  - pip install coverage coveralls
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then sudo pip install coverage coveralls; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install coverage coveralls; fi
 before_script:
   - env
   - which python && python --version
