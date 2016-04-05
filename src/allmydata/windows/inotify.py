@@ -263,8 +263,9 @@ class INotify(PollMixin):
                 try:
                     fni.read_changes(self._hDirectory, self._recursive, self._filter)
                 except WindowsError as e:
-                    if self._check_stop(): return
                     print "ignoring WindowsError: %s" % (e,)
+                    self._state = STOPPING
+
                 if self._check_stop(): return
                 for info in fni:
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
