@@ -1,0 +1,6 @@
+The little-used "manhole" debugging feature has been removed. This allowed
+you to SSH or Telnet "into" a Tahoe node, providing an interactive
+Read-Eval-Print-Loop (REPL) that executed inside the context of the running
+process. The SSH authentication code used a deprecated feature of Twisted,
+this code had no unit-test coverage, and I haven't personally used it in at
+least 6 years (despite writing it in the first place). Time to go.

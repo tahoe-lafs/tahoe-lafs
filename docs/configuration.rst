@@ -272,19 +272,6 @@ set the ``tub.location`` option described below.
 
     .. _`#521`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/521
 
-``ssh.port = (strports string, optional)``
-
-``ssh.authorized_keys_file = (filename, optional)``
-
-    This enables an SSH-based interactive Python shell, which can be used to
-    inspect the internal state of the node, for debugging. To cause the node
-    to accept SSH connections on port 8022 from the same keys as the rest of
-    your account, use::
-
-      [tub]
-      ssh.port = 8022
-      ssh.authorized_keys_file = ~/.ssh/authorized_keys
-
 ``tempdir = (string, optional)``
 
     This specifies a temporary directory for the web-API server to use, for
@@ -705,8 +692,6 @@ a legal one.
   log_gatherer.furl = pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm
   timeout.keepalive = 240
   timeout.disconnect = 1800
-  ssh.port = 8022
-  ssh.authorized_keys_file = ~/.ssh/authorized_keys
   
   [client]
   introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo

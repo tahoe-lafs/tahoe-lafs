@@ -88,7 +88,6 @@ class Node(service.MultiService):
         self.create_tub()
         self.logSource="Node"
 
-        self.setup_ssh()
         self.setup_logging()
         self.log("Node constructed. " + get_package_versions_string())
         iputil.increase_rlimits()
@@ -202,16 +201,6 @@ class Node(service.MultiService):
         # our IP address and thus do tub.setLocation, and we can't register
         # any services with the Tub until after that point
         self.tub.setServiceParent(self)
-
-    def setup_ssh(self):
-        ssh_port = self.get_config("node", "ssh.port", "")
-        if ssh_port:
-            ssh_keyfile_config = self.get_config("node", "ssh.authorized_keys_file").decode('utf-8')
-            ssh_keyfile = abspath_expanduser_unicode(ssh_keyfile_config, base=self.basedir)
-            from allmydata import manhole
-            m = manhole.AuthorizedKeysManhole(ssh_port, ssh_keyfile)
-            m.setServiceParent(self)
-            self.log("AuthorizedKeysManhole listening on %s" % (ssh_port,))
 
     def get_app_versions(self):
         # TODO: merge this with allmydata.get_package_versions
