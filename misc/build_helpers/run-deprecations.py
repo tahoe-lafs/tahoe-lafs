@@ -61,17 +61,25 @@ def run_command(main):
     reactor.spawnProcess(pp, exe, [exe] + config["args"], env=None)
     (signal, rc) = yield pp.d
 
+    # maintain ordering, but ignore duplicates (for some reason, either the
+    # 'warnings' module or twisted.python.deprecate isn't quashing them)
+    already = set()
     warnings = []
+    def add(line):
+        if line in already:
+            return
+        already.add(line)
+        warnings.append(line)
 
     pp.stdout.seek(0)
     for line in pp.stdout.readlines():
         if "DeprecationWarning" in line:
-            warnings.append(line) # includes newline
+            add(line) # includes newline
 
     pp.stderr.seek(0)
     for line in pp.stderr.readlines():
         if "DeprecationWarning" in line:
-            warnings.append(line)
+            add(line)
 
     if warnings:
         if config["warnings"]:
