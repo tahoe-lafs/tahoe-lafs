@@ -66,11 +66,15 @@ smoketest:
 
 .PHONY: code-checks
 #code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
-code-checks: check-debugging check-miscaptures -find-trailing-spaces -check-umids pyflakes
+code-checks: check-interfaces check-debugging check-miscaptures -find-trailing-spaces -check-umids pyflakes
+
+.PHONY: check-interfaces
+	$(PYTHON) misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
+	@echo
 
 .PHONY: check-debugging
 check-debugging:
-	misc/coding_tools/check-debugging.sh
+	$(PYTHON) misc/coding_tools/check-debugging.py
 	@echo
 
 .PHONY: check-miscaptures
@@ -120,7 +124,6 @@ count-lines:
 # probably work.
 
 # src/allmydata/test/bench_dirnode.py
-# misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
 
 
 # The check-speed and check-grid targets are disabled, since they depend upon
