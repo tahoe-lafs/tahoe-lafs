@@ -40,6 +40,7 @@ if pw != DDW:
     print "note: $PYTHONWARNINGS is '%s', not the expected %s" % (pw, DDW)
 
 print "note: stderr is being captured, and will be emitted at the end"
+sys.stdout.flush()
 
 # stdout goes directly to the parent, so test progress can be watched in real
 # time. But subprocess.Popen() doesn't give us any good way of seeing it
