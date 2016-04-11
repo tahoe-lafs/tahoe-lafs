@@ -27,6 +27,9 @@ class TokenOnlyWebApi(rend.Page):
         super(MagicFolderWebApi, self).__init__(client)
         self.client = client
 
+    def _render_json(self, req):
+        raise NotImplemented('Must override _render_json()')
+
     def renderHTTP(self, ctx):
         req = IRequest(ctx)
         t = get_arg(req, "t", None)
