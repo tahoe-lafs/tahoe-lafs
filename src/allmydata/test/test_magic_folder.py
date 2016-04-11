@@ -1417,7 +1417,7 @@ class RealTest(SingleMagicFolderTestMixin, unittest.TestCase):
         # Actually, there's no way to know when the actual
         # notification will occur, and anyway we're not waiting for
         # them in any case...so we'll just fudge it and hope 100ms is enough.
-        return task.deferLater(reactor, 0.1, lambda: None)
+        return task.deferLater(reactor, 5.0, lambda: None)
 
 
 class RealTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
@@ -1433,7 +1433,7 @@ class RealTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
         # Actually, there's no way to know when the actual
         # notification will occur, and anyway we're not waiting for
         # them in any case...so we'll just fudge it and hope 100ms is enough.
-        return task.deferLater(reactor, 0.1, lambda: None)
+        return task.deferLater(reactor, 5.0, lambda: None)
 
 try:
     magic_folder.get_inotify_module()
