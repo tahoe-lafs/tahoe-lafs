@@ -269,6 +269,8 @@ class INotify(PollMixin):
                 if self._check_stop(): return
                 for info in fni:
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
+                    if info.action == FILE_ACTION_MODIFIED and path.isdir():
+                        continue
                     #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
                     def _maybe_notify(path):
