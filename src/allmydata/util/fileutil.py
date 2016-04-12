@@ -274,11 +274,8 @@ def move_into_place(source, dest):
     os.rename(source, dest)
 
 def write_atomically(target, contents, mode="b"):
-    f = open(target+".tmp", "w"+mode)
-    try:
+    with open(target+".tmp", "w"+mode) as f:
         f.write(contents)
-    finally:
-        f.close()
     move_into_place(target+".tmp", target)
 
 def write(path, data, mode="wb"):
@@ -286,26 +283,19 @@ def write(path, data, mode="wb"):
         f.write(data)
 
 def read(path):
-    rf = open(path, "rb")
-    try:
+    with open(path, "rb") as rf:
         return rf.read()
-    finally:
-        rf.close()
 
 def put_file(path, inf):
     precondition_abspath(path)
 
     # TODO: create temporary file and move into place?
-    outf = open(path, "wb")
-    try:
+    with open(path, "wb") as outf:
         while True:
             data = inf.read(32768)
             if not data:
                 break
             outf.write(data)
-    finally:
-        outf.close()
-
 
 def precondition_abspath(path):
     if not isinstance(path, unicode):
