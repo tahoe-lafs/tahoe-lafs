@@ -709,6 +709,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
         d.addCallback(_wait_for, Alice_to_rewrite_file)
 
+        d.addCallback(lambda ign: iterate(self.bob_magicfolder))
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 2))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file1", 2))
         d.addCallback(lambda ign: self._check_uploader_count('objects_failed', 0))
@@ -802,11 +803,19 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 1, magic=self.bob_magicfolder))
 
         # prepare to perform another conflict test
+        @defer.inlineCallbacks
         def Alice_to_write_file2():
+#            uploaded_d = self.bob_magicfolder.uploader.set_hook('processed')
             print "Alice writes a file2\n"
+            yield task.deferLater(reactor, 5, lambda: None)
             self.file_path = abspath_expanduser_unicode(u"file2", base=self.alice_magicfolder.uploader._local_path_u)
             fileutil.write(self.file_path, "something")
-            return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+            d = self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+            print("OHAI!")
+            self.bob_clock.advance(4)
+            yield d
+#            yield uploaded_d
+        d.addCallback(lambda ign: task.deferLater(reactor, 5, lambda: None))
         d.addCallback(_wait_for, Alice_to_write_file2)
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file2", 0))
         d.addCallback(lambda ign: self._check_version_in_local_db(self.alice_magicfolder, u"file2", 0))
