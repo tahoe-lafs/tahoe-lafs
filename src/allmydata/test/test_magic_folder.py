@@ -722,12 +722,15 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file1", 2))
         d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 3))
+#        d.addCallback(lambda ign: self._check_uploader_count('objects_not_uploaded', 1, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 0, magic=self.bob_magicfolder))
 
         path_u = u"/tmp/magic_folder_test"
         encoded_path_u = magicpath.path2magic(u"/tmp/magic_folder_test")
 
         def Alice_tries_to_p0wn_Bob(ign):
             print "Alice tries to p0wn Bob\n"
+            iter_d = iterate(self.bob_magicfolder)
             processed_d = self.bob_magicfolder.downloader.set_hook('processed')
 
             # upload a file that would provoke the security bug from #2506
@@ -736,6 +739,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
 
             d2 = alice_dmd.add_file(encoded_path_u, uploadable, metadata={"version": 0}, overwrite=True)
             d2.addCallback(lambda ign: self.failUnless(alice_dmd.has_child(encoded_path_u)))
+            d2.addCallback(lambda ign: iter_d)
             d2.addCallback(_wait_for_Bob, processed_d)
             return d2
         d.addCallback(Alice_tries_to_p0wn_Bob)
