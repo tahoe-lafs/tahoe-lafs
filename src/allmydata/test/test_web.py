@@ -2,17 +2,19 @@ import os.path, re, urllib, time, cgi
 import simplejson
 from StringIO import StringIO
 
+from zope.interface import implementer
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.internet.task import Clock
-from twisted.web import client, error, http
+from twisted.web import client, error, http, server
 from twisted.python import failure, log
 
 from foolscap.api import fireEventually, flushEventualQueue
 
 from nevow.util import escapeToXML
 from nevow import rend
+from nevow.inevow import IRequest
 
 from allmydata import interfaces, uri, webish, dirnode
 from allmydata.storage.shares import get_share_file
@@ -5901,3 +5903,83 @@ class CompletelyUnhandledError(Exception):
 class ErrorBoom(rend.Page):
     def beforeRender(self, ctx):
         raise CompletelyUnhandledError("whoops")
+
+
+@implementer(IRequest)
+class FakeRequest(object):
+    def __init__(self):
+        self.method = "POST"
+        self.args = dict()
+        self.fields = []
+
+
+class FakeClientWithToken(object):
+    token = 'a' * 32
+
+    def get_auth_token(self):
+        return self.token
+
+
+class TestTokenOnlyApi(unittest.TestCase):
+
+    def setUp(self):
+        self.client = FakeClientWithToken()
+        self.page = common.TokenOnlyWebApi(self.client)
+
+    def test_not_post(self):
+        req = FakeRequest()
+        req.method = "GET"
+
+        self.assertRaises(
+            server.UnsupportedMethod,
+            self.page.renderHTTP, req,
+        )
+
+    def test_missing_token(self):
+        req = FakeRequest()
+
+        exc = self.assertRaises(
+            common.WebError,
+            self.page.renderHTTP, req,
+        )
+        self.assertEquals(exc.text, "Missing token")
+        self.assertEquals(exc.code, 401)
+
+    def test_invalid_token(self):
+        wrong_token = 'b' * 32
+        req = FakeRequest()
+        req.args['token'] = [wrong_token]
+
+        exc = self.assertRaises(
+            common.WebError,
+            self.page.renderHTTP, req,
+        )
+        self.assertEquals(exc.text, "Invalid token")
+        self.assertEquals(exc.code, 401)
+
+    def test_valid_token_no_t_arg(self):
+        req = FakeRequest()
+        req.args['token'] = [self.client.token]
+
+        with self.assertRaises(common.WebError) as exc:
+            self.page.renderHTTP(req)
+        self.assertEquals(exc.exception.text, "Must provide 't=' argument")
+        self.assertEquals(exc.exception.code, 400)
+
+    def test_valid_token_invalid_t_arg(self):
+        req = FakeRequest()
+        req.args['token'] = [self.client.token]
+        req.args['t'] = 'not at all json'
+
+        with self.assertRaises(common.WebError) as exc:
+            self.page.renderHTTP(req)
+        self.assertTrue("invalid type" in exc.exception.text)
+        self.assertEquals(exc.exception.code, 400)
+
+    def test_valid(self):
+        req = FakeRequest()
+        req.args['token'] = [self.client.token]
+        req.args['t'] = ['json']
+
+        result = self.page.renderHTTP(req)
+        self.assertTrue(result == NotImplemented)
