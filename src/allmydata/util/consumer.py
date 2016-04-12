@@ -33,7 +33,7 @@ class MemoryConsumer:
 
 def download_to_data(n, offset=0, size=None, progress=None):
     """
-    :param on_progress: if set, a single-arg callable that receives total bytes downloaded
+    :param progress: None or an IProgress implementer
     """
     d = n.read(MemoryConsumer(progress=progress), offset, size)
     d.addCallback(lambda mc: "".join(mc.chunks))
