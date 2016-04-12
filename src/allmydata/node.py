@@ -235,7 +235,7 @@ class Node(service.MultiService):
         """
         privname = os.path.join(self.basedir, "private", name)
         try:
-            return fileutil.read(privname)
+            return fileutil.read(privname).strip()
         except EnvironmentError:
             if os.path.exists(privname):
                 raise
