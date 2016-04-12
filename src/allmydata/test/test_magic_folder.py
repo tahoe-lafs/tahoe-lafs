@@ -634,7 +634,6 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
                 if alice:
                     print "Waiting for Alice to upload 3\n"
                     alice_clock.advance(4)
-                    alice_clock.advance(4)
                     uploaded_d.addCallback(_wait_for_Bob, downloaded_d)
                 else:
                     print "Waiting for Bob to upload\n"
@@ -644,11 +643,13 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             d.addCallback(advance)
             return d
 
+        @defer.inlineCallbacks
         def Alice_to_write_a_file():
-            print "Alice writes a file\n"
+            print "Alice writes a file\n\n\n\n\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
+            yield task.deferLater(reactor, 5, lambda: None)
             fileutil.write(self.file_path, "meow, meow meow. meow? meow meow! meow.")
-            return self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
+            yield self.notify(to_filepath(self.file_path), self.inotify.IN_CLOSE_WRITE, magic=self.alice_magicfolder)
         d.addCallback(_wait_for, Alice_to_write_a_file)
 
         d.addCallback(lambda ign: self._check_version_in_dmd(self.alice_magicfolder, u"file1", 0))
@@ -665,10 +666,13 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1))
         d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 0, magic=self.bob_magicfolder))
+#        d.addCallback(lambda ign: self._check_uploader_count('objects_not_uploaded', 0, magic=self.bob_magicfolder))
+        d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1, magic=self.bob_magicfolder))
 
         @defer.inlineCallbacks
         def Alice_to_delete_file():
-            print "Alice deletes the file!\n"
+            print "Alice deletes the file!\n\n\n\n"
+            yield task.deferLater(reactor, 5, lambda: None)
             os.unlink(self.file_path)
             yield self.notify(to_filepath(self.file_path), self.inotify.IN_DELETE, magic=self.alice_magicfolder)
             yield iterate(self.alice_magicfolder)
@@ -678,6 +682,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         @defer.inlineCallbacks
         def notify_bob_moved(ign):
             p = abspath_expanduser_unicode(u"file1", base=self.bob_magicfolder.uploader._local_path_u)
+            fileutil.write((p + u'.backup'), "meow, meow meow. meow? meow meow! meow.")
             yield self.notify(to_filepath(p), self.inotify.IN_MOVED_FROM, magic=self.bob_magicfolder, flush=False)
             yield self.notify(to_filepath(p + u'.backup'), self.inotify.IN_MOVED_TO, magic=self.bob_magicfolder)
             yield iterate(self.bob_magicfolder)
