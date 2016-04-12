@@ -203,7 +203,8 @@ Hacking On Tahoe-LAFS
 ---------------------
 
 To modify the Tahoe source code, you should get a git checkout, and install
-with the ``--editable`` flag::
+with the ``--editable`` flag. You should also use the ``[test]`` extra to get
+the additional libraries needed to run the unit tests::
 
  % git clone https://github.com/tahoe-lafs/tahoe-lafs.git
  
@@ -211,7 +212,7 @@ with the ``--editable`` flag::
  
  % virtualenv venv
  
- % venv/bin/pip install --editable .
+ % venv/bin/pip install --editable .[test]
  Obtaining file::~/tahoe-lafs
  ...
  Successfully installed ...
@@ -257,11 +258,11 @@ into your tahoe-specific virtualenv with ``pip install tox``.
 
 Then just run ``tox``. This will create a new fresh virtualenv, install Tahoe
 (from the source tree, including any changes you have made) and all its
-dependencies into the virtualenv, then run the unit tests. This ensures that
-the tests are repeatable and match the results of other users, unaffected by
-any other Python packages installed on your machine. On a modern computer
-this will take 5-10 minutes, and should result in a "all tests passed"
-mesage::
+dependencies (including testing-only dependencies) into the virtualenv, then
+run the unit tests. This ensures that the tests are repeatable and match the
+results of other users, unaffected by any other Python packages installed on
+your machine. On a modern computer this will take 5-10 minutes, and should
+result in a "all tests passed" mesage::
 
  % tox
  GLOB sdist-make: ~/tahoe-lafs/setup.py
