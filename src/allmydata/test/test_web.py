@@ -83,7 +83,7 @@ class FakeUploader(service.Service):
     helper_furl = None
     helper_connected = False
 
-    def upload(self, uploadable):
+    def upload(self, uploadable, **kw):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
         def _got_data(datav):
