@@ -649,7 +649,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(new_mode, 0766)
         new_mode = os.stat(os.path.join(workdir, "a", "b")).st_mode & 0777
         self.failUnlessEqual(new_mode, 0766)
-        new_mode = os.stat(os.path.join(workdir,"a")).st_mode & 0777
+        new_mode = os.stat(os.path.join(workdir, "a")).st_mode & 0777
         self.failUnlessEqual(new_mode, 0766)
         new_mode = os.stat(workdir).st_mode & 0777
         self.failIfEqual(new_mode, 0766)
@@ -732,15 +732,15 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
         # path at which nothing exists
         dnename = os.path.join(basedir, "doesnotexist")
-        now = time.time()
-        dneinfo = fileutil.get_pathinfo(dnename, now=now)
+        now_ns = fileutil.seconds_to_ns(time.time())
+        dneinfo = fileutil.get_pathinfo(dnename, now_ns=now_ns)
         self.failUnlessFalse(dneinfo.exists)
         self.failUnlessFalse(dneinfo.isfile)
         self.failUnlessFalse(dneinfo.isdir)
         self.failUnlessFalse(dneinfo.islink)
         self.failUnlessEqual(dneinfo.size, None)
-        self.failUnlessEqual(dneinfo.mtime, now)
-        self.failUnlessEqual(dneinfo.ctime, now)
+        self.failUnlessEqual(dneinfo.mtime_ns, now_ns)
+        self.failUnlessEqual(dneinfo.ctime_ns, now_ns)
 
     def test_get_pathinfo_symlink(self):
         if not hasattr(os, 'symlink'):
