@@ -6,6 +6,7 @@ from watchdog.events import FileSystemEventHandler
 
 from twisted.internet import reactor
 
+from allmydata.util.pollmixin import PollMixin
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util import log, fileutil
 from allmydata.util.fake_inotify import humanReadableMask, \
@@ -54,7 +55,7 @@ class INotifyEventHandler(FileSystemEventHandler):
     def on_any_event(self, event):
         self.process(event)
 
-class INotify(object):
+class INotify(PollMixin):
     """
     I am a prototype INotify, made to work on Mac OS X (Darwin)
     using the Watchdog python library. This is actually a subset
@@ -66,11 +67,12 @@ class INotify(object):
      - wait_until_stopped
      - set_pending_delay
     """
-    def __init__(self,  reactor=None):
+    def __init__(self):
         self._path = None
         self._pending_delay = 1.0
         self.recursive_includes_new_subdirectories = True
         self._observer = None
+        self._state = NOT_STARTED
 
     def set_pending_delay(self, delay):
         self._pending_delay = delay
@@ -78,10 +80,9 @@ class INotify(object):
     def startReading(self):
         try:
             _assert(self._observer is not None, "no watch set")
-            self._state = STARTED
-            
             self._observer.schedule(INotifyEventHandler(self._callbacks, self._pending_delay), path=self._path)
             self._observer.start() # XXX this should execute in it's own thread ^
+            self._state = STARTED
         except Exception, e:
             log.err(e)
             self._state = STOPPED
@@ -92,7 +93,10 @@ class INotify(object):
         if self._state != STOPPED:
             self._state = STOPPING
         self._observer.stop()
-        self._observer.join() # synchronous
+        def is_stopped():
+            self._observer.join()
+            self._state = STOPPED
+        self.reactor.callFromThread(is_stopped)
 
     def wait_until_stopped(self):
         fileutil.write(os.path.join(self._path.path, u".ignore-me"), "")
