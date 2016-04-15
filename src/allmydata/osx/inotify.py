@@ -41,7 +41,9 @@ class INotifyEventHandler(FileSystemEventHandler):
         self._pending = set()
 
     def process(self, event):
-        if event.src_path == unicode_from_filepath(self._path):
+        event_filepath_u = event.src_path.decode('utf-8')
+        parentpath_u = unicode_from_filepath(self._path)
+        if event_filepath_u == parentpath_u:
             print "IGNORE EVENTS FOR PARENT DIR"
             return
         event_path = self._path.preauthChild(event.src_path)  # FilePath with Unicode path
