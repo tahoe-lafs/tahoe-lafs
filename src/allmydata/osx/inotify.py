@@ -9,6 +9,7 @@ from twisted.internet import reactor
 from allmydata.util.pollmixin import PollMixin
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util import log, fileutil
+from allmydata.util.encodingutil import unicode_from_filepath
 from allmydata.util.fake_inotify import humanReadableMask, \
     IN_WATCH_MASK, IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_NOWRITE, IN_CLOSE_WRITE, \
     IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF, \
@@ -31,28 +32,37 @@ STOPPED     = "STOPPED"
 
 class INotifyEventHandler(FileSystemEventHandler):
 
-    def __init__(self, callbacks, pending_delay):
+    def __init__(self, path, callbacks, pending_delay):
+        print "init INotifyEventHandler"
         FileSystemEventHandler.__init__(self)
+        self._path = path
         self._callbacks = callbacks
         self._pending_delay = pending_delay
         self._pending = set()
 
     def process(self, event):
-        event_path = event.src_path
+        if event.src_path == unicode_from_filepath(self._path):
+            print "IGNORE EVENTS FOR PARENT DIR"
+            return
+        event_path = self._path.preauthChild(event.src_path)  # FilePath with Unicode path
+
         def _maybe_notify(path):
             if path not in self._pending:
                 self._pending.add(path)
                 def _do_callbacks():
+                    print "DO CALLBACKS"
                     self._pending.remove(path)
                     for cb in self._callbacks:
                         try:
                             cb(None, path, IN_CHANGED)
                         except Exception, e:
                             log.err(e)
-                reactor.callLater(self._pending_delay, _do_callbacks)
+                #reactor.callLater(self._pending_delay, _do_callbacks)
+                _do_callbacks()
         reactor.callFromThread(_maybe_notify, event_path)
 
     def on_any_event(self, event):
+        print "PROCESS EVENT"
         self.process(event)
 
 class INotify(PollMixin):
@@ -78,28 +88,30 @@ class INotify(PollMixin):
         self._pending_delay = delay
 
     def startReading(self):
+        print "START READING BEGIN"
         try:
             _assert(self._observer is not None, "no watch set")
-            self._observer.schedule(INotifyEventHandler(self._callbacks, self._pending_delay), path=self._path)
+            self._observer.schedule(INotifyEventHandler(self._path, self._callbacks, self._pending_delay), path=self._path_u)
             self._observer.start() # XXX this should execute in it's own thread ^
             self._state = STARTED
         except Exception, e:
             log.err(e)
             self._state = STOPPED
             raise
+        print "START READING END"
 
     def stopReading(self):
         # FIXME race conditions
         if self._state != STOPPED:
             self._state = STOPPING
+        reactor.callFromThread(self._observer.join)
         self._observer.stop()
         def is_stopped():
-            self._observer.join()
             self._state = STOPPED
         reactor.callFromThread(is_stopped)
 
     def wait_until_stopped(self):
-        fileutil.write(os.path.join(self._path, u".ignore-me"), "")
+        fileutil.write(os.path.join(self._path_u, u".ignore-me"), "")
         return self.poll(lambda: self._state == STOPPED)
 
     def watch(self, path, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
@@ -110,9 +122,10 @@ class INotify(PollMixin):
 
         path_u = path.path
         if not isinstance(path_u, unicode):
-            path_u = path_u.decode(sys.getfilesystemencoding())
+            path_u = unicode(path_u)
             _assert(isinstance(path_u, unicode), path_u=path_u)
-        self._path = path_u
+        self._path_u = path_u
+        self._path = path
         self._recursive = TRUE if recursive else FALSE
         self._callbacks = callbacks or []
         self._observer = Observer()
