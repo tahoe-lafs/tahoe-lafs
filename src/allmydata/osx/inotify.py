@@ -108,7 +108,7 @@ class INotify(PollMixin):
         precondition(isinstance(recursive, bool), recursive=recursive)
         #precondition(autoAdd == recursive, "need autoAdd and recursive to be the same", autoAdd=autoAdd, recursive=recursive)
 
-        path_u = path.path
+        path_u = path.asTextMode()
         self._path = path_u
         if not isinstance(path_u, unicode):
             path_u = path_u.decode(sys.getfilesystemencoding())
