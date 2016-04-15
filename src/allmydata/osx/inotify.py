@@ -5,6 +5,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler  
 
 from twisted.internet import reactor
+from twisted.python.filepath import FilePath
 
 from allmydata.util.pollmixin import PollMixin
 from allmydata.util.assertutil import _assert, precondition
@@ -46,7 +47,7 @@ class INotifyEventHandler(FileSystemEventHandler):
         if event_filepath_u == parentpath_u:
             print "IGNORE EVENTS FOR PARENT DIR"
             return
-        event_path = self._path.preauthChild(event.src_path)  # FilePath with Unicode path
+        #event_path = self._path.preauthChild(event.src_path)  # FilePath with Unicode path
 
         def _maybe_notify(path):
             if path not in self._pending:
@@ -56,12 +57,12 @@ class INotifyEventHandler(FileSystemEventHandler):
                     self._pending.remove(path)
                     for cb in self._callbacks:
                         try:
-                            cb(None, path, IN_CHANGED)
+                            cb(None, FilePath(path), IN_CHANGED)
                         except Exception, e:
                             log.err(e)
                 #reactor.callLater(self._pending_delay, _do_callbacks)
                 _do_callbacks()
-        reactor.callFromThread(_maybe_notify, event_path)
+        reactor.callFromThread(_maybe_notify, event_filepath_u)
 
     def on_any_event(self, event):
         print "PROCESS EVENT"
@@ -70,9 +71,9 @@ class INotifyEventHandler(FileSystemEventHandler):
 class INotify(PollMixin):
     """
     I am a prototype INotify, made to work on Mac OS X (Darwin)
-    using the Watchdog python library. This is actually a subset
-    of the twisted Linux INotify class because we only implement
-    the following methods:
+    using the Watchdog python library. This is actually a simplified subset
+    of the twisted Linux INotify class because we do not utilize the watch mask
+    and only implement the following methods:
      - watch
      - startReading
      - stopReading
@@ -80,21 +81,22 @@ class INotify(PollMixin):
      - set_pending_delay
     """
     def __init__(self):
-        self._path = None
         self._pending_delay = 1.0
-        self.recursive_includes_new_subdirectories = True
-        self._observer = None
+        self.recursive_includes_new_subdirectories = False
+        self._observers = {}
+        self._callbacks = {}
         self._state = NOT_STARTED
 
     def set_pending_delay(self, delay):
+        print "set pending delay"
         self._pending_delay = delay
 
     def startReading(self):
         print "START READING BEGIN"
         try:
-            _assert(self._observer is not None, "no watch set")
-            self._observer.schedule(INotifyEventHandler(self._path, self._callbacks, self._pending_delay), path=self._path_u)
-            self._observer.start() # XXX this should execute in it's own thread ^
+            _assert(len(self._observers) != 0, "no watch set")
+            for path_u in self._observers.keys():
+                self._observers[path_u].start()
             self._state = STARTED
         except Exception, e:
             log.err(e)
@@ -103,31 +105,37 @@ class INotify(PollMixin):
         print "START READING END"
 
     def stopReading(self):
+        print "stopReading begin"
         # FIXME race conditions
         if self._state != STOPPED:
             self._state = STOPPING
-        reactor.callFromThread(self._observer.join)
-        self._observer.stop()
-        def is_stopped():
+        for path_u in self._observers.keys():
+            reactor.callFromThread(self._observers[path_u].join)
+            self._observers[path_u].stop()
             self._state = STOPPED
-        reactor.callFromThread(is_stopped)
+        print "stopReading end"
 
     def wait_until_stopped(self):
-        fileutil.write(os.path.join(self._path_u, u".ignore-me"), "")
+        print "wait until stopped"
         return self.poll(lambda: self._state == STOPPED)
 
     def watch(self, path, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
-        precondition(self._state == NOT_STARTED, "watch() can only be called before startReading()", state=self._state)
+        print "WATCH WATCH WATCH WATCH WATCH WATCH WATCH WATCH WATCH WATCH WATCH WATCH"
+        #precondition(self._state == NOT_STARTED, "watch() can only be called before startReading()", state=self._state)
         precondition(isinstance(autoAdd, bool), autoAdd=autoAdd)
         precondition(isinstance(recursive, bool), recursive=recursive)
         #precondition(autoAdd == recursive, "need autoAdd and recursive to be the same", autoAdd=autoAdd, recursive=recursive)
 
+        self._recursive = TRUE if recursive else FALSE
         path_u = path.path
         if not isinstance(path_u, unicode):
-            path_u = unicode(path_u)
+            #path_u = unicode(path_u)
+            path_u = path_u.decode('utf-8')
             _assert(isinstance(path_u, unicode), path_u=path_u)
-        self._path_u = path_u
-        self._path = path
-        self._recursive = TRUE if recursive else FALSE
-        self._callbacks = callbacks or []
-        self._observer = Observer()
+
+        if path_u not in self._observers.keys():
+            self._callbacks[path_u] = callbacks or []
+            self._observers[path_u] = Observer()
+            self._observers[path_u].schedule(INotifyEventHandler(path, self._callbacks[path_u], self._pending_delay), path=path_u)
+            if self._state == STARTED:
+                self._observers[path_u].start()
