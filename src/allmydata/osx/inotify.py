@@ -96,10 +96,10 @@ class INotify(PollMixin):
         def is_stopped():
             self._observer.join()
             self._state = STOPPED
-        self.reactor.callFromThread(is_stopped)
+        reactor.callFromThread(is_stopped)
 
     def wait_until_stopped(self):
-        fileutil.write(os.path.join(self._path.path, u".ignore-me"), "")
+        fileutil.write(os.path.join(self._path, u".ignore-me"), "")
         return self.poll(lambda: self._state == STOPPED)
 
     def watch(self, path, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
@@ -108,12 +108,11 @@ class INotify(PollMixin):
         precondition(isinstance(recursive, bool), recursive=recursive)
         #precondition(autoAdd == recursive, "need autoAdd and recursive to be the same", autoAdd=autoAdd, recursive=recursive)
 
-        path_u = path.asTextMode()
-        self._path = path_u
+        path_u = path.path
         if not isinstance(path_u, unicode):
             path_u = path_u.decode(sys.getfilesystemencoding())
             _assert(isinstance(path_u, unicode), path_u=path_u)
-
+        self._path = path_u
         self._recursive = TRUE if recursive else FALSE
         self._callbacks = callbacks or []
         self._observer = Observer()
