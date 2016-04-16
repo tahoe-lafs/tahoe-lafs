@@ -1,15 +1,14 @@
 
-import os, sys
-
-from watchdog.observers import Observer  
-from watchdog.events import FileSystemEventHandler  
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler, FileSystemMovedEvent, FileModifiedEvent, DirModifiedEvent, FileCreatedEvent, FileDeletedEvent, DirCreatedEvent, DirDeletedEvent
 
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
+#from twisted.python.filepath import InsecurePath
 
 from allmydata.util.pollmixin import PollMixin
 from allmydata.util.assertutil import _assert, precondition
-from allmydata.util import log, fileutil
+from allmydata.util import log
 from allmydata.util.encodingutil import unicode_from_filepath
 from allmydata.util.fake_inotify import humanReadableMask, \
     IN_WATCH_MASK, IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_NOWRITE, IN_CLOSE_WRITE, \
@@ -33,39 +32,71 @@ STOPPED     = "STOPPED"
 
 class INotifyEventHandler(FileSystemEventHandler):
 
-    def __init__(self, path, callbacks, pending_delay):
+    def __init__(self, path, mask, callbacks, pending_delay):
         print "init INotifyEventHandler"
         FileSystemEventHandler.__init__(self)
         self._path = path
+        self._mask = mask
         self._callbacks = callbacks
         self._pending_delay = pending_delay
         self._pending = set()
 
+    def is_masked(self, event):
+        if isinstance(event, FileSystemMovedEvent) and self._mask & (IN_MOVED_TO | IN_MOVED_FROM):
+            return True
+        if (isinstance(event, FileModifiedEvent) or isinstance(event, DirModifiedEvent)) and self._mask & (IN_CLOSE_WRITE | IN_CHANGED):
+            return True
+        if (isinstance(event, FileCreatedEvent) or isinstance(event, DirCreatedEvent)) and self._mask & IN_CREATE:
+            return True
+        if (isinstance(event, FileDeletedEvent) or isinstance(event, DirDeletedEvent)) and self._mask & IN_DELETE:
+            return True
+        return False
+
+    def get_event_mask(self, event):
+        if event.is_directory:
+            mask = IN_ISDIR
+        else:
+            mask = 0 # XXX
+        if isinstance(event, FileModifiedEvent) or isinstance(event, DirModifiedEvent):
+            mask = IN_CHANGED
+        if isinstance(event, FileDeletedEvent) or isinstance(event, DirDeletedEvent):
+            mask = IN_DELETE
+        if isinstance(event, FileCreatedEvent) or isinstance(event, DirCreatedEvent):
+            mask = IN_CREATE
+        return mask
+
     def process(self, event):
         event_filepath_u = event.src_path.decode('utf-8')
-        parentpath_u = unicode_from_filepath(self._path)
-        if event_filepath_u == parentpath_u:
-            print "IGNORE EVENTS FOR PARENT DIR"
+        if event_filepath_u == unicode_from_filepath(self._path):
+            # ignore events for parent directory
             return
-        #event_path = self._path.preauthChild(event.src_path)  # FilePath with Unicode path
+        #if not self.is_masked(event):
+        #    return
+        #try:
+        #    event_path = self._path.preauthChild(event.src_path)
+        #except InsecurePath, e:
+        #    print "failed: %r" % (e,)
+        #    return
 
         def _maybe_notify(path):
-            if path not in self._pending:
-                self._pending.add(path)
-                def _do_callbacks():
-                    print "DO CALLBACKS"
-                    self._pending.remove(path)
-                    for cb in self._callbacks:
-                        try:
-                            cb(None, FilePath(path), IN_CHANGED)
-                        except Exception, e:
-                            log.err(e)
-                #reactor.callLater(self._pending_delay, _do_callbacks)
-                _do_callbacks()
+            if path in self._pending:
+                return
+            self._pending.add(path)
+            def _do_callbacks():
+                print "DO CALLBACKS"
+                self._pending.remove(path)
+                #event_mask = self.get_event_mask(event)
+                event_mask = IN_CHANGED
+                for cb in self._callbacks:
+                    try:
+                        cb(None, FilePath(path), event_mask)
+                    except Exception, e:
+                        log.err(e)
+            _do_callbacks()
         reactor.callFromThread(_maybe_notify, event_filepath_u)
 
     def on_any_event(self, event):
-        print "PROCESS EVENT"
+        print "PROCESS EVENT %r" % (event,)
         self.process(event)
 
 class INotify(PollMixin):
@@ -83,7 +114,7 @@ class INotify(PollMixin):
     def __init__(self):
         self._pending_delay = 1.0
         self.recursive_includes_new_subdirectories = False
-        self._observers = {}
+        self._observer = Observer()
         self._callbacks = {}
         self._state = NOT_STARTED
 
@@ -94,9 +125,8 @@ class INotify(PollMixin):
     def startReading(self):
         print "START READING BEGIN"
         try:
-            _assert(len(self._observers) != 0, "no watch set")
-            for path_u in self._observers.keys():
-                self._observers[path_u].start()
+            _assert(len(self._callbacks) != 0, "no watch set")
+            self._observer.start()
             self._state = STARTED
         except Exception, e:
             log.err(e)
@@ -106,13 +136,11 @@ class INotify(PollMixin):
 
     def stopReading(self):
         print "stopReading begin"
-        # FIXME race conditions
         if self._state != STOPPED:
             self._state = STOPPING
-        for path_u in self._observers.keys():
-            reactor.callFromThread(self._observers[path_u].join)
-            self._observers[path_u].stop()
-            self._state = STOPPED
+        self._observer.stop()
+        self._observer.join()
+        self._state = STOPPED
         print "stopReading end"
 
     def wait_until_stopped(self):
@@ -120,22 +148,15 @@ class INotify(PollMixin):
         return self.poll(lambda: self._state == STOPPED)
 
     def watch(self, path, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
-        print "WATCH WATCH WATCH WATCH WATCH WATCH WATCH WATCH WATCH WATCH WATCH WATCH"
-        #precondition(self._state == NOT_STARTED, "watch() can only be called before startReading()", state=self._state)
         precondition(isinstance(autoAdd, bool), autoAdd=autoAdd)
         precondition(isinstance(recursive, bool), recursive=recursive)
-        #precondition(autoAdd == recursive, "need autoAdd and recursive to be the same", autoAdd=autoAdd, recursive=recursive)
 
         self._recursive = TRUE if recursive else FALSE
         path_u = path.path
         if not isinstance(path_u, unicode):
-            #path_u = unicode(path_u)
             path_u = path_u.decode('utf-8')
             _assert(isinstance(path_u, unicode), path_u=path_u)
 
-        if path_u not in self._observers.keys():
+        if path_u not in self._callbacks.keys():
             self._callbacks[path_u] = callbacks or []
-            self._observers[path_u] = Observer()
-            self._observers[path_u].schedule(INotifyEventHandler(path, self._callbacks[path_u], self._pending_delay), path=path_u)
-            if self._state == STARTED:
-                self._observers[path_u].start()
+            self._observer.schedule(INotifyEventHandler(path, mask, self._callbacks[path_u], self._pending_delay), path=path_u)
