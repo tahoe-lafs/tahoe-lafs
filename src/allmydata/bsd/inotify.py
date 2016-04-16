@@ -114,13 +114,14 @@ class INotify(PollMixin):
     def __init__(self):
         self._pending_delay = 1.0
         self.recursive_includes_new_subdirectories = False
-        self._observer = Observer()
+        self._observer = Observer(timeout=self._pending_delay)
         self._callbacks = {}
         self._state = NOT_STARTED
 
     def set_pending_delay(self, delay):
         print "set pending delay"
         self._pending_delay = delay
+        self._observer = Observer(timeout=self._pending_delay)
 
     def startReading(self):
         print "START READING BEGIN"
