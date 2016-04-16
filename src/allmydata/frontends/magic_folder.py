@@ -32,7 +32,7 @@ def get_inotify_module():
         if sys.platform == "win32":
             from allmydata.windows import inotify
         elif sys.platform == "darwin":
-            from allmydata.osx import inotify
+            from allmydata.bsd import inotify
         elif runtime.platform.supportsINotify():
             from twisted.internet import inotify
         else:
