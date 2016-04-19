@@ -34,60 +34,25 @@ def get_root_from_file(src):
 srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
 
-if hasattr(sys, 'frozen'):
-    bintahoe = os.path.join(rootdir, 'tahoe')
-else:
-    bintahoe = os.path.join(rootdir, 'bin', 'tahoe')
-
-if sys.platform == "win32" and not os.path.exists(bintahoe):
-    scriptsdir = os.path.join(rootdir, 'Scripts')
-    for alt_bintahoe in (bintahoe + '.pyscript',
-                         bintahoe + '-script.py',
-                         os.path.join(scriptsdir, 'tahoe.pyscript'),
-                         os.path.join(scriptsdir, 'tahoe-script.py'),):
-        if os.path.exists(alt_bintahoe):
-            bintahoe = alt_bintahoe
-            break
-
-
-# This memoizes find_import_location(), so we don't have to run
-# --version-and-path multiple times for the same binary. In practice, this
-# will only ever have one entry.
-CACHED_IMPORT_PATH = {}
 
 class RunBinTahoeMixin:
-    def skip_if_cannot_run_bintahoe(self):
-        if not os.path.exists(bintahoe):
-            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location (%s), and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of Tahoe. Perhaps running 'setup.py build' again will help." % (bintahoe,))
-
     def skip_if_cannot_daemonize(self):
-        self.skip_if_cannot_run_bintahoe()
         if runtime.platformType == "win32":
             # twistd on windows doesn't daemonize. cygwin should work normally.
             raise unittest.SkipTest("twistd does not fork under windows")
 
     @inlineCallbacks
     def find_import_location(self):
-        if bintahoe in CACHED_IMPORT_PATH:
-            returnValue(CACHED_IMPORT_PATH[bintahoe])
         res = yield self.run_bintahoe(["--version-and-path"])
         out, err, rc_or_sig = res
         self.assertEqual(rc_or_sig, 0, res)
         lines = out.splitlines()
         tahoe_pieces = lines[0].split()
         self.assertEqual(tahoe_pieces[0], "%s:" % (__appname__,), (tahoe_pieces, res))
-        CACHED_IMPORT_PATH[bintahoe] = tahoe_pieces[-1].strip("()")
-        returnValue(CACHED_IMPORT_PATH[bintahoe])
+        returnValue(tahoe_pieces[-1].strip("()"))
 
     def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
-        self.skip_if_cannot_run_bintahoe()
-
-        if hasattr(sys, 'frozen'):
-            if python_options:
-                raise unittest.SkipTest("This test doesn't apply to frozen builds.")
-            command = [bintahoe] + args
-        else:
-            command = [sys.executable] + python_options + [bintahoe] + args
+        command = [sys.executable] + python_options + ["-m", "allmydata.scripts.runner"] + args
 
         if stdin is None:
             stdin_stream = None
@@ -163,8 +128,6 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         return d
 
     def test_unicode_arguments_and_output(self):
-        self.skip_if_cannot_run_bintahoe()
-
         tricky = u"\u2621"
         try:
             tricky_arg = unicode_to_argv(tricky, mangle=True)
@@ -191,8 +154,6 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         return d
 
     def test_version_no_noise(self):
-        self.skip_if_cannot_run_bintahoe()
-
         d = self.run_bintahoe(["--version"])
         def _cb(res):
             out, err, rc_or_sig = res
