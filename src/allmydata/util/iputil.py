@@ -130,10 +130,16 @@ def get_local_ip_for(target):
     try:
         udpprot = DatagramProtocol()
         port = reactor.listenUDP(0, udpprot)
-        udpprot.transport.connect(target_ipaddr, 7)
-        localip = udpprot.transport.getHost().host
-        d = port.stopListening()
-        d.addErrback(log.err)
+        try:
+            # connect() will fail if we're offline (e.g. running tests on a
+            # disconnected laptop), which is fine (localip=None), but we must
+            # still do port.stopListening() or we'll get a DirtyReactorError
+            udpprot.transport.connect(target_ipaddr, 7)
+            localip = udpprot.transport.getHost().host
+            return localip
+        finally:
+            d = port.stopListening()
+            d.addErrback(log.err)
     except (socket.error, CannotListenError):
         # no route to that host
         localip = None

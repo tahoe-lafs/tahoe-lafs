@@ -12,7 +12,6 @@ from allmydata.node import Node, OldConfigError, OldConfigOptionError, MissingCo
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
-from allmydata.manhole import AuthorizedKeysManhole
 from allmydata.util import base32, fileutil
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
@@ -205,20 +204,6 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         abs_basedir = fileutil.abspath_expanduser_unicode(basedir)
         expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
         self.failUnlessReallyEqual(w.staticdir, expected)
-
-    def test_manhole_keyfile(self):
-        basedir = u"client.Basic.test_manhole_keyfile"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       BASECONFIG +
-                       "[node]\n" +
-                       "ssh.port = tcp:0:interface=127.0.0.1\n" +
-                       "ssh.authorized_keys_file = relative\n")
-        c = client.Client(basedir)
-        m = [s for s in c if isinstance(s, AuthorizedKeysManhole)][0]
-        abs_basedir = fileutil.abspath_expanduser_unicode(basedir)
-        expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
-        self.failUnlessReallyEqual(m.keyfile, expected)
 
     # TODO: also test config options for SFTP.
 

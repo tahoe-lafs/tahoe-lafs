@@ -1,0 +1,5 @@
+Tahoe's testing-only dependencies can now be installed by asking for the
+[test] extra, so if you want to set up a virtualenv for testing, use "pip
+install -e .[test]" instead just of "pip install -e ." . At the moment this
+only includes "coverage" and "pyflakes", but in the future it might include
+"mock" and other utility libraries.
