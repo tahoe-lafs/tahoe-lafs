@@ -89,6 +89,12 @@ install_requires = [
     # * pyOpenSSL >= 0.14 is needed in order to avoid
     #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2474>.
     "pyOpenSSL >= 0.14",
+
+    # * PyYAML is required for our Foolscap Tahoe transport plugin system,
+    # local introducer announcements cache, and the multi-introducer
+    # and introducer-less features
+    # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2759>.
+    "PyYAML >= 3.11",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.
@@ -116,6 +122,7 @@ package_imports = [
     ('six',              'six'),
     ('enum34',           'enum'),
     ('pycparser',        'pycparser'),
+    ('PyYAML',           'yaml'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
