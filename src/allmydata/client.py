@@ -1,7 +1,6 @@
 import os, stat, time, weakref, yaml, importlib
 from twisted.python.filepath import FilePath
-from foolscap.furl import decode_furl
-from foolscap.api import Tub, eventually
+from foolscap.api import eventually
 from allmydata import node
 
 from zope.interface import implements
@@ -243,7 +242,6 @@ class Client(node.Node, pollmixin.PollMixin):
 
         connections, connections_yaml_exists = self.load_connections_from_yaml(tahoe_cfg_introducer_furl)
         introducers = connections['introducers']
-        transports = connections['transport_plugins']
         if self.tub is None:
             return
         plugins = load_plugins(connections['transport_plugins'])

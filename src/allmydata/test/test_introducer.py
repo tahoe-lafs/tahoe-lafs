@@ -12,7 +12,7 @@ from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.client import IntroducerClient, \
-     WrapV2ClientInV1Interface
+     WrapV2ClientInV1Interface, load_plugins
 from allmydata.introducer.server import IntroducerService, FurlFileConflictError
 from allmydata.introducer.common import get_tubid_string_from_ann, \
      get_tubid_string, sign_to_foolscap, unsign_from_foolscap, \
@@ -103,6 +103,11 @@ class ServiceMixin:
 class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
 
     def test_create(self):
+
+        try:
+            os.remove("notexist.introduced.yaml")
+        except OSError, e:
+            pass
         ic = IntroducerClient("introducer.furl", u"my_nickname",
                               "my_version", "oldest_version", {}, FilePath("notexist.introduced.yaml"), False, {})
         self.failUnless(isinstance(ic, IntroducerClient))
@@ -134,6 +139,11 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
         # test replacement case where tubid equals a keyid (one should
         # not replace the other)
         i = IntroducerService()
+        try:
+            os.remove("notexist.introduced.yaml")
+        except OSError, e:
+            pass
+
         ic = IntroducerClient("introducer.furl", u"my_nickname",
                               "my_version", "oldest_version", {}, FilePath("notexist.introduced.yaml"), False, {})
         sk_s, vk_s = keyutil.make_keypair()
@@ -182,11 +192,20 @@ def make_ann_t(ic, furl, privkey, seqnum):
 
 class Client(unittest.TestCase):
     def test_duplicate_receive_v1(self):
+        #ic = IntroducerClient("introducer.furl", u"my_nickname",
+        #                      "my_version", "oldest_version", {}, FilePath("notexist.introduced.yaml"), False, {})
+
+        try:
+            os.remove("notexist.introduced.yaml")
+        except OSError, e:
+            pass
+
         ic = IntroducerClient("introducer.furl", u"my_nickname",
                               "my_version", "oldest_version", {}, FilePath("notexist.introduced.yaml"), False, {})
+
         announcements = []
         ic.subscribe_to("storage",
-                        lambda key_s,ann: announcements.append(ann))
+                        lambda key_s,ann, transport_plugins: announcements.append(ann))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnpigj2ja2qr2srq4ikjwnl7xfgbra"
         ann1 = (furl1, "storage", "RIStorage", "nick1", "ver23", "ver0")
         ann1b = (furl1, "storage", "RIStorage", "nick1", "ver24", "ver0")
@@ -230,14 +249,26 @@ class Client(unittest.TestCase):
         return d
 
     def test_duplicate_receive_v2(self):
+
+        try:
+            os.remove("notexist.introduced1.yaml")
+        except OSError, e:
+            pass
+
         ic1 = IntroducerClient("introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, FilePath("notexist.introduced.yaml"), False, {})
+                               "ver23", "oldest_version", "app_version",FilePath("notexist.introduced2.yaml"), False, {})
         # we use a second client just to create a different-looking
         # announcement
+        try:
+            os.remove("notexist.introduced2.yaml")
+        except OSError, e:
+            pass
+
+        transport_plugins = {}
         ic2 = IntroducerClient("introducer.furl", u"my_nickname",
-                               "ver24","oldest_version",{}, FilePath("notexist.introduced.yaml"), False, {})
+                               "ver24","oldest_version","app_version", FilePath("notexist.introduced2.yaml"), False, transport_plugins)
         announcements = []
-        def _received(key_s, ann):
+        def _received(key_s, ann, transport_plugins):
             announcements.append( (key_s, ann) )
         ic1.subscribe_to("storage", _received)
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
@@ -320,7 +351,7 @@ class Client(unittest.TestCase):
         # backlog. The introducer only records one announcement per index, so
         # the backlog will only have the latest message.
         announcements2 = []
-        def _received2(key_s, ann):
+        def _received2(key_s, ann, transport_plugins):
             announcements2.append( (key_s, ann) )
         d.addCallback(lambda ign: ic1.subscribe_to("storage", _received2))
         d.addCallback(fireEventually)
@@ -336,11 +367,16 @@ class Client(unittest.TestCase):
     def test_id_collision(self):
         # test replacement case where tubid equals a keyid (one should
         # not replace the other)
+        try:
+            os.remove("notexist.introduced.yaml")
+        except OSError, e:
+            pass
+
         ic = IntroducerClient("introducer.furl", u"my_nickname",
                               "my_version", "oldest_version", {}, FilePath("notexist.introduced.yaml"), False, {})
         announcements = []
         ic.subscribe_to("storage",
-                        lambda key_s,ann: announcements.append(ann))
+                        lambda key_s,ann, transport_plugins: announcements.append(ann))
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
         keyid = keyutil.remove_prefix(vk_s, "pub-v0-")
@@ -373,6 +409,12 @@ class Client(unittest.TestCase):
 class Server(unittest.TestCase):
     def test_duplicate(self):
         i = IntroducerService()
+
+        try:
+            os.remove("notexist.introduced.yaml")
+        except OSError, e:
+            pass
+
         ic1 = IntroducerClient("introducer.furl", u"my_nickname",
                                "ver23", "oldest_version", {}, FilePath("notexist.introduced.yaml"), False, {})
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
@@ -473,6 +515,12 @@ class Queue(SystemTestMixin, unittest.TestCase):
         introducer.setServiceParent(self.parent)
         iff = os.path.join(self.basedir, "introducer.furl")
         ifurl = self.central_tub.registerReference(introducer, furlFile=iff)
+
+        try:
+            os.remove("notexist.introduced.yaml")
+        except OSError, e:
+            pass
+
         c = IntroducerClient(ifurl,
                              u"nickname", "version", "oldest", {}, FilePath("notexist.introduced.yaml"), False, {})
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
@@ -559,10 +607,24 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                                             NICKNAME % str(i),
                                             "version", "oldest")
             else:
+                try:
+                    os.remove("notexist.introduced.yaml")
+                except OSError, e:
+                    pass
+                transport_dict = \
+                {
+                    'tcp':
+                    {
+                        'handler_module' : 'foolscap.connection_plugins',
+                        'handler_name' : 'DefaultTCP',
+                    },
+                }
+                transport_plugins = load_plugins(transport_dict)
+
                 c = IntroducerClient(self.introducer_furl,
                                      NICKNAME % str(i),
                                      "version", "oldest",
-                                     {"component": "component-v1"}, FilePath("notexist.introduced.yaml"), False, {})
+                                     {"component": "component-v1"}, FilePath("notexist.introduced.yaml"), False, transport_plugins)
             received_announcements[c] = {}
             def got(key_s_or_tubid, ann, announcements, i):
                 if i == 0:
@@ -880,6 +942,10 @@ class ClientInfo(unittest.TestCase):
         introducer = IntroducerService()
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
+        try:
+            os.remove("notexist.introduced.yaml")
+        except OSError, e:
+            pass
         client_v2 = IntroducerClient(introducer_furl, NICKNAME % u"v2",
                                      "my_version", "oldest", app_versions, FilePath("notexist.introduced.yaml"), False, {})
         #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
@@ -941,6 +1007,12 @@ class Announcements(unittest.TestCase):
         introducer = IntroducerService()
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
+
+        try:
+            os.remove("notexist.introduced.yaml")
+        except OSError, e:
+            pass
+
         client_v2 = IntroducerClient(introducer_furl, u"nick-v2",
                                      "my_version", "oldest", app_versions, FilePath("notexist.introduced.yaml"), False, {})
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
@@ -962,6 +1034,12 @@ class Announcements(unittest.TestCase):
         introducer = IntroducerService()
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
+
+        try:
+            os.remove("notexist.introduced.yaml")
+        except OSError, e:
+            pass
+
         client_v2 = IntroducerClient(introducer_furl, u"nick-v2",
                                      "my_version", "oldest", app_versions, FilePath("notexist.introduced.yaml"), False, {})
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
@@ -1072,6 +1150,11 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         l = tub.listenOn("tcp:0")
         portnum = l.getPortnum()
         tub.setLocation("localhost:%d" % portnum)
+
+        try:
+            os.remove("notexist.introduced.yaml")
+        except OSError, e:
+            pass
 
         c = IntroducerClient(self.introducer_furl,
                              u"nickname-client", "version", "oldest", {}, FilePath("notexist.introduced.yaml"), False, {})
