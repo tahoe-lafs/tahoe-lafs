@@ -1,5 +1,6 @@
 import os, stat, time, weakref, yaml
 from allmydata import node
+from base64 import urlsafe_b64encode
 
 from zope.interface import implements
 from twisted.internet import reactor, defer
@@ -369,6 +370,9 @@ class Client(node.Node, pollmixin.PollMixin):
         DEP["n"] = int(self.get_config("client", "shares.total", DEP["n"]))
         DEP["happy"] = int(self.get_config("client", "shares.happy", DEP["happy"]))
 
+        # for the CLI to authenticate to local JSON endpoints
+        self._create_auth_token()
+
         self.init_client_storage_broker()
         self.history = History(self.stats_provider)
         self.terminator = Terminator()
@@ -377,6 +381,28 @@ class Client(node.Node, pollmixin.PollMixin):
                                   self.history))
         self.init_blacklist()
         self.init_nodemaker()
+
+    def get_auth_token(self):
+        """
+        This returns a local authentication token, which is just some
+        random data in "api_auth_token" which must be echoed to API
+        calls.
+
+        Currently only the URI '/magic' for magic-folder status; other
+        endpoints are invited to include this as well, as appropriate.
+        """
+        return self.get_private_config('api_auth_token')
+
+    def _create_auth_token(self):
+        """
+        Creates new auth-token data written to 'private/api_auth_token'.
+
+        This is intentionally re-created every time the node starts.
+        """
+        self.write_private_config(
+            'api_auth_token',
+            urlsafe_b64encode(os.urandom(32)) + '\n',
+        )
 
     def init_client_storage_broker(self):
         # create a StorageFarmBroker object, for use by Uploader/Downloader

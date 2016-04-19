@@ -5,7 +5,7 @@ import simplejson
 from twisted.web import http, server
 from twisted.python import log
 from zope.interface import Interface
-from nevow import loaders, appserver
+from nevow import loaders, appserver, rend
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata import blacklist
@@ -16,6 +16,7 @@ from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      IntroducerlessConfigDisabledError, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate
+from allmydata.util.hashutil import timing_safe_compare
 from allmydata.util.time_format import format_time, format_delta
 from allmydata.util.encodingutil import to_str, quote_output
 
@@ -367,8 +368,10 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
         traceback = f.getTraceback()
         return self.simple(ctx, traceback, http.INTERNAL_SERVER_ERROR)
 
+
 class NeedOperationHandleError(WebError):
     pass
+
 
 class RenderMixin:
 
@@ -383,6 +386,47 @@ class RenderMixin:
         # do the same thing.
         m = getattr(self, 'render_' + request.method, None)
         if not m:
-            from twisted.web.server import UnsupportedMethod
-            raise UnsupportedMethod(getattr(self, 'allowedMethods', ()))
+            raise server.UnsupportedMethod(getattr(self, 'allowedMethods', ()))
         return m(ctx)
+
+
+class TokenOnlyWebApi(rend.Page):
+    """
+    I provide a rend.Page implementation that only accepts POST calls,
+    and only if they have a 'token=' arg with the correct
+    authentication token (see
+    :meth:`allmydata.client.Client.get_auth_token`). Callers must also
+    provide the "t=" argument to indicate the return-value (the only
+    valid value for this is "json")
+
+    Subclasses should override '_render_json' which should process the
+    API call and return a valid JSON object. This will only be called
+    if the correct token is present and valid (during renderHTTP
+    processing).
+    """
+
+    def __init__(self, client):
+        super(TokenOnlyWebApi, self).__init__()
+        self.client = client
+
+    def post_json(self, req):
+        return NotImplemented
+
+    def renderHTTP(self, ctx):
+        req = IRequest(ctx)
+        if req.method != 'POST':
+            raise server.UnsupportedMethod(('POST',))
+
+        token = get_arg(req, "token", None)
+        if not token:
+            raise WebError("Missing token", http.UNAUTHORIZED)
+        if not timing_safe_compare(token, self.client.get_auth_token()):
+            raise WebError("Invalid token", http.UNAUTHORIZED)
+
+        t = get_arg(req, "t", "").strip()
+        if not t:
+            raise WebError("Must provide 't=' argument")
+        if t == u'json':
+            return self.post_json(req)
+        else:
+            raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)
