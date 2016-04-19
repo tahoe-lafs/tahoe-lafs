@@ -12,7 +12,8 @@ from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.client import IntroducerClient, \
-     WrapV2ClientInV1Interface, load_plugins
+     WrapV2ClientInV1Interface
+from allmydata.client import load_plugins
 from allmydata.introducer.server import IntroducerService, FurlFileConflictError
 from allmydata.introducer.common import get_tubid_string_from_ann, \
      get_tubid_string, sign_to_foolscap, unsign_from_foolscap, \
@@ -601,6 +602,17 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             portnum = l.getPortnum()
             tub.setLocation("localhost:%d" % portnum)
 
+            transport_dict = \
+                {
+                    'tcp':
+                    {
+                        'handler_module' : 'foolscap.connection_plugins',
+                        'handler_name' : 'DefaultTCP',
+                        'parameters' : {},
+                    },
+                }
+            transport_plugins = load_plugins(transport_dict)
+
             log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
             if i == 0:
                 c = old.IntroducerClient_v1(tub, self.introducer_furl,
@@ -611,28 +623,19 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                     os.remove("notexist.introduced.yaml")
                 except OSError, e:
                     pass
-                transport_dict = \
-                {
-                    'tcp':
-                    {
-                        'handler_module' : 'foolscap.connection_plugins',
-                        'handler_name' : 'DefaultTCP',
-                    },
-                }
-                transport_plugins = load_plugins(transport_dict)
 
                 c = IntroducerClient(self.introducer_furl,
                                      NICKNAME % str(i),
                                      "version", "oldest",
                                      {"component": "component-v1"}, FilePath("notexist.introduced.yaml"), False, transport_plugins)
             received_announcements[c] = {}
-            def got(key_s_or_tubid, ann, announcements, i):
+            def got(key_s_or_tubid, ann, transport_plugins):
                 if i == 0:
                     index = get_tubid_string_from_ann(ann)
                 else:
                     index = key_s_or_tubid or get_tubid_string_from_ann(ann)
-                announcements[index] = ann
-            c.subscribe_to("storage", got, received_announcements[c], i)
+                received_announcements[index] = ann
+            c.subscribe_to("storage", got, received_announcements[c], transport_plugins)
             subscribing_clients.append(c)
             expected_announcements[i] += 1 # all expect a 'storage' announcement
 
