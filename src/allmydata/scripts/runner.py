@@ -166,3 +166,6 @@ def run(install_node_control=True):
         rc = 1
 
     sys.exit(rc)
+
+if __name__ == "__main__":
+    run()
