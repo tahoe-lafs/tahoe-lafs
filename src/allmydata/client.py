@@ -265,28 +265,34 @@ class Client(node.Node, pollmixin.PollMixin):
         """
         self.introducer_furls = []
 
+        # no operation if no tub
         if self.tub is None:
             return
-
-        # deprecated configuration option
-        tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
 
         connections = self.load_connections_from_yaml()
         if connections is None:
             connections = self.create_default_connections()
-
         introducers = connections['introducers']
+
+        # deprecated configuration option
+        tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
         if tahoe_cfg_introducer_furl is not None:
-            if u'default' in connections['introducers']:
-                if tahoe_cfg_introducer_furl == connections['introducers'][u'default']['furl']:
-                    log.err("Introducer furl %s specified in both tahoe.cfg was also found in connections.yaml")
+            intro_furls = [intro['furl'] for intro in introducers.items()]
+            if tahoe_cfg_introducer_furl in intro_furls:
+                log.err("Introducer furl %s specified in both tahoe.cfg was also found in connections.yaml")
             connections = self.set_default_introducer(tahoe_cfg_introducer_furl, connections)
 
+        # load and register plugins with our client tub
         plugins = load_plugins(connections['transport_plugins'])
         self.tub.removeAllConnectionHintHandlers()
         for name, handler in plugins.items():
             self.tub.addConnectionHintHandler(name, handler)
 
+        # Here we create an IntroducerClient for each
+        # configured introducer. It's endowed with
+        # various configuration information including
+        # it's foolscap transport plugins and YAML cache filepath
+        # for persisting announcements from storage servers.
         introducers[u'default'] = { 'furl': tahoe_cfg_introducer_furl,
                                     'subscribe_only': False }
         for nickname in introducers.keys():
