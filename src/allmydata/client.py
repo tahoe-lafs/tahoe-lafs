@@ -264,6 +264,7 @@ class Client(node.Node, pollmixin.PollMixin):
         FURL which is also found in the connections.yaml.
         """
         self.introducer_furls = []
+        self.warn_flag = False
 
         # no operation if no tub
         if self.tub is None:
@@ -277,9 +278,10 @@ class Client(node.Node, pollmixin.PollMixin):
         # deprecated configuration option
         tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
         if tahoe_cfg_introducer_furl is not None:
-            intro_furls = [intro['furl'] for intro in introducers.items()]
+            intro_furls = [intro['furl'] for nick, intro in introducers.items()]
             if tahoe_cfg_introducer_furl in intro_furls:
                 log.err("Introducer furl %s specified in both tahoe.cfg was also found in connections.yaml")
+                self.warn_flag = True
             connections = self.set_default_introducer(tahoe_cfg_introducer_furl, connections)
 
         # load and register plugins with our client tub
