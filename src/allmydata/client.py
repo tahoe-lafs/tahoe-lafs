@@ -118,7 +118,7 @@ def load_plugins(transport_dict):
         for attr in name.split("."):
             obj = getattr(obj, attr)
         return obj
-    for name in transport_dict.keys():
+    for name, handler_dict in transport_dict.items():
         handler_dict = transport_dict[name]
         handler_module = importlib.import_module(handler_dict['handler_module'])
         handler_func = getattr_qualified(handler_module, handler_dict['handler_name'])
@@ -203,7 +203,12 @@ class Client(node.Node, pollmixin.PollMixin):
         nonce = _make_secret().strip()
         return seqnum, nonce
 
-    def load_connections_from_yaml(self, furl):
+    def load_connections_from_yaml(self):
+        """
+        Load the connections.yaml file.
+        Return the yaml dict. If something fails,
+        return None.
+        """
         connections_filepath = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
         if connections_filepath.exists():
             exists = True
@@ -211,22 +216,45 @@ class Client(node.Node, pollmixin.PollMixin):
                 connections = yaml.load(f)
                 f.close()
         else:
-            exists = False
-            connections = { 'introducers' : {},
-                            'servers' : {},
-                            'transport_plugins' : {
-                                'tcp' : {
-                                    'handler_module' : 'foolscap.connection_plugins',
-                                    'handler_name': 'DefaultTCP',
-                                    'parameters' : {}
-                                },
+            connections = None
+        return connections
+
+    def write_connections_to_yaml(self, connections):
+        """
+        Writes the connections dict to
+        the node's private/connections.yaml
+        """
+        connections_filepath = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
+        connections_filepath.setContent(yaml.dump(connections))
+
+    def create_default_connections(self):
+        """
+        Return the default null configuration which specifies
+        the DefaultTCP foolscap transport plugin as the default
+        handler for the TCP foolscap connection hints.
+        """
+        connections = { 'introducers' : {},
+                        'servers' : {},
+                        'transport_plugins' : {
+                            'tcp' : {
+                                'handler_module' : 'foolscap.connection_plugins',
+                                'handler_name': 'DefaultTCP',
+                                'parameters' : {}
                             },
-                            }
-            new_connections = connections.copy()
-            new_connections['introducers'][u'default'] = {}
-            new_connections['introducers']['default']['furl'] = furl
-            connections_filepath.setContent(yaml.dump(new_connections))
-        return connections, exists
+                        },
+        }
+        return connections
+
+    def set_default_introducer(self, furl, connections):
+        """
+        Given a furl and a connections dict, I will
+        return a new connections dict with the default
+        introducer furl set.
+        """
+        new_connections = connections.copy()
+        new_connections['introducers'][u'default'] = {}
+        new_connections['introducers'][u'default']['furl'] = furl
+        return new_connections
 
     def load_connections(self):
         """
@@ -235,35 +263,29 @@ class Client(node.Node, pollmixin.PollMixin):
         an error to the user if the tahoe.cfg contains an introducer
         FURL which is also found in the connections.yaml.
         """
-        # read introducer from tahoe.cfg and abort + error an introducer furl is specified
-        # which is also found in our connections.yaml
-        self.introducer_furls = [] # XXX
-        tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
-        self.warn_flag = False
+        self.introducer_furls = []
 
-        connections, connections_yaml_exists = self.load_connections_from_yaml(tahoe_cfg_introducer_furl)
-        introducers = connections['introducers']
         if self.tub is None:
             return
+
+        # deprecated configuration option
+        tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
+
+        connections = self.load_connections_from_yaml()
+        if connections is None:
+            connections = self.create_default_connections()
+
+        introducers = connections['introducers']
+        if tahoe_cfg_introducer_furl is not None:
+            if u'default' in connections['introducers']:
+                if tahoe_cfg_introducer_furl == connections['introducers'][u'default']['furl']:
+                    log.err("Introducer furl %s specified in both tahoe.cfg was also found in connections.yaml")
+            connections = self.set_default_introducer(tahoe_cfg_introducer_furl, connections)
+
         plugins = load_plugins(connections['transport_plugins'])
         self.tub.removeAllConnectionHintHandlers()
         for name, handler in plugins.items():
             self.tub.addConnectionHintHandler(name, handler)
-
-        found = False
-        count = 0
-        if tahoe_cfg_introducer_furl is not None and connections_yaml_exists:
-            count += 1
-            for nick in introducers.keys():
-                if tahoe_cfg_introducer_furl == introducers[nick]['furl']:
-                    found = True
-                    break
-            if not found and count > 0:
-                log.err("Introducer furl %s specified in both tahoe.cfg and connections.yaml; please fix impossible configuration.")
-                reactor.stop()
-            if found and count > 0:
-                log.err("Introducer furl %s specified in both tahoe.cfg was also found in connections.yaml")
-                self.warn_flag = True
 
         introducers[u'default'] = { 'furl': tahoe_cfg_introducer_furl,
                                     'subscribe_only': False }
@@ -271,7 +293,7 @@ class Client(node.Node, pollmixin.PollMixin):
             if introducers[nickname].has_key('transport_plugins'):
                 plugins = load_plugins(introducers[nickname]['transport_plugins'])
             introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", nickname))
-            self.introducer_furls.append(introducers[nickname]['furl']) # XXX
+            self.introducer_furls.append(introducers[nickname]['furl'])
             ic = IntroducerClient(introducers[nickname]['furl'],
                                   nickname,
                                   str(allmydata.__full_version__),
@@ -480,14 +502,14 @@ class Client(node.Node, pollmixin.PollMixin):
         sb.setServiceParent(self)
 
         # initialize StorageFarmBroker with our static server selection
-        connections, yaml_exists= self.load_connections_from_yaml(None)
-        servers = connections['servers']
-        for server_id in servers.keys():
-            plugins = load_plugins(servers[server_id]['transport_plugins'])
-            if self.testing:
-                self.storage_broker.got_static_announcement(servers[server_id]['key_s'], servers[server_id]['announcement'], plugins)
-            else:
-                eventually(self.storage_broker.got_static_announcement, servers[server_id]['key_s'], servers[server_id]['announcement'], plugins)
+        connections = self.load_connections_from_yaml()
+        if connections is not None and 'servers' in connections:
+            for server_id, server in connections['servers'].items():
+                plugins = load_plugins(server['transport_plugins'])
+                if self.testing:
+                    self.storage_broker.got_static_announcement(server['key_s'], server['announcement'], plugins)
+                else:
+                    eventually(self.storage_broker.got_static_announcement, server['key_s'], server['announcement'], plugins)
 
         for ic in self.introducer_clients:
             sb.use_introducer(ic)
