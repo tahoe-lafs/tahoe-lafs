@@ -31,13 +31,10 @@ def get_inotify_module():
     try:
         if sys.platform == "win32":
             from allmydata.windows import inotify
-        elif sys.platform != "linux":
-            from allmydata.bsd import inotify
         elif runtime.platform.supportsINotify():
             from twisted.internet import inotify
         else:
-            raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
-                                      "This currently requires Linux or Windows.")
+            from allmydata.watchdog import inotify
         return inotify
     except (ImportError, AttributeError) as e:
         log.msg(e)

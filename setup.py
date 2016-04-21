@@ -1,4 +1,4 @@
-#! n/usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
 
@@ -381,7 +381,7 @@ setup(name=APPNAME,
                 'allmydata.util',
                 'allmydata.web',
                 'allmydata.windows',
-                'allmydata.bsd',
+                'allmydata.watchdog',
                 'buildtest'],
       classifiers=trove_classifiers,
       test_suite="allmydata.test",

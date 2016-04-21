@@ -41,10 +41,11 @@ class INotifyEventHandler(FileSystemEventHandler):
         self._pending_delay = pending_delay
         self._pending = set()
 
-    def is_masked(self, event):
+    def is_enabled_for_mask(self, event):
         if isinstance(event, FileSystemMovedEvent) and self._mask & (IN_MOVED_TO | IN_MOVED_FROM):
             return True
-        if (isinstance(event, FileModifiedEvent) or isinstance(event, DirModifiedEvent)) and self._mask & (IN_CLOSE_WRITE | IN_CHANGED):
+        if (isinstance(event, FileModifiedEvent) or isinstance(event, DirModifiedEvent)) \
+           and self._mask & (IN_CLOSE_WRITE | IN_CHANGED):
             return True
         if (isinstance(event, FileCreatedEvent) or isinstance(event, DirCreatedEvent)) and self._mask & IN_CREATE:
             return True
@@ -66,17 +67,18 @@ class INotifyEventHandler(FileSystemEventHandler):
         return mask
 
     def process(self, event):
-        event_filepath_u = event.src_path.decode('utf-8')
+        event_filepath_u = event.src_path.decode(encodingutil.get_filesystem_encoding())
+
         if event_filepath_u == unicode_from_filepath(self._path):
             # ignore events for parent directory
             return
         #if not self.is_masked(event):
         #    return
-        #try:
-        #    event_path = self._path.preauthChild(event.src_path)
-        #except InsecurePath, e:
-        #    print "failed: %r" % (e,)
-        #    return
+        try:
+            event_path = self._path.preauthChild(event.src_path)
+        except InsecurePath, e:
+            print "failed, child path outside watch directory: %r" % (e,)
+            return
 
         def _maybe_notify(path):
             if path in self._pending:
@@ -85,8 +87,7 @@ class INotifyEventHandler(FileSystemEventHandler):
             def _do_callbacks():
                 print "DO CALLBACKS"
                 self._pending.remove(path)
-                #event_mask = self.get_event_mask(event)
-                event_mask = IN_CHANGED
+                event_mask = self.get_event_mask(event)
                 for cb in self._callbacks:
                     try:
                         cb(None, FilePath(path), event_mask)
@@ -160,4 +161,5 @@ class INotify(PollMixin):
 
         if path_u not in self._callbacks.keys():
             self._callbacks[path_u] = callbacks or []
-            self._observer.schedule(INotifyEventHandler(path, mask, self._callbacks[path_u], self._pending_delay), path=path_u)
+            self._observer.schedule(INotifyEventHandler(path, mask, self._callbacks[path_u], \
+                                                        self._pending_delay), path=path_u, recursive=True)
