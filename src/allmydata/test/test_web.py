@@ -7,7 +7,8 @@ from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.internet.task import Clock
-from twisted.web import client, error, http, server
+from twisted.web import client, error, http
+from twisted.web.server import UnsupportedMethod
 from twisted.python import failure, log
 
 from foolscap.api import fireEventually, flushEventualQueue
@@ -5918,7 +5919,7 @@ class TestTokenOnlyApi(unittest.TestCase):
         req.method = "GET"
 
         self.assertRaises(
-            server.UnsupportedMethod,
+            UnsupportedMethod,
             self.page.renderHTTP, req,
         )
 
