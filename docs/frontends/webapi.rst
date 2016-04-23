@@ -1040,15 +1040,30 @@ Viewing/Downloading a File
 
 ``GET /uri/$DIRCAP/[SUBDIRS../]FILENAME``
 
- This will retrieve the contents of the given file. The HTTP response body
+``GET /named/$FILECAP/FILENAME``
+
+ These will retrieve the contents of the given file. The HTTP response body
  will contain the sequence of bytes that make up the file.
 
- If you want the HTTP response to include a useful Content-Type header,
- either use the second form (which starts with a $DIRCAP), or add a
- "filename=foo" query argument, like "GET /uri/$FILECAP?filename=foo.jpg".
- The bare "GET /uri/$FILECAP" does not give the Tahoe node enough information
- to determine a Content-Type (since Tahoe immutable files are merely
- sequences of bytes, not typed+named file objects).
+ The ``/named/`` form is an alternative to ``/uri/$FILECAP`` which makes it
+ easier to get the correct filename. The Tahoe server will provide the
+ contents of the given file, with a Content-Type header derived from the
+ given filename. This form is used to get browsers to use the "Save Link As"
+ feature correctly, and also helps command-line tools like "wget" and "curl"
+ use the right filename. Note that this form can *only* be used with file
+ caps; it is an error to use a directory cap after the /named/ prefix.
+
+ URLs may also use /file/$FILECAP/FILENAME as a synonym for
+ /named/$FILECAP/FILENAME. The use of "/file/" is deprecated in favor of
+ "/named/" and support for "/file/" will be removed in a future release of
+ Tahoe-LAFS.
+
+ If you use the first form (``/uri/$FILECAP``) and want the HTTP response to
+ include a useful Content-Type header, add a "filename=foo" query argument,
+ like "GET /uri/$FILECAP?filename=foo.jpg". The bare "GET /uri/$FILECAP" does
+ not give the Tahoe node enough information to determine a Content-Type
+ (since LAFS immutable files are merely sequences of bytes, not typed and
+ named file objects).
 
  If the URL has both filename= and "save=true" in the query arguments, then
  the server to add a "Content-Disposition: attachment" header, along with a
@@ -1062,19 +1077,6 @@ Viewing/Downloading a File
  bytes from the filename= argument into the Content-Disposition header's
  filename= parameter, without trying to interpret them in any particular way.
 
-
-``GET /named/$FILECAP/FILENAME``
-
- This is an alternate download form which makes it easier to get the correct
- filename. The Tahoe server will provide the contents of the given file, with
- a Content-Type header derived from the given filename. This form is used to
- get browsers to use the "Save Link As" feature correctly, and also helps
- command-line tools like "wget" and "curl" use the right filename. Note that
- this form can *only* be used with file caps; it is an error to use a
- directory cap after the /named/ prefix.
-
- URLs may also use /file/$FILECAP/FILENAME as a synonym for
- /named/$FILECAP/FILENAME.
 
 Getting Information About a File Or Directory (as HTML)
 -------------------------------------------------------
