@@ -1732,11 +1732,6 @@ class SampleError(Exception):
 
 class Log(unittest.TestCase):
     def test_err(self):
-        if not hasattr(self, "flushLoggedErrors"):
-            # without flushLoggedErrors, we can't get rid of the
-            # twisted.log.err that tahoe_log records, so we can't keep this
-            # test from [ERROR]ing
-            raise unittest.SkipTest("needs flushLoggedErrors from Twisted-2.5.0")
         try:
             raise SampleError("simple sample")
         except:
