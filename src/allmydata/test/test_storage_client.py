@@ -1,6 +1,12 @@
+import os
+from mock import Mock, patch
+from allmydata.util import base32
 
 from twisted.trial import unittest
+from twisted.internet.defer import Deferred, succeed
+
 from allmydata.storage_client import NativeStorageServer
+from allmydata.storage_client import StorageFarmBroker
 
 
 class NativeStorageServerWithVersion(NativeStorageServer):
@@ -28,3 +34,41 @@ class TestNativeStorageServer(unittest.TestCase):
             })
         self.failUnlessEqual(nss.get_available_space(), 111)
 
+
+class TestStorageFarmBroker(unittest.TestCase):
+
+    def test_threshold_reached(self):
+        tub = Mock()
+        introducer = Mock()
+        done = Deferred()
+        broker = StorageFarmBroker(tub, True, 5, done)
+        broker.use_introducer(introducer)
+        # subscribes to "storage" to learn of new storage nodes
+        subscribe = introducer.mock_calls[0]
+        self.assertEqual(subscribe[0], 'subscribe_to')
+
+        data = {
+            "service-name": "storage",
+            "anonymous-storage-FURL": None,
+            "permutation-seed-base32": "aaaaaaaaaaaaaaaaaaaaaaaa",
+        }
+
+        def add_one_server(x):
+            self.assertEqual(introducer.mock_calls[-1][1][0], 'storage')
+            got_announce = introducer.mock_calls[-1][1][1]
+            data["anonymous-storage-FURL"] = "pb://{}@nowhere/fake".format(base32.b2a(str(x)))
+            got_announce('v0-1234-{}'.format(x), data)
+            self.assertEqual(tub.mock_calls[-1][0], 'connectTo')
+            got_connection = tub.mock_calls[-1][1][1]
+            rref = Mock()
+            rref.callRemote = Mock(return_value=succeed(1234))
+            got_connection(rref)
+
+        # first 4 shouldn't trigger connected_threashold
+        for x in range(4):
+            add_one_server(x)
+            self.assertFalse(done.called)
+
+        # ...but the 5th *should* trigger the threshold
+        add_one_server(42)
+        self.assertTrue(done.called)
