@@ -5905,12 +5905,19 @@ class ErrorBoom(rend.Page):
         raise CompletelyUnhandledError("whoops")
 
 
+# XXX FIXME when we introduce "mock" as a dependency, these can
+# probably just be Mock instances
 @implementer(IRequest)
 class FakeRequest(object):
     def __init__(self):
         self.method = "POST"
+        self.fields = dict()
         self.args = dict()
-        self.fields = []
+
+
+class FakeField(object):
+    def __init__(self, *values):
+        self.value = list(values)
 
 
 class FakeClientWithToken(object):
@@ -5945,10 +5952,21 @@ class TestTokenOnlyApi(unittest.TestCase):
         self.assertEquals(exc.text, "Missing token")
         self.assertEquals(exc.code, 401)
 
+    def test_token_in_get_args(self):
+        req = FakeRequest()
+        req.args['token'] = 'z' * 32
+
+        exc = self.assertRaises(
+            common.WebError,
+            self.page.renderHTTP, req,
+        )
+        self.assertEquals(exc.text, "Do not pass 'token' as URL argument")
+        self.assertEquals(exc.code, 400)
+
     def test_invalid_token(self):
         wrong_token = 'b' * 32
         req = FakeRequest()
-        req.args['token'] = [wrong_token]
+        req.fields['token'] = FakeField(wrong_token)
 
         exc = self.assertRaises(
             common.WebError,
@@ -5959,7 +5977,7 @@ class TestTokenOnlyApi(unittest.TestCase):
 
     def test_valid_token_no_t_arg(self):
         req = FakeRequest()
-        req.args['token'] = [self.client.token]
+        req.fields['token'] = FakeField(self.client.token)
 
         with self.assertRaises(common.WebError) as exc:
             self.page.renderHTTP(req)
@@ -5968,7 +5986,7 @@ class TestTokenOnlyApi(unittest.TestCase):
 
     def test_valid_token_invalid_t_arg(self):
         req = FakeRequest()
-        req.args['token'] = [self.client.token]
+        req.fields['token'] = FakeField(self.client.token)
         req.args['t'] = 'not at all json'
 
         with self.assertRaises(common.WebError) as exc:
@@ -5978,7 +5996,7 @@ class TestTokenOnlyApi(unittest.TestCase):
 
     def test_valid(self):
         req = FakeRequest()
-        req.args['token'] = [self.client.token]
+        req.fields['token'] = FakeField(self.client.token)
         req.args['t'] = ['json']
 
         result = self.page.renderHTTP(req)
