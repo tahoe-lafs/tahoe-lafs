@@ -412,8 +412,13 @@ class TokenOnlyWebApi(rend.Page):
         req = IRequest(ctx)
         if req.method != 'POST':
             raise server.UnsupportedMethod(('POST',))
-
-        token = get_arg(req, "token", None)
+        if req.args.get('token', False):
+            raise WebError("Do not pass 'token' as URL argument", http.BAD_REQUEST)
+        # not using get_arg() here because we *don't* want the token
+        # argument to work if you passed it as a GET-style argument
+        token = None
+        if req.fields and 'token' in req.fields:
+            token = req.fields['token'].value[0]
         if not token:
             raise WebError("Missing token", http.UNAUTHORIZED)
         if not timing_safe_compare(token, self.client.get_auth_token()):
