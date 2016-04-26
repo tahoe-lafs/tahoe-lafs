@@ -1,0 +1,2 @@
+Tahoe now requires Twisted >= 16.1.0, so ensure that unit tests do not fail
+because of uncancelled timers left running by HostnameEndpoint.
