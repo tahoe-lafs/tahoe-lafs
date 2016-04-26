@@ -18,7 +18,7 @@ from allmydata.storage_client import StubServer
 from allmydata.mutable.layout import unpack_header
 from allmydata.mutable.publish import MutableData
 from allmydata.storage.mutable import MutableShareFile
-from allmydata.util import hashutil, log, fileutil, pollmixin
+from allmydata.util import hashutil, log, fileutil, pollmixin, iputil
 from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
 from allmydata.stats import StatsGathererService
@@ -557,6 +557,11 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
             nodeconfig = "[node]\n"
             nodeconfig += (u"nickname = client %d \u263A\n" % (i,)).encode('utf-8')
+            tub_port = iputil.allocate_tcp_port()
+            # Don't let it use AUTO: there's no need for tests to use
+            # anything other than 127.0.0.1
+            nodeconfig += "tub.port = tcp:%d\n" % tub_port
+            nodeconfig += "tub.location = tcp:127.0.0.1:%d\n" % tub_port
 
             if i == 0:
                 # clients[0] runs a webserver and a helper, no key_generator
