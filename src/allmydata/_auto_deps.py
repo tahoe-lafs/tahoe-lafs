@@ -13,7 +13,7 @@
 #   * >= X, != Y, != Z, ... where X < Y < Z...
 #
 # (In addition, check_requirement in allmydata/__init__.py only supports
-# >=, <= and != operators.)
+# >=, <=, ==, and != operators.)
 
 install_requires = [
     # we don't need much out of setuptools, but the __init__.py stuff does
@@ -89,6 +89,11 @@ install_requires = [
     # * pyOpenSSL >= 0.14 is needed in order to avoid
     #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2474>.
     "pyOpenSSL >= 0.14",
+
+    # needed for cloud backend
+    "txAWS == 0.2.1.post5",
+    "oauth2client == 1.1.0",
+    "python-dateutil",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.
@@ -116,11 +121,17 @@ package_imports = [
     ('six',              'six'),
     ('enum34',           'enum'),
     ('pycparser',        'pycparser'),
+    ('txAWS',            'txaws'),
+    ('oauth2client',     'oauth2client'),
+    ('python-dateutil',  'dateutil'),
+    ('httplib2',         'httplib2'),
+    ('python-gflags',    'gflags'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
 not_import_versionable = [
     'zope.interface',
+    'python-gflags',
 ]
 
 # Dependencies reported by pkg_resources that we can safely ignore.

@@ -71,6 +71,11 @@ HEADER_LENGTH = struct.calcsize(HEADER)
 OFFSETS = ">LLLLQQ"
 OFFSETS_LENGTH = struct.calcsize(OFFSETS)
 
+# our sharefiles share with a recognizable string, plus some random
+# binary data to reduce the chance that a regular text file will look
+# like a sharefile.
+MUTABLE_MAGIC = "Tahoe mutable container v1\n" + "\x75\x09\x44\x03\x8e"
+
 MAX_MUTABLE_SHARE_SIZE = 69105*1000*1000*1000*1000 # 69105 TB, kind of arbitrary
 
 
@@ -91,7 +96,7 @@ def unpack_header(data):
     return (version, seqnum, root_hash, IV, k, N, segsize, datalen, o)
 
 def unpack_share(data):
-    assert len(data) >= HEADER_LENGTH
+    assert len(data) >= HEADER_LENGTH, len(data)
     o = {}
     (version,
      seqnum,

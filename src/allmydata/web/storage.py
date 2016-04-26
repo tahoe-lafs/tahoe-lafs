@@ -3,7 +3,7 @@ import time, simplejson
 from nevow import rend, tags as T, inevow
 from allmydata.web.common import getxmlfile, abbreviate_time, get_arg
 from allmydata.util.abbreviate import abbreviate_space
-from allmydata.util import time_format, idlib
+from allmydata.util import idlib
 
 def remove_prefix(s, prefix):
     if not s.startswith(prefix):
@@ -28,17 +28,19 @@ class StorageStatus(rend.Page):
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
+        accounting_crawler = self.storage.get_accounting_crawler()
+        bucket_counter = self.storage.get_bucket_counter()
         d = {"stats": self.storage.get_stats(),
-             "bucket-counter": self.storage.bucket_counter.get_state(),
-             "lease-checker": self.storage.lease_checker.get_state(),
-             "lease-checker-progress": self.storage.lease_checker.get_progress(),
+             "bucket-counter": bucket_counter.get_state(),
+             "lease-checker": accounting_crawler.get_state(),
+             "lease-checker-progress": accounting_crawler.get_progress(),
              }
         return simplejson.dumps(d, indent=1) + "\n"
 
     def data_nickname(self, ctx, storage):
         return self.nickname
     def data_nodeid(self, ctx, storage):
-        return idlib.nodeid_b2a(self.storage.my_nodeid)
+        return idlib.nodeid_b2a(self.storage.get_serverid())
 
     def render_storage_running(self, ctx, storage):
         if storage:
@@ -93,14 +95,14 @@ class StorageStatus(rend.Page):
         return d
 
     def data_last_complete_bucket_count(self, ctx, data):
-        s = self.storage.bucket_counter.get_state()
+        s = self.storage.get_bucket_counter().get_state()
         count = s.get("last-complete-bucket-count")
         if count is None:
             return "Not computed yet"
         return count
 
     def render_count_crawler_status(self, ctx, storage):
-        p = self.storage.bucket_counter.get_progress()
+        p = self.storage.get_bucket_counter().get_progress()
         return ctx.tag[self.format_crawler_progress(p)]
 
     def format_crawler_progress(self, p):
@@ -129,31 +131,12 @@ class StorageStatus(rend.Page):
                     cycletime_s]
 
     def render_lease_expiration_enabled(self, ctx, data):
-        lc = self.storage.lease_checker
-        if lc.expiration_enabled:
-            return ctx.tag["Enabled: expired leases will be removed"]
-        else:
-            return ctx.tag["Disabled: scan-only mode, no leases will be removed"]
+        ep = self.storage.get_expiration_policy()
+        return ctx.tag[ep.describe_enabled()]
 
     def render_lease_expiration_mode(self, ctx, data):
-        lc = self.storage.lease_checker
-        if lc.mode == "age":
-            if lc.override_lease_duration is None:
-                ctx.tag["Leases will expire naturally, probably 31 days after "
-                        "creation or renewal."]
-            else:
-                ctx.tag["Leases created or last renewed more than %s ago "
-                        "will be considered expired."
-                        % abbreviate_time(lc.override_lease_duration)]
-        else:
-            assert lc.mode == "cutoff-date"
-            localizedutcdate = time.strftime("%d-%b-%Y", time.gmtime(lc.cutoff_date))
-            isoutcdate = time_format.iso_utc_date(lc.cutoff_date)
-            ctx.tag["Leases created or last renewed before %s (%s) UTC "
-                    "will be considered expired." % (isoutcdate, localizedutcdate, )]
-        if len(lc.mode) > 2:
-            ctx.tag[" The following sharetypes will be expired: ",
-                    " ".join(sorted(lc.sharetypes_to_expire)), "."]
+        ep = self.storage.get_expiration_policy()
+        ctx.tag[ep.describe_expiration()]
         return ctx.tag
 
     def format_recovered(self, sr, a):
@@ -161,7 +144,7 @@ class StorageStatus(rend.Page):
             if d is None:
                 return "?"
             return "%d" % d
-        return "%s shares, %s buckets (%s mutable / %s immutable), %s (%s / %s)" % \
+        return "%s shares, %s sharesets (%s mutable / %s immutable), %s (%s / %s)" % \
                (maybe(sr["%s-shares" % a]),
                 maybe(sr["%s-buckets" % a]),
                 maybe(sr["%s-buckets-mutable" % a]),
@@ -172,16 +155,16 @@ class StorageStatus(rend.Page):
                 )
 
     def render_lease_current_cycle_progress(self, ctx, data):
-        lc = self.storage.lease_checker
-        p = lc.get_progress()
+        ac = self.storage.get_accounting_crawler()
+        p = ac.get_progress()
         return ctx.tag[self.format_crawler_progress(p)]
 
     def render_lease_current_cycle_results(self, ctx, data):
-        lc = self.storage.lease_checker
-        p = lc.get_progress()
+        ac = self.storage.get_accounting_crawler()
+        p = ac.get_progress()
         if not p["cycle-in-progress"]:
             return ""
-        s = lc.get_state()
+        s = ac.get_state()
         so_far = s["cycle-to-date"]
         sr = so_far["space-recovered"]
         er = s["estimated-remaining-cycle"]
@@ -197,7 +180,7 @@ class StorageStatus(rend.Page):
             if d is None:
                 return "?"
             return "%d" % d
-        add("So far, this cycle has examined %d shares in %d buckets"
+        add("So far, this cycle has examined %d shares in %d sharesets"
             % (sr["examined-shares"], sr["examined-buckets"]),
             " (%d mutable / %d immutable)"
             % (sr["examined-buckets-mutable"], sr["examined-buckets-immutable"]),
@@ -208,22 +191,11 @@ class StorageStatus(rend.Page):
         if so_far["expiration-enabled"]:
             add("The remainder of this cycle is expected to recover: ",
                 self.format_recovered(esr, "actual"))
-            add("The whole cycle is expected to examine %s shares in %s buckets"
+            add("The whole cycle is expected to examine %s shares in %s sharesets"
                 % (maybe(ecr["examined-shares"]), maybe(ecr["examined-buckets"])))
             add("and to recover: ", self.format_recovered(ecr, "actual"))
-
         else:
-            add("If expiration were enabled, we would have recovered: ",
-                self.format_recovered(sr, "configured"), " by now")
-            add("and the remainder of this cycle would probably recover: ",
-                self.format_recovered(esr, "configured"))
-            add("and the whole cycle would probably recover: ",
-                self.format_recovered(ecr, "configured"))
-
-        add("if we were strictly using each lease's default 31-day lease lifetime "
-            "(instead of our configured behavior), "
-            "this cycle would be expected to recover: ",
-            self.format_recovered(ecr, "original"))
+            add("Expiration was not enabled.")
 
         if so_far["corrupt-shares"]:
             add("Corrupt shares:",
@@ -234,8 +206,8 @@ class StorageStatus(rend.Page):
         return ctx.tag["Current cycle:", p]
 
     def render_lease_last_cycle_results(self, ctx, data):
-        lc = self.storage.lease_checker
-        h = lc.get_state()["history"]
+        ac = self.storage.get_accounting_crawler()
+        h = ac.get_state()["history"]
         if not h:
             return ""
         last = h[max(h.keys())]
@@ -255,9 +227,7 @@ class StorageStatus(rend.Page):
         add("and saw a total of ", saw)
 
         if not last["expiration-enabled"]:
-            rec = self.format_recovered(last["space-recovered"], "configured")
-            add("but expiration was not enabled. If it had been, "
-                "it would have recovered: ", rec)
+            add("but expiration was not enabled.")
 
         if last["corrupt-shares"]:
             add("Corrupt shares:",

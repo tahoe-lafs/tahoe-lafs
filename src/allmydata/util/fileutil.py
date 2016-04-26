@@ -2,7 +2,7 @@
 Futz with files like a pro.
 """
 
-import sys, exceptions, os, stat, tempfile, time, binascii
+import errno, sys, exceptions, os, re, stat, tempfile, time, binascii
 
 if sys.platform == "win32":
     from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_ulonglong, \
@@ -179,10 +179,12 @@ def rm_dir(dirname):
             else:
                 remove(fullname)
         os.rmdir(dirname)
-    except Exception, le:
-        # Ignore "No such file or directory"
-        if (not isinstance(le, OSError)) or le.args[0] != 2:
+    except EnvironmentError, le:
+        # Ignore "No such file or directory", collect any other exception.
+        if (le.args[0] != 2 and le.args[0] != 3) or (le.args[0] != errno.ENOENT):
             excs.append(le)
+    except Exception, le:
+        excs.append(le)
 
     # Okay, now we've recursively removed everything, ignoring any "No
     # such file or directory" errors, and collecting any other errors.
@@ -194,12 +196,38 @@ def rm_dir(dirname):
             raise OSError, "Failed to remove dir for unknown reason."
         raise OSError, excs
 
-
 def remove_if_possible(f):
     try:
         remove(f)
     except:
         pass
+
+def rmdir_if_empty(path):
+    """ Remove the directory if it is empty. """
+    try:
+        os.rmdir(path)
+    except OSError, e:
+        if e.errno != errno.ENOTEMPTY:
+            raise
+
+
+ASCII = re.compile(r'^[\x00-\x7F]*$')
+
+def listdir(path, filter=ASCII):
+    try:
+        children = os.listdir(path)
+    except OSError, e:
+        if e.errno != errno.ENOENT:
+            raise
+        return []
+    else:
+        return [str(child) for child in children if filter.match(child)]
+
+def open_or_create(fname, binarymode=True):
+    try:
+        return open(fname, binarymode and "r+b" or "r+")
+    except EnvironmentError:
+        return open(fname, binarymode and "w+b" or "w+")
 
 def du(basedir):
     size = 0
@@ -226,8 +254,8 @@ def write_atomically(target, contents, mode="b"):
         f.close()
     move_into_place(target+".tmp", target)
 
-def write(path, data, mode="wb"):
-    wf = open(path, mode)
+def write(path, data, mode="b"):
+    wf = open(path, "w"+mode)
     try:
         wf.write(data)
     finally:
@@ -514,3 +542,38 @@ def get_available_space(whichdir, reserved_space):
     except EnvironmentError:
         log.msg("OS call to get disk statistics failed")
         return 0
+
+
+def get_used_space(path):
+    if path is None:
+        return 0
+    try:
+        s = os.stat(path)
+    except EnvironmentError:
+        if not os.path.exists(path):
+            return 0
+        raise
+    else:
+        # POSIX defines st_blocks (originally a BSDism):
+        #   <http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/stat.h.html>
+        # but does not require stat() to give it a "meaningful value"
+        #   <http://pubs.opengroup.org/onlinepubs/009695399/functions/stat.html>
+        # and says:
+        #   "The unit for the st_blocks member of the stat structure is not defined
+        #    within IEEE Std 1003.1-2001. In some implementations it is 512 bytes.
+        #    It may differ on a file system basis. There is no correlation between
+        #    values of the st_blocks and st_blksize, and the f_bsize (from <sys/statvfs.h>)
+        #    structure members."
+        #
+        # The Linux docs define it as "the number of blocks allocated to the file,
+        # [in] 512-byte units." It is also defined that way on MacOS X. Python does
+        # not set the attribute on Windows.
+        #
+        # This code relies on the underlying platform to either define st_blocks in
+        # units of 512 bytes or else leave st_blocks undefined. See also
+        # <http://bugs.python.org/issue12350>.
+
+        if hasattr(s, 'st_blocks'):
+            return s.st_blocks * 512
+        else:
+            return s.st_size

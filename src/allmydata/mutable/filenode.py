@@ -742,8 +742,9 @@ class MutableFileVersion:
         """
         return self._version[0] # verinfo[0] == the sequence number
 
+    def get_servermap(self):
+        return self._servermap
 
-    # TODO: Terminology?
     def get_writekey(self):
         """
         I return a writekey or None if I don't have a writekey.

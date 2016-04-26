@@ -1,3 +1,4 @@
+
 import datetime, os.path, re, types, ConfigParser, tempfile
 from base64 import b32decode, b32encode
 
@@ -13,6 +14,8 @@ from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
+from allmydata.util.abbreviate import parse_abbreviated_size
+
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
@@ -38,8 +41,11 @@ such as private keys.  On Unix-like systems, the permissions on this directory
 are set to disallow users other than its owner from reading the contents of
 the files.   See the 'configuration.rst' documentation file for details."""
 
-class _None: # used as a marker in get_config()
+class _None: # used as a marker in get_config() and get_or_create_private_config()
     pass
+
+class InvalidValueError(Exception):
+    """ The configured value was not valid. """
 
 class MissingConfigEntry(Exception):
     """ A required config entry was not found. """
@@ -62,7 +68,147 @@ class UnescapedHashError(Exception):
                 % quote_output("[%s]%s = %s" % self.args))
 
 
-class Node(service.MultiService):
+class ConfigMixin:
+    def get_config(self, section, option, default=_None, boolean=False):
+        try:
+            if boolean:
+                return self.config.getboolean(section, option)
+
+            item = self.config.get(section, option)
+            if option.endswith(".furl") and self._contains_unescaped_hash(item):
+                raise UnescapedHashError(section, option, item)
+
+            return item
+        except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+            if default is _None:
+                fn = os.path.join(self.basedir, u"tahoe.cfg")
+                raise MissingConfigEntry("%s is missing the [%s]%s entry"
+                                         % (quote_output(fn), section, option))
+            return default
+
+    def get_config_size(self, section, option, default=_None):
+        data = self.get_config(section, option, default)
+        if data is None:
+            return None
+        try:
+            return parse_abbreviated_size(data)
+        except ValueError:
+            raise InvalidValueError("[%s]%s= contains unparseable size value %s"
+                                    % (section, option, quote_output(data)) )
+
+    def read_config(self):
+        self.error_about_old_config_files()
+        self.config = ConfigParser.SafeConfigParser()
+
+        tahoe_cfg = os.path.join(self.basedir, "tahoe.cfg")
+        try:
+            self.config = configutil.get_config(tahoe_cfg)
+        except EnvironmentError:
+            if os.path.exists(tahoe_cfg):
+                raise
+            if not os.path.isdir(self.basedir):
+                raise MissingConfigEntry("%s is missing or not a directory." % quote_output(self.basedir))
+
+    def error_about_old_config_files(self):
+        """ If any old configuration files are detected, raise OldConfigError. """
+
+        oldfnames = set()
+        for name in [
+            'nickname', 'webport', 'keepalive_timeout', 'log_gatherer.furl',
+            'disconnect_timeout', 'advertised_ip_addresses', 'introducer.furl',
+            'helper.furl', 'key_generator.furl', 'stats_gatherer.furl',
+            'no_storage', 'readonly_storage', 'sizelimit',
+            'debug_discard_storage', 'run_helper']:
+            if name not in self.GENERATED_FILES:
+                fullfname = os.path.join(self.basedir, name)
+                if os.path.exists(fullfname):
+                    oldfnames.add(fullfname)
+        if oldfnames:
+            e = OldConfigError(oldfnames)
+            twlog.msg(e)
+            raise e
+
+    def get_optional_config_from_file(self, path):
+        """Read the (string) contents of a file. Any leading or trailing
+        whitespace will be stripped from the data. If the file does not exist,
+        return None."""
+        try:
+            value = fileutil.read(path)
+        except EnvironmentError:
+            if os.path.exists(path):
+                raise
+            return None
+        return value.strip()
+
+    def _get_private_config_path(self, name):
+        return os.path.join(self.basedir, "private", name)
+
+    def write_private_config(self, name, value):
+        """Write the (string) contents of a private config file (which is a
+        config file that resides within the subdirectory named 'private'), and
+        return it.
+        """
+        fileutil.write(self._get_private_config_path(name), value, mode="")
+
+    def get_optional_private_config(self, name):
+        """Try to get the (string) contents of a private config file (which
+        is a config file that resides within the subdirectory named
+        'private'), and return it. Any leading or trailing whitespace will be
+        stripped from the data. If the file does not exist, return None.
+        """
+        return self.get_optional_config_from_file(self._get_private_config_path(name))
+
+    def get_private_config(self, name):
+        """Read the (string) contents of a private config file (which is a
+        config file that resides within the subdirectory named 'private'),
+        and return it. Raise an error if the file was not found.
+        """
+        return self.get_or_create_private_config(name)
+
+    def get_or_create_private_config(self, name, default=_None):
+        """Try to get the (string) contents of a private config file (which
+        is a config file that resides within the subdirectory named
+        'private'), and return it. Any leading or trailing whitespace will be
+        stripped from the data.
+
+        If the file does not exist, and default is not given, report an error.
+        If the file does not exist and a default is specified, try to create
+        it using that default, and then return the value that was written.
+        If 'default' is a string, use it as a default value. If not, treat it
+        as a zero-argument callable that is expected to return a string.
+        """
+        value = self.get_optional_private_config(name)
+        if value is None:
+            privpath = self._get_private_config_path(name)
+            if default is _None:
+                raise MissingConfigEntry("The required configuration file %s is missing."
+                                         % (quote_output(privpath),))
+            elif isinstance(default, basestring):
+                value = default.strip()
+            else:
+                value = default().strip()
+            fileutil.write(privpath, value, mode="")
+        return value
+
+    def write_config(self, name, value, mode=""):
+        """Write a string to a config file."""
+        fn = os.path.join(self.basedir, name)
+        try:
+            fileutil.write(fn, value, mode=mode)
+        except EnvironmentError, e:
+            self.log("Unable to write config file '%s'" % fn)
+            self.log(e)
+
+
+class ConfigOnly(object, ConfigMixin):
+    GENERATED_FILES = []
+
+    def __init__(self, basedir=u"."):
+        self.basedir = abspath_expanduser_unicode(unicode(basedir))
+        self.read_config()
+
+
+class Node(service.MultiService, ConfigMixin):
     # this implements common functionality of both Client nodes and Introducer
     # nodes.
     NODETYPE = "unknown NODETYPE"
@@ -76,7 +222,7 @@ class Node(service.MultiService):
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         self._tub_ready_observerlist = observer.OneShotObserverList()
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
-        open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
+        fileutil.write(os.path.join(self.basedir, "private", "README"), PRIV_README, mode="")
 
         # creates self.config
         self.read_config()
@@ -116,65 +262,6 @@ class Node(service.MultiService):
 
         return False
 
-    def get_config(self, section, option, default=_None, boolean=False):
-        try:
-            if boolean:
-                return self.config.getboolean(section, option)
-
-            item = self.config.get(section, option)
-            if option.endswith(".furl") and self._contains_unescaped_hash(item):
-                raise UnescapedHashError(section, option, item)
-
-            return item
-        except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
-            if default is _None:
-                fn = os.path.join(self.basedir, u"tahoe.cfg")
-                raise MissingConfigEntry("%s is missing the [%s]%s entry"
-                                         % (quote_output(fn), section, option))
-            return default
-
-    def read_config(self):
-        self.error_about_old_config_files()
-        self.config = ConfigParser.SafeConfigParser()
-
-        tahoe_cfg = os.path.join(self.basedir, "tahoe.cfg")
-        try:
-            self.config = configutil.get_config(tahoe_cfg)
-        except EnvironmentError:
-            if os.path.exists(tahoe_cfg):
-                raise
-
-        cfg_tubport = self.get_config("node", "tub.port", "")
-        if not cfg_tubport:
-            # For 'tub.port', tahoe.cfg overrides the individual file on
-            # disk. So only read self._portnumfile if tahoe.cfg doesn't
-            # provide a value.
-            try:
-                file_tubport = fileutil.read(self._portnumfile).strip()
-                configutil.set_config(self.config, "node", "tub.port", file_tubport)
-            except EnvironmentError:
-                if os.path.exists(self._portnumfile):
-                    raise
-
-    def error_about_old_config_files(self):
-        """ If any old configuration files are detected, raise OldConfigError. """
-
-        oldfnames = set()
-        for name in [
-            'nickname', 'webport', 'keepalive_timeout', 'log_gatherer.furl',
-            'disconnect_timeout', 'advertised_ip_addresses', 'introducer.furl',
-            'helper.furl', 'key_generator.furl', 'stats_gatherer.furl',
-            'no_storage', 'readonly_storage', 'sizelimit',
-            'debug_discard_storage', 'run_helper']:
-            if name not in self.GENERATED_FILES:
-                fullfname = os.path.join(self.basedir, name)
-                if os.path.exists(fullfname):
-                    oldfnames.add(fullfname)
-        if oldfnames:
-            e = OldConfigError(oldfnames)
-            twlog.msg(e)
-            raise e
-
     def create_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
         self.tub = Tub(certFile=certfile)
@@ -205,81 +292,6 @@ class Node(service.MultiService):
     def get_app_versions(self):
         # TODO: merge this with allmydata.get_package_versions
         return dict(app_versions.versions)
-
-    def get_config_from_file(self, name, required=False):
-        """Get the (string) contents of a config file, or None if the file
-        did not exist. If required=True, raise an exception rather than
-        returning None. Any leading or trailing whitespace will be stripped
-        from the data."""
-        fn = os.path.join(self.basedir, name)
-        try:
-            return fileutil.read(fn).strip()
-        except EnvironmentError:
-            if not required:
-                return None
-            raise
-
-    def write_private_config(self, name, value):
-        """Write the (string) contents of a private config file (which is a
-        config file that resides within the subdirectory named 'private'), and
-        return it.
-        """
-        privname = os.path.join(self.basedir, "private", name)
-        open(privname, "w").write(value)
-
-    def get_private_config(self, name, default=_None):
-        """Read the (string) contents of a private config file (which is a
-        config file that resides within the subdirectory named 'private'),
-        and return it. Return a default, or raise an error if one was not
-        given.
-        """
-        privname = os.path.join(self.basedir, "private", name)
-        try:
-            return fileutil.read(privname).strip()
-        except EnvironmentError:
-            if os.path.exists(privname):
-                raise
-            if default is _None:
-                raise MissingConfigEntry("The required configuration file %s is missing."
-                                         % (quote_output(privname),))
-            return default
-
-    def get_or_create_private_config(self, name, default=_None):
-        """Try to get the (string) contents of a private config file (which
-        is a config file that resides within the subdirectory named
-        'private'), and return it. Any leading or trailing whitespace will be
-        stripped from the data.
-
-        If the file does not exist, and default is not given, report an error.
-        If the file does not exist and a default is specified, try to create
-        it using that default, and then return the value that was written.
-        If 'default' is a string, use it as a default value. If not, treat it
-        as a zero-argument callable that is expected to return a string.
-        """
-        privname = os.path.join(self.basedir, "private", name)
-        try:
-            value = fileutil.read(privname)
-        except EnvironmentError:
-            if os.path.exists(privname):
-                raise
-            if default is _None:
-                raise MissingConfigEntry("The required configuration file %s is missing."
-                                         % (quote_output(privname),))
-            if isinstance(default, basestring):
-                value = default
-            else:
-                value = default()
-            fileutil.write(privname, value)
-        return value.strip()
-
-    def write_config(self, name, value, mode="w"):
-        """Write a string to a config file."""
-        fn = os.path.join(self.basedir, name)
-        try:
-            fileutil.write(fn, value, mode)
-        except EnvironmentError, e:
-            self.log("Unable to write config file '%s'" % fn)
-            self.log(e)
 
     def startService(self):
         # Note: this class can be started and stopped at most once.

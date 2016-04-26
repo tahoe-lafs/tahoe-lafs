@@ -5,7 +5,7 @@ Lease database design
 =====================
 
 The target audience for this document is developers who wish to understand
-the new lease database (leasedb) planned to be added in Tahoe-LAFS v1.11.0.
+the new lease database (leasedb) planned to be added in Tahoe-LAFS v1.12.0.
 
 
 Introduction
@@ -113,9 +113,9 @@ The accounting crawler may perform the following functions (but see ticket
   corrupted. This is handled in the same way as upgrading from a previous
   version.
 
-- Detect shares that have unexpectedly disappeared from storage.  The
-  disappearance of a share is logged, and its entry and leases are removed
-  from the leasedb.
+- Detect shares with stable entries in the leasedb that have unexpectedly
+  disappeared from storage. The disappearance of a share is logged, and its
+  entry and leases are removed from the leasedb.
 
 
 Accounts
