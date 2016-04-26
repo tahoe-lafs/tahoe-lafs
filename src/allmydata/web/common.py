@@ -2,7 +2,7 @@
 import time
 import simplejson
 
-from twisted.web import http, server
+from twisted.web import http, server, resource
 from twisted.python import log
 from zope.interface import Interface
 from nevow import loaders, appserver, rend
@@ -386,7 +386,7 @@ class RenderMixin:
         return m(ctx)
 
 
-class TokenOnlyWebApi(rend.Page):
+class TokenOnlyWebApi(resource.Resource):
     """
     I provide a rend.Page implementation that only accepts POST calls,
     and only if they have a 'token=' arg with the correct
@@ -402,14 +402,12 @@ class TokenOnlyWebApi(rend.Page):
     """
 
     def __init__(self, client):
-        super(TokenOnlyWebApi, self).__init__()
         self.client = client
 
     def post_json(self, req):
         return NotImplemented
 
-    def renderHTTP(self, ctx):
-        req = IRequest(ctx)
+    def render(self, req):
         if req.method != 'POST':
             raise server.UnsupportedMethod(('POST',))
         if req.args.get('token', False):

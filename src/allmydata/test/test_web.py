@@ -5939,7 +5939,7 @@ class TestTokenOnlyApi(unittest.TestCase):
 
         self.assertRaises(
             server.UnsupportedMethod,
-            self.page.renderHTTP, req,
+            self.page.render, req,
         )
 
     def test_missing_token(self):
@@ -5947,7 +5947,7 @@ class TestTokenOnlyApi(unittest.TestCase):
 
         exc = self.assertRaises(
             common.WebError,
-            self.page.renderHTTP, req,
+            self.page.render, req,
         )
         self.assertEquals(exc.text, "Missing token")
         self.assertEquals(exc.code, 401)
@@ -5958,7 +5958,7 @@ class TestTokenOnlyApi(unittest.TestCase):
 
         exc = self.assertRaises(
             common.WebError,
-            self.page.renderHTTP, req,
+            self.page.render, req,
         )
         self.assertEquals(exc.text, "Do not pass 'token' as URL argument")
         self.assertEquals(exc.code, 400)
@@ -5970,7 +5970,7 @@ class TestTokenOnlyApi(unittest.TestCase):
 
         exc = self.assertRaises(
             common.WebError,
-            self.page.renderHTTP, req,
+            self.page.render, req,
         )
         self.assertEquals(exc.text, "Invalid token")
         self.assertEquals(exc.code, 401)
@@ -5980,7 +5980,7 @@ class TestTokenOnlyApi(unittest.TestCase):
         req.fields['token'] = FakeField(self.client.token)
 
         with self.assertRaises(common.WebError) as exc:
-            self.page.renderHTTP(req)
+            self.page.render(req)
         self.assertEquals(exc.exception.text, "Must provide 't=' argument")
         self.assertEquals(exc.exception.code, 400)
 
@@ -5990,7 +5990,7 @@ class TestTokenOnlyApi(unittest.TestCase):
         req.args['t'] = 'not at all json'
 
         with self.assertRaises(common.WebError) as exc:
-            self.page.renderHTTP(req)
+            self.page.render(req)
         self.assertTrue("invalid type" in exc.exception.text)
         self.assertEquals(exc.exception.code, 400)
 
@@ -5999,5 +5999,5 @@ class TestTokenOnlyApi(unittest.TestCase):
         req.fields['token'] = FakeField(self.client.token)
         req.args['t'] = ['json']
 
-        result = self.page.renderHTTP(req)
+        result = self.page.render(req)
         self.assertTrue(result == NotImplemented)
