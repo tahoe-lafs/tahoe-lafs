@@ -372,12 +372,11 @@ class Client(node.Node, pollmixin.PollMixin):
         # (and everybody else who wants to use storage servers)
         ps = self.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
+        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True, preferred_peers=preferred_peers)
 
         connection_threshold = min(self.encoding_params["k"],
                                    self.encoding_params["happy"] + 1)
 
-        sb = storage_client.StorageFarmBroker(self.tub, True,
-                                              preferred_peers=preferred_peers)
         self.storage_broker = sb
         self.upload_ready_d = sb.when_connected_to(connection_threshold)
 
