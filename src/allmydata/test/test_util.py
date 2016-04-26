@@ -568,15 +568,18 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
                 os.chdir(saved_cwd)
 
     def test_make_dirs_with_absolute_mode(self):
+        if sys.platform == 'win32':
+            raise unittest.SkipTest("Permissions don't work the same on windows.")
+
         workdir = fileutil.abspath_expanduser_unicode(u"test_make_dirs_with_absolute_mode")
         fileutil.make_dirs(workdir)
         abspath = fileutil.abspath_expanduser_unicode(u"a/b/c/d", base=workdir)
         fileutil.make_dirs_with_absolute_mode(workdir, abspath, 0766)
-        new_mode = os.stat(os.path.join(workdir,"a/b/c/d")).st_mode & 0777
+        new_mode = os.stat(os.path.join(workdir, "a", "b", "c", "d")).st_mode & 0777
         self.failUnlessEqual(new_mode, 0766)
-        new_mode = os.stat(os.path.join(workdir,"a/b/c")).st_mode & 0777
+        new_mode = os.stat(os.path.join(workdir, "a", "b", "c")).st_mode & 0777
         self.failUnlessEqual(new_mode, 0766)
-        new_mode = os.stat(os.path.join(workdir,"a/b")).st_mode & 0777
+        new_mode = os.stat(os.path.join(workdir, "a", "b")).st_mode & 0777
         self.failUnlessEqual(new_mode, 0766)
         new_mode = os.stat(os.path.join(workdir,"a")).st_mode & 0777
         self.failUnlessEqual(new_mode, 0766)
