@@ -131,7 +131,6 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
-        self.upload_ready_d = defer.Deferred()
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
@@ -373,14 +372,13 @@ class Client(node.Node, pollmixin.PollMixin):
         # (and everybody else who wants to use storage servers)
         ps = self.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
+        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True, preferred_peers=preferred_peers)
 
         connection_threshold = min(self.encoding_params["k"],
                                    self.encoding_params["happy"] + 1)
 
-        sb = storage_client.StorageFarmBroker(self.tub, True, connection_threshold,
-                                              preferred_peers=preferred_peers)
         self.storage_broker = sb
-        self.upload_ready_d = self.storage_broker.when_connected_enough()
+        self.upload_ready_d = sb.when_connected_to(connection_threshold)
 
         # load static server specifications from tahoe.cfg, if any.
         # Not quite ready yet.
