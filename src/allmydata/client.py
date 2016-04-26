@@ -131,7 +131,6 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
-        self.upload_ready_d = defer.Deferred()
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
