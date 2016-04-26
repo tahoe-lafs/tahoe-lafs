@@ -55,6 +55,7 @@ from allmydata.util.hashutil import sha1
 # look like?
 #  don't pass signatures: only pass validated blessed-objects
 
+
 class StorageFarmBroker:
     implements(IStorageBroker)
     """I live on the client, and know about storage servers. For each server
@@ -63,12 +64,10 @@ class StorageFarmBroker:
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, tub, permute_peers, connected_threshold,
-                 preferred_peers=()):
+    def __init__(self, tub, permute_peers, preferred_peers=()):
         self.tub = tub
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
-        self.connected_threshold = connected_threshold
         self.preferred_peers = preferred_peers
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
@@ -76,19 +75,38 @@ class StorageFarmBroker:
         # them for it.
         self.servers = {}
         self.introducer_client = None
-        # becomes True if we've ever gone past connected_threshold
-        self._threshold_passed = False
-        self._connected_observer = OneShotObserverList()
+        # the most servers we've connected to at once
+        self._highest_connections = 0
+        # maps int -> OneShotObserverList, where the int is the threshold
+        self._connected_observers = dict()
 
-    def when_connected_enough(self):
+    def when_connected_to(self, threshold):
         """
-        :returns: a Deferred that fires when we have connected to enough
-        servers to cross the "connected_threshold". Once this happens
-        -- even if the number of connected servers goes back below the
-        threshold -- all calls to this method will immediately succeed
-        (i.e. return an already-fired Deferred).
+        :returns: a Deferred that fires if/when our high water mark for
+        number of connected servers becomes (or ever was) above
+        "threshold".
         """
-        return self._connected_observer.when_fired()
+        threshold = int(threshold)
+        if threshold <= 0:
+            raise ValueError("threshold must be positive")
+        if threshold <= self._highest_connections:
+            return defer.succeed(None)
+        try:
+            return self._connected_observers[threshold].when_fired()
+        except KeyError:
+            self._connected_observers[threshold] = OneShotObserverList()
+            return self._connected_observers[threshold].when_fired()
+
+    def check_enough_connected(self):
+        """
+        internal helper
+        """
+        num_servers = len(self.get_connected_servers())
+        self._highest_connections = max(num_servers, self._highest_connections)
+        try:
+            self._connected_observers[num_servers].fire_if_not_fired(None)
+        except KeyError:
+            pass
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
@@ -134,12 +152,6 @@ class StorageFarmBroker:
         # existing shares of mutable files). See #374 for more details.
         for dsc in self.servers.values():
             dsc.try_to_connect()
-
-    def check_enough_connected(self):
-        if (not self._threshold_passed and
-            len(self.get_connected_servers()) >= self.connected_threshold):
-            self._threshold_passed = True
-            self._connected_observer.fire(None)
 
     def get_servers_for_psi(self, peer_selection_index):
         # return a list of server objects (IServers)

@@ -248,7 +248,7 @@ class FakeClient(Client):
         self._secret_holder = SecretHolder("lease secret", "convergence secret")
         self.helper = None
         self.convergence = "some random string"
-        self.storage_broker = StorageFarmBroker(None, True, 0)
+        self.storage_broker = StorageFarmBroker(None, True)
         # fake knowledge of another server
         self.storage_broker.test_add_server("other_nodeid",
             FakeDisplayableServer(
