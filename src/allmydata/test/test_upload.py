@@ -198,7 +198,7 @@ class FakeClient:
             mode = dict([i,mode] for i in range(num_servers))
         servers = [ ("%20d"%fakeid, FakeStorageServer(mode[fakeid]))
                     for fakeid in range(self.num_servers) ]
-        self.storage_broker = StorageFarmBroker(None, permute_peers=True)
+        self.storage_broker = StorageFarmBroker(None, True, 0, None)
         for (serverid, rref) in servers:
             ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(serverid),
                    "permutation-seed-base32": base32.b2a(serverid) }
