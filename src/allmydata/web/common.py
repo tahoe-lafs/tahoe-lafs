@@ -5,7 +5,7 @@ import simplejson
 from twisted.web import http, server, resource
 from twisted.python import log
 from zope.interface import Interface
-from nevow import loaders, appserver, rend
+from nevow import loaders, appserver
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata import blacklist
