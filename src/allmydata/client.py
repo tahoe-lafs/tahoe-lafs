@@ -373,12 +373,12 @@ class Client(node.Node, pollmixin.PollMixin):
         ps = self.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
         sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True, preferred_peers=preferred_peers)
+        self.storage_broker = sb
 
         connection_threshold = min(self.encoding_params["k"],
                                    self.encoding_params["happy"] + 1)
-
-        self.storage_broker = sb
-        self.upload_ready_d = sb.when_connected_to(connection_threshold)
+        helper = storage_client.ConnectedEnough(sb, connection_threshold)
+        self.upload_ready_d = helper.when_connected_enough()
 
         # load static server specifications from tahoe.cfg, if any.
         # Not quite ready yet.

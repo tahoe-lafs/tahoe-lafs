@@ -1,12 +1,11 @@
-import os
-from mock import Mock, patch
+from mock import Mock
 from allmydata.util import base32
 
 from twisted.trial import unittest
-from twisted.internet.defer import Deferred, succeed, inlineCallbacks
+from twisted.internet.defer import succeed, inlineCallbacks
 
 from allmydata.storage_client import NativeStorageServer
-from allmydata.storage_client import StorageFarmBroker
+from allmydata.storage_client import StorageFarmBroker, ConnectedEnough
 
 
 class NativeStorageServerWithVersion(NativeStorageServer):
@@ -42,7 +41,7 @@ class TestStorageFarmBroker(unittest.TestCase):
         tub = Mock()
         introducer = Mock()
         broker = StorageFarmBroker(tub, True)
-        done = broker.when_connected_to(5)
+        done = ConnectedEnough(broker, 5).when_connected_enough()
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes
         subscribe = introducer.mock_calls[0]
