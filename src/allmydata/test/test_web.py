@@ -184,6 +184,8 @@ class FakeDisplayableServer(StubServer):
         self.last_loss_time = last_loss_time
         self.last_rx_time = last_rx_time
         self.last_connect_time = last_connect_time
+    def on_status_changed(self, cb):
+        cb(self)
     def is_connected(self):
         return self.connected
     def get_permutation_seed(self):
@@ -234,6 +236,8 @@ class FakeStorageServer(service.MultiService):
         self.lease_checker = FakeLeaseChecker()
     def get_stats(self):
         return {"storage_server.accepting_immutable_shares": False}
+    def on_status_changed(self, cb):
+        cb(self)
 
 class FakeClient(Client):
     def __init__(self):

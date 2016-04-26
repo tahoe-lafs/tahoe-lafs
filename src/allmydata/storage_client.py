@@ -31,10 +31,12 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 
 import re, time
 from zope.interface import implements
+from twisted.internet import defer
 from foolscap.api import eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
+from allmydata.util.observer import OneShotObserverList, ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import sha1
 
@@ -53,6 +55,42 @@ from allmydata.util.hashutil import sha1
 # what should the interface between StorageFarmBroker and IntroducerClient
 # look like?
 #  don't pass signatures: only pass validated blessed-objects
+
+
+class ConnectedEnough(object):
+    def __init__(self, storage_farm_broker, threshold):
+        self._broker = storage_farm_broker
+
+        self._threshold = int(threshold)
+        if self._threshold <= 0:
+            raise ValueError("threshold must be positive")
+        self._threshold_passed = False
+
+        self._observers = OneShotObserverList()
+        self._broker.on_servers_changed(self._check_enough_connected)
+
+    def when_connected_enough(self):
+        """
+        :returns: a Deferred that fires if/when our high water mark for
+        number of connected servers becomes (or ever was) above
+        "threshold".
+        """
+        if self._threshold_passed:
+            return defer.succeed(None)
+        return self._observers.when_fired()
+
+    def _check_enough_connected(self):
+        """
+        internal helper
+        """
+        if self._threshold_passed:
+            return
+        num_servers = len(self._broker.get_connected_servers())
+        if num_servers >= self._threshold:
+            self._threshold_passed = True
+            self._observers.fire(None)
+
+
 
 class StorageFarmBroker:
     implements(IStorageBroker)
@@ -73,6 +111,10 @@ class StorageFarmBroker:
         # them for it.
         self.servers = {}
         self.introducer_client = None
+        self._server_listeners = ObserverList()
+
+    def on_servers_changed(self, callback):
+        self._server_listeners.subscribe(callback)
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
@@ -82,11 +124,16 @@ class StorageFarmBroker:
         self.servers[serverid] = s
 
     def test_add_server(self, serverid, s):
+        s.on_status_changed(lambda _: self._got_connection())
         self.servers[serverid] = s
 
     def use_introducer(self, introducer_client):
         self.introducer_client = ic = introducer_client
         ic.subscribe_to("storage", self._got_announcement)
+
+    def _got_connection(self):
+        # this is called by NativeStorageClient when it is connected
+        self._server_listeners.notify()
 
     def _got_announcement(self, key_s, ann):
         if key_s is not None:
@@ -94,6 +141,7 @@ class StorageFarmBroker:
             precondition(key_s.startswith("v0-"), key_s)
         assert ann["service-name"] == "storage"
         s = NativeStorageServer(key_s, ann)
+        s.on_status_changed(lambda _: self._got_connection())
         serverid = s.get_serverid()
         old = self.servers.get(serverid)
         if old:
@@ -102,7 +150,7 @@ class StorageFarmBroker:
             # replacement
             del self.servers[serverid]
             old.stop_connecting()
-            # now we forget about them and start using the new one
+        # now we forget about them and start using the new one
         self.servers[serverid] = s
         s.start_connecting(self.tub, self._trigger_connections)
         # the descriptor will manage their own Reconnector, and each time we
@@ -222,6 +270,14 @@ class NativeStorageServer:
         self._is_connected = False
         self._reconnector = None
         self._trigger_cb = None
+        self._on_status_changed = ObserverList()
+
+    def on_status_changed(self, status_changed):
+        """
+        :param status_changed: a callable taking a single arg (the
+            NativeStorageServer) that is notified when we become connected
+        """
+        return self._on_status_changed.subscribe(status_changed)
 
     # Special methods used by copy.copy() and copy.deepcopy(). When those are
     # used in allmydata.immutable.filenode to copy CheckResults during
@@ -295,6 +351,7 @@ class NativeStorageServer:
         default = self.VERSION_DEFAULTS
         d = add_version_to_remote_reference(rref, default)
         d.addCallback(self._got_versioned_service, lp)
+        d.addCallback(lambda ign: self._on_status_changed.notify(self))
         d.addErrback(log.err, format="storageclient._got_connection",
                      name=self.get_name(), umid="Sdq3pg")
 
