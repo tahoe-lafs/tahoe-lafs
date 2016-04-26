@@ -208,7 +208,7 @@ class ConfigOnly(object, ConfigMixin):
         self.read_config()
 
 
-class Node(service.MultiService):
+class Node(service.MultiService, ConfigMixin):
     # this implements common functionality of both Client nodes and Introducer
     # nodes.
     NODETYPE = "unknown NODETYPE"
