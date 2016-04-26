@@ -373,7 +373,12 @@ class Client(node.Node, pollmixin.PollMixin):
         ps = self.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
         sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True, preferred_peers=preferred_peers)
+
+        connection_threshold = min(self.encoding_params["k"],
+                                   self.encoding_params["happy"] + 1)
+
         self.storage_broker = sb
+        self.upload_ready_d = sb.when_connected_to(connection_threshold)
 
         # load static server specifications from tahoe.cfg, if any.
         # Not quite ready yet.
@@ -528,6 +533,9 @@ class Client(node.Node, pollmixin.PollMixin):
                 s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8)
                 s.setServiceParent(self)
                 s.startService()
+
+                # start processing the upload queue when we've connected to enough servers
+                self.upload_ready_d.addCallback(s.upload_ready)
             except Exception, e:
                 self.log("couldn't start drop-uploader: %r", args=(e,))
 

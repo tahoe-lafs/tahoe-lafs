@@ -35,6 +35,7 @@ from foolscap.api import eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
+from allmydata.util.observer import OneShotObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import sha1
 
@@ -53,6 +54,7 @@ from allmydata.util.hashutil import sha1
 # what should the interface between StorageFarmBroker and IntroducerClient
 # look like?
 #  don't pass signatures: only pass validated blessed-objects
+
 
 class StorageFarmBroker:
     implements(IStorageBroker)
@@ -73,10 +75,42 @@ class StorageFarmBroker:
         # them for it.
         self.servers = {}
         self.introducer_client = None
+        # the most servers we've connected to at once
+        self._highest_connections = 0
+        # maps int -> OneShotObserverList, where the int is the threshold
+        self._connected_observers = dict()
+
+    def when_connected_to(self, threshold):
+        """
+        :returns: a Deferred that fires if/when our high water mark for
+        number of connected servers becomes (or ever was) above
+        "threshold".
+        """
+        threshold = int(threshold)
+        if threshold <= 0:
+            raise ValueError("threshold must be positive")
+        if threshold <= self._highest_connections:
+            return defer.succeed(None)
+        try:
+            return self._connected_observers[threshold].when_fired()
+        except KeyError:
+            self._connected_observers[threshold] = OneShotObserverList()
+            return self._connected_observers[threshold].when_fired()
+
+    def check_enough_connected(self):
+        """
+        internal helper
+        """
+        num_servers = len(self.get_connected_servers())
+        self._highest_connections = max(num_servers, self._highest_connections)
+        try:
+            self._connected_observers[num_servers].fire_if_not_fired(None)
+        except KeyError:
+            pass
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
-        s = NativeStorageServer(serverid, ann.copy())
+        s = NativeStorageServer(serverid, ann.copy(), self)
         s.rref = rref
         s._is_connected = True
         self.servers[serverid] = s
@@ -93,7 +127,7 @@ class StorageFarmBroker:
             precondition(isinstance(key_s, str), key_s)
             precondition(key_s.startswith("v0-"), key_s)
         assert ann["service-name"] == "storage"
-        s = NativeStorageServer(key_s, ann)
+        s = NativeStorageServer(key_s, ann, self)
         serverid = s.get_serverid()
         old = self.servers.get(serverid)
         if old:
@@ -190,9 +224,10 @@ class NativeStorageServer:
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, key_s, ann):
+    def __init__(self, key_s, ann, broker):
         self.key_s = key_s
         self.announcement = ann
+        self.broker = broker
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
@@ -295,6 +330,7 @@ class NativeStorageServer:
         default = self.VERSION_DEFAULTS
         d = add_version_to_remote_reference(rref, default)
         d.addCallback(self._got_versioned_service, lp)
+        d.addCallback(lambda ign: self.broker.check_enough_connected())
         d.addErrback(log.err, format="storageclient._got_connection",
                      name=self.get_name(), umid="Sdq3pg")
 
