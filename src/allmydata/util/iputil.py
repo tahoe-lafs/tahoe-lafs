@@ -1,5 +1,5 @@
 # from the Python Standard Library
-import os, re, socket, subprocess, errno
+import os, sys, re, socket, subprocess, errno
 
 from sys import platform
 
@@ -8,6 +8,7 @@ from twisted.internet import defer, threads, reactor
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet.error import CannotListenError
 from twisted.python.procutils import which
+from twisted.python.runtime import platformType
 from twisted.python import log
 
 try:
@@ -233,3 +234,19 @@ def _cygwin_hack_find_addresses():
             addresses.append(addr)
 
     return defer.succeed(addresses)
+
+def allocate_tcp_port():
+    """Return an (integer) available TCP port on localhost. This briefly
+    listens on the port in question, then closes it right away."""
+    # We want to bind() the socket but not listen(). Twisted (in
+    # tcp.Port.createInternetSocket) would do several other things:
+    # non-blocking, close-on-exec, and SO_REUSEADDR. We don't need
+    # non-blocking because we never listen on it, and we don't need
+    # close-on-exec because we close it right away. So just add SO_REUSEADDR.
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    if platformType == "posix" and sys.platform != "cygwin":
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
