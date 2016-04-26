@@ -35,6 +35,7 @@ from foolscap.api import eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
+from allmydata.util.observer import OneShotObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import sha1
 
@@ -62,13 +63,12 @@ class StorageFarmBroker:
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, tub, permute_peers, connected_threshold, connected_d,
+    def __init__(self, tub, permute_peers, connected_threshold,
                  preferred_peers=()):
         self.tub = tub
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self.connected_threshold = connected_threshold
-        self.connected_d = connected_d
         self.preferred_peers = preferred_peers
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
@@ -76,6 +76,19 @@ class StorageFarmBroker:
         # them for it.
         self.servers = {}
         self.introducer_client = None
+        # becomes True if we've ever gone past connected_threshold
+        self._threshold_passed = False
+        self._connected_observer = OneShotObserverList()
+
+    def when_connected_enough(self):
+        """
+        :returns: a Deferred that fires when we have connected to enough
+        servers to cross the "connected_threshold". Once this happens
+        -- even if the number of connected servers goes back below the
+        threshold -- all calls to this method will immediately succeed
+        (i.e. return an already-fired Deferred).
+        """
+        return self._connected_observer.when_fired()
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
@@ -123,11 +136,10 @@ class StorageFarmBroker:
             dsc.try_to_connect()
 
     def check_enough_connected(self):
-        if (self.connected_d is not None and
+        if (not self._threshold_passed and
             len(self.get_connected_servers()) >= self.connected_threshold):
-            d = self.connected_d
-            self.connected_d = None
-            d.callback(None)
+            self._threshold_passed = True
+            self._connected_observer.fire(None)
 
     def get_servers_for_psi(self, peer_selection_index):
         # return a list of server objects (IServers)

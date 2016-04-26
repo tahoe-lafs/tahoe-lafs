@@ -3,7 +3,7 @@ from mock import Mock, patch
 from allmydata.util import base32
 
 from twisted.trial import unittest
-from twisted.internet.defer import Deferred, succeed
+from twisted.internet.defer import Deferred, succeed, inlineCallbacks
 
 from allmydata.storage_client import NativeStorageServer
 from allmydata.storage_client import StorageFarmBroker
@@ -37,11 +37,12 @@ class TestNativeStorageServer(unittest.TestCase):
 
 class TestStorageFarmBroker(unittest.TestCase):
 
+    @inlineCallbacks
     def test_threshold_reached(self):
         tub = Mock()
         introducer = Mock()
-        done = Deferred()
-        broker = StorageFarmBroker(tub, True, 5, done)
+        broker = StorageFarmBroker(tub, True, 5)
+        done = broker.when_connected_enough()
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes
         subscribe = introducer.mock_calls[0]
@@ -71,4 +72,15 @@ class TestStorageFarmBroker(unittest.TestCase):
 
         # ...but the 5th *should* trigger the threshold
         add_one_server(42)
+
+        # so: the OneShotObserverList only notifies via
+        # foolscap.eventually() -- which forces the Deferred call
+        # through the reactor -- so it's no longer synchronous,
+        # meaning that we have to do "real reactor stuff" for the
+        # Deferred from when_connected_enough() to actually fire. (or
+        # @patch() out the reactor in foolscap.eventually to be a
+        # Clock() so we can advance time ourselves, but ... luckily
+        # eventually() uses 0 as the timeout currently)
+
+        yield done
         self.assertTrue(done.called)
