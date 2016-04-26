@@ -453,8 +453,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
     def tearDown(self):
         log.msg("shutting down SystemTest services")
-        d = self.stall(0.001)
-        d.addCallback(lambda _: self.sparent.stopService())
+        d = self.sparent.stopService()
         d.addBoth(flush_but_dont_ignore)
         return d
 
