@@ -2,6 +2,7 @@ import os, sys
 import twisted
 from twisted.trial import unittest
 from twisted.application import service
+from twisted.python.filepath import FilePath
 
 import allmydata
 import allmydata.frontends.drop_upload
@@ -48,11 +49,21 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         for s in should_fail:
             self.failUnless(Node._contains_unescaped_hash(s))
+            connections_filepath = FilePath(os.path.join(basedir, "private", "connections.yaml"))
+            try:
+                connections_filepath.remove()
+            except OSError, e:
+                pass
             write_config(s)
             self.failUnlessRaises(UnescapedHashError, client.Client, basedir)
 
         for s in should_not_fail:
             self.failIf(Node._contains_unescaped_hash(s))
+            connections_filepath = FilePath(os.path.join(basedir, "private", "connections.yaml"))
+            try:
+                connections_filepath.remove()
+            except OSError, e:
+                pass
             write_config(s)
             client.Client(basedir)
 
@@ -236,7 +247,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
-        sb = StorageFarmBroker(None, True)
+        sb = StorageFarmBroker(True)
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
                    "permutation-seed-base32": base32.b2a(k) }
@@ -248,7 +259,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
     def test_permute_with_preferred(self):
-        sb = StorageFarmBroker(None, True, ['1','4'])
+        sb = StorageFarmBroker(True, ['1','4'])
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
                    "permutation-seed-base32": base32.b2a(k) }

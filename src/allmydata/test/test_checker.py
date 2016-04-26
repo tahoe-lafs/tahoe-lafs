@@ -22,7 +22,7 @@ class FakeClient:
 class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def create_fake_client(self):
-        sb = StorageFarmBroker(None, True)
+        sb = StorageFarmBroker(True)
         # s.get_name() (the "short description") will be "v0-00000000".
         # s.get_longname() will include the -long suffix.
         # s.get_peerid() (i.e. tubid) will be "aaa.." or "777.." or "ceir.."

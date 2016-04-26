@@ -35,6 +35,14 @@ create-client``" command will create an initial ``tahoe.cfg`` file for
 you. After creation, the node will never modify the ``tahoe.cfg`` file: all
 persistent state is put in other files.
 
+A second file "``BASEDIR/private/introducers``" configures introducers. It is
+necessary to write all FURL entries into this file. Each line in this file
+contains exactly one FURL entry (except lines beginning with ``#`` which are
+ignored).  For backward compatibility reasons, any "``introducer.furl``" entry
+found in the ``tahoe.cfg`` file will automatically be copied into this file.
+Keeping a FURL entry in the ``tahoe.cfg`` file is not recommended for new
+users.
+
 The item descriptions below use the following types:
 
 ``boolean``
@@ -127,6 +135,12 @@ set the ``tub.location`` option described below.
     ``BASEDIR/public_html`` .  With the default settings,
     ``http://127.0.0.1:3456/static/foo.html`` will serve the contents of
     ``BASEDIR/public_html/foo.html`` .
+
+``web.reveal_storage_furls = (boolean, optional)``
+    This enables the ``/introducerless_config`` page of the WUI, which will
+    reveal the FURLs of storage servers to users of the gateway. See the
+    ``[client-server-selection]`` section below for more details. The default
+    value is false.
 
 ``tub.port = (integer, optional)``
 
@@ -290,13 +304,11 @@ Client Configuration
 
 ``[client]``
 
-``introducer.furl = (FURL string, mandatory)``
+``introducer.furl = (FURL string, optional)``
 
-    This FURL tells the client how to connect to the introducer. Each
-    Tahoe-LAFS grid is defined by an introducer. The introducer's FURL is
-    created by the introducer node and written into its private base
-    directory when it starts, whereupon it should be published to everyone
-    who wishes to attach a client to that grid
+    This option is kept for backward compatibility. If set, its value will be
+    appended to the ``BASEDIR/private/introducers`` file if it is not already
+    present there.
 
 ``helper.furl = (FURL string, optional)``
 
@@ -400,6 +412,39 @@ Client Configuration
     are at a single physical location, it would make sense for clients at that
     location to prefer their local servers so that they can maintain access to
     all of their uploads without using the internet.
+
+
+
+Client Server Selection
+=======================
+
+``[client-server-selection]``
+
+This optional section allows you to specify storage servers to connect to
+without relying on an introducer. When you are using an introducer, if
+web.reveal_storage_furls is set to true, you can copy and paste values for this
+section from the "Introducerless Config" page in the WUI.
+
+Note that in the following configuration options "serverid" is not
+literal but instead should be set to the appropriate serverid of a
+given node.
+
+``server.serverid.type = (type, mandatory)``
+
+    Right now only the 'tahoe-foolscap' storage server type is
+    supported.
+
+``server.serverid.nickname = (nickname, mandatory)``
+
+    Storage server nickname.
+
+``server.serverid.seed = (permutation-seed-base32, mandatory)``
+
+    Storage server permutation seed.
+
+``server.serverid.furl = (furl, mandatory)``
+
+    Storage server furl.
 
 
 Frontend Configuration
@@ -694,7 +739,6 @@ a legal one.
   timeout.disconnect = 1800
   
   [client]
-  introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
   helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@helper.tahoe.example:7054/kk8lhr
   
   [storage]

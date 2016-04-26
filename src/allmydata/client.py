@@ -1,4 +1,6 @@
-import os, stat, time, weakref
+import os, stat, time, weakref, yaml, importlib
+from twisted.python.filepath import FilePath
+from foolscap.api import eventually
 from allmydata import node
 from base64 import urlsafe_b64encode
 
@@ -105,6 +107,25 @@ class Terminator(service.Service):
             c.stop()
         return service.Service.stopService(self)
 
+def load_plugins(transport_dict):
+    """
+    load_plugins( transport_dict ) -> plugins_dict
+    transform a transport specification dict into.
+    plugins_dict of type plugin_name -> plugin_handler
+    """
+    plugins = {}
+    def getattr_qualified(obj, name):
+        for attr in name.split("."):
+            obj = getattr(obj, attr)
+        return obj
+    for name, handler_dict in transport_dict.items():
+        handler_dict = transport_dict[name]
+        handler_module = importlib.import_module(handler_dict['handler_module'])
+        handler_func = getattr_qualified(handler_module, handler_dict['handler_name'])
+        handler_args = handler_dict['parameters']
+        handler = handler_func(**handler_args)
+        plugins[name] = handler
+    return plugins
 
 class Client(node.Node, pollmixin.PollMixin):
     implements(IStatsProducer)
@@ -129,12 +150,14 @@ class Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": 128*KiB,
                                    }
 
-    def __init__(self, basedir="."):
+    def __init__(self, basedir=".", testing=False):
         node.Node.__init__(self, basedir)
+        self.testing = testing
+        self.introducer_clients = []
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
-        self.init_introducer_client()
+        self.load_connections()
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
@@ -180,15 +203,120 @@ class Client(node.Node, pollmixin.PollMixin):
         nonce = _make_secret().strip()
         return seqnum, nonce
 
-    def init_introducer_client(self):
-        self.introducer_furl = self.get_config("client", "introducer.furl")
-        ic = IntroducerClient(self.tub, self.introducer_furl,
-                              self.nickname,
-                              str(allmydata.__full_version__),
-                              str(self.OLDEST_SUPPORTED_VERSION),
-                              self.get_app_versions(),
-                              self._sequencer)
-        self.introducer_client = ic
+    def load_connections_from_yaml(self):
+        """
+        Load the connections.yaml file.
+        Return the yaml dict. If something fails,
+        return None.
+        """
+        connections_filepath = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
+        if connections_filepath.exists():
+            exists = True
+            with connections_filepath.open() as f:
+                connections = yaml.load(f)
+                f.close()
+        else:
+            connections = None
+        return connections
+
+    def write_connections_to_yaml(self, connections):
+        """
+        Writes the connections dict to
+        the node's private/connections.yaml
+        """
+        connections_filepath = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
+        connections_filepath.setContent(yaml.dump(connections))
+
+    def create_default_connections(self):
+        """
+        Return the default null configuration which specifies
+        the DefaultTCP foolscap transport plugin as the default
+        handler for the TCP foolscap connection hints.
+        """
+        connections = { 'introducers' : {},
+                        'servers' : {},
+                        'transport_plugins' : {
+                            'tcp' : {
+                                'handler_module' : 'foolscap.connection_plugins',
+                                'handler_name': 'DefaultTCP',
+                                'parameters' : {}
+                            },
+                        },
+        }
+        return connections
+
+    def set_default_introducer(self, furl, connections):
+        """
+        Given a furl and a connections dict, I will
+        return a new connections dict with the default
+        introducer furl set.
+        """
+        new_connections = connections.copy()
+        new_connections['introducers'][u'default'] = {}
+        new_connections['introducers'][u'default']['furl'] = furl
+        return new_connections
+
+    def load_connections(self):
+        """
+        Load the connections.yaml file if it exists, otherwise
+        create a default configuration. Abort startup and report
+        an error to the user if the tahoe.cfg contains an introducer
+        FURL which is also found in the connections.yaml.
+        """
+        self.introducer_furls = []
+        self.warn_flag = False
+
+        # no operation if no tub
+        if self.tub is None:
+            return
+
+        connections = self.load_connections_from_yaml()
+        if connections is None:
+            connections = self.create_default_connections()
+        introducers = connections['introducers']
+
+        # deprecated configuration option
+        tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
+        if tahoe_cfg_introducer_furl is not None:
+            intro_furls = [intro['furl'] for nick, intro in introducers.items()]
+            if tahoe_cfg_introducer_furl in intro_furls:
+                log.err("Introducer furl %s specified in both tahoe.cfg was also found in connections.yaml")
+                self.warn_flag = True
+            connections = self.set_default_introducer(tahoe_cfg_introducer_furl, connections)
+
+        # load and register plugins with our client tub
+        plugins = load_plugins(connections['transport_plugins'])
+        self.tub.removeAllConnectionHintHandlers()
+        for name, handler in plugins.items():
+            self.tub.addConnectionHintHandler(name, handler)
+
+        # Here we create an IntroducerClient for each
+        # configured introducer. It's endowed with
+        # various configuration information including
+        # it's foolscap transport plugins and YAML cache filepath
+        # for persisting announcements from storage servers.
+        introducers[u'default'] = { 'furl': tahoe_cfg_introducer_furl,
+                                    'subscribe_only': False }
+        for nickname in introducers.keys():
+            if introducers[nickname].has_key('transport_plugins'):
+                plugins = load_plugins(introducers[nickname]['transport_plugins'])
+            introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", nickname))
+            self.introducer_furls.append(introducers[nickname]['furl'])
+            ic = IntroducerClient(introducers[nickname]['furl'],
+                                  nickname,
+                                  str(allmydata.__full_version__),
+                                  str(self.OLDEST_SUPPORTED_VERSION),
+                                  self.get_app_versions(),
+                                  introducer_cache_filepath,
+                                  introducers[nickname]['subscribe_only'],
+                                  plugins)
+            self.introducer_clients.append(ic)
+
+        # init introducer_clients as usual
+        for ic in self.introducer_clients:
+            self.init_introducer_client(ic)
+
+    def init_introducer_client(self, ic):
         # hold off on starting the IntroducerClient until our tub has been
         # started, so we'll have a useful address on our RemoteReference, so
         # that the introducer's status page will show us.
@@ -318,7 +446,12 @@ class Client(node.Node, pollmixin.PollMixin):
             ann = {"anonymous-storage-FURL": furl,
                    "permutation-seed-base32": self._init_permutation_seed(ss),
                    }
-            self.introducer_client.publish("storage", ann, self._node_key)
+
+            current_seqnum, current_nonce = self._sequencer()
+
+            for ic in self.introducer_clients:
+                ic.publish("storage", ann, current_seqnum, current_nonce, self._node_key)
+
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="aLGBKw")
@@ -372,35 +505,22 @@ class Client(node.Node, pollmixin.PollMixin):
         # (and everybody else who wants to use storage servers)
         ps = self.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
-        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True, preferred_peers=preferred_peers)
+        sb = storage_client.StorageFarmBroker(permute_peers=True, preferred_peers=preferred_peers)
         self.storage_broker = sb
+        sb.setServiceParent(self)
 
-        # load static server specifications from tahoe.cfg, if any.
-        # Not quite ready yet.
-        #if self.config.has_section("client-server-selection"):
-        #    server_params = {} # maps serverid to dict of parameters
-        #    for (name, value) in self.config.items("client-server-selection"):
-        #        pieces = name.split(".")
-        #        if pieces[0] == "server":
-        #            serverid = pieces[1]
-        #            if serverid not in server_params:
-        #                server_params[serverid] = {}
-        #            server_params[serverid][pieces[2]] = value
-        #    for serverid, params in server_params.items():
-        #        server_type = params.pop("type")
-        #        if server_type == "tahoe-foolscap":
-        #            s = storage_client.NativeStorageClient(*params)
-        #        else:
-        #            msg = ("unrecognized server type '%s' in "
-        #                   "tahoe.cfg [client-server-selection]server.%s.type"
-        #                   % (server_type, serverid))
-        #            raise storage_client.UnknownServerTypeError(msg)
-        #        sb.add_server(s.serverid, s)
+        # initialize StorageFarmBroker with our static server selection
+        connections = self.load_connections_from_yaml()
+        if connections is not None and 'servers' in connections:
+            for server_id, server in connections['servers'].items():
+                plugins = load_plugins(server['transport_plugins'])
+                if self.testing:
+                    self.storage_broker.got_static_announcement(server['key_s'], server['announcement'], plugins)
+                else:
+                    eventually(self.storage_broker.got_static_announcement, server['key_s'], server['announcement'], plugins)
 
-        # check to see if we're supposed to use the introducer too
-        if self.get_config("client-server-selection", "use_introducer",
-                           default=True, boolean=True):
-            sb.use_introducer(self.introducer_client)
+        for ic in self.introducer_clients:
+            sb.use_introducer(ic)
 
     def get_storage_broker(self):
         return self.storage_broker
@@ -545,10 +665,14 @@ class Client(node.Node, pollmixin.PollMixin):
     def get_encoding_parameters(self):
         return self.encoding_params
 
-    def connected_to_introducer(self):
-        if self.introducer_client:
-            return self.introducer_client.connected_to_introducer()
-        return False
+    # In case we configure multiple introducers
+    def introducer_connection_statuses(self):
+        status = []
+        if self.introducer_clients:
+            for ic in self.introducer_clients:
+                s = ic.connected_to_introducer()
+                status.append(s)
+        return status
 
     def get_renewal_secret(self): # this will go away
         return self._secret_holder.get_renewal_secret()

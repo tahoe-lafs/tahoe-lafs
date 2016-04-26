@@ -46,6 +46,10 @@ body {
     margin-bottom: 20px;
 }
 
+.grid-status h3 {
+    clear: left;
+}
+
 .grid-status {
     margin-top: 5px;
 }

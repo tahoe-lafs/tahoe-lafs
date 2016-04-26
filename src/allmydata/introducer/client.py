@@ -1,14 +1,16 @@
 
-import time
+import time, os, yaml
 from zope.interface import implements
 from twisted.application import service
 from foolscap.api import Referenceable, eventually, RemoteInterface
+from foolscap.api import Tub
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
      RIIntroducerSubscriberClient_v1, RIIntroducerSubscriberClient_v2
 from allmydata.introducer.common import sign_to_foolscap, unsign_from_foolscap,\
      convert_announcement_v1_to_v2, convert_announcement_v2_to_v1, \
      make_index, get_tubid_string_from_ann, get_tubid_string
+from allmydata import storage_client
 from allmydata.util import log
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.keyutil import BadSignatureError
@@ -42,21 +44,28 @@ class StubClient(Referenceable): # for_v1
 V1 = "http://allmydata.org/tahoe/protocols/introducer/v1"
 V2 = "http://allmydata.org/tahoe/protocols/introducer/v2"
 
-class IntroducerClient(service.Service, Referenceable):
+class IntroducerClient(service.MultiService, Referenceable):
     implements(RIIntroducerSubscriberClient_v2, IIntroducerClient)
 
-    def __init__(self, tub, introducer_furl,
+    def __init__(self, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions, sequencer):
-        self._tub = tub
+                 app_versions, cache_filepath, subscribe_only, plugins):
+        service.MultiService.__init__(self)
+
+        self._tub = Tub()
+        #self._tub.setOption("expose-remote-exception-types", False) # XXX
+        for name, handler in plugins.items():
+            self._tub.addConnectionHintHandler(name, handler)
         self.introducer_furl = introducer_furl
+        self.cache_filepath = cache_filepath
+        self.subscribe_only = subscribe_only
+        self.plugins = plugins
 
         assert type(nickname) is unicode
         self._nickname = nickname
         self._my_version = my_version
         self._oldest_supported = oldest_supported
         self._app_versions = app_versions
-        self._sequencer = sequencer
 
         self._my_subscriber_info = { "version": 0,
                                      "nickname": self._nickname,
@@ -72,6 +81,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._canary = Referenceable()
 
         self._publisher = None
+        self._since = None
 
         self._local_subscribers = [] # (servicename,cb,args,kwargs) tuples
         self._subscribed_service_names = set()
@@ -103,15 +113,48 @@ class IntroducerClient(service.Service, Referenceable):
         return res
 
     def startService(self):
-        service.Service.startService(self)
+        service.MultiService.startService(self)
         self._introducer_error = None
+        self._tub.setServiceParent(self)
         rc = self._tub.connectTo(self.introducer_furl, self._got_introducer)
         self._introducer_reconnector = rc
         def connect_failed(failure):
             self.log("Initial Introducer connection failed: perhaps it's down",
                      level=log.WEIRD, failure=failure, umid="c5MqUQ")
+            self.load_announcements()
         d = self._tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
+
+    def load_announcements(self):
+        if self.cache_filepath.exists():
+            with self.cache_filepath.open() as f:
+                servers = yaml.load(f)
+                f.close()
+            if not isinstance(servers, list):
+                msg = "Invalid cached storage server announcements. No list encountered."
+                self.log(msg,
+                         level=log.WEIRD)
+                raise storage_client.UnknownServerTypeError(msg)
+            for server_params in servers:
+                if not isinstance(server_params, dict):
+                    msg = "Invalid cached storage server announcement encountered. No key/values found in %s" % server_params
+                    self.log(msg,
+                             level=log.WEIRD)
+                    raise storage_client.UnknownServerTypeError(msg)
+                eventually(self._got_announcement_cb, server_params['key_s'], server_params['ann'], self.plugins)
+
+    def _save_announcement(self, ann):
+        if self.cache_filepath.exists():
+            with self.cache_filepath.open() as f:
+                announcements = yaml.load(f)
+                f.close()
+        else:
+            announcements = []
+        if ann in announcements:
+            return
+        announcements.append(ann)
+        ann_yaml = yaml.dump(announcements)
+        self.cache_filepath.setContent(ann_yaml)
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")
@@ -133,6 +176,7 @@ class IntroducerClient(service.Service, Referenceable):
         if not (V1 in publisher.version or V2 in publisher.version):
             raise InsufficientVersionError("V1 or V2", publisher.version)
         self._publisher = publisher
+        self._since = int(time.time())
         publisher.notifyOnDisconnect(self._disconnected)
         self._maybe_publish()
         self._maybe_subscribe()
@@ -140,6 +184,7 @@ class IntroducerClient(service.Service, Referenceable):
     def _disconnected(self):
         self.log("bummer, we've lost our connection to the introducer")
         self._publisher = None
+        self._since = int(time.time())
         self._subscriptions.clear()
 
     def log(self, *args, **kwargs):
@@ -148,13 +193,14 @@ class IntroducerClient(service.Service, Referenceable):
         return log.msg(*args, **kwargs)
 
     def subscribe_to(self, service_name, cb, *args, **kwargs):
+        self._got_announcement_cb = cb
         self._local_subscribers.append( (service_name,cb,args,kwargs) )
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
         for index,(ann,key_s,when) in self._inbound_announcements.items():
             servicename = index[0]
             if servicename == service_name:
-                eventually(cb, key_s, ann, *args, **kwargs)
+                eventually(cb, key_s, ann, self.plugins, *args, **kwargs)
 
     def _maybe_subscribe(self):
         if not self._publisher:
@@ -194,7 +240,7 @@ class IntroducerClient(service.Service, Referenceable):
             self.publish("stub_client",
                          { "anonymous-storage-FURL": furl,
                            "permutation-seed-base32": get_tubid_string(furl),
-                           })
+                           }, 0, "")
         d.addCallback(_publish_stub_client)
         return d
 
@@ -212,10 +258,11 @@ class IntroducerClient(service.Service, Referenceable):
         ann_d.update(ann)
         return ann_d
 
-    def publish(self, service_name, ann, signing_key=None):
+    def publish(self, service_name, ann, current_seqnum, current_nonce, signing_key=None):
+        if self.subscribe_only:
+            # no operation for subscribe-only mode
+            return
         # we increment the seqnum every time we publish something new
-        current_seqnum, current_nonce = self._sequencer()
-
         ann_d = self.create_announcement_dict(service_name, ann)
         self._outbound_announcements[service_name] = ann_d
 
@@ -347,7 +394,22 @@ class IntroducerClient(service.Service, Referenceable):
 
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
-                eventually(cb, key_s, ann, *args, **kwargs)
+                eventually(cb, key_s, ann, self.plugins, *args, **kwargs)
+
+        server_params = {}
+        server_params['ann'] = ann
+        server_params['key_s'] = key_s
+        self._save_announcement(server_params)
 
     def connected_to_introducer(self):
         return bool(self._publisher)
+
+    def get_since(self):
+        return self._since
+
+    def get_last_received_data_time(self):
+        if self._publisher is None:
+            return None
+        else:
+            return self._publisher.getDataLastReceivedAt()
+
