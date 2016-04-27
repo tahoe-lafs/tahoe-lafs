@@ -48,15 +48,10 @@ class IntroducerNode(node.Node):
                 """
                 raise FurlFileConflictError(textwrap.dedent(msg))
             os.rename(old_public_fn, private_fn)
-        d = self.when_tub_ready()
-        def _publish(res):
-            furl = self.tub.registerReference(introducerservice,
-                                              furlFile=private_fn)
-            self.log(" introducer is at %s" % furl, umid="qF2L9A")
-            self.introducer_url = furl # for tests
-        d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="UaNs9A")
+        furl = self.tub.registerReference(introducerservice,
+                                          furlFile=private_fn)
+        self.log(" introducer is at %s" % furl, umid="qF2L9A")
+        self.introducer_url = furl # for tests
 
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,), umid="2bUygA")

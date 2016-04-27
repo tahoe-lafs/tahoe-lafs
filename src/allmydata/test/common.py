@@ -481,8 +481,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 f.close()
         iv = IntroducerNode(basedir=iv_dir)
         self.introducer = self.add_service(iv)
-        d = self.introducer.when_tub_ready()
-        d.addCallback(self._get_introducer_web)
+        self._get_introducer_web()
+        d = defer.succeed(None)
         if use_stats_gatherer:
             d.addCallback(self._set_up_stats_gatherer)
         if use_key_generator:
@@ -492,7 +492,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             d.addCallback(self._grab_stats)
         return d
 
-    def _get_introducer_web(self, res):
+    def _get_introducer_web(self):
         f = open(os.path.join(self.getdir("introducer"), "node.url"), "r")
         self.introweb_url = f.read().strip()
         f.close()
@@ -591,27 +591,25 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         c = self.add_service(client.Client(basedir=basedirs[0]))
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
-        d = c.when_tub_ready()
-        def _ready(res):
-            f = open(os.path.join(basedirs[0],"private","helper.furl"), "r")
-            helper_furl = f.read()
-            f.close()
-            self.helper_furl = helper_furl
-            if self.numclients >= 4:
-                f = open(os.path.join(basedirs[3], 'tahoe.cfg'), 'ab+')
-                f.write(
-                      "[client]\n"
-                      "helper.furl = %s\n" % helper_furl)
-                f.close()
 
-            # this starts the rest of the clients
-            for i in range(1, self.numclients):
-                c = self.add_service(client.Client(basedir=basedirs[i]))
-                self.clients.append(c)
-                c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
-            log.msg("STARTING")
-            return self.wait_for_connections()
-        d.addCallback(_ready)
+        f = open(os.path.join(basedirs[0],"private","helper.furl"), "r")
+        helper_furl = f.read()
+        f.close()
+        self.helper_furl = helper_furl
+        if self.numclients >= 4:
+            f = open(os.path.join(basedirs[3], 'tahoe.cfg'), 'ab+')
+            f.write(
+                  "[client]\n"
+                  "helper.furl = %s\n" % helper_furl)
+            f.close()
+
+        # this starts the rest of the clients
+        for i in range(1, self.numclients):
+            c = self.add_service(client.Client(basedir=basedirs[i]))
+            self.clients.append(c)
+            c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
+        log.msg("STARTING")
+        d = self.wait_for_connections()
         def _connected(res):
             log.msg("CONNECTED")
             # now find out where the web port was
@@ -643,7 +641,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             self.clients[num] = new_c
             new_c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
             self.add_service(new_c)
-            return new_c.when_tub_ready()
         d.addCallback(_stopped)
         d.addCallback(lambda res: self.wait_for_connections())
         def _maybe_get_webport(res):

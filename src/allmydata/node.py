@@ -3,13 +3,12 @@ from base64 import b32decode, b32encode
 
 from twisted.python import log as twlog
 from twisted.application import service
-from twisted.internet import reactor
-from foolscap.api import Tub, eventually, app_versions
+from foolscap.api import Tub, app_versions
 import foolscap.logging.log
 from allmydata import get_package_versions, get_package_versions_string
 from allmydata.util import log
-from allmydata.util import fileutil, iputil, observer
-from allmydata.util.assertutil import precondition, _assert
+from allmydata.util import fileutil, iputil
+from allmydata.util.assertutil import _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
@@ -74,7 +73,6 @@ class Node(service.MultiService):
         service.MultiService.__init__(self)
         self.basedir = abspath_expanduser_unicode(unicode(basedir))
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
-        self._tub_ready_observerlist = observer.OneShotObserverList()
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
         open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
 
@@ -228,6 +226,7 @@ class Node(service.MultiService):
         self.tub.setLocation(location)
         self.log("Tub location set to %s" % (location,))
 
+        # the Tub is now ready for tub.registerReference()
         self.tub.setServiceParent(self)
 
     def get_app_versions(self):
@@ -321,25 +320,13 @@ class Node(service.MultiService):
             os.chmod("twistd.pid", 0644)
         except EnvironmentError:
             pass
-        # Delay until the reactor is running.
-        eventually(self._startService)
-
-    def _startService(self):
-        precondition(reactor.running)
-        self.log("Node._startService")
 
         service.MultiService.startService(self)
         self.log("%s running" % self.NODETYPE)
-        self._tub_ready_observerlist.fire(self)
 
     def stopService(self):
         self.log("Node.stopService")
-        d = self._tub_ready_observerlist.when_fired()
-        def _really_stopService(ignored):
-            self.log("Node._really_stopService")
-            return service.MultiService.stopService(self)
-        d.addCallback(_really_stopService)
-        return d
+        return service.MultiService.stopService(self)
 
     def shutdown(self):
         """Shut down the node. Returns a Deferred that fires (with None) when
@@ -374,9 +361,6 @@ class Node(service.MultiService):
 
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
-
-    def when_tub_ready(self):
-        return self._tub_ready_observerlist.when_fired()
 
     def add_service(self, s):
         s.setServiceParent(self)

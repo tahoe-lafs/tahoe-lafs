@@ -148,12 +148,9 @@ class StatsProvider(Referenceable, service.MultiService):
 
     def startService(self):
         if self.node and self.gatherer_furl:
-            d = self.node.when_tub_ready()
-            def connect(junk):
-                nickname_utf8 = self.node.nickname.encode("utf-8")
-                self.node.tub.connectTo(self.gatherer_furl,
-                                        self._connected, nickname_utf8)
-            d.addCallback(connect)
+            nickname_utf8 = self.node.nickname.encode("utf-8")
+            self.node.tub.connectTo(self.gatherer_furl,
+                                    self._connected, nickname_utf8)
         service.MultiService.startService(self)
 
     def count(self, name, delta=1):

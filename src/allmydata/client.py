@@ -131,6 +131,8 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
+        # All tub.registerReference must happen *after* we upcall, since
+        # that's what does tub.setLocation()
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
@@ -188,15 +190,7 @@ class Client(node.Node, pollmixin.PollMixin):
                               self.get_app_versions(),
                               self._sequencer)
         self.introducer_client = ic
-        # hold off on starting the IntroducerClient until our tub has been
-        # started, so we'll have a useful address on our RemoteReference, so
-        # that the introducer's status page will show us.
-        d = self.when_tub_ready()
-        def _start_introducer_client(res):
-            ic.setServiceParent(self)
-        d.addCallback(_start_introducer_client)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="URyI5w")
+        ic.setServiceParent(self)
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config("client", "stats_gatherer.furl", None)
@@ -309,18 +303,12 @@ class Client(node.Node, pollmixin.PollMixin):
                            expiration_sharetypes=expiration_sharetypes)
         self.add_service(ss)
 
-        d = self.when_tub_ready()
-        # we can't do registerReference until the Tub is ready
-        def _publish(res):
-            furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
-            furl = self.tub.registerReference(ss, furlFile=furl_file)
-            ann = {"anonymous-storage-FURL": furl,
-                   "permutation-seed-base32": self._init_permutation_seed(ss),
-                   }
-            self.introducer_client.publish("storage", ann, self._node_key)
-        d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="aLGBKw")
+        furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
+        furl = self.tub.registerReference(ss, furlFile=furl_file)
+        ann = {"anonymous-storage-FURL": furl,
+               "permutation-seed-base32": self._init_permutation_seed(ss),
+               }
+        self.introducer_client.publish("storage", ann, self._node_key)
 
     def init_client(self):
         helper_furl = self.get_config("client", "helper.furl", None)
@@ -433,41 +421,26 @@ class Client(node.Node, pollmixin.PollMixin):
         return self.history
 
     def init_control(self):
-        d = self.when_tub_ready()
-        def _publish(res):
-            c = ControlServer()
-            c.setServiceParent(self)
-            control_url = self.tub.registerReference(c)
-            self.write_private_config("control.furl", control_url + "\n")
-        d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="d3tNXA")
+        c = ControlServer()
+        c.setServiceParent(self)
+        control_url = self.tub.registerReference(c)
+        self.write_private_config("control.furl", control_url + "\n")
 
     def init_helper(self):
-        d = self.when_tub_ready()
-        def _publish(self):
-            self.helper = Helper(os.path.join(self.basedir, "helper"),
-                                 self.storage_broker, self._secret_holder,
-                                 self.stats_provider, self.history)
-            # TODO: this is confusing. BASEDIR/private/helper.furl is created
-            # by the helper. BASEDIR/helper.furl is consumed by the client
-            # who wants to use the helper. I like having the filename be the
-            # same, since that makes 'cp' work smoothly, but the difference
-            # between config inputs and generated outputs is hard to see.
-            helper_furlfile = os.path.join(self.basedir,
-                                           "private", "helper.furl").encode(get_filesystem_encoding())
-            self.tub.registerReference(self.helper, furlFile=helper_furlfile)
-        d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="K0mW5w")
+        self.helper = Helper(os.path.join(self.basedir, "helper"),
+                             self.storage_broker, self._secret_holder,
+                             self.stats_provider, self.history)
+        # TODO: this is confusing. BASEDIR/private/helper.furl is created by
+        # the helper. BASEDIR/helper.furl is consumed by the client who wants
+        # to use the helper. I like having the filename be the same, since
+        # that makes 'cp' work smoothly, but the difference between config
+        # inputs and generated outputs is hard to see.
+        helper_furlfile = os.path.join(self.basedir,
+                                       "private", "helper.furl").encode(get_filesystem_encoding())
+        self.tub.registerReference(self.helper, furlFile=helper_furlfile)
 
     def init_key_gen(self, key_gen_furl):
-        d = self.when_tub_ready()
-        def _subscribe(self):
-            self.tub.connectTo(key_gen_furl, self._got_key_generator)
-        d.addCallback(_subscribe)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="z9DMzw")
+        self.tub.connectTo(key_gen_furl, self._got_key_generator)
 
     def _got_key_generator(self, key_generator):
         self._key_generator.set_remote_generator(key_generator)

@@ -34,45 +34,33 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         os.mkdir(basedir)
         public_fn = os.path.join(basedir, "introducer.furl")
         private_fn = os.path.join(basedir, "private", "introducer.furl")
+
         q1 = IntroducerNode(basedir)
-        d = fireEventually(None)
-        d.addCallback(lambda res: q1.startService())
-        d.addCallback(lambda res: q1.when_tub_ready())
-        d.addCallback(lambda res: q1.stopService())
-        d.addCallback(flushEventualQueue)
-        def _check_furl(res):
-            # new nodes create unguessable furls in private/introducer.furl
-            ifurl = fileutil.read(private_fn)
-            self.failUnless(ifurl)
-            ifurl = ifurl.strip()
-            self.failIf(ifurl.endswith("/introducer"), ifurl)
+        del q1
+        # new nodes create unguessable furls in private/introducer.furl
+        ifurl = fileutil.read(private_fn)
+        self.failUnless(ifurl)
+        ifurl = ifurl.strip()
+        self.failIf(ifurl.endswith("/introducer"), ifurl)
 
-            # old nodes created guessable furls in BASEDIR/introducer.furl
-            guessable = ifurl[:ifurl.rfind("/")] + "/introducer"
-            fileutil.write(public_fn, guessable+"\n", mode="w") # text
+        # old nodes created guessable furls in BASEDIR/introducer.furl
+        guessable = ifurl[:ifurl.rfind("/")] + "/introducer"
+        fileutil.write(public_fn, guessable+"\n", mode="w") # text
 
-            # if we see both files, throw an error
-            self.failUnlessRaises(FurlFileConflictError,
-                                  IntroducerNode, basedir)
+        # if we see both files, throw an error
+        self.failUnlessRaises(FurlFileConflictError,
+                              IntroducerNode, basedir)
 
-            # when we see only the public one, move it to private/ and use
-            # the existing furl instead of creating a new one
-            os.unlink(private_fn)
-            q2 = IntroducerNode(basedir)
-            d2 = fireEventually(None)
-            d2.addCallback(lambda res: q2.startService())
-            d2.addCallback(lambda res: q2.when_tub_ready())
-            d2.addCallback(lambda res: q2.stopService())
-            d2.addCallback(flushEventualQueue)
-            def _check_furl2(res):
-                self.failIf(os.path.exists(public_fn))
-                ifurl2 = fileutil.read(private_fn)
-                self.failUnless(ifurl2)
-                self.failUnlessEqual(ifurl2.strip(), guessable)
-            d2.addCallback(_check_furl2)
-            return d2
-        d.addCallback(_check_furl)
-        return d
+        # when we see only the public one, move it to private/ and use
+        # the existing furl instead of creating a new one
+        os.unlink(private_fn)
+
+        q2 = IntroducerNode(basedir)
+        del q2
+        self.failIf(os.path.exists(public_fn))
+        ifurl2 = fileutil.read(private_fn)
+        self.failUnless(ifurl2)
+        self.failUnlessEqual(ifurl2.strip(), guessable)
 
     def test_web_static(self):
         basedir = u"introducer.Node.test_web_static"
