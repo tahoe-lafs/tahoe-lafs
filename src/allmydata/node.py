@@ -3,7 +3,7 @@ from base64 import b32decode, b32encode
 
 from twisted.python import log as twlog
 from twisted.application import service
-from twisted.internet import defer, reactor
+from twisted.internet import reactor
 from foolscap.api import Tub, eventually, app_versions
 import foolscap.logging.log
 from allmydata import get_package_versions, get_package_versions_string
@@ -182,6 +182,24 @@ class Node(service.MultiService):
         fileutil.write_atomically(self._portnumfile, tubport + "\n", mode="")
         return tubport
 
+    def get_tub_location(self, tubport):
+        location = self.get_config("node", "tub.location", "AUTO")
+        # Replace the location "AUTO", if present, with the detected local
+        # addresses. Don't probe for local addresses unless necessary.
+        split_location = location.split(",")
+        if "AUTO" in split_location:
+            local_addresses = iputil.get_local_addresses_sync()
+            # tubport must be like "tcp:12345" or "tcp:12345:morestuff"
+            local_portnum = int(tubport.split(":")[1])
+        new_locations = []
+        for loc in split_location:
+            if loc == "AUTO":
+                new_locations.extend(["tcp:%s:%d" % (ip, local_portnum)
+                                      for ip in local_addresses])
+            else:
+                new_locations.append(loc)
+        return ",".join(new_locations)
+
     def create_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
         self.tub = Tub(certFile=certfile)
@@ -205,9 +223,11 @@ class Node(service.MultiService):
         if tubport in ("0", "tcp:0"):
             raise ValueError("tub.port cannot be 0: you must choose")
         self.tub.listenOn(tubport)
-        # we must wait until our service has started before we can find out
-        # our IP address and thus do tub.setLocation, and we can't register
-        # any services with the Tub until after that point
+
+        location = self.get_tub_location(tubport)
+        self.tub.setLocation(location)
+        self.log("Tub location set to %s" % (location,))
+
         self.tub.setServiceParent(self)
 
     def get_app_versions(self):
@@ -309,25 +329,8 @@ class Node(service.MultiService):
         self.log("Node._startService")
 
         service.MultiService.startService(self)
-        d = defer.succeed(None)
-        d.addCallback(self._setup_tub)
-        def _ready(res):
-            self.log("%s running" % self.NODETYPE)
-            self._tub_ready_observerlist.fire(self)
-            return self
-        d.addCallback(_ready)
-        d.addErrback(self._service_startup_failed)
-
-    def _service_startup_failed(self, failure):
-        self.log('_startService() failed')
-        log.err(failure)
-        print "Node._startService failed, aborting"
-        print failure
-        #reactor.stop() # for unknown reasons, reactor.stop() isn't working.  [ ] TODO
-        self.log('calling os.abort()')
-        twlog.msg('calling os.abort()') # make sure it gets into twistd.log
-        print "calling os.abort()"
-        os.abort()
+        self.log("%s running" % self.NODETYPE)
+        self._tub_ready_observerlist.fire(self)
 
     def stopService(self):
         self.log("Node.stopService")
@@ -371,36 +374,6 @@ class Node(service.MultiService):
 
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
-
-    def _setup_tub(self, ign):
-        # we can't get a dynamically-assigned portnum until our Tub is
-        # running, which means after startService.
-        l = self.tub.getListeners()[0]
-        portnum = l.getPortnum()
-
-        location = self.get_config("node", "tub.location", "AUTO")
-
-        # Replace the location "AUTO", if present, with the detected local addresses.
-        split_location = location.split(",")
-        if "AUTO" in split_location:
-            d = iputil.get_local_addresses_async()
-            def _add_local(local_addresses):
-                while "AUTO" in split_location:
-                    split_location.remove("AUTO")
-
-                split_location.extend([ "%s:%d" % (addr, portnum)
-                                        for addr in local_addresses ])
-                return ",".join(split_location)
-            d.addCallback(_add_local)
-        else:
-            d = defer.succeed(location)
-
-        def _got_location(location):
-            self.log("Tub location set to %s" % (location,))
-            self.tub.setLocation(location)
-            return self.tub
-        d.addCallback(_got_location)
-        return d
 
     def when_tub_ready(self):
         return self._tub_ready_observerlist.when_fired()
