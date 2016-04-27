@@ -1014,10 +1014,17 @@ class ClientSeqnums(unittest.TestCase):
     def test_client(self):
         basedir = "introducer/ClientSeqnums/test_client"
         fileutil.make_dirs(basedir)
+        # if storage is enabled, the Client will publish its storage server
+        # during startup (although the announcement will wait in a queue
+        # until the introducer connection is established). To avoid getting
+        # confused by this, disable storage.
         f = open(os.path.join(basedir, "tahoe.cfg"), "w")
         f.write("[client]\n")
         f.write("introducer.furl = nope\n")
+        f.write("[storage]\n")
+        f.write("enabled = false\n")
         f.close()
+
         c = TahoeClient(basedir)
         ic = c.introducer_client
         outbound = ic._outbound_announcements
