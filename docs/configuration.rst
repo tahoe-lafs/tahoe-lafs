@@ -49,13 +49,22 @@ The item descriptions below use the following types:
     not specified, Tahoe-LAFS will attempt to bind the port specified on all
     interfaces.
 
+``endpoint specification string``
+
+    a Twisted Endpoint specification string, like "``tcp:80``" or
+    "``tcp:3456:interface=127.0.0.1``". These are replacing strports strings.
+    For a full description of the format, see `the Twisted Endpoints
+    documentation`_. Please note, if interface= is not specified, Tahoe-LAFS
+    will attempt to bind the port specified on all interfaces. Also note that
+    ``tub.port`` only works with TCP endpoints right now.
+
 ``FURL string``
 
     a Foolscap endpoint identifier, like
     ``pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm``
 
 .. _the Twisted strports documentation: https://twistedmatrix.com/documents/current/api/twisted.application.strports.html
-
+.. _the Twisted Endpoints documentation: http://twistedmatrix.com/documents/current/core/howto/endpoints.html#endpoint-types-included-with-twisted
 
 Node Types
 ==========
@@ -128,13 +137,28 @@ set the ``tub.location`` option described below.
     ``http://127.0.0.1:3456/static/foo.html`` will serve the contents of
     ``BASEDIR/public_html/foo.html`` .
 
-``tub.port = (integer, optional)``
+``tub.port = (endpoints specification string, optional)``
 
-    This controls which port the node uses to accept Foolscap connections
-    from other nodes. If not provided, the node will ask the kernel for any
-    available port. The port will be written to a separate file (named
+    This controls the node's "listening port", through which it accepts
+    Foolscap connections from other nodes. If not provided, the node will ask
+    the kernel to allocate an available port, then saves it to a file (named
     ``client.port`` or ``introducer.port``), so that subsequent runs will
-    re-use the same port.
+    re-use the same port. The value should be ``tcp:`` followed by a port
+    number, e.g. ``tcp:3457``.
+
+    Note that the node can advertise an entirely different host+port (with
+    ``tub.location``, below) than the port that it listens on (controlled by
+    ``tub.port``). This is most useful when the node is a storage server and
+    lives behind a firewall that has been configured to forward a TCP port.
+    ``tub.location`` would be set to ``tcp:ADDR1:PORT1`` (where ADDR1 is the
+    external hostname or IP address of the firewall box, and PORT1 is the
+    externally-visible port), while ``tub.port`` would be ``tcp:PORT2``
+    (where the firewall is forwarding external PORT1 to internal PORT2).
+
+    ``tub.port`` cannot be ``tcp:0`` or ``0``: older versions accepted this,
+    but the node is no longer willing to ask Twisted to allocate port numbers
+    in this way. For backwards compatibility, a ``tub.port`` that is an
+    integer (other than 0) will be given a ``tcp:`` prefix.
 
 ``tub.location = (string, optional)``
 

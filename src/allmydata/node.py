@@ -144,18 +144,6 @@ class Node(service.MultiService):
             if os.path.exists(tahoe_cfg):
                 raise
 
-        cfg_tubport = self.get_config("node", "tub.port", "")
-        if not cfg_tubport:
-            # For 'tub.port', tahoe.cfg overrides the individual file on
-            # disk. So only read self._portnumfile if tahoe.cfg doesn't
-            # provide a value.
-            try:
-                file_tubport = fileutil.read(self._portnumfile).strip()
-                configutil.set_config(self.config, "node", "tub.port", file_tubport)
-            except EnvironmentError:
-                if os.path.exists(self._portnumfile):
-                    raise
-
     def error_about_old_config_files(self):
         """ If any old configuration files are detected, raise OldConfigError. """
 
@@ -174,6 +162,25 @@ class Node(service.MultiService):
             e = OldConfigError(oldfnames)
             twlog.msg(e)
             raise e
+
+    def _convert_tub_port(self, s):
+        if re.search(r'^\d+$', s):
+            return "tcp:%d" % int(s)
+        return s
+
+    def get_tub_port(self):
+        # return a descriptor string
+        cfg_tubport = self.get_config("node", "tub.port", "")
+        if cfg_tubport:
+            return self._convert_tub_port(cfg_tubport)
+        # For 'tub.port', tahoe.cfg overrides the individual file on disk. So
+        # only read self._portnumfile if tahoe.cfg doesn't provide a value.
+        if os.path.exists(self._portnumfile):
+            file_tubport = fileutil.read(self._portnumfile).strip()
+            return self._convert_tub_port(file_tubport)
+        tubport = "tcp:%d" % iputil.allocate_tcp_port()
+        fileutil.write_atomically(self._portnumfile, tubport + "\n", mode="")
+        return tubport
 
     def create_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
@@ -194,8 +201,9 @@ class Node(service.MultiService):
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
         self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")
         self.short_nodeid = b32encode(self.nodeid).lower()[:8] # ready for printing
-
-        tubport = self.get_config("node", "tub.port", "tcp:0")
+        tubport = self.get_tub_port()
+        if tubport in ("0", "tcp:0"):
+            raise ValueError("tub.port cannot be 0: you must choose")
         self.tub.listenOn(tubport)
         # we must wait until our service has started before we can find out
         # our IP address and thus do tub.setLocation, and we can't register
@@ -369,9 +377,6 @@ class Node(service.MultiService):
         # running, which means after startService.
         l = self.tub.getListeners()[0]
         portnum = l.getPortnum()
-        # record which port we're listening on, so we can grab the same one
-        # next time
-        fileutil.write_atomically(self._portnumfile, "%d\n" % portnum, mode="")
 
         location = self.get_config("node", "tub.location", "AUTO")
 
