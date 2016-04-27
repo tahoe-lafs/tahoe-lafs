@@ -47,19 +47,14 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.close()
 
         if local_addresses:
-            self.patch(iputil, 'get_local_addresses_async', lambda target=None: defer.succeed(local_addresses))
+            self.patch(iputil, 'get_local_addresses_sync',
+                       lambda: local_addresses)
 
         n = TestNode(basedir)
         n.setServiceParent(self.parent)
-        d = n.when_tub_ready()
-
-        def _check_addresses(ignored_result):
-            furl = n.tub.registerReference(n)
-            for address in expected_addresses:
-                self.failUnlessIn(address, furl)
-
-        d.addCallback(_check_addresses)
-        return d
+        furl = n.tub.registerReference(n)
+        for address in expected_addresses:
+            self.failUnlessIn(address, furl)
 
     def test_location1(self):
         return self._test_location(basedir="test_node/test_location1",
@@ -96,10 +91,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         n = TestNode(basedir)
         n.setServiceParent(self.parent)
-        d = n.when_tub_ready()
-        d.addCallback(lambda ign: self.failUnlessEqual(n.get_config("node", "nickname").decode('utf-8'),
-                                                       u"\u2621"))
-        return d
+        self.failUnlessEqual(n.get_config("node", "nickname").decode('utf-8'),
+                             u"\u2621")
 
     def test_tahoe_cfg_hash_in_name(self):
         basedir = "test_node/test_cfg_hash_in_name"

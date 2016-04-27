@@ -71,6 +71,8 @@ except ImportError:
     # since one might be shadowing the other. This hack appeases pyflakes.
     increase_rlimits = _increase_rlimits
 
+def get_local_addresses_sync():
+    return _synchronously_find_addresses_via_config()
 
 def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     """

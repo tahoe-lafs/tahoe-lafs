@@ -4465,7 +4465,6 @@ class IntroducerWeb(unittest.TestCase):
 
         d = fireEventually(None)
         d.addCallback(lambda ign: self.node.startService())
-        d.addCallback(lambda ign: self.node.when_tub_ready())
 
         d.addCallback(lambda ign: self.GET("/"))
         def _check(res):

@@ -3,13 +3,12 @@ from base64 import b32decode, b32encode
 
 from twisted.python import log as twlog
 from twisted.application import service
-from twisted.internet import defer, reactor
-from foolscap.api import Tub, eventually, app_versions
+from foolscap.api import Tub, app_versions
 import foolscap.logging.log
 from allmydata import get_package_versions, get_package_versions_string
 from allmydata.util import log
-from allmydata.util import fileutil, iputil, observer
-from allmydata.util.assertutil import precondition, _assert
+from allmydata.util import fileutil, iputil
+from allmydata.util.assertutil import _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
@@ -74,7 +73,6 @@ class Node(service.MultiService):
         service.MultiService.__init__(self)
         self.basedir = abspath_expanduser_unicode(unicode(basedir))
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
-        self._tub_ready_observerlist = observer.OneShotObserverList()
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
         open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
 
@@ -144,18 +142,6 @@ class Node(service.MultiService):
             if os.path.exists(tahoe_cfg):
                 raise
 
-        cfg_tubport = self.get_config("node", "tub.port", "")
-        if not cfg_tubport:
-            # For 'tub.port', tahoe.cfg overrides the individual file on
-            # disk. So only read self._portnumfile if tahoe.cfg doesn't
-            # provide a value.
-            try:
-                file_tubport = fileutil.read(self._portnumfile).strip()
-                configutil.set_config(self.config, "node", "tub.port", file_tubport)
-            except EnvironmentError:
-                if os.path.exists(self._portnumfile):
-                    raise
-
     def error_about_old_config_files(self):
         """ If any old configuration files are detected, raise OldConfigError. """
 
@@ -174,6 +160,43 @@ class Node(service.MultiService):
             e = OldConfigError(oldfnames)
             twlog.msg(e)
             raise e
+
+    def _convert_tub_port(self, s):
+        if re.search(r'^\d+$', s):
+            return "tcp:%d" % int(s)
+        return s
+
+    def get_tub_port(self):
+        # return a descriptor string
+        cfg_tubport = self.get_config("node", "tub.port", "")
+        if cfg_tubport:
+            return self._convert_tub_port(cfg_tubport)
+        # For 'tub.port', tahoe.cfg overrides the individual file on disk. So
+        # only read self._portnumfile if tahoe.cfg doesn't provide a value.
+        if os.path.exists(self._portnumfile):
+            file_tubport = fileutil.read(self._portnumfile).strip()
+            return self._convert_tub_port(file_tubport)
+        tubport = "tcp:%d" % iputil.allocate_tcp_port()
+        fileutil.write_atomically(self._portnumfile, tubport + "\n", mode="")
+        return tubport
+
+    def get_tub_location(self, tubport):
+        location = self.get_config("node", "tub.location", "AUTO")
+        # Replace the location "AUTO", if present, with the detected local
+        # addresses. Don't probe for local addresses unless necessary.
+        split_location = location.split(",")
+        if "AUTO" in split_location:
+            local_addresses = iputil.get_local_addresses_sync()
+            # tubport must be like "tcp:12345" or "tcp:12345:morestuff"
+            local_portnum = int(tubport.split(":")[1])
+        new_locations = []
+        for loc in split_location:
+            if loc == "AUTO":
+                new_locations.extend(["tcp:%s:%d" % (ip, local_portnum)
+                                      for ip in local_addresses])
+            else:
+                new_locations.append(loc)
+        return ",".join(new_locations)
 
     def create_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
@@ -194,12 +217,16 @@ class Node(service.MultiService):
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
         self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")
         self.short_nodeid = b32encode(self.nodeid).lower()[:8] # ready for printing
-
-        tubport = self.get_config("node", "tub.port", "tcp:0")
+        tubport = self.get_tub_port()
+        if tubport in ("0", "tcp:0"):
+            raise ValueError("tub.port cannot be 0: you must choose")
         self.tub.listenOn(tubport)
-        # we must wait until our service has started before we can find out
-        # our IP address and thus do tub.setLocation, and we can't register
-        # any services with the Tub until after that point
+
+        location = self.get_tub_location(tubport)
+        self.tub.setLocation(location)
+        self.log("Tub location set to %s" % (location,))
+
+        # the Tub is now ready for tub.registerReference()
         self.tub.setServiceParent(self)
 
     def get_app_versions(self):
@@ -293,42 +320,13 @@ class Node(service.MultiService):
             os.chmod("twistd.pid", 0644)
         except EnvironmentError:
             pass
-        # Delay until the reactor is running.
-        eventually(self._startService)
-
-    def _startService(self):
-        precondition(reactor.running)
-        self.log("Node._startService")
 
         service.MultiService.startService(self)
-        d = defer.succeed(None)
-        d.addCallback(self._setup_tub)
-        def _ready(res):
-            self.log("%s running" % self.NODETYPE)
-            self._tub_ready_observerlist.fire(self)
-            return self
-        d.addCallback(_ready)
-        d.addErrback(self._service_startup_failed)
-
-    def _service_startup_failed(self, failure):
-        self.log('_startService() failed')
-        log.err(failure)
-        print "Node._startService failed, aborting"
-        print failure
-        #reactor.stop() # for unknown reasons, reactor.stop() isn't working.  [ ] TODO
-        self.log('calling os.abort()')
-        twlog.msg('calling os.abort()') # make sure it gets into twistd.log
-        print "calling os.abort()"
-        os.abort()
+        self.log("%s running" % self.NODETYPE)
 
     def stopService(self):
         self.log("Node.stopService")
-        d = self._tub_ready_observerlist.when_fired()
-        def _really_stopService(ignored):
-            self.log("Node._really_stopService")
-            return service.MultiService.stopService(self)
-        d.addCallback(_really_stopService)
-        return d
+        return service.MultiService.stopService(self)
 
     def shutdown(self):
         """Shut down the node. Returns a Deferred that fires (with None) when
@@ -363,42 +361,6 @@ class Node(service.MultiService):
 
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
-
-    def _setup_tub(self, ign):
-        # we can't get a dynamically-assigned portnum until our Tub is
-        # running, which means after startService.
-        l = self.tub.getListeners()[0]
-        portnum = l.getPortnum()
-        # record which port we're listening on, so we can grab the same one
-        # next time
-        fileutil.write_atomically(self._portnumfile, "%d\n" % portnum, mode="")
-
-        location = self.get_config("node", "tub.location", "AUTO")
-
-        # Replace the location "AUTO", if present, with the detected local addresses.
-        split_location = location.split(",")
-        if "AUTO" in split_location:
-            d = iputil.get_local_addresses_async()
-            def _add_local(local_addresses):
-                while "AUTO" in split_location:
-                    split_location.remove("AUTO")
-
-                split_location.extend([ "%s:%d" % (addr, portnum)
-                                        for addr in local_addresses ])
-                return ",".join(split_location)
-            d.addCallback(_add_local)
-        else:
-            d = defer.succeed(location)
-
-        def _got_location(location):
-            self.log("Tub location set to %s" % (location,))
-            self.tub.setLocation(location)
-            return self.tub
-        d.addCallback(_got_location)
-        return d
-
-    def when_tub_ready(self):
-        return self._tub_ready_observerlist.when_fired()
 
     def add_service(self, s):
         s.setServiceParent(self)

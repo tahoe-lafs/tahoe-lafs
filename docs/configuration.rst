@@ -49,13 +49,22 @@ The item descriptions below use the following types:
     not specified, Tahoe-LAFS will attempt to bind the port specified on all
     interfaces.
 
+``endpoint specification string``
+
+    a Twisted Endpoint specification string, like "``tcp:80``" or
+    "``tcp:3456:interface=127.0.0.1``". These are replacing strports strings.
+    For a full description of the format, see `the Twisted Endpoints
+    documentation`_. Please note, if interface= is not specified, Tahoe-LAFS
+    will attempt to bind the port specified on all interfaces. Also note that
+    ``tub.port`` only works with TCP endpoints right now.
+
 ``FURL string``
 
     a Foolscap endpoint identifier, like
     ``pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm``
 
 .. _the Twisted strports documentation: https://twistedmatrix.com/documents/current/api/twisted.application.strports.html
-
+.. _the Twisted Endpoints documentation: http://twistedmatrix.com/documents/current/core/howto/endpoints.html#endpoint-types-included-with-twisted
 
 Node Types
 ==========
@@ -128,71 +137,96 @@ set the ``tub.location`` option described below.
     ``http://127.0.0.1:3456/static/foo.html`` will serve the contents of
     ``BASEDIR/public_html/foo.html`` .
 
-``tub.port = (integer, optional)``
+``tub.port = (endpoint specification string, optional)``
 
     This controls which port the node uses to accept Foolscap connections
-    from other nodes. If not provided, the node will ask the kernel for any
-    available port. The port will be written to a separate file (named
-    ``client.port`` or ``introducer.port``), so that subsequent runs will
-    re-use the same port.
+    from other nodes. It is parsed as a Twisted "server endpoint descriptor",
+    which accepts values like ``tcp:12345`` and
+    ``tcp:23456:interface=127.0.0.1``.
+
+    For backwards compatibility, if this contains a simple integer, it will
+    be used as a TCP port number, like ``tcp:%d`` (which will accept
+    connections on all interfaces). However ``tub.port`` cannot be ``0`` or
+    ``tcp:0`` (older versions accepted this, but the node is no longer
+    willing to ask Twisted to allocate port numbers in this way). To
+    automatically allocate a TCP port, leave ``tub.port`` blank.
+
+    If the ``tub.port`` config key is not provided, the node will look in
+    ``BASEDIR/client.port`` (or ``BASEDIR/introducer.port``, for introducers)
+    for the descriptor that was used last time.
+
+    If neither is available, the node will ask the kernel for any available
+    port (the moral equivalent of ``tcp:0``). The allocated port number will
+    be written into a descriptor string in ``BASEDIR/client.port`` (or
+    ``introducer.port``), so that subsequent runs will re-use the same port.
 
 ``tub.location = (string, optional)``
 
-    In addition to running as a client, each Tahoe-LAFS node also runs as a
-    server, listening for connections from other Tahoe-LAFS clients. The node
-    announces its location by publishing a "FURL" (a string with some
+    In addition to running as a client, each Tahoe-LAFS node can also run as
+    a server, listening for connections from other Tahoe-LAFS clients. The
+    node announces its location by publishing a "FURL" (a string with some
     connection hints) to the Introducer. The string it publishes can be found
     in ``BASEDIR/private/storage.furl`` . The ``tub.location`` configuration
     controls what location is published in this announcement.
 
+    If your node is meant to run as a server, you should fill this in, using
+    a hostname or IP address that is reachable from your intended clients.
+
     If you don't provide ``tub.location``, the node will try to figure out a
     useful one by itself, by using tools like "``ifconfig``" to determine the
     set of IP addresses on which it can be reached from nodes both near and
-    far.  It will also include the TCP port number on which it is listening
+    far. It will also include the TCP port number on which it is listening
     (either the one specified by ``tub.port``, or whichever port was assigned
-    by the kernel when ``tub.port`` is left unspecified).
+    by the kernel when ``tub.port`` is left unspecified). However this
+    automatic address-detection is discouraged, and will probably be removed
+    from a future release. It will include the ``127.0.0.1`` "localhost"
+    address (which is only useful to clients running on the same computer),
+    and RFC1918 private-network addresses like ``10.*.*.*`` and
+    ``192.168.*.*`` (which are only useful to clients on the local LAN). In
+    general, the automatically-detected IP addresses will only be useful if
+    the node has a public IP address, such as a VPS or colo-hosted server.
 
-    You might want to override this value if your node lives behind a
-    firewall that is doing inbound port forwarding, or if you are using other
-    proxies such that the local IP address or port number is not the same one
-    that remote clients should use to connect. You might also want to control
-    this when using a Tor proxy to avoid revealing your actual IP address
-    through the Introducer announcement.
+    You will certainly need to set ``tub.location`` if your node lives behind
+    a firewall that is doing inbound port forwarding, or if you are using
+    other proxies such that the local IP address or port number is not the
+    same one that remote clients should use to connect. You might also want
+    to control this when using a Tor proxy to avoid revealing your actual IP
+    address through the Introducer announcement.
 
     If ``tub.location`` is specified, by default it entirely replaces the
     automatically determined set of IP addresses. To include the automatically
     determined addresses as well as the specified ones, include the uppercase
     string "``AUTO``" in the list.
 
-    The value is a comma-separated string of host:port location hints, like
-    this::
+    The value is a comma-separated string of method:host:port location hints,
+    like this::
 
-      123.45.67.89:8098,tahoe.example.com:8098,127.0.0.1:8098
+      tcp:123.45.67.89:8098,tcp:tahoe.example.com:8098,tcp:127.0.0.1:8098
 
     A few examples:
 
-    * Emulate default behavior, assuming your host has IP address
-      123.45.67.89 and the kernel-allocated port number was 8098::
-
-        tub.port = 8098
-        tub.location = 123.45.67.89:8098,127.0.0.1:8098
-
     * Use a DNS name so you can change the IP address more easily::
 
-        tub.port = 8098
-        tub.location = tahoe.example.com:8098
+        tub.port = tcp:8098
+        tub.location = tcp:tahoe.example.com:8098
+
+    * Run a node behind a firewall (which has an external IP address) that
+      has been configured to forward external port 7912 to our internal
+      node's port 8098::
+
+        tub.port = tcp:8098
+        tub.location = tcp:external-firewall.example.com:7912
+
+    * Emulate default behavior, assuming your host has public IP address of
+      123.45.67.89, and the kernel-allocated port number was 8098::
+
+        tub.port = tcp:8098
+        tub.location = tcp:123.45.67.89:8098,tcp:127.0.0.1:8098
 
     * Use a DNS name but also include the default set of addresses::
 
-        tub.port = 8098
-        tub.location = tahoe.example.com:8098,AUTO
-
-    * Run a node behind a firewall (which has an external IP address) that
-      has been configured to forward port 7912 to our internal node's port
-      8098::
-
-        tub.port = 8098
-        tub.location = external-firewall.example.com:7912
+        tub.port = tcp:8098
+        tub.location = tcp:tahoe.example.com:8098,AUTO
 
     * Run a node behind a Tor proxy (perhaps via ``torsocks``), in
       client-only mode (i.e. we can make outbound connections, but other
@@ -201,8 +235,8 @@ set the ``tub.location`` option described below.
       reminder to human observers that this node cannot be reached. "Don't
       call us.. we'll call you"::
 
-        tub.port = 8098
-        tub.location = unreachable.example.org:0
+        tub.port = tcp:8098
+        tub.location = tcp:unreachable.example.org:0
 
     * Run a node behind a Tor proxy, and make the server available as a Tor
       "hidden service". (This assumes that other clients are running their
@@ -218,10 +252,8 @@ set the ``tub.location`` option described below.
       ``/var/lib/tor/hidden_services/tahoe/hostname``. Then set up your
       ``tahoe.cfg`` like::
 
-        tub.port = 8098
-        tub.location = ualhejtq2p7ohfbb.onion:29212
-
-    Most users will not need to set ``tub.location``.
+        tub.port = tcp:8098
+        tub.location = tor:ualhejtq2p7ohfbb.onion:29212
 
 ``log_gatherer.furl = (FURL, optional)``
 
