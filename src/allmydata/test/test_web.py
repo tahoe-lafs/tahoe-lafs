@@ -4440,6 +4440,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check)
         return d
 
+    def test_static_missing(self):
+        # self.staticdir does not exist yet, because we used self.mktemp()
+        d = self.assertFailure(self.GET("/static"), error.Error)
+        # nevow.static throws an exception when it tries to os.stat the
+        # missing directory, which gives the client a 500 Internal Server
+        # Error, and the traceback reveals the parent directory name. By
+        # switching to plain twisted.web.static, this gives a normal 404 that
+        # doesn't reveal anything. This addresses #1720.
+        d.addCallback(lambda e: self.assertEquals(str(e), "404 Not Found"))
+        return d
+
 
 class IntroducerWeb(unittest.TestCase):
     def setUp(self):
