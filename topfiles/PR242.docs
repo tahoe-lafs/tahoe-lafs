@@ -1,0 +1,4 @@
+The "stats gatherer" (created with 'tahoe create-stats-gatherer') now updates
+a JSON file named "stats.json"; previously it used Pickle and "stats.pickle".
+The munin plugins in misc/operations_helpers/munin/ have been updated to
+match, and must be re-installed and re-configured if you use munin.

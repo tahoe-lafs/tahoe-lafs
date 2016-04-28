@@ -1,6 +1,6 @@
 
+import json
 import os
-import pickle
 import pprint
 import time
 from collections import deque
@@ -240,22 +240,23 @@ class StdOutStatsGatherer(StatsGatherer):
         print '"%s" [%s]:' % (nickname, tubid)
         pprint.pprint(stats)
 
-class PickleStatsGatherer(StdOutStatsGatherer):
+class JSONStatsGatherer(StdOutStatsGatherer):
     # inherit from StdOutStatsGatherer for connect/disconnect notifications
 
     def __init__(self, basedir=u".", verbose=True):
         self.verbose = verbose
         StatsGatherer.__init__(self, basedir)
-        self.picklefile = os.path.join(basedir, "stats.pickle")
+        self.jsonfile = os.path.join(basedir, "stats.json")
 
-        if os.path.exists(self.picklefile):
-            f = open(self.picklefile, 'rb')
+        if os.path.exists(self.jsonfile):
+            f = open(self.jsonfile, 'rb')
             try:
-                self.gathered_stats = pickle.load(f)
+                self.gathered_stats = json.load(f)
             except Exception:
-                print ("Error while attempting to load pickle file %s.\n"
-                       "You may need to restore this file from a backup, or delete it if no backup is available.\n" %
-                       quote_local_unicode_path(self.picklefile))
+                print ("Error while attempting to load stats file %s.\n"
+                       "You may need to restore this file from a backup,"
+                       " or delete it if no backup is available.\n" %
+                       quote_local_unicode_path(self.jsonfile))
                 raise
             f.close()
         else:
@@ -266,16 +267,16 @@ class PickleStatsGatherer(StdOutStatsGatherer):
         s['timestamp'] = time.time()
         s['nickname'] = nickname
         s['stats'] = stats
-        self.dump_pickle()
+        self.dump_json()
 
-    def dump_pickle(self):
-        tmp = "%s.tmp" % (self.picklefile,)
+    def dump_json(self):
+        tmp = "%s.tmp" % (self.jsonfile,)
         f = open(tmp, 'wb')
-        pickle.dump(self.gathered_stats, f)
+        json.dump(self.gathered_stats, f)
         f.close()
-        if os.path.exists(self.picklefile):
-            os.unlink(self.picklefile)
-        os.rename(tmp, self.picklefile)
+        if os.path.exists(self.jsonfile):
+            os.unlink(self.jsonfile)
+        os.rename(tmp, self.jsonfile)
 
 class StatsGathererService(service.MultiService):
     furl_file = "stats_gatherer.furl"
@@ -290,7 +291,7 @@ class StatsGathererService(service.MultiService):
         self.tub.setOption("logRemoteFailures", True)
         self.tub.setOption("expose-remote-exception-types", False)
 
-        self.stats_gatherer = PickleStatsGatherer(self.basedir, verbose)
+        self.stats_gatherer = JSONStatsGatherer(self.basedir, verbose)
         self.stats_gatherer.setServiceParent(self)
 
         portnumfile = os.path.join(self.basedir, "portnum")
