@@ -109,7 +109,6 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.write("# Which services should this client connect to?\n")
     c.write("introducer.furl = %s\n" % config.get("introducer", ""))
     c.write("helper.furl =\n")
-    c.write("#key_generator.furl =\n")
     c.write("#stats_gatherer.furl =\n")
     c.write("\n")
     c.write("# Encoding parameters this client will use for newly-uploaded files\n")

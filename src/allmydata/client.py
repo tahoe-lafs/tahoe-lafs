@@ -58,11 +58,8 @@ class KeyGenerator:
     to generate(), then with a default set by set_default_keysize(), then
     with a built-in default of 2048 bits."""
     def __init__(self):
-        self._remote = None
         self.default_keysize = 2048
 
-    def set_remote_generator(self, keygen):
-        self._remote = keygen
     def set_default_keysize(self, keysize):
         """Call this to override the size of the RSA keys created for new
         mutable files which don't otherwise specify a size. This will affect
@@ -80,20 +77,11 @@ class KeyGenerator:
         set_default_keysize() has never been called, I will create 2048 bit
         keys."""
         keysize = keysize or self.default_keysize
-        if self._remote:
-            d = self._remote.callRemote('get_rsa_key_pair', keysize)
-            def make_key_objs((verifying_key, signing_key)):
-                v = rsa.create_verifying_key_from_string(verifying_key)
-                s = rsa.create_signing_key_from_string(signing_key)
-                return v, s
-            d.addCallback(make_key_objs)
-            return d
-        else:
-            # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
-            # secs
-            signer = rsa.generate(keysize)
-            verifier = signer.get_verifying_key()
-            return defer.succeed( (verifier, signer) )
+        # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
+        # secs
+        signer = rsa.generate(keysize)
+        verifier = signer.get_verifying_key()
+        return defer.succeed( (verifier, signer) )
 
 class Terminator(service.Service):
     def __init__(self):
@@ -145,7 +133,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self._key_generator = KeyGenerator()
         key_gen_furl = self.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
-            self.init_key_gen(key_gen_furl)
+            log.msg("[client]key_generator.furl= is now ignored, see #2783")
         self.init_client()
         self.helper = None
         if self.get_config("helper", "enabled", False, boolean=True):
@@ -441,16 +429,6 @@ class Client(node.Node, pollmixin.PollMixin):
         helper_furlfile = os.path.join(self.basedir,
                                        "private", "helper.furl").encode(get_filesystem_encoding())
         self.tub.registerReference(self.helper, furlFile=helper_furlfile)
-
-    def init_key_gen(self, key_gen_furl):
-        self.tub.connectTo(key_gen_furl, self._got_key_generator)
-
-    def _got_key_generator(self, key_generator):
-        self._key_generator.set_remote_generator(key_generator)
-        key_generator.notifyOnDisconnect(self._lost_key_generator)
-
-    def _lost_key_generator(self):
-        self._key_generator.set_remote_generator(None)
 
     def set_default_mutable_keysize(self, keysize):
         self._key_generator.set_default_keysize(keysize)

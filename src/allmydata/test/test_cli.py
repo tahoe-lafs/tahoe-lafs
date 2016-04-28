@@ -17,10 +17,10 @@ import allmydata.scripts.common_http
 from pycryptopp.publickey import ed25519
 
 # Test that the scripts can be imported.
-from allmydata.scripts import create_node, debug, keygen, startstop_node, \
+from allmydata.scripts import create_node, debug, startstop_node, \
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls, \
     tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen
-_hush_pyflakes = [create_node, debug, keygen, startstop_node,
+_hush_pyflakes = [create_node, debug, startstop_node,
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls,
     tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen]
 

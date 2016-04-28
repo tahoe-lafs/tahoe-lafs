@@ -22,7 +22,6 @@ from allmydata.util import hashutil, log, fileutil, pollmixin, iputil
 from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
 from allmydata.stats import StatsGathererService
-from allmydata.key_generator import KeyGeneratorService
 import allmydata.test.common_util as testutil
 from allmydata import immutable
 
@@ -448,8 +447,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         self.stats_gatherer = None
         self.stats_gatherer_furl = None
-        self.key_generator_svc = None
-        self.key_generator_furl = None
 
     def tearDown(self):
         log.msg("shutting down SystemTest services")
@@ -464,8 +461,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         s.setServiceParent(self.sparent)
         return s
 
-    def set_up_nodes(self, NUMCLIENTS=5,
-                     use_stats_gatherer=False, use_key_generator=False):
+    def set_up_nodes(self, NUMCLIENTS=5, use_stats_gatherer=False):
         self.numclients = NUMCLIENTS
         iv_dir = self.getdir("introducer")
         if not os.path.isdir(iv_dir):
@@ -485,8 +481,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d = defer.succeed(None)
         if use_stats_gatherer:
             d.addCallback(self._set_up_stats_gatherer)
-        if use_key_generator:
-            d.addCallback(self._set_up_key_generator)
         d.addCallback(self._set_up_nodes_2)
         if use_stats_gatherer:
             d.addCallback(self._grab_stats)
@@ -511,27 +505,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d.addCallback(lambda junk: self.poll(check_for_furl, timeout=30))
         def get_furl(junk):
             self.stats_gatherer_furl = file(sgf, 'rb').read().strip()
-        d.addCallback(get_furl)
-        return d
-
-    def _set_up_key_generator(self, res):
-        kgsdir = self.getdir("key_generator")
-        fileutil.make_dirs(kgsdir)
-
-        self.key_generator_svc = KeyGeneratorService(kgsdir,
-                                                     display_furl=False,
-                                                     default_key_size=TEST_RSA_KEY_SIZE)
-        self.key_generator_svc.key_generator.pool_size = 4
-        self.key_generator_svc.key_generator.pool_refresh_delay = 60
-        self.add_service(self.key_generator_svc)
-
-        d = fireEventually()
-        def check_for_furl():
-            return os.path.exists(os.path.join(kgsdir, 'key_generator.furl'))
-        d.addCallback(lambda junk: self.poll(check_for_furl, timeout=30))
-        def get_furl(junk):
-            kgf = os.path.join(kgsdir, 'key_generator.furl')
-            self.key_generator_furl = file(kgf, 'rb').read().strip()
         d.addCallback(get_furl)
         return d
 
@@ -563,17 +536,14 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             nodeconfig += "tub.location = tcp:127.0.0.1:%d\n" % tub_port
 
             if i == 0:
-                # clients[0] runs a webserver and a helper, no key_generator
+                # clients[0] runs a webserver and a helper
                 config += nodeconfig
                 config += "web.port = tcp:0:interface=127.0.0.1\n"
                 config += "timeout.keepalive = 600\n"
                 config += "[helper]\n"
                 config += "enabled = True\n"
             elif i == 3:
-                # clients[3] runs a webserver and uses a helper, uses
-                # key_generator
-                if self.key_generator_furl:
-                    config += "key_generator.furl = %s\n" % self.key_generator_furl
+                # clients[3] runs a webserver and uses a helper
                 config += nodeconfig
                 config += "web.port = tcp:0:interface=127.0.0.1\n"
                 config += "timeout.disconnect = 1800\n"

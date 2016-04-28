@@ -10,8 +10,8 @@
 
 # This should be useful for tests which want to examine and/or manipulate the
 # uploaded shares, checker/verifier/repairer tests, etc. The clients have no
-# Tubs, so it is not useful for tests that involve a Helper, a KeyGenerator,
-# or the control.furl .
+# Tubs, so it is not useful for tests that involve a Helper or the
+# control.furl .
 
 import os
 from zope.interface import implements

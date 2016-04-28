@@ -69,8 +69,7 @@ The item descriptions below use the following types:
 Node Types
 ==========
 
-A node can be a client/server, an introducer, a statistics gatherer, or a
-key generator.
+A node can be a client/server, an introducer, or a statistics gatherer.
 
 Client/server nodes provide one or more of the following services:
 
@@ -334,12 +333,6 @@ Client Configuration
 
     If provided, the node will attempt to connect to and use the given helper
     for uploads. See :doc:`helper` for details.
-
-``key_generator.furl = (FURL string, optional)``
-
-    If provided, the node will attempt to connect to and use the given
-    key-generator service, using RSA keys from the external process rather
-    than generating its own.
 
 ``stats_gatherer.furl = (FURL string, optional)``
 
@@ -611,11 +604,6 @@ This section describes these other files.
 
   This file is used to construct an introducer, and is created by the
   "``tahoe create-introducer``" command.
-
-``tahoe-key-generator.tac``
-
-  This file is used to construct a key generator, and is created by the
-  "``tahoe create-key-gernerator``" command.
 
 ``tahoe-stats-gatherer.tac``
 
