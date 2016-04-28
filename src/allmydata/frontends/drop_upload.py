@@ -1,5 +1,5 @@
 
-import os, sys
+import sys
 
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
@@ -9,6 +9,7 @@ from foolscap.api import eventually
 from allmydata.interfaces import IDirectoryNode
 
 from allmydata.util.encodingutil import quote_output, get_filesystem_encoding
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import FileName
 
 
@@ -19,7 +20,7 @@ class DropUploader(service.MultiService):
         service.MultiService.__init__(self)
 
         try:
-            local_dir_u = os.path.expanduser(local_dir_utf8.decode('utf-8'))
+            local_dir_u = abspath_expanduser_unicode(local_dir_utf8.decode('utf-8'))
             if sys.platform == "win32":
                 local_dir = local_dir_u
             else:
@@ -46,9 +47,9 @@ class DropUploader(service.MultiService):
         # TODO: allow a path rather than a cap URI.
         self._parent = self._client.create_node_from_uri(upload_dircap)
         if not IDirectoryNode.providedBy(self._parent):
-            raise AssertionError("The '[drop_upload] upload.dircap' parameter does not refer to a directory.")
+            raise AssertionError("The URI in 'private/drop_upload_dircap' does not refer to a directory.")
         if self._parent.is_unknown() or self._parent.is_readonly():
-            raise AssertionError("The '[drop_upload] upload.dircap' parameter is not a writecap to a directory.")
+            raise AssertionError("The URI in 'private/drop_upload_dircap' is not a writecap to a directory.")
 
         self._uploaded_callback = lambda ign: None
 

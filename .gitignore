@@ -9,6 +9,7 @@
 /build/
 /support/
 /_darcs/
+/tahoe/
 
 # these are generated at build time, and never checked in
 /src/allmydata/_version.py
@@ -20,13 +21,16 @@
 /bin/tahoe-script.py
 
 /.built
-/src/allmydata_tahoe.egg-info/
+/src/tahoe_lafs.egg-info/
 Twisted-*.egg
 zope.interface-*.egg
+.pc
 
 /_trial_temp*
+/_test_memory/
 /tmp*
 /*.patch
+/*.diff
 /dist/
 /twisted/plugins/dropin.cache
 /tahoe-deps/
@@ -36,4 +40,5 @@ zope.interface-*.egg
 /coverage-html/
 /miscaptures.txt
 /violations.txt
-/*.diff
+/.tox/
+/docs/_build/

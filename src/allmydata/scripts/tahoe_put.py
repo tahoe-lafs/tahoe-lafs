@@ -1,7 +1,7 @@
 
-import os
 from cStringIO import StringIO
 import urllib
+
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
@@ -73,7 +73,7 @@ def put(options):
         url += "?" + "&".join(queryargs)
 
     if from_file:
-        infileobj = open(os.path.expanduser(from_file), "rb")
+        infileobj = open(from_file, "rb")
     else:
         # do_http() can't use stdin directly: for one thing, we need a
         # Content-Length field. So we currently must copy it.

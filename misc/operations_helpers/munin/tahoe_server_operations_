@@ -16,7 +16,7 @@
 # /etc/munin/plugins/tahoe_server_operations_OPERATION to this script. For
 # example:
 
-# ln -s /usr/share/doc/allmydata-tahoe/munin/tahoe_server_operations_ \
+# ln -s /usr/share/munin/plugins/tahoe_server_operations_ \
 #  /etc/munin/plugins/tahoe_server_operations_allocate
 
 # Also, you will need to put a list of node statistics URLs in the plugin's

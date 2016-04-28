@@ -7,7 +7,7 @@ import allmydata
 import simplejson
 from allmydata import get_package_versions_string
 from allmydata.util import idlib
-from allmydata.web.common import getxmlfile, get_arg, TIME_FORMAT
+from allmydata.web.common import getxmlfile, get_arg, render_time
 
 
 class IntroducerRoot(rend.Page):
@@ -53,7 +53,7 @@ class IntroducerRoot(rend.Page):
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
-        return time.strftime(TIME_FORMAT, time.localtime())
+        return render_time(time.time())
     def data_version(self, ctx, data):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):
@@ -92,7 +92,7 @@ class IntroducerRoot(rend.Page):
         ctx.fillSlots("connection-hints",
                       "connection hints: " + " ".join(ad.connection_hints))
         ctx.fillSlots("connected", "?")
-        when_s = time.strftime("%H:%M:%S %d-%b-%Y", time.localtime(ad.when))
+        when_s = render_time(ad.when)
         ctx.fillSlots("announced", when_s)
         ctx.fillSlots("version", ad.version)
         ctx.fillSlots("service_name", ad.service_name)
@@ -105,7 +105,7 @@ class IntroducerRoot(rend.Page):
         ctx.fillSlots("nickname", s.nickname)
         ctx.fillSlots("tubid", s.tubid)
         ctx.fillSlots("connected", s.remote_address)
-        since_s = time.strftime("%H:%M:%S %d-%b-%Y", time.localtime(s.when))
+        since_s = render_time(s.when)
         ctx.fillSlots("since", since_s)
         ctx.fillSlots("version", s.version)
         ctx.fillSlots("service_name", s.service_name)

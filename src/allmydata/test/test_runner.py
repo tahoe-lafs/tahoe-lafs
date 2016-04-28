@@ -1,16 +1,20 @@
+import os.path, re, sys, subprocess
+from cStringIO import StringIO
+
 from twisted.trial import unittest
 
 from twisted.python import usage, runtime
 from twisted.internet import threads
+from twisted.internet.defer import inlineCallbacks, returnValue
 
-import os.path, re, sys, subprocess
-from cStringIO import StringIO
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, get_filesystem_encoding
 from allmydata.scripts import runner
-
+from allmydata.client import Client
 from allmydata.test import common_util
 import allmydata
+from allmydata._appname import __appname__
+
 
 timeout = 240
 
@@ -30,40 +34,25 @@ def get_root_from_file(src):
 srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
 
-if hasattr(sys, 'frozen'):
-    bintahoe = os.path.join(rootdir, 'tahoe')
-    if sys.platform == "win32" and os.path.exists(bintahoe + '.exe'):
-        bintahoe += '.exe'
-else:
-    bintahoe = os.path.join(rootdir, 'bin', 'tahoe')
-    if sys.platform == "win32":
-        bintahoe += '.pyscript'
-        if not os.path.exists(bintahoe):
-            alt_bintahoe = os.path.join(rootdir, 'Scripts', 'tahoe.pyscript')
-            if os.path.exists(alt_bintahoe):
-                bintahoe = alt_bintahoe
-
 
 class RunBinTahoeMixin:
-    def skip_if_cannot_run_bintahoe(self):
-        if not os.path.exists(bintahoe):
-            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location (%s), and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of Tahoe. Perhaps running 'setup.py build' again will help." % (bintahoe,))
-
     def skip_if_cannot_daemonize(self):
-        self.skip_if_cannot_run_bintahoe()
         if runtime.platformType == "win32":
             # twistd on windows doesn't daemonize. cygwin should work normally.
             raise unittest.SkipTest("twistd does not fork under windows")
 
-    def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
-        self.skip_if_cannot_run_bintahoe()
+    @inlineCallbacks
+    def find_import_location(self):
+        res = yield self.run_bintahoe(["--version-and-path"])
+        out, err, rc_or_sig = res
+        self.assertEqual(rc_or_sig, 0, res)
+        lines = out.splitlines()
+        tahoe_pieces = lines[0].split()
+        self.assertEqual(tahoe_pieces[0], "%s:" % (__appname__,), (tahoe_pieces, res))
+        returnValue(tahoe_pieces[-1].strip("()"))
 
-        if hasattr(sys, 'frozen'):
-            if python_options:
-                raise unittest.SkipTest("This test doesn't apply to frozen builds.")
-            command = [bintahoe] + args
-        else:
-            command = [sys.executable] + python_options + [bintahoe] + args
+    def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
+        command = [sys.executable] + python_options + ["-m", "allmydata.scripts.runner"] + args
 
         if stdin is None:
             stdin_stream = None
@@ -78,66 +67,29 @@ class RunBinTahoeMixin:
 
 
 class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
-    def _check_right_code(self, file_to_check):
-        root_to_check = get_root_from_file(file_to_check)
-        if os.path.basename(root_to_check) == 'dist':
-            root_to_check = os.path.dirname(root_to_check)
+    @inlineCallbacks
+    def test_the_right_code(self):
+        # running "tahoe" in a subprocess should find the same code that
+        # holds this test file, else something is weird
+        test_path = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
+        bintahoe_import_path = yield self.find_import_location()
 
-        cwd = os.path.normcase(os.path.realpath("."))
-        root_from_cwd = os.path.dirname(cwd)
-        if os.path.basename(root_from_cwd) == 'src':
-            root_from_cwd = os.path.dirname(root_from_cwd)
-
-        # This is needed if we are running in a temporary directory created by 'make tmpfstest'.
-        if os.path.basename(root_from_cwd).startswith('tmp'):
-            root_from_cwd = os.path.dirname(root_from_cwd)
-
-        same = (root_from_cwd == root_to_check)
+        same = (bintahoe_import_path == test_path)
         if not same:
-            try:
-                same = os.path.samefile(root_from_cwd, root_to_check)
-            except AttributeError, e:
-                e  # hush pyflakes
+            msg = ("My tests and my 'tahoe' executable are using different paths.\n"
+                   "tahoe: %r\n"
+                   "tests: %r\n"
+                   "( according to the test source filename %r)\n" %
+                   (bintahoe_import_path, test_path, srcfile))
 
-        if not same:
-            msg = ("We seem to be testing the code at %r,\n"
-                   "(according to the source filename %r),\n"
-                   "but expected to be testing the code at %r.\n"
-                   % (root_to_check, file_to_check, root_from_cwd))
-
-            root_from_cwdu = os.path.dirname(os.path.normcase(os.path.normpath(os.getcwdu())))
-            if os.path.basename(root_from_cwdu) == u'src':
-                root_from_cwdu = os.path.dirname(root_from_cwdu)
-
-            # This is needed if we are running in a temporary directory created by 'make tmpfstest'.
-            if os.path.basename(root_from_cwdu).startswith(u'tmp'):
-                root_from_cwdu = os.path.dirname(root_from_cwdu)
-
-            if not isinstance(root_from_cwd, unicode) and root_from_cwd.decode(get_filesystem_encoding(), 'replace') != root_from_cwdu:
-                msg += ("However, this may be a false alarm because the current directory path\n"
-                        "is not representable in the filesystem encoding. Please run the tests\n"
-                        "from the root of the Tahoe-LAFS distribution at a non-Unicode path.")
+            if (not isinstance(rootdir, unicode) and
+                rootdir.decode(get_filesystem_encoding(), 'replace') != rootdir):
+                msg += ("However, this may be a false alarm because the import path\n"
+                        "is not representable in the filesystem encoding.")
                 raise unittest.SkipTest(msg)
             else:
-                msg += "Please run the tests from the root of the Tahoe-LAFS distribution."
+                msg += "Please run the tests in a virtualenv that includes both the Tahoe-LAFS library and the 'tahoe' executable."
                 self.fail(msg)
-
-    def test_the_right_code(self):
-        self._check_right_code(srcfile)
-
-    def test_import_in_repl(self):
-        d = self.run_bintahoe(["debug", "repl"],
-                              stdin="import allmydata; print; print allmydata.__file__")
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0, str(res))
-            lines = out.splitlines()
-            self.failUnlessIn('>>>', lines[0], str(res))
-            self._check_right_code(lines[1])
-        d.addCallback(_cb)
-        return d
-    # The timeout was exceeded on FreeStorm's CentOS5-i386.
-    test_import_in_repl.timeout = 480
 
     def test_path(self):
         d = self.run_bintahoe(["--version-and-path"])
@@ -147,7 +99,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
 
-            # Fail unless the allmydata-tahoe package is *this* version *and*
+            # Fail unless the __appname__ package is *this* version *and*
             # was loaded from *this* source directory.
 
             required_verstr = str(allmydata.__version__)
@@ -176,8 +128,6 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         return d
 
     def test_unicode_arguments_and_output(self):
-        self.skip_if_cannot_run_bintahoe()
-
         tricky = u"\u2621"
         try:
             tricky_arg = unicode_to_argv(tricky, mangle=True)
@@ -204,8 +154,6 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         return d
 
     def test_version_no_noise(self):
-        self.skip_if_cannot_run_bintahoe()
-
         d = self.run_bintahoe(["--version"])
         def _cb(res):
             out, err, rc_or_sig = res
@@ -333,6 +281,19 @@ class CreateNode(unittest.TestCase):
         self.failUnless(os.path.exists(n3))
         self.failUnless(os.path.exists(os.path.join(n3, tac)))
 
+        if kind in ("client", "node", "introducer"):
+            # test that the output (without --quiet) includes the base directory
+            n4 = os.path.join(basedir, command + "-n4")
+            argv = [command, n4]
+            rc, out, err = self.run_tahoe(argv)
+            self.failUnlessEqual(err, "")
+            self.failUnlessIn(" created in ", out)
+            self.failUnlessIn(n4, out)
+            self.failIfIn("\\\\?\\", out)
+            self.failUnlessEqual(rc, 0)
+            self.failUnless(os.path.exists(n4))
+            self.failUnless(os.path.exists(os.path.join(n4, tac)))
+
         # make sure it rejects too many arguments
         argv = [command, "basedir", "extraarg"]
         self.failUnlessRaises(usage.UsageError,
@@ -392,14 +353,15 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
     def test_introducer(self):
         self.skip_if_cannot_daemonize()
+
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
-        TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
-        INTRODUCER_FURL_FILE = os.path.join(c1, "private", "introducer.furl")
-        PORTNUM_FILE = os.path.join(c1, "introducer.port")
-        NODE_URL_FILE = os.path.join(c1, "node.url")
-        CONFIG_FILE = os.path.join(c1, "tahoe.cfg")
+        exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
+        twistd_pid_file = os.path.join(c1, "twistd.pid")
+        introducer_furl_file = os.path.join(c1, "private", "introducer.furl")
+        portnum_file = os.path.join(c1, "introducer.port")
+        node_url_file = os.path.join(c1, "node.url")
+        config_file = os.path.join(c1, "tahoe.cfg")
 
         d = self.run_bintahoe(["--quiet", "create-introducer", "--basedir", c1])
         def _cb(res):
@@ -408,14 +370,14 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
             # This makes sure that node.url is written, which allows us to
             # detect when the introducer restarts in _node_has_restarted below.
-            config = fileutil.read(CONFIG_FILE)
+            config = fileutil.read(config_file)
             self.failUnlessIn('\nweb.port = \n', config)
-            fileutil.write(CONFIG_FILE, config.replace('\nweb.port = \n', '\nweb.port = 0\n'))
+            fileutil.write(config_file, config.replace('\nweb.port = \n', '\nweb.port = 0\n'))
 
             # by writing this file, we get ten seconds before the node will
             # exit. This insures that even if the test fails (and the 'stop'
             # command doesn't work), the client should still terminate.
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -426,7 +388,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb2(res):
             out, err, rc_or_sig = res
 
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -443,60 +405,60 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb2)
 
         def _node_has_started():
-            return os.path.exists(INTRODUCER_FURL_FILE)
+            return os.path.exists(introducer_furl_file)
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _started(res):
             # read the introducer.furl and introducer.port files so we can
             # check that their contents don't change on restart
-            self.furl = fileutil.read(INTRODUCER_FURL_FILE)
-            self.failUnless(os.path.exists(PORTNUM_FILE))
-            self.portnum = fileutil.read(PORTNUM_FILE)
+            self.furl = fileutil.read(introducer_furl_file)
+            self.failUnless(os.path.exists(portnum_file))
+            self.portnum = fileutil.read(portnum_file)
 
-            fileutil.write(HOTLINE_FILE, "")
-            self.failUnless(os.path.exists(TWISTD_PID_FILE))
-            self.failUnless(os.path.exists(NODE_URL_FILE))
+            fileutil.write(exit_trigger_file, "")
+            self.failUnless(os.path.exists(twistd_pid_file))
+            self.failUnless(os.path.exists(node_url_file))
 
             # rm this so we can detect when the second incarnation is ready
-            os.unlink(NODE_URL_FILE)
+            os.unlink(node_url_file)
             return self.run_bintahoe(["--quiet", "restart", c1])
         d.addCallback(_started)
 
         def _then(res):
             out, err, rc_or_sig = res
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
             # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
         d.addCallback(_then)
 
-        # again, the second incarnation of the node might not be ready yet,
-        # so poll until it is. This time INTRODUCER_FURL_FILE already
-        # exists, so we check for the existence of NODE_URL_FILE instead.
+        # Again, the second incarnation of the node might not be ready yet,
+        # so poll until it is. This time introducer_furl_file already
+        # exists, so we check for the existence of node_url_file instead.
         def _node_has_restarted():
-            return os.path.exists(NODE_URL_FILE) and os.path.exists(PORTNUM_FILE)
+            return os.path.exists(node_url_file) and os.path.exists(portnum_file)
         d.addCallback(lambda res: self.poll(_node_has_restarted))
 
         def _check_same_furl_and_port(res):
-            self.failUnless(os.path.exists(INTRODUCER_FURL_FILE))
-            self.failUnlessEqual(self.furl, fileutil.read(INTRODUCER_FURL_FILE))
-            self.failUnlessEqual(self.portnum, fileutil.read(PORTNUM_FILE))
+            self.failUnless(os.path.exists(introducer_furl_file))
+            self.failUnlessEqual(self.furl, fileutil.read(introducer_furl_file))
+            self.failUnlessEqual(self.portnum, fileutil.read(portnum_file))
         d.addCallback(_check_same_furl_and_port)
 
-        # now we can kill it. TODO: On a slow machine, the node might kill
+        # Now we can kill it. TODO: On a slow machine, the node might kill
         # itself before we get a chance to, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
-            fileutil.write(HOTLINE_FILE, "")
-            self.failUnless(os.path.exists(TWISTD_PID_FILE))
+            fileutil.write(exit_trigger_file, "")
+            self.failUnless(os.path.exists(twistd_pid_file))
 
             return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
 
         def _after_stopping(res):
             out, err, rc_or_sig = res
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             # the parent has exited by now
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
@@ -505,9 +467,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # the parent was supposed to poll and wait until it sees
             # twistd.pid go away before it exits, so twistd.pid should be
             # gone by now.
-            self.failIf(os.path.exists(TWISTD_PID_FILE))
+            self.failIf(os.path.exists(twistd_pid_file))
         d.addCallback(_after_stopping)
-        d.addBoth(self._remove, HOTLINE_FILE)
+        d.addBoth(self._remove, exit_trigger_file)
         return d
     # This test has hit a 240-second timeout on our feisty2.5 buildslave, and a 480-second timeout
     # on Francois's Lenny-armv5tel buildslave.
@@ -518,9 +480,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         basedir = self.workdir("test_client_no_noise")
         c1 = os.path.join(basedir, "c1")
-        HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
-        TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
-        PORTNUM_FILE = os.path.join(c1, "client.port")
+        exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
+        twistd_pid_file = os.path.join(c1, "twistd.pid")
+        portnum_file = os.path.join(c1, "client.port")
 
         d = self.run_bintahoe(["--quiet", "create-client", "--basedir", c1, "--webport", "0"])
         def _cb(res):
@@ -532,7 +494,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # By writing this file, we get two minutes before the client will exit. This ensures
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -543,7 +505,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb2(res):
             out, err, rc_or_sig = res
             errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr) # If you emit noise, you fail this test.
             errlines = err.split("\n")
@@ -563,28 +525,30 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb2)
 
         def _node_has_started():
-            return os.path.exists(PORTNUM_FILE)
+            return os.path.exists(portnum_file)
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         # now we can kill it. TODO: On a slow machine, the node might kill
         # itself before we get a chance to, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
-            self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))
+            self.failUnless(os.path.exists(twistd_pid_file),
+                            (twistd_pid_file, os.listdir(os.path.dirname(twistd_pid_file))))
             return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
-        d.addBoth(self._remove, HOTLINE_FILE)
+        d.addBoth(self._remove, exit_trigger_file)
         return d
 
     def test_client(self):
         self.skip_if_cannot_daemonize()
+
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
-        TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
-        PORTNUM_FILE = os.path.join(c1, "client.port")
-        NODE_URL_FILE = os.path.join(c1, "node.url")
-        CONFIG_FILE = os.path.join(c1, "tahoe.cfg")
+        exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
+        twistd_pid_file = os.path.join(c1, "twistd.pid")
+        portnum_file = os.path.join(c1, "client.port")
+        node_url_file = os.path.join(c1, "node.url")
+        config_file = os.path.join(c1, "tahoe.cfg")
 
         d = self.run_bintahoe(["--quiet", "create-node", "--basedir", c1, "--webport", "0"])
         def _cb(res):
@@ -592,13 +556,13 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             self.failUnlessEqual(rc_or_sig, 0)
 
             # Check that the --webport option worked.
-            config = fileutil.read(CONFIG_FILE)
+            config = fileutil.read(config_file)
             self.failUnlessIn('\nweb.port = 0\n', config)
 
             # By writing this file, we get two minutes before the client will exit. This ensures
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -608,7 +572,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _cb2(res):
             out, err, rc_or_sig = res
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -626,26 +590,26 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _node_has_started():
             # this depends upon both files being created atomically
-            return os.path.exists(NODE_URL_FILE) and os.path.exists(PORTNUM_FILE)
+            return os.path.exists(node_url_file) and os.path.exists(portnum_file)
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _started(res):
             # read the client.port file so we can check that its contents
             # don't change on restart
-            self.portnum = fileutil.read(PORTNUM_FILE)
+            self.portnum = fileutil.read(portnum_file)
 
-            fileutil.write(HOTLINE_FILE, "")
-            self.failUnless(os.path.exists(TWISTD_PID_FILE))
+            fileutil.write(exit_trigger_file, "")
+            self.failUnless(os.path.exists(twistd_pid_file))
 
             # rm this so we can detect when the second incarnation is ready
-            os.unlink(NODE_URL_FILE)
+            os.unlink(node_url_file)
             return self.run_bintahoe(["--quiet", "restart", c1])
         d.addCallback(_started)
 
         def _cb3(res):
             out, err, rc_or_sig = res
 
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -657,24 +621,23 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _check_same_port(res):
-            self.failUnlessEqual(self.portnum, fileutil.read(PORTNUM_FILE))
+            self.failUnlessEqual(self.portnum, fileutil.read(portnum_file))
         d.addCallback(_check_same_port)
 
         # now we can kill it. TODO: On a slow machine, the node might kill
         # itself before we get a chance to, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
-            fileutil.write(HOTLINE_FILE, "")
-            self.failUnless(os.path.exists(TWISTD_PID_FILE),
-                            (TWISTD_PID_FILE,
-                             os.listdir(os.path.dirname(TWISTD_PID_FILE))))
+            fileutil.write(exit_trigger_file, "")
+            self.failUnless(os.path.exists(twistd_pid_file),
+                            (twistd_pid_file, os.listdir(os.path.dirname(twistd_pid_file))))
             return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
 
         def _cb4(res):
             out, err, rc_or_sig = res
 
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             # the parent has exited by now
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
@@ -683,9 +646,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # the parent was supposed to poll and wait until it sees
             # twistd.pid go away before it exits, so twistd.pid should be
             # gone by now.
-            self.failIf(os.path.exists(TWISTD_PID_FILE))
+            self.failIf(os.path.exists(twistd_pid_file))
         d.addCallback(_cb4)
-        d.addBoth(self._remove, HOTLINE_FILE)
+        d.addBoth(self._remove, exit_trigger_file)
         return d
 
     def _remove(self, res, file):
@@ -701,7 +664,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnless("does not look like a node directory" in err, err)
+            self.failUnless("is not a recognizable node directory" in err, err)
         d.addCallback(_cb)
 
         def _then_stop_it(res):
@@ -722,16 +685,17 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb3(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnless("does not look like a directory at all" in err, err)
+            self.failUnlessIn("does not look like a directory at all", err)
         d.addCallback(_cb3)
         return d
 
     def test_keygen(self):
         self.skip_if_cannot_daemonize()
+
         basedir = self.workdir("test_keygen")
         c1 = os.path.join(basedir, "c1")
-        TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
-        KEYGEN_FURL_FILE = os.path.join(c1, "key_generator.furl")
+        twistd_pid_file = os.path.join(c1, "twistd.pid")
+        keygen_furl_file = os.path.join(c1, "key_generator.furl")
 
         d = self.run_bintahoe(["--quiet", "create-key-generator", "--basedir", c1])
         def _cb(res):
@@ -761,13 +725,13 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb2)
 
         def _node_has_started():
-            return os.path.exists(KEYGEN_FURL_FILE)
+            return os.path.exists(keygen_furl_file)
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _started(res):
-            self.failUnless(os.path.exists(TWISTD_PID_FILE))
+            self.failUnless(os.path.exists(twistd_pid_file))
             # rm this so we can detect when the second incarnation is ready
-            os.unlink(KEYGEN_FURL_FILE)
+            os.unlink(keygen_furl_file)
             return self.run_bintahoe(["--quiet", "restart", c1])
         d.addCallback(_started)
 
@@ -787,7 +751,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # itself before we get a chance too, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
-            self.failUnless(os.path.exists(TWISTD_PID_FILE))
+            self.failUnless(os.path.exists(twistd_pid_file))
             return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
 
@@ -801,6 +765,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # the parent was supposed to poll and wait until it sees
             # twistd.pid go away before it exits, so twistd.pid should be
             # gone by now.
-            self.failIf(os.path.exists(TWISTD_PID_FILE))
+            self.failIf(os.path.exists(twistd_pid_file))
         d.addCallback(_cb4)
         return d

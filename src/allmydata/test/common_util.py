@@ -173,6 +173,32 @@ class TestMixin(SignalMixin):
         if required_to_quiesce and active:
             self.fail("Reactor was still active when it was required to be quiescent.")
 
+
+class TimezoneMixin(object):
+
+    def setTimezone(self, timezone):
+        def tzset_if_possible():
+            # Windows doesn't have time.tzset().
+            if hasattr(time, 'tzset'):
+                time.tzset()
+
+        unset = object()
+        originalTimezone = os.environ.get('TZ', unset)
+        def restoreTimezone():
+            if originalTimezone is unset:
+                del os.environ['TZ']
+            else:
+                os.environ['TZ'] = originalTimezone
+            tzset_if_possible()
+
+        os.environ['TZ'] = timezone
+        self.addCleanup(restoreTimezone)
+        tzset_if_possible()
+
+    def have_working_tzset(self):
+        return hasattr(time, 'tzset')
+
+
 try:
     import win32file
     import win32con

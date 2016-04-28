@@ -1,28 +1,23 @@
 
-import os, sys, urllib
+import os, sys, urllib, textwrap
 import codecs
 from twisted.python import usage
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import unicode_to_url, quote_output, argv_to_abspath
-from allmydata.util.fileutil import abspath_expanduser_unicode
-
-
-_default_nodedir = None
-if sys.platform == 'win32':
-    from allmydata.windows import registry
-    path = registry.get_base_dir_path()
-    if path:
-        precondition(isinstance(path, unicode), path)
-        _default_nodedir = abspath_expanduser_unicode(path)
-
-if _default_nodedir is None:
-    path = abspath_expanduser_unicode(u"~/.tahoe")
-    precondition(isinstance(path, unicode), path)
-    _default_nodedir = path
+from allmydata.util.encodingutil import unicode_to_url, quote_output, \
+    quote_local_unicode_path, argv_to_abspath
+from allmydata.scripts.default_nodedir import _default_nodedir
 
 def get_default_nodedir():
     return _default_nodedir
 
+def wrap_paragraphs(text, width):
+    # like textwrap.wrap(), but preserve paragraphs (delimited by double
+    # newlines) and leading whitespace, and remove internal whitespace.
+    text = textwrap.dedent(text)
+    if text.startswith("\n"):
+        text = text[1:]
+    return "\n\n".join([textwrap.fill(paragraph, width=width)
+                        for paragraph in text.split("\n\n")])
 
 class BaseOptions(usage.Options):
     def __init__(self):
@@ -35,12 +30,30 @@ class BaseOptions(usage.Options):
     def opt_version(self):
         raise usage.UsageError("--version not allowed on subcommands")
 
+    description = None
+    description_unwrapped = None
+
+    def __str__(self):
+        width = int(os.environ.get('COLUMNS', '80'))
+        s = (self.getSynopsis() + '\n' +
+             "(use 'tahoe --help' to view global options)\n" +
+             '\n' +
+             self.getUsage())
+        if self.description:
+            s += '\n' + wrap_paragraphs(self.description, width) + '\n'
+        if self.description_unwrapped:
+            du = textwrap.dedent(self.description_unwrapped)
+            if du.startswith("\n"):
+                du = du[1:]
+            s += '\n' + du + '\n'
+        return s
+
 class BasedirOptions(BaseOptions):
     default_nodedir = _default_nodedir
 
     optParameters = [
-        ["basedir", "C", None, "Same as --node-directory (default %s)."
-         % get_default_nodedir()],
+        ["basedir", "C", None, "Specify which Tahoe base directory should be used. [default: %s]"
+         % quote_local_unicode_path(_default_nodedir)],
     ]
 
     def parseArgs(self, basedir=None):
@@ -67,10 +80,26 @@ class BasedirOptions(BaseOptions):
         else:
             raise usage.UsageError("No default basedir available, you must provide one with --node-directory, --basedir, or a basedir argument")
         self['basedir'] = b
+        self['node-directory'] = b
 
     def postOptions(self):
         if not self['basedir']:
             raise usage.UsageError("A base directory for the node must be provided.")
+
+class NoDefaultBasedirOptions(BasedirOptions):
+    default_nodedir = None
+
+    optParameters = [
+        ["basedir", "C", None, "Specify which Tahoe base directory should be used."],
+    ]
+
+    # This is overridden in order to ensure we get a "Wrong number of arguments."
+    # error when more than one argument is given.
+    def parseArgs(self, basedir=None):
+        BasedirOptions.parseArgs(self, basedir)
+
+    def getSynopsis(self):
+        return "Usage:  %s [global-options] %s [options] NODEDIR" % (self.command_name, self.subcommand_name)
 
 
 DEFAULT_ALIAS = u"tahoe"
@@ -186,5 +215,6 @@ def get_alias(aliases, path_unicode, default):
     return uri.from_string_dirnode(aliases[alias]).to_string(), path[colon+1:]
 
 def escape_path(path):
+    # this always returns bytes, specifically US-ASCII, valid URL characters
     segments = path.split("/")
     return "/".join([urllib.quote(unicode_to_url(s)) for s in segments])

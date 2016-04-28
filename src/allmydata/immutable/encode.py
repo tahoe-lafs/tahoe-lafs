@@ -74,7 +74,7 @@ PiB=1024*TiB
 class Encoder(object):
     implements(IEncoder)
 
-    def __init__(self, log_parent=None, upload_status=None):
+    def __init__(self, log_parent=None, upload_status=None, progress=None):
         object.__init__(self)
         self.uri_extension_data = {}
         self._codec = None
@@ -86,6 +86,7 @@ class Encoder(object):
         self._log_number = log.msg("creating Encoder %s" % self,
                                    facility="tahoe.encoder", parent=log_parent)
         self._aborted = False
+        self._progress = progress
 
     def __repr__(self):
         if hasattr(self, "_storage_index"):
@@ -105,6 +106,8 @@ class Encoder(object):
         def _got_size(size):
             self.log(format="file size: %(size)d", size=size)
             self.file_size = size
+            if self._progress:
+                self._progress.set_progress_total(self.file_size)
         d.addCallback(_got_size)
         d.addCallback(lambda res: eu.get_all_encoding_parameters())
         d.addCallback(self._got_all_encoding_parameters)
@@ -436,6 +439,7 @@ class Encoder(object):
             shareid = shareids[i]
             d = self.send_block(shareid, segnum, block, lognum)
             dl.append(d)
+
             block_hash = hashutil.block_hash(block)
             #from allmydata.util import base32
             #log.msg("creating block (shareid=%d, blocknum=%d) "
@@ -445,6 +449,14 @@ class Encoder(object):
             self.block_hashes[shareid].append(block_hash)
 
         dl = self._gather_responses(dl)
+
+        def do_progress(ign):
+            done = self.segment_size * (segnum + 1)
+            if self._progress:
+                self._progress.set_progress(done)
+            return ign
+        dl.addCallback(do_progress)
+
         def _logit(res):
             self.log("%s uploaded %s / %s bytes (%d%%) of your file." %
                      (self,

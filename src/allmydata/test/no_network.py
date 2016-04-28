@@ -13,7 +13,7 @@
 # Tubs, so it is not useful for tests that involve a Helper, a KeyGenerator,
 # or the control.furl .
 
-import os.path, shutil
+import os, shutil
 
 from zope.interface import implements
 from twisted.application import service
@@ -476,6 +476,12 @@ class GridTestMixin:
                 self.delete_share(sh)
         d.addCallback(_got_shares)
         return d
+
+    def delete_all_shares_in_serverdir(self, serverdir):
+        sharedir = os.path.join(serverdir, "shares")
+        for prefixdir in os.listdir(sharedir):
+            if prefixdir != 'incoming':
+                fileutil.rm_dir(os.path.join(sharedir, prefixdir))
 
     def corrupt_share(self, (shnum, serverid, sharefile), corruptor_function, debug=False):
         sharedata = fileutil.read(sharefile)

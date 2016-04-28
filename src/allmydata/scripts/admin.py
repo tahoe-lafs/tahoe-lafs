@@ -7,7 +7,7 @@ from allmydata.scripts.common import BaseOptions, BasedirOptions
 
 class GenerateKeypairOptions(BaseOptions):
     def getSynopsis(self):
-        return "Usage: %s [global-opts] admin generate-keypair" % (self.command_name,)
+        return "Usage: %s [global-options] admin generate-keypair" % (self.command_name,)
 
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
@@ -28,7 +28,7 @@ class DerivePubkeyOptions(BaseOptions):
         self.privkey = privkey
 
     def getSynopsis(self):
-        return "Usage: %s [global-opts] admin derive-pubkey PRIVKEY" % (self.command_name,)
+        return "Usage: %s [global-options] admin derive-pubkey PRIVKEY" % (self.command_name,)
 
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
@@ -50,7 +50,7 @@ def derive_pubkey(options):
 
 class CreateContainerOptions(BasedirOptions):
     def getSynopsis(self):
-        return "Usage: %s [global-opts] admin create-container [NODEDIR]" % (self.command_name,)
+        return "Usage: %s [global-options] admin create-container [NODEDIR]" % (self.command_name,)
 
     def getUsage(self, width=None):
         t = BasedirOptions.getUsage(self, width)
@@ -104,7 +104,7 @@ def do_create_container(options):
 
 class ListContainerOptions(BasedirOptions):
     def getSynopsis(self):
-        return "Usage: %s [global-opts] admin ls-container [NODEDIR]" % (self.command_name,)
+        return "Usage: %s [global-options] admin ls-container [NODEDIR]" % (self.command_name,)
 
     def getUsage(self, width=None):
         t = BasedirOptions.getUsage(self, width)
@@ -185,7 +185,7 @@ class AdminCommand(BaseOptions):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a subcommand")
     def getSynopsis(self):
-        return "Usage: %s [global-opts] admin SUBCOMMAND" % (self.command_name,)
+        return "Usage: %s [global-options] admin SUBCOMMAND" % (self.command_name,)
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
         t += """

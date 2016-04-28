@@ -91,7 +91,7 @@ class FakeCHKFileNode:
         s = StubServer("\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
-                         needs_rebalancing=False,
+                         count_happiness=10,
                          count_shares_needed=3,
                          count_shares_expected=10,
                          count_shares_good=10,
@@ -172,8 +172,8 @@ class FakeCHKFileNode:
         return defer.succeed(self)
 
 
-    def download_to_data(self):
-        return download_to_data(self)
+    def download_to_data(self, progress=None):
+        return download_to_data(self, progress=progress)
 
 
     download_best_version = download_to_data
@@ -303,7 +303,7 @@ class FakeMutableFileNode:
         s = StubServer("\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
-                         needs_rebalancing=False,
+                         count_happiness=10,
                          count_shares_needed=3,
                          count_shares_expected=10,
                          count_shares_good=10,
@@ -350,11 +350,11 @@ class FakeMutableFileNode:
         d.addCallback(_done)
         return d
 
-    def download_best_version(self):
-        return defer.succeed(self._download_best_version())
+    def download_best_version(self, progress=None):
+        return defer.succeed(self._download_best_version(progress=progress))
 
 
-    def _download_best_version(self, ignored=None):
+    def _download_best_version(self, ignored=None, progress=None):
         if isinstance(self.my_uri, uri.LiteralFileURI):
             return self.my_uri.data
         if self.storage_index not in self.all_contents:
@@ -502,7 +502,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
     def tearDown(self):
         log.msg("shutting down SystemTest services")
-        d = self.sparent.stopService()
+        d = self.stall(0.001)
+        d.addCallback(lambda _: self.sparent.stopService())
         d.addBoth(flush_but_dont_ignore)
         return d
 

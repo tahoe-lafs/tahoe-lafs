@@ -84,7 +84,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         server_1 = sb.get_stub_server(serverid_1)
         server_f = sb.get_stub_server(serverid_f)
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
-        data = { "count_shares_needed": 3,
+        data = { "count_happiness": 8,
+                 "count_shares_needed": 3,
                  "count_shares_expected": 9,
                  "count_shares_good": 10,
                  "count_good_share_hosts": 11,
@@ -101,7 +102,6 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  }
         cr = check_results.CheckResults(u, u.get_storage_index(),
                                         healthy=True, recoverable=True,
-                                        needs_rebalancing=False,
                                         summary="groovy",
                                         **data)
         w = web_check_results.CheckResultsRenderer(c, cr)
@@ -110,6 +110,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Healthy : groovy", s)
         self.failUnlessIn("Share Counts: need 3-of-9, have 10", s)
+        self.failUnlessIn("Happiness Level: 8", s)
         self.failUnlessIn("Hosts with good shares: 11", s)
         self.failUnlessIn("Corrupt shares: none", s)
         self.failUnlessIn("Wrong Shares: 0", s)
@@ -119,7 +120,6 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
         cr = check_results.CheckResults(u, u.get_storage_index(),
                                         healthy=False, recoverable=True,
-                                        needs_rebalancing=False,
                                         summary="ungroovy",
                                         **data)
         w = web_check_results.CheckResultsRenderer(c, cr)
@@ -132,7 +132,6 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         data["list_corrupt_shares"] = [(server_1, u.get_storage_index(), 2)]
         cr = check_results.CheckResults(u, u.get_storage_index(),
                                         healthy=False, recoverable=False,
-                                        needs_rebalancing=False,
                                         summary="rather dead",
                                         **data)
         w = web_check_results.CheckResultsRenderer(c, cr)
@@ -157,7 +156,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
             self.failUnlessEqual(j["summary"], "rather dead")
             self.failUnlessEqual(j["storage-index"],
                                  "2k6avpjga3dho3zsjo6nnkt7n4")
-            expected = {'needs-rebalancing': False,
+            expected = {'count-happiness': 8,
                         'count-shares-expected': 9,
                         'healthy': False,
                         'count-unrecoverable-versions': 0,
@@ -192,7 +191,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         serverid_f = "\xff"*20
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
 
-        data = { "count_shares_needed": 3,
+        data = { "count_happiness": 5,
+                 "count_shares_needed": 3,
                  "count_shares_expected": 10,
                  "count_shares_good": 6,
                  "count_good_share_hosts": 7,
@@ -210,11 +210,11 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  }
         pre_cr = check_results.CheckResults(u, u.get_storage_index(),
                                             healthy=False, recoverable=True,
-                                            needs_rebalancing=False,
                                             summary="illing",
                                             **data)
 
-        data = { "count_shares_needed": 3,
+        data = { "count_happiness": 9,
+                 "count_shares_needed": 3,
                  "count_shares_expected": 10,
                  "count_shares_good": 10,
                  "count_good_share_hosts": 11,
@@ -232,7 +232,6 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  }
         post_cr = check_results.CheckResults(u, u.get_storage_index(),
                                              healthy=True, recoverable=True,
-                                             needs_rebalancing=False,
                                              summary="groovy",
                                              **data)
 
@@ -265,7 +264,6 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         crr.repair_successful = False
         post_cr = check_results.CheckResults(u, u.get_storage_index(),
                                              healthy=False, recoverable=True,
-                                             needs_rebalancing=False,
                                              summary="better",
                                              **data)
         crr.post_repair_results = post_cr
@@ -281,7 +279,6 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         crr.repair_successful = False
         post_cr = check_results.CheckResults(u, u.get_storage_index(),
                                              healthy=False, recoverable=False,
-                                             needs_rebalancing=False,
                                              summary="worse",
                                              **data)
         crr.post_repair_results = post_cr
@@ -337,9 +334,9 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         self.basedir = "checker/BalancingAct/1115"
         self.set_up_grid(num_servers=1)
         c0 = self.g.clients[0]
-        c0.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
-        c0.DEFAULT_ENCODING_PARAMETERS['n'] = 4
-        c0.DEFAULT_ENCODING_PARAMETERS['k'] = 3
+        c0.encoding_params['happy'] = 1
+        c0.encoding_params['n'] = 4
+        c0.encoding_params['k'] = 3
 
         DATA = "data" * 100
         d = c0.upload(Data(DATA, convergence=""))
@@ -397,7 +394,7 @@ class AddLease(GridTestMixin, unittest.TestCase):
         self.basedir = "checker/AddLease/875"
         self.set_up_grid(num_servers=1)
         c0 = self.g.clients[0]
-        c0.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+        c0.encoding_params['happy'] = 1
         self.uris = {}
         DATA = "data" * 100
         d = c0.upload(Data(DATA, convergence=""))
@@ -486,11 +483,11 @@ class TooParallel(GridTestMixin, unittest.TestCase):
         def _start(ign):
             self.set_up_grid(num_servers=4)
             self.c0 = self.g.clients[0]
-            self.c0.DEFAULT_ENCODING_PARAMETERS = { "k": 1,
-                                               "happy": 4,
-                                               "n": 4,
-                                               "max_segment_size": 5,
-                                               }
+            self.c0.encoding_params = { "k": 1,
+                                        "happy": 4,
+                                        "n": 4,
+                                        "max_segment_size": 5,
+                                      }
             self.uris = {}
             DATA = "data" * 100 # 400/5 = 80 blocks
             return self.c0.upload(Data(DATA, convergence=""))

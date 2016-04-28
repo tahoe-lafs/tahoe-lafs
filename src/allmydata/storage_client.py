@@ -62,10 +62,11 @@ class StorageFarmBroker:
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, tub, permute_peers):
+    def __init__(self, tub, permute_peers, preferred_peers=()):
         self.tub = tub
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
+        self.preferred_peers = preferred_peers
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
         # own Reconnector, and will give us a RemoteReference when we ask
@@ -121,10 +122,13 @@ class StorageFarmBroker:
     def get_servers_for_psi(self, peer_selection_index):
         # return a list of server objects (IServers)
         assert self.permute_peers == True
+        connected_servers = self.get_connected_servers()
+        preferred_servers = frozenset(s for s in connected_servers if s.get_longname() in self.preferred_peers)
         def _permuted(server):
             seed = server.get_permutation_seed()
-            return sha1(peer_selection_index + seed).digest()
-        return sorted(self.get_connected_servers(), key=_permuted)
+            is_unpreferred = server not in preferred_servers
+            return (is_unpreferred, sha1(peer_selection_index + seed).digest())
+        return sorted(connected_servers, key=_permuted)
 
     def get_all_serverids(self):
         return frozenset(self.servers.keys())
@@ -164,7 +168,6 @@ class NativeStorageServer:
     the their version information. I remember information about when we were
     last connected too, even if we aren't currently connected.
 
-    @ivar announcement_time: when we first heard about this service
     @ivar last_connect_time: when we last established a connection
     @ivar last_loss_time: when we last lost a connection
 
@@ -182,14 +185,14 @@ class NativeStorageServer:
           "maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
           "tolerates-immutable-read-overrun": False,
           "delete-mutable-shares-with-zero-length-writev": False,
+          "available-space": None,
           },
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, key_s, ann, min_shares=1):
+    def __init__(self, key_s, ann):
         self.key_s = key_s
         self.announcement = ann
-        self.min_shares = min_shares
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
@@ -212,7 +215,6 @@ class NativeStorageServer:
             self._long_description = tubid_s
             self._short_description = tubid_s[:6]
 
-        self.announcement_time = time.time()
         self.last_connect_time = None
         self.last_loss_time = None
         self.remote_host = None
@@ -263,8 +265,21 @@ class NativeStorageServer:
         return self.last_connect_time
     def get_last_loss_time(self):
         return self.last_loss_time
-    def get_announcement_time(self):
-        return self.announcement_time
+    def get_last_received_data_time(self):
+        if self.rref is None:
+            return None
+        else:
+            return self.rref.getDataLastReceivedAt()
+
+    def get_available_space(self):
+        version = self.get_version()
+        if version is None:
+            return None
+        protocol_v1_version = version.get('http://allmydata.org/tahoe/protocols/storage/v1', {})
+        available_space = protocol_v1_version.get('available-space')
+        if available_space is None:
+            available_space = protocol_v1_version.get('maximum-immutable-share-size', None)
+        return available_space
 
     def start_connecting(self, tub, trigger_cb):
         furl = str(self.announcement["anonymous-storage-FURL"])

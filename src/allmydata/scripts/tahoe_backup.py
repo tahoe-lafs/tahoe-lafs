@@ -10,9 +10,9 @@ from allmydata.scripts.common_http import do_http, HTTPError, format_http_error
 from allmydata.util import time_format
 from allmydata.scripts import backupdb
 from allmydata.util.encodingutil import listdir_unicode, quote_output, \
-     to_str, FilenameEncodingError, unicode_to_url
+     quote_local_unicode_path, to_str, FilenameEncodingError, unicode_to_url
 from allmydata.util.assertutil import precondition
-from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 
 
 def get_local_metadata(path):
@@ -160,10 +160,11 @@ class BackerUpper:
         print >>self.options.stderr, msg
 
     def process(self, localpath):
-        precondition(isinstance(localpath, unicode), localpath)
+        precondition_abspath(localpath)
         # returns newdircap
 
-        self.verboseprint("processing %s" % quote_output(localpath))
+        quoted_path = quote_local_unicode_path(localpath)
+        self.verboseprint("processing %s" % (quoted_path,))
         create_contents = {} # childname -> (type, rocap, metadata)
         compare_contents = {} # childname -> rocap
 
@@ -171,11 +172,11 @@ class BackerUpper:
             children = listdir_unicode(localpath)
         except EnvironmentError:
             self.directories_skipped += 1
-            self.warn("WARNING: permission denied on directory %s" % quote_output(localpath))
+            self.warn("WARNING: permission denied on directory %s" % (quoted_path,))
             children = []
         except FilenameEncodingError:
             self.directories_skipped += 1
-            self.warn("WARNING: could not list directory %s due to a filename encoding error" % quote_output(localpath))
+            self.warn("WARNING: could not list directory %s due to a filename encoding error" % (quoted_path,))
             children = []
 
         for child in self.options.filter_listdir(children):
@@ -197,17 +198,17 @@ class BackerUpper:
                     compare_contents[child] = childcap
                 except EnvironmentError:
                     self.files_skipped += 1
-                    self.warn("WARNING: permission denied on file %s" % quote_output(childpath))
+                    self.warn("WARNING: permission denied on file %s" % quote_local_unicode_path(childpath))
             else:
                 self.files_skipped += 1
                 if os.path.islink(childpath):
-                    self.warn("WARNING: cannot backup symlink %s" % quote_output(childpath))
+                    self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
                 else:
-                    self.warn("WARNING: cannot backup special file %s" % quote_output(childpath))
+                    self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
 
         must_create, r = self.check_backupdb_directory(compare_contents)
         if must_create:
-            self.verboseprint(" creating directory for %s" % quote_output(localpath))
+            self.verboseprint(" creating directory for %s" % quote_local_unicode_path(localpath))
             newdircap = mkdir(create_contents, self.options)
             assert isinstance(newdircap, str)
             if r:
@@ -215,7 +216,7 @@ class BackerUpper:
             self.directories_created += 1
             return newdircap
         else:
-            self.verboseprint(" re-using old directory for %s" % quote_output(localpath))
+            self.verboseprint(" re-using old directory for %s" % quote_local_unicode_path(localpath))
             self.directories_reused += 1
             return r.was_created()
 
@@ -288,16 +289,16 @@ class BackerUpper:
 
     # This function will raise an IOError exception when called on an unreadable file
     def upload(self, childpath):
-        precondition(isinstance(childpath, unicode), childpath)
+        precondition_abspath(childpath)
 
-        #self.verboseprint("uploading %s.." % quote_output(childpath))
+        #self.verboseprint("uploading %s.." % quote_local_unicode_path(childpath))
         metadata = get_local_metadata(childpath)
 
         # we can use the backupdb here
         must_upload, bdb_results = self.check_backupdb_file(childpath)
 
         if must_upload:
-            self.verboseprint("uploading %s.." % quote_output(childpath))
+            self.verboseprint("uploading %s.." % quote_local_unicode_path(childpath))
             infileobj = open(childpath, "rb")
             url = self.options['node-url'] + "uri"
             resp = do_http("PUT", url, infileobj)
@@ -305,7 +306,7 @@ class BackerUpper:
                 raise HTTPError("Error during file PUT", resp)
 
             filecap = resp.read().strip()
-            self.verboseprint(" %s -> %s" % (quote_output(childpath, quotemarks=False),
+            self.verboseprint(" %s -> %s" % (quote_local_unicode_path(childpath, quotemarks=False),
                                              quote_output(filecap, quotemarks=False)))
             #self.verboseprint(" metadata: %s" % (quote_output(metadata, quotemarks=False),))
 
@@ -316,7 +317,7 @@ class BackerUpper:
             return filecap, metadata
 
         else:
-            self.verboseprint("skipping %s.." % quote_output(childpath))
+            self.verboseprint("skipping %s.." % quote_local_unicode_path(childpath))
             self.files_reused += 1
             return bdb_results.was_uploaded(), metadata
 

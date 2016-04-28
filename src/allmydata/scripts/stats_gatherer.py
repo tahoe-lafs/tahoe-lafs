@@ -1,28 +1,14 @@
 
 import os, sys
-from allmydata.scripts.common import BasedirOptions
+
+from allmydata.scripts.common import NoDefaultBasedirOptions
+from allmydata.scripts.create_node import write_tac
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, quote_output
 
-class CreateStatsGathererOptions(BasedirOptions):
-    default_nodedir = None
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] create-stats-gatherer [options] NODEDIR" % (self.command_name,)
-
-
-stats_gatherer_tac = """
-# -*- python -*-
-
-from allmydata import stats
-from twisted.application import service
-
-verbose = True
-g = stats.StatsGathererService(verbose=verbose)
-
-application = service.Application('allmydata_stats_gatherer')
-g.setServiceParent(application)
-"""
+class CreateStatsGathererOptions(NoDefaultBasedirOptions):
+    subcommand_name = "create-stats-gatherer"
 
 
 def create_stats_gatherer(config, out=sys.stdout, err=sys.stderr):
@@ -39,9 +25,7 @@ def create_stats_gatherer(config, out=sys.stdout, err=sys.stderr):
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
-    f = open(os.path.join(basedir, "tahoe-stats-gatherer.tac"), "wb")
-    f.write(stats_gatherer_tac)
-    f.close()
+    write_tac(basedir, "stats-gatherer")
     return 0
 
 subCommands = [

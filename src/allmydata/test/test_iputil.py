@@ -128,6 +128,7 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
                 e.errno = errno.ENOENT
                 raise e
         self.patch(subprocess, 'Popen', call_Popen)
+        self.patch(os.path, 'isfile', lambda x: True)
 
         def call_get_local_ip_for(target):
             if target in ("localhost", "127.0.0.1"):

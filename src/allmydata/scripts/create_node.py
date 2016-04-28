@@ -1,11 +1,25 @@
 
 import os, sys
-from allmydata.scripts.common import BasedirOptions
-from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_output
-import allmydata
 
-class CreateClientOptions(BasedirOptions):
+from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
+from allmydata.scripts.default_nodedir import _default_nodedir
+from allmydata.util.assertutil import precondition
+from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path
+from allmydata.util import fileutil
+
+
+dummy_tac = """
+import sys
+print("Nodes created by Tahoe-LAFS v1.11.0 or later cannot be run by")
+print("releases of Tahoe-LAFS before v1.10.0.")
+sys.exit(1)
+"""
+
+def write_tac(basedir, nodetype):
+    fileutil.write(os.path.join(basedir, "tahoe-%s.tac" % (nodetype,)), dummy_tac)
+
+
+class _CreateBaseOptions(BasedirOptions):
     optParameters = [
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
@@ -14,57 +28,31 @@ class CreateClientOptions(BasedirOptions):
         ("introducer", "i", None, "Specify the introducer FURL to use."),
         ("webport", "p", "tcp:3456:interface=127.0.0.1",
          "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
+        ("basedir", "C", None, "Specify which Tahoe base directory should be used. This has the same effect as the global --node-directory option. [default: %s]"
+         % quote_local_unicode_path(_default_nodedir)),
+
         ]
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] create-client [options] [NODEDIR]" % (self.command_name,)
+    # This is overridden in order to ensure we get a "Wrong number of
+    # arguments." error when more than one argument is given.
+    def parseArgs(self, basedir=None):
+        BasedirOptions.parseArgs(self, basedir)
 
+class CreateClientOptions(_CreateBaseOptions):
+    synopsis = "[options] [NODEDIR]"
+    description = "Create a client-only Tahoe-LAFS node (no storage server)."
 
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
         ]
+    synopsis = "[options] [NODEDIR]"
+    description = "Create a full Tahoe-LAFS node (client+server)."
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] create-node [options] [NODEDIR]" % (self.command_name,)
+class CreateIntroducerOptions(NoDefaultBasedirOptions):
+    subcommand_name = "create-introducer"
+    description = "Create a Tahoe-LAFS introducer."
 
-
-class CreateIntroducerOptions(BasedirOptions):
-    default_nodedir = None
-
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] create-introducer [options] NODEDIR" % (self.command_name,)
-
-
-client_tac = """
-# -*- python -*-
-
-import pkg_resources
-pkg_resources.require('%s')
-pkg_resources.require('twisted')
-from allmydata import client
-from twisted.application import service
-
-c = client.Client()
-
-application = service.Application("allmydata_client")
-c.setServiceParent(application)
-""" % (allmydata.__appname__,)
-
-introducer_tac = """
-# -*- python -*-
-
-import pkg_resources
-pkg_resources.require('%s')
-pkg_resources.require('twisted')
-from allmydata import introducer
-from twisted.application import service
-
-c = introducer.IntroducerNode()
-
-application = service.Application("allmydata_introducer")
-c.setServiceParent(application)
-""" % (allmydata.__appname__,)
 
 def write_node_config(c, config):
     # this is shared between clients and introducers
@@ -104,16 +92,14 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
+            print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
             print >>err, "To avoid clobbering anything, I am going to quit now."
             print >>err, "Please use a different directory, or empty this one."
             return -1
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
-    f = open(os.path.join(basedir, "tahoe-client.tac"), "w")
-    f.write(client_tac)
-    f.close()
+    write_tac(basedir, "client")
 
     c = open(os.path.join(basedir, "tahoe.cfg"), "w")
 
@@ -160,7 +146,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
 
     from allmydata.util import fileutil
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
-    print >>out, "Node created in %s" % quote_output(basedir)
+    print >>out, "Node created in %s" % quote_local_unicode_path(basedir)
     if not config.get("introducer", ""):
         print >>out, " Please set [client]introducer.furl= in tahoe.cfg!"
         print >>out, " The node cannot connect to a grid without it."
@@ -180,22 +166,20 @@ def create_introducer(config, out=sys.stdout, err=sys.stderr):
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
+            print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
             print >>err, "To avoid clobbering anything, I am going to quit now."
             print >>err, "Please use a different directory, or empty this one."
             return -1
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
-    f = open(os.path.join(basedir, "tahoe-introducer.tac"), "w")
-    f.write(introducer_tac)
-    f.close()
+    write_tac(basedir, "introducer")
 
     c = open(os.path.join(basedir, "tahoe.cfg"), "w")
     write_node_config(c, config)
     c.close()
 
-    print >>out, "Introducer created in %s" % quote_output(basedir)
+    print >>out, "Introducer created in %s" % quote_local_unicode_path(basedir)
     return 0
 
 

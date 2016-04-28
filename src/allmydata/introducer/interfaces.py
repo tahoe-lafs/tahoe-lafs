@@ -31,23 +31,6 @@ class RIIntroducerSubscriberClient_v2(RemoteInterface):
         """I accept announcements from the publisher."""
         return None
 
-    def set_encoding_parameters(parameters=(int, int, int)):
-        """Advise the client of the recommended k-of-n encoding parameters
-        for this grid. 'parameters' is a tuple of (k, desired, n), where 'n'
-        is the total number of shares that will be created for any given
-        file, while 'k' is the number of shares that must be retrieved to
-        recover that file, and 'desired' is the minimum number of shares that
-        must be placed before the uploader will consider its job a success.
-        n/k is the expansion ratio, while k determines the robustness.
-
-        Introducers should specify 'n' according to the expected size of the
-        grid (there is no point to producing more shares than there are
-        peers), and k according to the desired reliability-vs-overhead goals.
-
-        Note that setting k=1 is equivalent to simple replication.
-        """
-        return None
-
 SubscriberInfo = DictOf(str, Any())
 
 class RIIntroducerPublisherAndSubscriberService_v2(RemoteInterface):

@@ -275,7 +275,7 @@ to the gatherer and offer it a second FURL which points back to the node's
 The initial connection is flipped to allow the nodes to live behind NAT
 boxes, as long as the stats-gatherer has a reachable IP address.)
 
-.. _Foolscap: http://foolscap.lothar.com/trac
+.. _Foolscap: https://foolscap.lothar.com/trac
 
 The stats-gatherer is created in the same fashion as regular tahoe client
 nodes and introducer nodes. Choose a base directory for the gatherer to live
@@ -307,7 +307,7 @@ keep its FURL consistent). To explicitly control which port it uses, write
 the desired portnumber into a file named "portnum" (i.e. $BASEDIR/portnum),
 and the next time the gatherer is started, it will start listening on the
 given port. The portnum file is actually a "strports specification string",
-as described in configuration.rst_.
+as described in :doc:`configuration`.
 
 Once running, the stats gatherer will create a standard python "pickle" file
 in $BASEDIR/stats.pickle . Once a minute, the gatherer will pull stats
@@ -323,8 +323,6 @@ something useful. For example, a tool could sum the
 "storage_server.disk_avail' values from all servers to compute a
 total-disk-available number for the entire grid (however, the "disk watcher"
 daemon, in misc/operations_helpers/spacetime/, is better suited for this specific task).
-
-.. _configuration.rst: configuration.rst
 
 Using Munin To Graph Stats Values
 =================================

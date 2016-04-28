@@ -1,33 +1,15 @@
 
 import os, sys
-from allmydata.scripts.common import BasedirOptions
+
+from allmydata.scripts.common import NoDefaultBasedirOptions
+from allmydata.scripts.create_node import write_tac
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, quote_output
 
-class CreateKeyGeneratorOptions(BasedirOptions):
-    default_nodedir = None
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] create-key-generator [options] NODEDIR" % (self.command_name,)
+class CreateKeyGeneratorOptions(NoDefaultBasedirOptions):
+    subcommand_name = "create-key-generator"
 
-
-keygen_tac = """
-# -*- python -*-
-
-import pkg_resources
-pkg_resources.require('allmydata-tahoe')
-
-from allmydata import key_generator
-from twisted.application import service
-
-k = key_generator.KeyGeneratorService(default_key_size=2048)
-#k.key_generator.verbose = False
-#k.key_generator.pool_size = 16
-#k.key_generator.pool_refresh_delay = 6
-
-application = service.Application("allmydata_key_generator")
-k.setServiceParent(application)
-"""
 
 def create_key_generator(config, out=sys.stdout, err=sys.stderr):
     basedir = config['basedir']
@@ -43,9 +25,7 @@ def create_key_generator(config, out=sys.stdout, err=sys.stderr):
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
-    f = open(os.path.join(basedir, "tahoe-key-generator.tac"), "wb")
-    f.write(keygen_tac)
-    f.close()
+    write_tac(basedir, "key-generator")
     return 0
 
 subCommands = [

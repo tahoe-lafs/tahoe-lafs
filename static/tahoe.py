@@ -13,13 +13,11 @@ from xml.dom import minidom
 
 import allmydata.web
 
-import mock
-
 # junk to appease pyflakes's outrage
 [
     accessors, appserver, static, rend, url, util, query, i18n, flat, guard, stan, testutil,
     context, flatmdom, flatstan, twist, webform, processors, annotate, iformless, Decimal,
-    minidom, allmydata, mock,
+    minidom, allmydata,
 ]
 
 from allmydata.scripts import runner

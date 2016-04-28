@@ -12,7 +12,7 @@ from nevow.inevow import IRequest
 
 from foolscap.api import fireEventually
 
-from allmydata.util import base32, time_format
+from allmydata.util import base32
 from allmydata.util.encodingutil import to_str
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
@@ -26,7 +26,7 @@ from allmydata.web.common import text_plain, WebError, \
      boolean_of_arg, get_arg, get_root, parse_replace_arg, \
      should_create_intermediate_directories, \
      getxmlfile, RenderMixin, humanize_failure, convert_children_json, \
-     get_format, get_mutable_type
+     get_format, get_mutable_type, get_filenode_metadata, render_time
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.check_results import CheckResultsRenderer, \
@@ -686,14 +686,14 @@ class DirectoryAsHTML(rend.Page):
                 T.input(type='hidden', name='t', value='unlink'),
                 T.input(type='hidden', name='name', value=name),
                 T.input(type='hidden', name='when_done', value="."),
-                T.input(type='submit', value='unlink', name="unlink"),
+                T.input(type='submit', _class='btn', value='unlink', name="unlink"),
                 ]
 
             rename = T.form(action=here, method="get")[
                 T.input(type='hidden', name='t', value='rename-form'),
                 T.input(type='hidden', name='name', value=name),
                 T.input(type='hidden', name='when_done', value="."),
-                T.input(type='submit', value='rename/relink', name="rename"),
+                T.input(type='submit', _class='btn', value='rename/relink', name="rename"),
                 ]
 
         ctx.fillSlots("unlink", unlink)
@@ -702,21 +702,21 @@ class DirectoryAsHTML(rend.Page):
         times = []
         linkcrtime = metadata.get('tahoe', {}).get("linkcrtime")
         if linkcrtime is not None:
-            times.append("lcr: " + time_format.iso_local(linkcrtime))
+            times.append("lcr: " + render_time(linkcrtime))
         else:
             # For backwards-compatibility with links last modified by Tahoe < 1.4.0:
             if "ctime" in metadata:
-                ctime = time_format.iso_local(metadata["ctime"])
+                ctime = render_time(metadata["ctime"])
                 times.append("c: " + ctime)
         linkmotime = metadata.get('tahoe', {}).get("linkmotime")
         if linkmotime is not None:
             if times:
                 times.append(T.br())
-            times.append("lmo: " + time_format.iso_local(linkmotime))
+            times.append("lmo: " + render_time(linkmotime))
         else:
             # For backwards-compatibility with links last modified by Tahoe < 1.4.0:
             if "mtime" in metadata:
-                mtime = time_format.iso_local(metadata["mtime"])
+                mtime = render_time(metadata["mtime"])
                 if times:
                     times.append(T.br())
                 times.append("m: " + mtime)
@@ -815,11 +815,13 @@ class DirectoryAsHTML(rend.Page):
             T.input(type="hidden", name="t", value="mkdir"),
             T.input(type="hidden", name="when_done", value="."),
             T.legend(class_="freeform-form-label")["Create a new directory in this directory"],
-            "New directory name:"+SPACE,
+            "New directory name:"+SPACE, T.br,
             T.input(type="text", name="name"), SPACE,
-            T.input(type="submit", value="Create"), SPACE*2,
-            mkdir_sdmf, T.label(for_='mutable-directory-sdmf')[" SDMF"], SPACE,
-            mkdir_mdmf, T.label(for_='mutable-directory-mdmf')[" MDMF (experimental)"],
+            T.div(class_="form-inline")[
+                mkdir_sdmf, T.label(for_='mutable-directory-sdmf')[SPACE, "SDMF"], SPACE*2,
+                mkdir_mdmf, T.label(for_='mutable-directory-mdmf')[SPACE, "MDMF (experimental)"]
+            ],
+            T.input(type="submit", class_="btn", value="Create")
             ]]
         forms.append(T.div(class_="freeform-form")[mkdir_form])
 
@@ -839,32 +841,33 @@ class DirectoryAsHTML(rend.Page):
             T.legend(class_="freeform-form-label")["Upload a file to this directory"],
             "Choose a file to upload:"+SPACE,
             T.input(type="file", name="file", class_="freeform-input-file"), SPACE,
-            T.input(type="submit", value="Upload"),                          SPACE*2,
-            upload_chk,  T.label(for_="upload-chk") [" Immutable"],          SPACE,
-            upload_sdmf, T.label(for_="upload-sdmf")[" SDMF"],               SPACE,
-            upload_mdmf, T.label(for_="upload-mdmf")[" MDMF (experimental)"],
+            T.div(class_="form-inline")[
+                upload_chk,  T.label(for_="upload-chk") [SPACE, "Immutable"], SPACE*2,
+                upload_sdmf, T.label(for_="upload-sdmf")[SPACE, "SDMF"], SPACE*2,
+                upload_mdmf, T.label(for_="upload-mdmf")[SPACE, "MDMF (experimental)"]
+            ],
+            T.input(type="submit", class_="btn", value="Upload"),             SPACE*2,
             ]]
         forms.append(T.div(class_="freeform-form")[upload_form])
 
         attach_form = T.form(action=".", method="post",
                              enctype="multipart/form-data")[
-            T.fieldset[
-            T.input(type="hidden", name="t", value="uri"),
-            T.input(type="hidden", name="when_done", value="."),
-            T.legend(class_="freeform-form-label")["Add a link to a file or directory which is already in Tahoe-LAFS."],
-            "New child name:"+SPACE,
-            T.input(type="text", name="name"), SPACE*2,
-            "URI of new child:"+SPACE,
-            T.input(type="text", name="uri"), SPACE,
-            T.input(type="submit", value="Attach"),
-            ]]
+            T.fieldset[ T.div(class_="form-inline")[
+                T.input(type="hidden", name="t", value="uri"),
+                T.input(type="hidden", name="when_done", value="."),
+                T.legend(class_="freeform-form-label")["Add a link to a file or directory which is already in Tahoe-LAFS."],
+                "New child name:"+SPACE,
+                T.input(type="text", name="name"), SPACE*2, T.br,
+                "URI of new child:"+SPACE,
+                T.input(type="text", name="uri"), SPACE,
+                T.input(type="submit", class_="btn", value="Attach"),
+            ]]]
         forms.append(T.div(class_="freeform-form")[attach_form])
         return forms
 
     def render_results(self, ctx, data):
         req = IRequest(ctx)
         return get_arg(req, "results", "")
-
 
 def DirectoryJSONMetadata(ctx, dirnode):
     d = dirnode.list()
@@ -875,20 +878,7 @@ def DirectoryJSONMetadata(ctx, dirnode):
             rw_uri = childnode.get_write_uri()
             ro_uri = childnode.get_readonly_uri()
             if IFileNode.providedBy(childnode):
-                kiddata = ("filenode", {'size': childnode.get_size(),
-                                        'mutable': childnode.is_mutable(),
-                                        })
-                if childnode.is_mutable():
-                    mutable_type = childnode.get_version()
-                    assert mutable_type in (SDMF_VERSION, MDMF_VERSION)
-                    if mutable_type == MDMF_VERSION:
-                        file_format = "MDMF"
-                    else:
-                        file_format = "SDMF"
-                else:
-                    file_format = "CHK"
-                kiddata[1]['format'] = file_format
-
+                kiddata = ("filenode", get_filenode_metadata(childnode))
             elif IDirectoryNode.providedBy(childnode):
                 kiddata = ("dirnode", {'mutable': childnode.is_mutable()})
             else:

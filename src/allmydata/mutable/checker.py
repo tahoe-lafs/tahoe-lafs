@@ -1,6 +1,7 @@
 
 from allmydata.uri import from_string
 from allmydata.util import base32, log, dictutil
+from allmydata.util.happinessutil import servers_of_happiness
 from allmydata.check_results import CheckAndRepairResults, CheckResults
 
 from allmydata.mutable.common import MODE_CHECK, MODE_WRITE, CorruptShareError
@@ -152,7 +153,6 @@ class MutableChecker:
             summary.append("multiple versions are recoverable")
             report.append("Unhealthy: there are multiple recoverable versions")
 
-        needs_rebalancing = False
         if recoverable:
             best_version = smap.best_recoverable_version()
             report.append("Best Recoverable Version: " +
@@ -166,16 +166,12 @@ class MutableChecker:
                 report.append("Unhealthy: best version has only %d shares "
                               "(encoding is %d-of-%d)" % (s, k, N))
                 summary.append("%d shares (enc %d-of-%d)" % (s, k, N))
-            hosts = smap.all_servers_for_version(best_version)
-            needs_rebalancing = bool( len(hosts) < N )
         elif unrecoverable:
             healthy = False
             # find a k and N from somewhere
             first = list(unrecoverable)[0]
             # not exactly the best version, but that doesn't matter too much
             counters = self._count_shares(smap, first)
-            # leave needs_rebalancing=False: the file being unrecoverable is
-            # the bigger problem
         else:
             # couldn't find anything at all
             counters = {
@@ -223,10 +219,12 @@ class MutableChecker:
         else:
             summary = "Unhealthy: " + " ".join(summary)
 
+        count_happiness = servers_of_happiness(sharemap)
+
         cr = CheckResults(from_string(self._node.get_uri()),
                           self._storage_index,
                           healthy=healthy, recoverable=bool(recoverable),
-                          needs_rebalancing=needs_rebalancing,
+                          count_happiness=count_happiness,
                           count_shares_needed=counters["count-shares-needed"],
                           count_shares_expected=counters["count-shares-expected"],
                           count_shares_good=counters["count-shares-good"],

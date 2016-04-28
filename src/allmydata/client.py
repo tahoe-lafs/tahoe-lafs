@@ -1,5 +1,6 @@
 import os, stat, time, weakref
 from allmydata import node
+from base64 import urlsafe_b64encode
 
 from zope.interface import implements
 from twisted.internet import reactor, defer
@@ -21,7 +22,9 @@ from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, pollmixin, log, keyutil, idlib
-from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
+from allmydata.util.encodingutil import get_filesystem_encoding, quote_output, \
+     from_utf8_or_none
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.stats import StatsProvider
 from allmydata.history import History
@@ -114,13 +117,13 @@ class Client(node.Node, pollmixin.PollMixin):
     PORTNUMFILE = "client.port"
     STOREDIR = 'storage'
     NODETYPE = "client"
-    SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
+    EXIT_TRIGGER_FILE = "exit_trigger"
 
     # This means that if a storage server treats me as though I were a
     # 1.0.0 storage client, it will work as they expect.
     OLDEST_SUPPORTED_VERSION = "1.0.0"
 
-    # this is a tuple of (needed, desired, total, max_segment_size). 'needed'
+    # This is a dictionary of (needed, desired, total, max_segment_size). 'needed'
     # is the number of shares required to reconstruct a file. 'desired' means
     # that we will abort an upload unless we can allocate space for at least
     # this many. 'total' is the total number of shares created by encoding.
@@ -135,7 +138,7 @@ class Client(node.Node, pollmixin.PollMixin):
         node.Node.__init__(self, basedir)
         self.started_timestamp = time.time()
         self.logSource="Client"
-        self.DEFAULT_ENCODING_PARAMETERS = self.DEFAULT_ENCODING_PARAMETERS.copy()
+        self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
         self.init_introducer_client()
         self.init_stats_provider()
         self.init_secrets()
@@ -155,13 +158,16 @@ class Client(node.Node, pollmixin.PollMixin):
         self.init_sftp_server()
         self.init_drop_uploader()
 
-        hotline_file = os.path.join(self.basedir,
-                                    self.SUICIDE_PREVENTION_HOTLINE_FILE)
-        if os.path.exists(hotline_file):
-            age = time.time() - os.stat(hotline_file)[stat.ST_MTIME]
-            self.log("hotline file noticed (%ds old), starting timer" % age)
-            hotline = TimerService(1.0, self._check_hotline, hotline_file)
-            hotline.setServiceParent(self)
+        # If the node sees an exit_trigger file, it will poll every second to see
+        # whether the file still exists, and what its mtime is. If the file does not
+        # exist or has not been modified for a given timeout, the node will exit.
+        exit_trigger_file = os.path.join(self.basedir,
+                                         self.EXIT_TRIGGER_FILE)
+        if os.path.exists(exit_trigger_file):
+            age = time.time() - os.stat(exit_trigger_file)[stat.ST_MTIME]
+            self.log("%s file noticed (%ds old), starting timer" % (self.EXIT_TRIGGER_FILE, age))
+            exit_trigger = TimerService(1.0, self._check_exit_trigger, exit_trigger_file)
+            exit_trigger.setServiceParent(self)
 
         # this needs to happen last, so it can use getServiceNamed() to
         # acquire references to StorageServer and other web-statusable things
@@ -346,10 +352,13 @@ class Client(node.Node, pollmixin.PollMixin):
         if helper_furl in ("None", ""):
             helper_furl = None
 
-        DEP = self.DEFAULT_ENCODING_PARAMETERS
+        DEP = self.encoding_params
         DEP["k"] = int(self.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.get_config("client", "shares.total", DEP["n"]))
         DEP["happy"] = int(self.get_config("client", "shares.happy", DEP["happy"]))
+
+        # for the CLI to authenticate to local JSON endpoints
+        self._create_auth_token()
 
         self.init_client_storage_broker()
         self.history = History(self.stats_provider)
@@ -360,10 +369,34 @@ class Client(node.Node, pollmixin.PollMixin):
         self.init_blacklist()
         self.init_nodemaker()
 
+    def get_auth_token(self):
+        """
+        This returns a local authentication token, which is just some
+        random data in "api_auth_token" which must be echoed to API
+        calls.
+
+        Currently only the URI '/magic' for magic-folder status; other
+        endpoints are invited to include this as well, as appropriate.
+        """
+        return self.get_private_config('api_auth_token')
+
+    def _create_auth_token(self):
+        """
+        Creates new auth-token data written to 'private/api_auth_token'.
+
+        This is intentionally re-created every time the node starts.
+        """
+        self.write_private_config(
+            'api_auth_token',
+            urlsafe_b64encode(os.urandom(32)) + '\n',
+        )
+
     def init_client_storage_broker(self):
         # create a StorageFarmBroker object, for use by Uploader/Downloader
         # (and everybody else who wants to use storage servers)
-        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True)
+        ps = self.get_config("client", "peers.preferred", "").split(",")
+        preferred_peers = tuple([p.strip() for p in ps if p != ""])
+        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True, preferred_peers=preferred_peers)
         self.storage_broker = sb
 
         # load static server specifications from tahoe.cfg, if any.
@@ -471,14 +504,17 @@ class Client(node.Node, pollmixin.PollMixin):
 
         from allmydata.webish import WebishServer
         nodeurl_path = os.path.join(self.basedir, "node.url")
-        staticdir = self.get_config("node", "web.static", "public_html")
-        staticdir = os.path.expanduser(staticdir)
+        staticdir_config = self.get_config("node", "web.static", "public_html").decode("utf-8")
+        staticdir = abspath_expanduser_unicode(staticdir_config, base=self.basedir)
         ws = WebishServer(self, webport, nodeurl_path, staticdir)
         self.add_service(ws)
 
     def init_ftp_server(self):
         if self.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = self.get_config("ftpd", "accounts.file", None)
+            accountfile = from_utf8_or_none(
+                self.get_config("ftpd", "accounts.file", None))
+            if accountfile:
+                accountfile = abspath_expanduser_unicode(accountfile, base=self.basedir)
             accounturl = self.get_config("ftpd", "accounts.url", None)
             ftp_portstr = self.get_config("ftpd", "port", "8021")
 
@@ -488,11 +524,14 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_sftp_server(self):
         if self.get_config("sftpd", "enabled", False, boolean=True):
-            accountfile = self.get_config("sftpd", "accounts.file", None)
+            accountfile = from_utf8_or_none(
+                self.get_config("sftpd", "accounts.file", None))
+            if accountfile:
+                accountfile = abspath_expanduser_unicode(accountfile, base=self.basedir)
             accounturl = self.get_config("sftpd", "accounts.url", None)
             sftp_portstr = self.get_config("sftpd", "port", "8022")
-            pubkey_file = self.get_config("sftpd", "host_pubkey_file")
-            privkey_file = self.get_config("sftpd", "host_privkey_file")
+            pubkey_file = from_utf8_or_none(self.get_config("sftpd", "host_pubkey_file"))
+            privkey_file = from_utf8_or_none(self.get_config("sftpd", "host_privkey_file"))
 
             from allmydata.frontends import sftpd
             s = sftpd.SFTPServer(self, accountfile, accounturl,
@@ -516,19 +555,19 @@ class Client(node.Node, pollmixin.PollMixin):
             except Exception, e:
                 self.log("couldn't start drop-uploader: %r", args=(e,))
 
-    def _check_hotline(self, hotline_file):
-        if os.path.exists(hotline_file):
-            mtime = os.stat(hotline_file)[stat.ST_MTIME]
+    def _check_exit_trigger(self, exit_trigger_file):
+        if os.path.exists(exit_trigger_file):
+            mtime = os.stat(exit_trigger_file)[stat.ST_MTIME]
             if mtime > time.time() - 120.0:
                 return
             else:
-                self.log("hotline file too old, shutting down")
+                self.log("%s file too old, shutting down" % (self.EXIT_TRIGGER_FILE,))
         else:
-            self.log("hotline file missing, shutting down")
+            self.log("%s file missing, shutting down" % (self.EXIT_TRIGGER_FILE,))
         reactor.stop()
 
     def get_encoding_parameters(self):
-        return self.DEFAULT_ENCODING_PARAMETERS
+        return self.encoding_params
 
     def connected_to_introducer(self):
         if self.introducer_client:

@@ -23,21 +23,10 @@ The Tahoe-LAFS CLI commands
 Overview
 ========
 
-Tahoe-LAFS provides a single executable named "``tahoe``", which can be used to
-create and manage client/server nodes, manipulate the filesystem, and perform
-several debugging/maintenance tasks.
-
-This executable lives in the source tree at "``bin/tahoe``". Once you've done a
-build (by running "``make``" or "``python setup.py build``"), ``bin/tahoe`` can
-be run in-place: if it discovers that it is being run from within a Tahoe-LAFS
-source tree, it will modify ``sys.path`` as necessary to use all the source code
-and dependent libraries contained in that tree.
-
-If you've installed Tahoe-LAFS (using "``make install``" or
-"``python setup.py install``", or by installing a binary package), then the
-``tahoe`` executable will be available somewhere else, perhaps in
-``/usr/bin/tahoe``. In this case, it will use your platform's normal
-PYTHONPATH search path to find the Tahoe-LAFS code and other libraries.
+Tahoe-LAFS provides a single executable named "``tahoe``", which can be used
+to create and manage client/server nodes, manipulate the filesystem, and
+perform several debugging/maintenance tasks. This executable is installed
+into your virtualenv when you run ``pip install tahoe-lafs``.
 
 
 CLI Command Overview
@@ -151,7 +140,7 @@ Filesystem Manipulation
 These commands let you exmaine a Tahoe-LAFS filesystem, providing basic
 list/upload/download/unlink/rename/mkdir functionality. They can be used as
 primitives by other scripts. Most of these commands are fairly thin wrappers
-around web-API calls, which are described in `<webapi.rst>`__.
+around web-API calls, which are described in :doc:`webapi`.
 
 By default, all filesystem-manipulation commands look in ``~/.tahoe/`` to
 figure out which Tahoe-LAFS node they should use. When the CLI command makes
@@ -167,13 +156,12 @@ they ought to use a starting point. This is explained in more detail below.
 Starting Directories
 --------------------
 
-As described in `docs/architecture.rst <../architecture.rst>`__, the
-Tahoe-LAFS distributed filesystem consists of a collection of directories
-and files, each of which has a "read-cap" or a "write-cap" (also known as
-a URI). Each directory is simply a table that maps a name to a child file
-or directory, and this table is turned into a string and stored in a
-mutable file. The whole set of directory and file "nodes" are connected
-together into a directed graph.
+As described in :doc:`../architecture`, the Tahoe-LAFS distributed filesystem
+consists of a collection of directories and files, each of which has a
+"read-cap" or a "write-cap" (also known as a URI). Each directory is simply a
+table that maps a name to a child file or directory, and this table is turned
+into a string and stored in a mutable file. The whole set of directory and
+file "nodes" are connected together into a directed graph.
 
 To use this collection of files and directories, you need to choose a
 starting point: some specific directory that we will refer to as a
@@ -209,8 +197,8 @@ The Tahoe-LAFS CLI commands use the same path syntax as ``scp`` and
 ``rsync`` -- an optional ``ALIAS:`` prefix, followed by the pathname or
 filename. Some commands (like "``tahoe cp``") use the lack of an alias to
 mean that you want to refer to a local file, instead of something from the
-Tahoe-LAFS filesystem. [TODO] Another way to indicate this is to start
-the pathname with a dot, slash, or tilde.
+Tahoe-LAFS filesystem. Another way to indicate this is to start the
+pathname with "./", "~/", "~username/", or "/".
 
 When you're dealing a single starting directory, the ``tahoe:`` alias is
 all you need. But when you want to refer to something that isn't yet
@@ -454,6 +442,28 @@ Command Examples
  This copies a file from your ``tahoe:`` root to a different directory, set up
  earlier with "``tahoe add-alias fun DIRCAP``" or "``tahoe create-alias fun``".
 
+ ``tahoe cp -r ~/my_dir/ tahoe:``
+
+ This copies the folder ``~/my_dir/`` and all its children to the grid, creating
+ the new folder ``tahoe:my_dir``. Note that the trailing slash is not required:
+ all source arguments which are directories will be copied into new
+ subdirectories of the target.
+
+ The behavior of ``tahoe cp``, like the regular UNIX ``/bin/cp``, is subtly
+ different depending upon the exact form of the arguments. In particular:
+
+* Trailing slashes indicate directories, but are not required.
+* If the target object does not already exist:
+  * and if the source is a single file, it will be copied into the target;
+  * otherwise, the target will be created as a directory.
+* If there are multiple sources, the target must be a directory.
+* If the target is a pre-existing file, the source must be a single file.
+* If the target is a directory, each source must be a named file, a named
+  directory, or an unnamed directory. It is not possible to copy an unnamed
+  file (e.g. a raw filecap) into a directory, as there is no way to know what
+  the new file should be named.
+
+
 ``tahoe unlink uploaded.txt``
 
 ``tahoe unlink tahoe:uploaded.txt``
@@ -482,21 +492,33 @@ Command Examples
 
 ``tahoe backup ~ work:backups``
 
- This command performs a full versioned backup of every file and directory
+ This command performs a versioned backup of every file and directory
  underneath your "``~``" home directory, placing an immutable timestamped
  snapshot in e.g. ``work:backups/Archives/2009-02-06_04:00:05Z/`` (note that
  the timestamp is in UTC, hence the "Z" suffix), and a link to the latest
  snapshot in work:backups/Latest/ . This command uses a small SQLite database
  known as the "backupdb", stored in ``~/.tahoe/private/backupdb.sqlite``, to
  remember which local files have been backed up already, and will avoid
- uploading files that have already been backed up. It compares timestamps and
- filesizes when making this comparison. It also re-uses existing directories
- which have identical contents. This lets it run faster and reduces the
- number of directories created.
+ uploading files that have already been backed up (except occasionally that
+ will randomly upload them again if it has been awhile since had last been
+ uploaded, just to make sure that the copy of it on the server is still good).
+ It compares timestamps and filesizes when making this comparison. It also
+ re-uses existing directories which have identical contents. This lets it
+ run faster and reduces the number of directories created.
 
  If you reconfigure your client node to switch to a different grid, you
  should delete the stale backupdb.sqlite file, to force "``tahoe backup``"
  to upload all files to the new grid.
+
+ The fact that "tahoe backup" checks timestamps on your local files and
+ skips ones that don't appear to have been changed is one of the major
+ differences between "tahoe backup" and "tahoe cp -r". The other major
+ difference is that "tahoe backup" keeps links to all of the versions that
+ have been uploaded to the grid, so you can navigate among old versions
+ stored in the grid. In contrast, "tahoe cp -r" unlinks the previous
+ version from the grid directory and links the new version into place,
+ so unless you have a link to the older version stored somewhere else,
+ you'll never be able to get back to it.
 
 ``tahoe backup --exclude=*~ ~ work:backups``
 

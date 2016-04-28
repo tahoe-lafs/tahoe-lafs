@@ -104,7 +104,7 @@ set the ``tub.location`` option described below.
 
     This controls where the node's web server should listen, providing node
     status and, if the node is a client/server, providing web-API service as
-    defined in webapi.rst_.
+    defined in :doc:`frontends/webapi`.
 
     This file contains a Twisted "strports" specification such as "``3456``"
     or "``tcp:3456:interface=127.0.0.1``". The "``tahoe create-node``" or
@@ -159,6 +159,11 @@ set the ``tub.location`` option described below.
     this when using a Tor proxy to avoid revealing your actual IP address
     through the Introducer announcement.
 
+    If ``tub.location`` is specified, by default it entirely replaces the
+    automatically determined set of IP addresses. To include the automatically
+    determined addresses as well as the specified ones, include the uppercase
+    string "``AUTO``" in the list.
+
     The value is a comma-separated string of host:port location hints, like
     this::
 
@@ -176,6 +181,11 @@ set the ``tub.location`` option described below.
 
         tub.port = 8098
         tub.location = tahoe.example.com:8098
+
+    * Use a DNS name but also include the default set of addresses::
+
+        tub.port = 8098
+        tub.location = tahoe.example.com:8098,AUTO
 
     * Run a node behind a firewall (which has an external IP address) that
       has been configured to forward port 7912 to our internal node's port
@@ -262,19 +272,6 @@ set the ``tub.location`` option described below.
 
     .. _`#521`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/521
 
-``ssh.port = (strports string, optional)``
-
-``ssh.authorized_keys_file = (filename, optional)``
-
-    This enables an SSH-based interactive Python shell, which can be used to
-    inspect the internal state of the node, for debugging. To cause the node
-    to accept SSH connections on port 8022 from the same keys as the rest of
-    your account, use::
-
-      [tub]
-      ssh.port = 8022
-      ssh.authorized_keys_file = ~/.ssh/authorized_keys
-
 ``tempdir = (string, optional)``
 
     This specifies a temporary directory for the web-API server to use, for
@@ -286,8 +283,6 @@ set the ``tub.location`` option described below.
     (i.e. ``BASEDIR/tmp``), but it can be placed elsewhere. This directory is
     used for files that usually (on a Unix system) go into ``/tmp``. The
     string will be interpreted relative to the node's base directory.
-
-.. _webapi.rst: frontends/webapi.rst
 
 
 Client Configuration
@@ -306,7 +301,7 @@ Client Configuration
 ``helper.furl = (FURL string, optional)``
 
     If provided, the node will attempt to connect to and use the given helper
-    for uploads. See helper.rst_ for details.
+    for uploads. See :doc:`helper` for details.
 
 ``key_generator.furl = (FURL string, optional)``
 
@@ -342,7 +337,7 @@ Client Configuration
     ratios are more reliable, and small ``N``/``k`` ratios use less disk
     space. ``N`` cannot be larger than 256, because of the 8-bit
     erasure-coding algorithm that Tahoe-LAFS uses. ``k`` can not be greater
-    than ``N``. See performance.rst_ for more details.
+    than ``N``. See :doc:`performance` for more details.
 
     ``shares.happy`` allows you control over how well to "spread out" the
     shares of an immutable file. For a successful upload, shares are
@@ -380,11 +375,32 @@ Client Configuration
     controlled by this parameter and will always use SDMF. We may revisit
     this decision in future versions of Tahoe-LAFS.
 
-    See mutable.rst_ for details about mutable file formats.
+    See :doc:`specifications/mutable` for details about mutable file formats.
 
-.. _helper.rst: helper.rst
-.. _performance.rst: performance.rst
-.. _mutable.rst: specifications/mutable.rst
+``peers.preferred = (string, optional)``
+
+    This is an optional comma-separated list of Node IDs of servers that will
+    be tried first when selecting storage servers for reading or writing.
+
+    Servers should be identified here by their Node ID as it appears in the web
+    ui, underneath the server's nickname. For storage servers running tahoe
+    versions >=1.10 (if the introducer is also running tahoe >=1.10) this will
+    be a "Node Key" (which is prefixed with 'v0-'). For older nodes, it will be
+    a TubID instead. When a preferred server (and/or the introducer) is
+    upgraded to 1.10 or later, clients must adjust their configs accordingly.
+
+    Every node selected for upload, whether preferred or not, will still
+    receive the same number of shares (one, if there are ``N`` or more servers
+    accepting uploads). Preferred nodes are simply moved to the front of the
+    server selection lists computed for each file.
+
+    This is useful if a subset of your nodes have different availability or
+    connectivity characteristics than the rest of the grid. For instance, if
+    there are more than ``N`` servers on the grid, and ``K`` or more of them
+    are at a single physical location, it would make sense for clients at that
+    location to prefer their local servers so that they can maintain access to
+    all of their uploads without using the internet.
+
 
 Frontend Configuration
 ======================
@@ -401,33 +417,28 @@ HTTP
     directories and files, as well as a number of pages to check on the
     status of your Tahoe node. It also provides a machine-oriented "WAPI",
     with a REST-ful HTTP interface that can be used by other programs
-    (including the CLI tools). Please see webapi.rst_ for full details, and
-    the ``web.port`` and ``web.static`` config variables above.  The
-    `download-status.rst`_ document also describes a few WUI status pages.
+    (including the CLI tools). Please see :doc:`frontends/webapi` for full
+    details, and the ``web.port`` and ``web.static`` config variables above.
+    :doc:`frontends/download-status` also describes a few WUI status pages.
 
 CLI
 
-    The main "bin/tahoe" executable includes subcommands for manipulating the
+    The main ``tahoe`` executable includes subcommands for manipulating the
     filesystem, uploading/downloading files, and creating/running Tahoe
-    nodes. See CLI.rst_ for details.
+    nodes. See :doc:`frontends/CLI` for details.
 
 SFTP, FTP
 
     Tahoe can also run both SFTP and FTP servers, and map a username/password
-    pair to a top-level Tahoe directory. See FTP-and-SFTP.rst_ for
-    instructions on configuring these services, and the ``[sftpd]`` and
+    pair to a top-level Tahoe directory. See :doc:`frontends/FTP-and-SFTP`
+    for instructions on configuring these services, and the ``[sftpd]`` and
     ``[ftpd]`` sections of ``tahoe.cfg``.
 
 Drop-Upload
 
     As of Tahoe-LAFS v1.9.0, a node running on Linux can be configured to
     automatically upload files that are created or changed in a specified
-    local directory. See drop-upload.rst_ for details.
-
-.. _download-status.rst: frontends/download-status.rst
-.. _CLI.rst: frontends/CLI.rst
-.. _FTP-and-SFTP.rst: frontends/FTP-and-SFTP.rst
-.. _drop-upload.rst: frontends/drop-upload.rst
+    local directory. See :doc:`frontends/drop-upload` for details.
 
 
 Storage Server Configuration
@@ -484,7 +495,7 @@ Storage Server Configuration
 
     These settings control garbage collection, in which the server will
     delete shares that no longer have an up-to-date lease on them. Please see
-    `<garbage-collection.rst>`__ for full details.
+    :doc:`garbage-collection` for full details.
 
 
 Running A Helper
@@ -497,12 +508,12 @@ service.
 
 ``enabled = (boolean, optional)``
 
-    If ``True``, the node will run a helper (see helper.rst_ for details).
+    If ``True``, the node will run a helper (see :doc:`helper` for details).
     The helper's contact FURL will be placed in ``private/helper.furl``, from
     which it can be copied to any clients that wish to use it. Clearly nodes
     should not both run a helper and attempt to use one: do not create
-    ``helper.furl`` and also define ``[helper]enabled`` in the same node.
-    The default is ``False``.
+    ``helper.furl`` and also define ``[helper]enabled`` in the same node. The
+    default is ``False``.
 
 
 Running An Introducer
@@ -593,7 +604,7 @@ This section describes these other files.
 ``private/helper.furl``
 
   If the node is running a helper (for use by other clients), its contact
-  FURL will be placed here. See helper.rst_ for more details.
+  FURL will be placed here. See :doc:`helper` for more details.
 
 ``private/root_dir.cap`` (optional)
 
@@ -655,7 +666,7 @@ Other files
   files. The web-API has a facility to block access to filecaps by their
   storage index, returning a 403 "Forbidden" error instead of the original
   file. For more details, see the "Access Blacklist" section of
-  webapi.rst_.
+  :doc:`frontends/webapi`.
 
 
 Example
@@ -676,8 +687,6 @@ a legal one.
   log_gatherer.furl = pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm
   timeout.keepalive = 240
   timeout.disconnect = 1800
-  ssh.port = 8022
-  ssh.authorized_keys_file = ~/.ssh/authorized_keys
   
   [client]
   introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
@@ -698,6 +707,4 @@ Old Configuration Files
 Tahoe-LAFS releases before v1.3.0 had no ``tahoe.cfg`` file, and used
 distinct files for each item. This is no longer supported and if you have
 configuration in the old format you must manually convert it to the new
-format for Tahoe-LAFS to detect it. See `historical/configuration.rst`_.
-
-.. _historical/configuration.rst: historical/configuration.rst
+format for Tahoe-LAFS to detect it. See :doc:`historical/configuration`.

@@ -8,7 +8,8 @@ Thanks.
 ----------
 
 N: Brian Warner
-E: warner-tahoe@lothar.com
+E: warner@lothar.com
+P: A476 E2E6 1188 0C98 5B3C  3A39 0386 E81B 11CA A07A
 D: main developer
 
 N: Zooko
@@ -182,8 +183,12 @@ D: documentation
 
 N: Ramakrishnan Muthukrishnan
 E: ram@rkrishnan.org
-D: Mac OS X packaging
+D: Mac OS X packaging, Debian package maintainer
 
 N: Loose Cannon
 E: lcstyle@gmail.com
 D: fix the Download! button on the Welcome page
+
+N: Jean-Paul Calderone
+E: exarkun@twistedmatrix.com
+D: support SFTP public key authentication.

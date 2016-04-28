@@ -47,7 +47,7 @@ provide read-only access to those files, allowing users to recover them.
 There are several other applications built on top of the Tahoe-LAFS
 filesystem (see the RelatedProjects_ page of the wiki for a list).
 
-.. _docs/specifications directory: specifications
+.. _docs/specifications directory: https://github.com/tahoe-lafs/tahoe-lafs/tree/master/docs/specifications
 .. _RelatedProjects: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
 
 The Key-Value Store
@@ -316,9 +316,7 @@ commercially-run grid for which all of the storage servers are in a colo
 facility with high interconnect bandwidth. In this case, the helper is placed
 in the same facility, so the helper-to-storage-server bandwidth is huge.
 
-See helper.rst_ for details about the upload helper.
-
-.. _helper.rst: helper.rst
+See :doc:`helper` for details about the upload helper.
 
 
 The Filesystem Layer
@@ -370,11 +368,8 @@ clients are responsible for renewing their leases on a periodic basis at
 least frequently enough to prevent any of the leases from expiring before the
 next renewal pass.
 
-See garbage-collection.rst_ for further information, and for how to configure
-garbage collection.
-
-.. _garbage-collection.rst: garbage-collection.rst
-
+See :doc:`garbage-collection` for further information, and for how to
+configure garbage collection.
 
 File Repairer
 =============

@@ -483,6 +483,7 @@ class ServermapUpdater:
         self.full_serverlist = full_serverlist # for use later, immutable
         self.extra_servers = full_serverlist[:] # servers are removed as we use them
         self._good_servers = set() # servers who had some shares
+        self._servers_with_shares = set() #servers that we know have shares now
         self._empty_servers = set() # servers who don't have any shares
         self._bad_servers = set() # servers to whom our queries failed
 
@@ -865,6 +866,7 @@ class ServermapUpdater:
         # Add the info to our servermap.
         timestamp = time.time()
         self._servermap.add_new_share(server, shnum, verinfo, timestamp)
+        self._servers_with_shares.add(server)
 
         return verinfo
 
@@ -1127,7 +1129,7 @@ class ServermapUpdater:
                             found_boundary = True
                             break
 
-                elif server in self._good_servers:
+                elif server in self._servers_with_shares:
                     # yes shares
                     states.append("1")
                     #self.log("loop [%s]: 1" % server.get_name()

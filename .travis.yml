@@ -1,8 +1,10 @@
 sudo: false
 language: python
+cache: pip
+before_cache:
+  - rm -f $HOME/.cache/pip/log/debug.log
 python:
   - "2.7"
-  - "2.6"
   - "pypy"
 before_install:
   - sh -c set
@@ -11,9 +13,11 @@ before_install:
   - git fetch --depth=1000
   - python misc/build_helpers/show-tool-versions.py
 install:
-  - pip install coverage coveralls
-before_script: python setup.py build
-script: bin/tahoe @coverage run --branch --source=src/allmydata @tahoe --version-and-path debug trial --rterrors --reporter=timing
+  - pip install coveralls
+before_script:
+  - pip install -e .[test]
+script:
+  - coverage run --branch --source=src/allmydata `which tahoe` --version-and-path debug trial --rterrors --reporter=timing
 after_success:
   coveralls
 notifications:
@@ -28,5 +32,4 @@ notifications:
 matrix:
   allow_failures:
     - python: "pypy"
-    - python: "2.6"
   fast_finish: true

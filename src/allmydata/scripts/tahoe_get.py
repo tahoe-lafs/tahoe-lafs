@@ -1,5 +1,5 @@
 
-import os, urllib
+import urllib
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
@@ -26,7 +26,7 @@ def get(options):
     resp = do_http("GET", url)
     if resp.status in (200, 201,):
         if to_file:
-            outf = open(os.path.expanduser(to_file), "wb")
+            outf = open(to_file, "wb")
         else:
             outf = stdout
         while True:

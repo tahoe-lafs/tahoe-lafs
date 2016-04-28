@@ -1,9 +1,11 @@
 
+import time
 import simplejson
+
 from twisted.web import http, server
 from twisted.python import log
 from zope.interface import Interface
-from nevow import loaders, appserver
+from nevow import loaders, appserver, rend
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata import blacklist
@@ -13,11 +15,27 @@ from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      MustBeReadonlyError, MustNotBeUnknownRWError, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate
+from allmydata.util.hashutil import timing_safe_compare
+from allmydata.util.time_format import format_time, format_delta
 from allmydata.util.encodingutil import to_str, quote_output
 
 
-TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-
+def get_filenode_metadata(filenode):
+    metadata = {'mutable': filenode.is_mutable()}
+    if metadata['mutable']:
+        mutable_type = filenode.get_version()
+        assert mutable_type in (SDMF_VERSION, MDMF_VERSION)
+        if mutable_type == MDMF_VERSION:
+            file_format = "MDMF"
+        else:
+            file_format = "SDMF"
+    else:
+        file_format = "CHK"
+    metadata['format'] = file_format
+    size = filenode.get_size()
+    if size is not None:
+        metadata['size'] = size
+    return metadata
 
 class IOpHandleTable(Interface):
     pass
@@ -190,8 +208,20 @@ def plural(sequence_or_length):
 def text_plain(text, ctx):
     req = IRequest(ctx)
     req.setHeader("content-type", "text/plain")
-    req.setHeader("content-length", len(text))
+    req.setHeader("content-length", b"%d" % len(text))
     return text
+
+def spaces_to_nbsp(text):
+    return unicode(text).replace(u' ', u'\u00A0')
+
+def render_time_delta(time_1, time_2):
+    return spaces_to_nbsp(format_delta(time_1, time_2))
+
+def render_time(t):
+    return spaces_to_nbsp(format_time(time.localtime(t)))
+
+def render_time_attr(t):
+    return format_time(time.localtime(t))
 
 class WebError(Exception):
     def __init__(self, text, code=http.BAD_REQUEST):
@@ -299,7 +329,7 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
         req.setHeader("content-type", "text/plain;charset=utf-8")
         if isinstance(text, unicode):
             text = text.encode("utf-8")
-        req.setHeader("content-length", str(len(text)))
+        req.setHeader("content-length", b"%d" % len(text))
         req.write(text)
         # TODO: consider putting the requested URL here
         req.finishRequest(False)
@@ -334,8 +364,10 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
         traceback = f.getTraceback()
         return self.simple(ctx, traceback, http.INTERNAL_SERVER_ERROR)
 
+
 class NeedOperationHandleError(WebError):
     pass
+
 
 class RenderMixin:
 
@@ -350,6 +382,52 @@ class RenderMixin:
         # do the same thing.
         m = getattr(self, 'render_' + request.method, None)
         if not m:
-            from twisted.web.server import UnsupportedMethod
-            raise UnsupportedMethod(getattr(self, 'allowedMethods', ()))
+            raise server.UnsupportedMethod(getattr(self, 'allowedMethods', ()))
         return m(ctx)
+
+
+class TokenOnlyWebApi(rend.Page):
+    """
+    I provide a rend.Page implementation that only accepts POST calls,
+    and only if they have a 'token=' arg with the correct
+    authentication token (see
+    :meth:`allmydata.client.Client.get_auth_token`). Callers must also
+    provide the "t=" argument to indicate the return-value (the only
+    valid value for this is "json")
+
+    Subclasses should override '_render_json' which should process the
+    API call and return a valid JSON object. This will only be called
+    if the correct token is present and valid (during renderHTTP
+    processing).
+    """
+
+    def __init__(self, client):
+        super(TokenOnlyWebApi, self).__init__()
+        self.client = client
+
+    def post_json(self, req):
+        return NotImplemented
+
+    def renderHTTP(self, ctx):
+        req = IRequest(ctx)
+        if req.method != 'POST':
+            raise server.UnsupportedMethod(('POST',))
+        if req.args.get('token', False):
+            raise WebError("Do not pass 'token' as URL argument", http.BAD_REQUEST)
+        # not using get_arg() here because we *don't* want the token
+        # argument to work if you passed it as a GET-style argument
+        token = None
+        if req.fields and 'token' in req.fields:
+            token = req.fields['token'].value[0]
+        if not token:
+            raise WebError("Missing token", http.UNAUTHORIZED)
+        if not timing_safe_compare(token, self.client.get_auth_token()):
+            raise WebError("Invalid token", http.UNAUTHORIZED)
+
+        t = get_arg(req, "t", "").strip()
+        if not t:
+            raise WebError("Must provide 't=' argument")
+        if t == u'json':
+            return self.post_json(req)
+        else:
+            raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)

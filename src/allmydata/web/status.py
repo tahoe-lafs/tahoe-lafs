@@ -1,11 +1,11 @@
 
-import time, pprint, itertools
+import pprint, itertools
 import simplejson
 from twisted.internet import defer
 from nevow import rend, inevow, tags as T
 from allmydata.util import base32, idlib
 from allmydata.web.common import getxmlfile, get_arg, \
-     abbreviate_time, abbreviate_rate, abbreviate_size, plural, compute_rate
+     abbreviate_time, abbreviate_rate, abbreviate_size, plural, compute_rate, render_time
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus, IServermapUpdaterStatus
 
@@ -103,8 +103,8 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         d = self.upload_results()
         def _convert(r):
             file_size = r.get_file_size()
-            time = r.get_timings().get(name)
-            return compute_rate(file_size, time)
+            duration = r.get_timings().get(name)
+            return compute_rate(file_size, duration)
         d.addCallback(_convert)
         return d
 
@@ -137,8 +137,8 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         d = self.upload_results()
         def _convert(r):
             fetch_size = r.get_ciphertext_fetched()
-            time = r.get_timings().get("cumulative_fetch")
-            return compute_rate(fetch_size, time)
+            duration = r.get_timings().get("cumulative_fetch")
+            return compute_rate(fetch_size, duration)
         d.addCallback(_convert)
         return d
 
@@ -162,9 +162,7 @@ class UploadStatusPage(UploadResultsRendererMixin, rend.Page):
         return d
 
     def render_started(self, ctx, data):
-        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-        started_s = time.strftime(TIME_FORMAT,
-                                  time.localtime(data.get_started()))
+        started_s = render_time(data.get_started())
         return started_s
 
     def render_si(self, ctx, data):
@@ -289,8 +287,8 @@ class DownloadResultsRendererMixin(RateAndTimeMixin):
         d = self.download_results()
         def _convert(r):
             file_size = r.file_size
-            time = r.timings.get(name)
-            return compute_rate(file_size, time)
+            duration = r.timings.get(name)
+            return compute_rate(file_size, duration)
         d.addCallback(_convert)
         return d
 
@@ -428,6 +426,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                 rows[free_slot] = ev["finish_time"]
             ev["row"] = (groupnum, free_slot)
             new_events.append(ev)
+        del groupnum
         # maybe also return serverid_to_group, groupnum_to_rows, and some
         # indication of the highest finish_time
         #
@@ -613,9 +612,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         return d
 
     def render_started(self, ctx, data):
-        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-        started_s = time.strftime(TIME_FORMAT,
-                                  time.localtime(data.get_started()))
+        started_s = render_time(data.get_started())
         return started_s + " (%s)" % data.get_started()
 
     def render_si(self, ctx, data):
@@ -646,9 +643,7 @@ class DownloadStatusTimelinePage(rend.Page):
     docFactory = getxmlfile("download-status-timeline.xhtml")
 
     def render_started(self, ctx, data):
-        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-        started_s = time.strftime(TIME_FORMAT,
-                                  time.localtime(data.get_started()))
+        started_s = render_time(data.get_started())
         return started_s + " (%s)" % data.get_started()
 
     def render_si(self, ctx, data):
@@ -683,9 +678,7 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
         self.retrieve_status = data
 
     def render_started(self, ctx, data):
-        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-        started_s = time.strftime(TIME_FORMAT,
-                                  time.localtime(data.get_started()))
+        started_s = render_time(data.get_started())
         return started_s
 
     def render_si(self, ctx, data):
@@ -728,8 +721,8 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
 
     def _get_rate(self, data, name):
         file_size = self.retrieve_status.get_size()
-        time = self.retrieve_status.timings.get(name)
-        return compute_rate(file_size, time)
+        duration = self.retrieve_status.timings.get(name)
+        return compute_rate(file_size, duration)
 
     def data_time_total(self, ctx, data):
         return self.retrieve_status.timings.get("total")
@@ -771,9 +764,7 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
         self.publish_status = data
 
     def render_started(self, ctx, data):
-        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-        started_s = time.strftime(TIME_FORMAT,
-                                  time.localtime(data.get_started()))
+        started_s = render_time(data.get_started())
         return started_s
 
     def render_si(self, ctx, data):
@@ -830,8 +821,8 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
 
     def _get_rate(self, data, name):
         file_size = self.publish_status.get_size()
-        time = self.publish_status.timings.get(name)
-        return compute_rate(file_size, time)
+        duration = self.publish_status.timings.get(name)
+        return compute_rate(file_size, duration)
 
     def data_time_total(self, ctx, data):
         return self.publish_status.timings.get("total")
@@ -882,18 +873,14 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         self.update_status = data
 
     def render_started(self, ctx, data):
-        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-        started_s = time.strftime(TIME_FORMAT,
-                                  time.localtime(data.get_started()))
+        started_s = render_time(data.get_started())
         return started_s
 
     def render_finished(self, ctx, data):
         when = data.get_finished()
         if not when:
             return "not yet"
-        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-        started_s = time.strftime(TIME_FORMAT,
-                                  time.localtime(data.get_finished()))
+        started_s = render_time(data.get_finished())
         return started_s
 
     def render_si(self, ctx, data):
@@ -1109,9 +1096,7 @@ class Status(rend.Page):
     def render_row(self, ctx, data):
         s = data
 
-        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-        started_s = time.strftime(TIME_FORMAT,
-                                  time.localtime(s.get_started()))
+        started_s = render_time(s.get_started())
         ctx.fillSlots("started", started_s)
 
         si_s = base32.b2a_or_none(s.get_storage_index())

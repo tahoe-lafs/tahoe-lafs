@@ -52,9 +52,10 @@ if sys.argv[1] == "--stats":
                 if name not in stats:
                     stats[name] = 0
                 stats[name] += float(value)
+        del name
         if last_stats:
-            delta = dict( [ (name,stats[name]-last_stats[name])
-                            for name in stats ] )
+            delta = dict( [ (n,stats[n]-last_stats[n])
+                            for n in stats ] )
             print "THIS SAMPLE:"
             for name in sorted(delta.keys()):
                 avg = float(delta[name]) / float(DELAY)
