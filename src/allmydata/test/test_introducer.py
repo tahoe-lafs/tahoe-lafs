@@ -21,7 +21,7 @@ from allmydata.introducer import old
 from allmydata.introducer import IntroducerNode
 from allmydata.web import introweb
 from allmydata.client import Client as TahoeClient
-from allmydata.util import pollmixin, keyutil, idlib, fileutil
+from allmydata.util import pollmixin, keyutil, idlib, fileutil, iputil
 import allmydata.test.common_util as testutil
 
 class LoggingMultiService(service.MultiService):
@@ -444,17 +444,17 @@ NICKNAME = u"n\u00EDickname-%s" # LATIN SMALL LETTER I WITH ACUTE
 
 class SystemTestMixin(ServiceMixin, pollmixin.PollMixin):
 
-    def create_tub(self, portnum=0):
+    def create_tub(self, portnum=None):
         tubfile = os.path.join(self.basedir, "tub.pem")
         self.central_tub = tub = Tub(certFile=tubfile)
         #tub.setOption("logLocalFailures", True)
         #tub.setOption("logRemoteFailures", True)
         tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
-        l = tub.listenOn("tcp:%d" % portnum)
-        self.central_portnum = l.getPortnum()
-        if portnum != 0:
-            assert self.central_portnum == portnum
+        if portnum is None:
+            portnum = iputil.allocate_tcp_port()
+        tub.listenOn("tcp:%d" % portnum)
+        self.central_portnum = portnum
         tub.setLocation("localhost:%d" % self.central_portnum)
 
 class Queue(SystemTestMixin, unittest.TestCase):
@@ -544,8 +544,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             #tub.setOption("logRemoteFailures", True)
             tub.setOption("expose-remote-exception-types", False)
             tub.setServiceParent(self.parent)
-            l = tub.listenOn("tcp:0")
-            portnum = l.getPortnum()
+            portnum = iputil.allocate_tcp_port()
+            tub.listenOn("tcp:%d" % portnum)
             tub.setLocation("localhost:%d" % portnum)
 
             log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
@@ -1073,8 +1073,8 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         tub = Tub()
         tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
-        l = tub.listenOn("tcp:0")
-        portnum = l.getPortnum()
+        portnum = iputil.allocate_tcp_port()
+        tub.listenOn("tcp:%d" % portnum)
         tub.setLocation("localhost:%d" % portnum)
 
         c = IntroducerClient(tub, self.introducer_furl,
