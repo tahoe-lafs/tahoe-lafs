@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-import pickle
+import json
 import re
 import sys
 import time
@@ -428,7 +428,7 @@ def smash_name(name):
 
 def open_stats(fname):
     f = open(fname, 'rb')
-    stats = pickle.load(f)
+    stats = json.load(f)
     f.close()
     return stats
 

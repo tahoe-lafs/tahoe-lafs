@@ -309,15 +309,14 @@ and the next time the gatherer is started, it will start listening on the
 given port. The portnum file is actually a "strports specification string",
 as described in :doc:`configuration`.
 
-Once running, the stats gatherer will create a standard python "pickle" file
-in ``$BASEDIR/stats.pickle``, and a standard JSON file in
+Once running, the stats gatherer will create a standard JSON file in
 ``$BASEDIR/stats.json``. Once a minute, the gatherer will pull stats
-information from every connected node and write them into the pickle. The
-pickle will contain a dictionary, in which node identifiers (known as "tubid"
-strings) are the keys, and the values are a dict with 'timestamp', 'nickname',
-and 'stats' keys. d[tubid][stats] will contain the stats dictionary as made
-available at http://localhost:3456/statistics?t=json . The pickle file will
-only contain the most recent update from each node.
+information from every connected node and write them into the file. The file
+will contain a dictionary, in which node identifiers (known as "tubid"
+strings) are the keys, and the values are a dict with 'timestamp',
+'nickname', and 'stats' keys. d[tubid][stats] will contain the stats
+dictionary as made available at http://localhost:3456/statistics?t=json . The
+file will only contain the most recent update from each node.
 
 Other tools can be built to examine these stats and render them into
 something useful. For example, a tool could sum the
@@ -336,7 +335,7 @@ last year).
 
 Most of the plugins are designed to pull stats from a single Tahoe node, and
 are configured with the e.g. http://localhost:3456/statistics?t=json URL. The
-"tahoe_stats" plugin is designed to read from the pickle file created by the
+"tahoe_stats" plugin is designed to read from the JSON file created by the
 stats-gatherer. Some plugins are to be used with the disk watcher, and a few
 (like tahoe_nodememory) are designed to watch the node processes directly
 (and must therefore run on the same host as the target node).
