@@ -475,7 +475,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         NEWERDATA = "this is getting old"
         NEWERDATA_uploadable = MutableData(NEWERDATA)
 
-        d = self.set_up_nodes(use_key_generator=True)
+        d = self.set_up_nodes()
 
         def _create_mutable(res):
             c = self.clients[0]
@@ -672,25 +672,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                            self.failUnlessEqual(len(res["manifest"]), 1))
             return d1
         d.addCallback(_created_dirnode)
-
-        def wait_for_c3_kg_conn():
-            return self.clients[3]._key_generator is not None
-        d.addCallback(lambda junk: self.poll(wait_for_c3_kg_conn))
-
-        def check_kg_poolsize(junk, size_delta):
-            self.failUnlessEqual(len(self.key_generator_svc.key_generator.keypool),
-                                 self.key_generator_svc.key_generator.pool_size + size_delta)
-
-        d.addCallback(check_kg_poolsize, 0)
-        d.addCallback(lambda junk:
-            self.clients[3].create_mutable_file(MutableData('hello, world')))
-        d.addCallback(check_kg_poolsize, -1)
-        d.addCallback(lambda junk: self.clients[3].create_dirnode())
-        d.addCallback(check_kg_poolsize, -2)
-        # use_helper induces use of clients[3], which is the using-key_gen client
-        d.addCallback(lambda junk:
-                      self.POST("uri?t=mkdir&name=george", use_helper=True))
-        d.addCallback(check_kg_poolsize, -3)
 
         return d
 

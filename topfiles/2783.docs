@@ -1,0 +1,10 @@
+The "key-generator" node type has been removed. This was a standalone process
+that maintained a queue of RSA keys. Clients could offload the key-generation
+work by adding "key_generator.furl=" in their tahoe.cfg files, to create
+mutable files and directories faster. This seemed important back in 2006, but
+these days computers are faster and RSA key generation only takes about 90ms.
+
+This removes the "tahoe create-key-generator" command. Any
+"key_generator.furl" settings in tahoe.cfg will log a warning and otherwise
+ignored. Attempts to "tahoe start" a previously-generated key-generator node
+will result in an error.

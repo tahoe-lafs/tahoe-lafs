@@ -281,9 +281,6 @@ class CreateNode(unittest.TestCase):
     def test_introducer(self):
         self.do_create("introducer")
 
-    def test_key_generator(self):
-        self.do_create("key-generator")
-
     def test_stats_gatherer(self):
         self.do_create("stats-gatherer")
 
@@ -650,84 +647,4 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             self.failUnlessEqual(rc_or_sig, 1)
             self.failUnlessIn("does not look like a directory at all", err)
         d.addCallback(_cb3)
-        return d
-
-    def test_keygen(self):
-        self.skip_if_cannot_daemonize()
-
-        basedir = self.workdir("test_keygen")
-        c1 = os.path.join(basedir, "c1")
-        twistd_pid_file = os.path.join(c1, "twistd.pid")
-        keygen_furl_file = os.path.join(c1, "key_generator.furl")
-
-        d = self.run_bintahoe(["--quiet", "create-key-generator", "--basedir", c1])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0)
-        d.addCallback(_cb)
-
-        def _start(res):
-            return self.run_bintahoe(["--quiet", "start", c1])
-        d.addCallback(_start)
-
-        def _cb2(res):
-            out, err, rc_or_sig = res
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-
-            # the parent (twistd) has exited. However, twistd writes the pid
-            # from the child, not the parent, so we can't expect twistd.pid
-            # to exist quite yet.
-
-            # the node is running, but it might not have made it past the
-            # first reactor turn yet, and if we kill it too early, it won't
-            # remove the twistd.pid file. So wait until it does something
-            # that we know it won't do until after the first turn.
-        d.addCallback(_cb2)
-
-        def _node_has_started():
-            return os.path.exists(keygen_furl_file)
-        d.addCallback(lambda res: self.poll(_node_has_started))
-
-        def _started(res):
-            self.failUnless(os.path.exists(twistd_pid_file))
-            # rm this so we can detect when the second incarnation is ready
-            os.unlink(keygen_furl_file)
-            return self.run_bintahoe(["--quiet", "restart", c1])
-        d.addCallback(_started)
-
-        def _cb3(res):
-            out, err, rc_or_sig = res
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-        d.addCallback(_cb3)
-
-        # again, the second incarnation of the node might not be ready yet,
-        # so poll until it is
-        d.addCallback(lambda res: self.poll(_node_has_started))
-
-        # now we can kill it. TODO: On a slow machine, the node might kill
-        # itself before we get a chance too, especially if spawning the
-        # 'tahoe stop' command takes a while.
-        def _stop(res):
-            self.failUnless(os.path.exists(twistd_pid_file))
-            return self.run_bintahoe(["--quiet", "stop", c1])
-        d.addCallback(_stop)
-
-        def _cb4(res):
-            out, err, rc_or_sig = res
-            # the parent has exited by now
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-            # the parent was supposed to poll and wait until it sees
-            # twistd.pid go away before it exits, so twistd.pid should be
-            # gone by now.
-            self.failIf(os.path.exists(twistd_pid_file))
-        d.addCallback(_cb4)
         return d

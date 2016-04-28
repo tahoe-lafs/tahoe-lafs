@@ -80,8 +80,7 @@ class StartTahoeNodePlugin:
             from allmydata.introducer.server import IntroducerNode
             return IntroducerNode(self.basedir)
         if self.nodetype == "key-generator":
-            from allmydata.key_generator import KeyGeneratorService
-            return KeyGeneratorService(default_key_size=2048)
+            raise ValueError("key-generator support removed, see #2783")
         if self.nodetype == "stats-gatherer":
             from allmydata.stats import StatsGathererService
             return StatsGathererService(verbose=True)

@@ -5,7 +5,7 @@ from cStringIO import StringIO
 from twisted.python import usage
 
 from allmydata.scripts.common import get_default_nodedir
-from allmydata.scripts import debug, create_node, startstop_node, cli, keygen, stats_gatherer, admin
+from allmydata.scripts import debug, create_node, startstop_node, cli, stats_gatherer, admin
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 
 def GROUP(s):
@@ -36,7 +36,6 @@ class Options(usage.Options):
     synopsis = "\nUsage:  tahoe <command> [command options]"
     subCommands = ( GROUP("Administration")
                     +   create_node.subCommands
-                    +   keygen.subCommands
                     +   stats_gatherer.subCommands
                     +   admin.subCommands
                     + GROUP("Controlling a node")
@@ -85,7 +84,7 @@ class Options(usage.Options):
 
 
 create_dispatch = {}
-for module in (create_node, keygen, stats_gatherer):
+for module in (create_node, stats_gatherer):
     create_dispatch.update(module.dispatch)
 
 def runner(argv,
