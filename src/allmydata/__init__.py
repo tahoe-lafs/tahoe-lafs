@@ -280,10 +280,10 @@ def get_package_versions_and_locations():
 
 
 def check_requirement(req, vers_and_locs):
-    # We support only conjunctions of <=, >=, and !=
+    # We support only conjunctions of <=, >=, !=, and ==.
 
     reqlist = req.split(',')
-    name = reqlist[0].split('<=')[0].split('>=')[0].split('!=')[0].strip(' ').split('[')[0]
+    name = reqlist[0].split('<=')[0].split('>=')[0].split('!=')[0].split('==')[0].strip(' ').split('[')[0]
     if name not in vers_and_locs:
         raise PackagingError("no version info for %s" % (name,))
     if req.strip(' ') == name:
@@ -331,7 +331,13 @@ def match_requirement(req, reqlist, actualver):
                     if not (actualver != normalized_version(required, what="excluded version %r in %r" % (required, req))):
                         return False  # not-equal requirement not met
                 else:
-                    raise PackagingError("no version info or could not understand requirement %r" % (req,))
+                    s = r.split('==')
+                    if len(s) == 2:
+                        required = s[1].strip(' ')
+                        if not (actualver == normalized_version(required, what="exact version %r in %r" % (required, req))):
+                            return False  # equal requirement not met
+                    else:
+                        raise PackagingError("no version info or could not understand requirement %r" % (req,))
 
     return True
 
