@@ -130,7 +130,6 @@ class Client(node.Node, pollmixin.PollMixin):
                                    }
 
     def __init__(self, basedir="."):
-        #print "Client.__init__(%r)" % (basedir,)
         node.Node.__init__(self, basedir)
         # All tub.registerReference must happen *after* we upcall, since
         # that's what does tub.setLocation()
@@ -366,11 +365,6 @@ class Client(node.Node, pollmixin.PollMixin):
         self.storage_broker = sb
         sb.setServiceParent(self)
 
-        connection_threshold = min(self.encoding_params["k"],
-                                   self.encoding_params["happy"] + 1)
-        helper = storage_client.ConnectedEnough(sb, connection_threshold)
-        self.connected_enough_d = helper.when_connected_enough()
-
         # load static server specifications from tahoe.cfg, if any.
         # Not quite ready yet.
         #if self.config.has_section("client-server-selection"):
@@ -520,7 +514,13 @@ class Client(node.Node, pollmixin.PollMixin):
             s.startService()
 
             # start processing the upload queue when we've connected to enough servers
-            self.connected_enough_d.addCallback(lambda ign: s.ready())
+            connection_threshold = min(self.encoding_params["k"],
+                                       self.encoding_params["happy"] + 1)
+            connected = storage_client.ConnectedEnough(
+                self.storage_broker,
+                connection_threshold,
+            )
+            connected.when_connected_enough().addCallback(lambda ign: s.ready())
 
     def _check_exit_trigger(self, exit_trigger_file):
         if os.path.exists(exit_trigger_file):
