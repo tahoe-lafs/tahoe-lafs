@@ -40,7 +40,7 @@ class TestStorageFarmBroker(unittest.TestCase):
     def test_threshold_reached(self):
         tub = Mock()
         introducer = Mock()
-        broker = StorageFarmBroker(tub, True)
+        broker = StorageFarmBroker(True)
         done = ConnectedEnough(broker, 5).when_connected_enough()
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes

@@ -32,7 +32,9 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 import re, time
 from zope.interface import implements
 from twisted.internet import defer
-from foolscap.api import eventually
+from twisted.application import service
+
+from foolscap.api import Tub, eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
@@ -92,7 +94,7 @@ class ConnectedEnough(object):
 
 
 
-class StorageFarmBroker:
+class StorageFarmBroker(service.MultiService):
     implements(IStorageBroker)
     """I live on the client, and know about storage servers. For each server
     that is participating in a grid, I either maintain a connection to it or
@@ -100,11 +102,13 @@ class StorageFarmBroker:
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, tub, permute_peers, preferred_peers=()):
-        self.tub = tub
+    def __init__(self, permute_peers, preferred_peers=()):
+        service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self.preferred_peers = preferred_peers
+
+        self.tubs = {} # self.tubs maps serverid -> Tub
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
         # own Reconnector, and will give us a RemoteReference when we ask
@@ -112,6 +116,9 @@ class StorageFarmBroker:
         self.servers = {}
         self.introducer_client = None
         self._server_listeners = ObserverList()
+
+    def startService(self):
+        service.MultiService.startService(self)
 
     def on_servers_changed(self, callback):
         self._server_listeners.subscribe(callback)
@@ -130,6 +137,14 @@ class StorageFarmBroker:
     def use_introducer(self, introducer_client):
         self.introducer_client = ic = introducer_client
         ic.subscribe_to("storage", self._got_announcement)
+
+    def _ensure_tub_created(self, serverid):
+        if serverid in self.tubs:
+            return
+        self.tubs[serverid] = Tub()
+
+        # XXX set options?
+        self.tubs[serverid].setServiceParent(self)
 
     def _got_connection(self):
         # this is called by NativeStorageClient when it is connected
@@ -152,7 +167,8 @@ class StorageFarmBroker:
             old.stop_connecting()
         # now we forget about them and start using the new one
         self.servers[serverid] = s
-        s.start_connecting(self.tub, self._trigger_connections)
+        self._ensure_tub_created(serverid)
+        s.start_connecting(self.tubs[serverid], self._trigger_connections)
         # the descriptor will manage their own Reconnector, and each time we
         # need servers, we'll ask them if they're connected or not.
 
