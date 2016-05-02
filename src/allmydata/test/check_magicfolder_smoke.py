@@ -127,7 +127,10 @@ node_id = 0
 for name in ['alice', 'bob']:
     data_dir = join(data_base, name)
     magic_dir = join(data_base, '%s-magic' % (name,))
-    mkdir(magic_dir)
+    try:
+        mkdir(magic_dir)
+    except OSError:
+        pass
     if not exists(data_dir):
         do_invites = True
         subprocess.check_call(
