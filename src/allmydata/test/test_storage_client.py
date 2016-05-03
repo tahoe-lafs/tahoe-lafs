@@ -41,8 +41,14 @@ class TestStorageFarmBroker(unittest.TestCase):
     @inlineCallbacks
     def test_threshold_reached(self):
         introducer = Mock()
+        tub = Mock()
         broker = StorageFarmBroker(True)
         done = ConnectedEnough(broker, 5).when_connected_enough()
+        broker.tubs['0'] = tub
+        broker.tubs['1'] = tub
+        broker.tubs['2'] = tub
+        broker.tubs['3'] = tub
+        broker.tubs['42'] = tub
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes
         subscribe = introducer.mock_calls[0]
