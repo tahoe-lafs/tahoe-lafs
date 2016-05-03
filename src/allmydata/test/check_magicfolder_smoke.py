@@ -36,12 +36,13 @@ import sys
 import time
 import shutil
 import subprocess
-from os.path import join, abspath, curdir, exists
+from os.path import join, abspath, curdir, exists, split
 from os import mkdir, listdir, unlink
 
 tahoe_base = abspath(curdir)
 data_base = join(tahoe_base, 'smoke_magicfolder')
-tahoe_bin = join(tahoe_base, 'bin', 'tahoe')
+# XXX only will work for virtualenv case?
+tahoe_bin = join(split(sys.executable)[0], 'tahoe')
 python = sys.executable
 
 if not exists(data_base):
