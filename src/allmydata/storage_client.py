@@ -102,11 +102,12 @@ class StorageFarmBroker(service.MultiService):
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, permute_peers, preferred_peers=()):
+    def __init__(self, permute_peers, preferred_peers=(), tub_options={}):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self.preferred_peers = preferred_peers
+        self._tub_options = tub_options
 
         self.tubs = {} # self.tubs maps serverid -> Tub
         # self.servers maps serverid -> IServer, and keeps track of all the
@@ -141,9 +142,9 @@ class StorageFarmBroker(service.MultiService):
     def _ensure_tub_created(self, serverid):
         if serverid in self.tubs:
             return
-        self.tubs[serverid] = Tub()
-
-        # XXX set options?
+        self.tubs[serverid] = t = Tub()
+        for (name, value) in self._tub_options.items():
+            t.setOption(name, value)
         self.tubs[serverid].setServiceParent(self)
 
     def _got_connection(self):
