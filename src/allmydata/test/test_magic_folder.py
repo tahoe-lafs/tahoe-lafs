@@ -160,12 +160,12 @@ class CheckerMixin(object):
             # is renamed into place, which causes events that the test is not expecting.
             f = open(path_u, "wb")
             try:
-                if temporary and sys.platform != "win32":
+                if temporary and sys.platform not in ("win32", "darwin"):
                     os.unlink(path_u)
                 f.write(data)
             finally:
                 f.close()
-            if temporary and sys.platform == "win32":
+            if temporary and sys.platform in ("win32", "darwin"):
                 os.unlink(path_u)
                 yield self.notify(path, self.inotify.IN_DELETE, flush=False)
             event_mask = self.inotify.IN_CLOSE_WRITE
