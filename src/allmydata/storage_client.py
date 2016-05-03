@@ -117,9 +117,6 @@ class StorageFarmBroker(service.MultiService):
         self.introducer_client = None
         self._server_listeners = ObserverList()
 
-    def startService(self):
-        service.MultiService.startService(self)
-
     def on_servers_changed(self, callback):
         self._server_listeners.subscribe(callback)
 
