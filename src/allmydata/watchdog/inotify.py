@@ -102,15 +102,19 @@ class INotifyEventHandler(FileSystemEventHandler):
 
 class INotify(PollMixin):
     """
-    I am a prototype INotify, made to work on Mac OS X (Darwin)
-    using the Watchdog python library. This is actually a simplified subset
-    of the twisted Linux INotify class because we do not utilize the watch mask
-    and only implement the following methods:
+    I am a filesystem notifications API which roughly implements the twisted INotify symantics.
+    This BSD compatibility implementation also works on Mac OS X (Darwin) because I use the
+    Watchdog python library.
+
+    Among the all methods of the twisted Linux INotify class because we
+    only implement the following methods:
      - watch
      - startReading
      - stopReading
      - wait_until_stopped
      - set_pending_delay
+
+    As of yet there is no zope interface specification for these classes.
     """
     def __init__(self):
         self._pending_delay = 1.0
