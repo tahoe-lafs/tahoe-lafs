@@ -51,6 +51,8 @@ class TestStorageFarmBroker(unittest.TestCase):
         # subscribes to "storage" to learn of new storage nodes
         subscribe = introducer.mock_calls[0]
         self.assertEqual(subscribe[0], 'subscribe_to')
+        self.assertEqual(subscribe[1][0], 'storage')
+        got_announcement = subscribe[1][1]
 
         data = {
             "service-name": "storage",
@@ -59,10 +61,8 @@ class TestStorageFarmBroker(unittest.TestCase):
         }
 
         def add_one_server(x):
-            self.assertEqual(introducer.mock_calls[-1][1][0], 'storage')
-            got_announce = introducer.mock_calls[-1][1][1]
             data["anonymous-storage-FURL"] = "pb://{}@nowhere/fake".format(base32.b2a(str(x)))
-            got_announce('v0-1234-{}'.format(x), data)
+            got_announcement('v0-1234-{}'.format(x), data)
             self.assertEqual(tub.mock_calls[-1][0], 'connectTo')
             got_connection = tub.mock_calls[-1][1][1]
             rref = Mock()
