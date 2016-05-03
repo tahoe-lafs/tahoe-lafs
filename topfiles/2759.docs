@@ -1,0 +1,25 @@
+Tahoe now uses a separate Foolscap tub for each outbound storage server
+connection. This has two benefits:
+
+* a slight privacy improvement: storage servers can no longer compare client
+  TubIDs to confirm/deny that two clients are the same (but note there are
+  other reliable signals: timing correlations, interest in the same shares,
+  future Accounting identifiers)
+* this enables future per-server connection options, like using Tor for some
+  servers but direct TCP connections for others (#517).
+
+and a few drawbacks:
+
+* It causes a small performance hit to generate new TLS keys (2048-bit RSA)
+  for each connection. On a modern computer, this adds 75ms per server.
+* It breaks a NAT-bypass trick which enabled storage servers to run behind
+  NAT boxes, which was only useful if all the *clients* of the storage server
+  had public IP addresses, and those clients were also configured as servers.
+  The trick was to configure the NAT-bound server as a client too: its
+  outbound connections to the "servers" would be used in the opposite
+  direction to provide storgae service to the clients (Foolscap doesn't care
+  who initiated the connection, as long as both ends have the right TLS
+  keys). We decided that this trick is not sufficiently general to preserve.
+* Server logs that record a TubID are no longer so easy to use: until
+  Accounting (#666) lands and a client-id is used for log messages, it will
+  be difficult to identify exactly which client the log is referencing.
