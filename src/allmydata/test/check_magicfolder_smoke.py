@@ -36,7 +36,7 @@ import sys
 import time
 import shutil
 import subprocess
-from os.path import join, abspath, curdir, exists
+from os.path import join, abspath, curdir, exists, split
 from os import mkdir, listdir, unlink
 
 is_windows = (sys.platform == 'win32')
