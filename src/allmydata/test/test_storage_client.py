@@ -9,8 +9,10 @@ from allmydata.storage_client import StorageFarmBroker, ConnectedEnough
 
 
 class NativeStorageServerWithVersion(NativeStorageServer):
-    def __init__(self,version):
-        self.version=version
+    def __init__(self, version):
+        # note: these instances won't work for anything other than
+        # get_available_space() because we don't upcall
+        self.version = version
     def get_version(self):
         return self.version
 
