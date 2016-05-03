@@ -10,6 +10,7 @@ from allmydata.util.pollmixin import PollMixin
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util import log
 from allmydata.util.encodingutil import unicode_from_filepath
+from allmydata.util import encodingutil
 from allmydata.util.fake_inotify import humanReadableMask, \
     IN_WATCH_MASK, IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_NOWRITE, IN_CLOSE_WRITE, \
     IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF, \
@@ -72,7 +73,7 @@ class INotifyEventHandler(FileSystemEventHandler):
         if event_filepath_u == unicode_from_filepath(self._path):
             # ignore events for parent directory
             return
-        #if not self.is_masked(event):
+        #if not self.is_enabled_for_mask(event):
         #    return
         try:
             event_path = self._path.preauthChild(event.src_path)
