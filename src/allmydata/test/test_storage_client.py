@@ -1,4 +1,4 @@
-from mock import Mock
+from mock import Mock, patch
 from allmydata.util import base32
 
 from twisted.trial import unittest
@@ -39,14 +39,8 @@ class TestStorageFarmBroker(unittest.TestCase):
     @inlineCallbacks
     def test_threshold_reached(self):
         introducer = Mock()
-        tub = Mock()
         broker = StorageFarmBroker(True)
         done = ConnectedEnough(broker, 5).when_connected_enough()
-        broker.tubs['0'] = tub
-        broker.tubs['1'] = tub
-        broker.tubs['2'] = tub
-        broker.tubs['3'] = tub
-        broker.tubs['42'] = tub
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes
         subscribe = introducer.mock_calls[0]
@@ -62,9 +56,11 @@ class TestStorageFarmBroker(unittest.TestCase):
 
         def add_one_server(x):
             data["anonymous-storage-FURL"] = "pb://{}@nowhere/fake".format(base32.b2a(str(x)))
-            got_announcement('v0-1234-{}'.format(x), data)
-            self.assertEqual(tub.mock_calls[-1][0], 'connectTo')
-            got_connection = tub.mock_calls[-1][1][1]
+            tub = Mock()
+            with patch("allmydata.storage_client.Tub", side_effect=[tub]):
+                got_announcement('v0-1234-{}'.format(x), data)
+                self.assertEqual(tub.mock_calls[-1][0], 'connectTo')
+                got_connection = tub.mock_calls[-1][1][1]
             rref = Mock()
             rref.callRemote = Mock(return_value=succeed(1234))
             got_connection(rref)
