@@ -32,7 +32,9 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 import re, time
 from zope.interface import implements
 from twisted.internet import defer
-from foolscap.api import eventually
+from twisted.application import service
+
+from foolscap.api import Tub, eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
@@ -92,7 +94,7 @@ class ConnectedEnough(object):
 
 
 
-class StorageFarmBroker:
+class StorageFarmBroker(service.MultiService):
     implements(IStorageBroker)
     """I live on the client, and know about storage servers. For each server
     that is participating in a grid, I either maintain a connection to it or
@@ -100,11 +102,13 @@ class StorageFarmBroker:
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, tub, permute_peers, preferred_peers=()):
-        self.tub = tub
+    def __init__(self, permute_peers, preferred_peers=(), tub_options={}):
+        service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self.preferred_peers = preferred_peers
+        self._tub_options = tub_options
+
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
         # own Reconnector, and will give us a RemoteReference when we ask
@@ -140,7 +144,7 @@ class StorageFarmBroker:
             precondition(isinstance(key_s, str), key_s)
             precondition(key_s.startswith("v0-"), key_s)
         assert ann["service-name"] == "storage"
-        s = NativeStorageServer(key_s, ann)
+        s = NativeStorageServer(key_s, ann, self._tub_options)
         s.on_status_changed(lambda _: self._got_connection())
         serverid = s.get_serverid()
         old = self.servers.get(serverid)
@@ -150,9 +154,23 @@ class StorageFarmBroker:
             # replacement
             del self.servers[serverid]
             old.stop_connecting()
+            old.disownServiceParent()
+            # NOTE: this disownServiceParent() returns a Deferred that
+            # doesn't fire until Tub.stopService fires, which will wait for
+            # any existing connections to be shut down. This doesn't
+            # generally matter for normal runtime, but unit tests can run
+            # into DirtyReactorErrors if they don't block on these. If a test
+            # replaces one server with a newer version, then terminates
+            # before the old one has been shut down, it might get
+            # DirtyReactorErrors. The fix would be to gather these Deferreds
+            # into a structure that will block StorageFarmBroker.stopService
+            # until they have fired (but hopefully don't keep reference
+            # cycles around when they fire earlier than that, which will
+            # almost always be the case for normal runtime).
         # now we forget about them and start using the new one
         self.servers[serverid] = s
-        s.start_connecting(self.tub, self._trigger_connections)
+        s.setServiceParent(self)
+        s.start_connecting(self._trigger_connections)
         # the descriptor will manage their own Reconnector, and each time we
         # need servers, we'll ask them if they're connected or not.
 
@@ -210,7 +228,7 @@ class StubServer:
     def get_nickname(self):
         return "?"
 
-class NativeStorageServer:
+class NativeStorageServer(service.MultiService):
     """I hold information about a storage server that we want to connect to.
     If we are connected, I hold the RemoteReference, their host address, and
     the their version information. I remember information about when we were
@@ -238,9 +256,11 @@ class NativeStorageServer:
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, key_s, ann):
+    def __init__(self, key_s, ann, tub_options={}):
+        service.MultiService.__init__(self)
         self.key_s = key_s
         self.announcement = ann
+        self._tub_options = tub_options
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
@@ -337,10 +357,15 @@ class NativeStorageServer:
             available_space = protocol_v1_version.get('maximum-immutable-share-size', None)
         return available_space
 
-    def start_connecting(self, tub, trigger_cb):
+    def start_connecting(self, trigger_cb):
+        self._tub = Tub()
+        for (name, value) in self._tub_options.items():
+            self._tub.setOption(name, value)
+        self._tub.setServiceParent(self)
+
         furl = str(self.announcement["anonymous-storage-FURL"])
         self._trigger_cb = trigger_cb
-        self._reconnector = tub.connectTo(furl, self._got_connection)
+        self._reconnector = self._tub.connectTo(furl, self._got_connection)
 
     def _got_connection(self, rref):
         lp = log.msg(format="got connection to %(name)s, getting versions",

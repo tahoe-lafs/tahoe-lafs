@@ -1,4 +1,4 @@
-from mock import Mock
+from mock import Mock, patch
 from allmydata.util import base32
 
 from twisted.trial import unittest
@@ -9,8 +9,10 @@ from allmydata.storage_client import StorageFarmBroker, ConnectedEnough
 
 
 class NativeStorageServerWithVersion(NativeStorageServer):
-    def __init__(self,version):
-        self.version=version
+    def __init__(self, version):
+        # note: these instances won't work for anything other than
+        # get_available_space() because we don't upcall
+        self.version = version
     def get_version(self):
         return self.version
 
@@ -38,14 +40,15 @@ class TestStorageFarmBroker(unittest.TestCase):
 
     @inlineCallbacks
     def test_threshold_reached(self):
-        tub = Mock()
         introducer = Mock()
-        broker = StorageFarmBroker(tub, True)
+        broker = StorageFarmBroker(True)
         done = ConnectedEnough(broker, 5).when_connected_enough()
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes
         subscribe = introducer.mock_calls[0]
         self.assertEqual(subscribe[0], 'subscribe_to')
+        self.assertEqual(subscribe[1][0], 'storage')
+        got_announcement = subscribe[1][1]
 
         data = {
             "service-name": "storage",
@@ -54,12 +57,12 @@ class TestStorageFarmBroker(unittest.TestCase):
         }
 
         def add_one_server(x):
-            self.assertEqual(introducer.mock_calls[-1][1][0], 'storage')
-            got_announce = introducer.mock_calls[-1][1][1]
             data["anonymous-storage-FURL"] = "pb://{}@nowhere/fake".format(base32.b2a(str(x)))
-            got_announce('v0-1234-{}'.format(x), data)
-            self.assertEqual(tub.mock_calls[-1][0], 'connectTo')
-            got_connection = tub.mock_calls[-1][1][1]
+            tub = Mock()
+            with patch("allmydata.storage_client.Tub", side_effect=[tub]):
+                got_announcement('v0-1234-{}'.format(x), data)
+                self.assertEqual(tub.mock_calls[-1][0], 'connectTo')
+                got_connection = tub.mock_calls[-1][1][1]
             rref = Mock()
             rref.callRemote = Mock(return_value=succeed(1234))
             got_connection(rref)

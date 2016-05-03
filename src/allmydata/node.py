@@ -201,18 +201,22 @@ class Node(service.MultiService):
     def create_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
         self.tub = Tub(certFile=certfile)
-        self.tub.setOption("logLocalFailures", True)
-        self.tub.setOption("logRemoteFailures", True)
-        self.tub.setOption("expose-remote-exception-types", False)
+        self.tub_options = {
+            "logLocalFailures": True,
+            "logRemoteFailures": True,
+            "expose-remote-exception-types": False,
+            }
 
         # see #521 for a discussion of how to pick these timeout values.
         keepalive_timeout_s = self.get_config("node", "timeout.keepalive", "")
         if keepalive_timeout_s:
-            self.tub.setOption("keepaliveTimeout", int(keepalive_timeout_s))
+            self.tub_options["keepaliveTimeout"] = int(keepalive_timeout_s)
         disconnect_timeout_s = self.get_config("node", "timeout.disconnect", "")
         if disconnect_timeout_s:
             # N.B.: this is in seconds, so use "1800" to get 30min
-            self.tub.setOption("disconnectTimeout", int(disconnect_timeout_s))
+            self.tub_options["disconnectTimeout"] = int(disconnect_timeout_s)
+        for (name, value) in self.tub_options.items():
+            self.tub.setOption(name, value)
 
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
         self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")

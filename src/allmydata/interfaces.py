@@ -459,7 +459,7 @@ class IDisplayableServer(Interface):
 
 class IServer(IDisplayableServer):
     """I live in the client, and represent a single server."""
-    def start_connecting(tub, trigger_cb):
+    def start_connecting(trigger_cb):
         pass
 
     def get_rref():
