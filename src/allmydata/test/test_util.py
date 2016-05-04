@@ -497,12 +497,14 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
         saved_cwd = os.path.normpath(os.getcwdu())
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
+        abspath_cwd_notlong = fileutil.abspath_expanduser_unicode(u".", long_path=False)
         self.failUnless(isinstance(saved_cwd, unicode), saved_cwd)
         self.failUnless(isinstance(abspath_cwd, unicode), abspath_cwd)
         if sys.platform == "win32":
             self.failUnlessReallyEqual(abspath_cwd, fileutil.to_windows_long_path(saved_cwd))
         else:
             self.failUnlessReallyEqual(abspath_cwd, saved_cwd)
+        self.failUnlessReallyEqual(abspath_cwd_notlong, saved_cwd)
 
         self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\?\\foo"), u"\\\\?\\foo")
         self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\.\\foo"), u"\\\\.\\foo")
@@ -531,7 +533,19 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
             self.failUnlessReallyEqual(baz[4], bar[4])  # same drive
 
+            baz_notlong = fileutil.abspath_expanduser_unicode(u"\\baz", long_path=False)
+            self.failIf(baz_notlong.startswith(u"\\\\?\\"), baz_notlong)
+            self.failUnlessReallyEqual(baz_notlong[1 :], u":\\baz")
+
+            bar_notlong = fileutil.abspath_expanduser_unicode(u"\\bar", base=baz_notlong, long_path=False)
+            self.failIf(bar_notlong.startswith(u"\\\\?\\"), bar_notlong)
+            self.failUnlessReallyEqual(bar_notlong[1 :], u":\\bar")
+            # not u":\\baz\\bar", because \bar is absolute on the current drive.
+
+            self.failUnlessReallyEqual(baz_notlong[0], bar_notlong[0])  # same drive
+
         self.failIfIn(u"~", fileutil.abspath_expanduser_unicode(u"~"))
+        self.failIfIn(u"~", fileutil.abspath_expanduser_unicode(u"~", long_path=False))
 
         cwds = ['cwd']
         try:
@@ -547,8 +561,30 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
                 for upath in (u'', u'fuu', u'f\xf9\xf9', u'/fuu', u'U:\\', u'~'):
                     uabspath = fileutil.abspath_expanduser_unicode(upath)
                     self.failUnless(isinstance(uabspath, unicode), uabspath)
+
+                    uabspath_notlong = fileutil.abspath_expanduser_unicode(upath, long_path=False)
+                    self.failUnless(isinstance(uabspath_notlong, unicode), uabspath_notlong)
             finally:
                 os.chdir(saved_cwd)
+
+    def test_make_dirs_with_absolute_mode(self):
+        if sys.platform == 'win32':
+            raise unittest.SkipTest("Permissions don't work the same on windows.")
+
+        workdir = fileutil.abspath_expanduser_unicode(u"test_make_dirs_with_absolute_mode")
+        fileutil.make_dirs(workdir)
+        abspath = fileutil.abspath_expanduser_unicode(u"a/b/c/d", base=workdir)
+        fileutil.make_dirs_with_absolute_mode(workdir, abspath, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b", "c", "d")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b", "c")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir,"a")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(workdir).st_mode & 0777
+        self.failIfEqual(new_mode, 0766)
 
     def test_create_long_path(self):
         workdir = u"test_create_long_path"
@@ -603,6 +639,60 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         # bytes of available space on your filesystem.
         disk = fileutil.get_disk_stats('.', 2**128)
         self.failUnlessEqual(disk['avail'], 0)
+
+    def test_get_pathinfo(self):
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        # create a directory
+        self.mkdir(basedir, "a")
+        dirinfo = fileutil.get_pathinfo(basedir)
+        self.failUnlessTrue(dirinfo.isdir)
+        self.failUnlessTrue(dirinfo.exists)
+        self.failUnlessFalse(dirinfo.isfile)
+        self.failUnlessFalse(dirinfo.islink)
+
+        # create a file
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
+        fileinfo = fileutil.get_pathinfo(f)
+        self.failUnlessTrue(fileinfo.isfile)
+        self.failUnlessTrue(fileinfo.exists)
+        self.failUnlessFalse(fileinfo.isdir)
+        self.failUnlessFalse(fileinfo.islink)
+        self.failUnlessEqual(fileinfo.size, 10)
+
+        # path at which nothing exists
+        dnename = os.path.join(basedir, "doesnotexist")
+        now = time.time()
+        dneinfo = fileutil.get_pathinfo(dnename, now=now)
+        self.failUnlessFalse(dneinfo.exists)
+        self.failUnlessFalse(dneinfo.isfile)
+        self.failUnlessFalse(dneinfo.isdir)
+        self.failUnlessFalse(dneinfo.islink)
+        self.failUnlessEqual(dneinfo.size, None)
+        self.failUnlessEqual(dneinfo.mtime, now)
+        self.failUnlessEqual(dneinfo.ctime, now)
+
+    def test_get_pathinfo_symlink(self):
+        if not hasattr(os, 'symlink'):
+            raise unittest.SkipTest("can't create symlinks on this platform")
+
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
+
+        # create a symlink pointing to 1.txt
+        slname = os.path.join(basedir, "linkto1.txt")
+        os.symlink(f, slname)
+        symlinkinfo = fileutil.get_pathinfo(slname)
+        self.failUnlessTrue(symlinkinfo.islink)
+        self.failUnlessTrue(symlinkinfo.exists)
+        self.failUnlessFalse(symlinkinfo.isfile)
+        self.failUnlessFalse(symlinkinfo.isdir)
+
 
 class PollMixinTests(unittest.TestCase):
     def setUp(self):
