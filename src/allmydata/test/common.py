@@ -494,6 +494,11 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
     def _set_up_stats_gatherer(self, res):
         statsdir = self.getdir("stats_gatherer")
         fileutil.make_dirs(statsdir)
+        portnum = iputil.allocate_tcp_port()
+        location = "tcp:127.0.0.1:%d" % portnum
+        fileutil.write(os.path.join(statsdir, "location"), location)
+        port = "tcp:%d:interface=127.0.0.1" % portnum
+        fileutil.write(os.path.join(statsdir, "port"), port)
         self.stats_gatherer_svc = StatsGathererService(statsdir)
         self.stats_gatherer = self.stats_gatherer_svc.stats_gatherer
         self.add_service(self.stats_gatherer_svc)

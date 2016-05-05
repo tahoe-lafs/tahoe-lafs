@@ -1,0 +1,18 @@
+The "stats-gatherer", an operation-helper service used to collect runtime
+statistics from a fleet of Tahoe storage servers, must now be assigned a
+hostname, or location+port pair, at creation time. The "tahoe
+create-stats-gatherer" command now requires either "--hostname=", or both
+"--location=" and "--port".
+
+Previously, "tahoe create-stats-gatherer NODEDIR" would attempt to guess its
+location by running something like /sbin/ifconfig to collect local IP
+addresses. While this works if the host has a public IP address (or at least
+lives in the same LAN as the storage servers it monitors), most sysadmins
+would prefer the FURL be created with a real hostname.
+
+To keep your old stats-gatherers working, with their original FURL, you must
+determine a suitable --location and --port, and write their values into
+NODEDIR/location and NODEDIR/port, respectively. Or you could simply rebuild
+it by re-running "tahoe create-stats-gatherer" with the new arguments.
+
+See docs/stats.rst for details.

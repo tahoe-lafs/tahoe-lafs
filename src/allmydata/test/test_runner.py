@@ -184,14 +184,14 @@ class CreateNode(unittest.TestCase):
         rc = runner.runner(argv, stdout=out, stderr=err)
         return rc, out.getvalue(), err.getvalue()
 
-    def do_create(self, kind):
+    def do_create(self, kind, *args):
         basedir = self.workdir("test_" + kind)
         command = "create-" + kind
         is_client = kind in ("node", "client")
         tac = is_client and "tahoe-client.tac" or ("tahoe-" + kind + ".tac")
 
         n1 = os.path.join(basedir, command + "-n1")
-        argv = ["--quiet", command, "--basedir", n1]
+        argv = ["--quiet", command, "--basedir", n1] + list(args)
         rc, out, err = self.run_tahoe(argv)
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
@@ -226,7 +226,7 @@ class CreateNode(unittest.TestCase):
 
         # test that the non --basedir form works too
         n2 = os.path.join(basedir, command + "-n2")
-        argv = ["--quiet", command, n2]
+        argv = ["--quiet", command] + list(args) + [n2]
         rc, out, err = self.run_tahoe(argv)
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
@@ -236,7 +236,7 @@ class CreateNode(unittest.TestCase):
 
         # test the --node-directory form
         n3 = os.path.join(basedir, command + "-n3")
-        argv = ["--quiet", "--node-directory", n3, command]
+        argv = ["--quiet", "--node-directory", n3, command] + list(args)
         rc, out, err = self.run_tahoe(argv)
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
@@ -247,7 +247,7 @@ class CreateNode(unittest.TestCase):
         if kind in ("client", "node", "introducer"):
             # test that the output (without --quiet) includes the base directory
             n4 = os.path.join(basedir, command + "-n4")
-            argv = [command, n4]
+            argv = [command] + list(args) + [n4]
             rc, out, err = self.run_tahoe(argv)
             self.failUnlessEqual(err, "")
             self.failUnlessIn(" created in ", out)
@@ -282,7 +282,7 @@ class CreateNode(unittest.TestCase):
         self.do_create("introducer")
 
     def test_stats_gatherer(self):
-        self.do_create("stats-gatherer")
+        self.do_create("stats-gatherer", "--hostname=127.0.0.1")
 
     def test_subcommands(self):
         # no arguments should trigger a command listing, via UsageError
@@ -291,6 +291,44 @@ class CreateNode(unittest.TestCase):
                               [],
                               run_by_human=False)
 
+    def test_stats_gatherer_good_args(self):
+        rc = runner.runner(["create-stats-gatherer", "--hostname=foo",
+                            self.mktemp()])
+        self.assertEqual(rc, 0)
+        rc = runner.runner(["create-stats-gatherer", "--location=tcp:foo:1234",
+                            "--port=tcp:1234", self.mktemp()])
+        self.assertEqual(rc, 0)
+
+    def test_stats_gatherer_bad_args(self):
+        # missing hostname/location/port
+        argv = "create-stats-gatherer D"
+        self.assertRaises(usage.UsageError, runner.runner, argv.split(),
+                          run_by_human=False)
+
+        # missing port
+        argv = "create-stats-gatherer --location=foo D"
+        self.assertRaises(usage.UsageError, runner.runner, argv.split(),
+                          run_by_human=False)
+
+        # missing location
+        argv = "create-stats-gatherer --port=foo D"
+        self.assertRaises(usage.UsageError, runner.runner, argv.split(),
+                          run_by_human=False)
+
+        # can't provide both
+        argv = "create-stats-gatherer --hostname=foo --port=foo D"
+        self.assertRaises(usage.UsageError, runner.runner, argv.split(),
+                          run_by_human=False)
+
+        # can't provide both
+        argv = "create-stats-gatherer --hostname=foo --location=foo D"
+        self.assertRaises(usage.UsageError, runner.runner, argv.split(),
+                          run_by_human=False)
+
+        # can't provide all three
+        argv = "create-stats-gatherer --hostname=foo --location=foo --port=foo D"
+        self.assertRaises(usage.UsageError, runner.runner, argv.split(),
+                          run_by_human=False)
 
 class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
               RunBinTahoeMixin):

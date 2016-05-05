@@ -11,7 +11,7 @@ from twisted.application.internet import TimerService
 from zope.interface import implements
 from foolscap.api import eventually, DeadReferenceError, Referenceable, Tub
 
-from allmydata.util import log, fileutil
+from allmydata.util import log
 from allmydata.util.encodingutil import quote_local_unicode_path
 from allmydata.interfaces import RIStatsProvider, RIStatsGatherer, IStatsProducer
 
@@ -294,24 +294,19 @@ class StatsGathererService(service.MultiService):
         self.stats_gatherer = JSONStatsGatherer(self.basedir, verbose)
         self.stats_gatherer.setServiceParent(self)
 
-        portnumfile = os.path.join(self.basedir, "portnum")
         try:
-            portnum = open(portnumfile, "r").read()
+            with open(os.path.join(self.basedir, "location")) as f:
+                location = f.read().strip()
         except EnvironmentError:
-            portnum = None
-        self.listener = self.tub.listenOn(portnum or "tcp:0")
-        d = self.tub.setLocationAutomatically()
-        if portnum is None:
-            d.addCallback(self.save_portnum)
-        d.addCallback(self.tub_ready)
-        d.addErrback(log.err)
+            raise ValueError("Unable to find 'location' in BASEDIR, please rebuild your stats-gatherer")
+        try:
+            with open(os.path.join(self.basedir, "port")) as f:
+                port = f.read().strip()
+        except EnvironmentError:
+            raise ValueError("Unable to find 'port' in BASEDIR, please rebuild your stats-gatherer")
 
-    def save_portnum(self, junk):
-        portnum = self.listener.getPortnum()
-        portnumfile = os.path.join(self.basedir, 'portnum')
-        fileutil.write(portnumfile, '%d\n' % (portnum,))
-
-    def tub_ready(self, ignored):
+        self.tub.listenOn(port)
+        self.tub.setLocation(location)
         ff = os.path.join(self.basedir, self.furl_file)
         self.gatherer_furl = self.tub.registerReference(self.stats_gatherer,
                                                         furlFile=ff)
