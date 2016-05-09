@@ -13,11 +13,9 @@ before_install:
   - git fetch --depth=1000
   - python misc/build_helpers/show-tool-versions.py
 install:
-  - pip install coveralls
-before_script:
-  - pip install -e .[test]
+  - pip install coveralls tox
 script:
-  - coverage run --branch --source=src/allmydata `which tahoe` --version-and-path debug trial --rterrors --reporter=timing
+  - tox -e coverage
 after_success:
   coveralls
 notifications:
