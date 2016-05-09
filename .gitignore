@@ -37,3 +37,4 @@ zope.interface-*.egg
 /violations.txt
 /.tox/
 /docs/_build/
+/coverage.xml
