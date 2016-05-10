@@ -601,8 +601,6 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
     def test_alice_bob(self):
         if sys.platform == "win32":
             raise unittest.SkipTest("Still inotify problems on Windows (FIXME)")
-        else:
-            print "SYS", sys.platform
 
         d = defer.succeed(None)
 
