@@ -54,13 +54,8 @@ def is_new_file(pathinfo, db_entry):
         print("is_new_file: False because", pathinfo.exists, db_entry.size)
         return False
 
-    result = ((pathinfo.size, pathinfo.ctime_ns, pathinfo.mtime_ns) !=
-              (db_entry.size, db_entry.ctime_ns, db_entry.mtime_ns))
-
-    print("is_new_file:", result, "because",
-          pathinfo.size, pathinfo.ctime_ns, pathinfo.mtime_ns,
-          db_entry.size, db_entry.ctime_ns, db_entry.mtime_ns)
-    return result
+    return ((pathinfo.size, pathinfo.ctime_ns, pathinfo.mtime_ns) !=
+            (db_entry.size, db_entry.ctime_ns, db_entry.mtime_ns))
 
 
 class MagicFolder(service.MultiService):
