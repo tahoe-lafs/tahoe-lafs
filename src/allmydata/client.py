@@ -6,6 +6,7 @@ from zope.interface import implements
 from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
+from twisted.python.filepath import FilePath
 from pycryptopp.publickey import rsa
 
 import allmydata
@@ -171,12 +172,13 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_introducer_client(self):
         self.introducer_furl = self.get_config("client", "introducer.furl")
+        introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", "introducer_cache.yaml"))
         ic = IntroducerClient(self.tub, self.introducer_furl,
                               self.nickname,
                               str(allmydata.__full_version__),
                               str(self.OLDEST_SUPPORTED_VERSION),
                               self.get_app_versions(),
-                              self._sequencer)
+                              self._sequencer, introducer_cache_filepath)
         self.introducer_client = ic
         ic.setServiceParent(self)
 

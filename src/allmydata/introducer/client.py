@@ -1,5 +1,5 @@
 
-import time
+import time, yaml
 from zope.interface import implements
 from twisted.application import service
 from foolscap.api import Referenceable, eventually, RemoteInterface
@@ -47,7 +47,7 @@ class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions, sequencer):
+                 app_versions, sequencer, cache_filepath):
         self._tub = tub
         self.introducer_furl = introducer_furl
 
@@ -57,6 +57,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._oldest_supported = oldest_supported
         self._app_versions = app_versions
         self._sequencer = sequencer
+        self._cache_filepath = cache_filepath
 
         self._my_subscriber_info = { "version": 0,
                                      "nickname": self._nickname,
@@ -112,6 +113,25 @@ class IntroducerClient(service.Service, Referenceable):
                      level=log.WEIRD, failure=failure, umid="c5MqUQ")
         d = self._tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
+        def remove_cache(result):
+            try:
+                self._cache_filepath.remove()
+            except OSError, e:
+                pass
+            return result
+        d.addCallback(remove_cache)
+
+    def _save_announcements(self):
+        announcements = []
+        for _, value in self._inbound_announcements.items():
+            ann, key_s, time_stamp = value
+            server_params = {
+                "ann" : ann,
+                "key_s" : key_s,
+                }
+            announcements.append(server_params)
+        announcement_cache_yaml = yaml.dump(announcements)
+        self._cache_filepath.setContent(announcement_cache_yaml)
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")
@@ -148,6 +168,7 @@ class IntroducerClient(service.Service, Referenceable):
         return log.msg(*args, **kwargs)
 
     def subscribe_to(self, service_name, cb, *args, **kwargs):
+        self._got_announcement_cb = cb
         self._local_subscribers.append( (service_name,cb,args,kwargs) )
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
@@ -348,6 +369,8 @@ class IntroducerClient(service.Service, Referenceable):
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
+
+        self._save_announcements()
 
     def connected_to_introducer(self):
         return bool(self._publisher)

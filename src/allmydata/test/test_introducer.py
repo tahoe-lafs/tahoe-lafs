@@ -1,11 +1,12 @@
 
-import os, re, itertools
+import os, re, itertools, yaml
 from base64 import b32decode
 import simplejson
 
 from twisted.trial import unittest
 from twisted.internet import defer, address
 from twisted.python import log
+from twisted.python.filepath import FilePath
 
 from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
@@ -91,7 +92,7 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
 
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {}, fakeseq, FilePath("notexist.introduced.yaml"))
         self.failUnless(isinstance(ic, IntroducerClient))
 
     def test_listen(self):
@@ -123,7 +124,8 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
         i = IntroducerService()
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {}, fakeseq,
+                              FilePath("notexist.introduced.yaml"))
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
         keyid = keyutil.remove_prefix(vk_s, "pub-v0-")
@@ -172,7 +174,8 @@ class Client(unittest.TestCase):
     def test_duplicate_receive_v1(self):
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {}, fakeseq,
+                              FilePath("notexist.introduced.yaml"))
         announcements = []
         ic.subscribe_to("storage",
                         lambda key_s,ann: announcements.append(ann))
@@ -221,12 +224,14 @@ class Client(unittest.TestCase):
     def test_duplicate_receive_v2(self):
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, fakeseq)
+                               "ver23", "oldest_version", {}, fakeseq,
+                               FilePath("notexist.introduced.yaml"))
         # we use a second client just to create a different-looking
         # announcement
         ic2 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver24","oldest_version",{}, fakeseq)
+                               "ver24","oldest_version",{}, fakeseq,
+                               FilePath("notexist.introduced.yaml"))
         announcements = []
         def _received(key_s, ann):
             announcements.append( (key_s, ann) )
@@ -329,7 +334,8 @@ class Client(unittest.TestCase):
         # not replace the other)
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {}, fakeseq,
+                              FilePath("notexist.introduced.yaml"))
         announcements = []
         ic.subscribe_to("storage",
                         lambda key_s,ann: announcements.append(ann))
@@ -367,7 +373,8 @@ class Server(unittest.TestCase):
         i = IntroducerService()
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, realseq)
+                               "ver23", "oldest_version", {}, realseq,
+                               FilePath("notexist.introduced.yaml"))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
 
         privkey_s, _ = keyutil.make_keypair()
@@ -469,7 +476,8 @@ class Queue(SystemTestMixin, unittest.TestCase):
         tub2 = Tub()
         tub2.setServiceParent(self.parent)
         c = IntroducerClient(tub2, ifurl,
-                             u"nickname", "version", "oldest", {}, fakeseq)
+                             u"nickname", "version", "oldest", {}, fakeseq,
+                             FilePath("notexist.introduced.yaml"))
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -557,7 +565,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 c = IntroducerClient(tub, self.introducer_furl,
                                      NICKNAME % str(i),
                                      "version", "oldest",
-                                     {"component": "component-v1"}, fakeseq)
+                                     {"component": "component-v1"}, fakeseq,
+                                     FilePath("notexist.introduced.yaml"))
             received_announcements[c] = {}
             def got(key_s_or_tubid, ann, announcements, i):
                 if i == 0:
@@ -877,7 +886,7 @@ class ClientInfo(unittest.TestCase):
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
                                      "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     fakeseq, FilePath("notexist.introduced.yaml"))
         #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         #ann_s = make_ann_t(client_v2, furl1, None, 10)
         #introducer.remote_publish_v2(ann_s, Referenceable())
@@ -939,7 +948,7 @@ class Announcements(unittest.TestCase):
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
                                      "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     fakeseq, FilePath("notexist.introduced.yaml"))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         tubid = "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
         ann_s0 = make_ann_t(client_v2, furl1, None, 10)
@@ -961,7 +970,7 @@ class Announcements(unittest.TestCase):
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
                                      "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     fakeseq, FilePath("notexist.introduced.yaml"))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -997,6 +1006,78 @@ class Announcements(unittest.TestCase):
         self.failUnlessEqual(a[0].service_name, "storage")
         self.failUnlessEqual(a[0].version, "my_version")
         self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
+
+    def test_client_cache_1(self):
+        basedir = "introducer/ClientSeqnums/test_client_cache_1"
+        fileutil.make_dirs(basedir)
+        cache_filepath = FilePath(os.path.join(basedir, "private", "introducer_cache.yaml"))
+
+        # if storage is enabled, the Client will publish its storage server
+        # during startup (although the announcement will wait in a queue
+        # until the introducer connection is established). To avoid getting
+        # confused by this, disable storage.
+        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
+        f.write("[client]\n")
+        f.write("introducer.furl = nope\n")
+        f.write("[storage]\n")
+        f.write("enabled = false\n")
+        f.close()
+
+        c = TahoeClient(basedir)
+        ic = c.introducer_client
+        sk_s, vk_s = keyutil.make_keypair()
+        sk, _ignored = keyutil.parse_privkey(sk_s)
+        keyid = keyutil.remove_prefix(vk_s, "pub-v0-")
+        furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
+        ann_t = make_ann_t(ic, furl1, sk, 1)
+
+        ic.got_announcements([ann_t])
+
+        # check the cache for the announcement
+        with cache_filepath.open() as f:
+            def constructor(loader, node):
+                return node.value
+            yaml.SafeLoader.add_constructor("tag:yaml.org,2002:python/unicode", constructor)
+            announcements = yaml.safe_load(f)
+            f.close()
+
+        self.failUnlessEqual(len(announcements), 1)
+        self.failUnlessEqual("pub-" + announcements[0]['key_s'], vk_s)
+
+    def test_client_cache_2(self):
+        basedir = "introducer/ClientSeqnums/test_client_cache_2"
+        fileutil.make_dirs(basedir)
+        cache_filepath = FilePath(os.path.join(basedir, "private", "introducer_cache.yaml"))
+
+        # if storage is enabled, the Client will publish its storage server
+        # during startup (although the announcement will wait in a queue
+        # until the introducer connection is established). To avoid getting
+        # confused by this, disable storage.
+        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
+        f.write("[client]\n")
+        f.write("introducer.furl = nope\n")
+        f.write("[storage]\n")
+        f.write("enabled = false\n")
+        f.close()
+
+        c = TahoeClient(basedir)
+        ic = c.introducer_client
+        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@192.168.69.247:36106,127.0.0.1:36106/gydnpigj2ja2qr2srq4ikjwnl7xfgbra"
+        ann1 = (furl1, "storage", "RIStorage", "nick1", "ver23", "ver0")
+        ann = make_ann_t(ic, furl1, '', 2)
+        ic.got_announcements([ann])
+
+        # check the cache for the announcement
+        with cache_filepath.open() as f:
+            def constructor(loader, node):
+                return node.value
+            yaml.SafeLoader.add_constructor("tag:yaml.org,2002:python/unicode", constructor)
+            announcements = yaml.safe_load(f)
+            f.close()
+
+        self.failUnlessEqual(len(announcements), 1)
+        self.failUnlessEqual(announcements[0]['key_s'], None)
+
 
 class ClientSeqnums(unittest.TestCase):
     def test_client(self):
@@ -1079,7 +1160,7 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
 
         c = IntroducerClient(tub, self.introducer_furl,
                              u"nickname-client", "version", "oldest", {},
-                             fakeseq)
+                             fakeseq, FilePath("notexist.introduced.yaml"))
         announcements = {}
         def got(key_s, ann):
             announcements[key_s] = ann
