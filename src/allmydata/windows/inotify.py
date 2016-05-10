@@ -270,7 +270,8 @@ class INotify(PollMixin):
                     print "ignoring WindowsError: %s" % (e,)
                     self._state = STOPPING
 
-                if self._check_stop(): return
+                if self._check_stop():
+                    return
                 for info in fni:
                     # print info
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
@@ -279,22 +280,26 @@ class INotify(PollMixin):
                         continue
                     #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
+                    def _do_pending_calls():
+                        self._pending_call = None
+                        for path in self._pending:
+                            if self._callbacks:
+                                for cb in self._callbacks:
+                                    try:
+                                        cb(None, path, IN_CHANGED)
+                                    except Exception, e:
+                                        log.err(e)
+                        self._pending = set()
+
                     def _maybe_notify(path):
                         if path not in self._pending:
                             self._pending.add(path)
-                            def _do_callbacks():
-                                self._pending_call = None
-                                self._pending.remove(path)
-                                if self._callbacks:
-                                    for cb in self._callbacks:
-                                        try:
-                                            cb(None, path, IN_CHANGED)
-                                        except Exception, e:
-                                            log.err(e)
-                            if self._pending_call is None and not self._state in [STOPPING, STOPPED]:
-                                self._pending_call = reactor.callLater(self._pending_delay, _do_callbacks)
+                        if self._pending_call is None and self._state not in [STOPPING, STOPPED]:
+                            self._pending_call = reactor.callLater(self._pending_delay, _do_pending_calls)
+
                     reactor.callFromThread(_maybe_notify, path)
-                    if self._check_stop(): return
+                    if self._check_stop():
+                        return
         except Exception, e:
             log.err(e)
             self._state = STOPPED
