@@ -69,7 +69,6 @@ class MagicFolderDB(object):
                   (relpath_u,))
         row = self.cursor.fetchone()
         if not row:
-            print "no dbentry for %r" % (relpath_u,)
             return None
         else:
             (size, mtime_ns, ctime_ns, version, last_uploaded_uri,
@@ -89,15 +88,12 @@ class MagicFolderDB(object):
         return set([r[0] for r in rows])
 
     def did_upload_version(self, relpath_u, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, pathinfo):
-        print "%r.did_upload_version(%r, %r, %r, %r, %r, %r)" % (self, relpath_u, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, pathinfo)
         try:
-            print "insert"
             self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?,?,?)",
                                 (relpath_u, pathinfo.size, pathinfo.mtime_ns, pathinfo.ctime_ns,
                                  version, last_uploaded_uri, last_downloaded_uri,
                                  last_downloaded_timestamp))
         except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
-            print "err... update"
             self.cursor.execute("UPDATE local_files"
                                 " SET size=?, mtime_ns=?, ctime_ns=?, version=?, last_uploaded_uri=?,"
                                 "     last_downloaded_uri=?, last_downloaded_timestamp=?"
@@ -106,4 +102,3 @@ class MagicFolderDB(object):
                                  last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp,
                                  relpath_u))
         self.connection.commit()
-        print "committed"
