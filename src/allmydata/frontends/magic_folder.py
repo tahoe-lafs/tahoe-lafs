@@ -87,7 +87,6 @@ class MagicFolder(service.MultiService):
         # TODO: why is this being called more than once?
         if self.running:
             return defer.succeed(None)
-        print "%r.startService" % (self,)
         service.MultiService.startService(self)
         return self.uploader.start_monitoring()
 
@@ -99,7 +98,6 @@ class MagicFolder(service.MultiService):
         return self.downloader.start_downloading()
 
     def finish(self):
-        print "finish"
         d = self.uploader.stop()
         d2 = self.downloader.stop()
         d.addCallback(lambda ign: d2)
@@ -256,8 +254,6 @@ class QueueMixin(HookMixin):
     def _log(self, msg):
         s = "Magic Folder %s %s: %s" % (quote_output(self._client.nickname), self._name, msg)
         self._client.log(s)
-        print s
-        #open("events", "ab+").write(msg)
 
 
 # this isn't in interfaces.py because it's very specific to QueueMixin
@@ -678,7 +674,6 @@ class WriteFileMixin(object):
         # docs/proposed/magic-folder/remote-to-local-sync.rst
         os.utime(replacement_path_u, (now, now - self.FUDGE_SECONDS))
         if is_conflict:
-            print "0x00 ------------ <><> is conflict; calling _rename_conflicted_file... %r %r" % (abspath_u, replacement_path_u)
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
             try:
@@ -691,11 +686,11 @@ class WriteFileMixin(object):
         self._log("_rename_conflicted_file(%r, %r)" % (abspath_u, replacement_path_u))
 
         conflict_path_u = self._get_conflicted_filename(abspath_u)
-        print "XXX rename %r %r" % (replacement_path_u, conflict_path_u)
-        if os.path.isfile(replacement_path_u):
-            print "%r exists" % (replacement_path_u,)
-        if os.path.isfile(conflict_path_u):
-            print "%r exists" % (conflict_path_u,)
+        if False:
+            if os.path.isfile(replacement_path_u):
+                print "%r exists" % (replacement_path_u,)
+            if os.path.isfile(conflict_path_u):
+                print "%r exists" % (conflict_path_u,)
 
         fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
         return conflict_path_u
