@@ -204,6 +204,7 @@ class INotify(PollMixin):
         self._path = None
         self._pending = set()
         self._pending_delay = 1.0
+        self._pending_call = None
         self.recursive_includes_new_subdirectories = True
 
     def set_pending_delay(self, delay):
@@ -217,6 +218,9 @@ class INotify(PollMixin):
         # FIXME race conditions
         if self._state != STOPPED:
             self._state = STOPPING
+        if self._pending_call:
+            self._pending_call.cancel()
+            self._pending_call = None
 
     def wait_until_stopped(self):
         try:
@@ -268,10 +272,10 @@ class INotify(PollMixin):
 
                 if self._check_stop(): return
                 for info in fni:
-                    print info
+                    # print info
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
                     if info.action == FILE_ACTION_MODIFIED and path.isdir():
-                        print "Filtering out %r" % (info,)
+                        # print "Filtering out %r" % (info,)
                         continue
                     #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
@@ -279,13 +283,16 @@ class INotify(PollMixin):
                         if path not in self._pending:
                             self._pending.add(path)
                             def _do_callbacks():
+                                self._pending_call = None
                                 self._pending.remove(path)
-                                for cb in self._callbacks:
-                                    try:
-                                        cb(None, path, IN_CHANGED)
-                                    except Exception, e:
-                                        log.err(e)
-                            reactor.callLater(self._pending_delay, _do_callbacks)
+                                if self._callbacks:
+                                    for cb in self._callbacks:
+                                        try:
+                                            cb(None, path, IN_CHANGED)
+                                        except Exception, e:
+                                            log.err(e)
+                            if self._pending_call is None and not self._state in [STOPPING, STOPPED]:
+                                self._pending_call = reactor.callLater(self._pending_delay, _do_callbacks)
                     reactor.callFromThread(_maybe_notify, path)
                     if self._check_stop(): return
         except Exception, e:
@@ -300,5 +307,8 @@ class INotify(PollMixin):
             self._hDirectory = None
             CloseHandle(hDirectory)
             self._state = STOPPED
+            if self._pending_call:
+                self._pending_call.cancel()
+                self._pending_call = None
 
         return self._state == STOPPED
