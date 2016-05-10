@@ -113,13 +113,6 @@ class IntroducerClient(service.Service, Referenceable):
                      level=log.WEIRD, failure=failure, umid="c5MqUQ")
         d = self._tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
-        def remove_cache(result):
-            try:
-                self._cache_filepath.remove()
-            except OSError, e:
-                pass
-            return result
-        d.addCallback(remove_cache)
 
     def _save_announcements(self):
         announcements = []
@@ -168,7 +161,6 @@ class IntroducerClient(service.Service, Referenceable):
         return log.msg(*args, **kwargs)
 
     def subscribe_to(self, service_name, cb, *args, **kwargs):
-        self._got_announcement_cb = cb
         self._local_subscribers.append( (service_name,cb,args,kwargs) )
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
@@ -364,13 +356,12 @@ class IntroducerClient(service.Service, Referenceable):
                      parent=lp2, level=log.NOISY)
 
         self._inbound_announcements[index] = (ann, key_s, time.time())
+        self._save_announcements()
         # note: we never forget an index, but we might update its value
 
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
-
-        self._save_announcements()
 
     def connected_to_introducer(self):
         return bool(self._publisher)
