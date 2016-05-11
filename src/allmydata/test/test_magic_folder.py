@@ -27,9 +27,8 @@ from allmydata.util.fileutil import get_pathinfo
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import Data
 
-from twisted.internet.base import DelayedCall
-DelayedCall.debug = True
 _debug = False
+
 
 class MagicFolderDbTests(unittest.TestCase):
 
