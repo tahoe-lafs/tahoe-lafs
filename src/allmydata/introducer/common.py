@@ -2,20 +2,6 @@
 import re, simplejson
 from allmydata.util import keyutil, base32, rrefutil
 
-def make_index(ann, key_s):
-    """Return something that can be used as an index (e.g. a tuple of
-    strings), such that two messages that refer to the same 'thing' will have
-    the same index. This is a tuple of (service-name, signing-key, None) for
-    signed announcements, or (service-name, None, tubid_s) for unsigned
-    announcements."""
-
-    service_name = str(ann["service-name"])
-    if key_s:
-        return (service_name, key_s, None)
-    else:
-        tubid_s = get_tubid_string_from_ann(ann)
-        return (service_name, None, tubid_s)
-
 def get_tubid_string_from_ann(ann):
     return get_tubid_string(str(ann.get("anonymous-storage-FURL")
                                 or ann.get("FURL")))
@@ -107,8 +93,8 @@ class AnnouncementDescriptor:
         self.service_name = ann_d["service-name"]
         self.version = ann_d.get("my-version", "")
         self.nickname = ann_d.get("nickname", u"")
-        (service_name, key_s, tubid_s) = index
-        self.serverid = key_s or tubid_s
+        (service_name, key_s) = index
+        self.serverid = key_s
         furl = ann_d.get("anonymous-storage-FURL")
         if furl:
             self.connection_hints = rrefutil.connection_hints_for_furl(furl)

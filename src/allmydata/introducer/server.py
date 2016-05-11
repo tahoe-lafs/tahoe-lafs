@@ -9,7 +9,7 @@ from allmydata.util import log, rrefutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService_v2
-from allmydata.introducer.common import unsign_from_foolscap, make_index, \
+from allmydata.introducer.common import unsign_from_foolscap, \
      SubscriberDescriptor, AnnouncementDescriptor
 
 class FurlFileConflictError(Exception):
@@ -162,10 +162,9 @@ class IntroducerService(service.MultiService, Referenceable):
         self.log("introducer: announcement published: %s" % (ann_t,),
                  umid="wKHgCw")
         ann, key = unsign_from_foolscap(ann_t) # might raise BadSignatureError
-        index = make_index(ann, key)
-
         service_name = str(ann["service-name"])
 
+        index = (service_name, key)
         old = self._announcements.get(index)
         if old:
             (old_ann_t, canary, old_ann, timestamp) = old

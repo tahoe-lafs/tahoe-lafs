@@ -711,7 +711,7 @@ class Announcements(unittest.TestCase):
         a = introducer.get_announcements()
         self.failUnlessEqual(len(a), 1)
         self.failUnlessIdentical(a[0].canary, canary0)
-        self.failUnlessEqual(a[0].index, ("storage", pks, None))
+        self.failUnlessEqual(a[0].index, ("storage", pks))
         self.failUnlessEqual(a[0].announcement["app-versions"], app_versions)
         self.failUnlessEqual(a[0].nickname, u"nick-v2")
         self.failUnlessEqual(a[0].service_name, "storage")

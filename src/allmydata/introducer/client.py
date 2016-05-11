@@ -7,7 +7,7 @@ from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
      RIIntroducerSubscriberClient_v2
 from allmydata.introducer.common import sign_to_foolscap, unsign_from_foolscap,\
-     make_index, get_tubid_string_from_ann
+     get_tubid_string_from_ann
 from allmydata.util import log
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.keyutil import BadSignatureError
@@ -271,7 +271,7 @@ class IntroducerClient(service.Service, Referenceable):
         description = "/".join(desc_bits)
 
         # the index is used to track duplicates
-        index = make_index(ann, key_s)
+        index = (service_name, key_s)
 
         # is this announcement a duplicate?
         if (index in self._inbound_announcements
