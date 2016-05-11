@@ -111,8 +111,28 @@ class IntroducerClient(service.Service, Referenceable):
         def connect_failed(failure):
             self.log("Initial Introducer connection failed: perhaps it's down",
                      level=log.WEIRD, failure=failure, umid="c5MqUQ")
+            self._load_announcements()
         d = self._tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
+
+    def _load_announcements(self):
+        if self._cache_filepath.exists():
+            with self._cache_filepath.open() as f:
+                servers = yaml.load(f)
+                f.close()
+            if not isinstance(servers, list):
+                msg = "Invalid cached storage server announcements. No list encountered."
+                self.log(msg,
+                         level=log.WEIRD)
+                raise storage_client.UnknownServerTypeError(msg)
+            for server_params in servers:
+                if not isinstance(server_params, dict):
+                    msg = "Invalid cached storage server announcement encountered. No key/values found in %s" % server_params
+                    self.log(msg,
+                             level=log.WEIRD)
+                    raise storage_client.UnknownServerTypeError(msg)
+                for _, cb, _, _ in self._local_subscribers:
+                    eventually(cb, server_params['key_s'], server_params['ann'])
 
     def _save_announcements(self):
         announcements = []
