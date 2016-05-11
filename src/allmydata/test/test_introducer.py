@@ -111,6 +111,7 @@ def make_ann(furl):
     return ann
 
 def make_ann_t(ic, furl, privkey, seqnum):
+    assert privkey
     ann_d = ic.create_announcement_dict("storage", make_ann(furl))
     ann_d["seqnum"] = seqnum
     ann_d["nonce"] = "nonce"
@@ -398,6 +399,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         printable_serverids = {}
         self.the_introducer = introducer
         privkeys = {}
+        pubkeys = {}
         expected_announcements = [0 for c in range(NUM_CLIENTS)]
 
         for i in range(NUM_CLIENTS):
@@ -425,18 +427,16 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             expected_announcements[i] += 1 # all expect a 'storage' announcement
 
             node_furl = tub.registerReference(Referenceable())
+            privkey_s, pubkey_s = keyutil.make_keypair()
+            privkey, _ignored = keyutil.parse_privkey(privkey_s)
+            privkeys[i] = privkey
+            pubkeys[i] = pubkey_s
+
             if i < NUM_STORAGE:
-                if i == 1:
-                    # sign the announcement
-                    privkey_s, pubkey_s = keyutil.make_keypair()
-                    privkey, _ignored = keyutil.parse_privkey(privkey_s)
-                    privkeys[c] = privkey
-                    c.publish("storage", make_ann(node_furl), privkey)
-                    assert pubkey_s.startswith("pub-")
-                    printable_serverids[i] = pubkey_s[len("pub-"):]
-                else:
-                    c.publish("storage", make_ann(node_furl))
-                    printable_serverids[i] = get_tubid_string(node_furl)
+                # sign all announcements
+                c.publish("storage", make_ann(node_furl), privkey)
+                assert pubkey_s.startswith("pub-")
+                printable_serverids[i] = pubkey_s[len("pub-"):]
                 publishing_clients.append(c)
             else:
                 # the last one does not publish anything
@@ -445,7 +445,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             if i == 2:
                 # also publish something that nobody cares about
                 boring_furl = tub.registerReference(Referenceable())
-                c.publish("boring", make_ann(boring_furl))
+                c.publish("boring", make_ann(boring_furl), privkey)
 
             c.setServiceParent(self.parent)
             clients.append(c)
@@ -519,8 +519,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 anns = received_announcements[c]
                 self.failUnlessEqual(len(anns), NUM_STORAGE)
 
-                nodeid0 = tubs[clients[0]].tubID
-                ann = anns[nodeid0]
+                serverid0 = printable_serverids[0]
+                ann = anns[serverid0]
                 nick = ann["nickname"]
                 self.failUnlessEqual(type(nick), unicode)
                 self.failUnlessEqual(nick, NICKNAME % "0")
@@ -694,28 +694,6 @@ class ClientInfo(unittest.TestCase):
         self.failUnlessEqual(s0.version, "my_version")
 
 class Announcements(unittest.TestCase):
-    def test_client_v2_unsigned(self):
-        introducer = IntroducerService()
-        tub = introducer_furl = None
-        app_versions = {"whizzy": "fizzy"}
-        client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
-                                     "my_version", "oldest", app_versions,
-                                     fakeseq, FilePath(self.mktemp()))
-        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
-        tubid = "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
-        ann_s0 = make_ann_t(client_v2, furl1, None, 10)
-        canary0 = Referenceable()
-        introducer.remote_publish_v2(ann_s0, canary0)
-        a = introducer.get_announcements()
-        self.failUnlessEqual(len(a), 1)
-        self.failUnlessIdentical(a[0].canary, canary0)
-        self.failUnlessEqual(a[0].index, ("storage", None, tubid))
-        self.failUnlessEqual(a[0].announcement["app-versions"], app_versions)
-        self.failUnlessEqual(a[0].nickname, u"nick-v2")
-        self.failUnlessEqual(a[0].service_name, "storage")
-        self.failUnlessEqual(a[0].version, "my_version")
-        self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
-
     def test_client_v2_signed(self):
         introducer = IntroducerService()
         tub = introducer_furl = None
