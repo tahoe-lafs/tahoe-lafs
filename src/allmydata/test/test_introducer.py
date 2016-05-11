@@ -1015,7 +1015,7 @@ class Announcements(unittest.TestCase):
             yaml.SafeLoader.add_constructor("tag:yaml.org,2002:python/unicode", constructor)
             return yaml.safe_load(f)
 
-    def test_client_cache_1(self):
+    def test_client_cache(self):
         basedir = "introducer/ClientSeqnums/test_client_cache_1"
         fileutil.make_dirs(basedir)
         cache_filepath = FilePath(os.path.join(basedir, "private",
@@ -1036,7 +1036,7 @@ class Announcements(unittest.TestCase):
         ic = c.introducer_client
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
-        keyutil.remove_prefix(vk_s, "pub-v0-")
+        pub1 = keyutil.remove_prefix(vk_s, "pub-")
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         ann_t = make_ann_t(ic, furl1, sk, 1)
 
@@ -1045,7 +1045,39 @@ class Announcements(unittest.TestCase):
         # check the cache for the announcement
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 1)
-        self.failUnlessEqual("pub-" + announcements[0]['key_s'], vk_s)
+        self.failUnlessEqual(announcements[0]['key_s'], pub1)
+        ann = announcements[0]["ann"]
+        self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
+        self.failUnlessEqual(ann["seqnum"], 1)
+
+        # a new announcement that replaces the first should replace the
+        # cached entry, not duplicate it
+        furl2 = furl1 + "er"
+        ann_t2 = make_ann_t(ic, furl2, sk, 2)
+        ic.got_announcements([ann_t2])
+        announcements = self._load_cache(cache_filepath)
+        self.failUnlessEqual(len(announcements), 1)
+        self.failUnlessEqual(announcements[0]['key_s'], pub1)
+        ann = announcements[0]["ann"]
+        self.failUnlessEqual(ann["anonymous-storage-FURL"], furl2)
+        self.failUnlessEqual(ann["seqnum"], 2)
+
+        # but a third announcement with a different key should add to the
+        # cache
+        sk_s2, vk_s2 = keyutil.make_keypair()
+        sk2, _ignored = keyutil.parse_privkey(sk_s2)
+        pub2 = keyutil.remove_prefix(vk_s2, "pub-")
+        furl3 = "pb://onug64tu@127.0.0.1:456/short"
+        ann_t3 = make_ann_t(ic, furl3, sk2, 1)
+        ic.got_announcements([ann_t3])
+
+        announcements = self._load_cache(cache_filepath)
+        self.failUnlessEqual(len(announcements), 2)
+        self.failUnlessEqual(set([pub1, pub2]),
+                             set([a["key_s"] for a in announcements]))
+        self.failUnlessEqual(set([furl2, furl3]),
+                             set([a["ann"]["anonymous-storage-FURL"]
+                                  for a in announcements]))
 
 
 class ClientSeqnums(unittest.TestCase):
