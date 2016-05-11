@@ -1008,6 +1008,13 @@ class Announcements(unittest.TestCase):
         self.failUnlessEqual(a[0].version, "my_version")
         self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
 
+    def _load_cache(self, cache_filepath):
+        with cache_filepath.open() as f:
+            def constructor(loader, node):
+                return node.value
+            yaml.SafeLoader.add_constructor("tag:yaml.org,2002:python/unicode", constructor)
+            return yaml.safe_load(f)
+
     def test_client_cache_1(self):
         basedir = "introducer/ClientSeqnums/test_client_cache_1"
         fileutil.make_dirs(basedir)
@@ -1036,13 +1043,7 @@ class Announcements(unittest.TestCase):
         ic.got_announcements([ann_t])
 
         # check the cache for the announcement
-        with cache_filepath.open() as f:
-            def constructor(loader, node):
-                return node.value
-            yaml.SafeLoader.add_constructor("tag:yaml.org,2002:python/unicode", constructor)
-            announcements = yaml.safe_load(f)
-            f.close()
-
+        announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 1)
         self.failUnlessEqual("pub-" + announcements[0]['key_s'], vk_s)
 
