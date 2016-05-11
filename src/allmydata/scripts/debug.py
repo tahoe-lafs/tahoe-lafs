@@ -663,7 +663,7 @@ def find_shares(options):
     from allmydata.storage.common import si_a2b, NUM_RE
     from allmydata.storage.backends.disk.disk_backend import si_si2dir
     from allmydata.util import fileutil
-    from allmydata.util.encodingutil import quote_output
+    from allmydata.util.encodingutil import quote_local_unicode_path
 
     out = options.stdout
     si = si_a2b(options.si_s)
@@ -671,7 +671,7 @@ def find_shares(options):
         sharedir = si_si2dir(os.path.join(nodedir, "storage", "shares"), si)
         for shnumstr in fileutil.listdir(sharedir, filter=NUM_RE):
             sharefile = os.path.join(sharedir, shnumstr)
-            print >>out, quote_output(sharefile, quotemarks=False)
+            print >>out, quote_local_unicode_path(sharefile, quotemarks=False)
 
     return 0
 
