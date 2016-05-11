@@ -27,16 +27,13 @@ def get_tubid_string(furl):
 
 
 def sign_to_foolscap(ann, sk):
-    # return (bytes, None, None) or (bytes, sig-str, pubkey-str). A future
-    # HTTP-based serialization will use JSON({msg:b64(JSON(msg).utf8),
-    # sig:v0-b64(sig), pubkey:v0-b64(pubkey)}) .
+    # return (bytes, sig-str, pubkey-str). A future HTTP-based serialization
+    # will use JSON({msg:b64(JSON(msg).utf8), sig:v0-b64(sig),
+    # pubkey:v0-b64(pubkey)}) .
     msg = simplejson.dumps(ann).encode("utf-8")
-    if sk:
-        sig = "v0-"+base32.b2a(sk.sign(msg))
-        vk_bytes = sk.get_verifying_key_bytes()
-        ann_t = (msg, sig, "v0-"+base32.b2a(vk_bytes))
-    else:
-        ann_t = (msg, None, None)
+    sig = "v0-"+base32.b2a(sk.sign(msg))
+    vk_bytes = sk.get_verifying_key_bytes()
+    ann_t = (msg, sig, "v0-"+base32.b2a(vk_bytes))
     return ann_t
 
 class UnknownKeyError(Exception):
