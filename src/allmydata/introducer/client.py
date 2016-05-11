@@ -359,6 +359,10 @@ class IntroducerClient(service.Service, Referenceable):
         self._save_announcements()
         # note: we never forget an index, but we might update its value
 
+        self._deliver_announcements(key_s, ann)
+
+    def _deliver_announcements(self, key_s, ann):
+        service_name = str(ann["service-name"])
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
