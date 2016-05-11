@@ -77,9 +77,9 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("check", "--raw", self.lit_uri))
         d.addCallback(_check_lit_raw)
 
-        def _clobber_shares(ignored):
+        d.addCallback(lambda ign: self.find_uri_shares(self.uri))
+        def _clobber_shares(shares):
             # delete one, corrupt a second
-            shares = self.find_uri_shares(self.uri)
             self.failUnlessReallyEqual(len(shares), 10)
             os.unlink(shares[0][2])
             cso = debug.CorruptShareOptions()
@@ -216,8 +216,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn(" 317-1000 : 1    (1000 B, 1000 B)", lines)
         d.addCallback(_check_stats)
 
-        def _clobber_shares(ignored):
-            shares = self.find_uri_shares(self.uris[u"g\u00F6\u00F6d"])
+        d.addCallback(lambda ign: self.find_uri_shares(self.uris[u"g\u00F6\u00F6d"]))
+        def _clobber_shares(shares):
             self.failUnlessReallyEqual(len(shares), 10)
             os.unlink(shares[0][2])
 
