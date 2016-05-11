@@ -1016,6 +1016,7 @@ class Announcements(unittest.TestCase):
         with cache_filepath.open() as f:
             return yaml.safe_load(f)
 
+    @defer.inlineCallbacks
     def test_client_cache(self):
         basedir = "introducer/ClientSeqnums/test_client_cache_1"
         fileutil.make_dirs(basedir)
@@ -1080,6 +1081,22 @@ class Announcements(unittest.TestCase):
                              set([a["ann"]["anonymous-storage-FURL"]
                                   for a in announcements]))
 
+        # test loading
+        ic2 = IntroducerClient(None, "introducer.furl", u"my_nickname",
+                               "my_version", "oldest_version", {}, fakeseq,
+                               ic._cache_filepath)
+        announcements = {}
+        def got(key_s, ann):
+            announcements[key_s] = ann
+        ic2.subscribe_to("storage", got)
+        ic2._load_announcements() # normally happens when connection fails
+        yield flushEventualQueue()
+
+        self.failUnless(pub1 in announcements)
+        self.failUnlessEqual(announcements[pub1]["anonymous-storage-FURL"],
+                             furl2)
+        self.failUnlessEqual(announcements[pub2]["anonymous-storage-FURL"],
+                             furl3)
 
 class YAMLUnicode(unittest.TestCase):
     def test_convert(self):
