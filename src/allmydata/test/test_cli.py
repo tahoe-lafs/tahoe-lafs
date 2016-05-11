@@ -143,16 +143,6 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-        fileutil.make_dirs("cli/test_dump_cap/private")
-        fileutil.write("cli/test_dump_cap/private/secret", "5s33nk3qpvnj2fw3z4mnm2y6fa\n")
-        output = self._dump_cap("--client-dir", "cli/test_dump_cap",
-                                u.to_string())
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-
-        output = self._dump_cap("--client-dir", "cli/test_dump_cap_BOGUS",
-                                u.to_string())
-        self.failIf("file renewal secret:" in output, output)
-
         output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
                                 u.to_string())
         self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
@@ -182,16 +172,6 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("readkey: nvgh5vj2ekzzkim5fgtb4gey5y" in output, output)
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
-
-        fileutil.make_dirs("cli/test_dump_cap/private")
-        fileutil.write("cli/test_dump_cap/private/secret", "5s33nk3qpvnj2fw3z4mnm2y6fa\n")
-        output = self._dump_cap("--client-dir", "cli/test_dump_cap",
-                                u.to_string())
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-
-        output = self._dump_cap("--client-dir", "cli/test_dump_cap_BOGUS",
-                                u.to_string())
-        self.failIf("file renewal secret:" in output, output)
 
         output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
                                 u.to_string())
