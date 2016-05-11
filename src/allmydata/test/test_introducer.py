@@ -1009,10 +1009,11 @@ class Announcements(unittest.TestCase):
         self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
 
     def _load_cache(self, cache_filepath):
+        def construct_unicode(loader, node):
+            return node.value
+        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
+                                        construct_unicode)
         with cache_filepath.open() as f:
-            def constructor(loader, node):
-                return node.value
-            yaml.SafeLoader.add_constructor("tag:yaml.org,2002:python/unicode", constructor)
             return yaml.safe_load(f)
 
     def test_client_cache(self):
@@ -1079,6 +1080,18 @@ class Announcements(unittest.TestCase):
                              set([a["ann"]["anonymous-storage-FURL"]
                                   for a in announcements]))
 
+
+class YAMLUnicode(unittest.TestCase):
+    def test_convert(self):
+        data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
+        def construct_unicode(loader, node):
+            return node.value
+        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
+                                        construct_unicode)
+        back = yaml.safe_load(data)
+        self.failUnlessEqual(type(back[0]), unicode)
+        self.failUnlessEqual(type(back[1]), unicode)
+        self.failUnlessEqual(type(back[2]), unicode)
 
 class ClientSeqnums(unittest.TestCase):
     def test_client(self):

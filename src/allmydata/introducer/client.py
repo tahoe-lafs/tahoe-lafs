@@ -13,6 +13,9 @@ from allmydata.util import log
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.keyutil import BadSignatureError
 
+class InvalidCacheError(Exception):
+    pass
+
 class WrapV2ClientInV1Interface(Referenceable): # for_v1
     """I wrap a v2 IntroducerClient to make it look like a v1 client, so it
     can be attached to an old server."""
@@ -116,23 +119,28 @@ class IntroducerClient(service.Service, Referenceable):
         d.addErrback(connect_failed)
 
     def _load_announcements(self):
-        if self._cache_filepath.exists():
+        # Announcements contain unicode, because they come from JSON. We tell
+        # PyYAML to give us unicode instead of str/bytes.
+        def construct_unicode(loader, node):
+            return node.value
+        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
+                                        construct_unicode)
+        try:
             with self._cache_filepath.open() as f:
-                servers = yaml.load(f)
-                f.close()
-            if not isinstance(servers, list):
-                msg = "Invalid cached storage server announcements. No list encountered."
-                self.log(msg,
-                         level=log.WEIRD)
-                raise storage_client.UnknownServerTypeError(msg)
-            for server_params in servers:
-                if not isinstance(server_params, dict):
-                    msg = "Invalid cached storage server announcement encountered. No key/values found in %s" % server_params
-                    self.log(msg,
-                             level=log.WEIRD)
-                    raise storage_client.UnknownServerTypeError(msg)
-                for _, cb, _, _ in self._local_subscribers:
-                    eventually(cb, server_params['key_s'], server_params['ann'])
+                servers = yaml.safe_load(f)
+        except EnvironmentError:
+            return # no cache file
+        if not isinstance(servers, list):
+            log.err(InvalidCacheError("not a list"), level=log.WEIRD)
+            return
+        self.log("Using server data from cache", level=log.UNUSUAL)
+        for server_params in servers:
+            if not isinstance(server_params, dict):
+                log.err(InvalidCacheError("not a dict: %r" % (server_params,)),
+                        level=log.WEIRD)
+                continue
+            self._deliver_announcements(server_params['key_s'],
+                                        server_params['ann'])
 
     def _save_announcements(self):
         announcements = []
@@ -143,7 +151,7 @@ class IntroducerClient(service.Service, Referenceable):
                 "key_s" : key_s,
                 }
             announcements.append(server_params)
-        announcement_cache_yaml = yaml.dump(announcements)
+        announcement_cache_yaml = yaml.safe_dump(announcements)
         self._cache_filepath.setContent(announcement_cache_yaml)
 
     def _got_introducer(self, publisher):
