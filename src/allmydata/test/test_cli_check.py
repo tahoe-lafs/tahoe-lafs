@@ -1,4 +1,4 @@
-import os.path
+
 import simplejson
 from twisted.trial import unittest
 from cStringIO import StringIO
