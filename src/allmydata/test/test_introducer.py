@@ -1008,7 +1008,16 @@ class Announcements(unittest.TestCase):
         self.failUnlessEqual(a[0].version, "my_version")
         self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
 
-    def test_client_cache_1(self):
+    def _load_cache(self, cache_filepath):
+        def construct_unicode(loader, node):
+            return node.value
+        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
+                                        construct_unicode)
+        with cache_filepath.open() as f:
+            return yaml.safe_load(f)
+
+    @defer.inlineCallbacks
+    def test_client_cache(self):
         basedir = "introducer/ClientSeqnums/test_client_cache_1"
         fileutil.make_dirs(basedir)
         cache_filepath = FilePath(os.path.join(basedir, "private",
@@ -1029,23 +1038,77 @@ class Announcements(unittest.TestCase):
         ic = c.introducer_client
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
-        keyutil.remove_prefix(vk_s, "pub-v0-")
+        pub1 = keyutil.remove_prefix(vk_s, "pub-")
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         ann_t = make_ann_t(ic, furl1, sk, 1)
 
         ic.got_announcements([ann_t])
 
         # check the cache for the announcement
-        with cache_filepath.open() as f:
-            def constructor(loader, node):
-                return node.value
-            yaml.SafeLoader.add_constructor("tag:yaml.org,2002:python/unicode", constructor)
-            announcements = yaml.safe_load(f)
-            f.close()
-
+        announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 1)
-        self.failUnlessEqual("pub-" + announcements[0]['key_s'], vk_s)
+        self.failUnlessEqual(announcements[0]['key_s'], pub1)
+        ann = announcements[0]["ann"]
+        self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
+        self.failUnlessEqual(ann["seqnum"], 1)
 
+        # a new announcement that replaces the first should replace the
+        # cached entry, not duplicate it
+        furl2 = furl1 + "er"
+        ann_t2 = make_ann_t(ic, furl2, sk, 2)
+        ic.got_announcements([ann_t2])
+        announcements = self._load_cache(cache_filepath)
+        self.failUnlessEqual(len(announcements), 1)
+        self.failUnlessEqual(announcements[0]['key_s'], pub1)
+        ann = announcements[0]["ann"]
+        self.failUnlessEqual(ann["anonymous-storage-FURL"], furl2)
+        self.failUnlessEqual(ann["seqnum"], 2)
+
+        # but a third announcement with a different key should add to the
+        # cache
+        sk_s2, vk_s2 = keyutil.make_keypair()
+        sk2, _ignored = keyutil.parse_privkey(sk_s2)
+        pub2 = keyutil.remove_prefix(vk_s2, "pub-")
+        furl3 = "pb://onug64tu@127.0.0.1:456/short"
+        ann_t3 = make_ann_t(ic, furl3, sk2, 1)
+        ic.got_announcements([ann_t3])
+
+        announcements = self._load_cache(cache_filepath)
+        self.failUnlessEqual(len(announcements), 2)
+        self.failUnlessEqual(set([pub1, pub2]),
+                             set([a["key_s"] for a in announcements]))
+        self.failUnlessEqual(set([furl2, furl3]),
+                             set([a["ann"]["anonymous-storage-FURL"]
+                                  for a in announcements]))
+
+        # test loading
+        ic2 = IntroducerClient(None, "introducer.furl", u"my_nickname",
+                               "my_version", "oldest_version", {}, fakeseq,
+                               ic._cache_filepath)
+        announcements = {}
+        def got(key_s, ann):
+            announcements[key_s] = ann
+        ic2.subscribe_to("storage", got)
+        ic2._load_announcements() # normally happens when connection fails
+        yield flushEventualQueue()
+
+        self.failUnless(pub1 in announcements)
+        self.failUnlessEqual(announcements[pub1]["anonymous-storage-FURL"],
+                             furl2)
+        self.failUnlessEqual(announcements[pub2]["anonymous-storage-FURL"],
+                             furl3)
+
+class YAMLUnicode(unittest.TestCase):
+    def test_convert(self):
+        data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
+        def construct_unicode(loader, node):
+            return node.value
+        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
+                                        construct_unicode)
+        back = yaml.safe_load(data)
+        self.failUnlessEqual(type(back[0]), unicode)
+        self.failUnlessEqual(type(back[1]), unicode)
+        self.failUnlessEqual(type(back[2]), unicode)
 
 class ClientSeqnums(unittest.TestCase):
     def test_client(self):

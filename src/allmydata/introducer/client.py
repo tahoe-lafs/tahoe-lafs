@@ -13,6 +13,9 @@ from allmydata.util import log
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.keyutil import BadSignatureError
 
+class InvalidCacheError(Exception):
+    pass
+
 class WrapV2ClientInV1Interface(Referenceable): # for_v1
     """I wrap a v2 IntroducerClient to make it look like a v1 client, so it
     can be attached to an old server."""
@@ -111,8 +114,33 @@ class IntroducerClient(service.Service, Referenceable):
         def connect_failed(failure):
             self.log("Initial Introducer connection failed: perhaps it's down",
                      level=log.WEIRD, failure=failure, umid="c5MqUQ")
+            self._load_announcements()
         d = self._tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
+
+    def _load_announcements(self):
+        # Announcements contain unicode, because they come from JSON. We tell
+        # PyYAML to give us unicode instead of str/bytes.
+        def construct_unicode(loader, node):
+            return node.value
+        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
+                                        construct_unicode)
+        try:
+            with self._cache_filepath.open() as f:
+                servers = yaml.safe_load(f)
+        except EnvironmentError:
+            return # no cache file
+        if not isinstance(servers, list):
+            log.err(InvalidCacheError("not a list"), level=log.WEIRD)
+            return
+        self.log("Using server data from cache", level=log.UNUSUAL)
+        for server_params in servers:
+            if not isinstance(server_params, dict):
+                log.err(InvalidCacheError("not a dict: %r" % (server_params,)),
+                        level=log.WEIRD)
+                continue
+            self._deliver_announcements(server_params['key_s'],
+                                        server_params['ann'])
 
     def _save_announcements(self):
         announcements = []
@@ -123,7 +151,7 @@ class IntroducerClient(service.Service, Referenceable):
                 "key_s" : key_s,
                 }
             announcements.append(server_params)
-        announcement_cache_yaml = yaml.dump(announcements)
+        announcement_cache_yaml = yaml.safe_dump(announcements)
         self._cache_filepath.setContent(announcement_cache_yaml)
 
     def _got_introducer(self, publisher):
@@ -359,6 +387,10 @@ class IntroducerClient(service.Service, Referenceable):
         self._save_announcements()
         # note: we never forget an index, but we might update its value
 
+        self._deliver_announcements(key_s, ann)
+
+    def _deliver_announcements(self, key_s, ann):
+        service_name = str(ann["service-name"])
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
