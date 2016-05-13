@@ -1456,7 +1456,7 @@ class RealTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
         # notification will occur, and anyway we're not waiting for
         # them in any case...so we'll just fudge it and hope 100ms is enough.
         delay = 5.0 if sys.platform == "win32" else 0.1
-        return task.deferLater(reactor, delay lambda: None)
+        return task.deferLater(reactor, delay, lambda: None)
 
 
 try:
