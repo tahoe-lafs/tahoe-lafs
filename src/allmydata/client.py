@@ -383,10 +383,7 @@ class Client(node.Node, pollmixin.PollMixin):
         # utilize the loaded static server specifications
         servers = self.connections_config['servers']
         for server_id in servers.keys():
-            if self.testing:
-                self.storage_broker.got_static_announcement(servers[server_id]['key_s'], servers[server_id]['announcement'])
-            else:
-                eventually(self.storage_broker.got_static_announcement, servers[server_id]['key_s'], servers[server_id]['announcement'])
+            eventually(self.storage_broker.got_static_announcement, servers[server_id]['key_s'], servers[server_id]['announcement'])
 
         sb.use_introducer(self.introducer_client)
 
