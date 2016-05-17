@@ -3,6 +3,8 @@ import time, yaml
 from zope.interface import implements
 from twisted.application import service
 from foolscap.api import Referenceable, eventually
+from foolscap.api import Tub
+
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
      RIIntroducerSubscriberClient_v2
@@ -17,13 +19,16 @@ class InvalidCacheError(Exception):
 
 V2 = "http://allmydata.org/tahoe/protocols/introducer/v2"
 
-class IntroducerClient(service.Service, Referenceable):
+class IntroducerClient(service.MultiService, Referenceable):
     implements(RIIntroducerSubscriberClient_v2, IIntroducerClient)
 
-    def __init__(self, tub, introducer_furl,
+    def __init__(self, introducer_furl,
                  nickname, my_version, oldest_supported,
                  app_versions, sequencer, cache_filepath):
-        self._tub = tub
+        service.MultiService.__init__(self)
+
+        self._tub = Tub()
+        self._tub.setServiceParent(self)
         self.introducer_furl = introducer_furl
 
         assert type(nickname) is unicode
@@ -46,6 +51,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._canary = Referenceable()
 
         self._publisher = None
+        self._since = None
 
         self._local_subscribers = [] # (servicename,cb,args,kwargs) tuples
         self._subscribed_service_names = set()
@@ -77,7 +83,7 @@ class IntroducerClient(service.Service, Referenceable):
         return res
 
     def startService(self):
-        service.Service.startService(self)
+        service.MultiService.startService(self)
         self._introducer_error = None
         rc = self._tub.connectTo(self.introducer_furl, self._got_introducer)
         self._introducer_reconnector = rc
@@ -144,6 +150,7 @@ class IntroducerClient(service.Service, Referenceable):
         if V2 not in publisher.version:
             raise InsufficientVersionError("V2", publisher.version)
         self._publisher = publisher
+        self._since = int(time.time())
         publisher.notifyOnDisconnect(self._disconnected)
         self._maybe_publish()
         self._maybe_subscribe()
@@ -151,6 +158,7 @@ class IntroducerClient(service.Service, Referenceable):
     def _disconnected(self):
         self.log("bummer, we've lost our connection to the introducer")
         self._publisher = None
+        self._since = int(time.time())
         self._subscriptions.clear()
 
     def log(self, *args, **kwargs):
@@ -325,3 +333,12 @@ class IntroducerClient(service.Service, Referenceable):
 
     def connected_to_introducer(self):
         return bool(self._publisher)
+
+    def get_since(self):
+        return self._since
+
+    def get_last_received_data_time(self):
+        if self._publisher is None:
+            return None
+        else:
+            return self._publisher.getDataLastReceivedAt()
