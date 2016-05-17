@@ -580,12 +580,12 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessRaises(NeedRootcapLookupScheme, client.Client, basedir)
 
     def _permute(self, sb, key):
-        return [ base32.a2b(s.get_longname()) for s in sb.get_servers_for_psi(key) ]
+        return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
         sb = StorageFarmBroker(None, True)
         for k in ["%d" % i for i in range(5)]:
-            ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(k),
+            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
