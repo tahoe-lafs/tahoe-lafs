@@ -689,7 +689,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<img (alt="Disconnected" |src="img/connected-no.png" ){2}/>', html), res)
+            self.failUnless(re.search('<img (src="img/connected-no.png" |alt="Disconnected" ){2}/></div>[ ]*<div>No introducers connected</div>', html), res)
         d.addCallback(_check_introducer_not_connected_unguessable)
 
         # introducer connected, unguessable furl
@@ -702,7 +702,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/>', html), res)
+            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
         d.addCallback(_check_introducer_connected_unguessable)
 
         # introducer connected, guessable furl
@@ -714,7 +714,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check_introducer_connected_guessable(res):
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/introducer</div>', html)
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/>', html), res)
+            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
         d.addCallback(_check_introducer_connected_guessable)
         return d
 
@@ -5917,7 +5917,6 @@ class CompletelyUnhandledError(Exception):
 class ErrorBoom(rend.Page):
     def beforeRender(self, ctx):
         raise CompletelyUnhandledError("whoops")
-
 
 # XXX FIXME when we introduce "mock" as a dependency, these can
 # probably just be Mock instances

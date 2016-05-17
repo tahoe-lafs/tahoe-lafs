@@ -126,6 +126,17 @@ class StorageFarmBroker(service.MultiService):
                 remaining.append( (threshold, d) )
         self._threshold_listeners = remaining
 
+    def got_static_announcement(self, key_s, ann):
+        print "got static announcement"
+        if key_s is not None:
+            precondition(isinstance(key_s, str), key_s)
+            precondition(key_s.startswith("v0-"), key_s)
+        assert ann["service-name"] == "storage"
+        s = NativeStorageServer(key_s, ann) # XXX tub_options=...
+        server_id = s.get_serverid()
+        self.servers[server_id] = s
+        s.start_connecting(self._trigger_connections)
+
     def _got_announcement(self, key_s, ann):
         if key_s is not None:
             precondition(isinstance(key_s, str), key_s)

@@ -225,21 +225,6 @@ class Root(rend.Page):
         else:
             return "%s/[censored]" % (prefix,)
 
-    def data_introducer_furl_prefix(self, ctx, data):
-
-        if not self.client.introducer_furl:
-            return
-
-        ifurl = self.client.introducer_furl
-        # trim off the secret swissnum
-        (prefix, _, swissnum) = ifurl.rpartition("/")
-        if not ifurl:
-            return None
-        if swissnum == "introducer":
-            return ifurl
-        else:
-            return "%s/[censored]" % (prefix,)
-
     def data_introducer_description(self, ctx, data):
         if self.data_connected_to_introducer(ctx, data) == "no":
             return "Introducer not connected"
@@ -260,7 +245,6 @@ class Root(rend.Page):
             if connection_status:
                 i = furls.index(furl)
                 ic = self.client.introducer_clients[i]
-                since = self.client.introducer_clients[i].get_since()
                 s.append((display_furl, bool(connection_statuses[i]), ic))
         s.sort()
         return s
@@ -378,7 +362,8 @@ class Root(rend.Page):
         ctx.fillSlots("furl", furl)
         ctx.fillSlots("address", addr)
         ctx.fillSlots("service_connection_status", service_connection_status)
-        ctx.fillSlots("service_connection_status_alt", self._connectedalts[service_connection_status])
+        ctx.fillSlots("service_connection_status_alt",
+            self._connectedalts[service_connection_status])
         ctx.fillSlots("connected-bool", bool(rhost))
         ctx.fillSlots("service_connection_status_abs_time", service_connection_status_abs_time)
         ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
