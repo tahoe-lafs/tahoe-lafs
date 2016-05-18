@@ -540,9 +540,18 @@ class Client(node.Node, pollmixin.PollMixin):
     def get_encoding_parameters(self):
         return self.encoding_params
 
+    # In case we configure multiple introducers
+    def introducer_connection_statuses(self):
+        status = []
+        if self.introducer_clients:
+            for ic in self.introducer_clients:
+                s = ic.connected_to_introducer()
+                status.append(s)
+        return status
+
     def connected_to_introducer(self):
-        if self.introducer_client:
-            return self.introducer_client.connected_to_introducer()
+        if len(self.introducer_clients) > 0:
+            return True
         return False
 
     def get_renewal_secret(self): # this will go away
