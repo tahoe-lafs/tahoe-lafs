@@ -122,11 +122,12 @@ class Client(node.Node, pollmixin.PollMixin):
         node.Node.__init__(self, basedir)
         # All tub.registerReference must happen *after* we upcall, since
         # that's what does tub.setLocation()
+        self.introducer_clients = []
+        self.introducer_furls = []
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
         self.load_connections()
-        self.init_introducer_client()
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
@@ -171,18 +172,6 @@ class Client(node.Node, pollmixin.PollMixin):
         nonce = _make_secret().strip()
         return seqnum, nonce
 
-    def init_introducer_client(self):
-        self.introducer_furl = self.get_config("client", "introducer.furl")
-        introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", "introducer_cache.yaml"))
-        ic = IntroducerClient(self.tub, self.introducer_furl,
-                              self.nickname,
-                              str(allmydata.__full_version__),
-                              str(self.OLDEST_SUPPORTED_VERSION),
-                              self.get_app_versions(),
-                              self._sequencer, introducer_cache_filepath)
-        self.introducer_client = ic
-        ic.setServiceParent(self)
-
     def load_connections(self):
         """
         Load the connections.yaml file if it exists, otherwise
@@ -199,8 +188,28 @@ class Client(node.Node, pollmixin.PollMixin):
                 self.connections_config = yaml.safe_load(f)
         except EnvironmentError:
             exists = False
-            self.connections_config = { 'servers' : {} }
+            self.connections_config = { 'servers' : {},
+                                        'introducers' : {},
+            }
             connections_filepath.setContent(yaml.safe_dump(self.connections_config))
+
+        introducers = self.connections_config['introducers']
+        for nickname in introducers:
+            introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", nickname))
+            self.introducer_furls.append(introducers[nickname]['furl'])
+            ic = IntroducerClient(introducers[nickname]['furl'],
+                                  nickname,
+                                  str(allmydata.__full_version__),
+                                  str(self.OLDEST_SUPPORTED_VERSION),
+                                  self.get_app_versions(),
+                                  introducer_cache_filepath,
+                                  introducers[nickname]['subscribe_only'],
+                                  plugins)
+            self.introducer_clients.append(ic)
+
+        # init introducer_clients as usual
+        for ic in self.introducer_clients:
+            ic.setServiceParent(self)
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config("client", "stats_gatherer.furl", None)
@@ -318,7 +327,9 @@ class Client(node.Node, pollmixin.PollMixin):
         ann = {"anonymous-storage-FURL": furl,
                "permutation-seed-base32": self._init_permutation_seed(ss),
                }
-        self.introducer_client.publish("storage", ann, self._node_key)
+
+        for ic in self.introducer_clients:
+            ic.publish("storage", ann, self._node_key)
 
     def init_client(self):
         helper_furl = self.get_config("client", "helper.furl", None)
@@ -385,7 +396,8 @@ class Client(node.Node, pollmixin.PollMixin):
         for server_id in servers.keys():
             eventually(self.storage_broker.got_static_announcement, servers[server_id]['key_s'], servers[server_id]['announcement'])
 
-        sb.use_introducer(self.introducer_client)
+        for ic in self.introducer_clients:
+            sb.use_introducer(ic)
 
     def get_storage_broker(self):
         return self.storage_broker
