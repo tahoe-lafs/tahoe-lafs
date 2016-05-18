@@ -9,6 +9,8 @@ from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
 from pycryptopp.publickey import rsa
 
+from foolscap.api import eventually
+
 import allmydata
 from allmydata.storage.server import StorageServer
 from allmydata import storage_client
