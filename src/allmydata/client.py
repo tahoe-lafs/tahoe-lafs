@@ -122,6 +122,7 @@ class Client(node.Node, pollmixin.PollMixin):
         node.Node.__init__(self, basedir)
         # All tub.registerReference must happen *after* we upcall, since
         # that's what does tub.setLocation()
+        self.warn_flag = False
         self.introducer_clients = []
         self.introducer_furls = []
         self.started_timestamp = time.time()
@@ -174,17 +175,19 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def old_introducer_config_compatiblity(self):
         tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
+        if tahoe_cfg_introducer_furl is not None:
+            tahoe_cfg_introducer_furl = tahoe_cfg_introducer_furl.encode('utf-8')
 
         for nick in self.connections_config['introducers'].keys():
-            if tahoe_cfg_introducer_furl == self.connections_config['introducers'][nick]:
+            if tahoe_cfg_introducer_furl == self.connections_config['introducers'][nick]['furl']:
                 log.err("Introducer furl specified in both tahoe.cfg and connections.yaml; please fix impossible configuration.")
-                self.warn_flag = False
+                self.warn_flag = True
                 return
 
         if u"introducer" in self.connections_config['introducers'].keys():
             if tahoe_cfg_introducer_furl is not None:
                 log.err("Introducer nickname in connections.yaml must not be called 'introducer' if the tahoe.cfg file also specifies and introducer.")
-                self.warn_flag = False
+                self.warn_flag = True
 
         if tahoe_cfg_introducer_furl is not None:
             self.connections_config['introducers'][u"introducer"] = {}

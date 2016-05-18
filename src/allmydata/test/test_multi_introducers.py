@@ -10,8 +10,8 @@ from allmydata.web.root import Root
 
 INTRODUCERS_CFG_FURLS=['furl1', 'furl2']
 INTRODUCERS_CFG_FURLS_COMMENTED="""introducers:
-  'intro1': {furl: furl1, subscribe_only: false}
-# 'intro2': {furl: furl4, subscribe_only: false}
+  'intro1': {furl: furl1}
+# 'intro2': {furl: furl4}
 servers: {}
 transport_plugins: {}
         """
@@ -36,7 +36,7 @@ class MultiIntroTests(unittest.TestCase):
         as found in "basedir/private/introducers" config file. """
         connections = {'introducers':
             {
-            u'intro1':{ 'furl': 'furl1',
+            u'intro3':{ 'furl': 'furl3',
                   'subscribe_only': False },
             u'intro2':{ 'furl': 'furl4',
                   'subscribe_only': False }
@@ -64,7 +64,7 @@ class MultiIntroTests(unittest.TestCase):
         ic_count = len(myclient.introducer_clients)
 
         # assertions
-        self.failUnlessEqual(ic_count, 2)
+        self.failUnlessEqual(ic_count, 1)
 
     def test_read_introducer_furl_from_tahoecfg(self):
         """ Ensure that the Client reads the introducer.furl config item from
