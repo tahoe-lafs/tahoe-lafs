@@ -178,12 +178,13 @@ class Client(node.Node, pollmixin.PollMixin):
         for nick in self.connections_config['introducers'].keys():
             if tahoe_cfg_introducer_furl == self.connections_config['introducers'][nick]:
                 log.err("Introducer furl specified in both tahoe.cfg and connections.yaml; please fix impossible configuration.")
-                reactor.stop()
+                self.warn_flag = False
+                return
 
         if u"introducer" in self.connections_config['introducers'].keys():
             if tahoe_cfg_introducer_furl is not None:
                 log.err("Introducer nickname in connections.yaml must not be called 'introducer' if the tahoe.cfg file also specifies and introducer.")
-                reactor.stop()
+                self.warn_flag = False
 
         if tahoe_cfg_introducer_furl is not None:
             self.connections_config['introducers'][u"introducer"] = {}
