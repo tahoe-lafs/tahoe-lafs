@@ -3,6 +3,8 @@ import time, yaml
 from zope.interface import implements
 from twisted.application import service
 from foolscap.api import Referenceable, eventually, RemoteInterface
+from foolscap.api import Tub
+
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
      RIIntroducerSubscriberClient_v1, RIIntroducerSubscriberClient_v2
@@ -48,10 +50,10 @@ V2 = "http://allmydata.org/tahoe/protocols/introducer/v2"
 class IntroducerClient(service.Service, Referenceable):
     implements(RIIntroducerSubscriberClient_v2, IIntroducerClient)
 
-    def __init__(self, tub, introducer_furl,
+    def __init__(self, introducer_furl,
                  nickname, my_version, oldest_supported,
                  app_versions, sequencer, cache_filepath):
-        self._tub = tub
+        self._tub = Tub()
         self.introducer_furl = introducer_furl
 
         assert type(nickname) is unicode

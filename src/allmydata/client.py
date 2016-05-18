@@ -172,6 +172,23 @@ class Client(node.Node, pollmixin.PollMixin):
         nonce = _make_secret().strip()
         return seqnum, nonce
 
+    def old_introducer_config_compatiblity(self):
+        tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
+
+        for nick in self.connections_config['introducers'].keys():
+            if tahoe_cfg_introducer_furl == self.connections_config['introducers'][nick]:
+                log.err("Introducer furl specified in both tahoe.cfg and connections.yaml; please fix impossible configuration.")
+                reactor.stop()
+
+        if u"introducer" in self.connections_config['introducers'].keys():
+            if tahoe_cfg_introducer_furl is not None:
+                log.err("Introducer nickname in connections.yaml must not be called 'introducer' if the tahoe.cfg file also specifies and introducer.")
+                reactor.stop()
+
+        if tahoe_cfg_introducer_furl is not None:
+            self.connections_config['introducers'][u"introducer"] = {}
+            self.connections_config['introducers'][u"introducer"]['furl'] = tahoe_cfg_introducer_furl
+
     def load_connections(self):
         """
         Load the connections.yaml file if it exists, otherwise
@@ -193,6 +210,7 @@ class Client(node.Node, pollmixin.PollMixin):
             }
             connections_filepath.setContent(yaml.safe_dump(self.connections_config))
 
+        self.old_introducer_config_compatiblity()
         introducers = self.connections_config['introducers']
         for nickname in introducers:
             introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", nickname))
@@ -202,9 +220,7 @@ class Client(node.Node, pollmixin.PollMixin):
                                   str(allmydata.__full_version__),
                                   str(self.OLDEST_SUPPORTED_VERSION),
                                   self.get_app_versions(),
-                                  introducer_cache_filepath,
-                                  introducers[nickname]['subscribe_only'],
-                                  plugins)
+                                  self._sequencer, introducer_cache_filepath)
             self.introducer_clients.append(ic)
 
         # init introducer_clients as usual
