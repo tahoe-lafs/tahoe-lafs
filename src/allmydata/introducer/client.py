@@ -80,6 +80,7 @@ class IntroducerClient(service.MultiService, Referenceable):
         self._canary = Referenceable()
 
         self._publisher = None
+        self._since = None
 
         self._local_subscribers = [] # (servicename,cb,args,kwargs) tuples
         self._subscribed_service_names = set()
@@ -179,6 +180,7 @@ class IntroducerClient(service.MultiService, Referenceable):
         if not (V1 in publisher.version or V2 in publisher.version):
             raise InsufficientVersionError("V1 or V2", publisher.version)
         self._publisher = publisher
+        self._since = int(time.time())
         publisher.notifyOnDisconnect(self._disconnected)
         self._maybe_publish()
         self._maybe_subscribe()
@@ -186,6 +188,7 @@ class IntroducerClient(service.MultiService, Referenceable):
     def _disconnected(self):
         self.log("bummer, we've lost our connection to the introducer")
         self._publisher = None
+        self._since = int(time.time())
         self._subscriptions.clear()
 
     def log(self, *args, **kwargs):
@@ -402,3 +405,12 @@ class IntroducerClient(service.MultiService, Referenceable):
 
     def connected_to_introducer(self):
         return bool(self._publisher)
+
+    def get_since(self):
+        return self._since
+
+    def get_last_received_data_time(self):
+        if self._publisher is None:
+            return None
+        else:
+            return self._publisher.getDataLastReceivedAt()
