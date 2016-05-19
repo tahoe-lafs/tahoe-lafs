@@ -226,7 +226,7 @@ class INotify(PollMixin):
         try:
             fileutil.write(os.path.join(self._path.path, u".ignore-me"), "")
         except IOError as e:
-            print "ignoring IOError: %s" % (e,)
+            pass
         return self.poll(lambda: self._state == STOPPED)
 
     def watch(self, path, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
@@ -267,7 +267,6 @@ class INotify(PollMixin):
                 try:
                     fni.read_changes(self._hDirectory, self._recursive, self._filter)
                 except WindowsError as e:
-                    print "ignoring WindowsError: %s" % (e,)
                     self._state = STOPPING
 
                 if self._check_stop():
