@@ -118,6 +118,7 @@
                 <li class="nav-header">Tools</li>
                 <li><a href="status">Recent and Active Operations</a></li>
                 <li><a href="statistics">Operational Statistics</a></li>
+                <li n:render="show_introducerless_config"/>
               </ul>
             </div>
             <hr/>
@@ -138,10 +139,9 @@
               <div class="span6">
                 <div>
                   <h3>
-                    <div class="status-indicator"><img><n:attr name="src">img/connected-<n:invisible n:render="string" n:data="connected_to_introducer" />.png</n:attr><n:attr name="alt"><n:invisible n:render="string" n:data="connected_to_introducer_alt" /></n:attr></img></div>
+                    <div class="status-indicator"><img><n:attr name="src">img/connected-<n:invisible n:render="string" n:data="connected_to_at_least_one_introducer" />.png</n:attr><n:attr name="alt"><n:invisible n:render="string" n:data="connected_to_at_least_one_introducer_alt" /></n:attr></img></div>
                     <div n:render="string" n:data="introducer_description" />
                   </h3>
-                  <div class="furl" n:render="string" n:data="introducer_furl_prefix" />
                 </div>
                 <div>
                   <h3>
@@ -189,9 +189,28 @@
             </tr>
             <tr n:pattern="empty"><td colspan="5">You are not presently connected to any peers</td></tr>
           </table>
+          <div class="row-fluid">
+            <h2>Connected to <span n:render="string" n:data="connected_introducers" /> of <span n:render="string" n:data="total_introducers" /> introducers</h2>
+          </div>
+          <table class="table table-striped table-bordered peer-status" n:render="sequence" n:data="introducers">
+            <thead>
+              <tr n:pattern="header">
+                <td><h3>Address</h3></td>
+                <td><h3>Last&nbsp;RX</h3></td>
+              </tr>
+            </thead>
+            <tr n:pattern="item" n:render="introducers_row">
+              <td class="nickname-and-peerid">
+                <div class="status-indicator"><img><n:attr name="src">img/connected-<n:slot name="service_connection_status" />.png</n:attr><n:attr name="alt"><n:slot name="service_connection_status_alt" /></n:attr></img></div>
+                <a class="timestamp"><n:attr name="title"><n:slot name="service_connection_status_abs_time"/></n:attr><n:slot name="service_connection_status_rel_time"/></a>
+                <div class="furl"><n:slot name="introducer_furl"/></div>
+              </td>
+              <td class="service-last-received-data"><a class="timestamp"><n:attr name="title"><n:slot name="last_received_data_abs_time"/></n:attr><n:slot name="last_received_data_rel_time"/></a></td>
+            </tr>
+            <tr n:pattern="empty"><td colspan="2">No introducers are configured.</td></tr>
+          </table>
         </div><!--/span-->
       </div><!--/row-->
-
       <hr/>
 
       <footer>

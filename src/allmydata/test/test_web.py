@@ -236,8 +236,6 @@ class FakeStorageServer(service.MultiService):
         self.lease_checker = FakeLeaseChecker()
     def get_stats(self):
         return {"storage_server.accepting_immutable_shares": False}
-    def on_status_changed(self, cb):
-        cb(self)
 
 class FakeClient(Client):
     def __init__(self):
@@ -247,7 +245,7 @@ class FakeClient(Client):
         self.all_contents = {}
         self.nodeid = "fake_nodeid"
         self.nickname = u"fake_nickname \u263A"
-        self.introducer_furl = "None"
+        self.introducer_furls = []
         self.stats_provider = FakeStatsProvider()
         self._secret_holder = SecretHolder("lease secret", "convergence secret")
         self.helper = None
@@ -263,6 +261,7 @@ class FakeClient(Client):
                 serverid="other_nodeid", nickname=u"disconnected_nickname \u263B", connected = False,
                 last_connect_time = 15, last_loss_time = 25, last_rx_time = 35))
         self.introducer_client = None
+        self.introducer_clients = None
         self.history = FakeHistory()
         self.uploader = FakeUploader()
         self.uploader.all_contents = self.all_contents
@@ -279,6 +278,8 @@ class FakeClient(Client):
         return "v0-nodeid"
     def get_long_tubid(self):
         return "tubid"
+    def get_config(self, section, option, default=None, boolean=False):
+        return None
 
     def startService(self):
         return service.MultiService.startService(self)
@@ -623,6 +624,7 @@ class WebMixin(testutil.TimezoneMixin):
                       (which, res))
 
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, unittest.TestCase):
+
     def test_create(self):
         pass
 
@@ -676,45 +678,49 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 self.connected = connected
             def connected_to_introducer(self):
                 return self.connected
+            def get_since(self):
+                return 0
+            def get_last_received_data_time(self):
+                return 0
 
         d = defer.succeed(None)
 
         # introducer not connected, unguessable furl
         def _set_introducer_not_connected_unguessable(ign):
-            self.s.introducer_furl = "pb://someIntroducer/secret"
-            self.s.introducer_client = MockIntroducerClient(False)
+            self.s.introducer_furls = [ "pb://someIntroducer/secret" ]
+            self.s.introducer_clients = [ MockIntroducerClient(False) ]
             return self.GET("/")
         d.addCallback(_set_introducer_not_connected_unguessable)
         def _check_introducer_not_connected_unguessable(res):
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<img (alt="Disconnected" |src="img/connected-no.png" ){2}/>', html), res)
+            self.failUnless(re.search('<img (src="img/connected-no.png" |alt="Disconnected" ){2}/></div>[ ]*<div>No introducers connected</div>', html), res)
         d.addCallback(_check_introducer_not_connected_unguessable)
 
         # introducer connected, unguessable furl
         def _set_introducer_connected_unguessable(ign):
-            self.s.introducer_furl = "pb://someIntroducer/secret"
-            self.s.introducer_client = MockIntroducerClient(True)
+            self.s.introducer_furls = [ "pb://someIntroducer/secret" ]
+            self.s.introducer_clients = [ MockIntroducerClient(True) ]
             return self.GET("/")
         d.addCallback(_set_introducer_connected_unguessable)
         def _check_introducer_connected_unguessable(res):
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/>', html), res)
+            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
         d.addCallback(_check_introducer_connected_unguessable)
 
         # introducer connected, guessable furl
         def _set_introducer_connected_guessable(ign):
-            self.s.introducer_furl = "pb://someIntroducer/introducer"
-            self.s.introducer_client = MockIntroducerClient(True)
+            self.s.introducer_furls = [ "pb://someIntroducer/introducer" ]
+            self.s.introducer_clients = [ MockIntroducerClient(True) ]
             return self.GET("/")
         d.addCallback(_set_introducer_connected_guessable)
         def _check_introducer_connected_guessable(res):
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/introducer</div>', html)
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/>', html), res)
+            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
         d.addCallback(_check_introducer_connected_guessable)
         return d
 
@@ -5917,7 +5923,6 @@ class CompletelyUnhandledError(Exception):
 class ErrorBoom(rend.Page):
     def beforeRender(self, ctx):
         raise CompletelyUnhandledError("whoops")
-
 
 # XXX FIXME when we introduce "mock" as a dependency, these can
 # probably just be Mock instances
