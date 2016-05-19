@@ -240,6 +240,7 @@ class FakeStorageServer(service.MultiService):
         cb(self)
 
 class FakeClient(Client):
+    introducer_clients = []
     def __init__(self):
         # don't upcall to Client.__init__, since we only want to initialize a
         # minimal subset
