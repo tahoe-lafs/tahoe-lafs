@@ -56,6 +56,7 @@ class IntroducerClient(service.MultiService, Referenceable):
         service.MultiService.__init__(self)
 
         self._tub = Tub()
+        self._tub.setServiceParent(self)
         self.introducer_furl = introducer_furl
 
         assert type(nickname) is unicode
