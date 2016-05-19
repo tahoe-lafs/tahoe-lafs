@@ -114,7 +114,6 @@ class IntroducerClient(service.MultiService, Referenceable):
     def startService(self):
         service.MultiService.startService(self)
         self._introducer_error = None
-        self._tub.setServiceParent(self)
         rc = self._tub.connectTo(self.introducer_furl, self._got_introducer)
         self._introducer_reconnector = rc
         def connect_failed(failure):
