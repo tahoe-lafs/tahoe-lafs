@@ -218,13 +218,21 @@ class StatusOptions(BasedirOptions):
             self['node-url'] = f.read().strip()
 
 
-def _get_json_for_fragment(options, fragment, method='GET'):
+def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
     nodeurl = options['node-url']
     if nodeurl.endswith('/'):
         nodeurl = nodeurl[:-1]
 
     url = u'%s/%s' % (nodeurl, fragment)
-    resp = do_http(method, url)
+    if method == 'POST':
+        if post_args is None:
+            raise ValueError("Must pass post_args= for POST method")
+        body = urllib.urlencode(post_args)
+    else:
+        body = ''
+        if post_args is not None:
+            raise ValueError("post_args= only valid for POST method")
+    resp = do_http(method, url, body=body)
     if isinstance(resp, BadResponse):
         # specifically NOT using format_http_error() here because the
         # URL is pretty sensitive (we're doing /uri/<key>).
@@ -233,8 +241,12 @@ def _get_json_for_fragment(options, fragment, method='GET'):
         )
 
     data = resp.read()
-    parsed = simplejson.loads(data)
-    if not parsed:
+    try:
+        parsed = simplejson.loads(data)
+    except Exception as e:
+        print "Failed to parse reply:\n%s" % (data,)
+        return []
+    if parsed is None:
         raise RuntimeError("No data from '%s'" % (nodeurl,))
     return parsed
 
@@ -339,8 +351,12 @@ def status(options):
         token = f.read()
     magicdata = _get_json_for_fragment(
         options,
-        'magic_folder?t=json&token=' + token,
+        'magic_folder?t=json',
         method='POST',
+        post_args=dict(
+            t='json',
+            token=token,
+        )
     )
     if len(magicdata):
         uploads = [item for item in magicdata if item['kind'] == 'upload']
