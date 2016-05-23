@@ -115,7 +115,7 @@ for x in range(5):
 nickname = node%(node_id)s
 web.port =
 web.static = public_html
-tub.location = localhost:%(tub_port)d
+# tub.location = localhost:%(tub_port)d
 
 [client]
 # Which services should this client connect to?
