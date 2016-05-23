@@ -394,6 +394,9 @@ class MagicFolderCommand(BaseOptions):
         ["leave", None, LeaveOptions, "Leave a Magic Folder."],
         ["status", None, StatusOptions, "Display stutus of uploads/downloads."],
     ]
+    optFlags = [
+        ["debug", "d", "Print full stack-traces"],
+    ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a subcommand")
@@ -420,7 +423,12 @@ def do_magic_folder(options):
     so.stdout = options.stdout
     so.stderr = options.stderr
     f = subDispatch[options.subCommand]
-    return f(so)
+    try:
+        return f(so)
+    except Exception as e:
+        print("Error: %s" % (e,))
+        if options['debug']:
+            raise
 
 subCommands = [
     ["magic-folder", None, MagicFolderCommand,
