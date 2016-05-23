@@ -1438,7 +1438,7 @@ class RealTest(SingleMagicFolderTestMixin, unittest.TestCase):
         # Actually, there's no way to know when the actual
         # notification will occur, and anyway we're not waiting for
         # them in any case...so we'll just fudge it and hope 100ms is enough.
-        delay = 5.0 if sys.platform == "win32" else 0.1
+        delay = 1.1 if sys.platform == "win32" else 0.1
         return task.deferLater(reactor, delay, lambda: None)
 
 
@@ -1455,7 +1455,7 @@ class RealTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
         # Actually, there's no way to know when the actual
         # notification will occur, and anyway we're not waiting for
         # them in any case...so we'll just fudge it and hope 100ms is enough.
-        delay = 5.0 if sys.platform == "win32" else 0.1
+        delay = 1.1 if sys.platform == "win32" else 0.1
         return task.deferLater(reactor, delay, lambda: None)
 
 
