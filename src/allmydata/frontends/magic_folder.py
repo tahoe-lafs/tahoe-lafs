@@ -224,6 +224,7 @@ class QueueMixin(HookMixin):
 
         self._log("%d items to process" % len(to_process), )
         for item in to_process:
+            self._process_history.appendleft(item)
             try:
                 self._log("  processing '%r'" % (item,))
                 proc = yield self._process(item)

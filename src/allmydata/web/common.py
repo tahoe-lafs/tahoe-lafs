@@ -395,10 +395,10 @@ class TokenOnlyWebApi(resource.Resource):
     provide the "t=" argument to indicate the return-value (the only
     valid value for this is "json")
 
-    Subclasses should override '_render_json' which should process the
-    API call and return a valid JSON object. This will only be called
-    if the correct token is present and valid (during renderHTTP
-    processing).
+    Subclasses should override 'post_json' which should process the
+    API call and return a string which encodes a valid JSON
+    object. This will only be called if the correct token is present
+    and valid (during renderHTTP processing).
     """
 
     def __init__(self, client):
@@ -416,7 +416,7 @@ class TokenOnlyWebApi(resource.Resource):
         # argument to work if you passed it as a GET-style argument
         token = None
         if req.fields and 'token' in req.fields:
-            token = req.fields['token'].value[0]
+            token = req.fields['token'].value.strip()
         if not token:
             raise WebError("Missing token", http.UNAUTHORIZED)
         if not timing_safe_compare(token, self.client.get_auth_token()):
