@@ -44,17 +44,14 @@ is_windows = (sys.platform == 'win32')
 tahoe_base = abspath(curdir)
 data_base = join(tahoe_base, 'smoke_magicfolder')
 if is_windows:
-    tahoe_bin = join(tahoe_base, 'venv', 'Scripts', 'tahoe.exe')
+    tahoe_bin = 'tahoe.exe'
 else:
-    tahoe_bin = join(tahoe_base, 'bin', 'tahoe')
+    tahoe_bin = 'tahoe'
 python = sys.executable
 
 if not exists(data_base):
     print("Creating", data_base)
     mkdir(data_base)
-
-if not exists(tahoe_bin):
-    raise RuntimeError("Can't find 'tahoe' binary at %r" % (tahoe_bin,))
 
 if 'kill' in sys.argv:
     print("Killing the grid")
@@ -260,8 +257,11 @@ if do_invites:
 
 if True:
     for name in ['alice', 'bob']:
-        with open(join(data_base, name, 'private', 'magic_folder_dircap'), 'r') as f:
-            print("dircap %s: %s" % (name, f.read().strip()))
+        try:
+            with open(join(data_base, name, 'private', 'magic_folder_dircap'), 'r') as f:
+                print("dircap %s: %s" % (name, f.read().strip()))
+        except Exception:
+            print("can't find/open %s" % (name,))
 
 # give storage nodes a chance to connect properly? I'm not entirely
 # sure what's up here, but I get "UnrecoverableFileError" on the
