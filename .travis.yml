@@ -25,7 +25,8 @@ before_script:
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then sudo pip install -e .; fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install -e .; fi
 script:
-  - tox -e coverage
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then sudo tox -e coverage; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then tox -e coverage; fi
 after_success:
   coveralls
 notifications:
