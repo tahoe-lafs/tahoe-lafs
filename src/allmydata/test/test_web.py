@@ -5931,7 +5931,10 @@ class FakeRequest(object):
 
 class FakeField(object):
     def __init__(self, *values):
-        self.value = list(values)
+        if len(values) == 1:
+            self.value = values[0]
+        else:
+            self.value = list(values)
 
 
 class FakeClientWithToken(object):
