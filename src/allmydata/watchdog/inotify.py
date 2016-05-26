@@ -4,7 +4,7 @@ from watchdog.events import FileSystemEventHandler, FileSystemMovedEvent, FileMo
 
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
-#from twisted.python.filepath import InsecurePath
+from twisted.python.filepath import InsecurePath
 
 from allmydata.util.pollmixin import PollMixin
 from allmydata.util.assertutil import _assert, precondition
@@ -61,6 +61,8 @@ class INotifyEventHandler(FileSystemEventHandler):
                 print "DO CALLBACKS"
                 self._pending.remove(path)
                 event_mask = IN_CHANGED
+                if event.is_directory:
+                    event_mask = event_mask | IN_ISDIR
                 for cb in self._callbacks:
                     try:
                         cb(None, FilePath(path), event_mask)
