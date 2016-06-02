@@ -2,12 +2,12 @@
 import time, yaml
 from zope.interface import implements
 from twisted.application import service
+from twisted.internet import defer
 from foolscap.api import Referenceable, eventually, RemoteInterface
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
-     RIIntroducerSubscriberClient_v1, RIIntroducerSubscriberClient_v2
+     RIIntroducerSubscriberClient_v2
 from allmydata.introducer.common import sign_to_foolscap, unsign_from_foolscap,\
-     convert_announcement_v1_to_v2, convert_announcement_v2_to_v1, \
      make_index, get_tubid_string_from_ann, get_tubid_string
 from allmydata.util import log
 from allmydata.util.rrefutil import add_version_to_remote_reference
@@ -15,32 +15,6 @@ from allmydata.util.keyutil import BadSignatureError
 
 class InvalidCacheError(Exception):
     pass
-
-class WrapV2ClientInV1Interface(Referenceable): # for_v1
-    """I wrap a v2 IntroducerClient to make it look like a v1 client, so it
-    can be attached to an old server."""
-    implements(RIIntroducerSubscriberClient_v1)
-
-    def __init__(self, original):
-        self.original = original
-
-    def remote_announce(self, announcements):
-        lp = self.original.log("received %d announcements (v1)" %
-                               len(announcements))
-        anns_v1 = set([convert_announcement_v1_to_v2(ann_v1)
-                       for ann_v1 in announcements])
-        return self.original.got_announcements(anns_v1, lp)
-
-class RIStubClient(RemoteInterface): # for_v1
-    """Each client publishes a service announcement for a dummy object called
-    the StubClient. This object doesn't actually offer any services, but the
-    announcement helps the Introducer keep track of which clients are
-    subscribed (so the grid admin can keep track of things like the size of
-    the grid and the client versions in use. This is the (empty)
-    RemoteInterface for the StubClient."""
-
-class StubClient(Referenceable): # for_v1
-    implements(RIStubClient)
 
 V1 = "http://allmydata.org/tahoe/protocols/introducer/v1"
 V2 = "http://allmydata.org/tahoe/protocols/introducer/v2"
@@ -68,8 +42,6 @@ class IntroducerClient(service.Service, Referenceable):
                                      "my-version": self._my_version,
                                      "oldest-supported": self._oldest_supported,
                                      }
-        self._stub_client = None # for_v1
-        self._stub_client_furl = None
 
         self._outbound_announcements = {} # not signed
         self._published_announcements = {} # signed
@@ -156,7 +128,7 @@ class IntroducerClient(service.Service, Referenceable):
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")
-        default = { "http://allmydata.org/tahoe/protocols/introducer/v1":
+        default = { "http://allmydata.org/tahoe/protocols/introducer/v2":
                     { },
                     "application-version": "unknown: no get_version()",
                     }
@@ -170,9 +142,9 @@ class IntroducerClient(service.Service, Referenceable):
 
     def _got_versioned_introducer(self, publisher):
         self.log("got introducer version: %s" % (publisher.version,))
-        # we require an introducer that speaks at least one of (V1, V2)
-        if not (V1 in publisher.version or V2 in publisher.version):
-            raise InsufficientVersionError("V1 or V2", publisher.version)
+        # we require an introducer that speaks at least V2
+        if V2 not in publisher.version:
+            raise InsufficientVersionError("V2", publisher.version)
         self._publisher = publisher
         publisher.notifyOnDisconnect(self._disconnected)
         self._maybe_publish()
@@ -213,31 +185,9 @@ class IntroducerClient(service.Service, Referenceable):
                                                self._my_subscriber_info)
                 d.addBoth(self._debug_retired)
             else:
-                d = self._subscribe_handle_v1(service_name) # for_v1
+                d = defer.fail(InsufficientVersionError("V2", self._publisher.version))
             d.addErrback(log.err, facility="tahoe.introducer.client",
                          level=log.WEIRD, umid="2uMScQ")
-
-    def _subscribe_handle_v1(self, service_name): # for_v1
-        # they don't speak V2: must be a v1 introducer. Fall back to the v1
-        # 'subscribe' method, using a client adapter.
-        ca = WrapV2ClientInV1Interface(self)
-        self._debug_outstanding += 1
-        d = self._publisher.callRemote("subscribe", ca, service_name)
-        d.addBoth(self._debug_retired)
-        # We must also publish an empty 'stub_client' object, so the
-        # introducer can count how many clients are connected and see what
-        # versions they're running.
-        if not self._stub_client_furl:
-            self._stub_client = sc = StubClient()
-            self._stub_client_furl = self._tub.registerReference(sc)
-        def _publish_stub_client(ignored):
-            furl = self._stub_client_furl
-            self.publish("stub_client",
-                         { "anonymous-storage-FURL": furl,
-                           "permutation-seed-base32": get_tubid_string(furl),
-                           })
-        d.addCallback(_publish_stub_client)
-        return d
 
     def create_announcement_dict(self, service_name, ann):
         ann_d = { "version": 0,
@@ -281,29 +231,17 @@ class IntroducerClient(service.Service, Referenceable):
                                                self._canary)
                 d.addBoth(self._debug_retired)
             else:
-                d = self._handle_v1_publisher(ann_t) # for_v1
+                d = defer.fail(InsufficientVersionError("V2", self._publisher.version))
             d.addErrback(log.err, ann_t=ann_t,
                          facility="tahoe.introducer.client",
                          level=log.WEIRD, umid="xs9pVQ")
-
-    def _handle_v1_publisher(self, ann_t): # for_v1
-        # they don't speak V2, so fall back to the old 'publish' method
-        # (which takes an unsigned tuple of bytestrings)
-        self.log("falling back to publish_v1",
-                 level=log.UNUSUAL, umid="9RCT1A")
-        ann_v1 = convert_announcement_v2_to_v1(ann_t)
-        self._debug_outstanding += 1
-        d = self._publisher.callRemote("publish", ann_v1)
-        d.addBoth(self._debug_retired)
-        return d
-
 
     def remote_announce_v2(self, announcements):
         lp = self.log("received %d announcements (v2)" % len(announcements))
         return self.got_announcements(announcements, lp)
 
     def got_announcements(self, announcements, lp=None):
-        # this is the common entry point for both v1 and v2 announcements
+        # this is the common entry point for announcements
         self._debug_counts["inbound_message"] += 1
         for ann_t in announcements:
             try:

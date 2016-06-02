@@ -2,23 +2,7 @@
 from zope.interface import Interface
 from foolscap.api import StringConstraint, TupleOf, SetOf, DictOf, Any, \
     RemoteInterface, Referenceable
-from old import RIIntroducerSubscriberClient_v1
 FURL = StringConstraint(1000)
-
-# old introducer protocol (v1):
-#
-# Announcements are (FURL, service_name, remoteinterface_name,
-#                    nickname, my_version, oldest_supported)
-#  the (FURL, service_name, remoteinterface_name) refer to the service being
-#  announced. The (nickname, my_version, oldest_supported) refer to the
-#  client as a whole. The my_version/oldest_supported strings can be parsed
-#  by an allmydata.util.version.Version instance, and then compared. The
-#  first goal is to make sure that nodes are not confused by speaking to an
-#  incompatible peer. The second goal is to enable the development of
-#  backwards-compatibility code.
-
-Announcement_v1 = TupleOf(FURL, str, str,
-                          str, str, str)
 
 # v2 protocol over foolscap: Announcements are 3-tuples of (bytes, str, str)
 # or (bytes, none, none)
@@ -41,11 +25,7 @@ class RIIntroducerPublisherAndSubscriberService_v2(RemoteInterface):
     __remote_name__ = "RIIntroducerPublisherAndSubscriberService_v2.tahoe.allmydata.com"
     def get_version():
         return DictOf(str, Any())
-    def publish(announcement=Announcement_v1):
-        return None
     def publish_v2(announcement=Announcement_v2, canary=Referenceable):
-        return None
-    def subscribe(subscriber=RIIntroducerSubscriberClient_v1, service_name=str):
         return None
     def subscribe_v2(subscriber=RIIntroducerSubscriberClient_v2,
                      service_name=str, subscriber_info=SubscriberInfo):
