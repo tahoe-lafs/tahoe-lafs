@@ -15,7 +15,6 @@ from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage, magic_folder, introducerless_config
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
      get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
-from allmydata.util.time_format import format_delta
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -146,8 +145,7 @@ class Root(rend.Page):
         # use to test ophandle expiration.
         self.child_operations = operations.OphandleTable(clock)
         self.now_fn = now_fn
-        if self.now_fn is None:
-            self.now_fn = time.time
+        # what if now_fn is None?
         try:
             s = client.getServiceNamed("storage")
         except KeyError:
@@ -214,35 +212,41 @@ class Root(rend.Page):
 
         return ctx.tag[ul]
 
-    def data_introducer_furl_prefix(self, ctx, data):
-        ifurl = self.client.introducer_furl
-        # trim off the secret swissnum
-        (prefix, _, swissnum) = ifurl.rpartition("/")
-        if not ifurl:
-            return None
-        if swissnum == "introducer":
-            return ifurl
-        else:
-            return "%s/[censored]" % (prefix,)
+    def data_total_introducers(self, ctx, data):
+        return len(self.client.introducer_furls)
+
+    def data_connected_introducers(self, ctx, data):
+        return self.client.introducer_connection_statuses().count(True)
 
     def data_introducer_description(self, ctx, data):
-        if self.data_connected_to_introducer(ctx, data) == "no":
-            return "Introducer not connected"
-        return "Introducer"
+        connected_count = self.data_connected_introducers( ctx, data )
+        if connected_count == 0:
+            return "No introducers connected"
+        elif connected_count == 1:
+            return "1 introducer connected"
+        else:
+            return "%s introducers connected" % (connected_count,)
 
-    def data_connected_to_introducer(self, ctx, data):
-        if self.client.connected_to_introducer():
+    def data_connected_to_at_least_one_introducer(self, ctx, data):
+        if True in self.client.introducer_connection_statuses():
             return "yes"
         return "no"
 
+    def data_connected_to_at_least_one_introducer_alt(self, ctx, data):
+        return self._connectedalts[self.data_connected_to_at_least_one_introducer(ctx, data)]
+
     # In case we configure multiple introducers
     def data_introducers(self, ctx, data):
-        connection_status = []
-        connection_status = self.client.connected_to_introducer()
+        connection_statuses = self.client.introducer_connection_statuses()
         s = []
         furls = self.client.introducer_furls
         for furl in furls:
-            if connection_status:
+            if connection_statuses:
+                display_furl = furl
+                # trim off the secret swissnum
+                (prefix, _, swissnum) = furl.rpartition("/")
+                if swissnum != "introducer":
+                    display_furl = "%s/[censored]" % (prefix,)
                 i = furls.index(furl)
                 ic = self.client.introducer_clients[i]
                 s.append((display_furl, bool(connection_statuses[i]), ic))
@@ -250,8 +254,17 @@ class Root(rend.Page):
         return s
 
     def render_introducers_row(self, ctx, s):
-        (furl, connected) = s
-        #connected =
+        (furl, connected, ic) = s
+        service_connection_status = "yes" if connected else "no"
+
+        since = ic.get_since()
+        service_connection_status_rel_time = render_time_delta(since, self.now_fn())
+        service_connection_status_abs_time = render_time_attr(since)
+
+        last_received_data_time = ic.get_last_received_data_time()
+        last_received_data_rel_time = render_time_delta(last_received_data_time, self.now_fn())
+        last_received_data_abs_time = render_time_attr(last_received_data_time)
+
         ctx.fillSlots("introducer_furl", "%s" % (furl))
         ctx.fillSlots("service_connection_status", "%s" % (service_connection_status,))
         ctx.fillSlots("service_connection_status_alt",
@@ -260,16 +273,7 @@ class Root(rend.Page):
         ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
         ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)
         ctx.fillSlots("last_received_data_rel_time", last_received_data_rel_time)
-
-        status = ("No", "Yes")
-        ctx.fillSlots("connected-bool", "%s" % (connected))
-        ctx.fillSlots("connected", "%s" % (status[int(connected)]))
-        ctx.fillSlots("since", "%s" % (time.strftime(TIME_FORMAT,
-                                             time.localtime(since))))
         return ctx.tag
-
-    def data_connected_to_introducer_alt(self, ctx, data):
-        return self._connectedalts[self.data_connected_to_introducer(ctx, data)]
 
     def data_helper_furl_prefix(self, ctx, data):
         try:
@@ -330,13 +334,13 @@ class Root(rend.Page):
             else:
                 rhost_s = str(rhost)
             addr = rhost_s
-            service_connection_status = "Connected"
+            service_connection_status = "yes"
             last_connect_time = server.get_last_connect_time()
             service_connection_status_rel_time = render_time_delta(last_connect_time, self.now_fn())
             service_connection_status_abs_time = render_time_attr(last_connect_time)
         else:
             addr = "N/A"
-            service_connection_status = "Disconnected"
+            service_connection_status = "no"
             last_loss_time = server.get_last_loss_time()
             service_connection_status_rel_time = render_time_delta(last_loss_time, self.now_fn())
             service_connection_status_abs_time = render_time_attr(last_loss_time)
@@ -352,25 +356,14 @@ class Root(rend.Page):
             available_space = "N/A"
         else:
             available_space = abbreviate_size(available_space)
-
-        service_name = announcement["service-name"]
-
-        seed = announcement['permutation-seed-base32']
-        furl = announcement['anonymous-storage-FURL']
-
-        ctx.fillSlots("seed", seed)
-        ctx.fillSlots("furl", furl)
         ctx.fillSlots("address", addr)
         ctx.fillSlots("service_connection_status", service_connection_status)
         ctx.fillSlots("service_connection_status_alt",
             self._connectedalts[service_connection_status])
-        ctx.fillSlots("connected-bool", bool(rhost))
         ctx.fillSlots("service_connection_status_abs_time", service_connection_status_abs_time)
         ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
         ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)
         ctx.fillSlots("last_received_data_rel_time", last_received_data_rel_time)
-        ctx.fillSlots("since", render_time(since))
-        ctx.fillSlots("announced", render_time(announced))
         ctx.fillSlots("version", version)
         ctx.fillSlots("available_space", available_space)
 
@@ -462,10 +455,3 @@ class Root(rend.Page):
             T.input(type="submit", value=u"Save \u00BB"),
             ]]
         return T.div[form]
-
-    def render_show_introducerless_config(self, ctx, data):
-        if self.client.get_config("node", "web.reveal_storage_furls", default=False, boolean=True):
-            return ctx.tag[T.a(href="introducerless_config")["Introducerless Config"]]
-        else:
-            return ""
-
