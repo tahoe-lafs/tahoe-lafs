@@ -84,6 +84,24 @@ class CiphertextFileNode:
     def get_size(self):
         return self._verifycap.size
 
+    def get_current_size(self):
+        # Our size is fixed.
+        return defer.succeed(self._verifycap.size)
+
+    def get_write_uri(self):
+        # We are not writeable.
+        return None
+
+    def get_readonly_uri(self):
+        # We are not readable, either.
+        return None
+
+    def get_uri(self):
+        return self._verifycap.to_string()
+
+    def is_alleged_immutable(self):
+        return True
+
     def raise_error(self):
         pass
 
