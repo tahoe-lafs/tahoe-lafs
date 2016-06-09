@@ -7,7 +7,7 @@ from twisted.internet import defer
 
 from allmydata import uri
 from twisted.internet.interfaces import IConsumer
-from allmydata.interfaces import IImmutableFileNode, IUploadResults
+from allmydata.interfaces import IFileNode, IImmutableFileNode, IUploadResults
 from allmydata.util import consumer
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.util.dictutil import DictOfSets
@@ -22,6 +22,8 @@ from allmydata.immutable.downloader.node import DownloadNode, \
 from allmydata.immutable.downloader.status import DownloadStatus
 
 class CiphertextFileNode:
+    implements(IFileNode)
+
     def __init__(self, verifycap, storage_broker, secret_holder,
                  terminator, history):
         assert isinstance(verifycap, uri.CHKFileVerifierURI)
