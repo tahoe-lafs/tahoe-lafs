@@ -163,12 +163,10 @@ class CheckerMixin(object):
             # is renamed into place, which causes events that the test is not expecting.
             f = open(path_u, "wb")
             try:
-                if temporary and sys.platform != "win32":
-                    os.unlink(path_u)
                 f.write(data)
             finally:
                 f.close()
-            if temporary and sys.platform == "win32":
+            if temporary:
                 os.unlink(path_u)
                 yield self.notify(path, self.inotify.IN_DELETE, flush=False)
             event_mask = self.inotify.IN_CLOSE_WRITE
@@ -1450,6 +1448,7 @@ class RealTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
         self.inotify = magic_folder.get_inotify_module()
         return d
 
+    # XXX flush doesn't do anything (anymore?)
     def notify(self, path, mask, magic=None, flush=True):
         # Writing to the filesystem causes the notification.
         # Actually, there's no way to know when the actual
