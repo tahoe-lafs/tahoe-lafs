@@ -293,8 +293,10 @@ class INotify(PollMixin):
                     def _maybe_notify(path):
                         if path not in self._pending:
                             self._pending.add(path)
-                        if self._pending_call is None and self._state not in [STOPPING, STOPPED]:
-                            self._pending_call = reactor.callLater(self._pending_delay, _do_pending_calls)
+                        if self._state not in [STOPPING, STOPPED]:
+                            _do_pending_calls()
+#                        if self._pending_call is None and self._state not in [STOPPING, STOPPED]:
+#                            self._pending_call = reactor.callLater(self._pending_delay, _do_pending_calls)
 
                     reactor.callFromThread(_maybe_notify, path)
                     if self._check_stop():
