@@ -4,7 +4,7 @@ import os.path
 from collections import deque
 import time
 
-from twisted.internet import defer, reactor, task, error
+from twisted.internet import defer, reactor, task
 from twisted.python.failure import Failure
 from twisted.python import runtime
 from twisted.application import service

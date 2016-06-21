@@ -243,7 +243,7 @@ def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
     data = resp.read()
     try:
         parsed = simplejson.loads(data)
-    except Exception as e:
+    except Exception:
         print "Failed to parse reply:\n%s" % (data,)
         return []
     if parsed is None:
