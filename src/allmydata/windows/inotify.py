@@ -225,7 +225,7 @@ class INotify(PollMixin):
     def wait_until_stopped(self):
         try:
             fileutil.write(os.path.join(self._path.path, u".ignore-me"), "")
-        except IOError as e:
+        except IOError:
             pass
         return self.poll(lambda: self._state == STOPPED)
 

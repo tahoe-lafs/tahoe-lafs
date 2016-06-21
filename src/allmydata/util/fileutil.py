@@ -170,32 +170,6 @@ def is_ancestor_path(parent, dirname):
             return False
     return True
 
-def make_dirs_with_absolute_mode(parent, dirname, mode):
-    """
-    Make directory `dirname` and chmod it to `mode` afterwards.
-    We chmod all parent directories of `dirname` until we reach
-    `parent`.
-    """
-    precondition_abspath(parent)
-    precondition_abspath(dirname)
-    if not is_ancestor_path(parent, dirname):
-        raise AssertionError("dirname must be a descendant of parent")
-
-    make_dirs(dirname)
-    while dirname != parent:
-        os.chmod(dirname, mode)
-        # FIXME: doesn't seem to work on Windows for long paths
-        old_dirname, dirname = dirname, os.path.dirname(dirname)
-        _assert(len(dirname) < len(old_dirname), dirname=dirname, old_dirname=old_dirname)
-
-def is_ancestor_path(parent, dirname):
-    while dirname != parent:
-        # FIXME: doesn't seem to work on Windows for long paths
-        old_dirname, dirname = dirname, os.path.dirname(dirname)
-        if len(dirname) >= len(old_dirname):
-            return False
-    return True
-
 def make_dirs(dirname, mode=0777):
     """
     An idempotent version of os.makedirs().  If the dir already exists, do

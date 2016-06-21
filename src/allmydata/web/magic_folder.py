@@ -1,11 +1,6 @@
 import simplejson
 
-from twisted.web.server import UnsupportedMethod
-
-from nevow import rend
-from nevow.inevow import IRequest
-
-from allmydata.web.common import WebError, TokenOnlyWebApi
+from allmydata.web.common import TokenOnlyWebApi
 
 
 class MagicFolderWebApi(TokenOnlyWebApi):
