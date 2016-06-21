@@ -471,7 +471,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
     @defer.inlineCallbacks
     def test_download_retry(self):
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
-        bob_fname = os.path.join(self.bob_magic_dir, 'blam')
+        # bob_fname = os.path.join(self.bob_magic_dir, 'blam')
 
         # Alice creates a file
         fileutil.write(alice_fname, ''.join(['contents-%04d\n' % i for i in range(1024)]))
@@ -955,7 +955,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
     """
 
     def setUp(self):
-        x = super(SingleMagicFolderTestMixin, self).setUp()
+        super(SingleMagicFolderTestMixin, self).setUp()
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
