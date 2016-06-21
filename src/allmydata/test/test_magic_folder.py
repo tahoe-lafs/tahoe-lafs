@@ -1461,4 +1461,7 @@ class RealTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
 try:
     magic_folder.get_inotify_module()
 except NotImplementedError:
-    RealTest.skip = "Magic Folder support can only be tested for-real on an OS that supports inotify or equivalent."
+    msg = "Magic Folder support can only be tested for-real on an OS that " + \
+          "supports inotify or equivalent."
+    for klass in [RealTest, MockTest, MockTestAliceBob, RealTestAliceBob]:
+        klass.skip = msg
