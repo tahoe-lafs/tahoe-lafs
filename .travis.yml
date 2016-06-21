@@ -18,11 +18,11 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then echo installing on osx...; fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python; fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=/usr/local/bin:$PATH; fi
+  - echo $PATH; which python
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then sudo pip install coveralls tox; fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install coveralls tox; fi
 script:
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then sudo tox -e coverage; fi
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then tox -e coverage; fi
+  - tox -e coverage
 after_success:
   coveralls
 notifications:
