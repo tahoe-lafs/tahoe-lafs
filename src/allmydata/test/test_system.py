@@ -792,7 +792,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
         d = self.set_up_nodes(NUMCLIENTS=1, use_stats_gatherer=True)
         def _set_happy_and_nodeargs(ign):
             for c in self.clients:
-                # TODO: this hangs with k = n = 10; figure out why.
+                # XXX TODO 'fixing' this apparently fixed several
+                # other tests -- but should only affect this one
+                # ... right?
                 c.encoding_params['k'] = 3
                 c.encoding_params['happy'] = 1
                 c.encoding_params['n'] = 3
