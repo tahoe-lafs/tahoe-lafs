@@ -793,9 +793,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
         def _set_happy_and_nodeargs(ign):
             for c in self.clients:
                 # TODO: this hangs with k = n = 10; figure out why.
-                c.DEFAULT_ENCODING_PARAMETERS['k'] = 3
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
-                c.DEFAULT_ENCODING_PARAMETERS['n'] = 3
+                c.encoding_params['k'] = 3
+                c.encoding_params['happy'] = 1
+                c.encoding_params['n'] = 3
             self.nodeargs = [
                 "--node-directory", self.getdir("client0"),
             ]
