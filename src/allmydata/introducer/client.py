@@ -2,13 +2,12 @@
 import time, yaml
 from zope.interface import implements
 from twisted.application import service
-from twisted.internet import defer
-from foolscap.api import Referenceable, eventually, RemoteInterface
+from foolscap.api import Referenceable, eventually
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
      RIIntroducerSubscriberClient_v2
 from allmydata.introducer.common import sign_to_foolscap, unsign_from_foolscap,\
-     make_index, get_tubid_string_from_ann, get_tubid_string
+     make_index, get_tubid_string_from_ann
 from allmydata.util import log
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.keyutil import BadSignatureError
@@ -16,7 +15,6 @@ from allmydata.util.keyutil import BadSignatureError
 class InvalidCacheError(Exception):
     pass
 
-V1 = "http://allmydata.org/tahoe/protocols/introducer/v1"
 V2 = "http://allmydata.org/tahoe/protocols/introducer/v2"
 
 class IntroducerClient(service.Service, Referenceable):
@@ -128,7 +126,7 @@ class IntroducerClient(service.Service, Referenceable):
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")
-        default = { "http://allmydata.org/tahoe/protocols/introducer/v2":
+        default = { "http://allmydata.org/tahoe/protocols/introducer/v1":
                     { },
                     "application-version": "unknown: no get_version()",
                     }
@@ -178,14 +176,11 @@ class IntroducerClient(service.Service, Referenceable):
             if service_name in self._subscriptions:
                 continue
             self._subscriptions.add(service_name)
-            if V2 in self._publisher.version:
-                self._debug_outstanding += 1
-                d = self._publisher.callRemote("subscribe_v2",
-                                               self, service_name,
-                                               self._my_subscriber_info)
-                d.addBoth(self._debug_retired)
-            else:
-                d = defer.fail(InsufficientVersionError("V2", self._publisher.version))
+            self._debug_outstanding += 1
+            d = self._publisher.callRemote("subscribe_v2",
+                                           self, service_name,
+                                           self._my_subscriber_info)
+            d.addBoth(self._debug_retired)
             d.addErrback(log.err, facility="tahoe.introducer.client",
                          level=log.WEIRD, umid="2uMScQ")
 
@@ -225,13 +220,9 @@ class IntroducerClient(service.Service, Referenceable):
         # this re-publishes everything. The Introducer ignores duplicates
         for ann_t in self._published_announcements.values():
             self._debug_counts["outbound_message"] += 1
-            if V2 in self._publisher.version:
-                self._debug_outstanding += 1
-                d = self._publisher.callRemote("publish_v2", ann_t,
-                                               self._canary)
-                d.addBoth(self._debug_retired)
-            else:
-                d = defer.fail(InsufficientVersionError("V2", self._publisher.version))
+            self._debug_outstanding += 1
+            d = self._publisher.callRemote("publish_v2", ann_t, self._canary)
+            d.addBoth(self._debug_retired)
             d.addErrback(log.err, ann_t=ann_t,
                          facility="tahoe.introducer.client",
                          level=log.WEIRD, umid="xs9pVQ")
@@ -241,7 +232,6 @@ class IntroducerClient(service.Service, Referenceable):
         return self.got_announcements(announcements, lp)
 
     def got_announcements(self, announcements, lp=None):
-        # this is the common entry point for announcements
         self._debug_counts["inbound_message"] += 1
         for ann_t in announcements:
             try:

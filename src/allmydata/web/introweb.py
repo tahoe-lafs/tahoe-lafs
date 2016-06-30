@@ -82,7 +82,7 @@ class IntroducerRoot(rend.Page):
                            for name in sorted(counts.keys()) ] )
 
     def data_services(self, ctx, data):
-        services = self.introducer_service.get_announcements(False)
+        services = self.introducer_service.get_announcements()
         services.sort(key=lambda ad: (ad.service_name, ad.nickname))
         return services
 

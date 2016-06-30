@@ -25,40 +25,6 @@ def get_tubid_string(furl):
     assert m
     return m.group(1).lower()
 
-def convert_announcement_v1_to_v2(ann_t):
-    (furl, service_name, ri_name, nickname, ver, oldest) = ann_t
-    assert type(furl) is str
-    assert type(service_name) is str
-    # ignore ri_name
-    assert type(nickname) is str
-    assert type(ver) is str
-    assert type(oldest) is str
-    ann = {"version": 0,
-           "nickname": nickname.decode("utf-8", "replace"),
-           "app-versions": {},
-           "my-version": ver,
-           "oldest-supported": oldest,
-
-           "service-name": service_name,
-           "anonymous-storage-FURL": furl,
-           "permutation-seed-base32": get_tubid_string(furl),
-           }
-    msg = simplejson.dumps(ann).encode("utf-8")
-    return (msg, None, None)
-
-def convert_announcement_v2_to_v1(ann_v2):
-    (msg, sig, pubkey) = ann_v2
-    ann = simplejson.loads(msg)
-    assert ann["version"] == 0
-    ann_t = (str(ann["anonymous-storage-FURL"]),
-             str(ann["service-name"]),
-             "remoteinterface-name is unused",
-             ann["nickname"].encode("utf-8"),
-             str(ann["my-version"]),
-             str(ann["oldest-supported"]),
-             )
-    return ann_t
-
 
 def sign_to_foolscap(ann, sk):
     # return (bytes, None, None) or (bytes, sig-str, pubkey-str). A future
