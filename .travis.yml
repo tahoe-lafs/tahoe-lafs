@@ -16,11 +16,14 @@ before_install:
   - python misc/build_helpers/show-tool-versions.py
 install:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python openssl; fi
+  - hash -r
   - echo $PATH; which python; which pip
   - pip --version
   - pip install --user coveralls tox
+  - echo $PATH; which python; which pip; which tox
   - python misc/build_helpers/show-tool-versions.py
 script:
+  - echo $PATH; which python; which pip; which tox
   - tox -e coverage
 after_success:
   coveralls
