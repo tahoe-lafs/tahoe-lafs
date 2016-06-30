@@ -15,11 +15,12 @@ before_install:
   - git fetch --depth=1000
   - python misc/build_helpers/show-tool-versions.py
 install:
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python openssl; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python; fi
   - hash -r
   - echo $PATH; which python; which pip
   - pip --version
   - pip install --user coveralls tox
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=$HOME/Library/Python/2.7/bin:$PATH; fi
   - echo $PATH; which python; which pip; which tox
   - python misc/build_helpers/show-tool-versions.py
 script:
