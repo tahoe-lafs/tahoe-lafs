@@ -15,12 +15,11 @@ before_install:
   - git fetch --depth=1000
   - python misc/build_helpers/show-tool-versions.py
 install:
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then echo installing on osx...; fi
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python; fi
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=/usr/local/bin:$PATH; fi
-  - echo $PATH; which python
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then sudo pip install coveralls tox; fi
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install coveralls tox; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python openssl; fi
+  - echo $PATH; which python; which pip
+  - pip --version
+  - pip install --user coveralls tox
+  - python misc/build_helpers/show-tool-versions.py
 script:
   - tox -e coverage
 after_success:
