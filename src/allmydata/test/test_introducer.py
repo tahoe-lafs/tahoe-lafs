@@ -946,15 +946,16 @@ class Signatures(unittest.TestCase):
         self.failUnlessEqual(ann2, ann)
         self.failUnlessEqual("pub-"+key2, vk_s)
 
+        # not signed
+        self.failUnlessRaises(UnknownKeyError,
+                              unsign_from_foolscap, (msg, None, key))
+        self.failUnlessRaises(UnknownKeyError,
+                              unsign_from_foolscap, (msg, sig, None))
         # bad signature
         bad_ann = {"key1": "value2"}
         bad_msg = simplejson.dumps(bad_ann).encode("utf-8")
         self.failUnlessRaises(keyutil.BadSignatureError,
                               unsign_from_foolscap, (bad_msg,sig,key))
-        # sneaky bad signature should be ignored
-        (ann2,key2) = unsign_from_foolscap( (bad_msg,None,key) )
-        self.failUnlessEqual(key2, None)
-        self.failUnlessEqual(ann2, bad_ann)
 
         # unrecognized signatures
         self.failUnlessRaises(UnknownKeyError,

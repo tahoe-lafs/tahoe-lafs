@@ -27,16 +27,16 @@ class UnknownKeyError(Exception):
 
 def unsign_from_foolscap(ann_t):
     (msg, sig_vs, claimed_key_vs) = ann_t
-    key_vs = None
-    if sig_vs and claimed_key_vs:
-        if not sig_vs.startswith("v0-"):
-            raise UnknownKeyError("only v0- signatures recognized")
-        if not claimed_key_vs.startswith("v0-"):
-            raise UnknownKeyError("only v0- keys recognized")
-        claimed_key = keyutil.parse_pubkey("pub-"+claimed_key_vs)
-        sig_bytes = base32.a2b(keyutil.remove_prefix(sig_vs, "v0-"))
-        claimed_key.verify(sig_bytes, msg)
-        key_vs = claimed_key_vs
+    if not sig_vs or not claimed_key_vs:
+        raise UnknownKeyError("only signed announcements recognized")
+    if not sig_vs.startswith("v0-"):
+        raise UnknownKeyError("only v0- signatures recognized")
+    if not claimed_key_vs.startswith("v0-"):
+        raise UnknownKeyError("only v0- keys recognized")
+    claimed_key = keyutil.parse_pubkey("pub-"+claimed_key_vs)
+    sig_bytes = base32.a2b(keyutil.remove_prefix(sig_vs, "v0-"))
+    claimed_key.verify(sig_bytes, msg)
+    key_vs = claimed_key_vs
     ann = simplejson.loads(msg.decode("utf-8"))
     return (ann, key_vs)
 

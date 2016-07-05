@@ -263,8 +263,8 @@ class IntroducerClient(service.Service, Referenceable):
 
         # how do we describe this node in the logs?
         desc_bits = []
-        if key_s:
-            desc_bits.append("serverid=" + key_s[:20])
+        assert key_s
+        desc_bits.append("serverid=" + key_s[:20])
         if "anonymous-storage-FURL" in ann:
             tubid_s = get_tubid_string_from_ann(ann)
             desc_bits.append("tubid=" + tubid_s[:8])
