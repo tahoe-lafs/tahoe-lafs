@@ -1,5 +1,7 @@
-sudo: false
-language: python
+sudo: true
+os:
+ - "linux"
+ - "osx"
 cache: pip
 before_cache:
   - rm -f $HOME/.cache/pip/log/debug.log
@@ -13,9 +15,14 @@ before_install:
   - git fetch --depth=1000
   - python misc/build_helpers/show-tool-versions.py
 install:
-  - pip install coveralls tox
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then echo installing on osx...; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=/usr/local/bin:$PATH; fi
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then sudo pip install coveralls tox; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install coveralls tox; fi
 script:
-  - tox -e coverage
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then sudo tox -e coverage; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then tox -e coverage; fi
 after_success:
   coveralls
 notifications:
