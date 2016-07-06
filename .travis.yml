@@ -2,7 +2,9 @@ sudo: true
 os:
  - "linux"
  - "osx"
-# xcode7 gives us OS-X 10.10, which gives us newer OpenSSL
+# xcode7 gives us OS-X 10.10, which gives us newer OpenSSL (the default gives
+# us 10.9, which appears to have OpenSSL-0.9.8, which is rejected by
+# cryptography-1.4)
 osx_image: xcode7
 cache: pip
 before_cache:
@@ -17,9 +19,9 @@ before_install:
   - git fetch --depth=1000
   - python misc/build_helpers/show-tool-versions.py
 install:
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python; fi
+#  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python; fi
   - hash -r
-  - echo $PATH; which python; which pip
+  - echo $PATH; which python; which pip; python --version
   - pip --version
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install -U pip; fi
   - pip list
