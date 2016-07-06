@@ -17,20 +17,15 @@ before_install:
   - git config --global user.email "travis-tahoe@tahoe-lafs.org"
   - git config --global user.name "Travis Tahoe"
   - git fetch --depth=1000
-  - python misc/build_helpers/show-tool-versions.py
 install:
-#  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python; fi
-  - hash -r
-  - echo $PATH; which python; which pip; python --version
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then wget https://bootstrap.pypa.io/get-pip.py && sudo python ./get-pip.py; fi
-  - pip --version
-  - pip list
-  - pip install --user coveralls tox wheel
+# ~/.local/bin is on $PATH by default, but on OS-X, --user puts it elsewhere
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=$HOME/Library/Python/2.7/bin:$PATH; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then wget https://bootstrap.pypa.io/get-pip.py && sudo python ./get-pip.py; fi
+  - pip list
+  - pip install --user coveralls tox
   - echo $PATH; which python; which pip; which tox
   - python misc/build_helpers/show-tool-versions.py
 script:
-  - echo $PATH; which python; which pip; which tox
   - tox -e coverage
 after_success:
   coveralls
