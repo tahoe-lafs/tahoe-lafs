@@ -1,5 +1,11 @@
-sudo: false
-language: python
+sudo: true
+os:
+ - "linux"
+ - "osx"
+# xcode7 gives us OS-X 10.10, which gives us newer OpenSSL (the default gives
+# us 10.9, which appears to have OpenSSL-0.9.8, which is rejected by
+# cryptography-1.4)
+osx_image: xcode7
 cache: pip
 before_cache:
   - rm -f $HOME/.cache/pip/log/debug.log
@@ -11,9 +17,14 @@ before_install:
   - git config --global user.email "travis-tahoe@tahoe-lafs.org"
   - git config --global user.name "Travis Tahoe"
   - git fetch --depth=1000
-  - python misc/build_helpers/show-tool-versions.py
 install:
-  - pip install coveralls tox
+# ~/.local/bin is on $PATH by default, but on OS-X, --user puts it elsewhere
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=$HOME/Library/Python/2.7/bin:$PATH; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then wget https://bootstrap.pypa.io/get-pip.py && sudo python ./get-pip.py; fi
+  - pip list
+  - pip install --user coveralls tox
+  - echo $PATH; which python; which pip; which tox
+  - python misc/build_helpers/show-tool-versions.py
 script:
   - tox -e coverage
 after_success:
