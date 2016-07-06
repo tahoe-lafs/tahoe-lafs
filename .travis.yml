@@ -22,7 +22,7 @@ install:
 #  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update && brew install python; fi
   - hash -r
   - echo $PATH; which python; which pip; python --version
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then wget https://bootstrap.pypa.io/get-pip.py && python ./get-pip.py; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then wget https://bootstrap.pypa.io/get-pip.py && sudo python ./get-pip.py; fi
   - pip --version
   - pip list
   - pip install --user coveralls tox wheel
