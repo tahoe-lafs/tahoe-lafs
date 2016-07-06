@@ -248,41 +248,28 @@ def move_into_place(source, dest):
     os.rename(source, dest)
 
 def write_atomically(target, contents, mode="b"):
-    f = open(target+".tmp", "w"+mode)
-    try:
+    with open(target+".tmp", "w"+mode) as f:
         f.write(contents)
-    finally:
-        f.close()
     move_into_place(target+".tmp", target)
 
 def write(path, data, mode="wb"):
-    wf = open(path, mode)
-    try:
-        wf.write(data)
-    finally:
-        wf.close()
+    with open(path, mode) as f:
+        f.write(data)
 
 def read(path):
-    rf = open(path, "rb")
-    try:
+    with open(path, "rb") as rf:
         return rf.read()
-    finally:
-        rf.close()
 
 def put_file(path, inf):
     precondition_abspath(path)
 
     # TODO: create temporary file and move into place?
-    outf = open(path, "wb")
-    try:
+    with open(path, "wb") as outf:
         while True:
             data = inf.read(32768)
             if not data:
                 break
             outf.write(data)
-    finally:
-        outf.close()
-
 
 def precondition_abspath(path):
     if not isinstance(path, unicode):
@@ -671,30 +658,33 @@ else:
         except EnvironmentError:
             reraise(ConflictError)
 
-PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime ctime')
+PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime_ns ctime_ns')
 
-def get_pathinfo(path_u, now=None):
+def seconds_to_ns(t):
+    return int(t * 1000000000)
+
+def get_pathinfo(path_u, now_ns=None):
     try:
         statinfo = os.lstat(path_u)
         mode = statinfo.st_mode
-        return PathInfo(isdir =stat.S_ISDIR(mode),
-                        isfile=stat.S_ISREG(mode),
-                        islink=stat.S_ISLNK(mode),
-                        exists=True,
-                        size  =statinfo.st_size,
-                        mtime =statinfo.st_mtime,
-                        ctime =statinfo.st_ctime,
+        return PathInfo(isdir   =stat.S_ISDIR(mode),
+                        isfile  =stat.S_ISREG(mode),
+                        islink  =stat.S_ISLNK(mode),
+                        exists  =True,
+                        size    =statinfo.st_size,
+                        mtime_ns=seconds_to_ns(statinfo.st_mtime),
+                        ctime_ns=seconds_to_ns(statinfo.st_ctime),
                        )
     except OSError as e:
         if e.errno == ENOENT:
-            if now is None:
-                now = time.time()
-            return PathInfo(isdir =False,
-                            isfile=False,
-                            islink=False,
-                            exists=False,
-                            size  =None,
-                            mtime =now,
-                            ctime =now,
+            if now_ns is None:
+                now_ns = seconds_to_ns(time.time())
+            return PathInfo(isdir   =False,
+                            isfile  =False,
+                            islink  =False,
+                            exists  =False,
+                            size    =None,
+                            mtime_ns=now_ns,
+                            ctime_ns=now_ns,
                            )
         raise
