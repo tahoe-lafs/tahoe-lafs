@@ -84,6 +84,7 @@ class Node(service.MultiService):
 
         self.init_tempdir()
         self.create_tub()
+        self.create_control_tub()
         self.logSource="Node"
 
         self.setup_logging()
@@ -166,6 +167,16 @@ class Node(service.MultiService):
             return "tcp:%d" % int(s)
         return s
 
+    def get_control_tub_port(self):
+        # return a descriptor string
+        cfg_tubport = self.get_config("node", "control_tub.port", "")
+        if cfg_tubport:
+            return self._convert_tub_port(cfg_tubport)
+
+        # XXX should really be: tcp:interface=127.0.0.1:1234
+        tubport = "tcp:%d" % iputil.allocate_tcp_port()
+        return tubport
+
     def get_tub_port(self):
         # return a descriptor string
         cfg_tubport = self.get_config("node", "tub.port", "")
@@ -179,6 +190,16 @@ class Node(service.MultiService):
         tubport = "tcp:%d" % iputil.allocate_tcp_port()
         fileutil.write_atomically(self._portnumfile, tubport + "\n", mode="")
         return tubport
+
+    def get_control_tub_location(self, tubport):
+        location = self.get_config("node", "control_tub.location", "127.0.0.1")
+        # Replace the location "AUTO", if present, with the detected local
+        # addresses. Don't probe for local addresses unless necessary.
+        split_location = location.split(",")
+        new_locations = []
+        for loc in split_location:
+                new_locations.append(loc)
+        return ",".join(new_locations)
 
     def get_tub_location(self, tubport):
         location = self.get_config("node", "tub.location", "AUTO")
@@ -198,13 +219,32 @@ class Node(service.MultiService):
                 new_locations.append(loc)
         return ",".join(new_locations)
 
+    def create_control_tub(self):
+        certfile = os.path.join(self.basedir, "private", self.CERTFILE)
+        self.control_tub = Tub(certFile=certfile)
+        self.control_tub_options = {
+            "logLocalFailures": True,
+            "logRemoteFailures": True,
+            "expose-remote-exception-types": False,
+            }
+        for (name, value) in self.control_tub_options.items():
+            self.control_tub.setOption(name, value)
+        tubport = self.get_control_tub_port()
+        if tubport in ("0", "tcp:0"):
+            raise ValueError("tub.port cannot be 0: you must choose")
+        self.control_tub.listenOn(tubport)
+
+        location = self.get_control_tub_location(tubport)
+        self.control_tub.setLocation(location)
+        self.log("Control/logging Tub location set to %s" % (location,))
+
+        # the Tub is now ready for tub.registerReference()
+        self.control_tub.setServiceParent(self)
+
     def create_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
         self.tub = Tub(certFile=certfile)
         self.tub_options = {
-            "logLocalFailures": True,
-            "logRemoteFailures": True,
-            "expose-remote-exception-types": False,
             }
 
         # see #521 for a discussion of how to pick these timeout values.
@@ -352,12 +392,12 @@ class Node(service.MultiService):
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
         lgfurl_file = os.path.join(self.basedir, "private", "logport.furl").encode(get_filesystem_encoding())
-        self.tub.setOption("logport-furlfile", lgfurl_file)
+        self.control_tub.setOption("logport-furlfile", lgfurl_file)
         lgfurl = self.get_config("node", "log_gatherer.furl", "")
         if lgfurl:
             # this is in addition to the contents of log-gatherer-furlfile
-            self.tub.setOption("log-gatherer-furl", lgfurl)
-        self.tub.setOption("log-gatherer-furlfile",
+            self.control_tub.setOption("log-gatherer-furl", lgfurl)
+        self.control_tub.setOption("log-gatherer-furlfile",
                            os.path.join(self.basedir, "log_gatherer.furl"))
 
         incident_dir = os.path.join(self.basedir, "logs", "incidents")
