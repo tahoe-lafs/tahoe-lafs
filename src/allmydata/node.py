@@ -84,6 +84,8 @@ class Node(service.MultiService):
 
         self.init_tempdir()
         self.create_tub()
+        self.create_control_tub()
+        self.create_log_tub()
         self.logSource="Node"
 
         self.setup_logging()
@@ -233,6 +235,33 @@ class Node(service.MultiService):
         # the Tub is now ready for tub.registerReference()
         self.tub.setServiceParent(self)
 
+    def create_control_tub(self):
+        # the control port uses a localhost-only ephemeral Tub, with no
+        # control over the listening port or location
+        self.control_tub = Tub()
+        portnum = iputil.allocate_tcp_port()
+        port = "tcp:%d:interface=127.0.0.1" % portnum
+        location = "tcp:127.0.0.1:%d" % portnum
+        self.control_tub.listenOn(port)
+        self.control_tub.setLocation(location)
+        self.log("Control Tub location set to %s" % (location,))
+        self.control_tub.setServiceParent(self)
+
+    def create_log_tub(self):
+        # The logport uses a localhost-only ephemeral Tub, with no control
+        # over the listening port or location. This might change if we
+        # discover a compelling reason for it in the future (e.g. being able
+        # to use "flogtool tail" against a remote server), but for now I
+        # think we can live without it.
+        self.log_tub = Tub()
+        portnum = iputil.allocate_tcp_port()
+        port = "tcp:%d:interface=127.0.0.1" % portnum
+        location = "tcp:127.0.0.1:%d" % portnum
+        self.log_tub.listenOn(port)
+        self.log_tub.setLocation(location)
+        self.log("Log Tub location set to %s" % (location,))
+        self.log_tub.setServiceParent(self)
+
     def get_app_versions(self):
         # TODO: merge this with allmydata.get_package_versions
         return dict(app_versions.versions)
@@ -352,13 +381,15 @@ class Node(service.MultiService):
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
         lgfurl_file = os.path.join(self.basedir, "private", "logport.furl").encode(get_filesystem_encoding())
-        self.tub.setOption("logport-furlfile", lgfurl_file)
+        if os.path.exists(lgfurl_file):
+            os.remove(lgfurl_file)
+        self.log_tub.setOption("logport-furlfile", lgfurl_file)
         lgfurl = self.get_config("node", "log_gatherer.furl", "")
         if lgfurl:
             # this is in addition to the contents of log-gatherer-furlfile
-            self.tub.setOption("log-gatherer-furl", lgfurl)
-        self.tub.setOption("log-gatherer-furlfile",
-                           os.path.join(self.basedir, "log_gatherer.furl"))
+            self.log_tub.setOption("log-gatherer-furl", lgfurl)
+        self.log_tub.setOption("log-gatherer-furlfile",
+                               os.path.join(self.basedir, "log_gatherer.furl"))
 
         incident_dir = os.path.join(self.basedir, "logs", "incidents")
         foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
