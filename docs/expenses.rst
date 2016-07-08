@@ -99,4 +99,5 @@ Expenses/Transactions:
 * Invoice 4083422, 01 Feb 2015: $324.00
 * Invoice 5650991, 01 Feb 2016: $324.00
 * -- Total through 01 May 2016: $2477.68
-*
+* 5861efda59f9ae10952389cf52f968bb469019c77a3642e276a9e35131c36600
+  3.78838567 BTC (@$654.02) = $2477.68, plus 0.000113 tx-fee
