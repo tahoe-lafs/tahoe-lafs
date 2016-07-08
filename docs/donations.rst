@@ -47,20 +47,26 @@ donation address until they are spent.
 Expenditure Addresses
 =====================
 
-* Initial testing / proof-of-spendability (warner)
+This lists the public key used for each declared budget item. The individual
+payments will be recorded in a separate file (see `docs/expenses.rst`), which
+is not signed. All transactions from the main `1Pxi` key should be to some
+key on this list.
+
+* Initial testing (warner)
   1387fFG7Jg1iwCzfmQ34FwUva7RnC6ZHYG
-  17-Mar-2016: deposit+withdrawal of 0.01 BTC
+  one-time 0.01 BTC deposit+withdrawal
+
+* tahoe-lafs.org DNS registration (paid by warner)
+  1552pt6wpudVCRcJaU14T7tAk8grpUza4D
+  ~$15/yr for DNS
+
+* tahoe-lafs.org SSL certificates (paid by warner)
+  $0-$50/yr, probably ending 2015
+  1EkT8yLvQhnjnLpJ6bNFCfAHJrM9yDjsqa
+
 * website/dev-server hosting (on Linode, paid by secorp)
-  address TBD
-  ~$20/mo, 2007-present
-* tahoe-lafs.org DNS registration and SSL certificates (paid by warner)
-  address TBD
-  21-Aug-2012: DNS (1 year, GANDI) $12.50
-  29-Oct-2012: SSL (RapidSSL) $49
-  20-Aug-2013: DNS (4 years, GANDI) $64.20
-  02-Nov-2013: SSL (GlobalSign, free for open source projects) $0
-  14-Nov-2014: SSL (GANDI) $16
-  28-Oct-2015: SSL (GANDI) $16
+  1MSWNt1R1fohYxgaMV7gJSWbYjkGbXzKWu
+  ~$20-$25/mo, 2007-present
 
 
 Historical Donation Addresses
@@ -89,17 +95,17 @@ This document is signed by the Tahoe-LAFS Release-Signing Key (GPG keyid
 (https://github.com/tahoe-lafs/tahoe-lafs.git) as `docs/donations.rst`.
 Both actions require access to secrets held closely by Tahoe developers.
 
-signed: Brian Warner, 21-Mar-2016
+signed: Brian Warner, 08-Jul-2016
 
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+Version: GnuPG v2
 
-iQEcBAEBCAAGBQJW76qNAAoJEL3g0x1oZmp6rXoIAIG6g3BdFNKjseWDbdKX90Mf
-465M9WaqPAccNvGn/l/ob1AhWfgB5lrZa0asajh5noZ00UjRnUuEbDMcXGKDXy6f
-0wg+JQdSLhTLEYlYEqqHnToiJwboY/WXnxtgaH19wfwdfuyUBSIKbFofYdX638+0
-qgpho35lWGuD17mCGKVdJy6N9U4W8uY/9eIoyrAId+4TLs4SJCRA4+vJlyvntsvb
-+VJ74p1IGjrkudoJhiqqjSgxpcbAsyntWbssmBj3x7YdC6AcJRZQcrz2R4O1kyF7
-n62uDmtySXOam4ZQqKron5I4gJ+iPqggeBnn5Kt7LwB3e/gYxnSUInGlbSkv2Ao=
-=Axmj
+iQEcBAEBCAAGBQJXf/v7AAoJEL3g0x1oZmp6eQ8H/A3orFJiSQm1vyZgQWPneKqb
+m7QaPIl5usKcZoGOtOcX4KlhvtOCHUcMjEHe1O+UbSWsKQfQQGiTMF+luwVh5DGZ
+Gmn/gSVVPYYa6MGZaoai0lCE1zh4wMuWsTZWwtjCqvN+bnYud6fbrem6p9XSbcpK
+bImMmig8/OJ0/Y0qhth6CBEqRm8LiALetibzcyEtWG2kwLTV/QYOqbfY3ZPI++bV
+q4VmDP80dNDKDq2JT6ZNU377Biz2/z/oj1ILb11aAylJJ4BV/3L+hJmyLfr0rsMc
+lSTzqAM2PUINnR4LnVdtDjJzBNRpcn535VxQFUc8e/jlOJo1rJse0Pt7WkDFsUA=
+=fyOh
 -----END PGP SIGNATURE-----
