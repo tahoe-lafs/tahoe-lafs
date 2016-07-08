@@ -52,7 +52,9 @@ Expenses/Transactions:
 
 * 21-Aug-2012: 1 year, GANDI: $12.50
 * 20-Aug-2013: 4 years, GANDI: $64.20
-*
+* 4ee7fbcb07f758d51187b6856eaf9999f14a7f3d816fe3afb7393f110814ae5e
+  0.11754609 BTC (@$653.41) = $76.70, plus 0.000113 tx-fee
+
 
 
 TLS certificates
@@ -71,7 +73,9 @@ Expenses/Transactions:
 * 02-Nov-2013: GlobalSign, free for open source projects: $0
 * 14-Nov-2014: GANDI: $16
 * 28-Oct-2015: GANDI: $16
-*
+* e8d1b78fab163baa45de0ec592f8d7547329343181e35c2cdb30e427a442337e
+  0.12400489 BTC (@$653.20) = $81, plus 0.000113 tx-fee
+
 
 Web/Developer Server Hosting
 ----------------------------
