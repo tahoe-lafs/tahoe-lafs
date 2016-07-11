@@ -141,7 +141,7 @@ class Client(node.Node, pollmixin.PollMixin):
             self.init_helper()
         self.init_ftp_server()
         self.init_sftp_server()
-        self.init_drop_uploader()
+        self.init_magic_folder()
 
         # If the node sees an exit_trigger file, it will poll every second to see
         # whether the file still exists, and what its mtime is. If the file does not
@@ -355,11 +355,6 @@ class Client(node.Node, pollmixin.PollMixin):
         self.storage_broker = sb
         sb.setServiceParent(self)
 
-        connection_threshold = min(self.encoding_params["k"],
-                                   self.encoding_params["happy"] + 1)
-        helper = storage_client.ConnectedEnough(sb, connection_threshold)
-        self.upload_ready_d = helper.when_connected_enough()
-
         # load static server specifications from tahoe.cfg, if any.
         # Not quite ready yet.
         #if self.config.has_section("client-server-selection"):
@@ -474,25 +469,38 @@ class Client(node.Node, pollmixin.PollMixin):
                                  sftp_portstr, pubkey_file, privkey_file)
             s.setServiceParent(self)
 
-    def init_drop_uploader(self):
+    def init_magic_folder(self):
+        #print "init_magic_folder"
         if self.get_config("drop_upload", "enabled", False, boolean=True):
-            if self.get_config("drop_upload", "upload.dircap", None):
-                raise OldConfigOptionError("The [drop_upload]upload.dircap option is no longer supported; please "
-                                           "put the cap in a 'private/drop_upload_dircap' file, and delete this option.")
+            raise OldConfigOptionError("The [drop_upload] section must be renamed to [magic_folder].\n"
+                                       "See docs/frontends/magic-folder.rst for more information.")
 
-            upload_dircap = self.get_or_create_private_config("drop_upload_dircap")
-            local_dir_utf8 = self.get_config("drop_upload", "local.directory")
+        if self.get_config("magic_folder", "enabled", False, boolean=True):
+            #print "magic folder enabled"
+            upload_dircap = self.get_private_config("magic_folder_dircap")
+            collective_dircap = self.get_private_config("collective_dircap")
 
-            try:
-                from allmydata.frontends import drop_upload
-                s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8)
-                s.setServiceParent(self)
-                s.startService()
+            local_dir_config = self.get_config("magic_folder", "local.directory").decode("utf-8")
+            local_dir = abspath_expanduser_unicode(local_dir_config, base=self.basedir)
 
-                # start processing the upload queue when we've connected to enough servers
-                self.upload_ready_d.addCallback(s.upload_ready)
-            except Exception, e:
-                self.log("couldn't start drop-uploader: %r", args=(e,))
+            dbfile = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
+            dbfile = abspath_expanduser_unicode(dbfile)
+
+            from allmydata.frontends import magic_folder
+            umask = self.get_config("magic_folder", "download.umask", 0077)
+            s = magic_folder.MagicFolder(self, upload_dircap, collective_dircap, local_dir, dbfile, umask)
+            self._magic_folder = s
+            s.setServiceParent(self)
+            s.startService()
+
+            # start processing the upload queue when we've connected to enough servers
+            connection_threshold = min(self.encoding_params["k"],
+                                       self.encoding_params["happy"] + 1)
+            connected = storage_client.ConnectedEnough(
+                self.storage_broker,
+                connection_threshold,
+            )
+            connected.when_connected_enough().addCallback(lambda ign: s.ready())
 
     def _check_exit_trigger(self, exit_trigger_file):
         if os.path.exists(exit_trigger_file):

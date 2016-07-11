@@ -1,7 +1,7 @@
 
 import binascii
-import time
-now = time.time
+from time import time as now
+
 from zope.interface import implements
 from twisted.internet import defer
 
