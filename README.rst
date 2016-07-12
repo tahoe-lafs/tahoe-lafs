@@ -12,6 +12,7 @@ http://tahoe-lafs.readthedocs.io/en/latest/ .
 
 |readthedocs|  |travis|  |coveralls|
 
+
 INSTALLING
 ==========
 
