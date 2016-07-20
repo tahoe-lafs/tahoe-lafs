@@ -8,6 +8,7 @@ from twisted.application import service
 from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
 from pycryptopp.publickey import rsa
+from foolscap.api import eventually
 
 import allmydata
 from allmydata.storage.server import StorageServer
@@ -188,7 +189,6 @@ class Client(node.Node, pollmixin.PollMixin):
         Load the connections.yaml file if it exists, otherwise
         create a default configuration.
         """
-        self.warn_flag = False
         connections_filepath = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
         def construct_unicode(loader, node):
             return node.value
@@ -198,7 +198,6 @@ class Client(node.Node, pollmixin.PollMixin):
             with connections_filepath.open() as f:
                 self.connections_config = yaml.safe_load(f)
         except EnvironmentError:
-            exists = False
             self.connections_config = { 'servers' : {} }
             connections_filepath.setContent(yaml.safe_dump(self.connections_config))
 
@@ -383,7 +382,7 @@ class Client(node.Node, pollmixin.PollMixin):
         # utilize the loaded static server specifications
         servers = self.connections_config['servers']
         for server_key in servers.keys():
-            eventually(self.storage_broker.got_static_announcement, server_key, servers[server_id]['announcement'])
+            eventually(self.storage_broker.got_static_announcement, server_key, servers[server_key]['announcement'])
 
         sb.use_introducer(self.introducer_client)
 
