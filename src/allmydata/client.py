@@ -379,9 +379,9 @@ class Client(node.Node, pollmixin.PollMixin):
         self.upload_ready_d = helper.when_connected_enough()
 
         # utilize the loaded static server specifications
-        servers = self.connections_config['servers']
-        for server_key in servers.keys():
-            eventually(self.storage_broker.got_static_announcement, server_key, servers[server_key]['announcement'])
+        for key, server in self.connections_config['servers'].items():
+            eventually(self.storage_broker.got_static_announcement,
+                       key, server['announcement'])
 
         sb.use_introducer(self.introducer_client)
 
