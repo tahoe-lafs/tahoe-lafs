@@ -1,4 +1,4 @@
-import os, stat, time, weakref, yaml
+import os, stat, time, weakref
 from allmydata import node
 from base64 import urlsafe_b64encode
 
@@ -17,9 +17,10 @@ from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import hashutil, base32, pollmixin, log, keyutil, idlib
-from allmydata.util.encodingutil import get_filesystem_encoding, \
-     from_utf8_or_none
+from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
+                            yamlutil)
+from allmydata.util.encodingutil import (get_filesystem_encoding,
+                                         from_utf8_or_none)
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
@@ -189,17 +190,15 @@ class Client(node.Node, pollmixin.PollMixin):
         Load the connections.yaml file if it exists, otherwise
         create a default configuration.
         """
-        connections_filepath = FilePath(os.path.join(self.basedir, "private", "connections.yaml"))
-        def construct_unicode(loader, node):
-            return node.value
-        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
-                                        construct_unicode)
+        fn = os.path.join(self.basedir, "private", "connections.yaml")
+        connections_filepath = FilePath(fn)
         try:
             with connections_filepath.open() as f:
-                self.connections_config = yaml.safe_load(f)
+                self.connections_config = yamlutil.safe_load(f)
         except EnvironmentError:
             self.connections_config = { 'servers' : {} }
-            connections_filepath.setContent(yaml.safe_dump(self.connections_config))
+            content = yamlutil.safe_dump(self.connections_config)
+            connections_filepath.setContent(content)
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config("client", "stats_gatherer.furl", None)

@@ -1,5 +1,5 @@
 
-import os, re, itertools, yaml
+import os, re, itertools
 from base64 import b32decode
 import simplejson
 
@@ -20,7 +20,7 @@ from allmydata.introducer.common import get_tubid_string_from_ann, \
 from allmydata.introducer import IntroducerNode
 from allmydata.web import introweb
 from allmydata.client import Client as TahoeClient
-from allmydata.util import pollmixin, keyutil, idlib, fileutil, iputil
+from allmydata.util import pollmixin, keyutil, idlib, fileutil, iputil, yamlutil
 import allmydata.test.common_util as testutil
 
 class LoggingMultiService(service.MultiService):
@@ -719,12 +719,8 @@ class Announcements(unittest.TestCase):
         self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
 
     def _load_cache(self, cache_filepath):
-        def construct_unicode(loader, node):
-            return node.value
-        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
-                                        construct_unicode)
         with cache_filepath.open() as f:
-            return yaml.safe_load(f)
+            return yamlutil.safe_load(f)
 
     @defer.inlineCallbacks
     def test_client_cache(self):
@@ -807,18 +803,6 @@ class Announcements(unittest.TestCase):
                              furl2)
         self.failUnlessEqual(announcements[pub2]["anonymous-storage-FURL"],
                              furl3)
-
-class YAMLUnicode(unittest.TestCase):
-    def test_convert(self):
-        data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
-        def construct_unicode(loader, node):
-            return node.value
-        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
-                                        construct_unicode)
-        back = yaml.safe_load(data)
-        self.failUnlessEqual(type(back[0]), unicode)
-        self.failUnlessEqual(type(back[1]), unicode)
-        self.failUnlessEqual(type(back[2]), unicode)
 
 class ClientSeqnums(unittest.TestCase):
     def test_client(self):

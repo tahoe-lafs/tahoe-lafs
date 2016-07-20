@@ -1,7 +1,7 @@
 
 def foo(): pass # keep the line number constant
 
-import os, time, sys
+import os, time, sys, yaml
 from StringIO import StringIO
 from datetime import timedelta
 from twisted.trial import unittest
@@ -13,7 +13,7 @@ from pycryptopp.hash.sha256 import SHA256 as _hash
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin, cachedir
-from allmydata.util import statistics, dictutil, pipeline
+from allmydata.util import statistics, dictutil, pipeline, yamlutil
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
 from allmydata.test.common_util import ReallyEqualMixin, TimezoneMixin
@@ -2412,3 +2412,11 @@ class StringSpans(unittest.TestCase):
                 length = max(1, int(what[5:6], 16))
                 d1 = s1.get(start, length); d2 = s2.get(start, length)
                 self.failUnlessEqual(d1, d2, "%d+%d" % (start, length))
+
+class YAML(unittest.TestCase):
+    def test_convert(self):
+        data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
+        back = yamlutil.safe_load(data)
+        self.failUnlessEqual(type(back[0]), unicode)
+        self.failUnlessEqual(type(back[1]), unicode)
+        self.failUnlessEqual(type(back[2]), unicode)

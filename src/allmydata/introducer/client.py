@@ -1,5 +1,5 @@
 
-import time, yaml
+import time
 from zope.interface import implements
 from twisted.application import service
 from foolscap.api import Referenceable, eventually
@@ -8,7 +8,7 @@ from allmydata.introducer.interfaces import IIntroducerClient, \
      RIIntroducerSubscriberClient_v2
 from allmydata.introducer.common import sign_to_foolscap, unsign_from_foolscap,\
      get_tubid_string_from_ann
-from allmydata.util import log
+from allmydata.util import log, yamlutil
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.keyutil import BadSignatureError
 
@@ -89,15 +89,9 @@ class IntroducerClient(service.Service, Referenceable):
         d.addErrback(connect_failed)
 
     def _load_announcements(self):
-        # Announcements contain unicode, because they come from JSON. We tell
-        # PyYAML to give us unicode instead of str/bytes.
-        def construct_unicode(loader, node):
-            return node.value
-        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
-                                        construct_unicode)
         try:
             with self._cache_filepath.open() as f:
-                servers = yaml.safe_load(f)
+                servers = yamlutil.safe_load(f)
         except EnvironmentError:
             return # no cache file
         if not isinstance(servers, list):
@@ -121,7 +115,7 @@ class IntroducerClient(service.Service, Referenceable):
                 "key_s" : key_s,
                 }
             announcements.append(server_params)
-        announcement_cache_yaml = yaml.safe_dump(announcements)
+        announcement_cache_yaml = yamlutil.safe_dump(announcements)
         self._cache_filepath.setContent(announcement_cache_yaml)
 
     def _got_introducer(self, publisher):
