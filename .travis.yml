@@ -26,7 +26,7 @@ install:
   - echo $PATH; which python; which pip; which tox
   - python misc/build_helpers/show-tool-versions.py
 script:
-  - tox -e coverage
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then tox; else tox -e coverage; fi
 after_success:
   coveralls
 notifications:
