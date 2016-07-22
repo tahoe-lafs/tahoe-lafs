@@ -38,7 +38,7 @@ from foolscap.api import Tub, eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
-from allmydata.util.observer import OneShotObserverList, ObserverList
+from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import sha1
 
@@ -57,41 +57,6 @@ from allmydata.util.hashutil import sha1
 # what should the interface between StorageFarmBroker and IntroducerClient
 # look like?
 #  don't pass signatures: only pass validated blessed-objects
-
-
-class ConnectedEnough(object):
-    def __init__(self, storage_farm_broker, threshold):
-        self._broker = storage_farm_broker
-
-        self._threshold = int(threshold)
-        if self._threshold <= 0:
-            raise ValueError("threshold must be positive")
-        self._threshold_passed = False
-
-        self._observers = OneShotObserverList()
-        self._broker.on_servers_changed(self._check_enough_connected)
-
-    def when_connected_enough(self):
-        """
-        :returns: a Deferred that fires if/when our high water mark for
-        number of connected servers becomes (or ever was) above
-        "threshold".
-        """
-        if self._threshold_passed:
-            return defer.succeed(None)
-        return self._observers.when_fired()
-
-    def _check_enough_connected(self):
-        """
-        internal helper
-        """
-        if self._threshold_passed:
-            return
-        num_servers = len(self._broker.get_connected_servers())
-        if num_servers >= self._threshold:
-            self._threshold_passed = True
-            self._observers.fire(None)
-
 
 
 class StorageFarmBroker(service.MultiService):
@@ -115,10 +80,19 @@ class StorageFarmBroker(service.MultiService):
         # them for it.
         self.servers = {}
         self.introducer_client = None
-        self._server_listeners = ObserverList()
+        self._threshold_listeners = [] # tuples of (threshold, Deferred)
+        self._connected_high_water_mark = 0
 
-    def on_servers_changed(self, callback):
-        self._server_listeners.subscribe(callback)
+    def when_connected_enough(self, threshold):
+        """
+        :returns: a Deferred that fires if/when our high water mark for
+        number of connected servers becomes (or ever was) above
+        "threshold".
+        """
+        d = defer.Deferred()
+        self._threshold_listeners.append( (threshold, d) )
+        self._check_connected_high_water_mark()
+        return d
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
@@ -137,7 +111,20 @@ class StorageFarmBroker(service.MultiService):
 
     def _got_connection(self):
         # this is called by NativeStorageClient when it is connected
-        self._server_listeners.notify()
+        self._check_connected_high_water_mark()
+
+    def _check_connected_high_water_mark(self):
+        current = len(self.get_connected_servers())
+        if current > self._connected_high_water_mark:
+            self._connected_high_water_mark = current
+
+        remaining = []
+        for threshold, d in self._threshold_listeners:
+            if self._connected_high_water_mark >= threshold:
+                eventually(d.callback, None)
+            else:
+                remaining.append( (threshold, d) )
+        self._threshold_listeners = remaining
 
     def _got_announcement(self, key_s, ann):
         if key_s is not None:

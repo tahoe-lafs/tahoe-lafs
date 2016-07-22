@@ -491,14 +491,12 @@ class Client(node.Node, pollmixin.PollMixin):
             s.setServiceParent(self)
             s.startService()
 
-            # start processing the upload queue when we've connected to enough servers
-            connection_threshold = min(self.encoding_params["k"],
-                                       self.encoding_params["happy"] + 1)
-            connected = storage_client.ConnectedEnough(
-                self.storage_broker,
-                connection_threshold,
-            )
-            connected.when_connected_enough().addCallback(lambda ign: s.ready())
+            # start processing the upload queue when we've connected to
+            # enough servers
+            threshold = min(self.encoding_params["k"],
+                            self.encoding_params["happy"] + 1)
+            d = self.storage_broker.when_connected_enough(threshold)
+            d.addCallback(lambda ign: s.ready())
 
     def _check_exit_trigger(self, exit_trigger_file):
         if os.path.exists(exit_trigger_file):

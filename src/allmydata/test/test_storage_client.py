@@ -5,7 +5,7 @@ from twisted.trial import unittest
 from twisted.internet.defer import succeed, inlineCallbacks
 
 from allmydata.storage_client import NativeStorageServer
-from allmydata.storage_client import StorageFarmBroker, ConnectedEnough
+from allmydata.storage_client import StorageFarmBroker
 
 
 class NativeStorageServerWithVersion(NativeStorageServer):
@@ -42,7 +42,7 @@ class TestStorageFarmBroker(unittest.TestCase):
     def test_threshold_reached(self):
         introducer = Mock()
         broker = StorageFarmBroker(True)
-        done = ConnectedEnough(broker, 5).when_connected_enough()
+        done = broker.when_connected_enough(5)
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes
         subscribe = introducer.mock_calls[0]
