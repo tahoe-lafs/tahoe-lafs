@@ -175,8 +175,8 @@ class NoNetworkStorageBroker:
         return self.client._servers
     def get_nickname_for_serverid(self, serverid):
         return None
-    def on_servers_changed(self, cb):
-        pass
+    def when_connected_enough(self, threshold):
+        return defer.Deferred()
 
 class NoNetworkClient(Client):
 
