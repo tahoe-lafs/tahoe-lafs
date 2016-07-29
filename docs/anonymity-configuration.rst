@@ -4,24 +4,46 @@
 Using Tahoe-LAFS with an anonymizing network: Tor, I2P
 ======================================================
 
-1.  `Use cases`_
-2.  `Native Tor integration for Tahoe-LAFS`_
-3.  `Software Dependencies`_
-4.  `Configuration`_
-5.  `Performance and security issues of Tor Hidden Services`_
-6.  `Torsocks: the old way of configuring Tahoe-LAFS to use Tor`_
+#. `Overview`_
+#. `Use cases`_
+#. `Native anonymizing network integration for Tahoe-LAFS`_
+
+   #. `Unresolved tickets`_
+
+#. `Software Dependencies`_
+
+   #. `Tor`_
+   #. `I2P`_
+
+#. `Connection configuration`_
+
+#. `Anonymity configuration`_
+
+   #. `Client anonymity`_
+   #. `Server anonymity`_
+
+#. `Performance and security issues with Tor Hidden Services`_
+#. `Performance and security issues with I2P`_
+#. `Torsocks: the old way of configuring Tahoe-LAFS to use Tor`_
+#. `Legacy I2P Tahoe-LAFS Configuration`_
 
 
 
-Use cases
-=========
+Overview
+========
 
 Tor is an anonymizing network used to help hide the identity of internet
 clients and servers. Please see the Tor Project's website for more information:
 https://www.torproject.org/
 
-Informative description about what i2p is... here.
+I2P is a decentralized anonymizing network that focuses on end-to-end anonymity
+between clients and servers. Please see the I2P website for more information:
+https://geti2p.net/
 
+
+
+Use cases
+=========
 
 There are three potential use-cases for Tahoe-LAFS on the client side:
 
@@ -29,8 +51,10 @@ There are three potential use-cases for Tahoe-LAFS on the client side:
    storage servers. This document is not useful to you... so stop reading.
 
 2. User does not care to protect their anonymity but they wish to connect to
-   Tahoe-LAFS storage servers which are accessbile only via Tor Hidden Services or I2P.
-   (For Tor users this means only use Tor if the endpoint string has a .onion address.)
+   Tahoe-LAFS storage servers which are accessible only via Tor Hidden Services or I2P.
+
+   * Tor is only used if a server endpoint string has a ``.onion`` address.
+   * I2P is only used if a server endpoint string has a ``.i2p`` address.
 
 3. User wishes to always use an anonymizing network (Tor, I2P) to protect their anonymity when
    connecting to Tahoe-LAFS storage grids (whether or not the storage servers
@@ -57,25 +81,38 @@ For Tahoe-LAFS storage servers there are three use-cases:
    https://www.torproject.org/docs/hidden-services.html.en
 
    See this I2P Project page for more information about I2P:
-   https://...
+   https://geti2p.net/en/about/intro
 
 3. The operator wishes to protect their anonymity by making their 
-   Tahoe server accessible only via Tor Hidden Services.
+   Tahoe server accessible only over I2P, via Tor Hidden Services, or both.
 
 
 
-Native Tor integration for Tahoe-LAFS
-=====================================
+Native anonymizing network integration for Tahoe-LAFS
+=====================================================
 
-Native Tor integration for Tahoe-LAFS utilizes the Twisted endpoints API::
+Tahoe-LAFS utilizes the Twisted endpoints API:
+
 * https://twistedmatrix.com/documents/current/core/howto/endpoints.html
 
 Twisted's endpoint parser plugin system is extensible via installing additional
-Twisted packages. The native Tor integration for Tahoe-LAFS uses 
-endpoint and parser plugins from the txsocksx and txtorcon modules.
+Twisted packages. Tahoe-LAFS utilizes this extensibility to support native Tor
+and I2P integration.
+
+* Native Tor integration uses the `txsocksx`_ and `txtorcon`_ modules.
+* Native I2P integration uses the `txi2p`_ module.
+
+.. _`txsocksx`: https://pypi.python.org/pypi/txsocksx
+.. _`txtorcon`: https://pypi.python.org/pypi/txtorcon
+.. _`txi2p`: https://pypi.python.org/pypi/txi2p
+
+Unresolved tickets
+------------------
+
 Although the Twisted endpoint API is very flexible it is missing a feature so that
 servers can be written in an endpoint agnostic style. We've opened a Twisted trac
-ticket for this feature here::
+ticket for this feature here:
+
 * https://twistedmatrix.com/trac/ticket/7603
 
 Once this ticket is resolved then an additional changes can be made to Foolscap
@@ -85,12 +122,9 @@ users to easily to use Tahoe-LAFS with many protocols on the server side.
 txsocksx will try to use the system tor's SOCKS port if available;
 attempts are made on ports 9050 and 9151. Currently the maintainer of txsocksx
 has not merged in our code for the Tor client endpoint. We'll use
-this branch until the Tor endpoint code is merged upstream::
-* https://github.com/david415/txsocksx/tree/endpoint_parsers_retry_socks
+this branch until the Tor endpoint code is merged upstream:
 
-txtorcon will use the system tor control port to configure Tor Hidden Services
-pending resolution of tor trac ticket 11291::
-* https://trac.torproject.org/projects/tor/ticket/11291
+* https://github.com/david415/txsocksx/tree/endpoint_parsers_retry_socks
 
 See also Tahoe-LAFS Tor related tickets #1010 and #517.
 
@@ -99,72 +133,181 @@ See also Tahoe-LAFS Tor related tickets #1010 and #517.
 Software Dependencies
 =====================
 
+Tor
+---
+
 * Tor (tor) must be installed. See here:
   https://www.torproject.org/docs/installguide.html.en
 
-* The "Tor-friendly" branch of txsocksx must be installed
-  ( Once this is merged then you can use upstream txsocksx;
-  https://github.com/habnabit/txsocksx/pull/8 ) ::
+* txsocksx must be installed ::
 
-   pip install git+https://github.com/david415/txsocksx.git
+   pip install txsocksx
 
-* txtorcon must be installed ::
+* For storage servers, txtorcon must be installed ::
 
    pip install txtorcon
 
-Once these software dependencies are installed and the Tahoe-LAFS node
-is restarted, then no further configuration is necessary for "unsafe"
-Tor connectivity to other Tahoe-LAFS nodes (client use-case 2 from `Use cases`_, above).
+I2P
+---
 
-In order to implement client use-case 3 or server use-cases 2 or 3, further
-configuration is necessary.
+* I2P must be installed. See here:
+  https://geti2p.net/en/download
+
+* The SAM API must be enabled.
+
+  * Start I2P.
+  * Visit http://127.0.0.1:7657/configclients in your browser.
+  * Under "Client Configuration", check the "Run at Startup?" box for "SAM
+    application bridge".
+  * Click "Save Client Configuration".
+  * Click the "Start" control for "SAM application bridge", or restart I2P.
+
+* txi2p must be installed ::
+
+   pip install txi2p
 
 
 
-Configuration
-=============
+Connection configuration
+========================
 
-``[node]``
-``anonymize = (boolean, optional)``
+``[tor]``
 
-This specifies two changes in behavior:
-  1. Transform all non-Tor client endpoints into Tor client endpoints.
-  2. Force ``tub.location`` to be set to "safe" values.
+``enable = (boolean, optional)``
+
+    When this option is present, Tahoe-LAFS will install a plugin that handles
+    Tor Hidden service (``.onion``) connections for clients. If provided but
+    left blank, the plugin will try the default Tor SOCKS proxy ports.
+
+``socks.port = (string, optional)``
+
+``control.port = (string, optional)``
+
+``launch = (boolean, optional)``
+
+``tor.executable = (string, optional)``
+
+``data.directory = (string, optional)``
+
+``[i2p]``
+
+``enable = (boolean, optional)``
+
+    When this option is present, Tahoe-LAFS will install a plugin that handles
+    I2P  (``.i2p``) connections. If provided but left blank, the plugin will use
+    the default SAM port on localhost.
+
+``sam.port = (Twisted client endpoint descriptor, optional)``
+
+``launch = (boolean, optional)``
+
+``i2p.executable = (string, optional)``
+
+``i2p.configdir = (string, optional)``
+
+
+
+Anonymity configuration
+=======================
+
+Tahoe-LAFS provides a configuration flag for explicitly stating whether or not
+anonymity is required for a node::
+
+   [node]
+   anonymous = (boolean, optional)
+
+Setting ``anonymous = True`` causes several changes in the behavior of
+Tahoe-LAFS:
+
+1. Tahoe-LAFS will not start if any of the configuration options in ``tahoe.cfg``
+   would compromise the identity of the node.
+
+   * In particular, ``tub.location`` is forced to either be empty, or contain
+     safe values. It is an error to specify a ``tub.location`` that contains
+     anything other than a comma-separated list of location hints for supported
+     anonymizing networks.
+
+2. Tahoe-LAFS will not make any outgoing connections that are not over a
+   supported anonymizing network.
+
+   * If a server's FURL contains one or more location hints for anonymizing
+     networks, Tahoe-LAFS will prefer those hints to connect to the server.
+     An anonymizing network location hint will only be used if the correct
+     modules are installed (see `Connection configuration`_ above).
+   * If a server's FURL contains no location hints for anonymizing networks
+     (or Tahoe-LAFS could not contact the server via any of the provided
+     anonymizing network location hints), and the user has the required modules
+     for Tor installed, Tahoe-LAFS will connect to the server using Tor as an
+     anonymizing proxy.
+   * In all other cases, Tahoe-LAFS will never connect to the server.
 
 This option is **critical** to preserving the client's anonymity (client
-use-case 3 from `Use cases`_, above). It is also necessary to
-preserve a server's anonymity (server use-case 3).
+use-case 3 from `Use cases`_, above). It is also necessary to preserve a
+server's anonymity (server use-case 3).
 
-When ``anonymize`` is set to ``true`` then ``tub.location`` does not need
-to be specified... and it is an error to specify a ``tub.location`` value
-that contains anything other than "UNREACHABLE" or a Tor Hidden Service
-Twisted endpoint descriptor string.
+Client anonymity
+----------------
 
-If server use-case 2 from `Use cases`_ above is desired then you can set
-``tub.location`` to a Tor Hidden Service endpoint string AND "AUTODETECT"
-like this::
-  tub.location = "AUTODETECT,onion:80:hiddenServiceDir=/var/lib/tor/my_service"
+To configure a client node for anonymity, ``tahoe.cfg`` **must** contain the
+following configuration flags::
 
-It is an error to specify a ``tub.location`` value that contains "AUTODETECT"
-when ``anonymize`` is also set to ``true``.
+   [node]
+   anonymous = True
+   tub.location =
 
-Operators of Tahoe-LAFS storage servers wishing to protect the identity of their
-storage server should set ``anonymize`` to ``true`` and specify a
-Tor Hidden Service endpoint descriptor string for the ``tub.location``
-value in the ``tahoe.cfg`` like this::
-   tub.location = "onion:80:hiddenServiceDir=/var/lib/tor/my_service"
+Once the Tahoe-LAFS node has been restarted, it can be used anonymously (client
+use-case 3).
 
-Setting this configuration option is necessary for Server use-cases 2 and 3
-(from `Use cases`_, above).
+Server anonymity
+----------------
+
+To configure a server node to listen on an anonymizing network, a corresponding
+server endpoint descriptor string must be specified in ``tahoe.cfg``::
+
+   tub.location = onion:80:hiddenServiceDir=/var/lib/tor/my_service
+
+Multiple anonymizing networks are supported by specifying multiple server
+endpoint strings, separated by commas::
+
+   tub.location = onion:80:hiddenServiceDir=/var/lib/tor/my_service,i2p:/var/lib/i2p/my_service.keypair
+
+To configure a server node for anonymity, ``anonymous`` **must** be set to
+``True`` (as for the client node case), and ``tub.location`` **must only**
+contain endpoint strings for supported anonymizing networks. A complete
+configuration for server use-case 3 would look like::
+
+   [node]
+   anonymous = True
+   tub.location = onion:80:hiddenServiceDir=/var/lib/tor/my_service,i2p:/var/lib/i2p/my_service.keypair
+
+If server anonymity is not required (server use-case 2 from `Use cases`_ above)
+then ``tub.location`` can contain server endpoint strings for non-anonymizing
+networks::
+
+   tub.location = tcp:123.456.789.0:80,onion:80:hiddenServiceDir=/var/lib/tor/my_service
+
+The special string ``AUTO`` tells Tahoe-LAFS to try to detect the public
+interface and use it::
+
+   tub.location = "AUTO,onion:80:hiddenServiceDir=/var/lib/tor/my_service"
+
+It is an error to specify a ``tub.location`` value that contains ``AUTO`` or
+server endpoint strings for non-anonymizing networks when ``anonymous`` is set
+to ``True``. ``anonymous`` **must** either be unset, or set to ``False``. A
+complete configuration for server use-case 2 would look like::
+
+   [node]
+   anonymous = False
+   tub.location = AUTO,onion:80:hiddenServiceDir=/var/lib/tor/my_service,i2p:/var/lib/i2p/my_service.keypair
 
 
 
-Performance and security issues of Tor Hidden Services
-======================================================
+Performance and security issues
+===============================
 
 If you are running a server which does not itself need to be
-anonymous, should you make it reachable as a Tor Hidden Service or
-not? Or should you make it reachable *both* as a Tor Hidden Service
+anonymous, should you make it reachable via an anonymizing network or
+not? Or should you make it reachable *both* via an anonymizing network
 and as a publicly traceable TCP/IP server?
 
 There are several trade-offs effected by this decision.
@@ -172,18 +315,16 @@ There are several trade-offs effected by this decision.
 NAT/Firewall penetration
 ------------------------
 
-Making a server be reachable as a Tor Hidden Service makes it
-reachable even if there are NATs or firewalls preventing direct TCP/IP
-connections to the server.
+Making a server be reachable via Tor or I2P makes it reachable even if there
+are NATs or firewalls preventing direct TCP/IP connections to the server.
 
 Anonymity
 ---------
 
-Making a Tahoe-LAFS server accessible *only* via Tor Hidden Services
-can be used to guarantee that the Tahoe-LAFS clients use Tor to
-connect. This prevents misconfigured clients from accidentally
-de-anonymizing themselves by connecting to your server through the
-traceable Internet.
+Making a Tahoe-LAFS server accessible *only* via Tor or I2P can be used to
+guarantee that the Tahoe-LAFS clients use Tor or I2P to connect. This prevents
+misconfigured clients from accidentally de-anonymizing themselves by connecting
+to your server through the traceable Internet.
 
 Also, interaction, through Tor, with a Tor Hidden Service may be more
 protected from network traffic analysis than interaction, through Tor,
@@ -195,13 +336,12 @@ If so we need to link to it. If not, then maybe we should explain more here why 
 Performance
 -----------
 
-A client connecting to a Tahoe-LAFS server through Tor incurs
-substantially higher latency and sometimes worse throughput than the
-same client connecting to the same server over a normal traceable
-TCP/IP connection.
+A client connecting to a publicly traceable Tahoe-LAFS server through Tor incurs
+substantially higher latency and sometimes worse throughput than the same client
+connecting to the same server over a normal traceable TCP/IP connection.
 
-A client connecting to a Tahoe-LAFS server which is a Tor Hidden
-Service incurs much more latency and probably worse throughput.
+A client connecting to a Tahoe-LAFS server which is a Tor Hidden Service or I2P
+server incurs much more latency and probably worse throughput.
 
 Positive and negative effects on other Tor users
 ------------------------------------------------
@@ -221,36 +361,25 @@ Both of these effects are doubled if you upload or download files to a
 Tor Hidden Service, as compared to if you upload or download files
 over Tor to a publicly traceable TCP/IP server.
 
+Positive and negative effects on other I2P users
+------------------------------------------------
 
+Sending your Tahoe-LAFS traffic over I2P adds cover traffic for other I2P users
+who are also transmitting data. So that is good for them -- increasing their
+anonymity. It will not directly impair the performance of other I2P users'
+interactive sessions, because the I2P network has several congestion control and
+quality-of-service features, such as prioritizing smaller packets.
 
-Native I2P Integration for Tahoe-LAFS
-=====================================
+However, if many users are sending Tahoe-LAFS traffic over I2P, and do not have
+their I2P routers configured to participate in much traffic, then the I2P
+network as a whole will suffer degradation. Each Tahoe-LAFS router using I2P has
+their own anonymizing tunnels that their data is sent through. On average, one
+Tahoe-LAFS node requires 12 other I2P routers to participate in their tunnels.
 
-Really cool and interesting description of how the I2p integration works...
-
-
-
-Software Dependencies
-=====================
-
-I2p software deps here
-
-
-
-Configuration
-=============
-
-informative configuration info for i2p users goes here
-
-link to tahoe trac ticket regarding client endpoint string
-parameter concatenation
-
-
-
-Performance and security issues of I2p (if applicable)
-======================================================
-
-i2p info here
+It is therefore important that your I2P router is sharing bandwidth with other
+routers, so that you can give back as you use I2P. This will never impair the
+performance of your Tahoe-LAFS node, because your I2P router will always
+prioritize your own traffic.
 
 
 
@@ -259,25 +388,21 @@ Torsocks: the old way of configuring Tahoe-LAFS to use Tor
 
 Before the native Tor integration for Tahoe-LAFS, users would use Torsocks.
 Please see these pages for more information about Torsocks:
-https://code.google.com/p/torsocks/
 
-https://trac.torproject.org/projects/tor/wiki/doc/torsocks
-
-https://github.com/dgoulet/torsocks/
+* https://code.google.com/p/torsocks/
+* https://trac.torproject.org/projects/tor/wiki/doc/torsocks
+* https://github.com/dgoulet/torsocks/
 
 
 Starting And Stopping
 ---------------------
 
 Assuming you have your Tahoe-LAFS node directory placed in **~/.tahoe**,
-use Torsocks to start Tahoe like this
-::
+use Torsocks to start Tahoe like this::
 
    usewithtor tahoe start
 
-
-Likewise if restarting, then with Torsocks like this
-::
+Likewise if restarting, then with Torsocks like this::
 
    usewithtor tahoe restart
 
@@ -372,4 +497,4 @@ but the NetBSD-specific patches have been merged upstream into torsocks as of co
 Legacy I2P Tahoe-LAFS Configuration
 ===================================
 
-legacy i2p info here
+TBC
