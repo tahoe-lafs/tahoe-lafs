@@ -126,18 +126,7 @@ this branch until the Tor endpoint code is merged upstream:
 
 * https://github.com/david415/txsocksx/tree/endpoint_parsers_retry_socks
 
-txtorcon will use the system tor control port to configure Tor Hidden Services
-pending resolution of tor trac ticket 11291:
-
-* https://trac.torproject.org/projects/tor/ticket/11291
-
 See also Tahoe-LAFS Tor related tickets #1010 and #517.
-
-I2P endpoints (and potentially other endpoint types) require the ability to
-append a preconfigured set of parameters to any server-provided client endpoint
-string. See `Tahoe-LAFS ticket #2293`_ for progress.
-
-.. _`Tahoe-LAFS ticket #2293`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2293
 
 
 
