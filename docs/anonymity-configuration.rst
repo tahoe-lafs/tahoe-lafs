@@ -171,24 +171,39 @@ I2P
 Connection configuration
 ========================
 
-``[connections]``
+``[tor]``
 
-``tcp.socks-proxy = (string, optional)``
-
-    When this option is present, Tahoe-LAFS will install a plugin that routes
-    regular internet connections through a SOCKS proxy.
-
-``tor.socks-proxy = (string, optional)``
+``enable = (boolean, optional)``
 
     When this option is present, Tahoe-LAFS will install a plugin that handles
     Tor Hidden service (``.onion``) connections for clients. If provided but
     left blank, the plugin will try the default Tor SOCKS proxy ports.
 
-``i2p.sam-api = (string, optional)``
+``socks.port = (string, optional)``
+
+``control.port = (string, optional)``
+
+``launch = (boolean, optional)``
+
+``tor.executable = (string, optional)``
+
+``data.directory = (string, optional)``
+
+``[i2p]``
+
+``enable = (boolean, optional)``
 
     When this option is present, Tahoe-LAFS will install a plugin that handles
-    I2P connections. If provided but left blank, the plugin will use the default
-    SAM port on localhost.
+    I2P  (``.i2p``) connections. If provided but left blank, the plugin will use
+    the default SAM port on localhost.
+
+``sam.port = (Twisted client endpoint descriptor, optional)``
+
+``launch = (boolean, optional)``
+
+``i2p.executable = (string, optional)``
+
+``i2p.configdir = (string, optional)``
 
 
 
