@@ -10,8 +10,8 @@ Development phases
 ==================
 
 
-Phase 1. Use Tor for network connectivity and to protect identity of client
----------------------------------------------------------------------------
+Phase 1. Use Tor and I2P for network connectivity and to protect identity of client
+-----------------------------------------------------------------------------------
 
 **note:** Client side is endpoint agnostic and server side has TCP endpoint support only.
 
@@ -29,17 +29,7 @@ Phase 1. Use Tor for network connectivity and to protect identity of client
 
 
 
-Phase 2. Use I2p for network connectivity and to protect identity of client
----------------------------------------------------------------------------
-
-**Dependencies**
-
-#. Tahoe-LAFS trac ticket regarding client endpoint string parameter concatenation
-#. txi2p
-
-
-
-Phase 3. endpoint-agnostic Foolscap server side
+Phase 2. Endpoint-agnostic Foolscap server side
 -----------------------------------------------
 
 Completing these two tickets will make Foolscap endpoint agnostic
@@ -52,11 +42,10 @@ can be used with Foolscap
    from twisted trac ticket 7603
 
 
-Phase 4. Integrated Tor Hidden Service feature for storage servers
-------------------------------------------------------------------
+Phase 3. Integrated Tor and I2P Hidden Service feature for storage servers
+--------------------------------------------------------------------------
 
-#. teach tor to create Hidden Service directories with group
-   rx perms https://trac.torproject.org/projects/tor/ticket/11291
 #. open new txtorcon ticket - Teach endpoint to use control port feature
    from tor trac ticket 11291
 
+#. open new txi2p ticket - Add support for starting a local instance
