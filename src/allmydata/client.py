@@ -10,8 +10,6 @@ from twisted.python.filepath import FilePath
 from pycryptopp.publickey import rsa
 from foolscap.api import eventually
 
-from foolscap.api import eventually
-
 import allmydata
 from allmydata.storage.server import StorageServer
 from allmydata import storage_client
@@ -19,8 +17,7 @@ from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
-                            yamlutil)
+from allmydata.util import hashutil, base32, pollmixin, log, keyutil, idlib
 from allmydata.util.encodingutil import (get_filesystem_encoding,
                                          from_utf8_or_none)
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -133,7 +130,6 @@ class Client(node.Node, pollmixin.PollMixin):
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
         self.load_connections()
-        self.init_introducer_client()
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
@@ -213,9 +209,9 @@ class Client(node.Node, pollmixin.PollMixin):
             with connections_filepath.open() as f:
                 self.connections_config = yaml.safe_load(f)
         except EnvironmentError:
-            exists = False
-            self.connections_config = { 'servers' : {},
-                                        'introducers' : {},
+            self.connections_config = {
+                'servers' : {},
+                'introducers' : {},
             }
             connections_filepath.setContent(yaml.safe_dump(self.connections_config))
 
@@ -235,21 +231,6 @@ class Client(node.Node, pollmixin.PollMixin):
         # init introducer_clients as usual
         for ic in self.introducer_clients:
             ic.setServiceParent(self)
-
-    def load_connections(self):
-        """
-        Load the connections.yaml file if it exists, otherwise
-        create a default configuration.
-        """
-        fn = os.path.join(self.basedir, "private", "connections.yaml")
-        connections_filepath = FilePath(fn)
-        try:
-            with connections_filepath.open() as f:
-                self.connections_config = yamlutil.safe_load(f)
-        except EnvironmentError:
-            self.connections_config = { 'servers' : {} }
-            content = yamlutil.safe_dump(self.connections_config)
-            connections_filepath.setContent(content)
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config("client", "stats_gatherer.furl", None)
@@ -426,17 +407,13 @@ class Client(node.Node, pollmixin.PollMixin):
         self.storage_broker = sb
         sb.setServiceParent(self)
 
-        connection_threshold = min(self.encoding_params["k"],
-                                   self.encoding_params["happy"] + 1)
-        helper = storage_client.ConnectedEnough(sb, connection_threshold)
-        self.upload_ready_d = helper.when_connected_enough()
-
         # utilize the loaded static server specifications
         for key, server in self.connections_config['servers'].items():
             eventually(self.storage_broker.got_static_announcement,
                        key, server['announcement'])
 
-        sb.use_introducer(self.introducer_client)
+        for ic in self.introducer_clients:
+            sb.use_introducer(ic)
 
     def get_storage_broker(self):
         return self.storage_broker

@@ -673,7 +673,7 @@ class FakeRemoteReference:
 class ClientInfo(unittest.TestCase):
     def test_client_v2(self):
         introducer = IntroducerService()
-        tub = introducer_furl = None
+        introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(introducer_furl, NICKNAME % u"v2",
                                      "my_version", "oldest", app_versions,
@@ -695,7 +695,7 @@ class ClientInfo(unittest.TestCase):
 class Announcements(unittest.TestCase):
     def test_client_v2_signed(self):
         introducer = IntroducerService()
-        tub = introducer_furl = None
+        introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(introducer_furl, u"nick-v2",
                                      "my_version", "oldest", app_versions,
