@@ -18,7 +18,7 @@ from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
-from .test_cli_magic_folder import MagicFolderCLITestMixin
+from .cli.test_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
 from allmydata.frontends.magic_folder import MagicFolder, WriteFileMixin

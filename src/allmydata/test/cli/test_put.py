@@ -5,7 +5,7 @@ from twisted.python import usage
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli
-from allmydata.test.no_network import GridTestMixin
+from ..no_network import GridTestMixin
 from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from .test_cli import CLITestMixin

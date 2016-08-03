@@ -4,7 +4,7 @@ from twisted.trial import unittest
 
 from allmydata.util import configutil
 from allmydata.test.no_network import GridTestMixin
-from .test_cli import CLITestMixin
+from .cli.test_cli import CLITestMixin
 
 
 class ConfigUtilTests(CLITestMixin, GridTestMixin, unittest.TestCase):

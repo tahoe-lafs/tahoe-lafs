@@ -29,8 +29,8 @@ from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
      DefaultAliasMarker
 
 from allmydata.scripts import cli, debug, runner
-from allmydata.test.common_util import ReallyEqualMixin
-from allmydata.test.no_network import GridTestMixin
+from ..common_util import ReallyEqualMixin
+from ..no_network import GridTestMixin
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.python import usage
 

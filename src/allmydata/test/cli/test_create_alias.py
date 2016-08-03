@@ -4,7 +4,7 @@ import urllib
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli, runner
-from allmydata.test.no_network import GridTestMixin
+from ..no_network import GridTestMixin
 from allmydata.util.encodingutil import quote_output, get_io_encoding
 from .test_cli import CLITestMixin
 

@@ -9,7 +9,7 @@ from allmydata.util.encodingutil import quote_output, to_str
 from allmydata.mutable.publish import MutableData
 from allmydata.immutable import upload
 from allmydata.scripts import debug
-from .no_network import GridTestMixin
+from ..no_network import GridTestMixin
 from .test_cli import CLITestMixin
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s

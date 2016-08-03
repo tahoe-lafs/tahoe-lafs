@@ -1,7 +1,7 @@
 import os.path
 from twisted.trial import unittest
 from allmydata.util import fileutil
-from allmydata.test.no_network import GridTestMixin
+from ..no_network import GridTestMixin
 from allmydata.scripts import tahoe_mv
 from .test_cli import CLITestMixin
 
