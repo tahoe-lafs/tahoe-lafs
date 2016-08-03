@@ -7,6 +7,12 @@ from allmydata.mutable.publish import MutableData, DEFAULT_MAX_SEGMENT_SIZE
 from ..no_network import GridTestMixin
 from .. import common_util as testutil
 
+# We should really force a smaller segsize for the duration of the tests, to
+# let them run faster, but Many of them tests depend upon a specific segment
+# size. Factor out this expectation here, to start the process of cleaning
+# this up.
+SEGSIZE = 128*1024
+
 class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     timeout = 400 # these tests are too big, 120s is not enough on slow
                   # platforms
@@ -123,7 +129,6 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                     for (start,end) in expmods]
         #print "expecting: %s" % expspans
 
-        SEGSIZE = 128*1024
         if got != expected:
             print "differences:"
             for segnum in range(len(expected)//SEGSIZE):
@@ -145,7 +150,6 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
     def test_replace_locations(self):
         # exercise fencepost conditions
-        SEGSIZE = 128*1024
         suspects = range(SEGSIZE-3, SEGSIZE+1)+range(2*SEGSIZE-3, 2*SEGSIZE+1)
         letters = iter("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
         d0 = self.do_upload_mdmf()
@@ -171,7 +175,6 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
     def test_replace_locations_max_shares(self):
         # exercise fencepost conditions
-        SEGSIZE = 128*1024
         suspects = range(SEGSIZE-3, SEGSIZE+1)+range(2*SEGSIZE-3, 2*SEGSIZE+1)
         letters = iter("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
         d0 = self.do_upload_mdmf()
