@@ -24,7 +24,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_create(self):
         self.basedir = "cli/CreateAlias/create"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         aliasfile = os.path.join(self.get_clientdir(), "private", "aliases")
 
         d = self.do_cli("create-alias", "tahoe")
@@ -148,7 +148,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_create_unicode(self):
         self.basedir = "cli/CreateAlias/create_unicode"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         try:
             etudes_arg = u"\u00E9tudes".encode(get_io_encoding())

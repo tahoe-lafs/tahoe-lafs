@@ -135,7 +135,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
         return magicfolder
 
     def setup_alice_and_bob(self, alice_clock=reactor, bob_clock=reactor):
-        self.set_up_grid(num_clients=2)
+        self.set_up_grid(num_clients=2, oneshare=True)
 
         self.alice_magicfolder = None
         self.bob_magicfolder = None
@@ -188,7 +188,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin):
 class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
     def test_create_and_then_invite_join(self):
         self.basedir = "cli/MagicFolder/create-and-then-invite-join"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         local_dir = os.path.join(self.basedir, "magic")
         abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
 
@@ -207,7 +207,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
     def test_create_error(self):
         self.basedir = "cli/MagicFolder/create-error"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         d = self.do_cli("magic-folder", "create", "m a g i c:", client_num=0)
         def _done((rc, stdout, stderr)):
@@ -218,7 +218,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
     def test_create_invite_join(self):
         self.basedir = "cli/MagicFolder/create-invite-join"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         local_dir = os.path.join(self.basedir, "magic")
         abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
 
@@ -262,7 +262,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
     def test_join_twice_failure(self):
         self.basedir = "cli/MagicFolder/create-join-twice-failure"
         os.makedirs(self.basedir)
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         local_dir = os.path.join(self.basedir, "magic")
         abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
 
@@ -292,7 +292,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
     def test_join_leave_join(self):
         self.basedir = "cli/MagicFolder/create-join-leave-join"
         os.makedirs(self.basedir)
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         local_dir = os.path.join(self.basedir, "magic")
         abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
 
@@ -323,7 +323,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
     def test_join_failures(self):
         self.basedir = "cli/MagicFolder/create-join-failures"
         os.makedirs(self.basedir)
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         local_dir = os.path.join(self.basedir, "magic")
         abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
 

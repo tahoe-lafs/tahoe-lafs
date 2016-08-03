@@ -358,7 +358,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         # 'tahoe check' should output a sensible error message if it needs to
         # find the default alias and can't
         self.basedir = "cli/Check/check_without_alias"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self.do_cli("check")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -373,7 +373,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         # 'tahoe check' should output a sensible error message if it needs to
         # find an alias and can't.
         self.basedir = "cli/Check/check_with_nonexistent_alias"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self.do_cli("check", "nonexistent:")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -385,7 +385,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_check_with_multiple_aliases(self):
         self.basedir = "cli/Check/check_with_multiple_aliases"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         self.uriList = []
         c0 = self.g.clients[0]
         d = c0.create_dirnode()

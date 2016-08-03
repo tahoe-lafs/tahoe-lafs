@@ -32,7 +32,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         self.skip_if_cannot_represent_filename(fn1)
 
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         DATA1 = "unicode file content"
         fileutil.write(fn1, DATA1)
@@ -76,7 +76,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # cp -r on a directory containing a dangling symlink shouldn't assert
         self.basedir = "cli/Cp/dangling_symlink_vs_recursion"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         dn = os.path.join(self.basedir, "dir")
         os.mkdir(dn)
         fn = os.path.join(dn, "Fakebandica")
@@ -90,7 +90,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_copy_using_filecap(self):
         self.basedir = "cli/Cp/test_copy_using_filecap"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         outdir = os.path.join(self.basedir, "outdir")
         os.mkdir(outdir)
         fn1 = os.path.join(self.basedir, "Metallica")
@@ -172,7 +172,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # when invoked with an alias or aliases that don't exist, 'tahoe cp'
         # should output a sensible error message rather than a stack trace.
         self.basedir = "cli/Cp/cp_with_nonexistent_alias"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self.do_cli("cp", "fake:file1", "fake:file2")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -200,7 +200,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         self.skip_if_cannot_represent_filename(fn1)
 
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("mkdir", "tahoe:test/" + artonwall_arg))
@@ -224,7 +224,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_cp_replaces_mutable_file_contents(self):
         self.basedir = "cli/Cp/cp_replaces_mutable_file_contents"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         # Write a test file, which we'll copy to the grid.
         test_txt_path = os.path.join(self.basedir, "test.txt")
@@ -447,7 +447,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe cp should print an error when asked to overwrite a
         # mutable file that it can't overwrite.
         self.basedir = "cli/Cp/overwrite_readonly_mutable_file"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         # This is our initial file. We'll link its readcap into the
         # tahoe: alias.
@@ -574,7 +574,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_cp_verbose(self):
         self.basedir = "cli/Cp/cp_verbose"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         # Write two test files, which we'll copy to the grid.
         test1_path = os.path.join(self.basedir, "test1")
@@ -606,7 +606,7 @@ starting copy, 2 files, 1 directories
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/712
 
         self.basedir = "cli/Cp/cp_copies_dir"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         subdir = os.path.join(self.basedir, "foo")
         os.mkdir(subdir)
         test1_path = os.path.join(subdir, "test1")
@@ -640,7 +640,7 @@ starting copy, 2 files, 1 directories
         # a local directory without a specified file name.
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2027
         self.basedir = "cli/Cp/cp_verbose"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         # Write a test file, which we'll copy to the grid.
         test1_path = os.path.join(self.basedir, "test1")
@@ -1008,7 +1008,7 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_cp_out(self):
         # test copying all sorts of things out of a tahoe filesystem
         self.basedir = "cli_cp/CopyOut/cp_out"
-        self.set_up_grid(num_servers=1)
+        self.set_up_grid(num_servers=1, oneshare=True)
 
         d = self.do_setup()
         d.addCallback(lambda ign: self.do_tests())

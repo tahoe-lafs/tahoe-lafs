@@ -38,7 +38,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
     def test_backup(self):
         self.basedir = "cli/Backup/backup"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         # is the backupdb available? If so, we test that a second backup does
         # not create new directories.
@@ -356,7 +356,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             raise unittest.SkipTest("Symlinks are not supported by Python on this platform.")
 
         self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         source = os.path.join(self.basedir, "home")
         self.writeto("foo.txt", "foo")
@@ -387,7 +387,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
     def test_ignore_unreadable_file(self):
         self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         source = os.path.join(self.basedir, "home")
         self.writeto("foo.txt", "foo")
@@ -421,7 +421,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
     def test_ignore_unreadable_directory(self):
         self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         source = os.path.join(self.basedir, "home")
         os.mkdir(source)
@@ -457,7 +457,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         # 'tahoe backup' should output a sensible error message when invoked
         # without an alias instead of a stack trace.
         self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli('backup', source, source)
         def _check((rc, out, err)):
@@ -471,7 +471,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         # 'tahoe backup' should output a sensible error message when invoked
         # with a nonexistent alias.
         self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli("backup", source, "nonexistent:" + source)
         def _check((rc, out, err)):

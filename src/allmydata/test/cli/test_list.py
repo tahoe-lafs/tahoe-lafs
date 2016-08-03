@@ -165,7 +165,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         # doing just 'tahoe ls' without specifying an alias or first
         # doing 'tahoe create-alias tahoe' should fail gracefully.
         self.basedir = "cli/List/list_without_alias"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self.do_cli("ls")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -178,7 +178,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         # doing 'tahoe ls' while specifying an alias that doesn't already
         # exist should fail with an informative error message
         self.basedir = "cli/List/list_with_nonexistent_alias"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self.do_cli("ls", "nonexistent:")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -245,7 +245,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_list_mdmf(self):
         # 'tahoe ls' should include MDMF files.
         self.basedir = "cli/List/list_mdmf"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self._create_directory_structure()
         d.addCallback(lambda ignored:
             self.do_cli("ls", self._dircap))
@@ -262,7 +262,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         # 'tahoe ls' should include MDMF caps when invoked with MDMF
         # caps.
         self.basedir = "cli/List/list_mdmf_json"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self._create_directory_structure()
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", self._dircap))

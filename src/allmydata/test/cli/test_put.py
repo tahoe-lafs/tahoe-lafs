@@ -19,7 +19,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe get `echo DATA | tahoe put -`
         self.basedir = "cli/Put/unlinked_immutable_stdin"
         DATA = "data" * 100
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self.do_cli("put", stdin=DATA)
         def _uploaded(res):
             (rc, out, err) = res
@@ -45,7 +45,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe put /tmp/file.txt
         # tahoe put ~/file.txt
         self.basedir = "cli/Put/unlinked_immutable_from_file"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         rel_fn = os.path.join(self.basedir, "DATAFILE")
         abs_fn = unicode_to_argv(abspath_expanduser_unicode(unicode(rel_fn)))
@@ -75,7 +75,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe put file.txt DIRCAP:./uploaded.txt
         # tahoe put file.txt DIRCAP:./subdir/uploaded.txt
         self.basedir = "cli/Put/immutable_from_file"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         rel_fn = os.path.join(self.basedir, "DATAFILE")
         # we make the file small enough to fit in a LIT file, for speed
@@ -154,7 +154,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe get FILECAP, compare against DATA2
         # tahoe put file.txt FILECAP
         self.basedir = "cli/Put/mutable_unlinked"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         DATA = "data" * 100
         DATA2 = "two" * 100
@@ -200,7 +200,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe get uploaded.txt, compare against DATA2
 
         self.basedir = "cli/Put/mutable"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         DATA1 = "data" * 100
         fn1 = os.path.join(self.basedir, "DATA1")
@@ -259,7 +259,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_format(self):
         self.basedir = "cli/Put/format"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         data = "data" * 40000 # 160kB total, two segments
         fn1 = os.path.join(self.basedir, "data")
         fileutil.write(fn1, data)
@@ -326,7 +326,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_put_to_mdmf_cap(self):
         self.basedir = "cli/Put/put_to_mdmf_cap"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         data = "data" * 100000
         fn1 = os.path.join(self.basedir, "data")
         fileutil.write(fn1, data)
@@ -372,7 +372,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_put_to_sdmf_cap(self):
         self.basedir = "cli/Put/put_to_sdmf_cap"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         data = "data" * 100000
         fn1 = os.path.join(self.basedir, "data")
         fileutil.write(fn1, data)
@@ -410,7 +410,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # when invoked with an alias that doesn't exist, 'tahoe put'
         # should output a useful error message, not a stack trace
         self.basedir = "cli/Put/put_with_nonexistent_alias"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self.do_cli("put", "somefile", "fake:afile")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -430,7 +430,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.skip_if_cannot_represent_filename(u"\u00E0 trier.txt")
 
         self.basedir = "cli/Put/immutable_from_file_unicode"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         rel_fn = os.path.join(unicode(self.basedir), u"\u00E0 trier.txt")
         # we make the file small enough to fit in a LIT file, for speed
