@@ -22,7 +22,10 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.set_up_grid(num_servers=13)
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
-        self.data = "testdata " * 100000 # about 900 KiB; MDMF
+        # self.data should be at least three segments long.
+        td = "testdata "
+        self.data = td*(int(3*SEGSIZE/len(td))+10) # currently about 400kB
+        assert len(self.data) > 3*SEGSIZE
         self.small_data = "test data" * 10 # 90 B; SDMF
 
 
