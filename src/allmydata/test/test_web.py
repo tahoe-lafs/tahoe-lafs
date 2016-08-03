@@ -4842,7 +4842,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         if immutable:
             self.basedir = "web/Grid/unknown-immutable"
 
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
@@ -4975,7 +4975,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
     def test_mutant_dirnodes_are_omitted(self):
         self.basedir = "web/Grid/mutant_dirnodes_are_omitted"
 
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         c = self.g.clients[0]
         nm = c.nodemaker
         self.uris = {}
@@ -5395,7 +5395,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
     def test_add_lease(self):
         self.basedir = "web/Grid/add_lease"
-        self.set_up_grid(num_clients=2)
+        self.set_up_grid(num_clients=2, oneshare=True)
         c0 = self.g.clients[0]
         self.uris = {}
         DATA = "data" * 100
@@ -5488,7 +5488,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
     def test_deep_add_lease(self):
         self.basedir = "web/Grid/deep_add_lease"
-        self.set_up_grid(num_clients=2)
+        self.set_up_grid(num_clients=2, oneshare=True)
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
@@ -5775,7 +5775,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
     def test_blacklist(self):
         # download from a blacklisted URI, get an error
         self.basedir = "web/Grid/blacklist"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         c0 = self.g.clients[0]
         c0_basedir = c0.basedir
         fn = os.path.join(c0_basedir, "access.blacklist")

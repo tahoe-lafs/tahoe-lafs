@@ -732,22 +732,22 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_basic(self):
         self.basedir = "dirnode/Dirnode/test_basic"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         return self._do_basic_test()
 
     def test_basic_mdmf(self):
         self.basedir = "dirnode/Dirnode/test_basic_mdmf"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         return self._do_basic_test(mdmf=True)
 
     def test_initial_children(self):
         self.basedir = "dirnode/Dirnode/test_initial_children"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         return self._do_initial_children_test()
 
     def test_immutable(self):
         self.basedir = "dirnode/Dirnode/test_immutable"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         c = self.g.clients[0]
         nm = c.nodemaker
 
@@ -941,7 +941,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_directory_representation(self):
         self.basedir = "dirnode/Dirnode/test_directory_representation"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         c = self.g.clients[0]
         nm = c.nodemaker
 
@@ -1038,7 +1038,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_check(self):
         self.basedir = "dirnode/Dirnode/test_check"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         c = self.g.clients[0]
         d = c.create_dirnode()
         d.addCallback(lambda dn: dn.check(Monitor()))
@@ -1079,7 +1079,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_deepcheck(self):
         self.basedir = "dirnode/Dirnode/test_deepcheck"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self._test_deepcheck_create()
         d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
         def _check_results(r):
@@ -1099,7 +1099,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_deepcheck_cachemisses(self):
         self.basedir = "dirnode/Dirnode/test_mdmf_cachemisses"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self._test_deepcheck_create()
         # Clear the counters and set the rootnode
         d.addCallback(lambda rootnode:
@@ -1116,7 +1116,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_deepcheck_mdmf(self):
         self.basedir = "dirnode/Dirnode/test_deepcheck_mdmf"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self._test_deepcheck_create(MDMF_VERSION)
         d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
         def _check_results(r):
@@ -1136,7 +1136,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_deepcheck_and_repair(self):
         self.basedir = "dirnode/Dirnode/test_deepcheck_and_repair"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self._test_deepcheck_create()
         d.addCallback(lambda rootnode:
                       rootnode.start_deep_check_and_repair().when_done())
@@ -1165,7 +1165,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_deepcheck_and_repair_mdmf(self):
         self.basedir = "dirnode/Dirnode/test_deepcheck_and_repair_mdmf"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         d = self._test_deepcheck_create(version=MDMF_VERSION)
         d.addCallback(lambda rootnode:
                       rootnode.start_deep_check_and_repair().when_done())
@@ -1286,12 +1286,12 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_readonly(self):
         self.basedir = "dirnode/Dirnode/test_readonly"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         return self._do_readonly_test()
 
     def test_readonly_mdmf(self):
         self.basedir = "dirnode/Dirnode/test_readonly_mdmf"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         return self._do_readonly_test(version=MDMF_VERSION)
 
     def failUnlessGreaterThan(self, a, b):
@@ -1302,7 +1302,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_create(self):
         self.basedir = "dirnode/Dirnode/test_create"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         return self._do_create_test()
 
     def test_update_metadata(self):
@@ -1355,22 +1355,22 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
     def test_create_subdirectory(self):
         self.basedir = "dirnode/Dirnode/test_create_subdirectory"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         return self._do_create_subdirectory_test()
 
     def test_create_subdirectory_mdmf(self):
         self.basedir = "dirnode/Dirnode/test_create_subdirectory_mdmf"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         return self._do_create_subdirectory_test(version=MDMF_VERSION)
 
     def test_create_mdmf(self):
         self.basedir = "dirnode/Dirnode/test_mdmf"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         return self._do_create_test(mdmf=True)
 
     def test_mdmf_initial_children(self):
         self.basedir = "dirnode/Dirnode/test_mdmf"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         return self._do_initial_children_test(mdmf=True)
 
 class MinimalFakeMutableFile:
@@ -1828,7 +1828,7 @@ class Deleter(GridTestMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         # succeed.
 
         self.basedir = self.mktemp()
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         c0 = self.g.clients[0]
         d = c0.create_dirnode()
         small = upload.Data("Small enough for a LIT", None)
@@ -1862,7 +1862,7 @@ class Adder(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # of dn.add_file, and use a special NodeMaker that creates fake
         # mutable files.
         self.basedir = "dirnode/Adder/test_overwrite"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         c = self.g.clients[0]
         fileuri = make_chk_file_uri(1234)
         filenode = c.nodemaker.create_from_cap(fileuri)
