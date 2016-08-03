@@ -88,7 +88,7 @@ class ServiceMixin:
 
 class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
     def test_create(self):
-        ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
+        ic = IntroducerClient("introducer.furl", u"my_nickname",
                               "my_version", "oldest_version", {}, fakeseq,
                               FilePath(self.mktemp()))
         self.failUnless(isinstance(ic, IntroducerClient))
@@ -120,14 +120,12 @@ def make_ann_t(ic, furl, privkey, seqnum):
 
 class Client(unittest.TestCase):
     def test_duplicate_receive_v2(self):
-        ic1 = IntroducerClient(None,
-                               "introducer.furl", u"my_nickname",
+        ic1 = IntroducerClient("introducer.furl", u"my_nickname",
                                "ver23", "oldest_version", {}, fakeseq,
                                FilePath(self.mktemp()))
         # we use a second client just to create a different-looking
         # announcement
-        ic2 = IntroducerClient(None,
-                               "introducer.furl", u"my_nickname",
+        ic2 = IntroducerClient("introducer.furl", u"my_nickname",
                                "ver24","oldest_version",{}, fakeseq,
                                FilePath(self.mktemp()))
         announcements = []
@@ -230,8 +228,7 @@ class Client(unittest.TestCase):
 class Server(unittest.TestCase):
     def test_duplicate(self):
         i = IntroducerService()
-        ic1 = IntroducerClient(None,
-                               "introducer.furl", u"my_nickname",
+        ic1 = IntroducerClient("introducer.furl", u"my_nickname",
                                "ver23", "oldest_version", {}, realseq,
                                FilePath(self.mktemp()))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
@@ -334,9 +331,10 @@ class Queue(SystemTestMixin, unittest.TestCase):
         ifurl = self.central_tub.registerReference(introducer, furlFile=iff)
         tub2 = Tub()
         tub2.setServiceParent(self.parent)
-        c = IntroducerClient(tub2, ifurl,
+        c = IntroducerClient(ifurl,
                              u"nickname", "version", "oldest", {}, fakeseq,
                              FilePath(self.mktemp()))
+        c._tub = tub2
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -413,11 +411,12 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             tub.setLocation("localhost:%d" % portnum)
 
             log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
-            c = IntroducerClient(tub, self.introducer_furl,
+            c = IntroducerClient(self.introducer_furl,
                                  NICKNAME % str(i),
                                  "version", "oldest",
                                  {"component": "component-v1"}, fakeseq,
                                  FilePath(self.mktemp()))
+            c._tub = tub
             received_announcements[c] = {}
             def got(key_s_or_tubid, ann, announcements):
                 index = key_s_or_tubid or get_tubid_string_from_ann(ann)
@@ -674,9 +673,9 @@ class FakeRemoteReference:
 class ClientInfo(unittest.TestCase):
     def test_client_v2(self):
         introducer = IntroducerService()
-        tub = introducer_furl = None
+        introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
-        client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
+        client_v2 = IntroducerClient(introducer_furl, NICKNAME % u"v2",
                                      "my_version", "oldest", app_versions,
                                      fakeseq, FilePath(self.mktemp()))
         #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
@@ -696,9 +695,9 @@ class ClientInfo(unittest.TestCase):
 class Announcements(unittest.TestCase):
     def test_client_v2_signed(self):
         introducer = IntroducerService()
-        tub = introducer_furl = None
+        introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
-        client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
+        client_v2 = IntroducerClient(introducer_furl, u"nick-v2",
                                      "my_version", "oldest", app_versions,
                                      fakeseq, FilePath(self.mktemp()))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
@@ -726,9 +725,11 @@ class Announcements(unittest.TestCase):
     def test_client_cache(self):
         basedir = "introducer/ClientSeqnums/test_client_cache_1"
         fileutil.make_dirs(basedir)
+        privatedir = os.path.join(basedir, "private")
+        fileutil.make_dirs(privatedir)
         cache_filepath = FilePath(os.path.join(basedir, "private",
                                                "introducer_cache.yaml"))
-
+        cache_filepath.setContent("")
         # if storage is enabled, the Client will publish its storage server
         # during startup (although the announcement will wait in a queue
         # until the introducer connection is established). To avoid getting
@@ -741,7 +742,8 @@ class Announcements(unittest.TestCase):
         f.close()
 
         c = TahoeClient(basedir)
-        ic = c.introducer_client
+        ic = c.introducer_clients[0]
+        ic._cache_filepath = cache_filepath
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
         pub1 = keyutil.remove_prefix(vk_s, "pub-")
@@ -788,7 +790,7 @@ class Announcements(unittest.TestCase):
                                   for a in announcements]))
 
         # test loading
-        ic2 = IntroducerClient(None, "introducer.furl", u"my_nickname",
+        ic2 = IntroducerClient("introducer.furl", u"my_nickname",
                                "my_version", "oldest_version", {}, fakeseq,
                                ic._cache_filepath)
         announcements = {}
@@ -820,7 +822,7 @@ class ClientSeqnums(unittest.TestCase):
         f.close()
 
         c = TahoeClient(basedir)
-        ic = c.introducer_client
+        ic = c.introducer_clients[0]
         outbound = ic._outbound_announcements
         published = ic._published_announcements
         def read_seqnum():
@@ -876,16 +878,15 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         i.setServiceParent(self.parent)
         self.introducer_furl = self.central_tub.registerReference(i)
 
-        tub = Tub()
-        tub.setOption("expose-remote-exception-types", False)
-        tub.setServiceParent(self.parent)
-        portnum = iputil.allocate_tcp_port()
-        tub.listenOn("tcp:%d" % portnum)
-        tub.setLocation("localhost:%d" % portnum)
-
-        c = IntroducerClient(tub, self.introducer_furl,
+        c = IntroducerClient(self.introducer_furl,
                              u"nickname-client", "version", "oldest", {},
                              fakeseq, FilePath(self.mktemp()))
+        c._tub.setOption("expose-remote-exception-types", False)
+        c._tub.setServiceParent(self.parent)
+        portnum = iputil.allocate_tcp_port()
+        c._tub.listenOn("tcp:%d" % portnum)
+        c._tub.setLocation("localhost:%d" % portnum)
+
         announcements = {}
         def got(key_s, ann):
             announcements[key_s] = ann

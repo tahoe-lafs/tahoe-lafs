@@ -1248,6 +1248,7 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
         self.failUnlessEqual(
             time_format.format_delta(time_1decimal, time_1d21h46m49s_delta), '1d 21h 46m 48s')
 
+
 class CacheDir(unittest.TestCase):
     def test_basic(self):
         basedir = "test_util/CacheDir/test_basic"

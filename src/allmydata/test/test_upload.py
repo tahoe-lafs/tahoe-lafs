@@ -185,6 +185,7 @@ class FakeBucketWriter:
         pass
 
 class FakeClient:
+    introducer_clients = []
     DEFAULT_ENCODING_PARAMETERS = {"k":25,
                                    "happy": 25,
                                    "n": 100,
@@ -204,6 +205,7 @@ class FakeClient:
                    "permutation-seed-base32": base32.b2a(serverid) }
             self.storage_broker.test_add_rref(serverid, rref, ann)
         self.last_servers = [s[1] for s in servers]
+        self.introducer_clients = []
 
     def log(self, *args, **kwargs):
         pass
