@@ -229,7 +229,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         # set_up_grid depends on self.basedir existing
-        self.set_up_grid(num_clients=2)
+        self.set_up_grid(num_clients=2, oneshare=True)
 
         self.alice_clock = task.Clock()
         self.bob_clock = task.Clock()
@@ -959,7 +959,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         self.local_dir = os.path.join(self.basedir, u"local_dir")
         self.mkdir_nonascii(self.local_dir)
 
@@ -1283,7 +1283,7 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         return task.deferLater(reactor, 0.1, lambda: None)
 
     def test_errors(self):
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
 
         errors_dir = abspath_expanduser_unicode(u"errors_dir", base=self.basedir)
         os.mkdir(errors_dir)
