@@ -34,15 +34,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         def _then(n):
             assert isinstance(n, MutableFileNode)
             self.sdmf_node = n
-            # Make SDMF node that has 255 shares.
-            self.nm.default_encoding_parameters['n'] = 255
-            self.nm.default_encoding_parameters['k'] = 127
-            return self.nm.create_mutable_file(MutableData(self.small_data))
         d.addCallback(_then)
-        def _then2(n):
-            assert isinstance(n, MutableFileNode)
-            self.sdmf_max_shares_node = n
-        d.addCallback(_then2)
         return d
 
     def do_upload_mdmf(self):
@@ -51,16 +43,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         def _then(n):
             assert isinstance(n, MutableFileNode)
             self.mdmf_node = n
-            # Make MDMF node that has 255 shares.
-            self.nm.default_encoding_parameters['n'] = 255
-            self.nm.default_encoding_parameters['k'] = 127
-            return self.nm.create_mutable_file(MutableData(self.data),
-                                               version=MDMF_VERSION)
         d.addCallback(_then)
-        def _then2(n):
-            assert isinstance(n, MutableFileNode)
-            self.mdmf_max_shares_node = n
-        d.addCallback(_then2)
         return d
 
     def _test_replace(self, offset, new_data):
@@ -68,21 +51,16 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d0 = self.do_upload_mdmf()
         def _run(ign):
             d = defer.succeed(None)
-            for node in (self.mdmf_node, self.mdmf_max_shares_node):
-                # close over 'node'.
-                d.addCallback(lambda ign, node=node:
-                              node.get_best_mutable_version())
-                d.addCallback(lambda mv:
-                              mv.update(MutableData(new_data), offset))
-                d.addCallback(lambda ign, node=node:
-                              node.download_best_version())
-                def _check(results):
-                    if results != expected:
-                        print
-                        print "got: %s ... %s" % (results[:20], results[-20:])
-                        print "exp: %s ... %s" % (expected[:20], expected[-20:])
-                        self.fail("results != expected")
-                d.addCallback(_check)
+            d.addCallback(lambda ign: self.mdmf_node.get_best_mutable_version())
+            d.addCallback(lambda mv: mv.update(MutableData(new_data), offset))
+            d.addCallback(lambda ign: self.mdmf_node.download_best_version())
+            def _check(results):
+                if results != expected:
+                    print
+                    print "got: %s ... %s" % (results[:20], results[-20:])
+                    print "exp: %s ... %s" % (expected[:20], expected[-20:])
+                    self.fail("results != expected")
+            d.addCallback(_check)
             return d
         d0.addCallback(_run)
         return d0
@@ -176,31 +154,6 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d0.addCallback(_run)
         return d0
 
-    def test_replace_locations_max_shares(self):
-        # exercise fencepost conditions
-        suspects = range(SEGSIZE-3, SEGSIZE+1)+range(2*SEGSIZE-3, 2*SEGSIZE+1)
-        letters = iter("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-        d0 = self.do_upload_mdmf()
-        def _run(ign):
-            expected = self.data
-            d = defer.succeed(None)
-            for offset in suspects:
-                new_data = letters.next()*2 # "AA", then "BB", etc
-                expected = expected[:offset]+new_data+expected[offset+2:]
-                d.addCallback(lambda ign:
-                              self.mdmf_max_shares_node.get_best_mutable_version())
-                def _modify(mv, offset=offset, new_data=new_data):
-                    # close over 'offset','new_data'
-                    md = MutableData(new_data)
-                    return mv.update(md, offset)
-                d.addCallback(_modify)
-                d.addCallback(lambda ignored:
-                              self.mdmf_max_shares_node.download_best_version())
-                d.addCallback(self._check_differences, expected)
-            return d
-        d0.addCallback(_run)
-        return d0
-
 
     def test_append_power_of_two(self):
         # If we attempt to extend a mutable file so that its segment
@@ -216,16 +169,12 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d0 = self.do_upload_mdmf()
         def _run(ign):
             d = defer.succeed(None)
-            for node in (self.mdmf_node, self.mdmf_max_shares_node):
-                # close over 'node'.
-                d.addCallback(lambda ign, node=node:
-                              node.get_best_mutable_version())
-                d.addCallback(lambda mv:
-                              mv.update(MutableData(segment * 2), len(self.data)))
-                d.addCallback(lambda ign, node=node:
-                              node.download_best_version())
-                d.addCallback(lambda results:
-                              self.failUnlessEqual(results, new_data))
+            d.addCallback(lambda ign: self.mdmf_node.get_best_mutable_version())
+            d.addCallback(lambda mv: mv.update(MutableData(segment * 2),
+                                               len(self.data)))
+            d.addCallback(lambda ign: self.mdmf_node.download_best_version())
+            d.addCallback(lambda results:
+                          self.failUnlessEqual(results, new_data))
             return d
         d0.addCallback(_run)
         return d0
@@ -236,16 +185,12 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d0 = self.do_upload_sdmf()
         def _run(ign):
             d = defer.succeed(None)
-            for node in (self.sdmf_node, self.sdmf_max_shares_node):
-                # close over 'node'.
-                d.addCallback(lambda ign, node=node:
-                              node.get_best_mutable_version())
-                d.addCallback(lambda mv:
-                              mv.update(MutableData("appended"), len(self.small_data)))
-                d.addCallback(lambda ign, node=node:
-                              node.download_best_version())
-                d.addCallback(lambda results:
-                              self.failUnlessEqual(results, new_data))
+            d.addCallback(lambda ign: self.sdmf_node.get_best_mutable_version())
+            d.addCallback(lambda mv: mv.update(MutableData("appended"),
+                                               len(self.small_data)))
+            d.addCallback(lambda ign: self.sdmf_node.download_best_version())
+            d.addCallback(lambda results:
+                          self.failUnlessEqual(results, new_data))
             return d
         d0.addCallback(_run)
         return d0
@@ -260,16 +205,12 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d0 = self.do_upload_mdmf()
         def _run(ign):
             d = defer.succeed(None)
-            for node in (self.mdmf_node, self.mdmf_max_shares_node):
-                # close over 'node'.
-                d.addCallback(lambda ign, node=node:
-                              node.get_best_mutable_version())
-                d.addCallback(lambda mv:
-                              mv.update(MutableData("replaced"), replace_offset))
-                d.addCallback(lambda ign, node=node:
-                              node.download_best_version())
-                d.addCallback(lambda results:
-                              self.failUnlessEqual(results, new_data))
+            d.addCallback(lambda ign: self.mdmf_node.get_best_mutable_version())
+            d.addCallback(lambda mv: mv.update(MutableData("replaced"),
+                                               replace_offset))
+            d.addCallback(lambda ign: self.mdmf_node.download_best_version())
+            d.addCallback(lambda results:
+                          self.failUnlessEqual(results, new_data))
             return d
         d0.addCallback(_run)
         return d0
@@ -285,17 +226,12 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d0 = self.do_upload_mdmf()
         def _run(ign):
             d = defer.succeed(None)
-            for node in (self.mdmf_node, self.mdmf_max_shares_node):
-                # close over 'node'.
-                d.addCallback(lambda ign, node=node:
-                              node.get_best_mutable_version())
-                d.addCallback(lambda mv:
-                              mv.update(MutableData((2 * new_segment) + "replaced"),
-                                        replace_offset))
-                d.addCallback(lambda ignored, node=node:
-                              node.download_best_version())
-                d.addCallback(lambda results:
-                              self.failUnlessEqual(results, new_data))
+            d.addCallback(lambda ign: self.mdmf_node.get_best_mutable_version())
+            d.addCallback(lambda mv: mv.update(MutableData((2 * new_segment) + "replaced"),
+                                               replace_offset))
+            d.addCallback(lambda ignored: self.mdmf_node.download_best_version())
+            d.addCallback(lambda results:
+                          self.failUnlessEqual(results, new_data))
             return d
         d0.addCallback(_run)
         return d0
