@@ -20,7 +20,7 @@ from allmydata.util import hashutil, log
 from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
 import allmydata.test.common_util as testutil
-from allmydata import immutable
+from allmydata.immutable.upload import Uploader
 
 TEST_RSA_KEY_SIZE = 522
 
@@ -424,7 +424,7 @@ class LoggingServiceParent(service.MultiService):
         return log.msg(*args, **kwargs)
 
 
-TEST_DATA="\x02"*(immutable.upload.Uploader.URI_LIT_SIZE_THRESHOLD+1)
+TEST_DATA="\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
 class ShouldFailMixin:
     def shouldFail(self, expected_failure, which, substring,
