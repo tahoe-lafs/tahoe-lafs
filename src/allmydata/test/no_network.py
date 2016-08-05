@@ -184,6 +184,10 @@ class NoNetworkClient(Client):
         pass
     def init_introducer_client(self):
         pass
+    def create_control_tub(self):
+        pass
+    def create_log_tub(self):
+        pass
     def setup_logging(self):
         pass
     def startService(self):
