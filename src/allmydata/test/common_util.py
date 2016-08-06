@@ -8,6 +8,10 @@ from allmydata.util import fileutil, log
 from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding
 
 
+class DevNullDictionary(dict):
+    def __setitem__(self, key, value):
+        return
+
 def insecurerandstr(n):
     return ''.join(map(chr, map(randrange, [0]*n, [256]*n)))
 

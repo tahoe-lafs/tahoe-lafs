@@ -4,14 +4,14 @@ from twisted.trial import unittest
 
 from allmydata.util import configutil
 from allmydata.test.no_network import GridTestMixin
-from .test_cli import CLITestMixin
+from .cli.test_cli import CLITestMixin
 
 
 class ConfigUtilTests(CLITestMixin, GridTestMixin, unittest.TestCase):
 
     def test_config_utils(self):
         self.basedir = "cli/ConfigUtilTests/test-config-utils"
-        self.set_up_grid()
+        self.set_up_grid(oneshare=True)
         tahoe_cfg = os.path.join(self.get_clientdir(i=0), "tahoe.cfg")
 
         # test that at least one option was read correctly

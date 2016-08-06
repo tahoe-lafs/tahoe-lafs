@@ -30,7 +30,7 @@ from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import sha1
 from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker, IServer
-from allmydata.test.common import TEST_RSA_KEY_SIZE
+from .common import TEST_RSA_KEY_SIZE
 
 
 class IntentionalError(Exception):
@@ -183,6 +183,10 @@ class NoNetworkClient(Client):
     def create_tub(self):
         pass
     def init_introducer_client(self):
+        pass
+    def create_control_tub(self):
+        pass
+    def create_log_tub(self):
         pass
     def setup_logging(self):
         pass
@@ -360,13 +364,18 @@ class GridTestMixin:
         return self.s.stopService()
 
     def set_up_grid(self, num_clients=1, num_servers=10,
-                    client_config_hooks={}):
+                    client_config_hooks={}, oneshare=False):
         # self.basedir must be set
         self.g = NoNetworkGrid(self.basedir,
                                num_clients=num_clients,
                                num_servers=num_servers,
                                client_config_hooks=client_config_hooks)
         self.g.setServiceParent(self.s)
+        if oneshare:
+            c = self.get_client(0)
+            c.encoding_params["k"] = 1
+            c.encoding_params["happy"] = 1
+            c.encoding_params["n"] = 1
         self._record_webports_and_baseurls()
 
     def _record_webports_and_baseurls(self):
