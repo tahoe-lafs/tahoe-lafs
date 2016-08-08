@@ -9,7 +9,6 @@
 
 # these are generated at build time, and never checked in
 /src/allmydata/_version.py
-/src/allmydata/_appname.py
 
 # these are generated too
 /bin/tahoe

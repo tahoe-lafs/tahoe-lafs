@@ -30,15 +30,10 @@ except ImportError:
     # branch is. This should not happen very often.
     pass
 
-__appname__ = "unknown"
-try:
-    from allmydata._appname import __appname__
-except ImportError:
-    # We're running in a tree that hasn't run "./setup.py".  This shouldn't happen.
-    pass
+__appname__ = "tahoe-lafs"
 
-# __full_version__ is the one that you ought to use when identifying yourself in the
-# "application" part of the Tahoe versioning scheme:
+# __full_version__ is the one that you ought to use when identifying yourself
+# in the "application" part of the Tahoe versioning scheme:
 # https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Versioning
 __full_version__ = __appname__ + '/' + str(__version__)
 
