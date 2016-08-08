@@ -1162,7 +1162,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                    "was corrupt, or that shares have been lost due to server "
                    "departure, hard drive failure, or disk corruption. You "
                    "should perform a filecheck on this object to learn more.")
-            self.failUnlessReallyEqual(exp, body)
+            self.failUnlessIn(exp, body)
         d.addCallback(_check_unrecoverable_file)
 
         d.addCallback(lambda ignored:

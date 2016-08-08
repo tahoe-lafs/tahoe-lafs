@@ -911,6 +911,15 @@ def DirectoryJSONMetadata(ctx, dirnode):
         return json
     d.addCallback(_got)
     d.addCallback(text_plain, ctx)
+
+    def error(f):
+        message, code = humanize_failure(f)
+        req = IRequest(ctx)
+        req.setResponseCode(code)
+        return simplejson.dumps({
+            "error": message,
+        })
+    d.addErrback(error)
     return d
 
 
