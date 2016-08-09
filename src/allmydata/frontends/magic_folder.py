@@ -7,6 +7,7 @@ import time
 from twisted.internet import defer, reactor, task
 from twisted.python.failure import Failure
 from twisted.python import runtime
+from twisted.python import log as twlog
 from twisted.application import service
 
 from zope.interface import Interface, Attribute, implementer
@@ -92,7 +93,7 @@ class MagicFolder(service.MultiService):
         """ready is used to signal us to start
         processing the upload and download items...
         """
-        self.uploader.start_uploading()  # synchronous
+        self.uploader.start_uploading()  # synchronous, returns None
         return self.downloader.start_downloading()
 
     def finish(self):
@@ -731,16 +732,24 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._is_upload_pending = is_upload_pending
         self._umask = umask
 
+    @defer.inlineCallbacks
     def start_downloading(self):
         self._log("start_downloading")
         self._turn_delay = self.scan_interval
         files = self._db.get_all_relpaths()
         self._log("all files %s" % files)
 
-        d = self._scan_remote_collective(scan_self=True)
-        d.addBoth(self._logcb, "after _scan_remote_collective 0")
-        d.addCallback(self._begin_processing)
-        return d
+        while True:
+            try:
+                data = yield self._scan_remote_collective(scan_self=True)
+                twlog.msg("Completed initial Magic Folder scan successfully")
+                x = yield self._begin_processing(data)
+                defer.returnValue(x)
+                break
+
+            except Exception as e:
+                twlog.msg("Magic Folder failed initial scan: %s" % (e,))
+                yield task.deferLater(self._clock, self.scan_interval, lambda: None)
 
     def stop(self):
         self._log("stop")
@@ -884,6 +893,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         try:
             x = yield self._scan(None)
         except Exception as e:
+            twlog.msg("Remote scan failed: %s" % (e,))
             self._log("_scan failed: %s" % (repr(e),))
         defer.returnValue(x)
 
