@@ -186,6 +186,25 @@ class Root(rend.Page):
     def data_my_nickname(self, ctx, data):
         return self.client.nickname
 
+    def render_magic_folder(self, ctx, data):
+        if self.client._magic_folder is None:
+            return T.p()
+
+        (ok, messages) = self.client._magic_folder.get_public_status()
+
+        if ok:
+            ctx.fillSlots("magic_folder_status", "yes")
+            ctx.fillSlots("magic_folder_status_alt", "working")
+        else:
+            ctx.fillSlots("magic_folder_status", "no")
+            ctx.fillSlots("magic_folder_status_alt", "not working")
+
+        status = T.ul()
+        for msg in messages:
+            status[T.li[str(msg)]]
+
+        return ctx.tag[status]
+
     def render_services(self, ctx, data):
         ul = T.ul()
         try:
