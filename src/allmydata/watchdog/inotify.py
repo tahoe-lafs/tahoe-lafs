@@ -1,10 +1,10 @@
 
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileSystemMovedEvent, FileModifiedEvent, DirModifiedEvent, FileCreatedEvent, FileDeletedEvent, DirCreatedEvent, DirDeletedEvent
+from watchdog.events import FileSystemEventHandler
 
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
-from twisted.python.filepath import InsecurePath
+from allmydata.util.fileutil import abspath_expanduser_unicode
 
 from allmydata.util.pollmixin import PollMixin
 from allmydata.util.assertutil import _assert, precondition
@@ -43,15 +43,11 @@ class INotifyEventHandler(FileSystemEventHandler):
 
     def process(self, event):
         event_filepath_u = event.src_path.decode(encodingutil.get_filesystem_encoding())
+        event_filepath_u = abspath_expanduser_unicode(event_filepath_u, base=self._path)
 
         if event_filepath_u == unicode_from_filepath(self._path):
             # ignore events for parent directory
             return
-        #try:
-        #    event_path = self._path.preauthChild(event.src_path)
-        #except InsecurePath, e:
-        #    print "failed: %r" % (e,)
-        #    return
 
         def _maybe_notify(path):
             if path in self._pending:
@@ -127,6 +123,7 @@ class INotify(PollMixin):
     def watch(self, path, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
         precondition(isinstance(autoAdd, bool), autoAdd=autoAdd)
         precondition(isinstance(recursive, bool), recursive=recursive)
+        assert autoAdd == False
 
         self._recursive = TRUE if recursive else FALSE
         path_u = path.path
