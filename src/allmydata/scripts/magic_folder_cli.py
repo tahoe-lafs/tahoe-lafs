@@ -241,11 +241,7 @@ def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
         )
 
     data = resp.read()
-    try:
-        parsed = simplejson.loads(data)
-    except Exception:
-        print "Failed to parse reply:\n%s" % (data,)
-        return []
+    parsed = simplejson.loads(data)
     if parsed is None:
         raise RuntimeError("No data from '%s'" % (nodeurl,))
     return parsed
@@ -297,15 +293,36 @@ def status(options):
         dmd_cap = f.read().strip()
     with open(os.path.join(nodedir, u"private", u"collective_dircap")) as f:
         collective_readcap = f.read().strip()
+    with open(os.path.join(nodedir, u'private', u'api_auth_token'), 'rb') as f:
+        token = f.read()
 
+    # do *all* our data-retrievals first in case there's an error
     try:
-        captype, dmd = _get_json_for_cap(options, dmd_cap)
-        if captype != 'dirnode':
-            print >>stderr, "magic_folder_dircap isn't a directory capability"
-            return 2
-    except RuntimeError as e:
-        print >>stderr, str(e)
-        return 1
+        dmd_data = _get_json_for_cap(options, dmd_cap)
+        remote_data = _get_json_for_cap(options, collective_readcap)
+        magic_data = _get_json_for_fragment(
+            options,
+            'magic_folder?t=json',
+            method='POST',
+            post_args=dict(
+                t='json',
+                token=token,
+            )
+        )
+    except Exception as e:
+        print >>stderr, "failed to retrieve data: %s" % str(e)
+        return 2
+
+    for d in [dmd_data, remote_data, magic_data]:
+        if isinstance(d, dict) and 'error' in d:
+            print >>stderr, "Error from server: %s" % d['error']
+            print >>stderr, "This means we can't retrieve the remote shared directory."
+            return 3
+
+    captype, dmd = dmd_data
+    if captype != 'dirnode':
+        print >>stderr, "magic_folder_dircap isn't a directory capability"
+        return 2
 
     now = datetime.now()
 
@@ -323,14 +340,18 @@ def status(options):
             continue
         print "  %s (%s): %s, version=%s, created %s" % (name, nice_size, status, version, nice_created)
 
-    captype, collective = _get_json_for_cap(options, collective_readcap)
     print
     print "Remote files:"
+
+    captype, collective = remote_data
     for (name, data) in collective['children'].items():
         if data[0] != 'dirnode':
             print "Error: '%s': expected a dirnode, not '%s'" % (name, data[0])
         print "  %s's remote:" % name
         dmd = _get_json_for_cap(options, data[1]['ro_uri'])
+        if isinstance(dmd, dict) and 'error' in dmd:
+            print("    Error: could not retrieve directory")
+            continue
         if dmd[0] != 'dirnode':
             print "Error: should be a dirnode"
             continue
@@ -347,21 +368,10 @@ def status(options):
             nice_created = abbreviate_time(now - created)
             print "    %s (%s): %s, version=%s, created %s" % (n, nice_size, status, version, nice_created)
 
-    with open(os.path.join(nodedir, u'private', u'api_auth_token'), 'rb') as f:
-        token = f.read()
-    magicdata = _get_json_for_fragment(
-        options,
-        'magic_folder?t=json',
-        method='POST',
-        post_args=dict(
-            t='json',
-            token=token,
-        )
-    )
-    if len(magicdata):
-        uploads = [item for item in magicdata if item['kind'] == 'upload']
-        downloads = [item for item in magicdata if item['kind'] == 'download']
-        longest = max([len(item['path']) for item in magicdata])
+    if len(magic_data):
+        uploads = [item for item in magic_data if item['kind'] == 'upload']
+        downloads = [item for item in magic_data if item['kind'] == 'download']
+        longest = max([len(item['path']) for item in magic_data])
 
         if True: # maybe --show-completed option or something?
             uploads = [item for item in uploads if item['status'] != 'success']
@@ -379,7 +389,7 @@ def status(options):
             for item in downloads:
                 _print_item_status(item, now, longest)
 
-        for item in magicdata:
+        for item in magic_data:
             if item['status'] == 'failure':
                 print "Failed:", item
 

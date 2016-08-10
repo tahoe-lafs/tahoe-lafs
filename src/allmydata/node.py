@@ -393,6 +393,10 @@ class Node(service.MultiService):
 
         incident_dir = os.path.join(self.basedir, "logs", "incidents")
         foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
+        twlog.msg("Foolscap logging initialized")
+        twlog.msg("Note to developers: twistd.log does not receive very much.")
+        twlog.msg("Use 'flogtool tail -c NODEDIR/private/logport.furl' instead")
+        twlog.msg("and read docs/logging.rst")
 
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)

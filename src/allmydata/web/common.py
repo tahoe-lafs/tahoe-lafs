@@ -4,6 +4,7 @@ import simplejson
 
 from twisted.web import http, server, resource
 from twisted.python import log
+from twisted.python.failure import Failure
 from zope.interface import Interface
 from nevow import loaders, appserver
 from nevow.inevow import IRequest
@@ -426,6 +427,11 @@ class TokenOnlyWebApi(resource.Resource):
         if not t:
             raise WebError("Must provide 't=' argument")
         if t == u'json':
-            return self.post_json(req)
+            try:
+                return self.post_json(req)
+            except Exception:
+                message, code = humanize_failure(Failure())
+                req.setResponseCode(code)
+                return simplejson.dumps({"error": message})
         else:
             raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)
