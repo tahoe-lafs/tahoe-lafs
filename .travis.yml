@@ -23,7 +23,7 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then wget https://bootstrap.pypa.io/get-pip.py && sudo python ./get-pip.py; fi
   - pip list
   - pip install --user coveralls tox
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install --user tahoe[bsd]; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install --user watchdog; fi
   - echo $PATH; which python; which pip; which tox
   - python misc/build_helpers/show-tool-versions.py
 script:
