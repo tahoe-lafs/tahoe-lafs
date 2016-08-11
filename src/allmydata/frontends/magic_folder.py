@@ -763,13 +763,15 @@ class Downloader(QueueMixin, WriteFileMixin):
                 break
 
             except Exception as e:
-                last_try = format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
                 self._status_reporter(
                     False, "Initial scan has failed",
-                    "Last tried at %s" % last_try,
+                    "Last tried at %s" % self.nice_current_time(),
                 )
                 twlog.msg("Magic Folder failed initial scan: %s" % (e,))
                 yield task.deferLater(self._clock, self.scan_interval, lambda: None)
+
+    def nice_current_time(self):
+        return format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
 
     def stop(self):
         self._log("stop")
@@ -857,8 +859,10 @@ class Downloader(QueueMixin, WriteFileMixin):
                         scan_batch[relpath_u] += [(file_node, metadata)]
                     else:
                         scan_batch[relpath_u] = [(file_node, metadata)]
-            last_try = format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
-            self._status_reporter(True, 'Magic folder is working', 'Last attempt: %s' % last_try)
+            self._status_reporter(
+                True, 'Magic folder is working',
+                'Last scan: %s' % self.nice_current_time(),
+            )
 
         d.addCallback(scan_listing)
         d.addBoth(self._logcb, "end of _scan_remote_dmd")
@@ -914,14 +918,16 @@ class Downloader(QueueMixin, WriteFileMixin):
         x = None
         try:
             x = yield self._scan(None)
-            self._status_reporter(True, 'Magic folder is working')
+            self._status_reporter(
+                True, 'Magic folder is working',
+                'Last scan: %s' % self.nice_current_time(),
+            )
         except Exception as e:
             twlog.msg("Remote scan failed: %s" % (e,))
             self._log("_scan failed: %s" % (repr(e),))
-            last_try = format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
             self._status_reporter(
                 False, 'Remote scan has failed: %s' % str(e),
-                'Last attempted at %s' % last_try,
+                'Last attempted at %s' % self.nice_current_time(),
             )
         defer.returnValue(x)
 
