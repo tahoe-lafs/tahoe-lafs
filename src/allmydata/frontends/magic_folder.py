@@ -2,6 +2,7 @@
 import sys, os
 import os.path
 from collections import deque
+from datetime import datetime
 import time
 
 from twisted.internet import defer, reactor, task
@@ -22,6 +23,7 @@ from allmydata.util.progress import PercentProgress
 from allmydata.util.encodingutil import listdir_filepath, to_filepath, \
      extend_filepath, unicode_from_filepath, unicode_segments_from, \
      quote_filepath, quote_local_unicode_path, quote_output, FilenameEncodingError
+from allmydata.util.time_format import format_time
 from allmydata.immutable.upload import FileName, Data
 from allmydata import magicfolderdb, magicpath
 
@@ -80,7 +82,18 @@ class MagicFolder(service.MultiService):
 
         self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock)
         self.downloader = Downloader(client, local_path_u, db, collective_dirnode,
-                                     upload_dirnode.get_readonly_uri(), clock, self.uploader.is_pending, umask)
+                                     upload_dirnode.get_readonly_uri(), clock, self.uploader.is_pending, umask,
+                                     self.set_public_status)
+        self._public_status = (False, ['Magic folder has not yet started'])
+
+    def get_public_status(self):
+        """
+        For the web UI, basically.
+        """
+        return self._public_status
+
+    def set_public_status(self, status, *messages):
+        self._public_status = (status, messages)
 
     def startService(self):
         # TODO: why is this being called more than once?
@@ -717,7 +730,8 @@ class Downloader(QueueMixin, WriteFileMixin):
     scan_interval = 3
 
     def __init__(self, client, local_path_u, db, collective_dirnode,
-                 upload_readonly_dircap, clock, is_upload_pending, umask):
+                 upload_readonly_dircap, clock, is_upload_pending, umask,
+                 status_reporter):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock, delay=self.scan_interval)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
@@ -731,6 +745,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._upload_readonly_dircap = upload_readonly_dircap
         self._is_upload_pending = is_upload_pending
         self._umask = umask
+        self._status_reporter = status_reporter
 
     @defer.inlineCallbacks
     def start_downloading(self):
@@ -748,8 +763,15 @@ class Downloader(QueueMixin, WriteFileMixin):
                 break
 
             except Exception as e:
+                self._status_reporter(
+                    False, "Initial scan has failed",
+                    "Last tried at %s" % self.nice_current_time(),
+                )
                 twlog.msg("Magic Folder failed initial scan: %s" % (e,))
                 yield task.deferLater(self._clock, self.scan_interval, lambda: None)
+
+    def nice_current_time(self):
+        return format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
 
     def stop(self):
         self._log("stop")
@@ -837,6 +859,10 @@ class Downloader(QueueMixin, WriteFileMixin):
                         scan_batch[relpath_u] += [(file_node, metadata)]
                     else:
                         scan_batch[relpath_u] = [(file_node, metadata)]
+            self._status_reporter(
+                True, 'Magic folder is working',
+                'Last scan: %s' % self.nice_current_time(),
+            )
 
         d.addCallback(scan_listing)
         d.addBoth(self._logcb, "end of _scan_remote_dmd")
@@ -892,9 +918,17 @@ class Downloader(QueueMixin, WriteFileMixin):
         x = None
         try:
             x = yield self._scan(None)
+            self._status_reporter(
+                True, 'Magic folder is working',
+                'Last scan: %s' % self.nice_current_time(),
+            )
         except Exception as e:
             twlog.msg("Remote scan failed: %s" % (e,))
             self._log("_scan failed: %s" % (repr(e),))
+            self._status_reporter(
+                False, 'Remote scan has failed: %s' % str(e),
+                'Last attempted at %s' % self.nice_current_time(),
+            )
         defer.returnValue(x)
 
     def _scan(self, ign):

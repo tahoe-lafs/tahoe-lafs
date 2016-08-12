@@ -124,6 +124,7 @@ class Client(node.Node, pollmixin.PollMixin):
         node.Node.__init__(self, basedir)
         # All tub.registerReference must happen *after* we upcall, since
         # that's what does tub.setLocation()
+        self._magic_folder = None
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
