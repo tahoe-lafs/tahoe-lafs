@@ -370,7 +370,8 @@ class Client(node.Node, pollmixin.PollMixin):
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
         sb = storage_client.StorageFarmBroker(permute_peers=True,
                                               preferred_peers=preferred_peers,
-                                              tub_options=self.tub_options)
+                                              tub_options=self.tub_options,
+                                              tub_handlers=self.tub_handlers)
         self.storage_broker = sb
         sb.setServiceParent(self)
 
