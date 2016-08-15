@@ -67,12 +67,13 @@ class StorageFarmBroker(service.MultiService):
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, permute_peers, preferred_peers=(), tub_options={}):
+    def __init__(self, permute_peers, preferred_peers=(), tub_options={}, tub_handlers={}):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self.preferred_peers = preferred_peers
         self._tub_options = tub_options
+        self._tub_handlers = tub_handlers
 
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
@@ -131,7 +132,7 @@ class StorageFarmBroker(service.MultiService):
             precondition(isinstance(key_s, str), key_s)
             precondition(key_s.startswith("v0-"), key_s)
         assert ann["service-name"] == "storage"
-        s = NativeStorageServer(key_s, ann, self._tub_options)
+        s = NativeStorageServer(key_s, ann, self._tub_options, self._tub_handlers)
         s.on_status_changed(lambda _: self._got_connection())
         serverid = s.get_serverid()
         old = self.servers.get(serverid)
@@ -243,11 +244,12 @@ class NativeStorageServer(service.MultiService):
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, key_s, ann, tub_options={}):
+    def __init__(self, key_s, ann, tub_options={}, tub_handlers={}):
         service.MultiService.__init__(self)
         self.key_s = key_s
         self.announcement = ann
         self._tub_options = tub_options
+        self._tub_handlers = tub_handlers
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
@@ -348,8 +350,8 @@ class NativeStorageServer(service.MultiService):
         self._tub = Tub()
         for (name, value) in self._tub_options.items():
             self._tub.setOption(name, value)
+        # XXX todo: do stuff with the handlers
         self._tub.setServiceParent(self)
-
         furl = str(self.announcement["anonymous-storage-FURL"])
         self._trigger_cb = trigger_cb
         self._reconnector = self._tub.connectTo(furl, self._got_connection)

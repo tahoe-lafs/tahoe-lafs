@@ -203,6 +203,7 @@ class Node(service.MultiService):
     def create_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
         self.tub = Tub(certFile=certfile)
+        self.tub_handlers = {}
         self.tub_options = {
             "logLocalFailures": True,
             "logRemoteFailures": True,
