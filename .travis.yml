@@ -43,3 +43,4 @@ matrix:
   allow_failures:
     - python: "pypy"
   fast_finish: true
+
