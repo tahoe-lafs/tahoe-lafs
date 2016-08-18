@@ -14,7 +14,7 @@ from allmydata.scripts import runner
 from allmydata.client import Client
 from allmydata.test import common_util
 import allmydata
-from allmydata._appname import __appname__
+from allmydata import __appname__
 
 
 timeout = 240

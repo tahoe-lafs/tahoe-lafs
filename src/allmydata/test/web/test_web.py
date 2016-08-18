@@ -224,6 +224,7 @@ class FakeClient(Client):
         # don't upcall to Client.__init__, since we only want to initialize a
         # minimal subset
         service.MultiService.__init__(self)
+        self._magic_folder = None
         self.all_contents = {}
         self.nodeid = "fake_nodeid"
         self.nickname = u"fake_nickname \u263A"

@@ -159,6 +159,14 @@
               </div><!--/span-->
             </div><!--/row-->
           </div>
+
+          <div n:render="magic_folder" class="row-fluid">
+            <h2>
+	      <div class="status-indicator"><img><n:attr name="src">img/connected-<n:slot name="magic_folder_status" />.png</n:attr><n:attr name="alt"><n:slot name="magic_folder_status_alt" /></n:attr></img></div>
+	      Magic Folder
+	    </h2>
+          </div><!--/row-->
+
           <div class="row-fluid">
             <h2>
               Connected to <span n:render="string" n:data="connected_storage_servers" />
