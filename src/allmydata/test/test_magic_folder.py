@@ -217,6 +217,7 @@ class CheckerMixin(object):
             # We don't use FilePath.setContent() here because it creates a temporary file that
             # is renamed into place, which causes events that the test is not expecting.
             yield self.fileops.write(path_u, data)
+            yield iterate(self.magicfolder)
             if temporary:
                 yield iterate(self.magicfolder)
                 yield self.fileops.delete(path_u)
@@ -1159,6 +1160,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
             another_path = abspath_expanduser_unicode(u"another", base=new_small_tree_dir)
             yield self.fileops.write(another_path, "file")
             yield iterate(self.magicfolder)
+            yield iterate(self.magicfolder)  # windows; why?
 
         d.addCallback(_check_moved_tree_is_watched)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
@@ -1185,6 +1187,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
             test_file = abspath_expanduser_unicode(filename, base=self.local_dir)
             yield self.fileops.write(test_file, "meow %s" % filename)
             yield iterate(self.magicfolder)
+            yield iterate(self.magicfolder)  # windows; why?
 
         d.addCallback(lambda ign: create_test_file(u"what1"))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
@@ -1212,6 +1215,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         path = os.path.join(self.local_dir, u'foo')
         yield self.fileops.write(path, 'foo\n')
         yield iterate_uploader(self.magicfolder)
+        yield iterate_uploader(self.magicfolder)  # req'd for windows; not sure why?
         self.assertTrue(os.path.exists(path))
         node, metadata = yield self.magicfolder.downloader._get_collective_latest_file(u'foo')
         self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
@@ -1234,6 +1238,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         path = os.path.join(self.local_dir, u'foo')
         yield self.fileops.write(path, 'foo\n')
         yield iterate_uploader(self.magicfolder)
+        yield iterate_uploader(self.magicfolder)  # req'd for windows; why?
         self.assertTrue(os.path.exists(path))
 
         # ...and delete the file
