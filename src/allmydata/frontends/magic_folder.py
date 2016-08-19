@@ -27,7 +27,6 @@ from allmydata.util.time_format import format_time
 from allmydata.immutable.upload import FileName, Data
 from allmydata import magicfolderdb, magicpath
 
-defer.setDebugging(True)
 IN_EXCL_UNLINK = 0x04000000L
 
 def get_inotify_module():
@@ -109,11 +108,14 @@ class MagicFolder(service.MultiService):
         self.uploader.start_uploading()  # synchronous, returns None
         return self.downloader.start_downloading()
 
+    @defer.inlineCallbacks
     def finish(self):
-        d = self.uploader.stop()
-        d2 = self.downloader.stop()
-        d.addCallback(lambda ign: d2)
-        return d
+        # must stop these concurrently so that the clock.advance()s
+        # work correctly in the tests. Also, it's arguably
+        # most-correct.
+        d0 = self.downloader.stop()
+        d1 = self.uploader.stop()
+        yield defer.DeferredList([d0, d1])
 
     def remove_service(self):
         return service.MultiService.disownServiceParent(self)
@@ -133,6 +135,7 @@ class QueueMixin(HookMixin):
             'processed': None,
             'started': None,
             'iteration': None,
+            'inotify': None,
         }
         self.started_d = self.set_hook('started')
 
@@ -371,6 +374,7 @@ class Uploader(QueueMixin):
 
     def stop(self):
         self._log("stop")
+        self._stopped = True
         self._notifier.stopReading()
         self._count('dirs_monitored', -1)
         self.periodic_callid.cancel()
@@ -378,7 +382,6 @@ class Uploader(QueueMixin):
             d = self._notifier.wait_until_stopped()
         else:
             d = defer.succeed(None)
-        self._stopped = True
         # wait for processing loop to actually exit
         d.addCallback(lambda ign: self._processing)
         return d
@@ -467,6 +470,7 @@ class Uploader(QueueMixin):
             return
 
         self._add_pending(relpath_u)
+        self._call_hook(path, 'inotify')
 
     def _process(self, item):
         # Uploader
