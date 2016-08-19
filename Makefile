@@ -66,7 +66,12 @@ smoketest:
 
 .PHONY: code-checks
 #code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
-code-checks: check-miscaptures -find-trailing-spaces -check-umids pyflakes
+code-checks: check-debugging check-miscaptures -find-trailing-spaces -check-umids pyflakes
+
+.PHONY: check-debugging
+check-debugging:
+	misc/coding_tools/check-debugging.sh
+	@echo
 
 .PHONY: check-miscaptures
 check-miscaptures:
