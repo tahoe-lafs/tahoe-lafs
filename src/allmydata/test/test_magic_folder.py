@@ -456,7 +456,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
 
         yield iterate(self.alice_magicfolder)  # for windows
         yield iterate(self.bob_magicfolder)  # for windows
-        
+
         # check the state (XXX I had to switch the versions to 0; is that really right? why?)
         yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
         yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)

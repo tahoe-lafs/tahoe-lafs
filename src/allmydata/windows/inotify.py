@@ -281,18 +281,18 @@ class INotify(PollMixin):
 
                     def _do_pending_calls():
                         self._pending_call = None
-                        for path in self._pending:
+                        for path1 in self._pending:
                             if self._callbacks:
                                 for cb in self._callbacks:
                                     try:
-                                        cb(None, path, IN_CHANGED)
-                                    except Exception, e:
-                                        log.err(e)
+                                        cb(None, path1, IN_CHANGED)
+                                    except Exception, e2:
+                                        log.err(e2)
                         self._pending = set()
 
-                    def _maybe_notify(path):
-                        if path not in self._pending:
-                            self._pending.add(path)
+                    def _maybe_notify(path2):
+                        if path2 not in self._pending:
+                            self._pending.add(path2)
                         if self._state not in [STOPPING, STOPPED]:
                             _do_pending_calls()
 #                        if self._pending_call is None and self._state not in [STOPPING, STOPPED]:
