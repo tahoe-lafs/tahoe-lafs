@@ -11,6 +11,6 @@
 # So use:
 #  "coverage run -m allmydata.test.run_trial ARGS"
 
-from twisted.scripts.trial import run
-
-run()
+if __name__ == "__main__":
+    from twisted.scripts.trial import run
+    run()
