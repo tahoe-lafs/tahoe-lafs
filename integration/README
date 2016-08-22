@@ -1,0 +1,15 @@
+Install:
+
+   pip install -e .[test]
+
+run:
+
+   py.test -s -v integration/
+
+If you want to keep the created temp-dir around:
+
+   py.test --keep-tempdir -v integration/
+
+The fixtures also set up a "flogtool gather" process and dump all the
+logs from all the running processes (introducer, 5 storage nodes,
+alice, bob) to a tempfile.

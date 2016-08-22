@@ -89,6 +89,9 @@ install_requires = [
     #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2474>.
     "pyOpenSSL >= 0.14",
     "PyYAML >= 3.11",
+
+    # in Python 3.3 stdlib
+    "shutilwhich >= 1.1.0",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.

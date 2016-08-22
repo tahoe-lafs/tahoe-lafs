@@ -477,6 +477,7 @@ class Node(service.MultiService):
 
         service.MultiService.startService(self)
         self.log("%s running" % self.NODETYPE)
+        twlog.msg("%s running" % self.NODETYPE)
 
     def stopService(self):
         self.log("Node.stopService")

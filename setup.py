@@ -265,6 +265,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "txtorcon", # in case pip's resolver doesn't work
               "foolscap[i2p]",
               "txi2p", # in case pip's resolver doesn't work
+              "pytest",
+              "pytest-twisted",
           ],
           "tor": [
               "foolscap[tor]",
