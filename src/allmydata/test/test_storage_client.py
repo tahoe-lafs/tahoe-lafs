@@ -38,6 +38,20 @@ class TestNativeStorageServer(unittest.TestCase):
 
 class TestStorageFarmBroker(unittest.TestCase):
 
+    def test_static_announcement(self):
+        broker = StorageFarmBroker(True)
+
+        key_s = 'v0-1234-{}'.format(1)
+        ann = {
+            "service-name": "storage",
+            "anonymous-storage-FURL": "pb://{}@nowhere/fake".format(base32.b2a(str(1))),
+            "permutation-seed-base32": "aaaaaaaaaaaaaaaaaaaaaaaa",
+        }
+        broker.got_static_announcement(key_s, ann)
+        self.failUnlessEqual(len(broker.static_servers), 1)
+        self.failUnlessEqual(broker.servers['1'].announcement, ann)
+        self.failUnlessEqual(broker.servers['1'].key_s, key_s)
+
     @inlineCallbacks
     def test_threshold_reached(self):
         introducer = Mock()
