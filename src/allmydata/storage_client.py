@@ -350,7 +350,9 @@ class NativeStorageServer(service.MultiService):
         self._tub = Tub()
         for (name, value) in self._tub_options.items():
             self._tub.setOption(name, value)
-        # XXX todo: do stuff with the handlers
+        for (name, handler) in self._tub_handlers.items():
+            self._tub.addConnectionHintHandler(name, handler)
+
         self._tub.setServiceParent(self)
         furl = str(self.announcement["anonymous-storage-FURL"])
         self._trigger_cb = trigger_cb
