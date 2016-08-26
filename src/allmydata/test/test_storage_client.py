@@ -47,7 +47,7 @@ class TestStorageFarmBroker(unittest.TestCase):
             "anonymous-storage-FURL": "pb://{}@nowhere/fake".format(base32.b2a(str(1))),
             "permutation-seed-base32": "aaaaaaaaaaaaaaaaaaaaaaaa",
         }
-        broker.got_static_announcement(key_s, ann)
+        broker.got_static_announcement(key_s, ann, None)
         self.failUnlessEqual(len(broker.static_servers), 1)
         self.failUnlessEqual(broker.servers['1'].announcement, ann)
         self.failUnlessEqual(broker.servers['1'].key_s, key_s)
