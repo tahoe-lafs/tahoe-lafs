@@ -134,17 +134,20 @@ class StorageFarmBroker(service.MultiService):
                 remaining.append( (threshold, d) )
         self._threshold_listeners = remaining
 
-    def got_static_announcement(self, key_s, ann):
+    def got_static_announcement(self, key_s, ann, handlers):
         server_id = get_serverid_from_furl(ann["anonymous-storage-FURL"])
         assert server_id not in self.static_servers # XXX
         self.static_servers.append(server_id)
-        self._got_announcement(key_s, ann)
+        self._got_announcement(key_s, ann, handlers=handlers)
 
-    def _got_announcement(self, key_s, ann):
+    def _got_announcement(self, key_s, ann, handlers=None):
         precondition(isinstance(key_s, str), key_s)
         precondition(key_s.startswith("v0-"), key_s)
         precondition(ann["service-name"] == "storage", ann["service-name"])
-        s = NativeStorageServer(key_s, ann, self._tub_options, self._tub_handlers)
+        if handlers is not None:
+            s = NativeStorageServer(key_s, ann, self._tub_options, handlers)
+        else:
+            s = NativeStorageServer(key_s, ann, self._tub_options, self._tub_handlers)
         s.on_status_changed(lambda _: self._got_connection())
         server_id = s.get_serverid()
         old = self.servers.get(server_id)
