@@ -2437,7 +2437,7 @@ class Connections(SystemTestMixin, unittest.TestCase):
         def _start(ign):
             self.c0 = self.clients[0]
             nonclients = [s for s in self.c0.storage_broker.get_connected_servers()
-                          if s.get_serverid() != self.c0.nodeid]
+                          if s.get_serverid() != self.c0.get_long_nodeid()]
             self.failUnlessEqual(len(nonclients), 1)
 
             self.s1 = nonclients[0]  # s1 is the server, not c0

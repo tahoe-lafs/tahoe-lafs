@@ -300,13 +300,13 @@ class Root(rend.Page):
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
     def render_service_row(self, ctx, server):
-        nodeid = server.get_serverid()
+        server_id = server.get_serverid()
 
         ctx.fillSlots("peerid", server.get_longname())
         ctx.fillSlots("nickname", server.get_nickname())
         rhost = server.get_remote_host()
         if server.is_connected():
-            if nodeid == self.client.nodeid:
+            if server_id == self.client.get_long_nodeid():
                 rhost_s = "(loopback)"
             elif isinstance(rhost, address.IPv4Address):
                 rhost_s = "%s:%d" % (rhost.host, rhost.port)

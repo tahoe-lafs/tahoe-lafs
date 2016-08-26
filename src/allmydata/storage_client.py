@@ -42,12 +42,6 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import sha1
 
-def get_serverid_from_furl(furl):
-    m = re.match(r'pb://(\w+)@', furl)
-    assert m, furl
-    id = m.group(1).lower()
-    return base32.a2b(id)
-
 # who is responsible for de-duplication?
 #  both?
 #  IC remembers the unpacked announcements it receives, to provide for late
@@ -135,7 +129,7 @@ class StorageFarmBroker(service.MultiService):
         self._threshold_listeners = remaining
 
     def got_static_announcement(self, key_s, ann, handlers):
-        server_id = get_serverid_from_furl(ann["anonymous-storage-FURL"])
+        server_id = key_s
         assert server_id not in self.static_servers # XXX
         self.static_servers.append(server_id)
         self._got_announcement(key_s, ann, handlers=handlers)
@@ -216,6 +210,18 @@ class StorageFarmBroker(service.MultiService):
     def get_stub_server(self, serverid):
         if serverid in self.servers:
             return self.servers[serverid]
+        # some time before 1.12, we changed "serverid" to be "key_s" (the
+        # printable verifying key, used in V2 announcements), instead of the
+        # tubid. When the immutable uploader delegates work to a Helper,
+        # get_stub_server() is used to map the returning server identifiers
+        # to IDisplayableServer instances (to get a name, for display on the
+        # Upload Results web page). If the Helper is running 1.12 or newer,
+        # it will send pubkeys, but if it's still running 1.11, it will send
+        # tubids. This clause maps the old tubids to our existing servers.
+        for s in self.servers.values():
+            if isinstance(s, NativeStorageServer):
+                if serverid == s._tubid:
+                    return s
         return StubServer(serverid)
 
 class StubServer:
@@ -315,7 +321,7 @@ class NativeStorageServer(service.MultiService):
     def __repr__(self):
         return "<NativeStorageServer for %s>" % self.get_name()
     def get_serverid(self):
-        return self._tubid # XXX replace with self.key_s
+        return self.key_s
     def get_permutation_seed(self):
         return self._permutation_seed
     def get_version(self):

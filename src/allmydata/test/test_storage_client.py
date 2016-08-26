@@ -49,8 +49,8 @@ class TestStorageFarmBroker(unittest.TestCase):
         }
         broker.got_static_announcement(key_s, ann, None)
         self.failUnlessEqual(len(broker.static_servers), 1)
-        self.failUnlessEqual(broker.servers['1'].announcement, ann)
-        self.failUnlessEqual(broker.servers['1'].key_s, key_s)
+        self.failUnlessEqual(broker.servers[key_s].announcement, ann)
+        self.failUnlessEqual(broker.servers[key_s].key_s, key_s)
 
     @inlineCallbacks
     def test_threshold_reached(self):
