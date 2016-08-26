@@ -377,9 +377,7 @@ class Client(node.Node, pollmixin.PollMixin):
 
         # utilize the loaded static server specifications
         for key, server in self.connections_config['servers'].items():
-            handlers = None
-            if server.haskey("transport_handlers"):
-                handlers = server["transport_handlers"]
+            handlers = server.get("transport_handlers")
             eventually(self.storage_broker.got_static_announcement,
                        key, server['announcement'], handlers)
 
