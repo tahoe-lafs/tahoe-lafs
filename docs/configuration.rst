@@ -706,16 +706,16 @@ a legal one.
 
   [node]
   nickname = Bob's Tahoe-LAFS Node
-  tub.port = 34912
-  tub.location = 123.45.67.89:8098,44.55.66.77:8098
-  web.port = 3456
+  tub.port = tcp:34912
+  tub.location = tcp:123.45.67.89:8098,tcp:44.55.66.77:8098
+  web.port = tcp:3456
   log_gatherer.furl = pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm
   timeout.keepalive = 240
   timeout.disconnect = 1800
   
   [client]
-  introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
-  helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@helper.tahoe.example:7054/kk8lhr
+  introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tcp:tahoe.example:44801/ii3uumo
+  helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@tcp:helper.tahoe.example:7054/kk8lhr
   
   [storage]
   enabled = True
