@@ -29,7 +29,7 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
 
-import re, time
+import re, time, hashlib
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.application import service
@@ -289,8 +289,18 @@ class NativeStorageServer(service.MultiService):
         assert m, furl
         tubid_s = m.group(1).lower()
         self._tubid = base32.a2b(tubid_s)
-        assert "permutation-seed-base32" in ann, ann
-        ps = base32.a2b(str(ann["permutation-seed-base32"]))
+        if "permutation-seed-base32" in ann:
+            ps = base32.a2b(str(ann["permutation-seed-base32"]))
+        elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
+            ps = base32.a2b(server_id[3:])
+        else:
+            log.msg("unable to parse serverid '%(server_id)s as pubkey, "
+                    "hashing it to get permutation-seed, "
+                    "may not converge with other clients",
+                    server_id=server_id,
+                    facility="tahoe.storage_broker",
+                    level=log.UNUSUAL, umid="qu86tw")
+            ps = hashlib.sha256(server_id).digest()
         self._permutation_seed = ps
 
         assert server_id

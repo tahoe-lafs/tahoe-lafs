@@ -687,28 +687,56 @@ The ``storage`` dictionary takes keys which are server-ids, and values which
 are dictionaries with two keys: ``ann`` and ``connections``. The ``ann``
 value is a dictionary which will be used in lieu of the introducer
 announcement, so it can be populated by copying the ``ann`` dictionary from
-``NODEDIR/introducer_cache.yaml``. Static servers which use the node's
-default connection handlers only need a few keys:
+``NODEDIR/introducer_cache.yaml``.
 
-* the server ID, which can be any string
-* a nickname, which is the string that is printed on the web interface
-* the ``anonymous-storage-FURL``, which is where the server lives
-* ``permutation-seed-base32``, which controls how shares are mapped to
+The server-id can be any string, but ideally you should use the public key as
+published by the server. Each server displays this as "Node ID:" in the
+top-right corner of its "WUI" web welcome page. It can also be obtained from
+other client nodes, which record it as ``key_s:`` in their
+``introducer_cache.yaml`` file. The format is "v0-" followed by 52 base32
+characters like so::
+
+  v0-c2ng2pbrmxmlwpijn3mr72ckk5fmzk6uxf6nhowyosaubrt6y5mq
+
+The ``ann`` dictionary really only needs one key:
+
+* ``anonymous-storage-FURL``: how we connect to the server
+
+(note that other important keys may be added in the future, as Accounting and
+HTTP-based servers are implemented)
+
+Optional keys include:
+
+* ``nickname``: the name of this server, as displayed on the Welcome page
+  server list
+* ``permutation-seed-base32``: this controls how shares are mapped to
   servers. This is normally computed from the server-ID, but can be
   overridden to maintain the mapping for older servers which used to use
-  Foolscap TubIDs as server-IDs.
-* more important keys may be added in the future, as Accounting and
-  HTTP-based servers are implemented
+  Foolscap TubIDs as server-IDs. If your selected server-ID cannot be parsed
+  as a public key, it will be hashed to compute the permutation seed. This is
+  fine as long as all clients use the same thing, but if they don't, then
+  your client will disagree with the other clients about which servers should
+  hold each share. This will slow downloads for everybody, and may cause
+  additional work or consume extra storage when repair operations don't
+  converge.
+* anything else from the ``introducer_cache.yaml`` announcement, like
+  ``my-version``, which is displayed on the Welcome page server list
 
 For example, a private static server could be defined with a
 ``private/servers.yaml`` file like this::
 
   storage:
-    my-serverid-1:
+    v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia:
       ann:
         nickname: my-server-1
         anonymous-storage-FURL: pb://u33m4y7klhz3bypswqkozwetvabelhxt@tcp:8.8.8.8:51298/eiu2i7p6d6mm4ihmss7ieou5hac3wn6b
-        permutation-seed-base32: w2hqnbaa25yw4qgcvghl5psa3srpfgw3
+
+Or, if you're feeling really lazy::
+
+  storage:
+    my-serverid-1:
+      ann:
+        anonymous-storage-FURL: pb://u33m4y7klhz3bypswqkozwetvabelhxt@tcp:8.8.8.8:51298/eiu2i7p6d6mm4ihmss7ieou5hac3wn6b
 
 .. _YAML: http://yaml.org/
 
