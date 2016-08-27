@@ -8,7 +8,6 @@ from twisted.application import service
 from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
 from pycryptopp.publickey import rsa
-from foolscap.api import eventually
 
 import allmydata
 from allmydata.storage.server import StorageServer
@@ -128,7 +127,6 @@ class Client(node.Node, pollmixin.PollMixin):
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
-        self.load_connections()
         self.init_introducer_client()
         self.init_stats_provider()
         self.init_secrets()
@@ -140,6 +138,7 @@ class Client(node.Node, pollmixin.PollMixin):
         if key_gen_furl:
             log.msg("[client]key_generator.furl= is now ignored, see #2783")
         self.init_client()
+        self.load_static_servers()
         self.helper = None
         if self.get_config("helper", "enabled", False, boolean=True):
             self.init_helper()
@@ -185,21 +184,6 @@ class Client(node.Node, pollmixin.PollMixin):
                               self._sequencer, introducer_cache_filepath)
         self.introducer_client = ic
         ic.setServiceParent(self)
-
-    def load_connections(self):
-        """
-        Load the connections.yaml file if it exists, otherwise
-        create a default configuration.
-        """
-        fn = os.path.join(self.basedir, "private", "connections.yaml")
-        connections_filepath = FilePath(fn)
-        try:
-            with connections_filepath.open() as f:
-                self.connections_config = yamlutil.safe_load(f)
-        except EnvironmentError:
-            self.connections_config = { 'servers' : {} }
-            content = yamlutil.safe_dump(self.connections_config)
-            connections_filepath.setContent(content)
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config("client", "stats_gatherer.furl", None)
@@ -375,16 +359,27 @@ class Client(node.Node, pollmixin.PollMixin):
         self.storage_broker = sb
         sb.setServiceParent(self)
 
-        # utilize the loaded static server specifications
-        for key, server in self.connections_config['servers'].items():
-            handlers = server.get("transport_handlers")
-            eventually(self.storage_broker.got_static_announcement,
-                       key, server['announcement'], handlers)
-
         sb.use_introducer(self.introducer_client)
 
     def get_storage_broker(self):
         return self.storage_broker
+
+    def load_static_servers(self):
+        """
+        Load the servers.yaml file if it exists, and provide the static
+        server data to the StorageFarmBroker.
+        """
+        fn = os.path.join(self.basedir, "private", "servers.yaml")
+        servers_filepath = FilePath(fn)
+        try:
+            with servers_filepath.open() as f:
+                servers_yaml = yamlutil.safe_load(f)
+            static_servers = servers_yaml.get("storage", {})
+            log.msg("found %d static servers in private/servers.yaml" %
+                    len(static_servers))
+            self.storage_broker.set_static_servers(static_servers)
+        except EnvironmentError:
+            pass
 
     def init_blacklist(self):
         fn = os.path.join(self.basedir, "access.blacklist")

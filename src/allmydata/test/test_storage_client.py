@@ -38,7 +38,7 @@ class TestNativeStorageServer(unittest.TestCase):
 
 class TestStorageFarmBroker(unittest.TestCase):
 
-    def test_static_announcement(self):
+    def test_static_servers(self):
         broker = StorageFarmBroker(True)
 
         key_s = 'v0-1234-{}'.format(1)
@@ -47,10 +47,26 @@ class TestStorageFarmBroker(unittest.TestCase):
             "anonymous-storage-FURL": "pb://{}@nowhere/fake".format(base32.b2a(str(1))),
             "permutation-seed-base32": "aaaaaaaaaaaaaaaaaaaaaaaa",
         }
-        broker.got_static_announcement(key_s, ann, None)
-        self.failUnlessEqual(len(broker.static_servers), 1)
-        self.failUnlessEqual(broker.servers[key_s].announcement, ann)
-        self.failUnlessEqual(broker.servers[key_s].get_serverid(), key_s)
+        permseed = base32.a2b("aaaaaaaaaaaaaaaaaaaaaaaa")
+        broker.set_static_servers({key_s: {"ann": ann}})
+        self.failUnlessEqual(len(broker._static_server_ids), 1)
+        s = broker.servers[key_s]
+        self.failUnlessEqual(s.announcement, ann)
+        self.failUnlessEqual(s.get_serverid(), key_s)
+        self.assertEqual(s.get_permutation_seed(), permseed)
+
+        # if the Introducer announces the same thing, we're supposed to
+        # ignore it
+
+        ann2 = {
+            "service-name": "storage",
+            "anonymous-storage-FURL": "pb://{}@nowhere/fake2".format(base32.b2a(str(1))),
+            "permutation-seed-base32": "bbbbbbbbbbbbbbbbbbbbbbbb",
+        }
+        broker._got_announcement(key_s, ann2)
+        s2 = broker.servers[key_s]
+        self.assertIdentical(s2, s)
+        self.assertEqual(s2.get_permutation_seed(), permseed)
 
     @inlineCallbacks
     def test_threshold_reached(self):
