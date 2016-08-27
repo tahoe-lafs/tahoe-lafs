@@ -329,7 +329,7 @@ class Root(rend.Page):
         last_received_data_abs_time = render_time_attr(last_received_data_time)
 
         announcement = server.get_announcement()
-        version = announcement["my-version"]
+        version = announcement.get("my-version", "")
         available_space = server.get_available_space()
         if available_space is None:
             available_space = "N/A"
