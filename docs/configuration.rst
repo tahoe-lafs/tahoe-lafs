@@ -12,8 +12,9 @@ Configuring a Tahoe-LAFS node
 6.  `Running A Helper`_
 7.  `Running An Introducer`_
 8.  `Other Files in BASEDIR`_
-9.  `Other files`_
-10. `Example`_
+9.  `Static Server Definitions`_
+10. `Other files`_
+11. `Example`_
 
 A Tahoe-LAFS node is configured by writing to files in its base directory.
 These files are read by the node when it starts, so each time you change
@@ -660,6 +661,88 @@ This section describes these other files.
   of this string into the file. If you want to converge your immutable files
   with as many people as possible, put the empty string (so that
   ``private/convergence`` is a zero-length file).
+
+
+Static Server Definitions
+=========================
+
+The ``private/servers.yaml`` file defines "static servers": those which are
+not announced through the Introducer. This can also control how we connect to
+those servers.
+
+Most clients do not need this file. It is only necessary if you want to use
+servers which are (for some specialized reason) not announced through the
+Introducer, or to connect to those servers in different ways. You might do
+this to "freeze" the server list: use the Introducer for a while, then copy
+all announcements into ``servers.yaml``, then stop using the Introducer
+entirely. Or you might have a private server that you don't want other users
+to learn about (via the Introducer). Or you might run a local server which is
+announced to everyone else as a Tor onion address, but which you can connect
+to directly (via TCP).
+
+The file syntax is `YAML`_, with a top-level dictionary named ``storage``.
+Other items may be added in the future.
+
+The ``storage`` dictionary takes keys which are server-ids, and values which
+are dictionaries with two keys: ``ann`` and ``connections``. The ``ann``
+value is a dictionary which will be used in lieu of the introducer
+announcement, so it can be populated by copying the ``ann`` dictionary from
+``NODEDIR/introducer_cache.yaml``. Static servers which use the node's
+default connection handlers only need a few keys:
+
+* the server ID, which can be any string
+* a nickname, which is the string that is printed on the web interface
+* the ``anonymous-storage-FURL``, which is where the server lives
+* ``permutation-seed-base32``, which controls how shares are mapped to
+  servers. This is normally computed from the server-ID, but can be
+  overridden to maintain the mapping for older servers which used to use
+  Foolscap TubIDs as server-IDs.
+* more important keys may be added in the future, as Accounting and
+  HTTP-based servers are implemented
+
+For example, a private static server could be defined with a
+``private/servers.yaml`` file like this::
+
+  storage:
+    my-serverid-1:
+      ann:
+        nickname: my-server-1
+        anonymous-storage-FURL: pb://u33m4y7klhz3bypswqkozwetvabelhxt@tcp:8.8.8.8:51298/eiu2i7p6d6mm4ihmss7ieou5hac3wn6b
+        permutation-seed-base32: w2hqnbaa25yw4qgcvghl5psa3srpfgw3
+
+A ``connections`` entry will override the default connection-handler mapping
+(as established by ``tahoe.cfg [connections]``). This can be used to build a
+"Tor-mostly client": one which is restricted to use Tor for all connections,
+except for a few private servers to which normal TCP connections will be
+made. To override the published announcement (and thus avoid connecting twice
+to the same server), the server ID must exactly match.
+
+``tahoe.cfg``::
+
+  [connections]
+   # this forces the use of Tor for all "tcp" hints
+   tcp = tor
+
+``private/servers.yaml``::
+
+  storage:
+    v0-c2ng2pbrmxmlwpijn3mr72ckk5fmzk6uxf6nhowyosaubrt6y5mq:
+      ann:
+        nickname: my-server-1
+        anonymous-storage-FURL: pb://u33m4y7klhz3bypswqkozwetvabelhxt@tcp:10.1.2.3:51298/eiu2i7p6d6mm4ihmss7ieou5hac3wn6b
+        permutation-seed-base32: w2hqnbaa25yw4qgcvghl5psa3srpfgw3
+      connections:
+        # this overrides the tcp=tor from tahoe.cfg, for just this server
+        tcp: tcp
+
+The ``connections`` table is needed to override the ``tcp = tor`` mapping
+that comes from ``tahoe.cfg``. Without it, the client would attempt to use
+Tor to connect to ``10.1.2.3``, which would fail because it is a
+local/non-routeable (RFC1918) address.
+
+Note: The "connections" block is not yet implemented.
+
+.. _YAML: http://yaml.org/
 
 
 Other files

@@ -25,12 +25,12 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         sb = StorageFarmBroker(True)
         # s.get_name() (the "short description") will be "v0-00000000".
         # s.get_longname() will include the -long suffix.
-        # s.get_peerid() (i.e. tubid) will be "aaa.." or "777.." or "ceir.."
         servers = [("v0-00000000-long", "\x00"*20, "peer-0"),
                    ("v0-ffffffff-long", "\xff"*20, "peer-f"),
                    ("v0-11111111-long", "\x11"*20, "peer-11")]
-        for (key_s, peerid, nickname) in servers:
-            tubid_b32 = base32.b2a(peerid)
+        for (key_s, binary_tubid, nickname) in servers:
+            server_id = key_s
+            tubid_b32 = base32.b2a(binary_tubid)
             furl = "pb://%s@nowhere/fake" % tubid_b32
             ann = { "version": 0,
                     "service-name": "storage",
@@ -41,8 +41,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                     "my-version": "ver",
                     "oldest-supported": "oldest",
                     }
-            s = NativeStorageServer(key_s, ann)
-            sb.test_add_server(peerid, s) # XXX: maybe use key_s?
+            s = NativeStorageServer(server_id, ann)
+            sb.test_add_server(server_id, s)
         c = FakeClient()
         c.storage_broker = sb
         return c
