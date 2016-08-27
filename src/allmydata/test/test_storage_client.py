@@ -35,6 +35,12 @@ class TestNativeStorageServer(unittest.TestCase):
             })
         self.failUnlessEqual(nss.get_available_space(), 111)
 
+    def test_missing_nickname(self):
+        ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
+               "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
+               }
+        nss = NativeStorageServer("server_id", ann)
+        self.assertEqual(nss.get_nickname(), "")
 
 class TestStorageFarmBroker(unittest.TestCase):
 

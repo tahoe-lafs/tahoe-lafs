@@ -348,7 +348,7 @@ class NativeStorageServer(service.MultiService):
         return self._tubid
 
     def get_nickname(self):
-        return self.announcement["nickname"]
+        return self.announcement.get("nickname", "")
     def get_announcement(self):
         return self.announcement
     def get_remote_host(self):
