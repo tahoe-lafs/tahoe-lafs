@@ -103,9 +103,9 @@ class StorageFarmBroker(service.MultiService):
         s._is_connected = True
         self.servers[serverid] = s
 
-    def test_add_server(self, serverid, s):
+    def test_add_server(self, server_id, s):
         s.on_status_changed(lambda _: self._got_connection())
-        self.servers[serverid] = s
+        self.servers[server_id] = s
 
     def use_introducer(self, introducer_client):
         self.introducer_client = ic = introducer_client
@@ -265,9 +265,9 @@ class NativeStorageServer(service.MultiService):
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, key_s, ann, tub_options={}, tub_handlers={}):
+    def __init__(self, server_id, ann, tub_options={}, tub_handlers={}):
         service.MultiService.__init__(self)
-        self.key_s = key_s
+        self._server_id = server_id
         self.announcement = ann
         self._tub_options = tub_options
         self._tub_handlers = tub_handlers
@@ -282,16 +282,13 @@ class NativeStorageServer(service.MultiService):
         ps = base32.a2b(str(ann["permutation-seed-base32"]))
         self._permutation_seed = ps
 
-        if key_s:
-            self._long_description = key_s
-            if key_s.startswith("v0-"):
-                # remove v0- prefix from abbreviated name
-                self._short_description = key_s[3:3+8]
-            else:
-                self._short_description = key_s[:8]
+        assert server_id
+        self._long_description = server_id
+        if server_id.startswith("v0-"):
+            # remove v0- prefix from abbreviated name
+            self._short_description = server_id[3:3+8]
         else:
-            self._long_description = tubid_s
-            self._short_description = tubid_s[:6]
+            self._short_description = server_id[:8]
 
         self.last_connect_time = None
         self.last_loss_time = None
@@ -321,7 +318,7 @@ class NativeStorageServer(service.MultiService):
     def __repr__(self):
         return "<NativeStorageServer for %s>" % self.get_name()
     def get_serverid(self):
-        return self.key_s
+        return self._server_id
     def get_permutation_seed(self):
         return self._permutation_seed
     def get_version(self):
