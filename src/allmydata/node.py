@@ -83,7 +83,8 @@ class Node(service.MultiService):
         assert type(self.nickname) is unicode
 
         self.init_tempdir()
-        self.create_tub()
+        self.set_tub_options()
+        self.create_main_tub()
         self.create_control_tub()
         self.create_log_tub()
         self.logSource="Node"
@@ -163,6 +164,31 @@ class Node(service.MultiService):
             twlog.msg(e)
             raise e
 
+    def set_tub_options(self):
+        self.tub_options = {
+            "logLocalFailures": True,
+            "logRemoteFailures": True,
+            "expose-remote-exception-types": False,
+            }
+
+        # see #521 for a discussion of how to pick these timeout values.
+        keepalive_timeout_s = self.get_config("node", "timeout.keepalive", "")
+        if keepalive_timeout_s:
+            self.tub_options["keepaliveTimeout"] = int(keepalive_timeout_s)
+        disconnect_timeout_s = self.get_config("node", "timeout.disconnect", "")
+        if disconnect_timeout_s:
+            # N.B.: this is in seconds, so use "1800" to get 30min
+            self.tub_options["disconnectTimeout"] = int(disconnect_timeout_s)
+
+    def _create_tub(self, handler_overrides={}, **kwargs):
+        assert not handler_overrides
+        # Create a Tub with the right options and handlers. It will be
+        # ephemeral unless the caller provides certFile=
+        tub = Tub(**kwargs)
+        for (name, value) in self.tub_options.items():
+            tub.setOption(name, value)
+        return tub
+
     def _convert_tub_port(self, s):
         if re.search(r'^\d+$', s):
             return "tcp:%d" % int(s)
@@ -200,26 +226,9 @@ class Node(service.MultiService):
                 new_locations.append(loc)
         return ",".join(new_locations)
 
-    def create_tub(self):
+    def create_main_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
-        self.tub = Tub(certFile=certfile)
-        self.tub_handlers = {}
-        self.tub_options = {
-            "logLocalFailures": True,
-            "logRemoteFailures": True,
-            "expose-remote-exception-types": False,
-            }
-
-        # see #521 for a discussion of how to pick these timeout values.
-        keepalive_timeout_s = self.get_config("node", "timeout.keepalive", "")
-        if keepalive_timeout_s:
-            self.tub_options["keepaliveTimeout"] = int(keepalive_timeout_s)
-        disconnect_timeout_s = self.get_config("node", "timeout.disconnect", "")
-        if disconnect_timeout_s:
-            # N.B.: this is in seconds, so use "1800" to get 30min
-            self.tub_options["disconnectTimeout"] = int(disconnect_timeout_s)
-        for (name, value) in self.tub_options.items():
-            self.tub.setOption(name, value)
+        self.tub = self._create_tub(certFile=certfile)
 
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
         self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")

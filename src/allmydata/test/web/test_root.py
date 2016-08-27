@@ -25,7 +25,7 @@ class RenderServiceRow(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        s = NativeStorageServer("server_id", ann)
+        s = NativeStorageServer("server_id", ann, None, {})
 
         r = FakeRoot()
         ctx = FakeContext()

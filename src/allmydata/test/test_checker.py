@@ -22,7 +22,7 @@ class FakeClient:
 class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def create_fake_client(self):
-        sb = StorageFarmBroker(True)
+        sb = StorageFarmBroker(True, None)
         # s.get_name() (the "short description") will be "v0-00000000".
         # s.get_longname() will include the -long suffix.
         servers = [("v0-00000000-long", "\x00"*20, "peer-0"),
@@ -41,7 +41,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                     "my-version": "ver",
                     "oldest-supported": "oldest",
                     }
-            s = NativeStorageServer(server_id, ann)
+            s = NativeStorageServer(server_id, ann, None, None)
             sb.test_add_server(server_id, s)
         c = FakeClient()
         c.storage_broker = sb

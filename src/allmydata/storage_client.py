@@ -34,7 +34,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.application import service
 
-from foolscap.api import Tub, eventually
+from foolscap.api import eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
@@ -67,13 +67,12 @@ class StorageFarmBroker(service.MultiService):
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, permute_peers, preferred_peers=(), tub_options={}, tub_handlers={}):
+    def __init__(self, permute_peers, tub_maker, preferred_peers=()):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
+        self._tub_maker = tub_maker
         self.preferred_peers = preferred_peers
-        self._tub_options = tub_options
-        self._tub_handlers = tub_handlers
 
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
@@ -88,10 +87,9 @@ class StorageFarmBroker(service.MultiService):
     def set_static_servers(self, servers):
         for (server_id, server) in servers.items():
             self._static_server_ids.add(server_id)
-            handlers = self._tub_handlers.copy()
-            handlers.update(server.get("connections", {}))
+            handler_overrides = server.get("connections", {})
             s = NativeStorageServer(server_id, server["ann"],
-                                    self._tub_options, handlers)
+                                    self._tub_maker, handler_overrides)
             s.on_status_changed(lambda _: self._got_connection())
             s.setServiceParent(self)
             self.servers[server_id] = s
@@ -110,7 +108,7 @@ class StorageFarmBroker(service.MultiService):
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
-        s = NativeStorageServer(serverid, ann.copy(), self._tub_options, self._tub_handlers)
+        s = NativeStorageServer(serverid, ann.copy(), self._tub_maker, {})
         s.rref = rref
         s._is_connected = True
         self.servers[serverid] = s
@@ -151,8 +149,7 @@ class StorageFarmBroker(service.MultiService):
                     facility="tahoe.storage_broker", umid="AlxzqA",
                     level=log.UNUSUAL)
             return
-        s = NativeStorageServer(server_id, ann,
-                                self._tub_options, self._tub_handlers)
+        s = NativeStorageServer(server_id, ann, self._tub_maker, {})
         s.on_status_changed(lambda _: self._got_connection())
         server_id = s.get_serverid()
         old = self.servers.get(server_id)
@@ -276,12 +273,12 @@ class NativeStorageServer(service.MultiService):
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, server_id, ann, tub_options={}, tub_handlers={}):
+    def __init__(self, server_id, ann, tub_maker, handler_overrides):
         service.MultiService.__init__(self)
         self._server_id = server_id
         self.announcement = ann
-        self._tub_options = tub_options
-        self._tub_handlers = tub_handlers
+        self._tub_maker = tub_maker
+        self._handler_overrides = handler_overrides
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
@@ -387,11 +384,7 @@ class NativeStorageServer(service.MultiService):
 
 
     def start_connecting(self, trigger_cb):
-        self._tub = Tub()
-        for (name, value) in self._tub_options.items():
-            self._tub.setOption(name, value)
-
-        # XXX todo: set tub handlers
+        self._tub = self._tub_maker(self._handler_overrides)
         self._tub.setServiceParent(self)
         furl = str(self.announcement["anonymous-storage-FURL"])
         self._trigger_cb = trigger_cb
