@@ -83,6 +83,7 @@ class Node(service.MultiService):
         assert type(self.nickname) is unicode
 
         self.init_tempdir()
+        self.init_connections()
         self.set_tub_options()
         self.create_main_tub()
         self.create_control_tub()
@@ -164,6 +165,44 @@ class Node(service.MultiService):
             twlog.msg(e)
             raise e
 
+    def _make_tcp_handler(self):
+        # this is always available
+        from foolscap.connections.tcp import default
+        return default()
+
+    def _make_tor_handler(self):
+        try:
+            # TODO: parse [tor] config, build handler to match
+            from foolscap.connections.tor import default_socks
+            return default_socks()
+        except ImportError:
+            return None
+
+    def _make_i2p_handler(self):
+        # TODO: parse [i2p] config, build handler to match
+        return None
+
+    def init_connections(self):
+        # We store handlers for everything. None means we were unable to
+        # create that handler, so hints which want it will be ignored.
+        handlers = self._foolscap_connection_handlers = {
+            "tcp": self._make_tcp_handler(),
+            "tor": self._make_tor_handler(),
+            "i2p": self._make_i2p_handler(),
+            }
+        self.log("built Foolscap connection handlers for: %(known_handlers)s",
+                 known_handlers=sorted([k for k,v in handlers.items() if v]),
+                 facility="tahoe.node", umid="PuLh8g")
+
+        # then we remember the default mappings from tahoe.cfg
+        self._default_connection_handlers = {"tor": "tor", "i2p": "i2p"}
+        tcp_handler_name = self.get_config("connections", "tcp", "tcp").lower()
+        if tcp_handler_name not in handlers:
+            raise ValueError("'tahoe.cfg [connections] tcp='"
+                             " uses unknown handler type '%s'"
+                             % tcp_handler_name)
+        self._default_connection_handlers["tcp"] = tcp_handler_name
+
     def set_tub_options(self):
         self.tub_options = {
             "logLocalFailures": True,
@@ -181,12 +220,18 @@ class Node(service.MultiService):
             self.tub_options["disconnectTimeout"] = int(disconnect_timeout_s)
 
     def _create_tub(self, handler_overrides={}, **kwargs):
-        assert not handler_overrides
         # Create a Tub with the right options and handlers. It will be
         # ephemeral unless the caller provides certFile=
         tub = Tub(**kwargs)
         for (name, value) in self.tub_options.items():
             tub.setOption(name, value)
+        handlers = self._default_connection_handlers.copy()
+        handlers.update(handler_overrides)
+        tub.removeAllConnectionHintHandlers()
+        for hint_type, handler_name in handlers.items():
+            handler = self._foolscap_connection_handlers.get(handler_name)
+            if handler:
+                tub.addConnectionHintHandler(hint_type, handler)
         return tub
 
     def _convert_tub_port(self, s):
