@@ -266,6 +266,7 @@ class Node(service.MultiService):
             "logLocalFailures": True,
             "logRemoteFailures": True,
             "expose-remote-exception-types": False,
+            "accept-gifts": False,
             }
 
         # see #521 for a discussion of how to pick these timeout values.
