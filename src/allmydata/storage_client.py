@@ -86,6 +86,8 @@ class StorageFarmBroker(service.MultiService):
 
     def set_static_servers(self, servers):
         for (server_id, server) in servers.items():
+            assert isinstance(server_id, unicode) # from YAML
+            server_id = server_id.encode("ascii")
             self._static_server_ids.add(server_id)
             handler_overrides = server.get("connections", {})
             s = NativeStorageServer(server_id, server["ann"],
@@ -275,6 +277,7 @@ class NativeStorageServer(service.MultiService):
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides):
         service.MultiService.__init__(self)
+        assert isinstance(server_id, str)
         self._server_id = server_id
         self.announcement = ann
         self._tub_maker = tub_maker

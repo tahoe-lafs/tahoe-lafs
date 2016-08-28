@@ -1,6 +1,6 @@
 import hashlib
 from mock import Mock
-from allmydata.util import base32
+from allmydata.util import base32, yamlutil
 
 from twisted.trial import unittest
 from twisted.internet.defer import succeed, inlineCallbacks
@@ -48,17 +48,21 @@ class TestStorageFarmBroker(unittest.TestCase):
     def test_static_servers(self):
         broker = StorageFarmBroker(True, lambda h: Mock())
 
-        key_s = 'v0-1234-{}'.format(1)
-        ann = {
-            "service-name": "storage",
-            "anonymous-storage-FURL": "pb://{}@nowhere/fake".format(base32.b2a(str(1))),
-            "permutation-seed-base32": "aaaaaaaaaaaaaaaaaaaaaaaa",
-        }
+        key_s = 'v0-1234-1'
+        servers_yaml = """\
+storage:
+  v0-1234-1:
+    ann:
+      anonymous-storage-FURL: pb://ge@nowhere/fake
+      permutation-seed-base32: aaaaaaaaaaaaaaaaaaaaaaaa
+"""
+        servers = yamlutil.safe_load(servers_yaml)
         permseed = base32.a2b("aaaaaaaaaaaaaaaaaaaaaaaa")
-        broker.set_static_servers({key_s: {"ann": ann}})
+        broker.set_static_servers(servers["storage"])
         self.failUnlessEqual(len(broker._static_server_ids), 1)
         s = broker.servers[key_s]
-        self.failUnlessEqual(s.announcement, ann)
+        self.failUnlessEqual(s.announcement,
+                             servers["storage"]["v0-1234-1"]["ann"])
         self.failUnlessEqual(s.get_serverid(), key_s)
         self.assertEqual(s.get_permutation_seed(), permseed)
 
@@ -82,7 +86,7 @@ class TestStorageFarmBroker(unittest.TestCase):
         ann = {
             "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
         }
-        broker.set_static_servers({server_id: {"ann": ann}})
+        broker.set_static_servers({server_id.decode("ascii"): {"ann": ann}})
         s = broker.servers[server_id]
         self.assertEqual(s.get_permutation_seed(), base32.a2b(k))
 
@@ -94,7 +98,7 @@ class TestStorageFarmBroker(unittest.TestCase):
             "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
             "permutation-seed-base32": k,
         }
-        broker.set_static_servers({server_id: {"ann": ann}})
+        broker.set_static_servers({server_id.decode("ascii"): {"ann": ann}})
         s = broker.servers[server_id]
         self.assertEqual(s.get_permutation_seed(), base32.a2b(k))
 
@@ -104,7 +108,7 @@ class TestStorageFarmBroker(unittest.TestCase):
         ann = {
             "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
         }
-        broker.set_static_servers({server_id: {"ann": ann}})
+        broker.set_static_servers({server_id.decode("ascii"): {"ann": ann}})
         s = broker.servers[server_id]
         self.assertEqual(s.get_permutation_seed(),
                          hashlib.sha256(server_id).digest())
