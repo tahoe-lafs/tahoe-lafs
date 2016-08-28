@@ -49,13 +49,32 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         for s in should_fail:
             self.failUnless(Node._contains_unescaped_hash(s))
             write_config(s)
-            self.failUnlessRaises(UnescapedHashError, client.Client, basedir)
+            e = self.assertRaises(UnescapedHashError, client.Client, basedir)
+            self.assertIn("[client]introducer.furl", str(e))
 
         for s in should_not_fail:
             self.failIf(Node._contains_unescaped_hash(s))
             write_config(s)
             client.Client(basedir)
 
+    def test_unreadable_config(self):
+        if sys.platform == "win32":
+            # if somebody knows a clever way to do this (cause
+            # EnvironmentError when reading a file that really exists), on
+            # windows, please fix this
+            raise unittest.SkipTest("can't make unreadable files on windows")
+        basedir = "test_client.Basic.test_unreadable_config"
+        os.mkdir(basedir)
+        fn = os.path.join(basedir, "tahoe.cfg")
+        fileutil.write(fn, BASECONFIG)
+        old_mode = os.stat(fn).st_mode
+        os.chmod(fn, 0)
+        try:
+            e = self.assertRaises(EnvironmentError, client.Client, basedir)
+            self.assertIn("Permission denied", str(e))
+        finally:
+            # don't leave undeleteable junk lying around
+            os.chmod(fn, old_mode)
 
     def test_error_on_old_config_files(self):
         basedir = "test_client.Basic.test_error_on_old_config_files"
