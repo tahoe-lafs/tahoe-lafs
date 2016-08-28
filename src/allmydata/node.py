@@ -215,8 +215,33 @@ class Node(service.MultiService):
         return tor.default_socks()
 
     def _make_i2p_handler(self):
-        # TODO: parse [i2p] config, build handler to match
-        return None
+        enabled = self.get_config("i2p", "enable", True, boolean=True)
+        if not enabled:
+            return None
+        try:
+            from foolscap.connections import i2p
+        except ImportError:
+            return None
+
+        samport = self.get_config("i2p", "sam.port", None)
+        launch = self.get_config("i2p", "launch", False, boolean=True)
+        configdir = self.get_config("i2p", "i2p.configdir", None)
+
+        if samport:
+            if launch:
+                raise ValueError("tahoe.cfg [i2p] must not set both "
+                                 "sam.port and launch")
+            ep = endpoints.clientFromString(reactor, samport)
+            return i2p.sam_endpoint(ep)
+
+        if launch:
+            executable = self.get_config("i2p", "i2p.executable", None)
+            return i2p.launch(i2p_configdir=configdir, i2p_binary=executable)
+
+        if configdir:
+            return i2p.local_i2p(configdir)
+
+        return i2p.default(reactor)
 
     def init_connections(self):
         # We store handlers for everything. None means we were unable to
