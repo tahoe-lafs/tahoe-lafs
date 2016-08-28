@@ -187,25 +187,22 @@ class Node(service.MultiService):
 
         socksport = self.get_config("tor", "socks.port", None)
         if socksport:
-            # foolscap.connections.tor.socks_port() in Foolscap-0.12.1 only
-            # allows the use of SOCKS port on localhost, to discourage unsafe
-            # connections to remote SOCKS ports. Allow the HOST:PORT syntax,
-            # but refuse to use anything other than 127.0.0.1 . Also accept
-            # just PORT.
-            if ":" in socksport:
-                host, port = socksport.split(":")
-                if host != "127.0.0.1":
-                    raise ValueError("'tahoe.cfg [tor] socks.port' = "
-                                     "must be '127.0.0.1:PORT' or just PORT, "
-                                     "not '%s'" % (socksport,))
-            else:
-                port = socksport
+            # this is nominally and endpoint string, but txtorcon requires
+            # TCP host and port. So parse it now, and reject non-TCP
+            # endpoints.
+
+            pieces = socksport.split(":")
+            if pieces[0] != "tcp" or len(pieces) != 3:
+                raise ValueError("'tahoe.cfg [tor] socks.port' = "
+                                 "is currently limited to 'tcp:HOST:PORT', "
+                                 "not '%s'" % (socksport,))
+            host = pieces[1]
             try:
-                port = int(port)
+                port = int(pieces[2])
             except ValueError:
                 raise ValueError("'tahoe.cfg [tor] socks.port' used "
-                                 "non-numeric PORT value '%s'" % (port,))
-            return tor.socks_port(port)
+                                 "non-numeric PORT value '%s'" % (pieces[2],))
+            return tor.socks_port(host, port)
 
         controlport = self.get_config("tor", "control.port", None)
         if controlport:

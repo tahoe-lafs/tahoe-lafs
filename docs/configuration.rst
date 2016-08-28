@@ -402,13 +402,20 @@ specify it.
     If False, this will disable the use of Tor entirely. The default of True
     means the node will use Tor, if necessary, and if possible.
 
-``socks.port = (string, optional, PORT, defaults to empty)``
+``socks.port = (string, optional, endpoint specification string, defaults to empty)``
 
     This tells the node that Tor connections should be routed to a SOCKS
-    proxy listening on the given port. The default (of an empty value) will
-    cause the node to first try localhost port 9050, then if that fails, try
-    localhost port 9150. These are the default listening ports of the
+    proxy listening on the given endpoint. The default (of an empty value)
+    will cause the node to first try localhost port 9050, then if that fails,
+    try localhost port 9150. These are the default listening ports of the
     standard Tor daemon, and the Tor Browser Bundle, respectively.
+
+    While this nominally accepts an arbitrary endpoint string, internal
+    limitations prevent it from accepting anything but ``tcp:HOST:PORT``
+    (unfortunately, unix-domain sockets are not yet supported). See ticket
+    #2813 for details. Also note that using a HOST of anything other than
+    localhost is discouraged, because you would be revealing your IP address
+    to external (and possibly hostile) machines.
 
 ``control.port = (string, optional, endpoint specification string)``
 
@@ -434,8 +441,8 @@ There are 5 valid combinations of these configuration settings:
 
 * 1: ``(empty)``: use SOCKS on port 9050/9150
 * 2: ``launch = true``: launch a new Tor
-* 3: ``socks.port = HOST:PORT``: use an existing Tor on the given SOCKS port
-* 4: ``control.port = PORT``: use an existing Tor at the given control port
+* 3: ``socks.port = tcp:HOST:PORT``: use an existing Tor on the given SOCKS port
+* 4: ``control.port = ENDPOINT``: use an existing Tor at the given control port
 * 5: ``enable = false``: no Tor at all
 
 1 is the default, and should work for any Linux host with the system Tor

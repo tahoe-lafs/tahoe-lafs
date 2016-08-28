@@ -65,30 +65,30 @@ class Tor(unittest.TestCase):
             self.assertIdentical(h, h1)
 
     def test_socksport(self):
-        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = 1234\n")
+        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:127.0.0.1:1234\n")
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.tor.socks_port",
                         return_value=h1) as f:
             h = n._make_tor_handler()
-            self.assertEqual(f.mock_calls, [mock.call(1234)])
+            self.assertEqual(f.mock_calls, [mock.call("127.0.0.1", 1234)])
             self.assertIdentical(h, h1)
 
-    def test_socksport_localhost(self):
-        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = 127.0.0.1:1234\n")
+    def test_socksport_otherhost(self):
+        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:otherhost:1234\n")
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.tor.socks_port",
                         return_value=h1) as f:
             h = n._make_tor_handler()
-            self.assertEqual(f.mock_calls, [mock.call(1234)])
+            self.assertEqual(f.mock_calls, [mock.call("otherhost", 1234)])
             self.assertIdentical(h, h1)
 
-    def test_socksport_bad_host(self):
-        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = example.com:1234\n")
+    def test_socksport_bad_endpoint(self):
+        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = unix:unsupported\n")
         e = self.assertRaises(ValueError, n._make_tor_handler)
-        self.assertIn("must be '127.0.0.1:PORT'", str(e))
+        self.assertIn("is currently limited to 'tcp:HOST:PORT'", str(e))
 
     def test_socksport_not_integer(self):
-        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = kumquat\n")
+        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:localhost:kumquat\n")
         e = self.assertRaises(ValueError, n._make_tor_handler)
         self.assertIn("used non-numeric PORT value", str(e))
 
