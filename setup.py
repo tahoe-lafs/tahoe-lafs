@@ -261,6 +261,18 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "coverage",
               "mock",
               "tox",
+              "foolscap[tor]",
+              "txtorcon", # in case pip's resolver doesn't work
+              "foolscap[i2p]",
+              "txi2p", # in case pip's resolver doesn't work
+          ],
+          "tor": [
+              "foolscap[tor]",
+              "txtorcon", # in case pip's resolver doesn't work
+          ],
+          "i2p": [
+              "foolscap[i2p]",
+              "txi2p", # in case pip's resolver doesn't work
           ],
       },
       package_data={"allmydata.web": ["*.xhtml",
