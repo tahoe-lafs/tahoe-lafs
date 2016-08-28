@@ -1,6 +1,7 @@
 import datetime, os.path, re, types, ConfigParser, tempfile
 from base64 import b32decode, b32encode
 
+from twisted.internet import reactor, endpoints
 from twisted.python import log as twlog
 from twisted.application import service
 from foolscap.api import Tub, app_versions
@@ -171,12 +172,47 @@ class Node(service.MultiService):
         return default()
 
     def _make_tor_handler(self):
+        enabled = self.get_config("tor", "enable", True, boolean=True)
+        if not enabled:
+            return None
         try:
-            # TODO: parse [tor] config, build handler to match
-            from foolscap.connections.tor import default_socks
-            return default_socks()
+            from foolscap.connections import tor
         except ImportError:
             return None
+
+        if self.get_config("tor", "launch", False, boolean=True):
+            executable = self.get_config("tor", "tor.executable", None)
+            datadir = os.path.join(self.basedir, "private", "tor-statedir")
+            return tor.launch(data_directory=datadir, tor_binary=executable)
+
+        socksport = self.get_config("tor", "socks.port", None)
+        if socksport:
+            # foolscap.connections.tor.socks_port() in Foolscap-0.12.1 only
+            # allows the use of SOCKS port on localhost, to discourage unsafe
+            # connections to remote SOCKS ports. Allow the HOST:PORT syntax,
+            # but refuse to use anything other than 127.0.0.1 . Also accept
+            # just PORT.
+            if ":" in socksport:
+                host, port = socksport.split(":")
+                if host != "127.0.0.1":
+                    raise ValueError("'tahoe.cfg [tor] socks.port' = "
+                                     "must be '127.0.0.1:PORT' or just PORT, "
+                                     "not '%s'" % (socksport,))
+            else:
+                port = socksport
+            try:
+                port = int(port)
+            except ValueError:
+                raise ValueError("'tahoe.cfg [tor] socks.port' used "
+                                 "non-numeric PORT value '%s'" % (port,))
+            return tor.socks_port(port)
+
+        controlport = self.get_config("tor", "control.port", None)
+        if controlport:
+            ep = endpoints.clientFromString(reactor, controlport)
+            return tor.control_endpoint(ep)
+
+        return tor.default_socks()
 
     def _make_i2p_handler(self):
         # TODO: parse [i2p] config, build handler to match
