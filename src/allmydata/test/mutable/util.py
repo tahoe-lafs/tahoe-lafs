@@ -202,7 +202,7 @@ def make_storagebroker(s=None, num_peers=10):
         s = FakeStorage()
     peerids = [tagged_hash("peerid", "%d" % i)[:20]
                for i in range(num_peers)]
-    storage_broker = StorageFarmBroker(True)
+    storage_broker = StorageFarmBroker(True, None)
     for peerid in peerids:
         fss = FakeStorageServer(peerid, s)
         ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(peerid),

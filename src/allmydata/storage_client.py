@@ -29,24 +29,18 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
 
-import re, time
+import re, time, hashlib
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.application import service
 
-from foolscap.api import Tub, eventually
+from foolscap.api import eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import sha1
-
-def get_serverid_from_furl(furl):
-    m = re.match(r'pb://(\w+)@', furl)
-    assert m, furl
-    id = m.group(1).lower()
-    return base32.a2b(id)
 
 # who is responsible for de-duplication?
 #  both?
@@ -73,23 +67,35 @@ class StorageFarmBroker(service.MultiService):
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, permute_peers, preferred_peers=(), tub_options={}, tub_handlers={}):
+    def __init__(self, permute_peers, tub_maker, preferred_peers=()):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
+        self._tub_maker = tub_maker
         self.preferred_peers = preferred_peers
-        self._tub_options = tub_options
-        self._tub_handlers = tub_handlers
 
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
         # own Reconnector, and will give us a RemoteReference when we ask
         # them for it.
         self.servers = {}
-        self.static_servers = []
+        self._static_server_ids = set() # ignore announcements for these
         self.introducer_client = None
         self._threshold_listeners = [] # tuples of (threshold, Deferred)
         self._connected_high_water_mark = 0
+
+    def set_static_servers(self, servers):
+        for (server_id, server) in servers.items():
+            assert isinstance(server_id, unicode) # from YAML
+            server_id = server_id.encode("ascii")
+            self._static_server_ids.add(server_id)
+            handler_overrides = server.get("connections", {})
+            s = NativeStorageServer(server_id, server["ann"],
+                                    self._tub_maker, handler_overrides)
+            s.on_status_changed(lambda _: self._got_connection())
+            s.setServiceParent(self)
+            self.servers[server_id] = s
+            s.start_connecting(self._trigger_connections)
 
     def when_connected_enough(self, threshold):
         """
@@ -104,14 +110,14 @@ class StorageFarmBroker(service.MultiService):
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
-        s = NativeStorageServer(serverid, ann.copy(), self._tub_options, self._tub_handlers)
+        s = NativeStorageServer(serverid, ann.copy(), self._tub_maker, {})
         s.rref = rref
         s._is_connected = True
         self.servers[serverid] = s
 
-    def test_add_server(self, serverid, s):
+    def test_add_server(self, server_id, s):
         s.on_status_changed(lambda _: self._got_connection())
-        self.servers[serverid] = s
+        self.servers[server_id] = s
 
     def use_introducer(self, introducer_client):
         self.introducer_client = ic = introducer_client
@@ -134,21 +140,22 @@ class StorageFarmBroker(service.MultiService):
                 remaining.append( (threshold, d) )
         self._threshold_listeners = remaining
 
-    def got_static_announcement(self, key_s, ann):
-        server_id = get_serverid_from_furl(ann["anonymous-storage-FURL"])
-        assert server_id not in self.static_servers # XXX
-        self.static_servers.append(server_id)
-        self._got_announcement(key_s, ann)
-
     def _got_announcement(self, key_s, ann):
         precondition(isinstance(key_s, str), key_s)
         precondition(key_s.startswith("v0-"), key_s)
         precondition(ann["service-name"] == "storage", ann["service-name"])
-        s = NativeStorageServer(key_s, ann, self._tub_options, self._tub_handlers)
+        server_id = key_s
+        if server_id in self._static_server_ids:
+            log.msg(format="ignoring announcement for static server '%(id)s'",
+                    id=server_id,
+                    facility="tahoe.storage_broker", umid="AlxzqA",
+                    level=log.UNUSUAL)
+            return
+        s = NativeStorageServer(server_id, ann, self._tub_maker, {})
         s.on_status_changed(lambda _: self._got_connection())
         server_id = s.get_serverid()
         old = self.servers.get(server_id)
-        if old and server_id not in self.static_servers:
+        if old:
             if old.get_announcement() == ann:
                 return # duplicate
             # replacement
@@ -213,6 +220,18 @@ class StorageFarmBroker(service.MultiService):
     def get_stub_server(self, serverid):
         if serverid in self.servers:
             return self.servers[serverid]
+        # some time before 1.12, we changed "serverid" to be "key_s" (the
+        # printable verifying key, used in V2 announcements), instead of the
+        # tubid. When the immutable uploader delegates work to a Helper,
+        # get_stub_server() is used to map the returning server identifiers
+        # to IDisplayableServer instances (to get a name, for display on the
+        # Upload Results web page). If the Helper is running 1.12 or newer,
+        # it will send pubkeys, but if it's still running 1.11, it will send
+        # tubids. This clause maps the old tubids to our existing servers.
+        for s in self.servers.values():
+            if isinstance(s, NativeStorageServer):
+                if serverid == s._tubid:
+                    return s
         return StubServer(serverid)
 
 class StubServer:
@@ -256,12 +275,13 @@ class NativeStorageServer(service.MultiService):
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, key_s, ann, tub_options={}, tub_handlers={}):
+    def __init__(self, server_id, ann, tub_maker, handler_overrides):
         service.MultiService.__init__(self)
-        self.key_s = key_s
+        assert isinstance(server_id, str)
+        self._server_id = server_id
         self.announcement = ann
-        self._tub_options = tub_options
-        self._tub_handlers = tub_handlers
+        self._tub_maker = tub_maker
+        self._handler_overrides = handler_overrides
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
@@ -269,20 +289,27 @@ class NativeStorageServer(service.MultiService):
         assert m, furl
         tubid_s = m.group(1).lower()
         self._tubid = base32.a2b(tubid_s)
-        assert "permutation-seed-base32" in ann, ann
-        ps = base32.a2b(str(ann["permutation-seed-base32"]))
+        if "permutation-seed-base32" in ann:
+            ps = base32.a2b(str(ann["permutation-seed-base32"]))
+        elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
+            ps = base32.a2b(server_id[3:])
+        else:
+            log.msg("unable to parse serverid '%(server_id)s as pubkey, "
+                    "hashing it to get permutation-seed, "
+                    "may not converge with other clients",
+                    server_id=server_id,
+                    facility="tahoe.storage_broker",
+                    level=log.UNUSUAL, umid="qu86tw")
+            ps = hashlib.sha256(server_id).digest()
         self._permutation_seed = ps
 
-        if key_s:
-            self._long_description = key_s
-            if key_s.startswith("v0-"):
-                # remove v0- prefix from abbreviated name
-                self._short_description = key_s[3:3+8]
-            else:
-                self._short_description = key_s[:8]
+        assert server_id
+        self._long_description = server_id
+        if server_id.startswith("v0-"):
+            # remove v0- prefix from abbreviated name
+            self._short_description = server_id[3:3+8]
         else:
-            self._long_description = tubid_s
-            self._short_description = tubid_s[:6]
+            self._short_description = server_id[:8]
 
         self.last_connect_time = None
         self.last_loss_time = None
@@ -312,7 +339,7 @@ class NativeStorageServer(service.MultiService):
     def __repr__(self):
         return "<NativeStorageServer for %s>" % self.get_name()
     def get_serverid(self):
-        return self._tubid # XXX replace with self.key_s
+        return self._server_id
     def get_permutation_seed(self):
         return self._permutation_seed
     def get_version(self):
@@ -331,7 +358,7 @@ class NativeStorageServer(service.MultiService):
         return self._tubid
 
     def get_nickname(self):
-        return self.announcement["nickname"]
+        return self.announcement.get("nickname", "")
     def get_announcement(self):
         return self.announcement
     def get_remote_host(self):
@@ -360,11 +387,7 @@ class NativeStorageServer(service.MultiService):
 
 
     def start_connecting(self, trigger_cb):
-        self._tub = Tub()
-        for (name, value) in self._tub_options.items():
-            self._tub.setOption(name, value)
-
-        # XXX todo: set tub handlers
+        self._tub = self._tub_maker(self._handler_overrides)
         self._tub.setServiceParent(self)
         furl = str(self.announcement["anonymous-storage-FURL"])
         self._trigger_cb = trigger_cb

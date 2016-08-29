@@ -1,5 +1,5 @@
 
-import pprint, itertools
+import pprint, itertools, hashlib
 import simplejson
 from twisted.internet import defer
 from nevow import rend, inevow, tags as T
@@ -597,10 +597,10 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         return l
 
     def color(self, server):
-        peerid = server.get_serverid() # binary
+        h = hashlib.sha256(server.get_serverid()).digest()
         def m(c):
             return min(ord(c) / 2 + 0x80, 0xff)
-        return "#%02x%02x%02x" % (m(peerid[0]), m(peerid[1]), m(peerid[2]))
+        return "#%02x%02x%02x" % (m(h[0]), m(h[1]), m(h[2]))
 
     def render_results(self, ctx, data):
         d = self.download_results()

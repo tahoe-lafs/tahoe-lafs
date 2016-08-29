@@ -39,7 +39,8 @@ install_requires = [
     # * foolscap 0.8.0 generates 2048-bit RSA-with-SHA-256 signatures,
     #   rather than 1024-bit RSA-with-MD5. This also allows us to work
     #   with a FIPS build of OpenSSL.
-    "foolscap >= 0.10.1",
+    # * foolscap >= 0.12.2 provides tcp/tor/i2p connection handlers we need
+    "foolscap >= 0.12.2",
 
     # Needed for SFTP.
     # pycrypto 2.2 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/620253>
