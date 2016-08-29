@@ -1,6 +1,7 @@
 import datetime, os.path, re, types, ConfigParser, tempfile
 from base64 import b32decode, b32encode
 
+from twisted.internet import reactor, endpoints
 from twisted.python import log as twlog
 from twisted.application import service
 from foolscap.api import Tub, app_versions
@@ -83,6 +84,7 @@ class Node(service.MultiService):
         assert type(self.nickname) is unicode
 
         self.init_tempdir()
+        self.init_connections()
         self.set_tub_options()
         self.create_main_tub()
         self.create_control_tub()
@@ -164,6 +166,101 @@ class Node(service.MultiService):
             twlog.msg(e)
             raise e
 
+    def _make_tcp_handler(self):
+        # this is always available
+        from foolscap.connections.tcp import default
+        return default()
+
+    def _make_tor_handler(self):
+        enabled = self.get_config("tor", "enable", True, boolean=True)
+        if not enabled:
+            return None
+        try:
+            from foolscap.connections import tor
+        except ImportError:
+            return None
+
+        if self.get_config("tor", "launch", False, boolean=True):
+            executable = self.get_config("tor", "tor.executable", None)
+            datadir = os.path.join(self.basedir, "private", "tor-statedir")
+            return tor.launch(data_directory=datadir, tor_binary=executable)
+
+        socksport = self.get_config("tor", "socks.port", None)
+        if socksport:
+            # this is nominally and endpoint string, but txtorcon requires
+            # TCP host and port. So parse it now, and reject non-TCP
+            # endpoints.
+
+            pieces = socksport.split(":")
+            if pieces[0] != "tcp" or len(pieces) != 3:
+                raise ValueError("'tahoe.cfg [tor] socks.port' = "
+                                 "is currently limited to 'tcp:HOST:PORT', "
+                                 "not '%s'" % (socksport,))
+            host = pieces[1]
+            try:
+                port = int(pieces[2])
+            except ValueError:
+                raise ValueError("'tahoe.cfg [tor] socks.port' used "
+                                 "non-numeric PORT value '%s'" % (pieces[2],))
+            return tor.socks_port(host, port)
+
+        controlport = self.get_config("tor", "control.port", None)
+        if controlport:
+            ep = endpoints.clientFromString(reactor, controlport)
+            return tor.control_endpoint(ep)
+
+        return tor.default_socks()
+
+    def _make_i2p_handler(self):
+        enabled = self.get_config("i2p", "enable", True, boolean=True)
+        if not enabled:
+            return None
+        try:
+            from foolscap.connections import i2p
+        except ImportError:
+            return None
+
+        samport = self.get_config("i2p", "sam.port", None)
+        launch = self.get_config("i2p", "launch", False, boolean=True)
+        configdir = self.get_config("i2p", "i2p.configdir", None)
+
+        if samport:
+            if launch:
+                raise ValueError("tahoe.cfg [i2p] must not set both "
+                                 "sam.port and launch")
+            ep = endpoints.clientFromString(reactor, samport)
+            return i2p.sam_endpoint(ep)
+
+        if launch:
+            executable = self.get_config("i2p", "i2p.executable", None)
+            return i2p.launch(i2p_configdir=configdir, i2p_binary=executable)
+
+        if configdir:
+            return i2p.local_i2p(configdir)
+
+        return i2p.default(reactor)
+
+    def init_connections(self):
+        # We store handlers for everything. None means we were unable to
+        # create that handler, so hints which want it will be ignored.
+        handlers = self._foolscap_connection_handlers = {
+            "tcp": self._make_tcp_handler(),
+            "tor": self._make_tor_handler(),
+            "i2p": self._make_i2p_handler(),
+            }
+        self.log("built Foolscap connection handlers for: %(known_handlers)s",
+                 known_handlers=sorted([k for k,v in handlers.items() if v]),
+                 facility="tahoe.node", umid="PuLh8g")
+
+        # then we remember the default mappings from tahoe.cfg
+        self._default_connection_handlers = {"tor": "tor", "i2p": "i2p"}
+        tcp_handler_name = self.get_config("connections", "tcp", "tcp").lower()
+        if tcp_handler_name not in handlers:
+            raise ValueError("'tahoe.cfg [connections] tcp='"
+                             " uses unknown handler type '%s'"
+                             % tcp_handler_name)
+        self._default_connection_handlers["tcp"] = tcp_handler_name
+
     def set_tub_options(self):
         self.tub_options = {
             "logLocalFailures": True,
@@ -181,12 +278,18 @@ class Node(service.MultiService):
             self.tub_options["disconnectTimeout"] = int(disconnect_timeout_s)
 
     def _create_tub(self, handler_overrides={}, **kwargs):
-        assert not handler_overrides
         # Create a Tub with the right options and handlers. It will be
         # ephemeral unless the caller provides certFile=
         tub = Tub(**kwargs)
         for (name, value) in self.tub_options.items():
             tub.setOption(name, value)
+        handlers = self._default_connection_handlers.copy()
+        handlers.update(handler_overrides)
+        tub.removeAllConnectionHintHandlers()
+        for hint_type, handler_name in handlers.items():
+            handler = self._foolscap_connection_handlers.get(handler_name)
+            if handler:
+                tub.addConnectionHintHandler(hint_type, handler)
         return tub
 
     def _convert_tub_port(self, s):

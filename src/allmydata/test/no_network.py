@@ -180,6 +180,8 @@ class NoNetworkStorageBroker:
 
 class NoNetworkClient(Client):
 
+    def init_connections(self):
+        pass
     def create_main_tub(self):
         pass
     def init_introducer_client(self):
