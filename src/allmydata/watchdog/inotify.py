@@ -42,6 +42,7 @@ class INotifyEventHandler(FileSystemEventHandler):
         self._pending = set()
 
     def process(self, event):
+        print "FILESYSTEM ENCODING: %s" % encodingutil.get_filesystem_encoding()
         event_filepath_u = event.src_path.decode(encodingutil.get_filesystem_encoding())
         event_filepath_u = abspath_expanduser_unicode(event_filepath_u, base=self._path)
 
