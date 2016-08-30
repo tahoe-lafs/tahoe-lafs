@@ -6,9 +6,7 @@ Using Tahoe-LAFS with an anonymizing network: Tor, I2P
 
 #. `Overview`_
 #. `Use cases`_
-#. `Native anonymizing network integration for Tahoe-LAFS`_
-
-   #. `Unresolved tickets`_
+#. `Unresolved tickets`_
 
 #. `Software Dependencies`_
 
@@ -20,12 +18,11 @@ Using Tahoe-LAFS with an anonymizing network: Tor, I2P
 #. `Anonymity configuration`_
 
    #. `Client anonymity`_
-   #. `Server anonymity`_
+   #. `Server anonymity, manual configuration`_
+   #. `Server anonymity, automatic configuration`_
 
-#. `Performance and security issues with Tor Hidden Services`_
-#. `Performance and security issues with I2P`_
+#. `Performance and security issues`_
 #. `Torsocks: the old way of configuring Tahoe-LAFS to use Tor`_
-#. `Legacy I2P Tahoe-LAFS Configuration`_
 
 
 
@@ -92,7 +89,7 @@ For Tahoe-LAFS storage servers there are three use-cases:
 
 
 Unresolved tickets
-------------------
+==================
 
 Tahoe's anonymity support does not yet include automatic configuration of
 servers. This issue is tracked by Tahoe tickets `#2490`_ and `#2773`_: until
@@ -512,10 +509,3 @@ As of this writing, torsocks still exists in the pkgsrc wip tree here:
 but the NetBSD-specific patches have been merged upstream into torsocks as of commitid 6adfba809267d9c217906d6974468db22293ab9b:
 
 * https://gitweb.torproject.org/torsocks.git/commit/6adfba809267d9c217906d6974468db22293ab9b
-
-
-
-Legacy I2P Tahoe-LAFS Configuration
-===================================
-
-TBC
