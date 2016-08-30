@@ -22,7 +22,6 @@ Using Tahoe-LAFS with an anonymizing network: Tor, I2P
    #. `Server anonymity, automatic configuration`_
 
 #. `Performance and security issues`_
-#. `Torsocks: the old way of configuring Tahoe-LAFS to use Tor`_
 
 
 
@@ -166,7 +165,7 @@ configurations, or to enable automatic server setup.
 The default configuration will attempt to contact a local Tor/I2P daemon
 listening on the usual ports (9050/9150 for Tor, 7656 for I2P). As long as
 there is a daemon running on the local host, and the necessary support
-libraries were installed, clients will be able to user Tor-based servers
+libraries were installed, clients will be able to use Tor-based servers
 without any special configuration.
 
 However note that this default configuration does not improve the client's
@@ -259,8 +258,7 @@ Then, do the following:
     HiddenServiceDir /var/lib/tor/tahoe
     HiddenServicePort 3000 127.0.0.1:2000
 
-* Restart Tor, with ``/etc/init.d/tor restart`` or a systemd command. Wait a
-  few seconds.
+* Restart Tor, with ``systemctl restart tor``. Wait a few seconds.
 
 * Read the ``hostname`` file in the hidden service directory (e.g.
   ``/var/lib/tor/tahoe/hostname``). This will be a ``.onion`` address, like
@@ -313,9 +311,9 @@ either launches a new Tor daemon, or has access to the Tor control port (and
 enough authority to create a new onion service).
 
 This option will set ``anonymous = true``, ``[connections] tcp = tor``. It
-will allocate the necessary ports, instruct Tor to create the onion service,
-obtain the ``.onion`` address, and populate ``tub.port`` and ``tub.location``
-correctly.
+will allocate the necessary ports, instruct Tor to create the onion service
+(saving the private key somewhere inside NODEDIR/private/), obtain the
+``.onion`` address, and populate ``tub.port`` and ``tub.location`` correctly.
 
 
 Performance and security issues
@@ -331,16 +329,23 @@ There are several trade-offs effected by this decision.
 NAT/Firewall penetration
 ------------------------
 
-Making a server be reachable via Tor or I2P makes it reachable even if there
-are NATs or firewalls preventing direct TCP/IP connections to the server.
+Making a server be reachable via Tor or I2P makes it reachable (by
+Tor/I2P-capable clients) even if there are NATs or firewalls preventing
+direct TCP/IP connections to the server.
 
 Anonymity
 ---------
 
 Making a Tahoe-LAFS server accessible *only* via Tor or I2P can be used to
-guarantee that the Tahoe-LAFS clients use Tor or I2P to connect. This prevents
-misconfigured clients from accidentally de-anonymizing themselves by connecting
-to your server through the traceable Internet.
+guarantee that the Tahoe-LAFS clients use Tor or I2P to connect
+(specifically, the server should only advertise Tor/I2P addresses in the
+``tub.location`` config key). This prevents misconfigured clients from
+accidentally de-anonymizing themselves by connecting to your server through
+the traceable Internet.
+
+Clearly, a server which is available as both a Tor/I2P service *and* a
+regular TCP address is not itself anonymous: the .onion address and the real
+IP address of the server are easily linkable.
 
 Also, interaction, through Tor, with a Tor Hidden Service may be more
 protected from network traffic analysis than interaction, through Tor,
@@ -399,113 +404,3 @@ routers, so that you can give back as you use I2P. This will never impair the
 performance of your Tahoe-LAFS node, because your I2P router will always
 prioritize your own traffic.
 
-
-
-Torsocks: the old way of configuring Tahoe-LAFS to use Tor
-==========================================================
-
-Before the native Tor integration for Tahoe-LAFS, users would use Torsocks.
-Please see these pages for more information about Torsocks:
-
-* https://code.google.com/p/torsocks/
-* https://trac.torproject.org/projects/tor/wiki/doc/torsocks
-* https://github.com/dgoulet/torsocks/
-
-
-Starting And Stopping
----------------------
-
-Assuming you have your Tahoe-LAFS node directory placed in **~/.tahoe**,
-use Torsocks to start Tahoe like this::
-
-   usewithtor tahoe start
-
-Likewise if restarting, then with Torsocks like this::
-
-   usewithtor tahoe restart
-
-After Tahoe is started, additional Tahoe commandline commands will not
-need to be executed with Torsocks because the Tahoe gateway long running
-process handles all the network connectivity.
-
-
-Configuration
--------------
-
-Before Tahoe-LAFS had native Tor integration it would deanonymize the user if a
-``tub.location`` value is not set. This is because Tahoe-LAFS at that time
-defaulted to autodetecting the external IP interface and announced that IP
-address to the server.
-
-**Tahoe-LAFS + Torsocks client configuration**
-
-**NOTE:** before diving into Tor + Tahoe-LAFS configurations you should ensure
-your familiarity with with installing Tor on unix systems. If you intend to operate
-an anonymous Tahoe-LAFS storage node then you will also want to read about configuring
-Tor Hidden Services. See here:
-
-https://www.torproject.org/docs/tor-doc-unix.html.en
-
-https://www.torproject.org/docs/tor-hidden-service.html.en
-
-Run a node using ``torsocks``, in client-only mode (i.e. we can
-make outbound connections, but other nodes will not be able to connect
-to us). The literal '``client.fakelocation``' will not resolve, but will
-serve as a reminder to human observers that this node cannot be reached.
-"Don't call us.. we'll call you"::
-
-    tub.port = tcp:interface=127.0.0.1:8098
-    tub.location = client.fakelocation:0
-
-
-**Tahoe-LAFS + Torsocks storage server configuration**
-
-Run a node behind a Tor proxy, and make the server available as a Tor
-"hidden service". (This assumes that other clients are running their
-node with ``torsocks``, such that they are prepared to connect to a
-``.onion`` address.) Your instance of Tor should be configured for
-Hidden Services... for instance specify the Hidden Service listening on port
-29212 should proxy to 127.0.0.1 port 8098 by adding this to your ``torrc`` ::
-
-  HiddenServiceDir /var/lib/tor/services/tahoe-storage
-  HiddenServicePort 29212 127.0.0.1:8098
-
-once Tor is restarted, the ``.onion`` hostname will be in
-``/var/lib/tor/services/tahoe-storage/hostname``. Then set up your
-``tahoe.cfg`` like::
-
-  tub.port = tcp:interface=127.0.0.1:8098
-  tub.location = ualhejtq2p7ohfbb.onion:29212
-
-
-**Troubleshooting**
-
-On some NetBSD systems, torsocks may segfault::
-
-  $ torsocks telnet www.google.com 80
-  Segmentation fault (core dumped)
-
-and backtraces show looping libc and syscalls::
-
-  #7198 0xbbbda26e in *__socket30 (domain=2, type=1, protocol=6) at socket.c:64
-  #7199 0xbb84baf9 in socket () from /usr/lib/libc.so.12
-  #7200 0xbbbda19b in tsocks_socket (domain=2, type=1, protocol=6) at socket.c:56
-  #7201 0xbbbda26e in *__socket30 (domain=2, type=1, protocol=6) at socket.c:64
-  #7202 0xbb84baf9 in socket () from /usr/lib/libc.so.12
-  [...etc...]
-
-This has to do with the nature of the torsocks socket() call wrapper being unaware
-of NetBSD's internal binary backwards compatibility.
-
-Information on a the first parts of a solution patch can be found in a tor-dev
-thread here from Thomas Klausner:
-
-* https://lists.torproject.org/pipermail/tor-dev/2013-November/005741.html
-
-As of this writing, torsocks still exists in the pkgsrc wip tree here:
-
-* http://pkgsrc.se/wip/torsocks
-
-but the NetBSD-specific patches have been merged upstream into torsocks as of commitid 6adfba809267d9c217906d6974468db22293ab9b:
-
-* https://gitweb.torproject.org/torsocks.git/commit/6adfba809267d9c217906d6974468db22293ab9b
