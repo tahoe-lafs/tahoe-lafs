@@ -806,12 +806,11 @@ class Downloader(QueueMixin, WriteFileMixin):
         """
         _get_local_latest takes a unicode path string checks to see if this file object
         exists in our magic-folder db; if not then return None
-        else check for an entry in our magic-folder db and return the version number.
+        else check for an entry in our magic-folder db and return it.
         """
         if not self._get_filepath(relpath_u).exists():
             return None
-        db_entry = self._db.get_db_entry(relpath_u)
-        return None if db_entry is None else db_entry.version
+        return self._db.get_db_entry(relpath_u)
 
     def _get_collective_latest_file(self, filename):
         """
@@ -853,11 +852,15 @@ class Downloader(QueueMixin, WriteFileMixin):
                 self._log("found %r" % (relpath_u,))
 
                 file_node, metadata = listing_map[encoded_relpath_u]
-                local_version = self._get_local_latest(relpath_u)
+                local_dbentry = self._get_local_latest(relpath_u)
                 remote_version = metadata.get('version', None)
-                self._log("%r has local version %r, remote version %r" % (relpath_u, local_version, remote_version))
+                remote_uri = file_node.get_readonly_uri()
+                self._log("%r has local dbentry %r, remote version %r, remote uri %r"
+                          % (relpath_u, local_dbentry, remote_version, remote_uri))
 
-                if local_version is None or remote_version is None or local_version < remote_version:
+                if (local_dbentry is None or remote_version is None or
+                    local_dbentry.version < remote_version or
+                    (local_dbentry.version == remote_version and local_dbentry.last_downloaded_uri != remote_uri)):
                     self._log("%r added to download queue" % (relpath_u,))
                     if scan_batch.has_key(relpath_u):
                         scan_batch[relpath_u] += [(file_node, metadata)]
