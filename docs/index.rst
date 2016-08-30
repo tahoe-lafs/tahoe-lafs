@@ -34,6 +34,8 @@ Contents:
    write_coordination
    backupdb
 
+   anonymity-configuration
+
    nodekeys
    performance
    logging
