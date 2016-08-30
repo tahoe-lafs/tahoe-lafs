@@ -4,18 +4,18 @@
 Configuring a Tahoe-LAFS node
 =============================
 
-1.  `Node Types`_
-2.  `Overall Node Configuration`_
-3.  `Connection Management`_
-4.  `Client Configuration`_
-5.  `Storage Server Configuration`_
-6.  `Frontend Configuration`_
-7.  `Running A Helper`_
-8.  `Running An Introducer`_
-9.  `Other Files in BASEDIR`_
-10. `Static Server Definitions`_
-11. `Other files`_
-12. `Example`_
+#.  `Node Types`_
+#.  `Overall Node Configuration`_
+#.  `Connection Management`_
+#.  `Client Configuration`_
+#.  `Storage Server Configuration`_
+#.  `Frontend Configuration`_
+#.  `Running A Helper`_
+#.  `Running An Introducer`_
+#.  `Other Files in BASEDIR`_
+#. `Static Server Definitions`_
+#. `Other files`_
+#. `Example`_
 
 A Tahoe-LAFS node is configured by writing to files in its base directory.
 These files are read by the node when it starts, so each time you change
