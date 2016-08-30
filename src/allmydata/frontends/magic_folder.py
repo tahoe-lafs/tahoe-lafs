@@ -785,13 +785,13 @@ class Downloader(QueueMixin, WriteFileMixin):
         d.addCallback(lambda ign: self._processing)
         return d
 
-    def _should_download(self, relpath_u, remote_version):
+    def _should_download(self, relpath_u, remote_version, remote_uri):
         """
         _should_download returns a bool indicating whether or not a remote object should be downloaded.
         We check the remote metadata version against our magic-folder db version number;
         latest version wins.
         """
-        self._log("_should_download(%r, %r)" % (relpath_u, remote_version))
+        self._log("_should_download(%r, %r, %r)" % (relpath_u, remote_version, remote_uri))
         if magicpath.should_ignore_file(relpath_u):
             self._log("nope")
             return False
@@ -800,7 +800,11 @@ class Downloader(QueueMixin, WriteFileMixin):
         if db_entry is None:
             return True
         self._log("version %r" % (db_entry.version,))
-        return (db_entry.version < remote_version)
+        if db_entry.version < remote_version:
+            return True
+        if db_entry.last_downloaded_uri != remote_uri:
+            return True
+        return False
 
     def _get_local_latest(self, relpath_u):
         """
@@ -853,6 +857,10 @@ class Downloader(QueueMixin, WriteFileMixin):
 
                 file_node, metadata = listing_map[encoded_relpath_u]
                 local_dbentry = self._get_local_latest(relpath_u)
+
+                # XXX FIXME this is *awefully* similar to
+                # _should_download code in function etc -- can we
+                # share?
                 remote_version = metadata.get('version', None)
                 remote_uri = file_node.get_readonly_uri()
                 self._log("%r has local dbentry %r, remote version %r, remote uri %r"
@@ -900,7 +908,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             for relpath_u in scan_batch.keys():
                 file_node, metadata = max(scan_batch[relpath_u], key=lambda x: x[1]['version'])
 
-                if self._should_download(relpath_u, metadata['version']):
+                if self._should_download(relpath_u, metadata['version'], file_node.get_readonly_uri()):
                     to_dl = DownloadItem(
                         relpath_u,
                         PercentProgress(file_node.get_size()),
