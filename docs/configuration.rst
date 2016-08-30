@@ -152,14 +152,21 @@ set the ``tub.location`` option described below.
     willing to ask Twisted to allocate port numbers in this way). To
     automatically allocate a TCP port, leave ``tub.port`` blank.
 
-    If the ``tub.port`` config key is not provided, the node will look in
-    ``BASEDIR/client.port`` (or ``BASEDIR/introducer.port``, for introducers)
-    for the descriptor that was used last time.
+    If the ``tub.port`` key is empty (i.e. ``tub.port =``), the node will not
+    listen at all, and thus cannot accept connections from other nodes. If
+    ``[storage] enabled = true``, or ``[helper] enabled = true``, or the node
+    is an Introducer, then it is an error to have ``tub.port`` be empty.
 
-    If neither is available, the node will ask the kernel for any available
-    port (the moral equivalent of ``tcp:0``). The allocated port number will
-    be written into a descriptor string in ``BASEDIR/client.port`` (or
-    ``introducer.port``), so that subsequent runs will re-use the same port.
+    If the ``tub.port`` config key is not provided (e.g. ``tub.port`` appears
+    nowhere in the ``[node]`` section, or is commented out), the node will
+    look in ``BASEDIR/client.port`` (or ``BASEDIR/introducer.port``, for
+    introducers) for the descriptor that was used last time.
+
+    If neither ``tub.port`` nor the port file is available, the node will ask
+    the kernel to allocate any available port (the moral equivalent of
+    ``tcp:0``). The allocated port number will be written into a descriptor
+    string in ``BASEDIR/client.port`` (or ``introducer.port``), so that
+    subsequent runs will re-use the same port.
 
 ``tub.location = (string, optional)``
 

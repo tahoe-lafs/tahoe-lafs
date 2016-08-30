@@ -10,6 +10,8 @@ import foolscap.logging.log
 
 from twisted.application import service
 from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry
+from allmydata.introducer.server import IntroducerNode
+from allmydata.client import Client
 from allmydata.util import fileutil, iputil
 from allmydata.util.namespace import Namespace
 import allmydata.test.common_util as testutil
@@ -178,3 +180,71 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         TestNode(basedir)
         self.failUnless(ns.called)
+
+NO_LISTEN_CONFIG = """
+[node]
+tub.port =
+#tub.location =
+[client]
+introducer.furl = empty
+"""
+
+class ClientNotListening(unittest.TestCase):
+    def test_port_none(self):
+        basedir = "test_node/test_port_none"
+        fileutil.make_dirs(basedir)
+        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
+        f.write(NO_LISTEN_CONFIG)
+        f.write("[storage]\n")
+        f.write("enabled = false\n")
+        f.close()
+        n = Client(basedir)
+        self.assertEqual(n.tub.getListeners(), [])
+
+    def test_port_none_location_none(self):
+        basedir = "test_node/test_port_none_location_none"
+        fileutil.make_dirs(basedir)
+        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
+        f.write(NO_LISTEN_CONFIG)
+        f.write("tub.location =\n")
+        f.write("[storage]\n")
+        f.write("enabled = false\n")
+        f.close()
+        n = Client(basedir)
+        self.assertEqual(n.tub.getListeners(), [])
+
+    def test_port_none_storage(self):
+        basedir = "test_node/test_port_none_storage"
+        fileutil.make_dirs(basedir)
+        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
+        f.write(NO_LISTEN_CONFIG)
+        f.write("[storage]\n")
+        f.write("enabled = true")
+        f.close()
+        e = self.assertRaises(ValueError, Client, basedir)
+        self.assertIn("storage is enabled, but tub is not listening", str(e))
+
+    def test_port_none_helper(self):
+        basedir = "test_node/test_port_none_helper"
+        fileutil.make_dirs(basedir)
+        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
+        f.write(NO_LISTEN_CONFIG)
+        f.write("[storage]\n")
+        f.write("enabled = false\n")
+        f.write("[helper]\n")
+        f.write("enabled = true")
+        f.close()
+        e = self.assertRaises(ValueError, Client, basedir)
+        self.assertIn("helper is enabled, but tub is not listening", str(e))
+
+class IntroducerNotListening(unittest.TestCase):
+    def test_port_none_introducer(self):
+        basedir = "test_node/test_port_none_introducer"
+        fileutil.make_dirs(basedir)
+        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
+        f.write("[node]\n")
+        f.write("tub.port = \n")
+        f.write("#tub.location = \n")
+        f.close()
+        e = self.assertRaises(ValueError, IntroducerNode, basedir)
+        self.assertIn("we are Introducer, but tub is not listening", str(e))

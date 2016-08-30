@@ -141,6 +141,9 @@ class Client(node.Node, pollmixin.PollMixin):
         self.load_static_servers()
         self.helper = None
         if self.get_config("helper", "enabled", False, boolean=True):
+            if not self._tub_is_listening:
+                raise ValueError("config error: helper is enabled, but tub "
+                                 "is not listening ('tub.port=' is empty)")
             self.init_helper()
         self.init_ftp_server()
         self.init_sftp_server()
@@ -246,6 +249,9 @@ class Client(node.Node, pollmixin.PollMixin):
         # should we run a storage server (and publish it for others to use)?
         if not self.get_config("storage", "enabled", True, boolean=True):
             return
+        if not self._tub_is_listening:
+            raise ValueError("config error: storage is enabled, but tub "
+                             "is not listening ('tub.port=' is empty)")
         readonly = self.get_config("storage", "readonly", False, boolean=True)
 
         storedir = os.path.join(self.basedir, self.STOREDIR)

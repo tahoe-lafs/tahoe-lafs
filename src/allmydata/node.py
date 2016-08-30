@@ -300,8 +300,11 @@ class Node(service.MultiService):
 
     def get_tub_port(self):
         # return a descriptor string
-        cfg_tubport = self.get_config("node", "tub.port", "")
-        if cfg_tubport:
+        MISSING = object()
+        cfg_tubport = self.get_config("node", "tub.port", MISSING)
+        if cfg_tubport is not MISSING:
+            if cfg_tubport.strip() == "":
+                return None # don't listen at all
             return self._convert_tub_port(cfg_tubport)
         # For 'tub.port', tahoe.cfg overrides the individual file on disk. So
         # only read self._portnumfile if tahoe.cfg doesn't provide a value.
@@ -338,15 +341,19 @@ class Node(service.MultiService):
         self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")
         self.short_nodeid = b32encode(self.nodeid).lower()[:8] # ready for printing
         tubport = self.get_tub_port()
-        if tubport in ("0", "tcp:0"):
-            raise ValueError("tub.port cannot be 0: you must choose")
-        self.tub.listenOn(tubport)
+        if tubport:
+            if tubport in ("0", "tcp:0"):
+                raise ValueError("tub.port cannot be 0: you must choose")
+            self.tub.listenOn(tubport)
+            location = self.get_tub_location(tubport)
+            self.tub.setLocation(location)
+            self._tub_is_listening = True
+            self.log("Tub location set to %s" % (location,))
+            # the Tub is now ready for tub.registerReference()
+        else:
+            self._tub_is_listening = False
+            self.log("Tub is not listening")
 
-        location = self.get_tub_location(tubport)
-        self.tub.setLocation(location)
-        self.log("Tub location set to %s" % (location,))
-
-        # the Tub is now ready for tub.registerReference()
         self.tub.setServiceParent(self)
 
     def create_control_tub(self):

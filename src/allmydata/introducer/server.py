@@ -29,6 +29,9 @@ class IntroducerNode(node.Node):
             self.init_web(webport) # strports string
 
     def init_introducer(self):
+        if not self._tub_is_listening:
+            raise ValueError("config error: we are Introducer, but tub "
+                             "is not listening ('tub.port=' is empty)")
         introducerservice = IntroducerService(self.basedir)
         self.add_service(introducerservice)
 
