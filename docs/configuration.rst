@@ -324,6 +324,23 @@ set the ``tub.location`` option described below.
     used for files that usually (on a Unix system) go into ``/tmp``. The
     string will be interpreted relative to the node's base directory.
 
+``reveal-IP-address = (boolean, optional, defaults to True)``
+
+    This is a safety flag. If False, any of the following configuration
+    problems will cause ``tahoe start`` to throw a PrivacyError instead of
+    starting the node:
+
+    * ``[node] tub.location`` contains any ``tcp:`` hints
+
+    * ``[node] tub.location`` uses ``AUTO``, or is missing/empty (because
+      that defaults to AUTO)
+
+    * ``[connections] tcp =`` is set to ``tcp`` (or left as the default),
+      rather than being set to ``tor``
+
+    These configuration problems would reveal the node's IP address to
+    servers and external networks.
+
 
 Connection Management
 =====================
@@ -333,6 +350,10 @@ Tahoe node makes outbound connections. Tor and I2P are configured here. This
 also controls when Tor and I2P are used: for all TCP connections (to hide
 your IP address), or only when necessary (just for servers which declare that
 they need Tor, because they use ``.onion`` addresses).
+
+Note that if you want to protect your node's IP address, you should set
+``[node] reveal-IP-address = False``, which will refuse to launch the node if
+any of the other configuration settings might violate this privacy property.
 
 ``[connections]``
 -----------------

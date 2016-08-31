@@ -76,6 +76,9 @@ class UnescapedHashError(Exception):
         return ("The configuration entry %s contained an unescaped '#' character."
                 % quote_output("[%s]%s = %s" % self.args))
 
+class PrivacyError(Exception):
+    """reveal-IP-address = false, but the node is configured in such a way
+    that the IP address could be revealed"""
 
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes and Introducer
@@ -99,6 +102,7 @@ class Node(service.MultiService):
         assert type(self.nickname) is unicode
 
         self.init_tempdir()
+        self.check_privacy()
         self.init_connections()
         self.set_tub_options()
         self.create_main_tub()
@@ -180,6 +184,10 @@ class Node(service.MultiService):
             e = OldConfigError(oldfnames)
             twlog.msg(e)
             raise e
+
+    def check_privacy(self):
+        self._reveal_ip = self.get_config("node", "reveal-IP-address", True,
+                                          boolean=True)
 
     def _make_tcp_handler(self):
         # this is always available
@@ -279,6 +287,10 @@ class Node(service.MultiService):
                              % (tcp_handler_name, tcp_handler_name))
         self._default_connection_handlers["tcp"] = tcp_handler_name
 
+        if not self._reveal_ip:
+            if self._default_connection_handlers["tcp"] == "tcp":
+                raise PrivacyError("tcp = tcp, must be set to 'tor'")
+
     def set_tub_options(self):
         self.tub_options = {
             "logLocalFailures": True,
@@ -339,6 +351,8 @@ class Node(service.MultiService):
         # addresses. Don't probe for local addresses unless necessary.
         split_location = location.split(",")
         if "AUTO" in split_location:
+            if not self._reveal_ip:
+                raise PrivacyError("tub.location uses AUTO")
             local_addresses = iputil.get_local_addresses_sync()
             # tubport must be like "tcp:12345" or "tcp:12345:morestuff"
             local_portnum = int(tubport.split(":")[1])
@@ -348,6 +362,10 @@ class Node(service.MultiService):
                 new_locations.extend(["tcp:%s:%d" % (ip, local_portnum)
                                       for ip in local_addresses])
             else:
+                if not self._reveal_ip:
+                    hint_type = loc.split(":")[0]
+                    if hint_type == "tcp":
+                        raise PrivacyError("tub.location includes tcp: hint")
                 new_locations.append(loc)
         return ",".join(new_locations)
 

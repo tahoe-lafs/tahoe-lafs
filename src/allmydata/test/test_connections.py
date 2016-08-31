@@ -5,12 +5,13 @@ from twisted.trial import unittest
 from twisted.internet import reactor, endpoints
 from ConfigParser import SafeConfigParser
 from foolscap.connections import tcp
-from ..node import Node
+from ..node import Node, PrivacyError
 
 class FakeNode(Node):
     def __init__(self, config_str):
         self.config = SafeConfigParser()
         self.config.readfp(BytesIO(config_str))
+        self._reveal_ip = True
 
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
@@ -230,3 +231,58 @@ class Connections(unittest.TestCase):
         e = self.assertRaises(ValueError, n.init_connections)
         self.assertIn("'tahoe.cfg [connections] tcp='", str(e))
         self.assertIn("uses unknown handler type 'unknown'", str(e))
+
+class Privacy(unittest.TestCase):
+    def test_flag(self):
+        n = FakeNode(BASECONFIG)
+        n.check_privacy()
+        self.assertTrue(n._reveal_ip)
+
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = true\n")
+        n.check_privacy()
+        self.assertTrue(n._reveal_ip)
+
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
+        n.check_privacy()
+        self.assertFalse(n._reveal_ip)
+
+        n = FakeNode(BASECONFIG+"[node]\nreveal-ip-address = false\n")
+        n.check_privacy()
+        self.assertFalse(n._reveal_ip)
+
+    def test_connections(self):
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
+        n.check_privacy()
+        e = self.assertRaises(PrivacyError, n.init_connections)
+        self.assertEqual(str(e), "tcp = tcp, must be set to 'tor'")
+
+    def test_tub_location_auto(self):
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
+        n._portnumfile = "missing"
+        n.check_privacy()
+        e = self.assertRaises(PrivacyError, n.get_tub_location, None)
+        self.assertEqual(str(e), "tub.location uses AUTO")
+
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n" +
+                     "tub.location = AUTO\n")
+        n._portnumfile = "missing"
+        n.check_privacy()
+        e = self.assertRaises(PrivacyError, n.get_tub_location, None)
+        self.assertEqual(str(e), "tub.location uses AUTO")
+
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n" +
+                     "tub.location = AUTO,tcp:hostname:1234\n")
+        n._portnumfile = "missing"
+        n.check_privacy()
+        e = self.assertRaises(PrivacyError, n.get_tub_location, None)
+        self.assertEqual(str(e), "tub.location uses AUTO")
+
+    def test_tub_location_tcp(self):
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n" +
+                     "tub.location = tcp:hostname:1234\n")
+        n._portnumfile = "missing"
+        n.check_privacy()
+        e = self.assertRaises(PrivacyError, n.get_tub_location, None)
+        self.assertEqual(str(e), "tub.location includes tcp: hint")
+
+
