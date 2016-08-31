@@ -29,6 +29,12 @@ class Tor(unittest.TestCase):
         h = n._make_tor_handler()
         self.assertEqual(h, None)
 
+    def test_unimportable(self):
+        n = FakeNode(BASECONFIG)
+        with mock.patch("allmydata.node._import_tor", return_value=None):
+            h = n._make_tor_handler()
+        self.assertEqual(h, None)
+
     def test_default(self):
         n = FakeNode(BASECONFIG)
         h1 = mock.Mock()
@@ -107,6 +113,12 @@ class I2P(unittest.TestCase):
     def test_disabled(self):
         n = FakeNode(BASECONFIG+"[i2p]\nenable = false\n")
         h = n._make_i2p_handler()
+        self.assertEqual(h, None)
+
+    def test_unimportable(self):
+        n = FakeNode(BASECONFIG)
+        with mock.patch("allmydata.node._import_i2p", return_value=None):
+            h = n._make_i2p_handler()
         self.assertEqual(h, None)
 
     def test_default(self):
@@ -203,6 +215,15 @@ class Connections(unittest.TestCase):
         self.assertEqual(n._default_connection_handlers["tcp"], "tor")
         self.assertEqual(n._default_connection_handlers["tor"], "tor")
         self.assertEqual(n._default_connection_handlers["i2p"], "i2p")
+
+    def test_tor_unimportable(self):
+        n = FakeNode(BASECONFIG+"[connections]\ntcp = tor\n")
+        with mock.patch("allmydata.node._import_tor", return_value=None):
+            e = self.assertRaises(ValueError, n.init_connections)
+        self.assertEqual(str(e),
+                         "'tahoe.cfg [connections] tcp='"
+                         " uses unavailable/unimportable handler type 'tor'."
+                         " Please pip install tahoe-lafs[tor] to fix.")
 
     def test_unknown(self):
         n = FakeNode(BASECONFIG+"[connections]\ntcp = unknown\n")

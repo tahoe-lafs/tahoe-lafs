@@ -14,6 +14,21 @@ from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
 
+def _import_tor():
+    # this exists to be overridden by unit tests
+    try:
+        from foolscap.connections import tor
+        return tor
+    except ImportError: # pragma: no cover
+        return None
+
+def _import_i2p():
+    try:
+        from foolscap.connections import i2p
+        return i2p
+    except ImportError: # pragma: no cover
+        return None
+
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
 for thing, things_version in get_package_versions().iteritems():
@@ -175,9 +190,8 @@ class Node(service.MultiService):
         enabled = self.get_config("tor", "enable", True, boolean=True)
         if not enabled:
             return None
-        try:
-            from foolscap.connections import tor
-        except ImportError:
+        tor = _import_tor()
+        if not tor:
             return None
 
         if self.get_config("tor", "launch", False, boolean=True):
@@ -215,9 +229,8 @@ class Node(service.MultiService):
         enabled = self.get_config("i2p", "enable", True, boolean=True)
         if not enabled:
             return None
-        try:
-            from foolscap.connections import i2p
-        except ImportError:
+        i2p = _import_i2p()
+        if not i2p:
             return None
 
         samport = self.get_config("i2p", "sam.port", None)
@@ -259,6 +272,11 @@ class Node(service.MultiService):
             raise ValueError("'tahoe.cfg [connections] tcp='"
                              " uses unknown handler type '%s'"
                              % tcp_handler_name)
+        if not handlers[tcp_handler_name]:
+            raise ValueError("'tahoe.cfg [connections] tcp=' uses "
+                             "unavailable/unimportable handler type '%s'. "
+                             "Please pip install tahoe-lafs[%s] to fix."
+                             % (tcp_handler_name, tcp_handler_name))
         self._default_connection_handlers["tcp"] = tcp_handler_name
 
     def set_tub_options(self):
