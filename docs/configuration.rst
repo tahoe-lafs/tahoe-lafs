@@ -425,7 +425,7 @@ specify it.
 
 ``[tor]``
 
-``enable = (boolean, optional, defaults to True)``
+``enabled = (boolean, optional, defaults to True)``
 
     If False, this will disable the use of Tor entirely. The default of True
     means the node will use Tor, if necessary, and if possible.
@@ -471,7 +471,7 @@ There are 5 valid combinations of these configuration settings:
 * 2: ``launch = true``: launch a new Tor
 * 3: ``socks.port = tcp:HOST:PORT``: use an existing Tor on the given SOCKS port
 * 4: ``control.port = ENDPOINT``: use an existing Tor at the given control port
-* 5: ``enable = false``: no Tor at all
+* 5: ``enabled = false``: no Tor at all
 
 1 is the default, and should work for any Linux host with the system Tor
 package installed. 2 should work on any box with Tor installed into $PATH,
@@ -493,7 +493,7 @@ on port 7656. This is the default SAM port for the ``i2p`` daemon.
 
 ``[i2p]``
 
-``enable = (boolean, optional, defaults to True)``
+``enabled = (boolean, optional, defaults to True)``
 
     If False, this will disable the use of I2P entirely. The default of True
     means the node will use I2P, if necessary, and if possible.

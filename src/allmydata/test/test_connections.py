@@ -26,7 +26,7 @@ class TCP(unittest.TestCase):
 
 class Tor(unittest.TestCase):
     def test_disabled(self):
-        n = FakeNode(BASECONFIG+"[tor]\nenable = false\n")
+        n = FakeNode(BASECONFIG+"[tor]\nenabled = false\n")
         h = n._make_tor_handler()
         self.assertEqual(h, None)
 
@@ -112,7 +112,7 @@ class Tor(unittest.TestCase):
 
 class I2P(unittest.TestCase):
     def test_disabled(self):
-        n = FakeNode(BASECONFIG+"[i2p]\nenable = false\n")
+        n = FakeNode(BASECONFIG+"[i2p]\nenabled = false\n")
         h = n._make_i2p_handler()
         self.assertEqual(h, None)
 

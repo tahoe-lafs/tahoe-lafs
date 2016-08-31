@@ -195,7 +195,7 @@ class Node(service.MultiService):
         return default()
 
     def _make_tor_handler(self):
-        enabled = self.get_config("tor", "enable", True, boolean=True)
+        enabled = self.get_config("tor", "enabled", True, boolean=True)
         if not enabled:
             return None
         tor = _import_tor()
@@ -234,7 +234,7 @@ class Node(service.MultiService):
         return tor.default_socks()
 
     def _make_i2p_handler(self):
-        enabled = self.get_config("i2p", "enable", True, boolean=True)
+        enabled = self.get_config("i2p", "enabled", True, boolean=True)
         if not enabled:
             return None
         i2p = _import_i2p()
