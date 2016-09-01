@@ -1,5 +1,5 @@
 
-import os, stat, sys, time
+import os, stat, sys, time, mock
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -181,58 +181,178 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         TestNode(basedir)
         self.failUnless(ns.called)
 
-NO_LISTEN_CONFIG = """
-[node]
-tub.port =
-#tub.location =
+class EmptyNode(Node):
+    def __init__(self):
+        pass
+
+EXPECTED = {
+    # top-level key is tub.port category
+    "missing": {
+        # 2nd-level key is tub.location category
+        "missing": "alloc/auto",
+        "empty": "ERR2",
+        "disabled": "ERR4",
+        "hintstring": "alloc/file",
+        },
+    "empty": {
+        "missing": "ERR1",
+        "empty": "ERR1",
+        "disabled": "ERR1",
+        "hintstring": "ERR1",
+        },
+    "disabled": {
+        "missing": "ERR3",
+        "empty": "ERR2",
+        "disabled": "no-listen",
+        "hintstring": "ERR3",
+        },
+    "endpoint": {
+        "missing": "auto",
+        "empty": "ERR2",
+        "disabled": "ERR4",
+        "hintstring": "manual",
+        },
+    }
+
+class PortLocation(unittest.TestCase):
+    def test_all(self):
+        for tp in EXPECTED.keys():
+            for tl in EXPECTED[tp].keys():
+                exp = EXPECTED[tp][tl]
+                self._try(tp, tl, exp)
+
+    def _try(self, tp, tl, exp):
+        log.msg("PortLocation._try:", tp, tl, exp)
+        cfg_tubport = {"missing": None,
+                       "empty": "",
+                       "disabled": "disabled",
+                       "endpoint": "tcp:777",
+                       }[tp]
+        cfg_location = {"missing": None,
+                        "empty": "",
+                        "disabled": "disabled",
+                        "hintstring": "tcp:HOST:888,AUTO",
+                        }[tl]
+
+        n = EmptyNode()
+        basedir = os.path.join("test_node/portlocation/%s/%s" % (tp, tl))
+        fileutil.make_dirs(basedir)
+        n._portnumfile = os.path.join(basedir, "node.port")
+        n._reveal_ip = True
+
+        if exp in ("ERR1", "ERR2", "ERR3", "ERR4"):
+            e = self.assertRaises(ValueError, n.get_tub_portlocation,
+                                  cfg_tubport, cfg_location)
+            if exp == "ERR1":
+                self.assertEqual("tub.port must not be empty", str(e))
+            elif exp == "ERR2":
+                self.assertEqual("tub.location must not be empty", str(e))
+            elif exp == "ERR3":
+                self.assertEqual("tub.port is disabled, but not tub.location",
+                                 str(e))
+            elif exp == "ERR4":
+                self.assertEqual("tub.location is disabled, but not tub.port",
+                                 str(e))
+            else:
+                self.assert_(False)
+        elif exp == "no-listen":
+            res = n.get_tub_portlocation(cfg_tubport, cfg_location)
+            self.assertEqual(res, None)
+        elif exp in ("alloc/auto", "alloc/file", "auto", "manual"):
+            with mock.patch("allmydata.util.iputil.get_local_addresses_sync",
+                            return_value=["LOCAL"]):
+                with mock.patch("allmydata.util.iputil.allocate_tcp_port",
+                                return_value=999):
+                    port, location = n.get_tub_portlocation(cfg_tubport,
+                                                            cfg_location)
+            try:
+                with open(n._portnumfile, "r") as f:
+                    saved_port = f.read().strip()
+            except EnvironmentError:
+                saved_port = None
+            if exp == "alloc/auto":
+                self.assertEqual(port, "tcp:999")
+                self.assertEqual(location, "tcp:LOCAL:999")
+                self.assertEqual(saved_port, "tcp:999")
+            elif exp == "alloc/file":
+                self.assertEqual(port, "tcp:999")
+                self.assertEqual(location, "tcp:HOST:888,tcp:LOCAL:999")
+                self.assertEqual(saved_port, "tcp:999")
+            elif exp == "auto":
+                self.assertEqual(port, "tcp:777")
+                self.assertEqual(location, "tcp:LOCAL:777")
+                self.assertEqual(saved_port, None)
+            elif exp == "manual":
+                self.assertEqual(port, "tcp:777")
+                self.assertEqual(location, "tcp:HOST:888,tcp:LOCAL:777")
+                self.assertEqual(saved_port, None)
+            else:
+                self.assert_(False)
+        else:
+            self.assert_(False)
+
+BASE_CONFIG = """
 [client]
 introducer.furl = empty
+[tor]
+enabled = false
+[i2p]
+enabled = false
+[node]
+"""
+
+NOLISTEN = """
+[node]
+tub.port = disabled
+tub.location = disabled
+"""
+
+DISABLE_STORAGE = """
+[storage]
+enabled = false
+"""
+
+ENABLE_STORAGE = """
+[storage]
+enabled = true
+"""
+
+ENABLE_HELPER = """
+[helper]
+enabled = true
 """
 
 class ClientNotListening(unittest.TestCase):
-    def test_port_none(self):
-        basedir = "test_node/test_port_none"
+    def test_disabled(self):
+        basedir = "test_node/test_disabled"
         fileutil.make_dirs(basedir)
         f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
-        f.write(NO_LISTEN_CONFIG)
-        f.write("[storage]\n")
-        f.write("enabled = false\n")
+        f.write(BASE_CONFIG)
+        f.write(NOLISTEN)
+        f.write(DISABLE_STORAGE)
         f.close()
         n = Client(basedir)
         self.assertEqual(n.tub.getListeners(), [])
 
-    def test_port_none_location_none(self):
-        basedir = "test_node/test_port_none_location_none"
+    def test_disabled_but_storage(self):
+        basedir = "test_node/test_disabled_but_storage"
         fileutil.make_dirs(basedir)
         f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
-        f.write(NO_LISTEN_CONFIG)
-        f.write("tub.location =\n")
-        f.write("[storage]\n")
-        f.write("enabled = false\n")
-        f.close()
-        n = Client(basedir)
-        self.assertEqual(n.tub.getListeners(), [])
-
-    def test_port_none_storage(self):
-        basedir = "test_node/test_port_none_storage"
-        fileutil.make_dirs(basedir)
-        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
-        f.write(NO_LISTEN_CONFIG)
-        f.write("[storage]\n")
-        f.write("enabled = true")
+        f.write(BASE_CONFIG)
+        f.write(NOLISTEN)
+        f.write(ENABLE_STORAGE)
         f.close()
         e = self.assertRaises(ValueError, Client, basedir)
         self.assertIn("storage is enabled, but tub is not listening", str(e))
 
-    def test_port_none_helper(self):
-        basedir = "test_node/test_port_none_helper"
+    def test_disabled_but_helper(self):
+        basedir = "test_node/test_disabled_but_helper"
         fileutil.make_dirs(basedir)
         f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
-        f.write(NO_LISTEN_CONFIG)
-        f.write("[storage]\n")
-        f.write("enabled = false\n")
-        f.write("[helper]\n")
-        f.write("enabled = true")
+        f.write(BASE_CONFIG)
+        f.write(NOLISTEN)
+        f.write(DISABLE_STORAGE)
+        f.write(ENABLE_HELPER)
         f.close()
         e = self.assertRaises(ValueError, Client, basedir)
         self.assertIn("helper is enabled, but tub is not listening", str(e))
@@ -243,8 +363,8 @@ class IntroducerNotListening(unittest.TestCase):
         fileutil.make_dirs(basedir)
         f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
         f.write("[node]\n")
-        f.write("tub.port = \n")
-        f.write("#tub.location = \n")
+        f.write("tub.port = disabled\n")
+        f.write("tub.location = disabled\n")
         f.close()
         e = self.assertRaises(ValueError, IntroducerNode, basedir)
         self.assertIn("we are Introducer, but tub is not listening", str(e))

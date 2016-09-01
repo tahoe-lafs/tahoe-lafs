@@ -75,6 +75,9 @@ def write_node_config(c, config):
         webport = ""
     c.write("web.port = %s\n" % (webport.encode('utf-8'),))
     c.write("web.static = public_html\n")
+    c.write("# to prevent the Tub from listening at all, use this:\n")
+    c.write("#  tub.port = disabled\n")
+    c.write("#  tub.location = disabled\n")
     c.write("#tub.port =\n")
     c.write("#tub.location = \n")
     c.write("#log_gatherer.furl =\n")

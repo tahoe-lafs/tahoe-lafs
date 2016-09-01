@@ -138,12 +138,19 @@ set the ``tub.location`` option described below.
     ``http://127.0.0.1:3456/static/foo.html`` will serve the contents of
     ``BASEDIR/public_html/foo.html`` .
 
-``tub.port = (endpoint specification string, optional)``
+``tub.port = (endpoint specification string or "disabled", optional)``
 
     This controls which port the node uses to accept Foolscap connections
     from other nodes. It is parsed as a Twisted "server endpoint descriptor",
     which accepts values like ``tcp:12345`` and
     ``tcp:23456:interface=127.0.0.1``.
+
+    If ``tub.port`` is the string ``disabled``, the node will not listen at
+    all, and thus cannot accept connections from other nodes. If ``[storage]
+    enabled = true``, or ``[helper] enabled = true``, or the node is an
+    Introducer, then it is an error to have ``tub.port`` be empty. If
+    ``tub.port`` is disabled, then ``tub.location`` must also be disabled,
+    and vice versa.
 
     For backwards compatibility, if this contains a simple integer, it will
     be used as a TCP port number, like ``tcp:%d`` (which will accept
@@ -151,11 +158,6 @@ set the ``tub.location`` option described below.
     ``tcp:0`` (older versions accepted this, but the node is no longer
     willing to ask Twisted to allocate port numbers in this way). To
     automatically allocate a TCP port, leave ``tub.port`` blank.
-
-    If the ``tub.port`` key is empty (i.e. ``tub.port =``), the node will not
-    listen at all, and thus cannot accept connections from other nodes. If
-    ``[storage] enabled = true``, or ``[helper] enabled = true``, or the node
-    is an Introducer, then it is an error to have ``tub.port`` be empty.
 
     If the ``tub.port`` config key is not provided (e.g. ``tub.port`` appears
     nowhere in the ``[node]`` section, or is commented out), the node will
@@ -168,7 +170,7 @@ set the ``tub.location`` option described below.
     string in ``BASEDIR/client.port`` (or ``introducer.port``), so that
     subsequent runs will re-use the same port.
 
-``tub.location = (string, optional)``
+``tub.location = (hint string or "disabled", optional)``
 
     In addition to running as a client, each Tahoe-LAFS node can also run as
     a server, listening for connections from other Tahoe-LAFS clients. The
@@ -179,6 +181,9 @@ set the ``tub.location`` option described below.
 
     If your node is meant to run as a server, you should fill this in, using
     a hostname or IP address that is reachable from your intended clients.
+
+    If ``tub.port`` is set to ``disabled``, then ``tub.location`` must also
+    be ``disabled``.
 
     If you don't provide ``tub.location``, the node will try to figure out a
     useful one by itself, by using tools like "``ifconfig``" to determine the
@@ -212,6 +217,11 @@ set the ``tub.location`` option described below.
       tcp:123.45.67.89:8098,tcp:tahoe.example.com:8098,tcp:127.0.0.1:8098
 
     A few examples:
+
+    * Don't listen at all (client-only mode)::
+
+        tub.port = disabled
+        tub.location = disabled
 
     * Use a DNS name so you can change the IP address more easily::
 

@@ -314,28 +314,52 @@ class Node(service.MultiService):
             return "tcp:%d" % int(s)
         return s
 
-    def get_tub_port(self):
-        # return a descriptor string
-        MISSING = object()
-        cfg_tubport = self.get_config("node", "tub.port", MISSING)
-        if cfg_tubport is not MISSING:
-            if cfg_tubport.strip() == "":
-                return None # don't listen at all
-            return self._convert_tub_port(cfg_tubport)
-        # For 'tub.port', tahoe.cfg overrides the individual file on disk. So
-        # only read self._portnumfile if tahoe.cfg doesn't provide a value.
-        if os.path.exists(self._portnumfile):
-            file_tubport = fileutil.read(self._portnumfile).strip()
-            return self._convert_tub_port(file_tubport)
-        tubport = "tcp:%d" % iputil.allocate_tcp_port()
-        fileutil.write_atomically(self._portnumfile, tubport + "\n", mode="")
-        return tubport
+    def get_tub_portlocation(self, cfg_tubport, cfg_location):
+        # return None, or tuple of (port, location)
 
-    def get_tub_location(self, tubport):
-        location = self.get_config("node", "tub.location", "AUTO")
+        tubport_disabled = False
+        if cfg_tubport is not None:
+            cfg_tubport = cfg_tubport.strip()
+            if cfg_tubport == "":
+                raise ValueError("tub.port must not be empty")
+            if cfg_tubport == "disabled":
+                tubport_disabled = True
+
+        location_disabled = False
+        if cfg_location is not None:
+            cfg_location = cfg_location.strip()
+            if cfg_location == "":
+                raise ValueError("tub.location must not be empty")
+            if cfg_location == "disabled":
+                location_disabled = True
+
+        if tubport_disabled and location_disabled:
+            return None
+        if tubport_disabled and not location_disabled:
+            raise ValueError("tub.port is disabled, but not tub.location")
+        if location_disabled and not tubport_disabled:
+            raise ValueError("tub.location is disabled, but not tub.port")
+
+        if cfg_tubport is None:
+            # For 'tub.port', tahoe.cfg overrides the individual file on
+            # disk. So only read self._portnumfile if tahoe.cfg doesn't
+            # provide a value.
+            if os.path.exists(self._portnumfile):
+                file_tubport = fileutil.read(self._portnumfile).strip()
+                tubport = self._convert_tub_port(file_tubport)
+            else:
+                tubport = "tcp:%d" % iputil.allocate_tcp_port()
+                fileutil.write_atomically(self._portnumfile, tubport + "\n",
+                                          mode="")
+        else:
+            tubport = self._convert_tub_port(cfg_tubport)
+
+        if cfg_location is None:
+            cfg_location = "AUTO"
+
         # Replace the location "AUTO", if present, with the detected local
         # addresses. Don't probe for local addresses unless necessary.
-        split_location = location.split(",")
+        split_location = cfg_location.split(",")
         if "AUTO" in split_location:
             if not self._reveal_ip:
                 raise PrivacyError("tub.location uses AUTO")
@@ -353,7 +377,9 @@ class Node(service.MultiService):
                     if hint_type == "tcp":
                         raise PrivacyError("tub.location includes tcp: hint")
                 new_locations.append(loc)
-        return ",".join(new_locations)
+        location = ",".join(new_locations)
+
+        return tubport, location
 
     def create_main_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
@@ -361,13 +387,15 @@ class Node(service.MultiService):
 
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
         self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")
-        self.short_nodeid = b32encode(self.nodeid).lower()[:8] # ready for printing
-        tubport = self.get_tub_port()
-        if tubport:
+        self.short_nodeid = b32encode(self.nodeid).lower()[:8] # for printing
+        cfg_tubport = self.get_config("node", "tub.port", None)
+        cfg_location = self.get_config("node", "tub.location", None)
+        portlocation = self.get_tub_portlocation(cfg_tubport, cfg_location)
+        if portlocation:
+            tubport, location = portlocation
             if tubport in ("0", "tcp:0"):
                 raise ValueError("tub.port cannot be 0: you must choose")
             self.tub.listenOn(tubport)
-            location = self.get_tub_location(tubport)
             self.tub.setLocation(location)
             self._tub_is_listening = True
             self.log("Tub location set to %s" % (location,))

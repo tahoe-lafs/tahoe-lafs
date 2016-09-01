@@ -270,29 +270,29 @@ class Privacy(unittest.TestCase):
         n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
         n._portnumfile = "missing"
         n.check_privacy()
-        e = self.assertRaises(PrivacyError, n.get_tub_location, None)
+        e = self.assertRaises(PrivacyError, n.get_tub_portlocation, None, None)
         self.assertEqual(str(e), "tub.location uses AUTO")
 
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n" +
-                     "tub.location = AUTO\n")
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
         n._portnumfile = "missing"
         n.check_privacy()
-        e = self.assertRaises(PrivacyError, n.get_tub_location, None)
+        e = self.assertRaises(PrivacyError, n.get_tub_portlocation,
+                              None, "AUTO")
         self.assertEqual(str(e), "tub.location uses AUTO")
 
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n" +
-                     "tub.location = AUTO,tcp:hostname:1234\n")
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
         n._portnumfile = "missing"
         n.check_privacy()
-        e = self.assertRaises(PrivacyError, n.get_tub_location, None)
+        e = self.assertRaises(PrivacyError, n.get_tub_portlocation,
+                              None, "AUTO,tcp:hostname:1234")
         self.assertEqual(str(e), "tub.location uses AUTO")
 
     def test_tub_location_tcp(self):
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n" +
-                     "tub.location = tcp:hostname:1234\n")
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
         n._portnumfile = "missing"
         n.check_privacy()
-        e = self.assertRaises(PrivacyError, n.get_tub_location, None)
+        e = self.assertRaises(PrivacyError, n.get_tub_portlocation,
+                              None, "tcp:hostname:1234")
         self.assertEqual(str(e), "tub.location includes tcp: hint")
 
 
