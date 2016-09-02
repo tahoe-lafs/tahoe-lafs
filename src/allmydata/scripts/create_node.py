@@ -1,7 +1,7 @@
 
 import os, sys
 from twisted.python import usage
-from twisted.internet.protofol import Protocol
+from twisted.internet import threads
 
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
@@ -145,11 +145,16 @@ def write_node_config(c, config):
     elif config['listen-tor']:
         if config['tor-controlport']:
             # use system tor
+            hs_public_port = 3456
             hs_port = iputil.allocate_tcp_port()
             hs_string = '%s 127.0.0.1:%d' % (hs_public_port, hs_port)
             hs = txtorcon.EphemeralHiddenService([hs_string])
-            d = hs.add_to_tor(Protocol())
-            # XXX how to fix?
+            tor_control_endpoint = clientFromString(reactor, config['tor-controlport'])
+            tor_control_protocol = threads.blockingCallFromThread(reactor, txtorcon.build_tor_connection,
+                                                                  tor_control_endpoint, build_state=False)
+            threads.blockingCallFromThread(reactor, hs.add_to_tor, tor_control_protocol)
+            c.write("tub.port = tcp:127.0.0.1:%d\n" % hs_port)
+            c.write("tub.location = tor:%s:%d\n" % (hs.hostname, hs_public_port))
         else:
             # XXX todo: launch a new tor
             pass
