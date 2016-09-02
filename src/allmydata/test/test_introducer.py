@@ -749,6 +749,7 @@ class Announcements(unittest.TestCase):
         ann_t = make_ann_t(ic, furl1, sk, 1)
 
         ic.got_announcements([ann_t])
+        yield flushEventualQueue()
 
         # check the cache for the announcement
         announcements = self._load_cache(cache_filepath)
@@ -763,6 +764,7 @@ class Announcements(unittest.TestCase):
         furl2 = furl1 + "er"
         ann_t2 = make_ann_t(ic, furl2, sk, 2)
         ic.got_announcements([ann_t2])
+        yield flushEventualQueue()
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 1)
         self.failUnlessEqual(announcements[0]['key_s'], pub1)
@@ -778,6 +780,7 @@ class Announcements(unittest.TestCase):
         furl3 = "pb://onug64tu@127.0.0.1:456/short"
         ann_t3 = make_ann_t(ic, furl3, sk2, 1)
         ic.got_announcements([ann_t3])
+        yield flushEventualQueue()
 
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 2)
@@ -788,6 +791,7 @@ class Announcements(unittest.TestCase):
                                   for a in announcements]))
 
         # test loading
+        yield flushEventualQueue()
         ic2 = IntroducerClient(None, "introducer.furl", u"my_nickname",
                                "my_version", "oldest_version", {}, fakeseq,
                                ic._cache_filepath)
@@ -803,6 +807,12 @@ class Announcements(unittest.TestCase):
                              furl2)
         self.failUnlessEqual(announcements[pub2]["anonymous-storage-FURL"],
                              furl3)
+
+        c2 = TahoeClient(basedir)
+        c2.introducer_client._load_announcements()
+        yield flushEventualQueue()
+        self.assertEqual(c2.storage_broker.get_all_serverids(),
+                         frozenset([pub1, pub2]))
 
 class ClientSeqnums(unittest.TestCase):
     def test_client(self):

@@ -11,6 +11,7 @@ from allmydata.introducer.common import sign_to_foolscap, unsign_from_foolscap,\
 from allmydata.util import log, yamlutil
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.keyutil import BadSignatureError
+from allmydata.util.assertutil import precondition
 
 class InvalidCacheError(Exception):
     pass
@@ -103,8 +104,9 @@ class IntroducerClient(service.Service, Referenceable):
                 log.err(InvalidCacheError("not a dict: %r" % (server_params,)),
                         level=log.WEIRD)
                 continue
-            self._deliver_announcements(server_params['key_s'],
-                                        server_params['ann'])
+            # everything coming from yamlutil.safe_load is unicode
+            key_s = server_params['key_s'].encode("ascii")
+            self._deliver_announcements(key_s, server_params['ann'])
 
     def _save_announcements(self):
         announcements = []
@@ -157,6 +159,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
         for index,(ann,key_s,when) in self._inbound_announcements.items():
+            precondition(isinstance(key_s, str), key_s)
             servicename = index[0]
             if servicename == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
@@ -232,6 +235,7 @@ class IntroducerClient(service.Service, Referenceable):
                 # this might raise UnknownKeyError or bad-sig error
                 ann, key_s = unsign_from_foolscap(ann_t)
                 # key is "v0-base32abc123"
+                precondition(isinstance(key_s, str), key_s)
             except BadSignatureError:
                 self.log("bad signature on inbound announcement: %s" % (ann_t,),
                          parent=lp, level=log.WEIRD, umid="ZAU15Q")
@@ -241,6 +245,7 @@ class IntroducerClient(service.Service, Referenceable):
             self._process_announcement(ann, key_s)
 
     def _process_announcement(self, ann, key_s):
+        precondition(isinstance(key_s, str), key_s)
         self._debug_counts["inbound_announcement"] += 1
         service_name = str(ann["service-name"])
         if service_name not in self._subscribed_service_names:
@@ -312,6 +317,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._deliver_announcements(key_s, ann)
 
     def _deliver_announcements(self, key_s, ann):
+        precondition(isinstance(key_s, str), key_s)
         service_name = str(ann["service-name"])
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
