@@ -184,34 +184,39 @@ Anonymity configuration
 =======================
 
 Tahoe-LAFS provides a configuration "safety flag" for explicitly stating
-whether or not anonymity is required for a node::
+whether or not IP-address privacy is required for a node::
 
    [node]
-   anonymous = (boolean, optional)
+   reveal-IP-address = (boolean, optional)
 
-When ``anonymous = True``, Tahoe-LAFS will not start if any of the
-configuration options in ``tahoe.cfg`` would compromise the identity of the
-node:
+When ``reveal-IP-address = False``, Tahoe-LAFS will refuse to start if any of
+the configuration options in ``tahoe.cfg`` would reveal the node's network
+location:
 
 * ``[connections] tcp = tor`` is required: otherwise the client would make
   direct connections to the Introducer, or any TCP-based servers it learns
   from the Introducer, revealing its IP address to those servers and a
-  network eavesdropper. With this in place, Tahoe-LAFS will not make any
-  outgoing connections that are not over a supported anonymizing network.
+  network eavesdropper. With this in place, Tahoe-LAFS will only make
+  outgoing connections through a supported anonymizing network.
 
-* ``tub.location`` is required to either be empty, or contain safe values.
-  This value is advertised to other nodes via the Introducer: it is how a
-  server advertises it's location so clients can connect to it. In anonymous
-  mode, it is an error to specify a ``tub.location`` that contains anything
-  other than a comma-separated list of location hints for supported
-  anonymizing networks (XXX is this true? check `#1010`_). The default value
-  of ``tub.location`` (when the key is missing entirely) is ``AUTO``, which
-  uses ``ifconfig`` to guess the node's external IP address, which would
-  reveal it to the server and other clients.
+* ``tub.location`` must either be disabled, or contain safe values. This
+  value is advertised to other nodes via the Introducer: it is how a server
+  advertises it's location so clients can connect to it. In private mode, it
+  is an error to include a ``tcp:`` hint in ``tub.location``. Private mode
+  rejects the default value of ``tub.location`` (when the key is missing
+  entirely), which is ``AUTO``, which uses ``ifconfig`` to guess the node's
+  external IP address, which would reveal it to the server and other clients.
 
 This option is **critical** to preserving the client's anonymity (client
 use-case 3 from `Use cases`_, above). It is also necessary to preserve a
 server's anonymity (server use-case 3).
+
+This flag can be set (to False) by providing the ``--hide-ip`` argument to
+the ``create-node``, ``create-client``, or ``create-introducer`` commands.
+
+Note that the default value of ``reveal-IP-address`` is True, because
+unfortunately hiding the node's IP address requires additional software to be
+installed (as described above), and reduces performance.
 
 Client anonymity
 ----------------
@@ -220,8 +225,9 @@ To configure a client node for anonymity, ``tahoe.cfg`` **must** contain the
 following configuration flags::
 
    [node]
-   anonymous = True
-   tub.location =
+   reveal-IP-address = False
+   tub.port = disabled
+   tub.location = disabled
 
 Once the Tahoe-LAFS node has been restarted, it can be used anonymously (client
 use-case 3).
@@ -268,12 +274,12 @@ Then, do the following:
   ``tcp:PORT:interface=127.0.0.1``, and ``tub.location`` to use
   ``tor:ONION.onion:VIRTPORT``. Using the examples above, this would be::
 
-  [node]
-  tub.port = tcp:2000:interface=127.0.0.1
-  tub.location = tor:u33m4y7klhz3b.onion:3000
-  anonymous = true
-  [connections]
-  tcp = tor
+    [node]
+    reveal-IP-address = false
+    tub.port = tcp:2000:interface=127.0.0.1
+    tub.location = tor:u33m4y7klhz3b.onion:3000
+    [connections]
+    tcp = tor
 
 * Launch the Tahoe server with ``tahoe start $NODEDIR``
 
@@ -310,10 +316,11 @@ node with the ``--listen=tor`` option. This requires a Tor configuration that
 either launches a new Tor daemon, or has access to the Tor control port (and
 enough authority to create a new onion service).
 
-This option will set ``anonymous = true``, ``[connections] tcp = tor``. It
-will allocate the necessary ports, instruct Tor to create the onion service
-(saving the private key somewhere inside NODEDIR/private/), obtain the
-``.onion`` address, and populate ``tub.port`` and ``tub.location`` correctly.
+This option will set ``reveal-IP-address = False`` and ``[connections] tcp =
+tor``. It will allocate the necessary ports, instruct Tor to create the onion
+service (saving the private key somewhere inside NODEDIR/private/), obtain
+the ``.onion`` address, and populate ``tub.port`` and ``tub.location``
+correctly.
 
 
 Performance and security issues

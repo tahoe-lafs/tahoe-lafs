@@ -20,6 +20,9 @@ def write_tac(basedir, nodetype):
 
 
 class _CreateBaseOptions(BasedirOptions):
+    optFlags = [
+        ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
+        ]
     optParameters = [
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
@@ -52,6 +55,9 @@ class CreateNodeOptions(CreateClientOptions):
 class CreateIntroducerOptions(NoDefaultBasedirOptions):
     subcommand_name = "create-introducer"
     description = "Create a Tahoe-LAFS introducer."
+    optFlags = [
+        ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
+        ]
 
 
 def write_node_config(c, config):
@@ -68,6 +74,10 @@ def write_node_config(c, config):
     c.write("[node]\n")
     nickname = argv_to_unicode(config.get("nickname") or "")
     c.write("nickname = %s\n" % (nickname.encode('utf-8'),))
+    if config["hide-ip"]:
+        c.write("reveal-IP-address = false\n")
+    else:
+        c.write("reveal-IP-address = true\n")
 
     # TODO: validate webport
     webport = argv_to_unicode(config.get("webport") or "none")
