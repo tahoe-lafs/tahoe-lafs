@@ -1,6 +1,7 @@
 
 import os, sys
 from twisted.python import usage
+from twisted.internet.protofol import Protocol
 
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
@@ -141,6 +142,19 @@ def write_node_config(c, config):
     elif config['location']:
         c.write("tub.port = %s\n" % config.get('port').encode('utf-8'))
         c.write("tub.location = %s\n" % config.get('location').encode('utf-8'))
+    elif config['listen-tor']:
+        if config['tor-controlport']:
+            # use system tor
+            hs_port = iputil.allocate_tcp_port()
+            hs_string = '%s 127.0.0.1:%d' % (hs_public_port, hs_port)
+            hs = txtorcon.EphemeralHiddenService([hs_string])
+            d = hs.add_to_tor(Protocol())
+            # XXX how to fix?
+        else:
+            # XXX todo: launch a new tor
+            pass
+    elif config['listen-i2p']:
+        pass # XXX fix me
     else:
         c.write("tub.port = disabled\n")
         c.write("tub.location = disabled\n")
