@@ -3,6 +3,7 @@ import mock
 from io import BytesIO
 from twisted.trial import unittest
 from twisted.internet import reactor, endpoints
+from twisted.internet.interfaces import IStreamClientEndpoint
 from ConfigParser import SafeConfigParser
 from foolscap.connections import tcp
 from ..node import Node, PrivacyError
@@ -71,33 +72,42 @@ class Tor(unittest.TestCase):
             self.assertEqual(f.mock_calls, [exp])
             self.assertIdentical(h, h1)
 
-    def test_socksport(self):
-        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:127.0.0.1:1234\n")
+    def test_socksport_unix_endpoint(self):
+        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = unix:/var/lib/fw-daemon/tor_socks.socket\n")
         h1 = mock.Mock()
-        with mock.patch("foolscap.connections.tor.socks_port",
+        with mock.patch("foolscap.connections.tor.socks_endpoint",
                         return_value=h1) as f:
             h = n._make_tor_handler()
-            self.assertEqual(f.mock_calls, [mock.call("127.0.0.1", 1234)])
+            self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
             self.assertIdentical(h, h1)
 
-    def test_socksport_otherhost(self):
-        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:otherhost:1234\n")
+    def test_socksport_endpoint(self):
+        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:127.0.0.1:1234\n")
         h1 = mock.Mock()
-        with mock.patch("foolscap.connections.tor.socks_port",
+        with mock.patch("foolscap.connections.tor.socks_endpoint",
                         return_value=h1) as f:
             h = n._make_tor_handler()
-            self.assertEqual(f.mock_calls, [mock.call("otherhost", 1234)])
+            self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
+            self.assertIdentical(h, h1)
+
+    def test_socksport_endpoint_otherhost(self):
+        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:otherhost:1234\n")
+        h1 = mock.Mock()
+        with mock.patch("foolscap.connections.tor.socks_endpoint",
+                        return_value=h1) as f:
+            h = n._make_tor_handler()
+            self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
             self.assertIdentical(h, h1)
 
     def test_socksport_bad_endpoint(self):
-        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = unix:unsupported\n")
+        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = meow:unsupported\n")
         e = self.assertRaises(ValueError, n._make_tor_handler)
-        self.assertIn("is currently limited to 'tcp:HOST:PORT'", str(e))
+        self.assertIn("Unknown endpoint type: 'meow'", str(e))
 
     def test_socksport_not_integer(self):
         n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:localhost:kumquat\n")
         e = self.assertRaises(ValueError, n._make_tor_handler)
-        self.assertIn("used non-numeric PORT value", str(e))
+        self.assertIn("invalid literal for int() with base 10: 'kumquat'", str(e))
 
     def test_controlport(self):
         n = FakeNode(BASECONFIG+"[tor]\ncontrol.port = tcp:localhost:1234\n")

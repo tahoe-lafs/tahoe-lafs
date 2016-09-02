@@ -207,24 +207,10 @@ class Node(service.MultiService):
             datadir = os.path.join(self.basedir, "private", "tor-statedir")
             return tor.launch(data_directory=datadir, tor_binary=executable)
 
-        socksport = self.get_config("tor", "socks.port", None)
-        if socksport:
-            # this is nominally and endpoint string, but txtorcon requires
-            # TCP host and port. So parse it now, and reject non-TCP
-            # endpoints.
-
-            pieces = socksport.split(":")
-            if pieces[0] != "tcp" or len(pieces) != 3:
-                raise ValueError("'tahoe.cfg [tor] socks.port' = "
-                                 "is currently limited to 'tcp:HOST:PORT', "
-                                 "not '%s'" % (socksport,))
-            host = pieces[1]
-            try:
-                port = int(pieces[2])
-            except ValueError:
-                raise ValueError("'tahoe.cfg [tor] socks.port' used "
-                                 "non-numeric PORT value '%s'" % (pieces[2],))
-            return tor.socks_port(host, port)
+        socks_endpoint_desc = self.get_config("tor", "socks.port", None)
+        if socks_endpoint_desc:
+            socks_ep = endpoints.clientFromString(reactor, socks_endpoint_desc)
+            return tor.socks_endpoint(socks_ep)
 
         controlport = self.get_config("tor", "control.port", None)
         if controlport:
