@@ -336,9 +336,20 @@ set the ``tub.location`` option described below.
 
 ``reveal-IP-address = (boolean, optional, defaults to True)``
 
-    This is a safety flag. If False, any of the following configuration
-    problems will cause ``tahoe start`` to throw a PrivacyError instead of
-    starting the node:
+    This is a safety flag. When set to False (aka "private mode"), the node
+    will refuse to start if any of the other configuration options would
+    reveal the node's IP address to servers or the external network. This
+    flag does not directly affect the node's behavior: its only power is to
+    veto node startup when something looks unsafe.
+
+    The default is True (non-private mode), because setting it to False
+    requires the installation of additional libraries (use ``pip install
+    tahoe-lafs[tor]`` and/or ``pip install tahoe-lafs[i2p]`` to get them) as
+    well as additional non-python software (Tor/I2P daemons). Performance is
+    also generally reduced when operating in private mode.
+
+    When False, any of the following configuration problems will cause
+    ``tahoe start`` to throw a PrivacyError instead of starting the node:
 
     * ``[node] tub.location`` contains any ``tcp:`` hints
 
@@ -347,9 +358,6 @@ set the ``tub.location`` option described below.
 
     * ``[connections] tcp =`` is set to ``tcp`` (or left as the default),
       rather than being set to ``tor``
-
-    These configuration problems would reveal the node's IP address to
-    servers and external networks.
 
 
 Connection Management
