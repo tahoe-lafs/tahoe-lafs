@@ -30,6 +30,7 @@ class _CreateBaseOptions(BasedirOptions):
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
+        ("hostname", "", None, "Specify the hostname for listening and advertising for this node."),
         ("location", "", None, "Specify the location to advertise for this node."),
         ("port", "", None, "Specify the server endpoint to listen on for this node."),
         ("nickname", "n", None, "Specify the nickname for this node."),
@@ -45,8 +46,11 @@ class _CreateBaseOptions(BasedirOptions):
     # arguments." error when more than one argument is given.
     def parseArgs(self, basedir=None):
         BasedirOptions.parseArgs(self, basedir)
-        if (self['listen-tor'] or self['listen-i2p']) and (self['port'] or self['location']):
-            raise usage.UsageError("The --listen-tor or --listen-i2p option cannot be used with --port or --location options.")
+        if self['hostname'] and (self['port'] or self['location']):
+            raise usage.UsageError("The --hostname option cannot be used with --port or --location options.")
+        if (self['listen-tor'] or self['listen-i2p']) and (self['port'] or self['location'] or self['hostname']):
+            raise usage.UsageError("The --listen-tor or --listen-i2p option cannot be used with\n" +
+                                   "--port or --location or --hostname options.")
 
 class CreateClientOptions(_CreateBaseOptions):
     synopsis = "[options] [NODEDIR]"
@@ -68,14 +72,18 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
         ("listen-tor", None, "Specify that this node listens using a Tor onions service."),
     ]
     optParameters = [
+        ("hostname", "", None, "Specify the hostname for listening and advertising for this node."),
         ("location", "", None, "Specify the location to advertise for this node."),
         ("port", "", None, "Specify the server endpoint to listen on for this node."),
     ]
 
     def parseArgs(self, basedir=None):
         NoDefaultBasedirOptions.parseArgs(self, basedir)
-        if (self['listen-tor'] or self['listen-i2p']) and (self['port'] or self['location']):
-            raise usage.UsageError("The --listen-tor or --listen-i2p option cannot be used with --port or --location options.")
+        if self['hostname'] and (self['port'] or self['location']):
+            raise usage.UsageError("The --hostname option cannot be used with --port or --location options.")
+        if (self['listen-tor'] or self['listen-i2p']) and (self['port'] or self['location'] or self['hostname']):
+            raise usage.UsageError("The --listen-tor or --listen-i2p option cannot be used with\n" +
+                                   "--port or --location or --hostname options.")
 
 
 def write_node_config(c, config):
