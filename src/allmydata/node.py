@@ -373,7 +373,15 @@ class Node(service.MultiService):
                                       for ip in local_addresses])
             else:
                 if not self._reveal_ip:
-                    hint_type = loc.split(":")[0]
+                    # Legacy hints are "host:port". We use Foolscap's utility
+                    # function to convert all hints into the modern format
+                    # ("tcp:host:port") because that's what the receiving
+                    # client will probably do. We test the converted hint for
+                    # TCP-ness, but publish the original hint because that
+                    # was the user's intent.
+                    from foolscap.connections.tcp import convert_legacy_hint
+                    converted_hint = convert_legacy_hint(loc)
+                    hint_type = converted_hint.split(":")[0]
                     if hint_type == "tcp":
                         raise PrivacyError("tub.location includes tcp: hint")
                 new_locations.append(loc)

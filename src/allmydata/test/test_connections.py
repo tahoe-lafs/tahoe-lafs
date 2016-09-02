@@ -295,4 +295,12 @@ class Privacy(unittest.TestCase):
                               None, "tcp:hostname:1234")
         self.assertEqual(str(e), "tub.location includes tcp: hint")
 
+    def test_tub_location_legacy_tcp(self):
+        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
+        n._portnumfile = "missing"
+        n.check_privacy()
+        e = self.assertRaises(PrivacyError, n.get_tub_portlocation,
+                              None, "hostname:1234")
+        self.assertEqual(str(e), "tub.location includes tcp: hint")
+
 
