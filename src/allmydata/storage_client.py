@@ -413,7 +413,7 @@ class NativeStorageServer(service.MultiService):
                 level=log.NOISY, parent=lp)
 
         self.last_connect_time = time.time()
-        self.remote_host = rref.getPeer()
+        self.remote_host = rref.getLocationHints()
         self.rref = rref
         self._is_connected = True
         rref.notifyOnDisconnect(self._lost)
