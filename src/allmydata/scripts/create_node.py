@@ -1,5 +1,6 @@
 
 import os, sys
+from twisted.python import usage
 
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
@@ -22,11 +23,15 @@ def write_tac(basedir, nodetype):
 class _CreateBaseOptions(BasedirOptions):
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
-        ]
+        ("listen-i2p", None, "Specify that this node listens using an I2p service."),
+        ("listen-tor", None, "Specify that this node listens using a Tor onions service."),
+    ]
     optParameters = [
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
+        ("location", "", None, "Specify the location to advertise for this node."),
+        ("port", "", None, "Specify the server endpoint to listen on for this node."),
         ("nickname", "n", None, "Specify the nickname for this node."),
         ("introducer", "i", None, "Specify the introducer FURL to use."),
         ("webport", "p", "tcp:3456:interface=127.0.0.1",
@@ -40,6 +45,8 @@ class _CreateBaseOptions(BasedirOptions):
     # arguments." error when more than one argument is given.
     def parseArgs(self, basedir=None):
         BasedirOptions.parseArgs(self, basedir)
+        if (self['listen-tor'] or self['listen-i2p']) and (self['port'] or self['location']):
+            raise usage.UsageError("The --listen-tor or --listen-i2p option cannot be used with --port or --location options.")
 
 class CreateClientOptions(_CreateBaseOptions):
     synopsis = "[options] [NODEDIR]"
@@ -57,7 +64,18 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
     description = "Create a Tahoe-LAFS introducer."
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
-        ]
+        ("listen-i2p", None, "Specify that this node listens using an I2p service."),
+        ("listen-tor", None, "Specify that this node listens using a Tor onions service."),
+    ]
+    optParameters = [
+        ("location", "", None, "Specify the location to advertise for this node."),
+        ("port", "", None, "Specify the server endpoint to listen on for this node."),
+    ]
+
+    def parseArgs(self, basedir=None):
+        NoDefaultBasedirOptions.parseArgs(self, basedir)
+        if (self['listen-tor'] or self['listen-i2p']) and (self['port'] or self['location']):
+            raise usage.UsageError("The --listen-tor or --listen-i2p option cannot be used with --port or --location options.")
 
 
 def write_node_config(c, config):
