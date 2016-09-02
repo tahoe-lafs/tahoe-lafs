@@ -237,7 +237,7 @@ Server anonymity, manual configuration
 
 To configure a server node to listen on an anonymizing network, we must first
 configure Tor to run an "Onion Service", and route inbound connections to the
-local Tahoe port. Then we configure Tahoe to advertise the ``.onion` address
+local Tahoe port. Then we configure Tahoe to advertise the ``.onion`` address
 to clients. We also configure Tahoe to not make direct TCP connections.
 
 * Decide on a local listening port number, named PORT. This can be any unused
