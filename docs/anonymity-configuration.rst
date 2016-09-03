@@ -149,6 +149,15 @@ no special Tahoe-side supporting libraries.
 
    pip install tahoe-lafs[i2p]
 
+Both Tor and I2P
+----------------
+
+Clients who wish to connect to both Tor- and I2P-based servers must install
+all of the above. In particular, Tahoe-LAFS must be installed with both
+extras enabled::
+
+   pip install tahoe-lafs[tor,i2p]
+
 
 
 Connection configuration
