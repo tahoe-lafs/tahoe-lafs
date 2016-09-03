@@ -149,6 +149,15 @@ no special Tahoe-side supporting libraries.
 
    pip install tahoe-lafs[i2p]
 
+Both Tor and I2P
+----------------
+
+Clients who wish to connect to both Tor- and I2P-based servers must install
+all of the above. In particular, Tahoe-LAFS must be installed with both
+extras enabled::
+
+   pip install tahoe-lafs[tor,i2p]
+
 
 
 Connection configuration
@@ -237,7 +246,7 @@ Server anonymity, manual configuration
 
 To configure a server node to listen on an anonymizing network, we must first
 configure Tor to run an "Onion Service", and route inbound connections to the
-local Tahoe port. Then we configure Tahoe to advertise the ``.onion` address
+local Tahoe port. Then we configure Tahoe to advertise the ``.onion`` address
 to clients. We also configure Tahoe to not make direct TCP connections.
 
 * Decide on a local listening port number, named PORT. This can be any unused
