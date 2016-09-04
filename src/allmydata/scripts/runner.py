@@ -138,6 +138,7 @@ def runner(argv,
     so.stdin = stdin
 
     if command in create_dispatch:
+        rc = 0
         def do_create_dispatch(ignore):
             d = create_dispatch[command](so, stdout, stderr)
             def set_rc(result):
