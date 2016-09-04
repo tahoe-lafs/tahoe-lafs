@@ -3,6 +3,7 @@ import os, sys
 from cStringIO import StringIO
 
 from twisted.python import usage
+from twisted.internet import task
 
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, startstop_node, cli, \
@@ -137,7 +138,14 @@ def runner(argv,
     so.stdin = stdin
 
     if command in create_dispatch:
-        rc = create_dispatch[command](so, stdout, stderr)
+        def do_create_dispatch(ignore):
+            d = create_dispatch[command](so, stdout, stderr)
+            def set_rc(result):
+                rc = result
+                return None
+            d.addCallback(set_rc)
+            return d
+        task.react(do_create_dispatch)
     elif command in startstop_node.dispatch:
         rc = startstop_node.dispatch[command](so, stdout, stderr)
     elif command in debug.dispatch:
