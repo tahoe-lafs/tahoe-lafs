@@ -138,15 +138,8 @@ def runner(argv,
     so.stdin = stdin
 
     if command in create_dispatch:
+        task.react(create_dispatch[command], so, stdout, stderr)
         rc = 0
-        def do_create_dispatch(ignore):
-            d = create_dispatch[command](so, stdout, stderr)
-            def set_rc(result):
-                rc = result
-                return None
-            d.addCallback(set_rc)
-            return d
-        task.react(do_create_dispatch)
     elif command in startstop_node.dispatch:
         rc = startstop_node.dispatch[command](so, stdout, stderr)
     elif command in debug.dispatch:
