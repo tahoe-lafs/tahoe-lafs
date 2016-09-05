@@ -3,7 +3,7 @@ import os, sys
 from cStringIO import StringIO
 
 from twisted.python import usage
-from twisted.internet import task
+from twisted.internet import task, reactor, defer
 
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, startstop_node, cli, \
@@ -138,25 +138,31 @@ def runner(argv,
     so.stdin = stdin
 
     if command in create_dispatch:
-        task.react(create_dispatch[command], so, stdout, stderr)
-        rc = 0
+        go = lambda: defer.maybeDeferred(create_dispatch[command], so, stdout, stderr)
     elif command in startstop_node.dispatch:
-        rc = startstop_node.dispatch[command](so, stdout, stderr)
+        go = lambda: defer.maybeDeferred(startstop_node.dispatch[command], so, stdout, stderr)
     elif command in debug.dispatch:
-        rc = debug.dispatch[command](so)
+        go = lambda: defer.maybeDeferred(debug.dispatch[command], so)
     elif command in admin.dispatch:
-        rc = admin.dispatch[command](so)
+        go = lambda: defer.maybeDeferred(admin.dispatch[command], so)
     elif command in cli.dispatch:
-        rc = cli.dispatch[command](so)
+        go = lambda: defer.maybeDeferred(cli.dispatch[command], so)
     elif command in magic_folder_cli.dispatch:
-        rc = magic_folder_cli.dispatch[command](so)
+        go = lambda: defer.maybeDeferred(magic_folder_cli.dispatch[command], so)
     elif command in ac_dispatch:
-        rc = ac_dispatch[command](so, stdout, stderr)
+        go = lambda: defer.maybeDeferred(ac_dispatch[command], so, stdout, stderr)
     else:
         raise usage.UsageError()
 
-    return rc
-
+    rc = 0
+    def exit_nonzero(result):
+        if result != 0:
+            raise SystemExit()
+    def go_run(ignore):
+        d = go()
+        d.addCallback(exit_nonzero)
+        return d
+    task.react(go_run, argv=(), _reactor=reactor)
 
 def run(install_node_control=True):
     try:
