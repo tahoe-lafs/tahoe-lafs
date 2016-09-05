@@ -154,7 +154,6 @@ def runner(argv,
     else:
         raise usage.UsageError()
 
-    rc = 0
     def exit_nonzero(result):
         if result != 0:
             raise SystemExit()
@@ -162,7 +161,8 @@ def runner(argv,
         d = go()
         d.addCallback(exit_nonzero)
         return d
-    task.react(go_run, argv=(), _reactor=reactor)
+    #task.react(go_run, argv=(), _reactor=reactor)
+    task.react(go_run, argv=())
 
 def run(install_node_control=True):
     try:
@@ -170,13 +170,10 @@ def run(install_node_control=True):
             from allmydata.windows.fixups import initialize
             initialize()
 
-        rc = runner(sys.argv[1:], install_node_control=install_node_control)
+        runner(sys.argv[1:], install_node_control=install_node_control)
     except Exception:
         import traceback
         traceback.print_exc()
-        rc = 1
-
-    sys.exit(rc)
 
 if __name__ == "__main__":
     run()
