@@ -2,6 +2,14 @@
 from ConfigParser import SafeConfigParser
 
 
+class UnknownConfigError(Exception):
+    """
+    An unknown config item was found.
+
+    This is possibly raised by validate_config()
+    """
+
+
 def get_config(tahoe_cfg):
     config = SafeConfigParser()
     f = open(tahoe_cfg, "rb")
@@ -27,3 +35,28 @@ def write_config(tahoe_cfg, config):
         config.write(f)
     finally:
         f.close()
+
+def validate_config(fname, cfg, valid_sections):
+    """
+    raises UnknownConfigError if there are any unknown sections or config
+    values.
+    """
+    for section in cfg.sections():
+        try:
+            valid_in_section = valid_sections[section]
+        except KeyError:
+            raise UnknownConfigError(
+                "'{fname}' contains unknown section [{section}]".format(
+                    fname=fname,
+                    section=section,
+                )
+            )
+        for option in cfg.options(section):
+            if option not in valid_in_section:
+                raise UnknownConfigError(
+                    "'{fname}' section [{section}] contains unknown option '{option}'".format(
+                        fname=fname,
+                        section=section,
+                        option=option,
+                    )
+                )

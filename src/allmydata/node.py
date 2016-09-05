@@ -29,6 +29,39 @@ def _import_i2p():
     except ImportError: # pragma: no cover
         return None
 
+def _common_config_sections():
+    return {
+        "connections": (
+            "tcp",
+        ),
+        "node": (
+            "log_gatherer.furl",
+            "nickname",
+            "reveal-ip-address",
+            "tempdir",
+            "timeout.disconnect",
+            "timeout.keepalive",
+            "tub.location",
+            "tub.port",
+            "web.port",
+            "web.static",
+        ),
+        "i2p": (
+            "enabled",
+            "i2p.configdir",
+            "i2p.executable",
+            "launch",
+            "sam.port",
+        ),
+        "tor": (
+            "control.port",
+            "enabled",
+            "launch",
+            "socks.port",
+            "tor.executable",
+        ),
+    }
+
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
 for thing, things_version in get_package_versions().iteritems():
@@ -91,6 +124,7 @@ class Node(service.MultiService):
     def __init__(self, basedir=u"."):
         service.MultiService.__init__(self)
         self.basedir = abspath_expanduser_unicode(unicode(basedir))
+        self.config_fname = os.path.join(self.basedir, "tahoe.cfg")
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
         open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
@@ -159,11 +193,10 @@ class Node(service.MultiService):
         self.error_about_old_config_files()
         self.config = ConfigParser.SafeConfigParser()
 
-        tahoe_cfg = os.path.join(self.basedir, "tahoe.cfg")
         try:
-            self.config = configutil.get_config(tahoe_cfg)
+            self.config = configutil.get_config(self.config_fname)
         except EnvironmentError:
-            if os.path.exists(tahoe_cfg):
+            if os.path.exists(self.config_fname):
                 raise
 
     def error_about_old_config_files(self):

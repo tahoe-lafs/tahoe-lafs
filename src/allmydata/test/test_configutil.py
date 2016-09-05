@@ -32,3 +32,45 @@ class ConfigUtilTests(CLITestMixin, GridTestMixin, unittest.TestCase):
 
         config = configutil.get_config(tahoe_cfg)
         self.failUnlessEqual(config.get("node", "descriptor"), descriptor)
+
+    def test_config_validation_success(self):
+        d = self.mktemp()
+        os.mkdir(d)
+        fname = os.path.join(d, 'tahoe.cfg')
+
+        with open(fname, 'w') as f:
+            f.write('[node]\nvalid = foo\n')
+
+        config = configutil.get_config(fname)
+        # should succeed, no exceptions
+        configutil.validate_config(fname, config, dict(node=['valid']))
+
+    def test_config_validation_invalid_item(self):
+        d = self.mktemp()
+        os.mkdir(d)
+        fname = os.path.join(d, 'tahoe.cfg')
+
+        with open(fname, 'w') as f:
+            f.write('[node]\nvalid = foo\ninvalid = foo\n')
+
+        config = configutil.get_config(fname)
+        self.assertRaises(
+            configutil.UnknownConfigError,
+            configutil.validate_config,
+            fname, config, dict(node=['valid']),
+        )
+
+    def test_config_validation_invalid_section(self):
+        d = self.mktemp()
+        os.mkdir(d)
+        fname = os.path.join(d, 'tahoe.cfg')
+
+        with open(fname, 'w') as f:
+            f.write('[node]\nvalid = foo\n[invalid]\n')
+
+        config = configutil.get_config(fname)
+        self.assertRaises(
+            configutil.UnknownConfigError,
+            configutil.validate_config,
+            fname, config, dict(node=['valid']),
+        )

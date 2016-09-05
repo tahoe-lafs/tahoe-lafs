@@ -17,7 +17,7 @@ from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
-                            yamlutil)
+                            yamlutil, configutil)
 from allmydata.util.encodingutil import (get_filesystem_encoding,
                                          from_utf8_or_none)
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -28,7 +28,7 @@ from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
-from allmydata.node import OldConfigOptionError
+from allmydata.node import OldConfigOptionError, _common_config_sections
 
 
 KiB=1024
@@ -36,6 +36,62 @@ MiB=1024*KiB
 GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
+
+def _valid_config_sections():
+    cfg = _common_config_sections()
+    cfg.update({
+        "client": (
+            "helper.furl",
+            "introducer.furl",
+            "key_generator.furl",
+            "mutable.format",
+            "peers.preferred",
+            "shares.happy",
+            "shares.needed",
+            "shares.total",
+            "stats_gatherer.furl",
+        ),
+        "drop_upload": (  # deprecated already?
+            "enabled",
+        ),
+        "ftpd": (
+            "accounts.file",
+            "accounts.url",
+            "enabled",
+            "port",
+        ),
+        "storage": (
+            "debug_discard",
+            "enabled",
+            "expire.cutoff_date",
+            "expire.enabled",
+            "expire.immutable",
+            "expire.mode",
+            "expire.mode",
+            "expire.mutable",
+            "expire.override_lease_duration",
+            "readonly",
+            "reserved_space",
+        ),
+        "sftpd": (
+            "accounts.file",
+            "accounts.url",
+            "enabled",
+            "host_privkey_file",
+            "host_pubkey_file",
+            "port",
+        ),
+        "helper": (
+            "enabled",
+        ),
+        "magic_folder": (
+            "download.umask",
+            "enabled",
+            "local.directory",
+        ),
+    })
+    return cfg
+
 
 def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
@@ -123,6 +179,7 @@ class Client(node.Node, pollmixin.PollMixin):
         node.Node.__init__(self, basedir)
         # All tub.registerReference must happen *after* we upcall, since
         # that's what does tub.setLocation()
+        configutil.validate_config(self.config_fname, self.config, _valid_config_sections())
         self._magic_folder = None
         self.started_timestamp = time.time()
         self.logSource="Client"
