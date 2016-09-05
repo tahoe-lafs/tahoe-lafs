@@ -161,7 +161,6 @@ def runner(argv,
         d = go()
         d.addCallback(exit_nonzero)
         return d
-    #task.react(go_run, argv=(), _reactor=reactor)
     task.react(go_run, argv=())
 
 def run(install_node_control=True):
