@@ -153,33 +153,23 @@ def runner(argv,
         go = lambda: defer.maybeDeferred(ac_dispatch[command], so, stdout, stderr)
     else:
         raise usage.UsageError()
-
-    def exit_nonzero(result):
-        if result != 0:
-            raise SystemExit(result)
-    def go_run(ignore):
-        d = go()
-        d.addCallback(exit_nonzero)
-        return d
-
-    #return go_run
-    return 0
+    return go
 
 def run(install_node_control=True):
-    try:
-        if sys.platform == "win32":
-            from allmydata.windows.fixups import initialize
-            initialize()
+    if sys.platform == "win32":
+        from allmydata.windows.fixups import initialize
+        initialize()
 
-        callable = runner(sys.argv[1:], install_node_control=install_node_control)
-        print "yoyo1 %s" % (callable,)
-        #task.react(callable, argv=())
-    except SystemExit, e:
-        print "yoyo2"
-        raise e
-    except Exception:
-        import traceback
-        traceback.print_exc()
+    callable = runner(sys.argv[1:], install_node_control=install_node_control)
+    def run(ignore):
+        d = callable()
+        def nonzero(result):
+            if result != 0:
+                import traceback
+                traceback.print_exc()
+        d.addCallback(nonzero)
+        return d
+    task.react(run, argv=())
 
 if __name__ == "__main__":
     run()
