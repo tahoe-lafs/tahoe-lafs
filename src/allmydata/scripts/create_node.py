@@ -1,9 +1,10 @@
 import os
+from twisted.python import usage
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path
-from allmydata.util import fileutil
+from allmydata.util import fileutil, iputil
 
 
 dummy_tac = """
@@ -17,10 +18,38 @@ def write_tac(basedir, nodetype):
     fileutil.write(os.path.join(basedir, "tahoe-%s.tac" % (nodetype,)), dummy_tac)
 
 
+WHERE_OPTS = [
+    ("location", None, None, "Specify the location to advertise for this node."),
+    ("port", None, None, "Specify the server endpoint to listen on for this node."),
+]
+
+def validate_where_options(options):
+    if options['hostname'] and options['port']:
+        raise usage.UsageError("The --hostname option cannot be used with the --port option.")
+    if options['hostname'] and options['location']:
+        raise usage.UsageError("The --hostname option cannot be used with the --location option.")
+    if not options['hostname'] and (options['location'] and not options['port']):
+        raise usage.UsageError("The --location option must be used with the --port option.")
+    if not options['hostname'] and (options['port'] and not options['location']):
+        raise usage.UsageError("The --port option must be used with the --location option.")
+    if (options['listen'] != "tcp") and options['hostname']:
+        raise usage.UsageError("The listener type must be TCP to use --hostname option.")
+
 class _CreateBaseOptions(BasedirOptions):
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
         ]
+
+    # This is overridden in order to ensure we get a "Wrong number of
+    # arguments." error when more than one argument is given.
+    def parseArgs(self, basedir=None):
+        BasedirOptions.parseArgs(self, basedir)
+
+
+class CreateClientOptions(_CreateBaseOptions):
+    synopsis = "[options] [NODEDIR]"
+    description = "Create a client-only Tahoe-LAFS node (no storage server)."
+
     optParameters = [
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
@@ -31,17 +60,10 @@ class _CreateBaseOptions(BasedirOptions):
          "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
         ("basedir", "C", None, "Specify which Tahoe base directory should be used. This has the same effect as the global --node-directory option. [default: %s]"
          % quote_local_unicode_path(_default_nodedir)),
-
         ]
 
-    # This is overridden in order to ensure we get a "Wrong number of
-    # arguments." error when more than one argument is given.
     def parseArgs(self, basedir=None):
         BasedirOptions.parseArgs(self, basedir)
-
-class CreateClientOptions(_CreateBaseOptions):
-    synopsis = "[options] [NODEDIR]"
-    description = "Create a client-only Tahoe-LAFS node (no storage server)."
 
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
@@ -49,14 +71,37 @@ class CreateNodeOptions(CreateClientOptions):
         ]
     synopsis = "[options] [NODEDIR]"
     description = "Create a full Tahoe-LAFS node (client+server)."
+    optParameters = WHERE_OPTS + [
+        # we provide 'create-node'-time options for the most common
+        # configuration knobs. The rest can be controlled by editing
+        # tahoe.cfg before node startup.
+        ("hostname", None, None, "Specify the hostname for listening and advertising for this node."),
+        ("listen", None, "tcp", "Specify the listener type for this node."),
+        ("nickname", "n", None, "Specify the nickname for this node."),
+        ("introducer", "i", None, "Specify the introducer FURL to use."),
+        ("webport", "p", "tcp:3456:interface=127.0.0.1",
+         "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
+        ("basedir", "C", None, "Specify which Tahoe base directory should be used. This has the same effect as the global --node-directory option. [default: %s]"
+         % quote_local_unicode_path(_default_nodedir)),
+
+        ]
+
+    def parseArgs(self, basedir=None):
+        CreateClientOptions.parseArgs(self, basedir)
+        validate_where_options(self)
 
 class CreateIntroducerOptions(NoDefaultBasedirOptions):
     subcommand_name = "create-introducer"
     description = "Create a Tahoe-LAFS introducer."
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
-        ]
-
+    ]
+    optParameters = WHERE_OPTS + [("listen", None, "tcp", "Specify the listener type for this node."),
+        ("hostname", None, None, "Specify the hostname for listening and advertising for this node."),
+    ]
+    def parseArgs(self, basedir=None):
+        NoDefaultBasedirOptions.parseArgs(self, basedir)
+        validate_where_options(self)
 
 def write_node_config(c, config):
     # this is shared between clients and introducers
@@ -83,11 +128,30 @@ def write_node_config(c, config):
         webport = ""
     c.write("web.port = %s\n" % (webport.encode('utf-8'),))
     c.write("web.static = public_html\n")
-    c.write("# to prevent the Tub from listening at all, use this:\n")
-    c.write("#  tub.port = disabled\n")
-    c.write("#  tub.location = disabled\n")
-    c.write("#tub.port =\n")
-    c.write("#tub.location = \n")
+
+    if 'hostname' in config and config['hostname'] is not None:
+        print "HOSTNAME"
+        new_port = iputil.allocate_tcp_port()
+        c.write("tub.port = tcp:%s\n" % new_port)
+        c.write("tub.location = tcp:%s:%s\n" % (config.get('hostname').encode('utf-8'), new_port))
+    elif 'listen' in config and config['listen'] == "tor":
+        raise NotImplementedError("This feature addition is being tracked by this ticket:" +
+                                  "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490")
+    elif 'listen' in config and config['listen'] == "i2p":
+        raise NotImplementedError("This feature addition is being tracked by this ticket:" +
+                                  "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490")
+    elif config.get('port') is not None:
+        c.write("tub.port = %s\n" % config.get('port').encode('utf-8'))
+        c.write("tub.location = %s\n" % config.get('location').encode('utf-8'))
+    else:
+        c.write("tub.port = disabled\n")
+        c.write("tub.location = disabled\n")
+
+    if ('hostname' in config and config['hostname']) or ('listen' in config and config['listen']):
+        c.write("# to prevent the Tub from listening at all, use this:\n")
+        c.write("#  tub.port = disabled\n")
+        c.write("#  tub.location = disabled\n")
+
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
     c.write("#timeout.disconnect =\n")
