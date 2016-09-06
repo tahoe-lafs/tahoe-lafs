@@ -156,12 +156,14 @@ def runner(argv,
 
     def exit_nonzero(result):
         if result != 0:
-            raise SystemExit()
+            raise SystemExit(result)
     def go_run(ignore):
         d = go()
         d.addCallback(exit_nonzero)
         return d
-    task.react(go_run, argv=())
+
+    #return go_run
+    return 0
 
 def run(install_node_control=True):
     try:
@@ -169,7 +171,12 @@ def run(install_node_control=True):
             from allmydata.windows.fixups import initialize
             initialize()
 
-        runner(sys.argv[1:], install_node_control=install_node_control)
+        callable = runner(sys.argv[1:], install_node_control=install_node_control)
+        print "yoyo1 %s" % (callable,)
+        #task.react(callable, argv=())
+    except SystemExit, e:
+        print "yoyo2"
+        raise e
     except Exception:
         import traceback
         traceback.print_exc()
