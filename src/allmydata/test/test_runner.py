@@ -360,7 +360,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         node_url_file = os.path.join(c1, "node.url")
         config_file = os.path.join(c1, "tahoe.cfg")
 
-        d = self.run_bintahoe(["--quiet", "create-introducer", "--basedir", c1])
+        d = self.run_bintahoe(["--quiet", "create-introducer", "--basedir", c1, "--hostname", "localhost"])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
@@ -389,6 +389,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
+            print errstr
             # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
 
             # the parent (twistd) has exited. However, twistd writes the pid
@@ -409,6 +410,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # read the introducer.furl and introducer.port files so we can
             # check that their contents don't change on restart
             self.furl = fileutil.read(introducer_furl_file)
+            print "portnum_file " + portnum_file
             self.failUnless(os.path.exists(portnum_file))
             self.portnum = fileutil.read(portnum_file)
 
@@ -547,7 +549,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         node_url_file = os.path.join(c1, "node.url")
         config_file = os.path.join(c1, "tahoe.cfg")
 
-        d = self.run_bintahoe(["--quiet", "create-node", "--basedir", c1, "--webport", "0"])
+        d = self.run_bintahoe(["--quiet", "create-node", "--basedir", c1, "--webport", "0", "--hostname", "localhost"])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
