@@ -3,6 +3,7 @@ import os, sys
 from cStringIO import StringIO
 
 from twisted.python import usage
+from twisted.internet import task, reactor, defer
 
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, startstop_node, cli, \
@@ -137,38 +138,38 @@ def runner(argv,
     so.stdin = stdin
 
     if command in create_dispatch:
-        rc = create_dispatch[command](so, stdout, stderr)
+        go = lambda: defer.maybeDeferred(create_dispatch[command], so, stdout, stderr)
     elif command in startstop_node.dispatch:
-        rc = startstop_node.dispatch[command](so, stdout, stderr)
+        go = lambda: defer.maybeDeferred(startstop_node.dispatch[command], so, stdout, stderr)
     elif command in debug.dispatch:
-        rc = debug.dispatch[command](so)
+        go = lambda: defer.maybeDeferred(debug.dispatch[command], so)
     elif command in admin.dispatch:
-        rc = admin.dispatch[command](so)
+        go = lambda: defer.maybeDeferred(admin.dispatch[command], so)
     elif command in cli.dispatch:
-        rc = cli.dispatch[command](so)
+        go = lambda: defer.maybeDeferred(cli.dispatch[command], so)
     elif command in magic_folder_cli.dispatch:
-        rc = magic_folder_cli.dispatch[command](so)
+        go = lambda: defer.maybeDeferred(magic_folder_cli.dispatch[command], so)
     elif command in ac_dispatch:
-        rc = ac_dispatch[command](so, stdout, stderr)
+        go = lambda: defer.maybeDeferred(ac_dispatch[command], so, stdout, stderr)
     else:
         raise usage.UsageError()
-
-    return rc
-
+    return go
 
 def run(install_node_control=True):
-    try:
-        if sys.platform == "win32":
-            from allmydata.windows.fixups import initialize
-            initialize()
+    if sys.platform == "win32":
+        from allmydata.windows.fixups import initialize
+        initialize()
 
-        rc = runner(sys.argv[1:], install_node_control=install_node_control)
-    except Exception:
-        import traceback
-        traceback.print_exc()
-        rc = 1
-
-    sys.exit(rc)
+    callable = runner(sys.argv[1:], install_node_control=install_node_control)
+    def run(ignore):
+        d = callable()
+        def nonzero(result):
+            if result != 0:
+                import traceback
+                traceback.print_exc()
+        d.addCallback(nonzero)
+        return d
+    task.react(run, argv=())
 
 if __name__ == "__main__":
     run()

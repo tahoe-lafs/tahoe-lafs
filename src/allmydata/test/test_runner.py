@@ -4,7 +4,7 @@ from cStringIO import StringIO
 from twisted.trial import unittest
 
 from twisted.python import usage, runtime
-from twisted.internet import threads
+from twisted.internet import threads, defer
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from allmydata.util import fileutil, pollmixin
@@ -182,8 +182,8 @@ class CreateNode(unittest.TestCase):
 
     def run_tahoe(self, argv):
         out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        return rc, out.getvalue(), err.getvalue()
+        callable = runner.runner(argv, stdout=out, stderr=err)
+        return callable, out.getvalue(), err.getvalue()
 
     def do_create(self, kind, *args):
         basedir = self.workdir("test_" + kind)
@@ -193,30 +193,39 @@ class CreateNode(unittest.TestCase):
 
         n1 = os.path.join(basedir, command + "-n1")
         argv = ["--quiet", command, "--basedir", n1] + list(args)
-        rc, out, err = self.run_tahoe(argv)
-        self.failUnlessEqual(err, "")
-        self.failUnlessEqual(out, "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(n1))
-        self.failUnless(os.path.exists(os.path.join(n1, tac)))
+        callable1, out, err = self.run_tahoe(argv)
+        d = callable1()
+        def check_errs1(rc, out, err, n1, tac):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(out, "")
+            self.failUnlessEqual(rc, 0)
+            self.failUnless(os.path.exists(n1))
+            self.failUnless(os.path.exists(os.path.join(n1, tac)))
+        d.addCallback(check_errs1, out, err, n1, tac)
+
 
         if is_client:
-            # tahoe.cfg should exist, and should have storage enabled for
-            # 'create-node', and disabled for 'create-client'.
-            tahoe_cfg = os.path.join(n1, "tahoe.cfg")
-            self.failUnless(os.path.exists(tahoe_cfg))
-            content = fileutil.read(tahoe_cfg).replace('\r\n', '\n')
-            if kind == "client":
-                self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = false\n", content), content)
-            else:
-                self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = true\n", content), content)
-                self.failUnless("\nreserved_space = 1G\n" in content)
+            def run_client(ignore, n1):
+                # tahoe.cfg should exist, and should have storage enabled for
+                # 'create-node', and disabled for 'create-client'.
+                tahoe_cfg = os.path.join(n1, "tahoe.cfg")
+                self.failUnless(os.path.exists(tahoe_cfg))
+                content = fileutil.read(tahoe_cfg).replace('\r\n', '\n')
+                if kind == "client":
+                    self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = false\n", content), content)
+                else:
+                    self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = true\n", content), content)
+                    self.failUnless("\nreserved_space = 1G\n" in content)
+            d.addCallback(run_client, n1)
 
         # creating the node a second time should be rejected
-        rc, out, err = self.run_tahoe(argv)
-        self.failIfEqual(rc, 0, str((out, err, rc)))
-        self.failUnlessEqual(out, "")
-        self.failUnless("is not empty." in err)
+        callable2, out, err = self.run_tahoe(argv)
+        d.addCallback(lambda ign: callable2())
+        def check_errs2(rc, out, err):
+            self.failIfEqual(rc, 0, str((out, err, rc)))
+            self.failUnlessEqual(out, "")
+            self.failUnless("is not empty." in err)
+        d.addCallback(check_errs2, out, err)
 
         # Fail if there is a non-empty line that doesn't end with a
         # punctuation mark.
@@ -226,35 +235,44 @@ class CreateNode(unittest.TestCase):
         # test that the non --basedir form works too
         n2 = os.path.join(basedir, command + "-n2")
         argv = ["--quiet", command] + list(args) + [n2]
-        rc, out, err = self.run_tahoe(argv)
-        self.failUnlessEqual(err, "")
-        self.failUnlessEqual(out, "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(n2))
-        self.failUnless(os.path.exists(os.path.join(n2, tac)))
+        callable, out, err = self.run_tahoe(argv)
+        d.addCallback(lambda ign: callable())
+        def check_errs(rc):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(out, "")
+            self.failUnlessEqual(rc, 0)
+            self.failUnless(os.path.exists(n2))
+            self.failUnless(os.path.exists(os.path.join(n2, tac)))
+        d.addCallback(check_errs)
 
         # test the --node-directory form
         n3 = os.path.join(basedir, command + "-n3")
         argv = ["--quiet", "--node-directory", n3, command] + list(args)
-        rc, out, err = self.run_tahoe(argv)
-        self.failUnlessEqual(err, "")
-        self.failUnlessEqual(out, "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(n3))
-        self.failUnless(os.path.exists(os.path.join(n3, tac)))
+        callable, out, err = self.run_tahoe(argv)
+        d.addCallback(lambda ign: callable())
+        def check_errs(rc):        
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(out, "")
+            self.failUnlessEqual(rc, 0)
+            self.failUnless(os.path.exists(n3))
+            self.failUnless(os.path.exists(os.path.join(n3, tac)))
+        d.addCallback(check_errs)
 
         if kind in ("client", "node", "introducer"):
             # test that the output (without --quiet) includes the base directory
             n4 = os.path.join(basedir, command + "-n4")
             argv = [command] + list(args) + [n4]
-            rc, out, err = self.run_tahoe(argv)
-            self.failUnlessEqual(err, "")
-            self.failUnlessIn(" created in ", out)
-            self.failUnlessIn(n4, out)
-            self.failIfIn("\\\\?\\", out)
-            self.failUnlessEqual(rc, 0)
-            self.failUnless(os.path.exists(n4))
-            self.failUnless(os.path.exists(os.path.join(n4, tac)))
+            callable, out, err = self.run_tahoe(argv)
+            d.addCallback(lambda ign: callable())
+            def check_errs(rc):
+                self.failUnlessEqual(err, "")
+                self.failUnlessIn(" created in ", out)
+                self.failUnlessIn(n4, out)
+                self.failIfIn("\\\\?\\", out)
+                self.failUnlessEqual(rc, 0)
+                self.failUnless(os.path.exists(n4))
+                self.failUnless(os.path.exists(os.path.join(n4, tac)))
+            d.addCallback(check_errs)
 
         # make sure it rejects too many arguments
         argv = [command, "basedir", "extraarg"]
@@ -269,6 +287,7 @@ class CreateNode(unittest.TestCase):
                                   runner.runner, argv,
                                   run_by_human=False)
 
+        return d
 
     def test_node(self):
         self.do_create("node")

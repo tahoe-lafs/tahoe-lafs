@@ -1,5 +1,6 @@
 
 import os, sys
+from twisted.internet import defer
 
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
@@ -108,7 +109,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
             print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
             print >>err, "To avoid clobbering anything, I am going to quit now."
             print >>err, "Please use a different directory, or empty this one."
-            return -1
+            return defer.succeed(-1)
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
@@ -159,7 +160,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
         print >>out, " The node cannot connect to a grid without it."
     if not config.get("nickname", ""):
         print >>out, " Please set [node]nickname= in tahoe.cfg"
-    return 0
+    return defer.succeed(0)
 
 def create_client(config, out=sys.stdout, err=sys.stderr):
     config['no-storage'] = True
@@ -176,7 +177,7 @@ def create_introducer(config, out=sys.stdout, err=sys.stderr):
             print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
             print >>err, "To avoid clobbering anything, I am going to quit now."
             print >>err, "Please use a different directory, or empty this one."
-            return -1
+            return defer.succeed(-1)
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
@@ -187,7 +188,7 @@ def create_introducer(config, out=sys.stdout, err=sys.stderr):
     c.close()
 
     print >>out, "Introducer created in %s" % quote_local_unicode_path(basedir)
-    return 0
+    return defer.succeed(0)
 
 
 subCommands = [
