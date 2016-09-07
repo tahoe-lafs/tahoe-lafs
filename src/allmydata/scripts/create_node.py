@@ -97,27 +97,7 @@ def write_node_config(c, config):
     c.write("#ssh.authorized_keys_file = ~/.ssh/authorized_keys\n")
     c.write("\n")
 
-
-def create_node(config, out=sys.stdout, err=sys.stderr):
-    basedir = config['basedir']
-    # This should always be called with an absolute Unicode basedir.
-    precondition(isinstance(basedir, unicode), basedir)
-
-    if os.path.exists(basedir):
-        if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
-            print >>err, "To avoid clobbering anything, I am going to quit now."
-            print >>err, "Please use a different directory, or empty this one."
-            return -1
-        # we're willing to use an empty directory
-    else:
-        os.mkdir(basedir)
-    write_tac(basedir, "client")
-
-    c = open(os.path.join(basedir, "tahoe.cfg"), "w")
-
-    write_node_config(c, config)
-
+def write_client_config(c, config):
     c.write("[client]\n")
     c.write("# Which services should this client connect to?\n")
     c.write("introducer.furl = %s\n" % config.get("introducer", ""))
@@ -148,6 +128,27 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.write("# Shall this node run a helper service that clients can use?\n")
     c.write("enabled = false\n")
     c.write("\n")
+
+def create_node(config, out=sys.stdout, err=sys.stderr):
+    basedir = config['basedir']
+    # This should always be called with an absolute Unicode basedir.
+    precondition(isinstance(basedir, unicode), basedir)
+
+    if os.path.exists(basedir):
+        if listdir_unicode(basedir):
+            print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
+            print >>err, "To avoid clobbering anything, I am going to quit now."
+            print >>err, "Please use a different directory, or empty this one."
+            return -1
+        # we're willing to use an empty directory
+    else:
+        os.mkdir(basedir)
+    write_tac(basedir, "client")
+
+    c = open(os.path.join(basedir, "tahoe.cfg"), "w")
+
+    write_node_config(c, config)
+    write_client_config(c, config)
 
     c.close()
 
