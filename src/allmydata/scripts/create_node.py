@@ -1,11 +1,13 @@
 
 import os, sys
+from twisted.python import usage
+from twisted.internet import threads
 
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path
-from allmydata.util import fileutil
+from allmydata.util import fileutil, iputil
 
 
 dummy_tac = """
@@ -22,11 +24,17 @@ def write_tac(basedir, nodetype):
 class _CreateBaseOptions(BasedirOptions):
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
-        ]
+        ("listen-i2p", None, "Specify that this node listens using an I2p service."),
+        ("listen-tor", None, "Specify that this node listens using a Tor onions service."),
+    ]
     optParameters = [
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
+        ("tor-controlport", "", None, "Specify the Tor control port."),
+        ("hostname", "", None, "Specify the hostname for listening and advertising for this node."),
+        ("location", "", None, "Specify the location to advertise for this node."),
+        ("port", "", None, "Specify the server endpoint to listen on for this node."),
         ("nickname", "n", None, "Specify the nickname for this node."),
         ("introducer", "i", None, "Specify the introducer FURL to use."),
         ("webport", "p", "tcp:3456:interface=127.0.0.1",
@@ -40,6 +48,20 @@ class _CreateBaseOptions(BasedirOptions):
     # arguments." error when more than one argument is given.
     def parseArgs(self, basedir=None):
         BasedirOptions.parseArgs(self, basedir)
+        if self['hostname'] and self['port']:
+            try:
+                int(self['port'])
+            except ValueError:
+                raise usage.UsageError("The --hostname option cannot be used with a non-Integer --port option.")
+        if self['hostname'] and self['location']:
+            raise usage.UsageError("The --hostname option cannot be used with the --location option.")
+        if not self['hostname'] and (self['location'] and not self['port']):
+            raise usage.UsageError("The --location option must be used with the --port option.")
+        if not self['hostname'] and (self['port'] and not self['location']):
+            raise usage.UsageError("The --port option must be used with the --location option.")
+        if (self['listen-tor'] or self['listen-i2p']) and (self['port'] or self['location'] or self['hostname']):
+            raise usage.UsageError("The --listen-tor or --listen-i2p option cannot be used with\n" +
+                                   "--port or --location or --hostname options.")
 
 class CreateClientOptions(_CreateBaseOptions):
     synopsis = "[options] [NODEDIR]"
@@ -57,7 +79,32 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
     description = "Create a Tahoe-LAFS introducer."
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
-        ]
+        ("listen-i2p", None, "Specify that this node listens using an I2p service."),
+        ("listen-tor", None, "Specify that this node listens using a Tor onions service."),
+    ]
+    optParameters = [
+        ("tor-controlport", "", None, "Specify the Tor control port."),
+        ("hostname", "", None, "Specify the hostname for listening and advertising for this node."),
+        ("location", "", None, "Specify the location to advertise for this node."),
+        ("port", "", None, "Specify the server endpoint to listen on for this node."),
+    ]
+
+    def parseArgs(self, basedir=None):
+        NoDefaultBasedirOptions.parseArgs(self, basedir)
+        if self['hostname'] and self['port']:
+            try:
+                int(self['port'])
+            except ValueError:
+                raise usage.UsageError("The --hostname option cannot be used with a non-Integer --port option.")
+        if self['hostname'] and self['location']:
+            raise usage.UsageError("The --hostname option cannot be used with the --location option.")
+        if not self['hostname'] and (self['location'] and not self['port']):
+            raise usage.UsageError("The --location option must be used with the --port option.")
+        if not self['hostname'] and (self['port'] and not self['location']):
+            raise usage.UsageError("The --port option must be used with the --location option.")
+        if (self['listen-tor'] or self['listen-i2p']) and (self['port'] or self['location'] or self['hostname']):
+            raise usage.UsageError("The --listen-tor or --listen-i2p option cannot be used with\n" +
+                                   "--port or --location or --hostname options.")
 
 
 def write_node_config(c, config):
@@ -85,11 +132,43 @@ def write_node_config(c, config):
         webport = ""
     c.write("web.port = %s\n" % (webport.encode('utf-8'),))
     c.write("web.static = public_html\n")
-    c.write("# to prevent the Tub from listening at all, use this:\n")
-    c.write("#  tub.port = disabled\n")
-    c.write("#  tub.location = disabled\n")
-    c.write("#tub.port =\n")
-    c.write("#tub.location = \n")
+    if config['hostname'] and config['port']:
+        c.write("tub.port = tcp:interface=0.0.0.0:%s\n" % config.get('port').encode('utf-8'))
+        c.write("tub.location = tcp:%s:%s\n" % (config.get('hostname').encode('utf-8'), config.get('port').encode('utf-8')))
+    elif config['hostname'] and not config['port']:
+        new_port = iputil.allocate_tcp_port()
+        c.write("tub.port = tcp:%s\n" % new_port)
+        c.write("tub.location = tcp:%s:%s\n" % (config.get('hostname').encode('utf-8'), new_port))
+    elif config['location']:
+        c.write("tub.port = %s\n" % config.get('port').encode('utf-8'))
+        c.write("tub.location = %s\n" % config.get('location').encode('utf-8'))
+    elif config['listen-tor']:
+        if config['tor-controlport']:
+            # use system tor
+            hs_public_port = 3456
+            hs_port = iputil.allocate_tcp_port()
+            hs_string = '%s 127.0.0.1:%d' % (hs_public_port, hs_port)
+            hs = txtorcon.EphemeralHiddenService([hs_string])
+            tor_control_endpoint = clientFromString(reactor, config['tor-controlport'])
+            tor_control_protocol = threads.blockingCallFromThread(reactor, txtorcon.build_tor_connection,
+                                                                  tor_control_endpoint, build_state=False)
+            threads.blockingCallFromThread(reactor, hs.add_to_tor, tor_control_protocol)
+            c.write("tub.port = tcp:127.0.0.1:%d\n" % hs_port)
+            c.write("tub.location = tor:%s:%d\n" % (hs.hostname, hs_public_port))
+        else:
+            # XXX todo: launch a new tor
+            pass
+    elif config['listen-i2p']:
+        pass # XXX fix me
+    else:
+        c.write("tub.port = disabled\n")
+        c.write("tub.location = disabled\n")
+
+    if config['hostname'] or config['listen']:
+        c.write("# to prevent the Tub from listening at all, use this:\n")
+        c.write("#  tub.port = disabled\n")
+        c.write("#  tub.location = disabled\n")
+
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
     c.write("#timeout.disconnect =\n")
