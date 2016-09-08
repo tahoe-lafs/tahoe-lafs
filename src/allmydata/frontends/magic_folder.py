@@ -6,6 +6,7 @@ from datetime import datetime
 import time
 
 from twisted.internet import defer, reactor, task
+from twisted.internet.error import AlreadyCancelled
 from twisted.python.failure import Failure
 from twisted.python import runtime
 from twisted.python import log as twlog
@@ -382,7 +383,10 @@ class Uploader(QueueMixin):
         self._notifier.stopReading()
         self._count('dirs_monitored', -1)
         if self._periodic_callid:
-            self._periodic_callid.cancel()
+            try:
+                self._periodic_callid.cancel()
+            except AlreadyCancelled:
+                pass
 
         if hasattr(self._notifier, 'wait_until_stopped'):
             d = self._notifier.wait_until_stopped()
