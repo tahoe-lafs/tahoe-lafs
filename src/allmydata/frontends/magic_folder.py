@@ -101,6 +101,9 @@ class MagicFolder(service.MultiService):
         service.MultiService.startService(self)
         return self.uploader.start_monitoring()
 
+    def stopService(self):
+        return self.finish()
+
     def ready(self):
         """ready is used to signal us to start
         processing the upload and download items...
@@ -347,6 +350,7 @@ class Uploader(QueueMixin):
         self._pending = set()  # of unicode relpaths
 
         self._periodic_full_scan_duration = 10 * 60 # perform a full scan every 10 minutes
+        self._periodic_callid = None
 
         if hasattr(self._notifier, 'set_pending_delay'):
             self._notifier.set_pending_delay(pending_delay)
@@ -377,7 +381,9 @@ class Uploader(QueueMixin):
         self._stopped = True
         self._notifier.stopReading()
         self._count('dirs_monitored', -1)
-        self.periodic_callid.cancel()
+        if self._periodic_callid:
+            self._periodic_callid.cancel()
+
         if hasattr(self._notifier, 'wait_until_stopped'):
             d = self._notifier.wait_until_stopped()
         else:
@@ -402,7 +408,7 @@ class Uploader(QueueMixin):
         return self._begin_processing(None)
 
     def _full_scan(self):
-        self.periodic_callid = self._clock.callLater(self._periodic_full_scan_duration, self._full_scan)
+        self._periodic_callid = self._clock.callLater(self._periodic_full_scan_duration, self._full_scan)
         self._log("FULL SCAN")
         self._log("_pending %r" % (self._pending))
         self._scan(u"")
