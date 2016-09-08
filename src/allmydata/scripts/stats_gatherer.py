@@ -1,4 +1,4 @@
-import os, sys
+import os
 from twisted.python import usage
 from allmydata.scripts.common import NoDefaultBasedirOptions
 from allmydata.scripts.create_node import write_tac
@@ -56,7 +56,8 @@ class CreateStatsGathererOptions(NoDefaultBasedirOptions):
     """
 
 
-def create_stats_gatherer(config, out=sys.stdout, err=sys.stderr):
+def create_stats_gatherer(config):
+    err = config.stderr
     basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
     precondition(isinstance(basedir, unicode), basedir)

@@ -128,20 +128,21 @@ def runner(argv,
     so.stdin = stdin
 
     if command in create_dispatch:
-        rc = create_dispatch[command](so, stdout, stderr)
+        f = create_dispatch[command]
     elif command in startstop_node.dispatch:
-        rc = startstop_node.dispatch[command](so, stdout, stderr)
+        f = startstop_node.dispatch[command]
     elif command in debug.dispatch:
-        rc = debug.dispatch[command](so)
+        f = debug.dispatch[command]
     elif command in admin.dispatch:
-        rc = admin.dispatch[command](so)
+        f = admin.dispatch[command]
     elif command in cli.dispatch:
-        rc = cli.dispatch[command](so)
+        f = cli.dispatch[command]
     elif command in magic_folder_cli.dispatch:
-        rc = magic_folder_cli.dispatch[command](so)
+        f = magic_folder_cli.dispatch[command]
     else:
         raise usage.UsageError()
 
+    rc = f(so)
     return rc
 
 
