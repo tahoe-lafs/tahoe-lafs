@@ -106,7 +106,6 @@ class Config(unittest.TestCase):
         rc, out, err = yield run_cli("create-node", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), True)
-        self.assertEqual(cfg.get("node", "listen"), "tcp")
 
     @defer.inlineCallbacks
     def test_node_hide_ip(self):
@@ -138,7 +137,6 @@ class Config(unittest.TestCase):
         basedir = self.mktemp()
         rc, out, err = yield run_cli("create-node", "--listen=tcp", basedir)
         cfg = self.read_config(basedir)
-        self.assertEqual(cfg.get("node", "listen"), "tcp")
 
     @defer.inlineCallbacks
     def test_node_listen_tor(self):
