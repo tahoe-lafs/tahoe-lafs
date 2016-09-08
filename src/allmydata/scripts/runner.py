@@ -91,8 +91,7 @@ for module in (create_node, stats_gatherer):
 
 def runner(argv,
            run_by_human=True,
-           stdin=None, stdout=None, stderr=None,
-           install_node_control=True, additional_commands=None):
+           stdin=None, stdout=None, stderr=None):
 
     assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
 
@@ -101,14 +100,6 @@ def runner(argv,
     stderr = stderr or sys.stderr
 
     config = Options()
-    if install_node_control:
-        config.subCommands.extend(startstop_node.subCommands)
-
-    ac_dispatch = {}
-    if additional_commands:
-        for ac in additional_commands:
-            config.subCommands.extend(ac.subCommands)
-            ac_dispatch.update(ac.dispatch)
 
     try:
         config.parseOptions(argv)
@@ -148,21 +139,19 @@ def runner(argv,
         rc = cli.dispatch[command](so)
     elif command in magic_folder_cli.dispatch:
         rc = magic_folder_cli.dispatch[command](so)
-    elif command in ac_dispatch:
-        rc = ac_dispatch[command](so, stdout, stderr)
     else:
         raise usage.UsageError()
 
     return rc
 
 
-def run(install_node_control=True):
+def run():
     try:
         if sys.platform == "win32":
             from allmydata.windows.fixups import initialize
             initialize()
 
-        rc = runner(sys.argv[1:], install_node_control=install_node_control)
+        rc = runner(sys.argv[1:])
     except Exception:
         import traceback
         traceback.print_exc()

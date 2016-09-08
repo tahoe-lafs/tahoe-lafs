@@ -553,9 +553,8 @@ class CLI(CLITestMixin, unittest.TestCase):
         ns = Namespace()
 
         ns.runner_called = False
-        def call_runner(args, install_node_control=True):
+        def call_runner(args):
             ns.runner_called = True
-            self.failUnlessEqual(install_node_control, True)
             raise exc
 
         ns.sys_exit_called = False
