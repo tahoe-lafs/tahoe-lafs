@@ -71,7 +71,7 @@ from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
     get_io_encoding, get_filesystem_encoding, to_str, from_utf8_or_none, _reload, \
     to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from
 from allmydata.dirnode import normalize
-
+from .common_util import skip_if_cannot_represent_filename
 from twisted.python import usage
 
 
@@ -265,16 +265,8 @@ class StdlibUnicode(unittest.TestCase):
     """This mainly tests that some of the stdlib functions support Unicode paths, but also that
     listdir_unicode works for valid filenames."""
 
-    def skip_if_cannot_represent_filename(self, u):
-        enc = get_filesystem_encoding()
-        if not unicode_platform():
-            try:
-                u.encode(enc)
-            except UnicodeEncodeError:
-                raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
-
     def test_mkdir_open_exists_abspath_listdir_expanduser(self):
-        self.skip_if_cannot_represent_filename(lumiere_nfc)
+        skip_if_cannot_represent_filename(lumiere_nfc)
 
         try:
             os.mkdir(lumiere_nfc)

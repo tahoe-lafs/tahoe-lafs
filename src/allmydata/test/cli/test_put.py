@@ -6,6 +6,7 @@ from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli
 from ..no_network import GridTestMixin
+from ..common_util import skip_if_cannot_represent_filename
 from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from .common import CLITestMixin
@@ -427,7 +428,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
-        self.skip_if_cannot_represent_filename(u"\u00E0 trier.txt")
+        skip_if_cannot_represent_filename(u"\u00E0 trier.txt")
 
         self.basedir = "cli/Put/immutable_from_file_unicode"
         self.set_up_grid(oneshare=True)

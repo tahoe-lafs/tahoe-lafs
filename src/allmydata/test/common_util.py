@@ -3,10 +3,21 @@ from random import randrange
 
 from twisted.internet import reactor, defer
 from twisted.python import failure
+from twisted.trial import unittest
 
 from allmydata.util import fileutil, log
+from ..util.assertutil import precondition
 from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding
 
+def skip_if_cannot_represent_filename(u):
+    precondition(isinstance(u, unicode))
+
+    enc = get_filesystem_encoding()
+    if not unicode_platform():
+        try:
+            u.encode(enc)
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
 
 class DevNullDictionary(dict):
     def __setitem__(self, key, value):

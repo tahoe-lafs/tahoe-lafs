@@ -1,10 +1,7 @@
 from cStringIO import StringIO
-from twisted.trial import unittest
 from twisted.internet import threads # CLI tests use deferToThread
 from ...util.assertutil import precondition
-from ...util.encodingutil import (unicode_platform,
-                                  get_filesystem_encoding,
-                                  unicode_to_argv)
+from ...util.encodingutil import unicode_to_argv
 from ...scripts import runner
 from ..common_util import ReallyEqualMixin
 
@@ -36,13 +33,3 @@ class CLITestMixin(ReallyEqualMixin):
             return rc, stdout.getvalue(), stderr.getvalue()
         d.addCallback(_done)
         return d
-
-    def skip_if_cannot_represent_filename(self, u):
-        precondition(isinstance(u, unicode))
-
-        enc = get_filesystem_encoding()
-        if not unicode_platform():
-            try:
-                u.encode(enc)
-            except UnicodeEncodeError:
-                raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")

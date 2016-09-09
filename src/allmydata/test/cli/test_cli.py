@@ -29,7 +29,7 @@ from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
      DefaultAliasMarker
 
 from allmydata.scripts import cli, debug, runner
-from ..common_util import ReallyEqualMixin
+from ..common_util import ReallyEqualMixin, skip_if_cannot_represent_filename
 from ..no_network import GridTestMixin
 from .common import CLITestMixin, parse_options
 from twisted.internet import threads # CLI tests use deferToThread
@@ -493,7 +493,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         filenames = [u'L\u00F4zane', u'Bern', u'Gen\u00E8ve']  # must be NFC
 
         for name in filenames:
-            self.skip_if_cannot_represent_filename(name)
+            skip_if_cannot_represent_filename(name)
 
         basedir = "cli/common/listdir_unicode_good"
         fileutil.make_dirs(basedir)
