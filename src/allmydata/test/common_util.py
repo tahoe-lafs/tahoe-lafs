@@ -1,12 +1,50 @@
 import os, signal, sys, time
 from random import randrange
+from cStringIO import StringIO
 
 from twisted.internet import reactor, defer
 from twisted.python import failure
+from twisted.trial import unittest
 
 from allmydata.util import fileutil, log
+from ..util.assertutil import precondition
 from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding
+from ..scripts import runner
 
+def skip_if_cannot_represent_filename(u):
+    precondition(isinstance(u, unicode))
+
+    enc = get_filesystem_encoding()
+    if not unicode_platform():
+        try:
+            u.encode(enc)
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
+
+def run_cli(verb, *args, **kwargs):
+    precondition(not [True for arg in args if not isinstance(arg, str)],
+                 "arguments to do_cli must be strs -- convert using unicode_to_argv", args=args)
+    nodeargs = kwargs.get("nodeargs", [])
+    argv = nodeargs + [verb] + list(args)
+    stdin = kwargs.get("stdin", "")
+    stdout, stderr = StringIO(), StringIO()
+    d = defer.succeed(argv)
+    d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout)
+    d.addCallback(runner.dispatch,
+                  stdin=StringIO(stdin),
+                  stdout=stdout, stderr=stderr)
+    def _done(rc):
+        return 0, stdout.getvalue(), stderr.getvalue()
+    def _err(f):
+        f.trap(SystemExit)
+        return f.value.code, stdout.getvalue(), stderr.getvalue()
+    d.addCallbacks(_done, _err)
+    return d
+
+def parse_cli(*argv):
+    # This parses the CLI options (synchronously), and returns the Options
+    # argument, or throws usage.UsageError if something went wrong.
+    return runner.parse_options(argv)
 
 class DevNullDictionary(dict):
     def __setitem__(self, key, value):

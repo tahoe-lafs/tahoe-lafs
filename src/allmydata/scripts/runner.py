@@ -3,6 +3,7 @@ import os, sys
 from cStringIO import StringIO
 
 from twisted.python import usage
+from twisted.internet import defer, task, threads
 
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, startstop_node, cli, \
@@ -89,32 +90,17 @@ create_dispatch = {}
 for module in (create_node, stats_gatherer):
     create_dispatch.update(module.dispatch)
 
-def runner(argv,
-           run_by_human=True,
-           stdin=None, stdout=None, stderr=None,
-           install_node_control=True, additional_commands=None):
+def parse_options(argv, config=None):
+    if not config:
+        config = Options()
+    config.parseOptions(argv) # may raise usage.error
+    return config
 
-    assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
-
-    stdin  = stdin  or sys.stdin
-    stdout = stdout or sys.stdout
-    stderr = stderr or sys.stderr
-
+def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
     config = Options()
-    if install_node_control:
-        config.subCommands.extend(startstop_node.subCommands)
-
-    ac_dispatch = {}
-    if additional_commands:
-        for ac in additional_commands:
-            config.subCommands.extend(ac.subCommands)
-            ac_dispatch.update(ac.dispatch)
-
     try:
-        config.parseOptions(argv)
+        parse_options(argv, config=config)
     except usage.error, e:
-        if not run_by_human:
-            raise
         c = config
         while hasattr(c, 'subOptions'):
             c = c.subOptions
@@ -124,51 +110,68 @@ def runner(argv,
         except Exception:
             msg = repr(e)
         print >>stdout, "%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False))
-        return 1
+        sys.exit(1)
+    return config
 
+def dispatch(config,
+             stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr):
     command = config.subCommand
     so = config.subOptions
-
     if config['quiet']:
         stdout = StringIO()
-
     so.stdout = stdout
     so.stderr = stderr
     so.stdin = stdin
 
     if command in create_dispatch:
-        rc = create_dispatch[command](so, stdout, stderr)
+        f = create_dispatch[command]
     elif command in startstop_node.dispatch:
-        rc = startstop_node.dispatch[command](so, stdout, stderr)
+        f = startstop_node.dispatch[command]
     elif command in debug.dispatch:
-        rc = debug.dispatch[command](so)
+        f = debug.dispatch[command]
     elif command in admin.dispatch:
-        rc = admin.dispatch[command](so)
+        f = admin.dispatch[command]
     elif command in cli.dispatch:
-        rc = cli.dispatch[command](so)
+        # these are blocking, and must be run in a thread
+        f0 = cli.dispatch[command]
+        f = lambda so: threads.deferToThread(f0, so)
     elif command in magic_folder_cli.dispatch:
-        rc = magic_folder_cli.dispatch[command](so)
-    elif command in ac_dispatch:
-        rc = ac_dispatch[command](so, stdout, stderr)
+        # same
+        f0 = magic_folder_cli.dispatch[command]
+        f = lambda so: threads.deferToThread(f0, so)
     else:
         raise usage.UsageError()
 
-    return rc
+    d = defer.maybeDeferred(f, so)
+    # the calling convention for CLI dispatch functions is that they either:
+    # 1: succeed and return rc=0
+    # 2: print explanation to stderr and return rc!=0
+    # 3: raise an exception that should just be printed normally
+    # 4: return a Deferred that does 1 or 2 or 3
+    def _raise_sys_exit(rc):
+        sys.exit(rc)
+    d.addCallback(_raise_sys_exit)
+    return d
 
+def run():
+    assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
 
-def run(install_node_control=True):
-    try:
-        if sys.platform == "win32":
-            from allmydata.windows.fixups import initialize
-            initialize()
-
-        rc = runner(sys.argv[1:], install_node_control=install_node_control)
-    except Exception:
-        import traceback
-        traceback.print_exc()
-        rc = 1
-
-    sys.exit(rc)
+    if sys.platform == "win32":
+        from allmydata.windows.fixups import initialize
+        initialize()
+    d = defer.maybeDeferred(parse_or_exit_with_explanation, sys.argv[1:])
+    d.addCallback(dispatch)
+    def _show_exception(f):
+        # when task.react() notices a non-SystemExit exception, it does
+        # log.err() with the failure and then exits with rc=1. We want this
+        # to actually print the exception to stderr, like it would do if we
+        # weren't using react().
+        if f.check(SystemExit):
+            return f # dispatch function handled it
+        f.printTraceback(file=sys.stderr)
+        sys.exit(1)
+    d.addErrback(_show_exception)
+    task.react(lambda _reactor: d) # doesn't return: calls sys.exit(rc)
 
 if __name__ == "__main__":
     run()

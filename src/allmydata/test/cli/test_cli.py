@@ -5,6 +5,7 @@ import urllib, sys
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
+from twisted.internet import task
 
 import allmydata
 from allmydata.util import fileutil, hashutil, base32, keyutil
@@ -29,56 +30,15 @@ from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
      DefaultAliasMarker
 
 from allmydata.scripts import cli, debug, runner
-from ..common_util import ReallyEqualMixin
+from ..common_util import (ReallyEqualMixin, skip_if_cannot_represent_filename,
+                           run_cli)
 from ..no_network import GridTestMixin
-from twisted.internet import threads # CLI tests use deferToThread
+from .common import CLITestMixin, parse_options
 from twisted.python import usage
 
-from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import listdir_unicode, unicode_platform, \
-    get_io_encoding, get_filesystem_encoding, unicode_to_argv
+from allmydata.util.encodingutil import listdir_unicode, get_io_encoding
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
-
-def parse_options(basedir, command, args):
-    o = runner.Options()
-    o.parseOptions(["--node-directory", basedir, command] + args)
-    while hasattr(o, "subOptions"):
-        o = o.subOptions
-    return o
-
-class CLITestMixin(ReallyEqualMixin):
-    def do_cli(self, verb, *args, **kwargs):
-        precondition(not [True for arg in args if not isinstance(arg, str)],
-                     "arguments to do_cli must be strs -- convert using unicode_to_argv", args=args)
-
-        # client_num is used to execute client CLI commands on a specific client.
-        client_num = kwargs.get("client_num", 0)
-
-        nodeargs = [
-            "--node-directory", unicode_to_argv(self.get_clientdir(i=client_num)),
-            ]
-        argv = nodeargs + [verb] + list(args)
-        stdin = kwargs.get("stdin", "")
-        stdout, stderr = StringIO(), StringIO()
-        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
-                                  stdin=StringIO(stdin),
-                                  stdout=stdout, stderr=stderr)
-        def _done(rc):
-            return rc, stdout.getvalue(), stderr.getvalue()
-        d.addCallback(_done)
-        return d
-
-    def skip_if_cannot_represent_filename(self, u):
-        precondition(isinstance(u, unicode))
-
-        enc = get_filesystem_encoding()
-        if not unicode_platform():
-            try:
-                u.encode(enc)
-            except UnicodeEncodeError:
-                raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
-
 
 class CLI(CLITestMixin, unittest.TestCase):
     def _dump_cap(self, *args):
@@ -534,7 +494,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         filenames = [u'L\u00F4zane', u'Bern', u'Gen\u00E8ve']  # must be NFC
 
         for name in filenames:
-            self.skip_if_cannot_represent_filename(name)
+            skip_if_cannot_represent_filename(name)
 
         basedir = "cli/common/listdir_unicode_good"
         fileutil.make_dirs(basedir)
@@ -552,10 +512,9 @@ class CLI(CLITestMixin, unittest.TestCase):
         exc = Exception("canary")
         ns = Namespace()
 
-        ns.runner_called = False
-        def call_runner(args, install_node_control=True):
-            ns.runner_called = True
-            self.failUnlessEqual(install_node_control, True)
+        ns.parse_called = False
+        def call_parse_or_exit(args):
+            ns.parse_called = True
             raise exc
 
         ns.sys_exit_called = False
@@ -563,13 +522,23 @@ class CLI(CLITestMixin, unittest.TestCase):
             ns.sys_exit_called = True
             self.failUnlessEqual(exitcode, 1)
 
-        patcher = MonkeyPatcher((runner, 'runner', call_runner),
+        def fake_react(f):
+            d = f("reactor")
+            # normally this Deferred would be errbacked with SystemExit, but
+            # since we mocked out sys.exit, it will be fired with None. So
+            # it's safe to drop it on the floor.
+            del d
+
+        patcher = MonkeyPatcher((runner, 'parse_or_exit_with_explanation',
+                                 call_parse_or_exit),
                                 (sys, 'argv', ["tahoe"]),
                                 (sys, 'exit', call_sys_exit),
-                                (sys, 'stderr', stderr))
+                                (sys, 'stderr', stderr),
+                                (task, 'react', fake_react),
+                                )
         patcher.runWithPatches(runner.run)
 
-        self.failUnless(ns.runner_called)
+        self.failUnless(ns.parse_called)
         self.failUnless(ns.sys_exit_called)
         self.failUnlessIn(str(exc), stderr.getvalue())
 
@@ -747,21 +716,9 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
 
 
 class Admin(unittest.TestCase):
-    def do_cli(self, *args, **kwargs):
-        argv = list(args)
-        stdin = kwargs.get("stdin", "")
-        stdout, stderr = StringIO(), StringIO()
-        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
-                                  stdin=StringIO(stdin),
-                                  stdout=stdout, stderr=stderr)
-        def _done(res):
-            return stdout.getvalue(), stderr.getvalue()
-        d.addCallback(_done)
-        return d
-
     def test_generate_keypair(self):
-        d = self.do_cli("admin", "generate-keypair")
-        def _done( (stdout, stderr) ):
+        d = run_cli("admin", "generate-keypair")
+        def _done( (rc, stdout, stderr) ):
             lines = [line.strip() for line in stdout.splitlines()]
             privkey_bits = lines[0].split()
             pubkey_bits = lines[1].split()
@@ -780,8 +737,8 @@ class Admin(unittest.TestCase):
 
     def test_derive_pubkey(self):
         priv1,pub1 = keyutil.make_keypair()
-        d = self.do_cli("admin", "derive-pubkey", priv1)
-        def _done( (stdout, stderr) ):
+        d = run_cli("admin", "derive-pubkey", priv1)
+        def _done( (rc, stdout, stderr) ):
             lines = stdout.split("\n")
             privkey_line = lines[0].strip()
             pubkey_line = lines[1].strip()

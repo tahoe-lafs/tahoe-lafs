@@ -1,6 +1,4 @@
-
-import os, sys
-
+import os
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
@@ -129,7 +127,9 @@ def write_client_config(c, config):
     c.write("enabled = false\n")
     c.write("\n")
 
-def create_node(config, out=sys.stdout, err=sys.stderr):
+def create_node(config):
+    out = config.stdout
+    err = config.stderr
     basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
     precondition(isinstance(basedir, unicode), basedir)
@@ -162,12 +162,14 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
         print >>out, " Please set [node]nickname= in tahoe.cfg"
     return 0
 
-def create_client(config, out=sys.stdout, err=sys.stderr):
+def create_client(config):
     config['no-storage'] = True
-    return create_node(config, out=out, err=err)
+    return create_node(config)
 
 
-def create_introducer(config, out=sys.stdout, err=sys.stderr):
+def create_introducer(config):
+    out = config.stdout
+    err = config.stderr
     basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
     precondition(isinstance(basedir, unicode), basedir)

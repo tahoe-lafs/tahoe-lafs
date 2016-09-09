@@ -9,7 +9,8 @@ from allmydata.util.encodingutil import (quote_output, get_io_encoding,
                                          unicode_to_output, to_str)
 from allmydata.util.assertutil import _assert
 from ..no_network import GridTestMixin
-from .test_cli import CLITestMixin
+from .common import CLITestMixin
+from ..common_util import skip_if_cannot_represent_filename
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
@@ -30,7 +31,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
-        self.skip_if_cannot_represent_filename(fn1)
+        skip_if_cannot_represent_filename(fn1)
 
         self.set_up_grid(oneshare=True)
 
@@ -198,7 +199,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
-        self.skip_if_cannot_represent_filename(fn1)
+        skip_if_cannot_represent_filename(fn1)
 
         self.set_up_grid(oneshare=True)
 

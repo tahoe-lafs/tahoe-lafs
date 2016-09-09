@@ -14,7 +14,7 @@ from allmydata.util.namespace import Namespace
 from allmydata.scripts import cli, backupdb
 from ..common_util import StallMixin
 from ..no_network import GridTestMixin
-from .test_cli import CLITestMixin, parse_options
+from .common import CLITestMixin, parse_options
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 

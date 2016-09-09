@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from allmydata.util import fileutil
 from ..no_network import GridTestMixin
 from allmydata.scripts import tahoe_mv
-from .test_cli import CLITestMixin
+from .common import CLITestMixin
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
