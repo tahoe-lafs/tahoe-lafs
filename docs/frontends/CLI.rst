@@ -610,14 +610,6 @@ into separate pieces. The most useful aspect of this command is to reveal the
 storage index for any given URI. This can be used to locate the share files
 that are holding the encoded+encrypted data for this file.
 
-"``tahoe debug repl``" will launch an interactive Python interpreter in which
-the Tahoe-LAFS packages and modules are available on ``sys.path`` (e.g. by using
-'``import allmydata``'). This is most useful from a source tree: it simply sets
-the PYTHONPATH correctly and runs the Python executable.
-
 "``tahoe debug corrupt-share SHAREFILE``" will flip a bit in the given
 sharefile. This can be used to test the client-side verification/repair code.
 Obviously, this command should not be used during normal operation.
-
-"``tahoe debug trial [OPTIONS] [TESTSUITE]``" will run the tests specified by
-TESTSUITE (defaulting to the whole Tahoe test suite), using Twisted Trial.

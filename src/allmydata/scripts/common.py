@@ -23,8 +23,6 @@ class BaseOptions(usage.Options):
     def __init__(self):
         super(BaseOptions, self).__init__()
         self.command_name = os.path.basename(sys.argv[0])
-        if self.command_name == 'trial':
-            self.command_name = 'tahoe'
 
     # Only allow "tahoe --version", not e.g. "tahoe start --version"
     def opt_version(self):

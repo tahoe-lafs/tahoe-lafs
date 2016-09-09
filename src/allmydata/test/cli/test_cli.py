@@ -686,11 +686,6 @@ class Help(unittest.TestCase):
         help = str(create_node.CreateIntroducerOptions())
         self.failUnlessIn("[options] NODEDIR", help)
 
-    def test_debug_trial(self):
-        help = str(debug.TrialOptions())
-        self.failUnlessIn(" [global-options] debug trial [options] [[file|package|module|TestCase|testmethod]...]", help)
-        self.failUnlessInNormalized("The 'tahoe debug trial' command uses the correct imports", help)
-
     def test_debug_flogtool(self):
         options = debug.FlogtoolOptions()
         help = str(options)
