@@ -4,12 +4,11 @@ from twisted.trial import unittest
 
 from allmydata.util import configutil
 from allmydata.test.no_network import GridTestMixin
-from .cli.test_cli import CLITestMixin
 from ..scripts import create_node
 from .. import client
 
 
-class ConfigUtilTests(CLITestMixin, GridTestMixin, unittest.TestCase):
+class ConfigUtilTests(GridTestMixin, unittest.TestCase):
 
     def test_config_utils(self):
         self.basedir = "cli/ConfigUtilTests/test-config-utils"
