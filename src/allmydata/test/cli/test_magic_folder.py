@@ -10,7 +10,7 @@ from allmydata.util.assertutil import precondition
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from ..no_network import GridTestMixin
-from .test_cli import CLITestMixin
+from .common import CLITestMixin
 from allmydata.scripts import magic_folder_cli
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import unicode_to_argv

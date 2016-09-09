@@ -6,7 +6,7 @@ from allmydata.interfaces import MDMF_VERSION, SDMF_VERSION
 from allmydata.mutable.publish import MutableData
 from ..no_network import GridTestMixin
 from allmydata.util.encodingutil import quote_output, get_io_encoding
-from .test_cli import CLITestMixin
+from .common import CLITestMixin
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 

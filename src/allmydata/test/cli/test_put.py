@@ -8,7 +8,7 @@ from allmydata.scripts import cli
 from ..no_network import GridTestMixin
 from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from .test_cli import CLITestMixin
+from .common import CLITestMixin
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
