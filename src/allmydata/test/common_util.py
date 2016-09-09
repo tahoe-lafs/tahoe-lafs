@@ -2,7 +2,7 @@ import os, signal, sys, time
 from random import randrange
 from cStringIO import StringIO
 
-from twisted.internet import reactor, defer, threads
+from twisted.internet import reactor, defer
 from twisted.python import failure
 from twisted.trial import unittest
 
@@ -28,25 +28,23 @@ def run_cli(verb, *args, **kwargs):
     argv = nodeargs + [verb] + list(args)
     stdin = kwargs.get("stdin", "")
     stdout, stderr = StringIO(), StringIO()
-    d = threads.deferToThread(runner.runner, argv, run_by_human=False,
-                              stdin=StringIO(stdin),
-                              stdout=stdout, stderr=stderr)
+    d = defer.succeed(argv)
+    d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout)
+    d.addCallback(runner.dispatch,
+                  stdin=StringIO(stdin),
+                  stdout=stdout, stderr=stderr)
     def _done(rc):
-        return rc, stdout.getvalue(), stderr.getvalue()
-    d.addCallback(_done)
+        return 0, stdout.getvalue(), stderr.getvalue()
+    def _err(f):
+        f.trap(SystemExit)
+        return f.value.code, stdout.getvalue(), stderr.getvalue()
+    d.addCallbacks(_done, _err)
     return d
 
 def parse_cli(*argv):
-    # This parses the CLI options (synchronously), and throws
-    # usage.UsageError if something went wrong.
-
-    # As a temporary side-effect, if the arguments can be parsed correctly,
-    # it also executes the command. This side-effect will be removed when
-    # runner.py is refactored. After the refactoring, this will return the
-    # Options object, and this method can be used for success testing, not
-    # just failure testing.
-    runner.runner(argv, run_by_human=False)
-    assert False, "eek, I can't be used for success testing yet"
+    # This parses the CLI options (synchronously), and returns the Options
+    # argument, or throws usage.UsageError if something went wrong.
+    return runner.parse_options(argv)
 
 class DevNullDictionary(dict):
     def __setitem__(self, key, value):

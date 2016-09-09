@@ -5,6 +5,7 @@ import urllib, sys
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
+from twisted.internet import task
 
 import allmydata
 from allmydata.util import fileutil, hashutil, base32, keyutil
@@ -511,9 +512,9 @@ class CLI(CLITestMixin, unittest.TestCase):
         exc = Exception("canary")
         ns = Namespace()
 
-        ns.runner_called = False
-        def call_runner(args):
-            ns.runner_called = True
+        ns.parse_called = False
+        def call_parse_or_exit(args):
+            ns.parse_called = True
             raise exc
 
         ns.sys_exit_called = False
@@ -521,13 +522,23 @@ class CLI(CLITestMixin, unittest.TestCase):
             ns.sys_exit_called = True
             self.failUnlessEqual(exitcode, 1)
 
-        patcher = MonkeyPatcher((runner, 'runner', call_runner),
+        def fake_react(f):
+            d = f("reactor")
+            # normally this Deferred would be errbacked with SystemExit, but
+            # since we mocked out sys.exit, it will be fired with None. So
+            # it's safe to drop it on the floor.
+            del d
+
+        patcher = MonkeyPatcher((runner, 'parse_or_exit_with_explanation',
+                                 call_parse_or_exit),
                                 (sys, 'argv', ["tahoe"]),
                                 (sys, 'exit', call_sys_exit),
-                                (sys, 'stderr', stderr))
+                                (sys, 'stderr', stderr),
+                                (task, 'react', fake_react),
+                                )
         patcher.runWithPatches(runner.run)
 
-        self.failUnless(ns.runner_called)
+        self.failUnless(ns.parse_called)
         self.failUnless(ns.sys_exit_called)
         self.failUnlessIn(str(exc), stderr.getvalue())
 
