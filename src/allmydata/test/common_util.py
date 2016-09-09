@@ -36,6 +36,18 @@ def run_cli(verb, *args, **kwargs):
     d.addCallback(_done)
     return d
 
+def parse_cli(*argv):
+    # This parses the CLI options (synchronously), and throws
+    # usage.UsageError if something went wrong.
+
+    # As a temporary side-effect, if the arguments can be parsed correctly,
+    # it also executes the command. This side-effect will be removed when
+    # runner.py is refactored. After the refactoring, this will return the
+    # Options object, and this method can be used for success testing, not
+    # just failure testing.
+    runner.runner(argv, run_by_human=False)
+    assert False, "eek, I can't be used for success testing yet"
+
 class DevNullDictionary(dict):
     def __setitem__(self, key, value):
         return
