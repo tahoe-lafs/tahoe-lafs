@@ -1,13 +1,15 @@
 import os, signal, sys, time
 from random import randrange
+from cStringIO import StringIO
 
-from twisted.internet import reactor, defer
+from twisted.internet import reactor, defer, threads
 from twisted.python import failure
 from twisted.trial import unittest
 
 from allmydata.util import fileutil, log
 from ..util.assertutil import precondition
 from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding
+from ..scripts import runner
 
 def skip_if_cannot_represent_filename(u):
     precondition(isinstance(u, unicode))
@@ -18,6 +20,21 @@ def skip_if_cannot_represent_filename(u):
             u.encode(enc)
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
+
+def run_cli(verb, *args, **kwargs):
+    precondition(not [True for arg in args if not isinstance(arg, str)],
+                 "arguments to do_cli must be strs -- convert using unicode_to_argv", args=args)
+    nodeargs = kwargs.get("nodeargs", [])
+    argv = nodeargs + [verb] + list(args)
+    stdin = kwargs.get("stdin", "")
+    stdout, stderr = StringIO(), StringIO()
+    d = threads.deferToThread(runner.runner, argv, run_by_human=False,
+                              stdin=StringIO(stdin),
+                              stdout=stdout, stderr=stderr)
+    def _done(rc):
+        return rc, stdout.getvalue(), stderr.getvalue()
+    d.addCallback(_done)
+    return d
 
 class DevNullDictionary(dict):
     def __setitem__(self, key, value):
