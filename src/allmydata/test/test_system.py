@@ -1,10 +1,8 @@
 
 import os, re, sys, time, simplejson
-from cStringIO import StringIO
 
 from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.internet import threads # CLI tests use deferToThread
 from twisted.application import service
 
 import allmydata
@@ -20,7 +18,6 @@ from allmydata.util import log, base32
 from allmydata.util.encodingutil import quote_output, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
-from allmydata.scripts import runner
 from allmydata.stats import StatsGathererService
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
      NoSuchChildError, NoSharesError
@@ -39,6 +36,7 @@ from .common import TEST_RSA_KEY_SIZE
 # TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
 from . import common_util as testutil
+from .common_util import run_cli
 
 LARGE_DATA = """
 This is some data to publish to the remote grid.., which needs to be large
@@ -1064,6 +1062,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             return d1
         d.addCallback(_create_mutable)
 
+        @defer.inlineCallbacks
         def _test_debug(res):
             # find a share. It is important to run this while there is only
             # one slot in the grid.
@@ -1073,11 +1072,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                     % filename)
             log.msg(" for clients[%d]" % client_num)
 
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(["debug", "dump-share", "--offsets",
-                                filename],
-                               stdout=out, stderr=err)
-            output = out.getvalue()
+            rc,output,err = yield run_cli("debug", "dump-share", "--offsets",
+                                          filename)
             self.failUnlessEqual(rc, 0)
             try:
                 self.failUnless("Mutable slot found:\n" in output)
@@ -1862,6 +1858,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         return d
 
+    @defer.inlineCallbacks
     def _test_runner(self, res):
         # exercise some of the diagnostic tools in runner.py
 
@@ -1887,11 +1884,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                       % self.basedir)
         log.msg("test_system.SystemTest._test_runner using %r" % filename)
 
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(["debug", "dump-share", "--offsets",
-                            unicode_to_argv(filename)],
-                           stdout=out, stderr=err)
-        output = out.getvalue()
+        rc,output,err = yield run_cli("debug", "dump-share", "--offsets",
+                                      unicode_to_argv(filename))
         self.failUnlessEqual(rc, 0)
 
         # we only upload a single file, so we can assert some things about
@@ -1917,23 +1911,18 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         sharedir, shnum = os.path.split(filename)
         storagedir, storage_index_s = os.path.split(sharedir)
         storage_index_s = str(storage_index_s)
-        out,err = StringIO(), StringIO()
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
-        cmd = ["debug", "find-shares", storage_index_s] + nodedirs
-        rc = runner.runner(cmd, stdout=out, stderr=err)
+        rc,out,err = yield run_cli("debug", "find-shares", storage_index_s,
+                                   *nodedirs)
         self.failUnlessEqual(rc, 0)
-        out.seek(0)
-        sharefiles = [sfn.strip() for sfn in out.readlines()]
+        sharefiles = [sfn.strip() for sfn in out.splitlines()]
         self.failUnlessEqual(len(sharefiles), 10)
 
         # also exercise the 'catalog-shares' tool
-        out,err = StringIO(), StringIO()
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
-        cmd = ["debug", "catalog-shares"] + nodedirs
-        rc = runner.runner(cmd, stdout=out, stderr=err)
+        rc,out,err = yield run_cli("debug", "catalog-shares", *nodedirs)
         self.failUnlessEqual(rc, 0)
-        out.seek(0)
-        descriptions = [sfn.strip() for sfn in out.readlines()]
+        descriptions = [sfn.strip() for sfn in out.splitlines()]
         self.failUnlessEqual(len(descriptions), 30)
         matching = [line
                     for line in descriptions
@@ -1981,10 +1970,10 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         f.write(private_uri)
         f.close()
 
+        @defer.inlineCallbacks
         def run(ignored, verb, *args, **kwargs):
-            stdin = kwargs.get("stdin", "")
-            newargs = nodeargs + [verb] + list(args)
-            return self._run_cli(newargs, stdin=stdin)
+            rc,out,err = yield run_cli(verb, *args, nodeargs=nodeargs, **kwargs)
+            defer.returnValue((out,err))
 
         def _check_ls((out,err), expected_children, unexpected_children=[]):
             self.failUnlessEqual(err, "")
@@ -2343,17 +2332,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             self.failUnlessIn("tahoe-moved", out)
             self.failIfIn("tahoe-file", out)
         d.addCallback(_check_ls)
-        return d
-
-    def _run_cli(self, argv, stdin=""):
-        #print "CLI:", argv
-        stdout, stderr = StringIO(), StringIO()
-        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
-                                  stdin=StringIO(stdin),
-                                  stdout=stdout, stderr=stderr)
-        def _done(res):
-            return stdout.getvalue(), stderr.getvalue()
-        d.addCallback(_done)
         return d
 
     def _test_checker(self, res):

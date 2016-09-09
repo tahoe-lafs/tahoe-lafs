@@ -1,5 +1,4 @@
 import os.path, re, sys, subprocess
-from cStringIO import StringIO
 
 from twisted.trial import unittest
 
@@ -15,6 +14,7 @@ from allmydata.client import Client
 from allmydata.test import common_util
 import allmydata
 from allmydata import __appname__
+from .common_util import run_cli
 
 
 timeout = 240
@@ -180,11 +180,7 @@ class CreateNode(unittest.TestCase):
         fileutil.make_dirs(basedir)
         return basedir
 
-    def run_tahoe(self, argv):
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        return rc, out.getvalue(), err.getvalue()
-
+    @inlineCallbacks
     def do_create(self, kind, *args):
         basedir = self.workdir("test_" + kind)
         command = "create-" + kind
@@ -193,7 +189,7 @@ class CreateNode(unittest.TestCase):
 
         n1 = os.path.join(basedir, command + "-n1")
         argv = ["--quiet", command, "--basedir", n1] + list(args)
-        rc, out, err = self.run_tahoe(argv)
+        rc, out, err = yield run_cli(*argv)
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
         self.failUnlessEqual(rc, 0)
@@ -213,7 +209,7 @@ class CreateNode(unittest.TestCase):
                 self.failUnless("\nreserved_space = 1G\n" in content)
 
         # creating the node a second time should be rejected
-        rc, out, err = self.run_tahoe(argv)
+        rc, out, err = yield run_cli(*argv)
         self.failIfEqual(rc, 0, str((out, err, rc)))
         self.failUnlessEqual(out, "")
         self.failUnless("is not empty." in err)
@@ -226,7 +222,7 @@ class CreateNode(unittest.TestCase):
         # test that the non --basedir form works too
         n2 = os.path.join(basedir, command + "-n2")
         argv = ["--quiet", command] + list(args) + [n2]
-        rc, out, err = self.run_tahoe(argv)
+        rc, out, err = yield run_cli(*argv)
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
         self.failUnlessEqual(rc, 0)
@@ -236,7 +232,7 @@ class CreateNode(unittest.TestCase):
         # test the --node-directory form
         n3 = os.path.join(basedir, command + "-n3")
         argv = ["--quiet", "--node-directory", n3, command] + list(args)
-        rc, out, err = self.run_tahoe(argv)
+        rc, out, err = yield run_cli(*argv)
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
         self.failUnlessEqual(rc, 0)
@@ -247,7 +243,7 @@ class CreateNode(unittest.TestCase):
             # test that the output (without --quiet) includes the base directory
             n4 = os.path.join(basedir, command + "-n4")
             argv = [command] + list(args) + [n4]
-            rc, out, err = self.run_tahoe(argv)
+            rc, out, err = yield run_cli(*argv)
             self.failUnlessEqual(err, "")
             self.failUnlessIn(" created in ", out)
             self.failUnlessIn(n4, out)

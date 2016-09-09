@@ -29,10 +29,10 @@ from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
      DefaultAliasMarker
 
 from allmydata.scripts import cli, debug, runner
-from ..common_util import ReallyEqualMixin, skip_if_cannot_represent_filename
+from ..common_util import (ReallyEqualMixin, skip_if_cannot_represent_filename,
+                           run_cli)
 from ..no_network import GridTestMixin
 from .common import CLITestMixin, parse_options
-from twisted.internet import threads # CLI tests use deferToThread
 from twisted.python import usage
 
 from allmydata.util.encodingutil import listdir_unicode, get_io_encoding
@@ -705,21 +705,9 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
 
 
 class Admin(unittest.TestCase):
-    def do_cli(self, *args, **kwargs):
-        argv = list(args)
-        stdin = kwargs.get("stdin", "")
-        stdout, stderr = StringIO(), StringIO()
-        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
-                                  stdin=StringIO(stdin),
-                                  stdout=stdout, stderr=stderr)
-        def _done(res):
-            return stdout.getvalue(), stderr.getvalue()
-        d.addCallback(_done)
-        return d
-
     def test_generate_keypair(self):
-        d = self.do_cli("admin", "generate-keypair")
-        def _done( (stdout, stderr) ):
+        d = run_cli("admin", "generate-keypair")
+        def _done( (rc, stdout, stderr) ):
             lines = [line.strip() for line in stdout.splitlines()]
             privkey_bits = lines[0].split()
             pubkey_bits = lines[1].split()
@@ -738,8 +726,8 @@ class Admin(unittest.TestCase):
 
     def test_derive_pubkey(self):
         priv1,pub1 = keyutil.make_keypair()
-        d = self.do_cli("admin", "derive-pubkey", priv1)
-        def _done( (stdout, stderr) ):
+        d = run_cli("admin", "derive-pubkey", priv1)
+        def _done( (rc, stdout, stderr) ):
             lines = stdout.split("\n")
             privkey_line = lines[0].strip()
             pubkey_line = lines[1].strip()
