@@ -12,6 +12,33 @@ class Config(unittest.TestCase):
         return config
 
     @defer.inlineCallbacks
+    def _test_option_not_recognized(self, option, *args):
+        basedir = self.mktemp()
+        try:
+            params = args[0] + (basedir,)
+            rc, out, err = yield run_cli(*params)
+        except usage.UsageError, e:
+            self.failUnlessEqual(str(e), "option %s not recognized" % (option,))
+        else:
+            self.fail("UsageError expected to be raised")
+
+    @defer.inlineCallbacks
+    def test_client_unrecognized_options(self):
+        basedir = self.mktemp()
+        tests = [
+            ("--listen", ("create-client", "--listen=tcp")),
+            ("--hostname", ("create-client", "--hostname=computer")),
+            ("--port", ("create-client", "--port=unix:/var/tahoe/socket",
+                        "--location=tor:myservice.onion:12345")),
+            ("--port", ("create-client", "--port=unix:/var/tahoe/socket")),
+            ("--location", ("create-client", "--location=tor:myservice.onion:12345")),
+            ("--listen", ("create-client", "--listen=tor")),
+            ("--listen", ("create-client", "--listen=i2p")),
+                ]
+        for test in tests:
+            yield self._test_option_not_recognized(test[0], test[1])
+
+    @defer.inlineCallbacks
     def test_client(self):
         basedir = self.mktemp()
         rc, out, err = yield run_cli("create-client", basedir)
@@ -19,79 +46,6 @@ class Config(unittest.TestCase):
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), True)
         self.assertEqual(cfg.get("node", "tub.port"), "disabled")
         self.assertEqual(cfg.get("node", "tub.location"), "disabled")
-
-    @defer.inlineCallbacks
-    def test_client_hostname(self):
-        basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-client", "--hostname=computer", basedir)
-        except usage.UsageError, e:
-            self.failUnlessEqual(str(e), "option --hostname not recognized")
-        else:
-            self.fail("UsageError expected to be raised")
-
-    @defer.inlineCallbacks
-    def test_client_port_location(self):
-        basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-client",
-                                         "--port=unix:/var/tahoe/socket",
-                                         "--location=tor:myservice.onion:12345",
-                                         basedir)
-        except usage.UsageError, e:
-            self.failUnlessEqual(str(e), "option --port not recognized")
-        else:
-            self.fail("UsageError expected to be raised")
-
-    @defer.inlineCallbacks
-    def test_client_port_only(self):
-        basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-client", "--port=unix:/var/tahoe/socket", basedir)
-        except usage.UsageError, e:
-            self.failUnlessEqual(str(e), "option --port not recognized")
-        else:
-            self.fail("UsageError expected to be raised")
-
-    @defer.inlineCallbacks
-    def test_client_location_only(self):
-        basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-client", "--location=tor:myservice.onion:12345", basedir)
-        except usage.UsageError, e:
-            self.failUnlessEqual(str(e), "option --location not recognized")
-        else:
-            self.fail("UsageError expected to be raised")
-
-    @defer.inlineCallbacks
-    def test_client_listen_tcp(self):
-        basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-client", "--listen=tcp", basedir)
-        except usage.UsageError, e:
-            self.failUnlessEqual(str(e), "option --listen not recognized")
-        else:
-            self.fail("UsageError expected to be raised)")
-
-    @defer.inlineCallbacks
-    def test_client_listen_tor(self):
-        basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-client", "--listen=tor", basedir)
-        except usage.UsageError, e:
-            self.failUnlessEqual(str(e), "option --listen not recognized")
-        else:
-            self.fail("UsageError expected to be raised)")
-
-    @defer.inlineCallbacks
-    def test_client_listen_i2p(self):
-        basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-client", "--listen=i2p", basedir)
-        except usage.UsageError, e:
-            self.failUnlessEqual(str(e), "option --listen not recognized")
-        else:
-            self.fail("UsageError expected to be raised")
 
     @defer.inlineCallbacks
     def test_client_hide_ip(self):
