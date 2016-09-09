@@ -36,17 +36,13 @@ def validate_where_options(options):
         raise usage.UsageError("The --port option must be used with the --location option.")
     if (options['listen'] != "tcp") and options['hostname']:
         raise usage.UsageError("The listener type must be TCP to use --hostname option.")
+    if options['listen'] not in ["tcp", "tor", "i2p"]:
+        raise usage.UsageError("The listener type must set to one of: tcp, tor, i2p.")
 
 class _CreateBaseOptions(BasedirOptions):
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
         ]
-
-    # This is overridden in order to ensure we get a "Wrong number of
-    # arguments." error when more than one argument is given.
-    def parseArgs(self, basedir=None):
-        BasedirOptions.parseArgs(self, basedir)
-
 
 class CreateClientOptions(_CreateBaseOptions):
     synopsis = "[options] [NODEDIR]"
@@ -64,6 +60,8 @@ class CreateClientOptions(_CreateBaseOptions):
          % quote_local_unicode_path(_default_nodedir)),
         ]
 
+    # This is overridden in order to ensure we get a "Wrong number of
+    # arguments." error when more than one argument is given.
     def parseArgs(self, basedir=None):
         BasedirOptions.parseArgs(self, basedir)
 
@@ -149,7 +147,7 @@ def write_node_config(c, config):
         c.write("tub.port = disabled\n")
         c.write("tub.location = disabled\n")
 
-    if ('hostname' in config and config['hostname']) or ('listen' in config and config['listen']):
+    if config.get('hostname', None) or config.get('listen', None):
         c.write("# to prevent the Tub from listening at all, use this:\n")
         c.write("#  tub.port = disabled\n")
         c.write("#  tub.location = disabled\n")
