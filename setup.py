@@ -223,6 +223,16 @@ Warning: no version information found. This may cause tests to fail.
 
         return versions.get("normalized", None)
 
+class PleaseUseTox(Command):
+    user_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        print "ERROR: Please use 'tox' to run the test suite."
+        sys.exit(1)
 
 setup_args = {}
 if version:
@@ -236,6 +246,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
       url='https://tahoe-lafs.org/',
       license='GNU GPL', # see README.rst -- there is an alternative licence
       cmdclass={"update_version": UpdateVersion,
+                "test": PleaseUseTox,
                 },
       package_dir = {'':'src'},
       packages=['allmydata',
