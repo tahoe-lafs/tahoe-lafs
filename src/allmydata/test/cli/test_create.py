@@ -24,7 +24,6 @@ class Config(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_client_unrecognized_options(self):
-        basedir = self.mktemp()
         tests = [
             ("--listen", ("create-client", "--listen=tcp")),
             ("--hostname", ("create-client", "--hostname=computer")),
@@ -73,7 +72,10 @@ class Config(unittest.TestCase):
         basedir = self.mktemp()
         rc, out, err = yield run_cli("create-node", "--hostname=computer", basedir)
         cfg = self.read_config(basedir)
-        self.assertTrue("computer" in cfg.get("node", "tub.location"))
+        port = cfg.get("node", "tub.port")
+        location = cfg.get("node", "tub.location")
+        self.assertRegex(port, r'^tcp:\d+$')
+        self.assertRegex(location, r'^tcp:computer:\d+$')
 
     @defer.inlineCallbacks
     def test_node_port_location(self):
@@ -87,10 +89,11 @@ class Config(unittest.TestCase):
         self.assertEqual(cfg.get("node", "tub.port"), "unix:/var/tahoe/socket")
 
     @defer.inlineCallbacks
-    def test_node_listen_tcp(self):
+    def test_node_listen_tcp_no_hostname(self):
         basedir = self.mktemp()
-        rc, out, err = yield run_cli("create-node", "--listen=tcp", basedir)
-        cfg = self.read_config(basedir)
+        d = run_cli("create-node", "--listen=tcp", basedir)
+        e = yield self.assertFailure(d, usage.UsageError)
+        self.assertIn("--listen=tcp requires --hostname=", str(e))
 
     @defer.inlineCallbacks
     def test_node_listen_tor(self):
