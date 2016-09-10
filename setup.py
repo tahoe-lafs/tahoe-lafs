@@ -231,7 +231,7 @@ class PleaseUseTox(Command):
         pass
 
     def run(self):
-        print "ERROR: Please use 'tox' to run the test suite."
+        print("ERROR: Please use 'tox' to run the test suite.")
         sys.exit(1)
 
 setup_args = {}
