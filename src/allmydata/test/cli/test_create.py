@@ -50,14 +50,15 @@ class Config(unittest.TestCase):
     @defer.inlineCallbacks
     def test_node(self):
         basedir = self.mktemp()
-        rc, out, err = yield run_cli("create-node", basedir)
+        rc, out, err = yield run_cli("create-node", "--hostname=foo", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), True)
 
     @defer.inlineCallbacks
     def test_node_hide_ip(self):
         basedir = self.mktemp()
-        rc, out, err = yield run_cli("create-node", "--hide-ip", basedir)
+        rc, out, err = yield run_cli("create-node", "--hide-ip",
+                                     "--hostname=foo", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), False)
 
@@ -109,31 +110,33 @@ class Config(unittest.TestCase):
         e = self.assertRaises(usage.UsageError,
                               parse_cli,
                               "create-node", "--port=unix:/var/tahoe/socket")
-        self.assertEqual(str(e), "The --port option must be used with the --location option.")
+        self.assertEqual(str(e), "--port must be used with --location")
 
     def test_node_location_only(self):
         e = self.assertRaises(usage.UsageError,
                               parse_cli,
                               "create-node", "--location=tor:myservice.onion:12345")
-        self.assertEqual(str(e), "The --location option must be used with the --port option.")
+        self.assertEqual(str(e), "--location must be used with --port")
 
-    @defer.inlineCallbacks
-    def test_introducer(self):
+    def test_introducer_no_hostname(self):
         basedir = self.mktemp()
-        rc, out, err = yield run_cli("create-introducer", basedir)
-        cfg = self.read_config(basedir)
-        self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), True)
+        e = self.assertRaises(usage.UsageError, parse_cli,
+                              "create-introducer", basedir)
+        self.assertEqual(str(e), "--listen=tcp requires --hostname=")
 
     @defer.inlineCallbacks
     def test_introducer_hide_ip(self):
         basedir = self.mktemp()
-        rc, out, err = yield run_cli("create-introducer", "--hide-ip", basedir)
+        rc, out, err = yield run_cli("create-introducer", "--hide-ip",
+                                     "--hostname=foo", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), False)
 
     @defer.inlineCallbacks
     def test_introducer_hostname(self):
         basedir = self.mktemp()
-        rc, out, err = yield run_cli("create-introducer", "--hostname=computer", basedir)
+        rc, out, err = yield run_cli("create-introducer",
+                                     "--hostname=foo", basedir)
         cfg = self.read_config(basedir)
-        self.assertTrue("computer" in cfg.get("node", "tub.location"))
+        self.assertTrue("foo" in cfg.get("node", "tub.location"))
+        self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), True)

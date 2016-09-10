@@ -1,5 +1,5 @@
 import os
-from twisted.python import usage
+from twisted.python.usage import UsageError
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
@@ -23,21 +23,35 @@ WHERE_OPTS = [
     ("port", None, None, "Specify the server endpoint to listen on for this node."),
 ]
 
-def validate_where_options(options):
-    if options['hostname'] and options['port']:
-        raise usage.UsageError("The --hostname option cannot be used with the --port option.")
-    if options['hostname'] and options['location']:
-        raise usage.UsageError("The --hostname option cannot be used with the --location option.")
-    if not options['hostname'] and (options['location'] and not options['port']):
-        raise usage.UsageError("The --location option must be used with the --port option.")
-    if not options['hostname'] and (options['port'] and not options['location']):
-        raise usage.UsageError("The --port option must be used with the --location option.")
-    if (options['listen'] != "tcp") and options['hostname']:
-        raise usage.UsageError("The listener type must be TCP to use --hostname option.")
-    if options['listen'] == "tcp" and not options['hostname']:
-        raise usage.UsageError("--listen=tcp requires --hostname=")
-    if options['listen'] not in ["tcp", "tor", "i2p"]:
-        raise usage.UsageError("The listener type must set to one of: tcp, tor, i2p.")
+def validate_where_options(o):
+    # --location and --port: overrides all others, rejects all others
+    if o['location'] and not o['port']:
+        raise UsageError("--location must be used with --port")
+    if o['port'] and not o['location']:
+        raise UsageError("--port must be used with --location")
+
+    if o['location'] and o['port']:
+        if o['hostname']:
+            raise UsageError("--hostname cannot be used with --location/--port")
+        # TODO: really, we should reject an explicit --listen= option (we
+        # want them to omit it entirely, because --location/--port would
+        # override anything --listen= might allocate). For now, just let it
+        # pass, because that allows us to use --listen=tcp as the default in
+        # optParameters, which (I think) gets included in the rendered --help
+        # output, which is useful. In the future, let's reconsider the value
+        # of that --help text (or achieve that documentation in some other
+        # way), change the default to None, complain here if it's not None,
+        # then change parseArgs() to transform the None into "tcp"
+    else:
+        # no --location and --port? expect --listen= (maybe the default), and --listen=tcp requires --hostname
+        listeners = o['listen'].split(",")
+        if 'tcp' in listeners and not o['hostname']:
+            raise UsageError("--listen=tcp requires --hostname=")
+        if 'tcp' not in listeners and o['hostname']:
+            raise UsageError("--listen= must be tcp to use --hostname")
+        for l in listeners:
+            if l not in ["tcp", "tor", "i2p"]:
+                raise UsageError("--listen= must be: tcp, tor, i2p")
 
 class _CreateBaseOptions(BasedirOptions):
     optFlags = [
