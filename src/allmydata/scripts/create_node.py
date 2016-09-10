@@ -128,7 +128,6 @@ def write_node_config(c, config):
     c.write("web.static = public_html\n")
 
     if 'hostname' in config and config['hostname'] is not None:
-        print "HOSTNAME"
         new_port = iputil.allocate_tcp_port()
         c.write("tub.port = tcp:%s\n" % new_port)
         c.write("tub.location = tcp:%s:%s\n" % (config.get('hostname').encode('utf-8'), new_port))
