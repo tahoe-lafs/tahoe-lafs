@@ -262,14 +262,14 @@ class CreateNode(unittest.TestCase):
                                   command)
 
     def test_node(self):
-        self.do_create("node")
+        self.do_create("node", "--hostname=127.0.0.1")
 
     def test_client(self):
         # create-client should behave like create-node --no-storage.
         self.do_create("client")
 
     def test_introducer(self):
-        self.do_create("introducer")
+        self.do_create("introducer", "--hostname=127.0.0.1")
 
     def test_stats_gatherer(self):
         self.do_create("stats-gatherer", "--hostname=127.0.0.1")
@@ -340,11 +340,10 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
         twistd_pid_file = os.path.join(c1, "twistd.pid")
         introducer_furl_file = os.path.join(c1, "private", "introducer.furl")
-        portnum_file = os.path.join(c1, "introducer.port")
         node_url_file = os.path.join(c1, "node.url")
         config_file = os.path.join(c1, "tahoe.cfg")
 
-        d = self.run_bintahoe(["--quiet", "create-introducer", "--basedir", c1])
+        d = self.run_bintahoe(["--quiet", "create-introducer", "--basedir", c1, "--hostname", "localhost"])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
@@ -390,11 +389,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _started(res):
-            # read the introducer.furl and introducer.port files so we can
-            # check that their contents don't change on restart
+            # read the introducer.furl file so we can check that the contents
+            # don't change on restart
             self.furl = fileutil.read(introducer_furl_file)
-            self.failUnless(os.path.exists(portnum_file))
-            self.portnum = fileutil.read(portnum_file)
 
             fileutil.write(exit_trigger_file, "")
             self.failUnless(os.path.exists(twistd_pid_file))
@@ -418,14 +415,13 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # so poll until it is. This time introducer_furl_file already
         # exists, so we check for the existence of node_url_file instead.
         def _node_has_restarted():
-            return os.path.exists(node_url_file) and os.path.exists(portnum_file)
+            return os.path.exists(node_url_file)
         d.addCallback(lambda res: self.poll(_node_has_restarted))
 
-        def _check_same_furl_and_port(res):
+        def _check_same_furl(res):
             self.failUnless(os.path.exists(introducer_furl_file))
             self.failUnlessEqual(self.furl, fileutil.read(introducer_furl_file))
-            self.failUnlessEqual(self.portnum, fileutil.read(portnum_file))
-        d.addCallback(_check_same_furl_and_port)
+        d.addCallback(_check_same_furl)
 
         # Now we can kill it. TODO: On a slow machine, the node might kill
         # itself before we get a chance to, especially if spawning the
@@ -463,7 +459,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         c1 = os.path.join(basedir, "c1")
         exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
         twistd_pid_file = os.path.join(c1, "twistd.pid")
-        portnum_file = os.path.join(c1, "client.port")
+        node_url_file = os.path.join(c1, "node.url")
 
         d = self.run_bintahoe(["--quiet", "create-client", "--basedir", c1, "--webport", "0"])
         def _cb(res):
@@ -506,7 +502,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb2)
 
         def _node_has_started():
-            return os.path.exists(portnum_file)
+            return os.path.exists(node_url_file)
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         # now we can kill it. TODO: On a slow machine, the node might kill
@@ -527,11 +523,13 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         c1 = os.path.join(basedir, "c1")
         exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
         twistd_pid_file = os.path.join(c1, "twistd.pid")
-        portnum_file = os.path.join(c1, "client.port")
         node_url_file = os.path.join(c1, "node.url")
+        storage_furl_file = os.path.join(c1, "private", "storage.furl")
         config_file = os.path.join(c1, "tahoe.cfg")
 
-        d = self.run_bintahoe(["--quiet", "create-node", "--basedir", c1, "--webport", "0"])
+        d = self.run_bintahoe(["--quiet", "create-node", "--basedir", c1,
+                               "--webport", "0",
+                               "--hostname", "localhost"])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
@@ -540,9 +538,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             config = fileutil.read(config_file)
             self.failUnlessIn('\nweb.port = 0\n', config)
 
-            # By writing this file, we get two minutes before the client will exit. This ensures
-            # that even if the 'stop' command doesn't work (and the test fails), the client should
-            # still terminate.
+            # By writing this file, we get two minutes before the client will
+            # exit. This ensures that even if the 'stop' command doesn't work
+            # (and the test fails), the client should still terminate.
             fileutil.write(exit_trigger_file, "")
             # now it's safe to start the node
         d.addCallback(_cb)
@@ -570,14 +568,13 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb2)
 
         def _node_has_started():
-            # this depends upon both files being created atomically
-            return os.path.exists(node_url_file) and os.path.exists(portnum_file)
+            return os.path.exists(node_url_file)
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _started(res):
-            # read the client.port file so we can check that its contents
+            # read the storage.furl file so we can check that its contents
             # don't change on restart
-            self.portnum = fileutil.read(portnum_file)
+            self.storage_furl = fileutil.read(storage_furl_file)
 
             fileutil.write(exit_trigger_file, "")
             self.failUnless(os.path.exists(twistd_pid_file))
@@ -601,9 +598,10 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # so poll until it is
         d.addCallback(lambda res: self.poll(_node_has_started))
 
-        def _check_same_port(res):
-            self.failUnlessEqual(self.portnum, fileutil.read(portnum_file))
-        d.addCallback(_check_same_port)
+        def _check_same_furl(res):
+            self.failUnlessEqual(self.storage_furl,
+                                 fileutil.read(storage_furl_file))
+        d.addCallback(_check_same_furl)
 
         # now we can kill it. TODO: On a slow machine, the node might kill
         # itself before we get a chance to, especially if spawning the
