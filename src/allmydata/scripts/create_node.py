@@ -34,6 +34,8 @@ def validate_where_options(options):
         raise usage.UsageError("The --port option must be used with the --location option.")
     if (options['listen'] != "tcp") and options['hostname']:
         raise usage.UsageError("The listener type must be TCP to use --hostname option.")
+    if options['listen'] == "tcp" and not options['hostname']:
+        raise usage.UsageError("--listen=tcp requires --hostname=")
     if options['listen'] not in ["tcp", "tor", "i2p"]:
         raise usage.UsageError("The listener type must set to one of: tcp, tor, i2p.")
 
