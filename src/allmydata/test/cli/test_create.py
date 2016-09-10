@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import usage
 from allmydata.util import configutil
-from ..common_util import run_cli
+from ..common_util import run_cli, parse_cli
 
 class Config(unittest.TestCase):
     def read_config(self, basedir):
@@ -11,31 +11,25 @@ class Config(unittest.TestCase):
         config = configutil.get_config(tahoe_cfg)
         return config
 
-    @defer.inlineCallbacks
-    def _test_option_not_recognized(self, option, *args):
-        basedir = self.mktemp()
-        try:
-            params = args[0] + (basedir,)
-            rc, out, err = yield run_cli(*params)
-        except usage.UsageError, e:
-            self.failUnlessEqual(str(e), "option %s not recognized" % (option,))
-        else:
-            self.fail("UsageError expected to be raised")
-
-    @defer.inlineCallbacks
     def test_client_unrecognized_options(self):
         tests = [
-            ("--listen", ("create-client", "--listen=tcp")),
-            ("--hostname", ("create-client", "--hostname=computer")),
-            ("--port", ("create-client", "--port=unix:/var/tahoe/socket",
-                        "--location=tor:myservice.onion:12345")),
-            ("--port", ("create-client", "--port=unix:/var/tahoe/socket")),
-            ("--location", ("create-client", "--location=tor:myservice.onion:12345")),
-            ("--listen", ("create-client", "--listen=tor")),
-            ("--listen", ("create-client", "--listen=i2p")),
+            ("--listen", "create-client", "--listen=tcp"),
+            ("--hostname", "create-client", "--hostname=computer"),
+            ("--port",
+             "create-client", "--port=unix:/var/tahoe/socket",
+             "--location=tor:myservice.onion:12345"),
+            ("--port", "create-client", "--port=unix:/var/tahoe/socket"),
+            ("--location",
+             "create-client", "--location=tor:myservice.onion:12345"),
+            ("--listen", "create-client", "--listen=tor"),
+            ("--listen", "create-client", "--listen=i2p"),
                 ]
         for test in tests:
-            yield self._test_option_not_recognized(test[0], test[1])
+            option = test[0]
+            verb = test[1]
+            args = test[2:]
+            e = self.assertRaises(usage.UsageError, parse_cli, verb, *args)
+            self.assertIn("option %s not recognized" % (option,), str(e))
 
     @defer.inlineCallbacks
     def test_client(self):
@@ -88,54 +82,40 @@ class Config(unittest.TestCase):
         self.assertEqual(cfg.get("node", "tub.location"), "tor:myservice.onion:12345")
         self.assertEqual(cfg.get("node", "tub.port"), "unix:/var/tahoe/socket")
 
-    @defer.inlineCallbacks
     def test_node_listen_tcp_no_hostname(self):
         basedir = self.mktemp()
-        d = run_cli("create-node", "--listen=tcp", basedir)
-        e = yield self.assertFailure(d, usage.UsageError)
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=tcp", basedir)
         self.assertIn("--listen=tcp requires --hostname=", str(e))
 
     @defer.inlineCallbacks
     def test_node_listen_tor(self):
         basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-node", "--listen=tor", basedir)
-        except NotImplementedError, e:
-            self.failUnlessEqual(str(e), "This feature addition is being tracked by this ticket:" +
-            "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490")
-        else:
-            self.fail("NotImplementedError expected to be raised")
+        d = run_cli("create-node", "--listen=tor", basedir)
+        e = yield self.assertFailure(d, NotImplementedError)
+        self.assertEqual(str(e), "This feature addition is being tracked by this ticket:" +
+                         "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490")
 
     @defer.inlineCallbacks
     def test_node_listen_i2p(self):
         basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-node", "--listen=i2p", basedir)
-        except NotImplementedError, e:
-            self.failUnlessEqual(str(e), "This feature addition is being tracked by this ticket:" +
-            "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490")
-        else:
-            self.fail("NotImplementedError expected to be raised")
+        d = run_cli("create-node", "--listen=i2p", basedir)
+        e = yield self.assertFailure(d, NotImplementedError)
+        self.failUnlessEqual(str(e), "This feature addition is being tracked by this ticket:" +
+                             "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490")
 
-    @defer.inlineCallbacks
     def test_node_port_only(self):
-        basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-node", "--port=unix:/var/tahoe/socket", basedir)
-        except usage.UsageError, e:
-            self.failUnlessEqual(str(e), "The --port option must be used with the --location option.")
-        else:
-            self.fail("UsageError expected to be raised")
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--port=unix:/var/tahoe/socket")
+        self.assertEqual(str(e), "The --port option must be used with the --location option.")
 
-    @defer.inlineCallbacks
     def test_node_location_only(self):
-        basedir = self.mktemp()
-        try:
-            rc, out, err = yield run_cli("create-node", "--location=tor:myservice.onion:12345", basedir)
-        except usage.UsageError, e:
-            self.failUnlessEqual(str(e), "The --location option must be used with the --port option.")
-        else:
-            self.fail("UsageError expected to be raised")
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--location=tor:myservice.onion:12345")
+        self.assertEqual(str(e), "The --location option must be used with the --port option.")
 
     @defer.inlineCallbacks
     def test_introducer(self):
