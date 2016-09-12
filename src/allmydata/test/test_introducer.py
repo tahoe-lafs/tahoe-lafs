@@ -727,7 +727,7 @@ class Announcements(unittest.TestCase):
         basedir = "introducer/ClientSeqnums/test_client_cache_1"
         fileutil.make_dirs(basedir)
         cache_filepath = FilePath(os.path.join(basedir, "private",
-                                               "introducer_cache.yaml"))
+                                               "introducer_default_cache.yaml"))
 
         # if storage is enabled, the Client will publish its storage server
         # during startup (although the announcement will wait in a queue
@@ -741,7 +741,7 @@ class Announcements(unittest.TestCase):
         f.close()
 
         c = TahoeClient(basedir)
-        ic = c.introducer_client
+        ic = c.introducer_clients[0]
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
         pub1 = keyutil.remove_prefix(vk_s, "pub-")
@@ -809,7 +809,7 @@ class Announcements(unittest.TestCase):
                              furl3)
 
         c2 = TahoeClient(basedir)
-        c2.introducer_client._load_announcements()
+        c2.introducer_clients[0]._load_announcements()
         yield flushEventualQueue()
         self.assertEqual(c2.storage_broker.get_all_serverids(),
                          frozenset([pub1, pub2]))
@@ -830,7 +830,7 @@ class ClientSeqnums(unittest.TestCase):
         f.close()
 
         c = TahoeClient(basedir)
-        ic = c.introducer_client
+        ic = c.introducer_clients[0]
         outbound = ic._outbound_announcements
         published = ic._published_announcements
         def read_seqnum():

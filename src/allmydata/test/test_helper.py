@@ -81,6 +81,7 @@ class Helper_already_uploaded(Helper_fake_upload):
         return defer.succeed(res)
 
 class FakeClient(service.MultiService):
+    introducer_clients = []
     DEFAULT_ENCODING_PARAMETERS = {"k":25,
                                    "happy": 75,
                                    "n": 100,
