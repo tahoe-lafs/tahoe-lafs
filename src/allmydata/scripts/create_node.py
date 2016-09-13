@@ -19,8 +19,14 @@ def write_tac(basedir, nodetype):
 
 
 WHERE_OPTS = [
-    ("location", None, None, "Specify the location to advertise for this node."),
-    ("port", None, None, "Specify the server endpoint to listen on for this node."),
+    ("location", None, None,
+     "Server location to advertise (e.g. tcp:example.org:12345)"),
+    ("port", None, None,
+     "Server endpoint to listen on (e.g. tcp:12345, or tcp:12345:interface=127.0.0.1."),
+    ("hostname", None, None,
+     "Hostname to automatically set --location/--port when --listen=tcp"),
+    ("listen", None, "tcp",
+     "Comma-separated list of listener types (tcp,tor,i2p,none)."),
 ]
 
 def validate_where_options(o):
@@ -43,7 +49,8 @@ def validate_where_options(o):
         # way), change the default to None, complain here if it's not None,
         # then change parseArgs() to transform the None into "tcp"
     else:
-        # no --location and --port? expect --listen= (maybe the default), and --listen=tcp requires --hostname
+        # no --location and --port? expect --listen= (maybe the default), and
+        # --listen=tcp requires --hostname
         listeners = o['listen'].split(",")
         if 'tcp' in listeners and not o['hostname']:
             raise UsageError("--listen=tcp requires --hostname=")
@@ -85,20 +92,7 @@ class CreateNodeOptions(CreateClientOptions):
         ]
     synopsis = "[options] [NODEDIR]"
     description = "Create a full Tahoe-LAFS node (client+server)."
-    optParameters = WHERE_OPTS + [
-        # we provide 'create-node'-time options for the most common
-        # configuration knobs. The rest can be controlled by editing
-        # tahoe.cfg before node startup.
-        ("hostname", None, None, "Specify the hostname for listening and advertising for this node."),
-        ("listen", None, "tcp", "Specify the listener type for this node."),
-        ("nickname", "n", None, "Specify the nickname for this node."),
-        ("introducer", "i", None, "Specify the introducer FURL to use."),
-        ("webport", "p", "tcp:3456:interface=127.0.0.1",
-         "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
-        ("basedir", "C", None, "Specify which Tahoe base directory should be used. This has the same effect as the global --node-directory option. [default: %s]"
-         % quote_local_unicode_path(_default_nodedir)),
-
-        ]
+    optParameters = CreateClientOptions.optParameters + WHERE_OPTS
 
     def parseArgs(self, basedir=None):
         CreateClientOptions.parseArgs(self, basedir)
@@ -110,9 +104,7 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
     ]
-    optParameters = WHERE_OPTS + [("listen", None, "tcp", "Specify the listener type for this node."),
-        ("hostname", None, None, "Specify the hostname for listening and advertising for this node."),
-    ]
+    optParameters = NoDefaultBasedirOptions.optParameters + WHERE_OPTS
     def parseArgs(self, basedir=None):
         NoDefaultBasedirOptions.parseArgs(self, basedir)
         validate_where_options(self)
