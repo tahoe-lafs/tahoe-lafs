@@ -241,7 +241,7 @@ log_gatherer.furl = {log_furl}
         reactor.spawnProcess(
             done_proto,
             tahoe_binary,
-            ('tahoe', 'create-introducer', intro_dir),
+            ('tahoe', 'create-introducer', '--listen=tcp', '--hostname=localhost', intro_dir),
         )
         pytest.blockon(done_proto.done)
 
@@ -326,6 +326,8 @@ def _create_node(reactor, request, temp_dir, tahoe_binary, introducer_furl, flog
             'create-node',
             '--nickname', name,
             '--introducer', introducer_furl,
+            '--hostname', 'localhost',
+            '--listen', 'tcp',
         ]
         if not storage:
             args.append('--no-storage')
