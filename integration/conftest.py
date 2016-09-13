@@ -66,14 +66,6 @@ def temp_dir(request):
 
 
 @pytest.fixture(scope='session')
-def tahoe_binary():
-    """
-    Finds the 'tahoe' binary, yields complete path
-    """
-    return which('tahoe')
-
-
-@pytest.fixture(scope='session')
 def flog_binary():
     return which('flogtool')
 
@@ -224,7 +216,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
 
 
 @pytest.fixture(scope='session')
-def introducer(reactor, temp_dir, tahoe_binary, flog_gatherer, request):
+def introducer(reactor, temp_dir, flog_gatherer, request):
     config = '''
 [node]
 nickname = introducer0
@@ -240,8 +232,8 @@ log_gatherer.furl = {log_furl}
         done_proto = _ProcessExitedProtocol()
         reactor.spawnProcess(
             done_proto,
-            tahoe_binary,
-            ('tahoe', 'create-introducer', '--listen=tcp', '--hostname=localhost', intro_dir),
+            sys.executable,
+            ('python', '-m', 'allmydata.scripts.runner', 'create-introducer', '--listen=tcp', '--hostname=localhost', intro_dir),
         )
         pytest.blockon(done_proto.done)
 
@@ -255,8 +247,8 @@ log_gatherer.furl = {log_furl}
     protocol = _MagicTextProtocol('introducer running')
     process = reactor.spawnProcess(
         protocol,
-        tahoe_binary,
-        ('tahoe', 'run', intro_dir),
+        sys.executable,
+        ('python', '-m', 'allmydata.scripts.runner', 'run', intro_dir),
     )
 
     def cleanup():
@@ -281,7 +273,7 @@ def introducer_furl(introducer, temp_dir):
     return furl
 
 
-def _run_node(reactor, tahoe_binary, node_dir, request, magic_text):
+def _run_node(reactor, node_dir, request, magic_text):
     if magic_text is None:
         magic_text = "client running"
     protocol = _MagicTextProtocol(magic_text)
@@ -291,9 +283,10 @@ def _run_node(reactor, tahoe_binary, node_dir, request, magic_text):
     # between platforms.
     process = reactor.spawnProcess(
         protocol,
-        tahoe_binary,
-        ('tahoe', 'run', node_dir),
+        sys.executable,
+        ('python', '-m', 'allmydata.scripts.runner', 'run', node_dir),
     )
+    process.exited = protocol.exited
 
     def cleanup():
         try:
@@ -309,7 +302,7 @@ def _run_node(reactor, tahoe_binary, node_dir, request, magic_text):
     return protocol.magic_seen
 
 
-def _create_node(reactor, request, temp_dir, tahoe_binary, introducer_furl, flog_gatherer, name, web_port, storage=True, magic_text=None):
+def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, name, web_port, storage=True, magic_text=None):
     """
     Helper to create a single node, run it and return the instance
     spawnProcess returned (ITransport)
@@ -322,7 +315,7 @@ def _create_node(reactor, request, temp_dir, tahoe_binary, introducer_furl, flog
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
         args = [
-            'tahoe',
+            'python', '-m', 'allmydata.scripts.runner',
             'create-node',
             '--nickname', name,
             '--introducer', introducer_furl,
@@ -335,7 +328,7 @@ def _create_node(reactor, request, temp_dir, tahoe_binary, introducer_furl, flog
 
         reactor.spawnProcess(
             done_proto,
-            tahoe_binary,
+            sys.executable,
             args,
         )
         pytest.blockon(done_proto.done)
@@ -362,11 +355,11 @@ shares.total = 4
     'log_furl': flog_gatherer,
 })
 
-    return _run_node(reactor, tahoe_binary, node_dir, request, magic_text)
+    return _run_node(reactor, node_dir, request, magic_text)
 
 
 @pytest.fixture(scope='session')
-def storage_nodes(reactor, temp_dir, tahoe_binary, introducer, introducer_furl, flog_gatherer, request):
+def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer, request):
     nodes = []
     # start all 5 nodes in parallel
     for x in range(5):
@@ -375,7 +368,7 @@ def storage_nodes(reactor, temp_dir, tahoe_binary, introducer, introducer_furl, 
         nodes.append(
             pytest.blockon(
                 _create_node(
-                    reactor, request, temp_dir, tahoe_binary, introducer_furl, flog_gatherer, name,
+                    reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
                     web_port=None, storage=True,
                 )
             )
@@ -385,7 +378,7 @@ def storage_nodes(reactor, temp_dir, tahoe_binary, introducer, introducer_furl, 
 
 
 @pytest.fixture(scope='session')
-def alice(reactor, temp_dir, tahoe_binary, introducer_furl, flog_gatherer, storage_nodes, request):
+def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
     try:
         mkdir(join(temp_dir, 'magic-alice'))
     except OSError:
@@ -393,7 +386,7 @@ def alice(reactor, temp_dir, tahoe_binary, introducer_furl, flog_gatherer, stora
 
     process = pytest.blockon(
         _create_node(
-            reactor, request, temp_dir, tahoe_binary, introducer_furl, flog_gatherer, "alice",
+            reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
             web_port="tcp:9980:interface=localhost",
             storage=False,
         )
@@ -402,7 +395,7 @@ def alice(reactor, temp_dir, tahoe_binary, introducer_furl, flog_gatherer, stora
 
 
 @pytest.fixture(scope='session')
-def bob(reactor, temp_dir, tahoe_binary, introducer_furl, flog_gatherer, storage_nodes, request):
+def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
     try:
         mkdir(join(temp_dir, 'magic-bob'))
     except OSError:
@@ -410,7 +403,7 @@ def bob(reactor, temp_dir, tahoe_binary, introducer_furl, flog_gatherer, storage
 
     process = pytest.blockon(
         _create_node(
-            reactor, request, temp_dir, tahoe_binary, introducer_furl, flog_gatherer, "bob",
+            reactor, request, temp_dir, introducer_furl, flog_gatherer, "bob",
             web_port="tcp:9981:interface=localhost",
             storage=False,
         )
@@ -419,7 +412,7 @@ def bob(reactor, temp_dir, tahoe_binary, introducer_furl, flog_gatherer, storage
 
 
 @pytest.fixture(scope='session')
-def alice_invite(reactor, alice, tahoe_binary, temp_dir, request):
+def alice_invite(reactor, alice, temp_dir, request):
     node_dir = join(temp_dir, 'alice')
 
     # FIXME XXX by the time we see "client running" in the logs, the
@@ -429,9 +422,10 @@ def alice_invite(reactor, alice, tahoe_binary, temp_dir, request):
     proto = _CollectOutputProtocol()
     transport = reactor.spawnProcess(
         proto,
-        tahoe_binary,
+        sys.executable,
         [
-            'tahoe', 'magic-folder', 'create',
+            'python', '-m', 'allmydata.scripts.runner',
+            'magic-folder', 'create',
             '--basedir', node_dir, 'magik:', 'alice',
             join(temp_dir, 'magic-alice'),
         ]
@@ -441,9 +435,10 @@ def alice_invite(reactor, alice, tahoe_binary, temp_dir, request):
     proto = _CollectOutputProtocol()
     transport = reactor.spawnProcess(
         proto,
-        tahoe_binary,
+        sys.executable,
         [
-            'tahoe', 'magic-folder', 'invite',
+            'python', '-m', 'allmydata.scripts.runner',
+            'magic-folder', 'invite',
             '--basedir', node_dir, 'magik:', 'bob',
         ]
     )
@@ -453,31 +448,27 @@ def alice_invite(reactor, alice, tahoe_binary, temp_dir, request):
 
     # before magic-folder works, we have to stop and restart (this is
     # crappy for the tests -- can we fix it in magic-folder?)
-    proto = _CollectOutputProtocol()
-    transport = reactor.spawnProcess(
-        proto,
-        tahoe_binary,
-        [
-            'tahoe', 'stop', node_dir
-        ]
-    )
-    pytest.blockon(proto.done)
-
+    try:
+        alice.signalProcess('TERM')
+        pytest.blockon(alice.exited)
+    except ProcessExitedAlready:
+        pass
     magic_text = 'Completed initial Magic Folder scan successfully'
-    pytest.blockon(_run_node(reactor, tahoe_binary, node_dir, request, magic_text))
+    pytest.blockon(_run_node(reactor, node_dir, request, magic_text))
     return invite
 
 
 @pytest.fixture(scope='session')
-def magic_folder(reactor, alice_invite, alice, bob, tahoe_binary, temp_dir, request):
+def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     print("pairing magic-folder")
     bob_dir = join(temp_dir, 'bob')
     proto = _CollectOutputProtocol()
     transport = reactor.spawnProcess(
         proto,
-        tahoe_binary,
+        sys.executable,
         [
-            'tahoe', 'magic-folder', 'join',
+            'python', '-m', 'allmydata.scripts.runner',
+            'magic-folder', 'join',
             '--basedir', bob_dir,
             alice_invite,
             join(temp_dir, 'magic-bob'),
@@ -487,16 +478,13 @@ def magic_folder(reactor, alice_invite, alice, bob, tahoe_binary, temp_dir, requ
 
     # before magic-folder works, we have to stop and restart (this is
     # crappy for the tests -- can we fix it in magic-folder?)
-    proto = _CollectOutputProtocol()
-    transport = reactor.spawnProcess(
-        proto,
-        tahoe_binary,
-        [
-            'tahoe', 'stop', bob_dir
-        ]
-    )
-    pytest.blockon(proto.done)
+    try:
+        print("Sending TERM to Bob")
+        bob.signalProcess('TERM')
+        pytest.blockon(bob.exited)
+    except ProcessExitedAlready:
+        pass
 
     magic_text = 'Completed initial Magic Folder scan successfully'
-    pytest.blockon(_run_node(reactor, tahoe_binary, bob_dir, request, magic_text))
+    pytest.blockon(_run_node(reactor, bob_dir, request, magic_text))
     return (join(temp_dir, 'magic-alice'), join(temp_dir, 'magic-bob'))
