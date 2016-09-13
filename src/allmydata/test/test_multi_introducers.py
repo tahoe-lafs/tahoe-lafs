@@ -29,6 +29,8 @@ class MultiIntroTests(unittest.TestCase):
         c.write("enabled = false\n")
         c.close()
         os.mkdir(os.path.join(self.basedir,"private"))
+        self.yaml_path = FilePath(os.path.join(self.basedir, "private",
+                                               "introducers.yaml"))
 
     def test_introducer_count(self):
         """ Ensure that the Client creates same number of introducer clients
@@ -39,8 +41,7 @@ class MultiIntroTests(unittest.TestCase):
             u'intro2':{ 'furl': 'furl4' }
         },
         }
-        connections_filepath = FilePath(os.path.join(self.basedir, "private", "introducers.yaml"))
-        connections_filepath.setContent(yamlutil.safe_dump(connections))
+        self.yaml_path.setContent(yamlutil.safe_dump(connections))
         # get a client and count of introducer_clients
         myclient = Client(self.basedir)
         ic_count = len(myclient.introducer_clients)
@@ -52,8 +53,7 @@ class MultiIntroTests(unittest.TestCase):
         """ Ensure that the Client creates same number of introducer clients
         as found in "basedir/private/introducers" config file when there is one
         commented."""
-        connections_filepath = FilePath(os.path.join(self.basedir, "private", "introducers.yaml"))
-        connections_filepath.setContent(INTRODUCERS_CFG_FURLS_COMMENTED)
+        self.yaml_path.setContent(INTRODUCERS_CFG_FURLS_COMMENTED)
         # get a client and count of introducer_clients
         myclient = Client(self.basedir)
         ic_count = len(myclient.introducer_clients)
@@ -81,6 +81,40 @@ class MultiIntroTests(unittest.TestCase):
 
         # assertions
         self.failUnlessEqual(fake_furl, tahoe_cfg_furl)
+
+    def test_reject_default_in_yaml(self):
+        connections = {'introducers': {
+            u'default': { 'furl': 'furl1' },
+            }}
+        self.yaml_path.setContent(yamlutil.safe_dump(connections))
+        e = self.assertRaises(ValueError, Client, self.basedir)
+        self.assertEquals(str(e), "'default' introducer furl cannot be specified in introducers.yaml; please fix impossible configuration.")
+
+class NoDefault(unittest.TestCase):
+    def setUp(self):
+        # setup tahoe.cfg and basedir/private/introducers
+        # create a custom tahoe.cfg
+        self.basedir = os.path.dirname(self.mktemp())
+        c = open(os.path.join(self.basedir, "tahoe.cfg"), "w")
+        config = {'hide-ip':False}
+        write_node_config(c, config)
+        c.write("[client]\n")
+        c.write("# introducer.furl =\n") # omit default
+        c.write("[storage]\n")
+        c.write("enabled = false\n")
+        c.close()
+        os.mkdir(os.path.join(self.basedir,"private"))
+        self.yaml_path = FilePath(os.path.join(self.basedir, "private",
+                                               "introducers.yaml"))
+
+    def test_ok(self):
+        connections = {'introducers': {
+            u'one': { 'furl': 'furl1' },
+            }}
+        self.yaml_path.setContent(yamlutil.safe_dump(connections))
+        myclient = Client(self.basedir)
+        tahoe_cfg_furl = myclient.introducer_furls[0]
+        self.assertEquals(tahoe_cfg_furl, 'furl1')
 
 if __name__ == "__main__":
     unittest.main()
