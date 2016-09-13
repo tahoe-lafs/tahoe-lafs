@@ -380,7 +380,7 @@ This section controls *when* Tor and I2P are used. The ``[tor]`` and
 ``[i2p]`` sections (described later) control *how* Tor/I2P connections are
 managed.
 
-All Tahoe nodes need to make a connection to the Introducer; the ``[node]
+All Tahoe nodes need to make a connection to the Introducer; the ``[client]
 introducer.furl`` setting (described below) indicates where the Introducer
 lives. Tahoe client nodes must also make connections to storage servers:
 these targets are specified in announcements that come from the Introducer.
@@ -895,6 +895,28 @@ This section describes these other files.
   with as many people as possible, put the empty string (so that
   ``private/convergence`` is a zero-length file).
 
+Additional Introducer Definitions
+=================================
+
+The ``private/introducers.yaml`` file defines additional Introducers. The
+first introducer is defined in ``tahoe.cfg``, in ``[client]
+introducer.furl``. To use two or more Introducers, choose a locally-unique
+"petname" for each one, then define their FURLs in
+``private/introducers.yaml`` like this::
+
+  introducers:
+    petname2:  furl = FURL2
+    petname3:  furl = FURL3
+
+Servers will announce themselves to all configured introducers. Clients will
+merge the announcements they receive from all introducers. Nothing will
+re-broadcast an announcement (i.e. telling introducer 2 about something you
+heard from introducer 1).
+
+If you omit the introducer definitions from both ``tahoe.cfg`` and
+``introducers.yaml``, the node will not use an Introducer at all. Such
+"introducerless" clients must be configured with static servers (described
+below), or they will not be able to upload and download files.
 
 Static Server Definitions
 =========================
