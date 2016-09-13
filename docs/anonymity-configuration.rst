@@ -370,6 +370,39 @@ with a publicly traceable TCP/IP server.
 **XXX is there a document maintained by Tor developers which substantiates or refutes this belief?
 If so we need to link to it. If not, then maybe we should explain more here why we think this?**
 
+Linkability
+-----------
+
+As of 1.12.0, the node uses a single persistent Tub key for outbound
+connections to the Introducer, and inbound connections to the Storage Server
+(and Helper). For clients, a new Tub key is created for each storage server
+we learn about, and these keys are *not* persisted (so they will change each
+time the client reboots).
+
+Clients traversing directories (from rootcap to subdirectory to filecap) are
+likely to request the same storage-indices (SIs) in the same order each time.
+A client connected to multiple servers will ask them all for the same SI at
+about the same time. And two clients which are sharing files or directories
+will visit the same SIs (at various times).
+
+As a result, the following things are linkable, even with ``reveal-IP-address
+= false``:
+
+* Storage servers can link recognize multiple connections from the same
+  not-yet-rebooted client. (Note that the upcoming Accounting feature may
+  cause clients to present a persistent client-side public key when
+  connecting, which will be a much stronger linkage).
+* Storage servers can probably deduce which client is accessing data, by
+  looking at the SIs being requested. Multiple servers can collude to
+  determine that the same client is talking to all of them, even though the
+  TubIDs are different for each connection.
+* Storage servers can deduce when two different clients are sharing data.
+* The Introducer could deliver different server information to each
+  subscribed client, to partition clients into distinct sets according to
+  which server connections they eventually make. For client+server nodes, it
+  can also correlate the server announcement with the deduced client
+  identity.
+
 Performance
 -----------
 
