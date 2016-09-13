@@ -120,6 +120,10 @@ def write_node_config(c, config):
     c.write("# Tahoe installation.\n")
     c.write("\n\n")
 
+    if config["hide-ip"]:
+        c.write("[connections]\n")
+        c.write("tcp = tor\n")
+
     c.write("[node]\n")
     nickname = argv_to_unicode(config.get("nickname") or "")
     c.write("nickname = %s\n" % (nickname.encode('utf-8'),))

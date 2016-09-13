@@ -46,6 +46,7 @@ class Config(unittest.TestCase):
         rc, out, err = yield run_cli("create-client", "--hide-ip", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), False)
+        self.assertEqual(cfg.get("connections", "tcp"), "tor")
 
     @defer.inlineCallbacks
     def test_node(self):
