@@ -116,5 +116,11 @@ class NoDefault(unittest.TestCase):
         tahoe_cfg_furl = myclient.introducer_furls[0]
         self.assertEquals(tahoe_cfg_furl, 'furl1')
 
+    def test_introducerless(self):
+        connections = {'introducers': {} }
+        self.yaml_path.setContent(yamlutil.safe_dump(connections))
+        myclient = Client(self.basedir)
+        self.assertEquals(len(myclient.introducer_furls), 0)
+
 if __name__ == "__main__":
     unittest.main()
