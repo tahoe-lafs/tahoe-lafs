@@ -1,30 +1,67 @@
-﻿.. -*- coding: utf-8-with-signature -*-
+﻿=========================
+How To Configure A Server
+=========================
 
-==================================================================
-Configuring a Tahoe-LAFS server node for various network scenarios
-==================================================================
+Many Tahoe-LAFS nodes run as "servers", meaning they provide services for
+other machines (i.e. "clients"). The two most important kinds are the
+Introducer, and Storage Servers.
 
-#.  `Storage node has a public DNS name`_
-#.  `Storage node has a public IPv4/IPv6 address`_
-#.  `Storage node is behind a firewall with port forwarding`_
+To be useful, servers must be reachable by clients. Tahoe servers can listen
+on TCP ports, and advertise their "location" (hostname and TCP port number)
+so clients can connect to them. They can also listen on Tor "onion services"
+and I2P ports.
+
+Storage servers advertise their location by announcing it to the Introducer,
+which then broadcasts the location to all clients. So once the location is
+determined, you don't need to do anything special to deliver it.
+
+The Introducer itself has a location, which must be manually delivered to all
+storage servers and clients. You might email it to the new members of your
+grid. This location (along with other important cryptographic identifiers) is
+written into a file named ``private/introducer.furl`` in the Introducer's
+base directory, and should be provided as the ``--introducer=`` argument to
+``tahoe create-client`` or ``tahoe create-node``.
+
+The first step when setting up a server is to figure out how clients will
+reach it. Then you need to configure the server to listen on some ports, and
+then configure the location properly.
+
+The following are some suggested scenarios for configuring servers using
+various network transports. These examples do not include specifying an
+introducer FURL which normally you would want when provisioning storage
+nodes. For these and other configuration details please refer to
+:doc:`configuration`.
+
+#.  `Server has a public DNS name`_
+#.  `Server has a public IPv4/IPv6 address`_
+#.  `Server is behind a firewall with port forwarding`_
 #.  `Using I2P/Tor to Avoid Port-Forwarding`_
 
 
-The following are some suggested scenarios for configuring storage
-servers using various network transports. These examples do not
-include specifying an introducer FURL which normally you would want
-when provisioning storage nodes. For these and other configuration
-details please refer to :doc:`configuration`
+Server has a public DNS name
+============================
 
+The simplest case is where your server host is directly connected to the
+internet, without a firewall or NAT box in the way. Most VPS (Virtual Private
+Server) and colocated servers are like this, although some providers block
+many inbound ports by default.
 
-Storage node has a public DNS name
-==================================
+For these servers, all you need to know is the external hostname. The system
+administrator will tell you this. The main requirement is that this hostname
+can be looked up in DNS, and it will map to an IPv4 or IPv6 address which
+will reach the machine.
 
-The simplest case is when your storage host has a public IPv4 address, and
-there is a valid DNS "A" record that points to it (e.g. ``example.net``). In
-this case, just do::
+If your hostname is ``example.net``, then you'll create the introducer like
+this::
+
+  tahoe create-introducer --hostname example.com ~/introducer
+
+or a storage server like::
 
   tahoe create-node --hostname=example.net
+
+These will allocate a TCP port (e.g. 12345), assign ``tub.port`` to be
+``tcp:12345``, and ``tub.location`` will be ``tcp:example.com:12345``.
 
 Ideally this should work for IPv6-capable hosts too (where the DNS name
 provides an "AAAA" record, or both "A" and "AAAA"). However Tahoe-LAFS
@@ -34,8 +71,8 @@ support for IPv6 is new, and may still have problems. Please see ticket
 .. _#867: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/867
 
 
-Storage node has a public IPv4/IPv6 address
-===========================================
+Server has a public IPv4/IPv6 address
+=====================================
 
 If the host has a routeable (public) IPv4 address (e.g. ``203.0.113.1``), but
 no DNS name, you will need to choose a TCP port (e.g. ``3457``), and use the
@@ -75,8 +112,8 @@ IPv6-enabled port with this::
   tahoe create-node --port=tcp6:3457 --location=tcp:example.net:3457
 
 
-Storage node is behind a firewall with port forwarding
-======================================================
+Server is behind a firewall with port forwarding
+================================================
 
 To configure a storage node behind a firewall with port forwarding you will
 need to know:
@@ -106,7 +143,8 @@ Using I2P/Tor to Avoid Port-Forwarding
 ======================================
 
 I2P and Tor onion services, among other great properties, also provide NAT
-penetration. So setting up a server that listens only on Tor is simple::
+penetration without port-forwarding, hostnames, or IP addresses. So setting
+up a server that listens only on Tor is simple::
 
   tahoe create-node --listen=tor
 

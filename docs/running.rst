@@ -26,6 +26,9 @@ grid`_ as you only need to create a client node. When you want to create your
 own grid you'll need to create the introducer and several initial storage
 nodes (see the note about small grids below).
 
+Running a Client
+----------------
+
 To construct a client node, run “``tahoe create-client``”, which will create
 ``~/.tahoe`` to be the node's base directory. Acquire the ``introducer.furl``
 (see below if you are running your own introducer, or use the one from the
@@ -39,23 +42,39 @@ By default, “``tahoe create-client``” creates a client-only node, that
 does not offer its disk space to other nodes. To configure other behavior,
 use “``tahoe create-node``” or see :doc:`configuration`.
 
-To construct an introducer, create a new base directory for it (the
-name of the directory is up to you), ``cd`` into it, and run
-“``tahoe create-introducer .``”. Now run the introducer using
-“``tahoe start .``”. After it starts, it will write a file named
-``introducer.furl`` into the ``private/`` subdirectory of that base
-directory. This file contains the URL the other nodes must use in order
-to connect to this introducer. (Note that “``tahoe run .``” doesn't
-work for introducers, this is a known issue: `#937`_.)
-
 The “``tahoe run``” command above will run the node in the foreground.
 On Unix, you can run it in the background instead by using the
 “``tahoe start``” command. To stop a node started in this way, use
 “``tahoe stop``”. ``tahoe --help`` gives a summary of all commands.
 
+Running a Server or Introducer
+------------------------------
+
+To build either a storage server node, or an introducer node, you'll need
+a way for clients to connect to it. The simplest case is when the
+computer is on the public internet (e.g. a "VPS" virtual private server,
+with a public IP address and a DNS hostname like ``example.net``). See
+:doc:`servers` for help with more complex scenarios, using the ``--port``
+and ``--location`` arguments.
+
+To construct an introducer, create a new base directory for it (the name
+of the directory is up to you), ``cd`` into it, and run “``tahoe
+create-introducer --hostname=example.net .``” (but using the hostname of
+your VPS). Now run the introducer using “``tahoe start .``”. After it
+starts, it will write a file named ``introducer.furl`` into the
+``private/`` subdirectory of that base directory. This file contains the
+URL the other nodes must use in order to connect to this introducer.
+(Note that “``tahoe run .``” doesn't work for introducers, this is a
+known issue: `#937`_.)
+
+Storage servers are created the same way: ``tahoe create-node
+--hostname=HOSTNAME .`` from a new directory. You'll need to provide the
+introducer FURL (either as a ``--introducer=`` argument, or by editing
+the ``tahoe.cfg`` configuration file afterwards) to connect to the
+introducer of your choice.
+
 See :doc:`configuration` for more details about how to configure
-Tahoe-LAFS, including how to get other clients to connect to your node if
-it is behind a firewall or NAT device.
+Tahoe-LAFS.
 
 .. _public test grid: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid
 .. _TestGrid page: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid
