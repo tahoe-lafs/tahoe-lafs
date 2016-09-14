@@ -24,6 +24,7 @@ Contents:
 
    known_issues
 
+   servers
    helper
    convergence-secret
    garbage-collection
