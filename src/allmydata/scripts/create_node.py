@@ -30,6 +30,12 @@ WHERE_OPTS = [
 ]
 
 def validate_where_options(o):
+    if o['listen'] == "none":
+        # no other arguments are accepted
+        if o['hostname']:
+            raise UsageError("--hostname cannot be used when --listen=none")
+        if o['port'] or o['location']:
+            raise UsageError("--port/--location cannot be used when --listen=none")
     # --location and --port: overrides all others, rejects all others
     if o['location'] and not o['port']:
         raise UsageError("--location must be used with --port")
@@ -50,15 +56,16 @@ def validate_where_options(o):
         # then change parseArgs() to transform the None into "tcp"
     else:
         # no --location and --port? expect --listen= (maybe the default), and
-        # --listen=tcp requires --hostname
-        listeners = o['listen'].split(",")
-        if 'tcp' in listeners and not o['hostname']:
-            raise UsageError("--listen=tcp requires --hostname=")
-        if 'tcp' not in listeners and o['hostname']:
-            raise UsageError("--listen= must be tcp to use --hostname")
-        for l in listeners:
-            if l not in ["tcp", "tor", "i2p"]:
-                raise UsageError("--listen= must be: tcp, tor, i2p")
+        # --listen=tcp requires --hostname. But --listen=none is special.
+        if o['listen'] != "none":
+            listeners = o['listen'].split(",")
+            for l in listeners:
+                if l not in ["tcp", "tor", "i2p"]:
+                    raise UsageError("--listen= must be none, or one/some of: tcp, tor, i2p")
+            if 'tcp' in listeners and not o['hostname']:
+                raise UsageError("--listen=tcp requires --hostname=")
+            if 'tcp' not in listeners and o['hostname']:
+                raise UsageError("--listen= must be tcp to use --hostname")
 
 class _CreateBaseOptions(BasedirOptions):
     optFlags = [
@@ -139,27 +146,27 @@ def write_node_config(c, config):
     c.write("web.port = %s\n" % (webport.encode('utf-8'),))
     c.write("web.static = public_html\n")
 
-    if 'hostname' in config and config['hostname'] is not None:
-        new_port = iputil.allocate_tcp_port()
-        c.write("tub.port = tcp:%s\n" % new_port)
-        c.write("tub.location = tcp:%s:%s\n" % (config.get('hostname').encode('utf-8'), new_port))
-    elif 'listen' in config and config['listen'] == "tor":
-        raise NotImplementedError("This feature addition is being tracked by this ticket:" +
-                                  "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490")
-    elif 'listen' in config and config['listen'] == "i2p":
-        raise NotImplementedError("This feature addition is being tracked by this ticket:" +
-                                  "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490")
-    elif config.get('port') is not None:
-        c.write("tub.port = %s\n" % config.get('port').encode('utf-8'))
-        c.write("tub.location = %s\n" % config.get('location').encode('utf-8'))
-    else:
+    listeners = config['listen'].split(",")
+    if listeners == ["none"]:
         c.write("tub.port = disabled\n")
         c.write("tub.location = disabled\n")
-
-    if config.get('hostname', None) or config.get('listen', None):
-        c.write("# to prevent the Tub from listening at all, use this:\n")
-        c.write("#  tub.port = disabled\n")
-        c.write("#  tub.location = disabled\n")
+    else:
+        if "tor" in listeners:
+            raise NotImplementedError("--listen=tor is under development, "
+                                      "see ticket #2490 for details")
+        if "i2p" in listeners:
+            raise NotImplementedError("--listen=i2p is under development, "
+                                      "see ticket #2490 for details")
+        if "tcp" in listeners:
+            if config["port"]: # --port/--location are a pair
+                c.write("tub.port = %s\n" % config["port"].encode('utf-8'))
+                c.write("tub.location = %s\n" % config["location"].encode('utf-8'))
+            else:
+                assert "hostname" in config
+                hostname = config["hostname"]
+                new_port = iputil.allocate_tcp_port()
+                c.write("tub.port = tcp:%s\n" % new_port)
+                c.write("tub.location = tcp:%s:%s\n" % (hostname.encode('utf-8'), new_port))
 
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
@@ -234,6 +241,7 @@ def create_node(config):
 
 def create_client(config):
     config['no-storage'] = True
+    config['listen'] = "none"
     return create_node(config)
 
 

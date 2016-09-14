@@ -20,7 +20,8 @@ class MultiIntroTests(unittest.TestCase):
         # create a custom tahoe.cfg
         self.basedir = os.path.dirname(self.mktemp())
         c = open(os.path.join(self.basedir, "tahoe.cfg"), "w")
-        config = {'hide-ip':False}
+        config = {'hide-ip':False, 'listen': 'tcp',
+                  'port': None, 'location': None, 'hostname': 'example.net'}
         write_node_config(c, config)
         fake_furl = "furl1"
         c.write("[client]\n")
@@ -66,7 +67,8 @@ class MultiIntroTests(unittest.TestCase):
         the tahoe.cfg file. """
         # create a custom tahoe.cfg
         c = open(os.path.join(self.basedir, "tahoe.cfg"), "w")
-        config = {'hide-ip':False}
+        config = {'hide-ip':False, 'listen': 'tcp',
+                  'port': None, 'location': None, 'hostname': 'example.net'}
         write_node_config(c, config)
         fake_furl = "furl1"
         c.write("[client]\n")
@@ -96,7 +98,8 @@ class NoDefault(unittest.TestCase):
         # create a custom tahoe.cfg
         self.basedir = os.path.dirname(self.mktemp())
         c = open(os.path.join(self.basedir, "tahoe.cfg"), "w")
-        config = {'hide-ip':False}
+        config = {'hide-ip':False, 'listen': 'tcp',
+                  'port': None, 'location': None, 'hostname': 'example.net'}
         write_node_config(c, config)
         c.write("[client]\n")
         c.write("# introducer.furl =\n") # omit default

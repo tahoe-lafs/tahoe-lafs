@@ -26,6 +26,54 @@ The first step when setting up a server is to figure out how clients will
 reach it. Then you need to configure the server to listen on some ports, and
 then configure the location properly.
 
+Manual Configuration
+====================
+
+Each server has two settings in their ``tahoe.cfg`` file: ``tub.port``, and
+``tub.location``. The "port" controls what the server node listens to: this
+is generally a TCP port.
+
+The "location" controls what is advertised to the outside world. This is a
+"foolscap connection hint", and it includes both the type of the connection
+(tcp, tor, or i2p) and the connection details (hostname/address, port
+number). Various proxies, port-forwardings, and privacy networks might be
+involved, so it's not uncommon for ``tub.port`` and ``tub.location`` to look
+different.
+
+You can directly control the ``tub.port`` and ``tub.location`` configuration
+settings by providing ``--port=`` and ``--location=`` when running ``tahoe
+create-node``.
+
+Automatic Configuration
+=======================
+
+Instead of providing ``--port=/--location=``, you can use ``--listen=``.
+Servers can listen on TCP, Tor, I2P, a combination of those, or none at all.
+The ``--listen=`` argument controls which kinds of listeners the new server
+will use.
+
+``--listen=none`` means the server should not listen at all. This doesn't
+make sense for a server, but is appropriate for a client-only node. The
+``tahoe create-client`` command automatically includes ``--listen=none``.
+
+``--listen=tcp`` is the default, and turns on a standard TCP listening port.
+Using ``--listen=tcp`` requires a ``--hostname=`` argument too, which will be
+incorporated into the node's advertised location. We've found that computers
+cannot reliably determine their externally-reachable hostname, so rather than
+having the server make a guess (or scanning its interfaces for IP addresses
+that might or might not be appropriate), node creation requires the user to
+provide the hostname.
+
+``--listen=tor`` will talk to a local Tor daemon and create a new "onion
+server" address (which look like ``alzrgrdvxct6c63z.onion``). Likewise
+``--listen=i2p`` will talk to a local I2P daemon and create a new server
+address. See :doc:`anonymity-configuration` for details.
+
+You could listen on all three by using ``--listen=tcp,tor,i2p``.
+
+Deployment Scenarios
+====================
+
 The following are some suggested scenarios for configuring servers using
 various network transports. These examples do not include specifying an
 introducer FURL which normally you would want when provisioning storage
@@ -39,7 +87,7 @@ nodes. For these and other configuration details please refer to
 
 
 Server has a public DNS name
-============================
+----------------------------
 
 The simplest case is where your server host is directly connected to the
 internet, without a firewall or NAT box in the way. Most VPS (Virtual Private
@@ -72,7 +120,7 @@ support for IPv6 is new, and may still have problems. Please see ticket
 
 
 Server has a public IPv4/IPv6 address
-=====================================
+-------------------------------------
 
 If the host has a routeable (public) IPv4 address (e.g. ``203.0.113.1``), but
 no DNS name, you will need to choose a TCP port (e.g. ``3457``), and use the
@@ -113,7 +161,7 @@ IPv6-enabled port with this::
 
 
 Server is behind a firewall with port forwarding
-================================================
+------------------------------------------------
 
 To configure a storage node behind a firewall with port forwarding you will
 need to know:
@@ -140,7 +188,7 @@ port 3457, then do this::
 
 
 Using I2P/Tor to Avoid Port-Forwarding
-======================================
+--------------------------------------
 
 I2P and Tor onion services, among other great properties, also provide NAT
 penetration without port-forwarding, hostnames, or IP addresses. So setting
