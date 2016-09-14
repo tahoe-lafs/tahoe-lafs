@@ -219,6 +219,8 @@ class Connections(unittest.TestCase):
         self.assertEqual(n._default_connection_handlers["tcp"], "tcp")
         self.assertEqual(n._default_connection_handlers["tor"], "tor")
         self.assertEqual(n._default_connection_handlers["i2p"], "i2p")
+        n.set_tub_options()
+        n._create_tub()
 
     def test_tor(self):
         n = FakeNode(BASECONFIG+"[connections]\ntcp = tor\n")
@@ -241,6 +243,15 @@ class Connections(unittest.TestCase):
         e = self.assertRaises(ValueError, n.init_connections)
         self.assertIn("'tahoe.cfg [connections] tcp='", str(e))
         self.assertIn("uses unknown handler type 'unknown'", str(e))
+
+    def test_tcp_disabled(self):
+        n = FakeNode(BASECONFIG+"[connections]\ntcp = disabled\n")
+        n.init_connections()
+        self.assertEqual(n._default_connection_handlers["tcp"], None)
+        self.assertEqual(n._default_connection_handlers["tor"], "tor")
+        self.assertEqual(n._default_connection_handlers["i2p"], "i2p")
+        n.set_tub_options()
+        n._create_tub()
 
 class Privacy(unittest.TestCase):
     def test_flag(self):
@@ -265,6 +276,14 @@ class Privacy(unittest.TestCase):
         n.check_privacy()
         e = self.assertRaises(PrivacyError, n.init_connections)
         self.assertEqual(str(e), "tcp = tcp, must be set to 'tor'")
+
+    def test_connections_tcp_disabled(self):
+        n = FakeNode(BASECONFIG+
+                     "[connections]\ntcp = disabled\n"+
+                     "[node]\nreveal-IP-address = false\n")
+        n.check_privacy()
+        n.init_connections() # passes privacy check
+        self.assertEqual(n._default_connection_handlers["tcp"], None)
 
     def test_tub_location_auto(self):
         n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")

@@ -296,19 +296,22 @@ class Node(service.MultiService):
         # then we remember the default mappings from tahoe.cfg
         self._default_connection_handlers = {"tor": "tor", "i2p": "i2p"}
         tcp_handler_name = self.get_config("connections", "tcp", "tcp").lower()
-        if tcp_handler_name not in handlers:
-            raise ValueError("'tahoe.cfg [connections] tcp='"
-                             " uses unknown handler type '%s'"
-                             % tcp_handler_name)
-        if not handlers[tcp_handler_name]:
-            raise ValueError("'tahoe.cfg [connections] tcp=' uses "
-                             "unavailable/unimportable handler type '%s'. "
-                             "Please pip install tahoe-lafs[%s] to fix."
-                             % (tcp_handler_name, tcp_handler_name))
-        self._default_connection_handlers["tcp"] = tcp_handler_name
+        if tcp_handler_name == "disabled":
+            self._default_connection_handlers["tcp"] = None
+        else:
+            if tcp_handler_name not in handlers:
+                raise ValueError("'tahoe.cfg [connections] tcp='"
+                                 " uses unknown handler type '%s'"
+                                 % tcp_handler_name)
+            if not handlers[tcp_handler_name]:
+                raise ValueError("'tahoe.cfg [connections] tcp=' uses "
+                                 "unavailable/unimportable handler type '%s'. "
+                                 "Please pip install tahoe-lafs[%s] to fix."
+                                 % (tcp_handler_name, tcp_handler_name))
+            self._default_connection_handlers["tcp"] = tcp_handler_name
 
         if not self._reveal_ip:
-            if self._default_connection_handlers["tcp"] == "tcp":
+            if self._default_connection_handlers.get("tcp") == "tcp":
                 raise PrivacyError("tcp = tcp, must be set to 'tor'")
 
     def set_tub_options(self):
