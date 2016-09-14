@@ -39,6 +39,7 @@ class Config(unittest.TestCase):
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), True)
         self.assertEqual(cfg.get("node", "tub.port"), "disabled")
         self.assertEqual(cfg.get("node", "tub.location"), "disabled")
+        self.assertFalse(cfg.has_section("connections"))
 
     @defer.inlineCallbacks
     def test_client_hide_ip(self):
@@ -46,6 +47,7 @@ class Config(unittest.TestCase):
         rc, out, err = yield run_cli("create-client", "--hide-ip", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), False)
+        self.assertEqual(cfg.get("connections", "tcp"), "tor")
 
     @defer.inlineCallbacks
     def test_node(self):
@@ -53,6 +55,7 @@ class Config(unittest.TestCase):
         rc, out, err = yield run_cli("create-node", "--hostname=foo", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), True)
+        self.assertFalse(cfg.has_section("connections"))
 
     @defer.inlineCallbacks
     def test_node_hide_ip(self):
@@ -61,6 +64,7 @@ class Config(unittest.TestCase):
                                      "--hostname=foo", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), False)
+        self.assertEqual(cfg.get("connections", "tcp"), "tor")
 
     @defer.inlineCallbacks
     def test_node_hostname(self):
