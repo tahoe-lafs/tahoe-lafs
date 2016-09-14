@@ -218,12 +218,9 @@ def create_node(config):
         os.mkdir(basedir)
     write_tac(basedir, "client")
 
-    c = open(os.path.join(basedir, "tahoe.cfg"), "w")
-
-    write_node_config(c, config)
-    write_client_config(c, config)
-
-    c.close()
+    with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
+        write_node_config(c, config)
+        write_client_config(c, config)
 
     from allmydata.util import fileutil
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)

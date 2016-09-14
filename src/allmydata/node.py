@@ -127,7 +127,8 @@ class Node(service.MultiService):
         self.config_fname = os.path.join(self.basedir, "tahoe.cfg")
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
-        open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
+        with open(os.path.join(self.basedir, "private", "README"), "w") as f:
+            f.write(PRIV_README)
 
         # creates self.config
         self.read_config()
@@ -497,7 +498,8 @@ class Node(service.MultiService):
         return it.
         """
         privname = os.path.join(self.basedir, "private", name)
-        open(privname, "w").write(value)
+        with open(privname, "w") as f:
+            f.write(value)
 
     def get_private_config(self, name, default=_None):
         """Read the (string) contents of a private config file (which is a

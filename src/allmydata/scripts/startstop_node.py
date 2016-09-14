@@ -183,7 +183,8 @@ def stop(config):
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
         return 2
-    pid = open(pidfile, "r").read()
+    with open(pidfile, "r") as f:
+        pid = f.read()
     pid = int(pid)
 
     # kill it hard (SIGKILL), delete the twistd.pid file, then wait for the
