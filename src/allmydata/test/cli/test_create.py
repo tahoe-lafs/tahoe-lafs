@@ -39,6 +39,7 @@ class Config(unittest.TestCase):
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), True)
         self.assertEqual(cfg.get("node", "tub.port"), "disabled")
         self.assertEqual(cfg.get("node", "tub.location"), "disabled")
+        self.assertFalse(cfg.has_section("connections"))
 
     @defer.inlineCallbacks
     def test_client_hide_ip(self):
@@ -46,6 +47,7 @@ class Config(unittest.TestCase):
         rc, out, err = yield run_cli("create-client", "--hide-ip", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), False)
+        self.assertEqual(cfg.get("connections", "tcp"), "tor")
 
     @defer.inlineCallbacks
     def test_node(self):
@@ -53,6 +55,7 @@ class Config(unittest.TestCase):
         rc, out, err = yield run_cli("create-node", "--hostname=foo", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), True)
+        self.assertFalse(cfg.has_section("connections"))
 
     @defer.inlineCallbacks
     def test_node_hide_ip(self):
@@ -61,6 +64,7 @@ class Config(unittest.TestCase):
                                      "--hostname=foo", basedir)
         cfg = self.read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), False)
+        self.assertEqual(cfg.get("connections", "tcp"), "tor")
 
     @defer.inlineCallbacks
     def test_node_hostname(self):
@@ -91,20 +95,58 @@ class Config(unittest.TestCase):
         self.assertIn("--listen=tcp requires --hostname=", str(e))
 
     @defer.inlineCallbacks
+    def test_node_listen_none(self):
+        basedir = self.mktemp()
+        rc, out, err = yield run_cli("create-node", "--listen=none", basedir)
+        cfg = self.read_config(basedir)
+        self.assertEqual(cfg.get("node", "tub.port"), "disabled")
+        self.assertEqual(cfg.get("node", "tub.location"), "disabled")
+
+    def test_node_listen_none_errors(self):
+        basedir = self.mktemp()
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=none",
+                              "--hostname=foo",
+                              basedir)
+        self.assertEqual(str(e), "--hostname cannot be used when --listen=none")
+
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=none",
+                              "--port=foo", "--location=foo",
+                              basedir)
+        self.assertEqual(str(e), "--port/--location cannot be used when --listen=none")
+
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=tcp,none",
+                              basedir)
+        self.assertEqual(str(e), "--listen= must be none, or one/some of: tcp, tor, i2p")
+
+    def test_node_listen_bad(self):
+        basedir = self.mktemp()
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=XYZZY,tcp",
+                              basedir)
+        self.assertEqual(str(e), "--listen= must be none, or one/some of: tcp, tor, i2p")
+
+    @defer.inlineCallbacks
     def test_node_listen_tor(self):
         basedir = self.mktemp()
         d = run_cli("create-node", "--listen=tor", basedir)
         e = yield self.assertFailure(d, NotImplementedError)
-        self.assertEqual(str(e), "This feature addition is being tracked by this ticket:" +
-                         "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490")
+        self.assertEqual(str(e), "--listen=tor is under development, "
+                         "see ticket #2490 for details")
 
     @defer.inlineCallbacks
     def test_node_listen_i2p(self):
         basedir = self.mktemp()
         d = run_cli("create-node", "--listen=i2p", basedir)
         e = yield self.assertFailure(d, NotImplementedError)
-        self.failUnlessEqual(str(e), "This feature addition is being tracked by this ticket:" +
-                             "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490")
+        self.assertEqual(str(e), "--listen=i2p is under development, "
+                         "see ticket #2490 for details")
 
     def test_node_port_only(self):
         e = self.assertRaises(usage.UsageError,

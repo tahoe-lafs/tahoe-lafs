@@ -357,7 +357,7 @@ set the ``tub.location`` option described below.
       that defaults to AUTO)
 
     * ``[connections] tcp =`` is set to ``tcp`` (or left as the default),
-      rather than being set to ``tor``
+      rather than being set to ``tor`` or ``disabled``
 
 
 Connection Management
@@ -414,6 +414,12 @@ To hide the Tahoe node's IP address from the servers that it uses, set the
 
   [connections]
    tcp = tor
+
+You can also disable TCP hints entirely, which would be appropriate when
+running an I2P-only node::
+
+  [connections]
+   tcp = disabled
 
 (Note that I2P does not support connections to normal TCP ports, so
 ``[connections] tcp = i2p`` is invalid)

@@ -127,7 +127,8 @@ class Node(service.MultiService):
         self.config_fname = os.path.join(self.basedir, "tahoe.cfg")
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
-        open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
+        with open(os.path.join(self.basedir, "private", "README"), "w") as f:
+            f.write(PRIV_README)
 
         # creates self.config
         self.read_config()
@@ -295,19 +296,22 @@ class Node(service.MultiService):
         # then we remember the default mappings from tahoe.cfg
         self._default_connection_handlers = {"tor": "tor", "i2p": "i2p"}
         tcp_handler_name = self.get_config("connections", "tcp", "tcp").lower()
-        if tcp_handler_name not in handlers:
-            raise ValueError("'tahoe.cfg [connections] tcp='"
-                             " uses unknown handler type '%s'"
-                             % tcp_handler_name)
-        if not handlers[tcp_handler_name]:
-            raise ValueError("'tahoe.cfg [connections] tcp=' uses "
-                             "unavailable/unimportable handler type '%s'. "
-                             "Please pip install tahoe-lafs[%s] to fix."
-                             % (tcp_handler_name, tcp_handler_name))
-        self._default_connection_handlers["tcp"] = tcp_handler_name
+        if tcp_handler_name == "disabled":
+            self._default_connection_handlers["tcp"] = None
+        else:
+            if tcp_handler_name not in handlers:
+                raise ValueError("'tahoe.cfg [connections] tcp='"
+                                 " uses unknown handler type '%s'"
+                                 % tcp_handler_name)
+            if not handlers[tcp_handler_name]:
+                raise ValueError("'tahoe.cfg [connections] tcp=' uses "
+                                 "unavailable/unimportable handler type '%s'. "
+                                 "Please pip install tahoe-lafs[%s] to fix."
+                                 % (tcp_handler_name, tcp_handler_name))
+            self._default_connection_handlers["tcp"] = tcp_handler_name
 
         if not self._reveal_ip:
-            if self._default_connection_handlers["tcp"] == "tcp":
+            if self._default_connection_handlers.get("tcp") == "tcp":
                 raise PrivacyError("tcp = tcp, must be set to 'tor'")
 
     def set_tub_options(self):
@@ -497,7 +501,8 @@ class Node(service.MultiService):
         return it.
         """
         privname = os.path.join(self.basedir, "private", name)
-        open(privname, "w").write(value)
+        with open(privname, "w") as f:
+            f.write(value)
 
     def get_private_config(self, name, default=_None):
         """Read the (string) contents of a private config file (which is a

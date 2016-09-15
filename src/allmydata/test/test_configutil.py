@@ -87,6 +87,7 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
             opts = {"nickname": "nick",
                     "webport": "tcp:3456",
                     "hide-ip": False,
+                    "listen": "none",
                     }
             create_node.write_node_config(f, opts)
             create_node.write_client_config(f, opts)
