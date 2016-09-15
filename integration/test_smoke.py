@@ -114,9 +114,6 @@ def test_bob_creates_alice_deletes_bob_restores(magic_folder):
         "bob wrote this again, because reasons",
     )
 
-    # fix the conflict
-    shutil.move(join(alice_dir, "boom.conflict"), join(alice_dir, "boom"))
-
 
 def test_bob_creates_alice_deletes_alice_restores(magic_folder):
     alice_dir, bob_dir = magic_folder

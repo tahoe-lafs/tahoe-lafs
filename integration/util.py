@@ -2,7 +2,7 @@ import time
 from os.path import exists
 
 
-def await_file_contents(path, contents, timeout=10):
+def await_file_contents(path, contents, timeout=15):
     start_time = time.time()
     while time.time() - start_time < timeout:
         print("  waiting for '{}'".format(path))
