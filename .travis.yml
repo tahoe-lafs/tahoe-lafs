@@ -28,6 +28,7 @@ install:
 script:
   - tox -e codechecks
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then tox; else tox -e coverage; fi
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then tox -e integration; fi
 after_success:
   coveralls
 notifications:
