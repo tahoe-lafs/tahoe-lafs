@@ -7,13 +7,17 @@ def await_file_contents(path, contents, timeout=10):
     while time.time() - start_time < timeout:
         print("  waiting for '{}'".format(path))
         if exists(path):
-            with open(path, 'r') as f:
-                current = f.read()
-            if current == contents:
-                return True
-            print("  file contents still mismatched")
-            print("  wanted: {}".format(contents.replace('\n', ' ')))
-            print("     got: {}".format(current.replace('\n', ' ')))
+            try:
+                with open(path, 'r') as f:
+                    current = f.read()
+            except IOError:
+                print("IOError; trying again")
+            else:
+                if current == contents:
+                    return True
+                print("  file contents still mismatched")
+                print("  wanted: {}".format(contents.replace('\n', ' ')))
+                print("     got: {}".format(current.replace('\n', ' ')))
         time.sleep(1)
     if exists(path):
         raise Exception("Contents of '{}' mismatched after {}s".format(path, timeout))
