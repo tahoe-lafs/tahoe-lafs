@@ -1,5 +1,6 @@
 import os
 from twisted.python.usage import UsageError
+from twisted.internet import defer
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
@@ -18,7 +19,7 @@ def write_tac(basedir, nodetype):
     fileutil.write(os.path.join(basedir, "tahoe-%s.tac" % (nodetype,)), dummy_tac)
 
 
-WHERE_OPTS = [
+WHERE_PARMS = [
     ("location", None, None,
      "Server location to advertise (e.g. tcp:example.org:12345)"),
     ("port", None, None,
@@ -26,8 +27,14 @@ WHERE_OPTS = [
     ("hostname", None, None,
      "Hostname to automatically set --location/--port when --listen=tcp"),
     ("listen", None, "tcp",
-     "Comma-separated list of listener types (tcp,tor,i2p,none)."),
+     "Comma-separated list of listener types (tcp,tor,i2p), or none."),
+    ("tor-control-port", None, None,
+     "Endpoint of the Tor control port (for --listen=tor)"),
 ]
+
+WHERE_FLAGS = [
+    ("launch-tor", None, "Launch our own Tor (for --listen=tor)"),
+    ]
 
 def validate_where_options(o):
     if o['listen'] == "none":
@@ -96,10 +103,10 @@ class CreateClientOptions(_CreateBaseOptions):
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
-        ]
+        ] + WHERE_FLAGS
     synopsis = "[options] [NODEDIR]"
     description = "Create a full Tahoe-LAFS node (client+server)."
-    optParameters = CreateClientOptions.optParameters + WHERE_OPTS
+    optParameters = CreateClientOptions.optParameters + WHERE_PARMS
 
     def parseArgs(self, basedir=None):
         CreateClientOptions.parseArgs(self, basedir)
@@ -110,12 +117,41 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
     description = "Create a Tahoe-LAFS introducer."
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
-    ]
-    optParameters = NoDefaultBasedirOptions.optParameters + WHERE_OPTS
+    ] + WHERE_FLAGS
+    optParameters = NoDefaultBasedirOptions.optParameters + WHERE_PARMS
     def parseArgs(self, basedir=None):
         NoDefaultBasedirOptions.parseArgs(self, basedir)
         validate_where_options(self)
 
+@defer.inlineCallbacks
+def allocate_onion(config, basedir):
+    raise NotImplementedError("--listen=tor is under development, "
+                              "see ticket #2490 for details")
+    control_port = config.get("tor-control-port")
+    launch = config.get("launch-tor")
+    config_lines = []
+    hs_external_port = 3457
+    hs_internal_port = iputil.allocate_tcp_port()
+    hs_port = "%d 127.0.0.1:%d" % (hs_external_port, hs_internal_port)
+    hs = txtorcon.EphemeralHiddenService([hs_port])
+    d = hs.add_to_tor(CONTROL_PROTO)
+
+    onion = hs.hostname
+    privkey = hs.private_key
+    relative_privkey_file = os.path.join("private", "onion.privkey")
+    privkey_file = os.path.join(basedir, relative_privkey_file)
+    with open(privkey_file, "w") as f:
+        f.write(privkey)
+    config_lines.append("onion.external_port = %d" % hs_external_port)
+    config_lines.append("onion.privkey_file = %s" % relative_privkey_file)
+
+    returnValue(onion, hs_internal_port, [])
+
+def allocate_i2p(config):
+    raise NotImplementedError("--listen=i2p is under development, "
+                              "see ticket #2490 for details")
+
+@defer.inlineCallbacks
 def write_node_config(c, config):
     # this is shared between clients and introducers
     c.write("# -*- mode: conf; coding: utf-8 -*-\n")
@@ -146,27 +182,38 @@ def write_node_config(c, config):
     c.write("web.port = %s\n" % (webport.encode('utf-8'),))
     c.write("web.static = public_html\n")
 
+    tub_ports = []
+    location_hints = []
+    tor_lines = []
+    i2p_lines = []
+
     listeners = config['listen'].split(",")
     if listeners == ["none"]:
-        c.write("tub.port = disabled\n")
-        c.write("tub.location = disabled\n")
+        tub_ports.append("disabled")
+        location_hints.append("disabled")
     else:
         if "tor" in listeners:
-            raise NotImplementedError("--listen=tor is under development, "
-                                      "see ticket #2490 for details")
+            onion, localport, tor_lines = allocate_onion(config)
+            tub_ports.append("tcp:%d:interface=127.0.0.1" % localport)
+            location_hints.append("tor:%s:%d" % (onion, localport))
         if "i2p" in listeners:
-            raise NotImplementedError("--listen=i2p is under development, "
-                                      "see ticket #2490 for details")
+            addr, localport, i2p_lines = allocate_i2p(config)
+            tub_ports.append("tcp:%d:interface=127.0.0.1" % localport)
+            location_hints.append("tor:%s:%d" % (onion, localport))
         if "tcp" in listeners:
             if config["port"]: # --port/--location are a pair
-                c.write("tub.port = %s\n" % config["port"].encode('utf-8'))
-                c.write("tub.location = %s\n" % config["location"].encode('utf-8'))
+                tub_ports.append(config["port"].encode('utf-8'))
+                location_hints.append(config["location"].encode('utf-8'))
             else:
                 assert "hostname" in config
                 hostname = config["hostname"]
                 new_port = iputil.allocate_tcp_port()
-                c.write("tub.port = tcp:%s\n" % new_port)
-                c.write("tub.location = tcp:%s:%s\n" % (hostname.encode('utf-8'), new_port))
+                tub_ports.append("tcp:%s" % new_port)
+                location_hints.append("tcp:%s:%s" % (hostname.encode('utf-8'),
+                                                     new_port))
+    assert len(tub_ports) == 1 # can't handle >1 yet
+    c.write("tub.port = %s\n" % " ".join(tub_ports))
+    c.write("tub.location = %s\n" % ",".join(location_hints))
 
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
@@ -174,6 +221,21 @@ def write_node_config(c, config):
     c.write("#ssh.port = 8022\n")
     c.write("#ssh.authorized_keys_file = ~/.ssh/authorized_keys\n")
     c.write("\n")
+
+    if tor_lines:
+        c.write("[tor]\n")
+        for line in tor_lines:
+            c.write(line)
+            c.write("\n")
+        c.write("\n")
+
+    if i2p_lines:
+        c.write("[i2p]\n")
+        for line in i2p_lines:
+            c.write(line)
+            c.write("\n")
+        c.write("\n")
+
 
 def write_client_config(c, config):
     c.write("[client]\n")
@@ -207,6 +269,7 @@ def write_client_config(c, config):
     c.write("enabled = false\n")
     c.write("\n")
 
+@defer.inlineCallbacks
 def create_node(config):
     out = config.stdout
     err = config.stderr
@@ -226,7 +289,7 @@ def create_node(config):
     write_tac(basedir, "client")
 
     with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
-        write_node_config(c, config)
+        yield write_node_config(c, config)
         write_client_config(c, config)
 
     from allmydata.util import fileutil
