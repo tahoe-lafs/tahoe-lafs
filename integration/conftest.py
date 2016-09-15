@@ -233,7 +233,13 @@ log_gatherer.furl = {log_furl}
         reactor.spawnProcess(
             done_proto,
             sys.executable,
-            ('python', '-m', 'allmydata.scripts.runner', 'create-introducer', '--listen=tcp', '--hostname=localhost', intro_dir),
+            (
+                sys.executable, '-m', 'allmydata.scripts.runner',
+                'create-introducer',
+                '--listen=tcp',
+                '--hostname=localhost',
+                intro_dir,
+            ),
         )
         pytest.blockon(done_proto.done)
 
@@ -248,7 +254,11 @@ log_gatherer.furl = {log_furl}
     process = reactor.spawnProcess(
         protocol,
         sys.executable,
-        ('python', '-m', 'allmydata.scripts.runner', 'run', intro_dir),
+        (
+            sys.executable, '-m', 'allmydata.scripts.runner',
+            'run',
+            intro_dir,
+        ),
     )
 
     def cleanup():
@@ -284,7 +294,11 @@ def _run_node(reactor, node_dir, request, magic_text):
     process = reactor.spawnProcess(
         protocol,
         sys.executable,
-        ('python', '-m', 'allmydata.scripts.runner', 'run', node_dir),
+        (
+            sys.executable, '-m', 'allmydata.scripts.runner',
+            'run',
+            node_dir,
+        ),
     )
     process.exited = protocol.exited
 
@@ -315,7 +329,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
         args = [
-            'python', '-m', 'allmydata.scripts.runner',
+            sys.executable, '-m', 'allmydata.scripts.runner',
             'create-node',
             '--nickname', name,
             '--introducer', introducer_furl,
@@ -424,7 +438,7 @@ def alice_invite(reactor, alice, temp_dir, request):
         proto,
         sys.executable,
         [
-            'python', '-m', 'allmydata.scripts.runner',
+            sys.executable, '-m', 'allmydata.scripts.runner',
             'magic-folder', 'create',
             '--basedir', node_dir, 'magik:', 'alice',
             join(temp_dir, 'magic-alice'),
@@ -437,7 +451,7 @@ def alice_invite(reactor, alice, temp_dir, request):
         proto,
         sys.executable,
         [
-            'python', '-m', 'allmydata.scripts.runner',
+            sys.executable, '-m', 'allmydata.scripts.runner',
             'magic-folder', 'invite',
             '--basedir', node_dir, 'magik:', 'bob',
         ]
@@ -467,7 +481,7 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
         proto,
         sys.executable,
         [
-            'python', '-m', 'allmydata.scripts.runner',
+            sys.executable, '-m', 'allmydata.scripts.runner',
             'magic-folder', 'join',
             '--basedir', bob_dir,
             alice_invite,
