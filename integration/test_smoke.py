@@ -177,7 +177,7 @@ def test_bob_conflicts_with_alice_preexisting(magic_folder):
     # this one by giving him a massive head start
     with open(join(bob_dir, 'beta'), 'w') as f:
         f.write("this is bob's beta\n")
-    time.sleep(0.2)
+    time.sleep(0.5)
     with open(join(alice_dir, 'beta'), 'w') as f:
         f.write("this is alice's beta\n")
 
