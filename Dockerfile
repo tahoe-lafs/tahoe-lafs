@@ -4,6 +4,7 @@ ADD . /tahoe-lafs
 RUN \
   cd /tahoe-lafs && \
   git pull --depth=100 && \
-  pip install .
+  pip install . && \
+  rm -rf ~/.cache/
 
 WORKDIR /root
