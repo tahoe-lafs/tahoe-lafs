@@ -6,12 +6,20 @@ from __future__ import with_statement
 
 from twisted.internet import reactor, defer
 
+import txtorcon
 from txtorcon import torconfig
 from txtorcon import torcontrolprotocol
 
+@defer.inlineCallbacks
+def CreateOnion(tor_provider, key_file, onion_port):
+    local_port = yield txtorcon.util.available_tcp_port(reactor)
+    # XXX in the future we need to make it use UNIX domain sockets instead of TCP
+    hs_string = '%s 127.0.0.1:%d' % (onion_port, local_port)
+    service = txtorcon.EphemeralHiddenService([hs_string])
+    tor_protocol = yield tor_provider.get_control_protocol()
+    yield service.add_to_tor(tor_protocol)
 
 class TorProvider:
-
     def __init__(self, tor_binary=None, data_directory=None, control_endpoint=None):
         assert tor_binary is not None or control_endpoint is not None
         self.data_directory = data_directory
