@@ -13,7 +13,7 @@ from allmydata.util.assertutil import _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
-
+from allmydata.torutil import TorProvider
 def _import_tor():
     # this exists to be overridden by unit tests
     try:
@@ -241,18 +241,22 @@ class Node(service.MultiService):
         if self.get_config("tor", "launch", False, boolean=True):
             executable = self.get_config("tor", "tor.executable", None)
             datadir = os.path.join(self.basedir, "private", "tor-statedir")
-            return tor.launch(data_directory=datadir, tor_binary=executable)
+            self.tor_provider = TorProvider(tor_binary=executable, data_directory=datadir)
+            return tor.handler_from_tor_provider(self.tor_provider)
 
         socks_endpoint_desc = self.get_config("tor", "socks.port", None)
         if socks_endpoint_desc:
             socks_ep = endpoints.clientFromString(reactor, socks_endpoint_desc)
+            self.tor_provider = None
             return tor.socks_endpoint(socks_ep)
 
         controlport = self.get_config("tor", "control.port", None)
         if controlport:
             ep = endpoints.clientFromString(reactor, controlport)
-            return tor.control_endpoint(ep)
+            self.tor_provider = TorProvider(control_endpoint=ep)
+            return tor.handler_from_tor_provider(self.tor_provider)
 
+        self.tor_provider = None
         return tor.default_socks()
 
     def _make_i2p_handler(self):

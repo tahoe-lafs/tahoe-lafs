@@ -12,9 +12,9 @@ from txtorcon import torcontrolprotocol
 
 class TorProvider:
 
-    def __init__(self, tor_binary=None, control_endpoint=None):
+    def __init__(self, tor_binary=None, data_directory=None, control_endpoint=None):
         assert tor_binary is not None or control_endpoint is not None
-
+        self.data_directory = data_directory
         self.tor_binary = tor_binary
         self.control_endpoint = control_endpoint
         self.tor_control_protocol = None
@@ -28,6 +28,8 @@ class TorProvider:
         else:
             if self.control_endpoint is None:
                 config = torconfig.TorConfig()
+                if self.data_directory is not None:
+                    config['DataDirectory'] = self.data_directory
                 d = torconfig.launch_tor(config, reactor, tor_binary=self.tor_binary)
                 def remember_tor_protocol(result):
                     self.tor_control_protocol = result.tor_protocol
