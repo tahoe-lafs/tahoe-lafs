@@ -312,7 +312,7 @@ class Node(service.MultiService):
 
         if not self._reveal_ip:
             if self._default_connection_handlers.get("tcp") == "tcp":
-                raise PrivacyError("tcp = tcp, must be set to 'tor'")
+                raise PrivacyError("tcp = tcp, must be set to 'tor' or 'disabled'")
 
     def set_tub_options(self):
         self.tub_options = {
