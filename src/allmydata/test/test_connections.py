@@ -275,7 +275,8 @@ class Privacy(unittest.TestCase):
         n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
         n.check_privacy()
         e = self.assertRaises(PrivacyError, n.init_connections)
-        self.assertEqual(str(e), "tcp = tcp, must be set to 'tor'")
+        self.assertEqual(str(e),
+                         "tcp = tcp, must be set to 'tor' or 'disabled'")
 
     def test_connections_tcp_disabled(self):
         n = FakeNode(BASECONFIG+
