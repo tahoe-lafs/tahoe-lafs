@@ -30,6 +30,15 @@ WHERE_OPTS = [
      "Comma-separated list of listener types (tcp,tor,i2p,none)."),
 ]
 
+TOR_OPTS = [
+    ("tor-control-port", None, None,
+     "Tor's control port endpoint descriptor string (e.g. tcp:127.0.0.1:9051 or unix:/var/run/tor/control)"),
+]
+
+TOR_FLAG = [
+    ("launch-tor", None, "Launch a tor instead of connecting to a tor control port."),
+]
+
 def validate_where_options(o):
     if o['listen'] == "none":
         # no other arguments are accepted
@@ -81,6 +90,7 @@ class CreateClientOptions(_CreateBaseOptions):
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
+
         ("nickname", "n", None, "Specify the nickname for this node."),
         ("introducer", "i", None, "Specify the introducer FURL to use."),
         ("webport", "p", "tcp:3456:interface=127.0.0.1",
@@ -97,10 +107,11 @@ class CreateClientOptions(_CreateBaseOptions):
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
-        ]
+        ] + TOR_FLAG
+
     synopsis = "[options] [NODEDIR]"
     description = "Create a full Tahoe-LAFS node (client+server)."
-    optParameters = CreateClientOptions.optParameters + WHERE_OPTS
+    optParameters = CreateClientOptions.optParameters + WHERE_OPTS + TOR_OPTS
 
     def parseArgs(self, basedir=None):
         CreateClientOptions.parseArgs(self, basedir)
@@ -111,8 +122,8 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
     description = "Create a Tahoe-LAFS introducer."
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
-    ]
-    optParameters = NoDefaultBasedirOptions.optParameters + WHERE_OPTS
+    ] + TOR_FLAG
+    optParameters = NoDefaultBasedirOptions.optParameters + WHERE_OPTS + TOR_OPTS
     def parseArgs(self, basedir=None):
         NoDefaultBasedirOptions.parseArgs(self, basedir)
         validate_where_options(self)
@@ -157,8 +168,15 @@ def write_node_config(c, config):
         c.write("tub.location = disabled\n")
     else:
         if "tor" in listeners:
-            raise NotImplementedError("--listen=tor is under development, "
-                                      "see ticket #2490 for details")
+            key_file = "default.onion_key"
+            onion_port = 3456
+            c.write("[tor]\n")
+            c.write("onion.external_port = %s\n" % onion_port)
+            c.write("onion.private_key_file = %s\n" % key_file)
+            #tor_provider = TorProvider(tor_binary = )
+            # XXX fix me
+            tor_provider = TorProvider()
+            yield CreateOnion(tor_provider,key_file, onion_port)
         if "i2p" in listeners:
             raise NotImplementedError("--listen=i2p is under development, "
                                       "see ticket #2490 for details")
