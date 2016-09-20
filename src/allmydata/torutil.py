@@ -32,21 +32,18 @@ class TorProvider:
         Returns a deferred which fires with the txtorcon tor control port object
         """
         if self.tor_control_protocol is not None:
-            d = defer.succeed(self.tor_control_protocol)
+            return defer.succeed(self.tor_control_protocol)
         else:
             if self.control_endpoint is None:
                 config = torconfig.TorConfig()
                 if self.data_directory is not None:
                     config['DataDirectory'] = self.data_directory
                 d = torconfig.launch_tor(config, reactor, tor_binary=self.tor_binary)
-                def remember_tor_protocol(result):
-                    self.tor_control_protocol = result.tor_protocol
-                    return result.tor_protocol
-                d.addCallback(remember_tor_protocol)
+                d.addCallback(lambda result: result.tor_protocol)
             else:
-                d = torcontrolprotocol.connect(self.control_endpoint) # XXX use a password_function?
-                def remember_tor_protocol(result):
-                    self.tor_control_protocol = result
-                    return result
-                d.addCallback(remember_tor_protocol)
+                d = torcontrolprotocol.connect(self.control_endpoint)
+            def remember_tor_protocol(result):
+                self.tor_control_protocol = result
+                return result
+            d.addCallback(remember_tor_protocol)
         return d
