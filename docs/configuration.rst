@@ -145,8 +145,10 @@ set the ``tub.location`` option described below.
     "server endpoint descriptor" strings, each of which is a value like
     ``tcp:12345`` and ``tcp:23456:interface=127.0.0.1``.
 
-    To listen on multiple ports at once (e.g. both TCP-on-IPv4 and
-    TCP-on-IPv6), use something like ``tcp:12345,tcp6:12345``.
+    To listen on multiple ports at once (e.g. both TCP-on-IPv4 and TCP-on-IPv6),
+    use something like ``tcp6:interface=2600\:3c01\:f03c\:91ff\:fe93\:d272:3456,tcp:interface=8.8.8.8:3456``.
+    Lists of endpoint descriptor strings like the following ``tcp:12345,tcp6:12345``
+    are known to not work because an ``Address already in use.`` error.
 
     If ``tub.port`` is the string ``disabled``, the node will not listen at
     all, and thus cannot accept connections from other nodes. If ``[storage]
