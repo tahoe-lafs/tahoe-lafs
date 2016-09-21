@@ -313,6 +313,8 @@ class Node(service.MultiService):
         if not self._reveal_ip:
             if self._default_connection_handlers.get("tcp") == "tcp":
                 raise PrivacyError("tcp = tcp, must be set to 'tor' or 'disabled'")
+            if handlers["tor"] is None and handlers["i2p"] is None:
+                raise PrivacyError("dependencies for the tor or i2p handler must be installed; txtorcon or txi2p")
 
     def set_tub_options(self):
         self.tub_options = {
