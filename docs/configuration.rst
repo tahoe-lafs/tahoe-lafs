@@ -138,12 +138,15 @@ set the ``tub.location`` option described below.
     ``http://127.0.0.1:3456/static/foo.html`` will serve the contents of
     ``BASEDIR/public_html/foo.html`` .
 
-``tub.port = (endpoint specification string or "disabled", optional)``
+``tub.port = (endpoint specification strings or "disabled", optional)``
 
     This controls which port the node uses to accept Foolscap connections
-    from other nodes. It is parsed as a Twisted "server endpoint descriptor",
-    which accepts values like ``tcp:12345`` and
-    ``tcp:23456:interface=127.0.0.1``.
+    from other nodes. It is parsed as a comma-separated list of Twisted
+    "server endpoint descriptor" strings, each of which is a value like
+    ``tcp:12345`` and ``tcp:23456:interface=127.0.0.1``.
+
+    To listen on multiple ports at once (e.g. both TCP-on-IPv4 and
+    TCP-on-IPv6), use something like ``tcp:12345,tcp6:12345``.
 
     If ``tub.port`` is the string ``disabled``, the node will not listen at
     all, and thus cannot accept connections from other nodes. If ``[storage]
@@ -156,8 +159,8 @@ set the ``tub.location`` option described below.
     be used as a TCP port number, like ``tcp:%d`` (which will accept
     connections on all interfaces). However ``tub.port`` cannot be ``0`` or
     ``tcp:0`` (older versions accepted this, but the node is no longer
-    willing to ask Twisted to allocate port numbers in this way). To
-    automatically allocate a TCP port, leave ``tub.port`` blank.
+    willing to ask Twisted to allocate port numbers in this way). If
+    ``tub.port`` is present, it may not be empty.
 
     If the ``tub.port`` config key is not provided (e.g. ``tub.port`` appears
     nowhere in the ``[node]`` section, or is commented out), the node will

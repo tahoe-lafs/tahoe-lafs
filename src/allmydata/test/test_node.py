@@ -1,5 +1,5 @@
 
-import os, stat, sys, time, mock
+import os, stat, sys, time, mock, base64
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -321,6 +321,48 @@ ENABLE_HELPER = """
 [helper]
 enabled = true
 """
+
+class FakeTub:
+    def __init__(self):
+        self.tubID = base64.b32encode("foo")
+        self.listening_ports = []
+    def setOption(self, name, value): pass
+    def removeAllConnectionHintHandlers(self): pass
+    def addConnectionHintHandler(self, hint_type, handler): pass
+    def listenOn(self, what):
+        self.listening_ports.append(what)
+    def setLocation(self, location): pass
+    def setServiceParent(self, parent): pass
+
+class MultiplePorts(unittest.TestCase):
+    def test_multiple_ports(self):
+        n = EmptyNode()
+        n.basedir = self.mktemp()
+        n.config_fname = os.path.join(n.basedir, "tahoe.cfg")
+        os.mkdir(n.basedir)
+        os.mkdir(os.path.join(n.basedir, "private"))
+        port1 = iputil.allocate_tcp_port()
+        port2 = iputil.allocate_tcp_port()
+        port = ("tcp:%d:interface=127.0.0.1,tcp:%d:interface=127.0.0.1" %
+                (port1, port2))
+        location = "tcp:localhost:%d,tcp:localhost:%d" % (port1, port2)
+        with open(n.config_fname, "w") as f:
+            f.write(BASE_CONFIG)
+            f.write("tub.port = %s\n" % port)
+            f.write("tub.location = %s\n" % location)
+        # we're doing a lot of calling-into-setup-methods here, it might be
+        # better to just create a real Node instance, I'm not sure.
+        n.read_config()
+        n.check_privacy()
+        n.services = []
+        n.init_connections()
+        n.set_tub_options()
+        t = FakeTub()
+        with mock.patch("allmydata.node.Tub", return_value=t):
+            n.create_main_tub()
+        self.assertEqual(t.listening_ports,
+                         ["tcp:%d:interface=127.0.0.1" % port1,
+                          "tcp:%d:interface=127.0.0.1" % port2])
 
 class ClientNotListening(unittest.TestCase):
     def test_disabled(self):

@@ -312,7 +312,7 @@ class Node(service.MultiService):
 
         if not self._reveal_ip:
             if self._default_connection_handlers.get("tcp") == "tcp":
-                raise PrivacyError("tcp = tcp, must be set to 'tor'")
+                raise PrivacyError("tcp = tcp, must be set to 'tor' or 'disabled'")
 
     def set_tub_options(self):
         self.tub_options = {
@@ -438,9 +438,10 @@ class Node(service.MultiService):
         portlocation = self.get_tub_portlocation(cfg_tubport, cfg_location)
         if portlocation:
             tubport, location = portlocation
-            if tubport in ("0", "tcp:0"):
-                raise ValueError("tub.port cannot be 0: you must choose")
-            self.tub.listenOn(tubport)
+            for port in tubport.split(","):
+                if port in ("0", "tcp:0"):
+                    raise ValueError("tub.port cannot be 0: you must choose")
+                self.tub.listenOn(port)
             self.tub.setLocation(location)
             self._tub_is_listening = True
             self.log("Tub location set to %s" % (location,))
