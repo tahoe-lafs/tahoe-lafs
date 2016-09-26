@@ -114,9 +114,6 @@ def test_bob_creates_alice_deletes_bob_restores(magic_folder):
         "bob wrote this again, because reasons",
     )
 
-    # fix the conflict
-    shutil.move(join(alice_dir, "boom.conflict"), join(alice_dir, "boom"))
-
 
 def test_bob_creates_alice_deletes_alice_restores(magic_folder):
     alice_dir, bob_dir = magic_folder
@@ -177,7 +174,7 @@ def test_bob_conflicts_with_alice_preexisting(magic_folder):
     # this one by giving him a massive head start
     with open(join(bob_dir, 'beta'), 'w') as f:
         f.write("this is bob's beta\n")
-    time.sleep(0.2)
+    time.sleep(0.5)
     with open(join(alice_dir, 'beta'), 'w') as f:
         f.write("this is alice's beta\n")
 
