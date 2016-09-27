@@ -42,9 +42,8 @@ class S3Container(ContainerListMixin, CommonContainerMixin):
         creds = AWSCredentials(access_key=access_key, secret_key=secret_key)
         endpoint = AWSServiceEndpoint(uri=url)
 
-        query_factory = None
-        if usertoken is not None:
-            def make_query(*args, **kwargs):
+        def make_query(*args, **kwargs):
+            if usertoken is not None:
                 amz_headers = kwargs.get("amz_headers", {})
                 if producttoken is not None:
                     amz_headers["security-token"] = (usertoken, producttoken)
@@ -52,10 +51,13 @@ class S3Container(ContainerListMixin, CommonContainerMixin):
                     amz_headers["security-token"] = usertoken
                 kwargs["amz_headers"] = amz_headers
 
-                return Query(*args, **kwargs)
-            query_factory = make_query
+            query = Query(*args, **kwargs)
+            if hasattr(query.factory, 'noisy'):
+                query.factory.noisy = False
 
-        self.client = S3Client(creds=creds, endpoint=endpoint, query_factory=query_factory)
+            return query
+
+        self.client = S3Client(creds=creds, endpoint=endpoint, query_factory=make_query)
         self.ServiceError = S3Error
 
     def _create(self):
