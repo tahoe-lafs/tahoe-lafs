@@ -8,7 +8,8 @@ from twisted.trial import unittest
 
 from allmydata.util import fileutil, log
 from ..util.assertutil import precondition
-from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding
+from allmydata.util.encodingutil import (unicode_platform, get_filesystem_encoding,
+                                         get_io_encoding)
 from ..scripts import runner
 
 def skip_if_cannot_represent_filename(u):
@@ -95,14 +96,20 @@ class NonASCIIPathMixin:
             self.addCleanup(_cleanup)
         os.mkdir(dirpath)
 
-    def unicode_or_fallback(self, unicode_name, fallback_name):
-        if unicode_platform():
-            return unicode_name
-        try:
-            unicode_name.encode(get_filesystem_encoding())
-            return unicode_name
-        except UnicodeEncodeError:
-            return fallback_name
+    def unicode_or_fallback(self, unicode_name, fallback_name, io_as_well=False):
+        if not unicode_platform():
+            try:
+                unicode_name.encode(get_filesystem_encoding())
+            except UnicodeEncodeError:
+                return fallback_name
+
+        if io_as_well:
+            try:
+                unicode_name.encode(get_io_encoding())
+            except UnicodeEncodeError:
+                return fallback_name
+
+        return unicode_name
 
 
 class SignalMixin:
