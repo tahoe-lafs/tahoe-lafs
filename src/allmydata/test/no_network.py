@@ -27,7 +27,7 @@ from allmydata import uri as tahoe_uri
 from allmydata.client import Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
-from allmydata.util.hashutil import sha1
+from allmydata.util.hashutil import permute_server_hash
 from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker, IServer
 from .common import TEST_RSA_KEY_SIZE
@@ -169,7 +169,7 @@ class NoNetworkStorageBroker:
     def get_servers_for_psi(self, peer_selection_index):
         def _permuted(server):
             seed = server.get_permutation_seed()
-            return sha1(peer_selection_index + seed).digest()
+            return permute_server_hash(peer_selection_index, seed)
         return sorted(self.get_connected_servers(), key=_permuted)
     def get_connected_servers(self):
         return self.client._servers

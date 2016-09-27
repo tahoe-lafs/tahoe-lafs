@@ -943,6 +943,11 @@ class HashUtilTests(unittest.TestCase):
         self._testknown(hashutil.ssk_readkey_data_hash, "73wsaldnvdzqaf7v4pzbr2ae5a", "iv", "rk")
         self._testknown(hashutil.ssk_storage_index_hash, "j7icz6kigb6hxrej3tv4z7ayym", "")
 
+        self._testknown(hashutil.permute_server_hash,
+                        "kb4354zeeurpo3ze5e275wzbynm6hlap", # b32(expected)
+                        "SI", # peer selection index == storage_index
+                        base32.a2b("u33m4y7klhz3bypswqkozwetvabelhxt"), # seed
+                        )
 
 class Abbreviate(unittest.TestCase):
     def test_time(self):

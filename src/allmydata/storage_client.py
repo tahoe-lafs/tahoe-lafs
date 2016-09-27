@@ -40,7 +40,7 @@ from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
-from allmydata.util.hashutil import sha1
+from allmydata.util.hashutil import permute_server_hash
 
 # who is responsible for de-duplication?
 #  both?
@@ -200,7 +200,8 @@ class StorageFarmBroker(service.MultiService):
         def _permuted(server):
             seed = server.get_permutation_seed()
             is_unpreferred = server not in preferred_servers
-            return (is_unpreferred, sha1(peer_selection_index + seed).digest())
+            return (is_unpreferred,
+                    permute_server_hash(peer_selection_index, seed))
         return sorted(connected_servers, key=_permuted)
 
     def get_all_serverids(self):
