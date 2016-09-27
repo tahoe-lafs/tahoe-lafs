@@ -16,7 +16,7 @@ from allmydata.util import fake_inotify, fileutil
 from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
-from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
+from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.test.common import ShouldFailMixin
 from .cli.test_magic_folder import MagicFolderCLITestMixin
 
@@ -1010,7 +1010,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
     test_alice_bob.timeout = 300
 
 
-class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin, CheckerMixin):
+class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, CheckerMixin):
     """
     These tests will be run both with a mock notifier, and (on platforms that support it)
     with the real INotify.
