@@ -22,8 +22,8 @@ from allmydata import uri
 class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
     def setUp(self):
         GridTestMixin.setUp(self)
-        self.alice_nickname = self.unicode_or_fallback(u"Alice\u00F8", u"Alice")
-        self.bob_nickname = self.unicode_or_fallback(u"Bob\u00F8", u"Bob")
+        self.alice_nickname = self.unicode_or_fallback(u"Alice\u00F8", u"Alice", io_as_well=True)
+        self.bob_nickname = self.unicode_or_fallback(u"Bob\u00F8", u"Bob", io_as_well=True)
 
     def do_create_magic_folder(self, client_num):
         d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
