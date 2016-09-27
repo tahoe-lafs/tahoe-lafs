@@ -271,12 +271,11 @@ class CheckerMixin(object):
 
 
 
-class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin, CheckerMixin):
+class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, CheckerMixin):
     inject_inotify = False
 
     def setUp(self):
-        # super(MagicFolderAliceBobTestMixin, self).setUp() # XXX huh, why isn't this working?
-        GridTestMixin.setUp(self) # XXX totally wrong
+        MagicFolderCLITestMixin.setUp(self)
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         # set_up_grid depends on self.basedir existing
@@ -294,10 +293,9 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         self.bob_magic_dir = abspath_expanduser_unicode(u"Bob-magic", base=self.basedir)
         self.mkdir_nonascii(self.bob_magic_dir)
 
-        # Alice creates a Magic Folder,
-        # invites herself then and joins.
+        # Alice creates a Magic Folder, invites herself and joins.
         d = self.do_create_magic_folder(0)
-        d.addCallback(lambda ign: self.do_invite(0, u"Alice\u00F8"))
+        d.addCallback(lambda ign: self.do_invite(0, self.alice_nickname))
         def get_invite_code(result):
             self.invite_code = result[1].strip()
         d.addCallback(get_invite_code)
@@ -321,7 +319,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(get_Alice_magicfolder)
 
         # Alice invites Bob. Bob joins.
-        d.addCallback(lambda ign: self.do_invite(0, u"Bob\u00F8"))
+        d.addCallback(lambda ign: self.do_invite(0, self.bob_nickname))
         def get_invite_code(result):
             self.invite_code = result[1].strip()
         d.addCallback(get_invite_code)
@@ -1027,7 +1025,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.local_dir = os.path.join(self.basedir, u"local_dir")
         self.mkdir_nonascii(self.local_dir)
 
-        d = self.create_invite_join_magic_folder(u"Alice\u0101", self.local_dir)
+        d = self.create_invite_join_magic_folder(self.alice_nickname, self.local_dir)
         d.addCallback(self._restart_client)
         # note: _restart_client ultimately sets self.magicfolder to not-None
         return d
@@ -1122,7 +1120,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         d = defer.succeed(None)
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 0))
 
-        d.addCallback(lambda ign: self.create_invite_join_magic_folder(u"Alice", self.local_dir))
+        d.addCallback(lambda ign: self.create_invite_join_magic_folder(self.alice_nickname, self.local_dir))
         d.addCallback(self._restart_client)
 
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 1))
