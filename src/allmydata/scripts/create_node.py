@@ -229,12 +229,11 @@ def create_node(config):
         os.mkdir(basedir)
     write_tac(basedir, "client")
 
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
     with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
         yield write_node_config(c, config)
         write_client_config(c, config)
 
-    from allmydata.util import fileutil
-    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
     print >>out, "Node created in %s" % quote_local_unicode_path(basedir)
     if not config.get("introducer", ""):
         print >>out, " Please set [client]introducer.furl= in tahoe.cfg!"
@@ -268,6 +267,7 @@ def create_introducer(config):
         os.mkdir(basedir)
     write_tac(basedir, "introducer")
 
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
     with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
         yield write_node_config(c, config)
 
