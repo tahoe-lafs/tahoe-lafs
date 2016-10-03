@@ -151,8 +151,9 @@ def create_onion(reactor, cli_config):
     external_port = 3457 # TODO: pick this randomly? there's no contention.
 
     local_port = allocate_tcp_port()
-    ehs = txtorcon.EphemeralHiddenService("%d 127.0.0.1:%d" %
-                                          (local_port, external_port))
+    ehs = txtorcon.EphemeralHiddenService(
+        "%d 127.0.0.1:%d" % (external_port, local_port)
+    )
     print("allocating .onion address (takes ~40s)..", file=stdout)
     yield ehs.add_to_tor(tor_control_proto)
     print(".onion address allocated", file=stdout)
@@ -297,7 +298,7 @@ class Provider(service.MultiService):
         with open(privkeyfile, "rb") as f:
             privkey = f.read()
         ehs = self._txtorcon.EphemeralHiddenService(
-            "%d 127.0.0.1:%d" % (local_port, external_port), privkey)
+            "%d 127.0.0.1:%d" % (external_port, local_port), privkey)
         yield ehs.add_to_tor(tor_control_proto)
         self._onion_ehs = ehs
         self._onion_tor_control_proto = tor_control_proto
