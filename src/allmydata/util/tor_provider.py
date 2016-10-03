@@ -71,15 +71,22 @@ def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
     tor_config.DataDirectory = data_directory(private_dir)
 
     if True: # unix-domain control socket
-        tor_config.ControlPort = os.path.join(private_dir, "tor.control")
-        tor_control_endpoint_desc = "unix:%s" % tor_config.ControlPort
+        tor_config.ControlPort = "unix:" + os.path.join(private_dir, "tor.control")
+        tor_control_endpoint_desc = tor_config.ControlPort
     else:
         # we allocate a new TCP control port each time
         tor_config.ControlPort = allocate_tcp_port()
         tor_control_endpoint_desc = "tcp:127.0.0.1:%d" % tor_config.ControlPort
 
-    tpp = yield txtorcon.launch_tor(tor_config, reactor,
-                                    tor_binary=tor_executable)
+    tor_config.SOCKSPort = allocate_tcp_port()
+
+    tpp = yield txtorcon.launch_tor(
+        tor_config, reactor,
+        tor_binary=tor_executable,
+        # stdout=sys.stdout,
+        # stderr=sys.stderr,
+    )
+
     # now tor is launched and ready to be spoken to
     # as a side effect, we've got an ITorControlProtocol ready to go
     tor_control_proto = tpp.tor_protocol
@@ -88,6 +95,10 @@ def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
     # tor will exit when it notices its parent (us) quit. Unit tests will
     # mock out txtorcon.launch_tor(), so there will never be a real Tor
     # process. So I guess we don't need to track the process.
+
+    # If we do want to do anything with it, we can call tpp.quit()
+    # (because it's a TorProcessProtocol) which returns a Deferred
+    # that fires when Tor has actually exited.
 
     returnValue((tor_control_endpoint_desc, tor_control_proto))
 
