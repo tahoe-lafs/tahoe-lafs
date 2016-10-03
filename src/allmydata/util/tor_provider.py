@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, with_statement
 import os
+
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.endpoints import clientFromString
 from twisted.internet.error import ConnectionRefusedError, ConnectError
 from twisted.application import service
+
 from .observer import OneShotObserverList
 from .iputil import allocate_tcp_port
 
@@ -83,6 +85,7 @@ def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
     tpp = yield txtorcon.launch_tor(
         tor_config, reactor,
         tor_binary=tor_executable,
+        # can be useful when debugging; mirror Tor's output to ours
         # stdout=sys.stdout,
         # stderr=sys.stderr,
     )
