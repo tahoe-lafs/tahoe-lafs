@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Script to install Tor
+
+set -ex
+echo "deb http://deb.torproject.org/torproject.org precise main" | sudo tee -a /etc/apt/sources.list
+echo "deb-src http://deb.torproject.org/torproject.org precise main" | sudo tee -a /etc/apt/sources.list
+
+# Install Tor repo signing key
+sudo apt-key add - <<EOF
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+=DMFk
+-----END PGP PUBLIC KEY BLOCK-----
+EOF
+
+sudo apt-get update
+sudo apt-get install tor deb.torproject.org-keyring
