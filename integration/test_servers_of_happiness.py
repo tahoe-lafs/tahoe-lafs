@@ -24,8 +24,8 @@ def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, sto
 
     node_dir = join(temp_dir, 'edna')
 
-    print("waiting 5 seconds unil we're maybe ready")
-    yield task.deferLater(reactor, 5, lambda: None)
+    print("waiting 10 seconds unil we're maybe ready")
+    yield task.deferLater(reactor, 10, lambda: None)
 
     # upload a file, which should fail because we have don't have 7
     # storage servers (but happiness is set to 7)

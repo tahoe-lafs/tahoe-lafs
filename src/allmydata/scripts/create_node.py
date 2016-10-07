@@ -1,11 +1,14 @@
 import os
+import json
+
 from twisted.internet import reactor, defer
 from twisted.python.usage import UsageError
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path
+from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path, get_io_encoding
 from allmydata.util import fileutil, i2p_provider, iputil, tor_provider
+from wormhole import wormhole
 
 
 dummy_tac = """
@@ -80,7 +83,7 @@ def validate_where_options(o):
     else:
         # no --location and --port? expect --listen= (maybe the default), and
         # --listen=tcp requires --hostname. But --listen=none is special.
-        if o['listen'] != "none":
+        if o['listen'] != "none" and o.get('join', None) is None:
             listeners = o['listen'].split(",")
             for l in listeners:
                 if l not in ["tcp", "tor", "i2p"]:
@@ -155,6 +158,7 @@ class CreateClientOptions(_CreateBaseOptions):
         ("shares-needed", None, 3, "Needed shares required for uploaded files."),
         ("shares-happy", None, 7, "How many servers new files must be placed on."),
         ("shares-total", None, 10, "Total shares required for uploaded files."),
+        ("join", None, None, "Join a grid with the given Invite Code."),
         ]
 
     # This is overridden in order to ensure we get a "Wrong number of
@@ -325,6 +329,45 @@ def write_client_config(c, config):
     c.write("enabled = false\n")
     c.write("\n")
 
+
+@defer.inlineCallbacks
+def _get_config_via_wormhole(config):
+    out = config.stdout
+    print >>out, "Opening wormhole with code '{}'".format(config['join'])
+    relay_url = config.parent['wormhole-server']
+    print >>out, "Connecting to '{}'".format(relay_url)
+
+    wh = wormhole.create(
+        appid=config.parent['wormhole-invite-appid'],
+        relay_url=relay_url,
+        reactor=reactor,
+    )
+    code = unicode(config['join'])
+    wh.set_code(code)
+    yield wh.get_welcome()
+    print >>out, "Connected to wormhole server"
+
+    intro = {
+        u"abilities": {
+            "client-v1": {},
+        }
+    }
+    wh.send_message(json.dumps(intro))
+
+    server_intro = yield wh.get_message()
+    server_intro = json.loads(server_intro)
+
+    print >>out, "  received server introduction"
+    if u'abilities' not in server_intro:
+        raise RuntimeError("  Expected 'abilities' in server introduction")
+    if u'server-v1' not in server_intro['abilities']:
+        raise RuntimeError("  Expected 'server-v1' in server abilities")
+
+    remote_data = yield wh.get_message()
+    print >>out, "  received configuration"
+    defer.returnValue(json.loads(remote_data))
+
+
 @defer.inlineCallbacks
 def create_node(config):
     out = config.stdout
@@ -343,6 +386,37 @@ def create_node(config):
     else:
         os.mkdir(basedir)
     write_tac(basedir, "client")
+
+    # if we're doing magic-wormhole stuff, do it now
+    if config['join'] is not None:
+        try:
+            remote_config = yield _get_config_via_wormhole(config)
+        except RuntimeError as e:
+            print >>err, str(e)
+            defer.returnValue(1)
+
+        # configuration we'll allow the inviter to set
+        whitelist = [
+            'shares-happy', 'shares-needed', 'shares-total',
+            'introducer', 'nickname',
+        ]
+        sensitive_keys = ['introducer']
+
+        print >>out, "Encoding: {shares-needed} of {shares-total} shares, on at least {shares-happy} servers".format(**remote_config)
+        print >>out, "Overriding the following config:"
+
+        for k in whitelist:
+            v = remote_config.get(k, None)
+            if v is not None:
+                # we're faking usually argv-supplied options :/
+                if isinstance(v, unicode):
+                    v = v.encode(get_io_encoding())
+                config[k] = v
+                if k not in sensitive_keys:
+                    if k not in ['shares-happy', 'shares-total', 'shares-needed']:
+                        print >>out, "  {}: {}".format(k, v)
+                else:
+                    print >>out, "  {}: [sensitive data; see tahoe.cfg]".format(k)
 
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
     with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:

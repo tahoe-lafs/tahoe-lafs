@@ -1,3 +1,5 @@
+.. _magic-folder-howto:
+
 =========================
 Magic Folder Set-up Howto
 =========================

@@ -7,7 +7,7 @@ from twisted.internet import defer, task, threads
 
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, startstop_node, cli, \
-    stats_gatherer, admin, magic_folder_cli
+    stats_gatherer, admin, magic_folder_cli, tahoe_invite
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 
 def GROUP(s):
@@ -47,6 +47,8 @@ class Options(usage.Options):
                     + GROUP("Using the file store")
                     +   cli.subCommands
                     +   magic_folder_cli.subCommands
+                    + GROUP("Grid Management")
+                    +   tahoe_invite.subCommands
                     )
 
     optFlags = [
@@ -56,6 +58,8 @@ class Options(usage.Options):
     ]
     optParameters = [
         ["node-directory", "d", None, NODEDIR_HELP],
+        ["wormhole-server", None, u"ws://wormhole.tahoe-lafs.org:4000/v1", "The magic wormhole server to use.", unicode],
+        ["wormhole-invite-appid", None, u"tahoe-lafs.org/invite", "The appid to use on the wormhole server.", unicode],
     ]
 
     def opt_version(self):
@@ -139,6 +143,8 @@ def dispatch(config,
         # same
         f0 = magic_folder_cli.dispatch[command]
         f = lambda so: threads.deferToThread(f0, so)
+    elif command in tahoe_invite.dispatch:
+        f = tahoe_invite.dispatch[command]
     else:
         raise usage.UsageError()
 
