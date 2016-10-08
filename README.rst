@@ -10,7 +10,7 @@ function correctly, preserving your privacy and security.
 For full documentation, please see
 http://tahoe-lafs.readthedocs.io/en/latest/ .
 
-|readthedocs|  |travis|  |coveralls|
+|readthedocs|  |travis|  |codecov|
 
 INSTALLING
 ==========
@@ -83,6 +83,6 @@ slides.
     :alt: build status
     :target: https://travis-ci.org/tahoe-lafs/tahoe-lafs
 
-.. |coveralls| image:: https://coveralls.io/repos/tahoe-lafs/tahoe-lafs/badge.png?branch=master
+.. |codecov| image:: https://codecov.io/github/tahoe-lafs/tahoe-lafs/coverage.svg?branch=master
     :alt: test coverage percentage
-    :target: https://coveralls.io/r/tahoe-lafs/tahoe-lafs?branch=master
+    :target: https://codecov.io/github/tahoe-lafs/tahoe-lafs?branch=master
