@@ -1,9 +1,11 @@
 import os
+import mock
 from twisted.trial import unittest
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.python import usage
 from allmydata.util import configutil
 from ..common_util import run_cli, parse_cli
+from ...scripts import create_node
 
 def read_config(basedir):
     tahoe_cfg = os.path.join(basedir, "tahoe.cfg")
@@ -155,14 +157,6 @@ class Config(unittest.TestCase):
         self.assertEqual(str(e), "--listen= must be none, or one/some of: tcp, tor, i2p")
 
     @defer.inlineCallbacks
-    def test_node_listen_tor(self):
-        basedir = self.mktemp()
-        d = run_cli("create-node", "--listen=tor", basedir)
-        e = yield self.assertFailure(d, NotImplementedError)
-        self.assertEqual(str(e), "--listen=tor is under development, "
-                         "see ticket #2490 for details")
-
-    @defer.inlineCallbacks
     def test_node_listen_i2p(self):
         basedir = self.mktemp()
         d = run_cli("create-node", "--listen=i2p", basedir)
@@ -201,6 +195,19 @@ class Config(unittest.TestCase):
         self.assertIn("is not empty", err)
         self.assertIn("To avoid clobbering anything, I am going to quit now", err)
 
+    @defer.inlineCallbacks
+    def test_node_slow_tor(self):
+        basedir = self.mktemp()
+        d = defer.Deferred()
+        with mock.patch("allmydata.util.tor_provider.create_onion",
+                        return_value=d):
+            d2 = run_cli("create-node", "--listen=tor", basedir)
+            d.callback(({}, "port", "location"))
+            rc, out, err = yield d2
+        self.assertEqual(rc, 0)
+        self.assertIn("Node created", out)
+        self.assertEqual(err, "")
+
     def test_introducer_no_hostname(self):
         basedir = self.mktemp()
         e = self.assertRaises(usage.UsageError, parse_cli,
@@ -236,3 +243,77 @@ class Config(unittest.TestCase):
         self.assertIn(basedir, err)
         self.assertIn("is not empty", err)
         self.assertIn("To avoid clobbering anything, I am going to quit now", err)
+
+class Tor(unittest.TestCase):
+    def test_default(self):
+        basedir = self.mktemp()
+        tor_config = {"abc": "def"}
+        tor_port = "ghi"
+        tor_location = "jkl"
+        onion_d = defer.succeed( (tor_config, tor_port, tor_location) )
+        with mock.patch("allmydata.util.tor_provider.create_onion",
+                        return_value=onion_d) as co:
+            rc, out, err = self.successResultOf(
+                run_cli("create-node", "--listen=tor", basedir))
+        self.assertEqual(len(co.mock_calls), 1)
+        args = co.mock_calls[0][1]
+        self.assertIdentical(args[0], reactor)
+        self.assertIsInstance(args[1], create_node.CreateNodeOptions)
+        self.assertEqual(args[1]["listen"], "tor")
+        cfg = read_config(basedir)
+        self.assertEqual(cfg.get("tor", "abc"), "def")
+        self.assertEqual(cfg.get("node", "tub.port"), "ghi")
+        self.assertEqual(cfg.get("node", "tub.location"), "jkl")
+
+    def test_launch(self):
+        basedir = self.mktemp()
+        tor_config = {"abc": "def"}
+        tor_port = "ghi"
+        tor_location = "jkl"
+        onion_d = defer.succeed( (tor_config, tor_port, tor_location) )
+        with mock.patch("allmydata.util.tor_provider.create_onion",
+                        return_value=onion_d) as co:
+            rc, out, err = self.successResultOf(
+                run_cli("create-node", "--listen=tor", "--tor-launch",
+                        basedir))
+        args = co.mock_calls[0][1]
+        self.assertEqual(args[1]["listen"], "tor")
+        self.assertEqual(args[1]["tor-launch"], True)
+        self.assertEqual(args[1]["tor-control-port"], None)
+
+    def test_control_port(self):
+        basedir = self.mktemp()
+        tor_config = {"abc": "def"}
+        tor_port = "ghi"
+        tor_location = "jkl"
+        onion_d = defer.succeed( (tor_config, tor_port, tor_location) )
+        with mock.patch("allmydata.util.tor_provider.create_onion",
+                        return_value=onion_d) as co:
+            rc, out, err = self.successResultOf(
+                run_cli("create-node", "--listen=tor", "--tor-control-port=mno",
+                        basedir))
+        args = co.mock_calls[0][1]
+        self.assertEqual(args[1]["listen"], "tor")
+        self.assertEqual(args[1]["tor-launch"], False)
+        self.assertEqual(args[1]["tor-control-port"], "mno")
+
+    def test_not_both(self):
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=tor",
+                              "--tor-launch", "--tor-control-port=foo")
+        self.assertEqual(str(e), "use either --tor-launch or"
+                         " --tor-control-port=, not both")
+
+    def test_launch_without_listen(self):
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=none", "--tor-launch")
+        self.assertEqual(str(e), "--tor-launch requires --listen=tor")
+
+    def test_control_port_without_listen(self):
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=none",
+                              "--tor-control-port=foo")
+        self.assertEqual(str(e), "--tor-control-port= requires --listen=tor")
