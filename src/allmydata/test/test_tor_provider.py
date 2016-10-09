@@ -189,7 +189,7 @@ class CreateOnion(unittest.TestCase):
 
         launch_tor.assert_called_with(reactor, executable,
                                       os.path.abspath(private_dir), txtorcon)
-        txtorcon.EphemeralHiddenService.assert_called_with("999999 127.0.0.1:3457")
+        txtorcon.EphemeralHiddenService.assert_called_with("3457 127.0.0.1:999999")
         ehs.add_to_tor.assert_called_with(protocol)
         ehs.remove_from_tor.assert_called_with(protocol)
 
@@ -241,7 +241,7 @@ class CreateOnion(unittest.TestCase):
         tahoe_config_tor, tor_port, tor_location = self.successResultOf(d)
 
         connect_to_tor.assert_called_with(reactor, cli_config, txtorcon)
-        txtorcon.EphemeralHiddenService.assert_called_with("999999 127.0.0.1:3457")
+        txtorcon.EphemeralHiddenService.assert_called_with("3457 127.0.0.1:999999")
         ehs.add_to_tor.assert_called_with(protocol)
         ehs.remove_from_tor.assert_called_with(protocol)
 
@@ -482,7 +482,7 @@ class Provider_Service(unittest.TestCase):
         self.assertIs(p._onion_tor_control_proto, tor_state.protocol)
         launch_tor.assert_called_with(reactor, None,
                                       os.path.join(basedir, "private"), txtorcon)
-        txtorcon.EphemeralHiddenService.assert_called_with("123 127.0.0.1:456",
+        txtorcon.EphemeralHiddenService.assert_called_with("456 127.0.0.1:123",
                                                            "private key")
         ehs.add_to_tor.assert_called_with(tor_state.protocol)
 
@@ -524,7 +524,7 @@ class Provider_Service(unittest.TestCase):
         self.assertIs(p._onion_tor_control_proto, tor_state.protocol)
         cfs.assert_called_with(reactor, "ep_desc")
         txtorcon.build_tor_connection.assert_called_with(tcep)
-        txtorcon.EphemeralHiddenService.assert_called_with("123 127.0.0.1:456",
+        txtorcon.EphemeralHiddenService.assert_called_with("456 127.0.0.1:123",
                                                            "private key")
         ehs.add_to_tor.assert_called_with(tor_state.protocol)
 
