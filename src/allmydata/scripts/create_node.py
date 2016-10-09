@@ -150,6 +150,8 @@ def write_node_config(c, config):
     c.write("web.static = public_html\n")
 
     listeners = config['listen'].split(",")
+    tub_ports = []
+    tub_locations = []
     if listeners == ["none"]:
         c.write("tub.port = disabled\n")
         c.write("tub.location = disabled\n")
@@ -162,14 +164,18 @@ def write_node_config(c, config):
                                       "see ticket #2490 for details")
         if "tcp" in listeners:
             if config["port"]: # --port/--location are a pair
-                c.write("tub.port = %s\n" % config["port"].encode('utf-8'))
-                c.write("tub.location = %s\n" % config["location"].encode('utf-8'))
+                tub_ports.append(config["port"].encode('utf-8'))
+                tub_locations.append(config["location"].encode('utf-8'))
             else:
                 assert "hostname" in config
                 hostname = config["hostname"]
                 new_port = iputil.allocate_tcp_port()
-                c.write("tub.port = tcp:%s\n" % new_port)
-                c.write("tub.location = tcp:%s:%s\n" % (hostname.encode('utf-8'), new_port))
+                tub_ports.append("tcp:%s" % new_port)
+                tub_locations.append("tcp:%s:%s" % (hostname.encode('utf-8'),
+                                                    new_port))
+        c.write("tub.port = %s\n" % ",".join(tub_ports))
+        c.write("tub.location = %s\n" % ",".join(tub_locations))
+    c.write("\n")
 
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
