@@ -197,7 +197,8 @@ class CreateOnion(unittest.TestCase):
                     "onion": "true",
                     "onion.local_port": "999999",
                     "onion.external_port": "3457",
-                    "onion.private_key_file": "private/tor_onion.privkey",
+                    "onion.private_key_file": os.path.join("private",
+                                                           "tor_onion.privkey"),
                     }
         if executable:
             expected["tor.executable"] = executable
@@ -249,7 +250,8 @@ class CreateOnion(unittest.TestCase):
                     "onion": "true",
                     "onion.local_port": "999999",
                     "onion.external_port": "3457",
-                    "onion.private_key_file": "private/tor_onion.privkey",
+                    "onion.private_key_file": os.path.join("private",
+                                                           "tor_onion.privkey"),
                     }
         self.assertEqual(tahoe_config_tor, expected)
         self.assertEqual(tor_port, "tcp:999999:interface=127.0.0.1")
@@ -317,7 +319,8 @@ class Provider(unittest.TestCase):
                 d = p._make_control_endpoint(reactor)
                 yield flushEventualQueue()
                 self.assertIs(self.successResultOf(d), ep)
-                launch_tor.assert_called_with(reactor, None, "basedir/private",
+                launch_tor.assert_called_with(reactor, None,
+                                              os.path.join("basedir", "private"),
                                               txtorcon)
                 cfs.assert_called_with(reactor, ep_desc)
 
