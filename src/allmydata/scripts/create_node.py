@@ -132,6 +132,7 @@ def write_node_config(c, config):
     if config["hide-ip"]:
         c.write("[connections]\n")
         c.write("tcp = tor\n")
+        c.write("\n")
 
     c.write("[node]\n")
     nickname = argv_to_unicode(config.get("nickname") or "")
