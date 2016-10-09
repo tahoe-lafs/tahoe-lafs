@@ -160,6 +160,18 @@ class Config(unittest.TestCase):
                               "create-node", "--location=tor:myservice.onion:12345")
         self.assertEqual(str(e), "--location must be used with --port")
 
+    @defer.inlineCallbacks
+    def test_node_basedir_exists(self):
+        basedir = self.mktemp()
+        os.mkdir(basedir)
+        with open(os.path.join(basedir, "foo"), "w") as f:
+            f.write("blocker")
+        rc, out, err = yield run_cli("create-node", "--hostname=foo", basedir)
+        self.assertEqual(rc, -1)
+        self.assertIn(basedir, err)
+        self.assertIn("is not empty", err)
+        self.assertIn("To avoid clobbering anything, I am going to quit now", err)
+
     def test_introducer_no_hostname(self):
         basedir = self.mktemp()
         e = self.assertRaises(usage.UsageError, parse_cli,
@@ -182,3 +194,16 @@ class Config(unittest.TestCase):
         cfg = self.read_config(basedir)
         self.assertTrue("foo" in cfg.get("node", "tub.location"))
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), True)
+
+    @defer.inlineCallbacks
+    def test_introducer_basedir_exists(self):
+        basedir = self.mktemp()
+        os.mkdir(basedir)
+        with open(os.path.join(basedir, "foo"), "w") as f:
+            f.write("blocker")
+        rc, out, err = yield run_cli("create-introducer", "--hostname=foo",
+                                     basedir)
+        self.assertEqual(rc, -1)
+        self.assertIn(basedir, err)
+        self.assertIn("is not empty", err)
+        self.assertIn("To avoid clobbering anything, I am going to quit now", err)

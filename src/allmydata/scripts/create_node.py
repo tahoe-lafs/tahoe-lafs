@@ -1,4 +1,5 @@
 import os
+from twisted.internet import defer
 from twisted.python.usage import UsageError
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
@@ -116,6 +117,7 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
         NoDefaultBasedirOptions.parseArgs(self, basedir)
         validate_where_options(self)
 
+@defer.inlineCallbacks
 def write_node_config(c, config):
     # this is shared between clients and introducers
     c.write("# -*- mode: conf; coding: utf-8 -*-\n")
@@ -174,6 +176,7 @@ def write_node_config(c, config):
     c.write("#ssh.port = 8022\n")
     c.write("#ssh.authorized_keys_file = ~/.ssh/authorized_keys\n")
     c.write("\n")
+    yield None
 
 def write_client_config(c, config):
     c.write("[client]\n")
@@ -207,6 +210,7 @@ def write_client_config(c, config):
     c.write("enabled = false\n")
     c.write("\n")
 
+@defer.inlineCallbacks
 def create_node(config):
     out = config.stdout
     err = config.stderr
@@ -219,14 +223,14 @@ def create_node(config):
             print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
             print >>err, "To avoid clobbering anything, I am going to quit now."
             print >>err, "Please use a different directory, or empty this one."
-            return -1
+            defer.returnValue(-1)
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
     write_tac(basedir, "client")
 
     with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
-        write_node_config(c, config)
+        yield write_node_config(c, config)
         write_client_config(c, config)
 
     from allmydata.util import fileutil
@@ -237,7 +241,7 @@ def create_node(config):
         print >>out, " The node cannot connect to a grid without it."
     if not config.get("nickname", ""):
         print >>out, " Please set [node]nickname= in tahoe.cfg"
-    return 0
+    defer.returnValue(0)
 
 def create_client(config):
     config['no-storage'] = True
@@ -245,6 +249,7 @@ def create_client(config):
     return create_node(config)
 
 
+@defer.inlineCallbacks
 def create_introducer(config):
     out = config.stdout
     err = config.stderr
@@ -257,18 +262,17 @@ def create_introducer(config):
             print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
             print >>err, "To avoid clobbering anything, I am going to quit now."
             print >>err, "Please use a different directory, or empty this one."
-            return -1
+            defer.returnValue(-1)
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
     write_tac(basedir, "introducer")
 
-    c = open(os.path.join(basedir, "tahoe.cfg"), "w")
-    write_node_config(c, config)
-    c.close()
+    with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
+        yield write_node_config(c, config)
 
     print >>out, "Introducer created in %s" % quote_local_unicode_path(basedir)
-    return 0
+    defer.returnValue(0)
 
 
 subCommands = [
