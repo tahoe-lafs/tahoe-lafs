@@ -355,6 +355,7 @@ class MultiplePorts(unittest.TestCase):
         n.read_config()
         n.check_privacy()
         n.services = []
+        n.create_tor_provider()
         n.init_connections()
         n.set_tub_options()
         t = FakeTub()

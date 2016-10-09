@@ -13,14 +13,7 @@ from allmydata.util.assertutil import _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
-from allmydata.torutil import TorProvider
-def _import_tor():
-    # this exists to be overridden by unit tests
-    try:
-        from foolscap.connections import tor
-        return tor
-    except ImportError: # pragma: no cover
-        return None
+from allmydata.util import tor_provider
 
 def _import_i2p():
     try:
@@ -59,6 +52,10 @@ def _common_config_sections():
             "launch",
             "socks.port",
             "tor.executable",
+            "onion",
+            "onion.local_port",
+            "onion.external_port",
+            "onion.private_key_file",
         ),
     }
 
@@ -143,6 +140,7 @@ class Node(service.MultiService):
         self.logSource="Node"
         self.setup_logging()
 
+        self.create_tor_provider()
         self.init_connections()
         self.set_tub_options()
         self.create_main_tub()
@@ -224,6 +222,10 @@ class Node(service.MultiService):
     def check_privacy(self):
         self._reveal_ip = self.get_config("node", "reveal-IP-address", True,
                                           boolean=True)
+    def create_tor_provider(self):
+        self._tor_provider = tor_provider.Provider(self.basedir, self, reactor)
+        self._tor_provider.check_onion_config()
+        self._tor_provider.setServiceParent(self)
 
     def _make_tcp_handler(self):
         # this is always available
@@ -231,33 +233,7 @@ class Node(service.MultiService):
         return default()
 
     def _make_tor_handler(self):
-        enabled = self.get_config("tor", "enabled", True, boolean=True)
-        if not enabled:
-            return None
-        tor = _import_tor()
-        if not tor:
-            return None
-
-        if self.get_config("tor", "launch", False, boolean=True):
-            executable = self.get_config("tor", "tor.executable", None)
-            datadir = os.path.join(self.basedir, "private", "tor-statedir")
-            self.tor_provider = TorProvider(tor_binary=executable, data_directory=datadir)
-            return tor.handler_from_tor_provider(self.tor_provider)
-
-        socks_endpoint_desc = self.get_config("tor", "socks.port", None)
-        if socks_endpoint_desc:
-            socks_ep = endpoints.clientFromString(reactor, socks_endpoint_desc)
-            self.tor_provider = None
-            return tor.socks_endpoint(socks_ep)
-
-        controlport = self.get_config("tor", "control.port", None)
-        if controlport:
-            ep = endpoints.clientFromString(reactor, controlport)
-            self.tor_provider = TorProvider(control_endpoint=ep)
-            return tor.handler_from_tor_provider(self.tor_provider)
-
-        self.tor_provider = None
-        return tor.default_socks()
+        return self._tor_provider.get_tor_handler()
 
     def _make_i2p_handler(self):
         enabled = self.get_config("i2p", "enabled", True, boolean=True)
