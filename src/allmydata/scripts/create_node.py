@@ -1,11 +1,11 @@
 import os
-from twisted.internet import defer
+from twisted.internet import reactor, defer
 from twisted.python.usage import UsageError
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path
-from allmydata.util import fileutil, iputil
+from allmydata.util import fileutil, iputil, tor_provider
 
 
 dummy_tac = """
@@ -28,6 +28,17 @@ WHERE_OPTS = [
      "Hostname to automatically set --location/--port when --listen=tcp"),
     ("listen", None, "tcp",
      "Comma-separated list of listener types (tcp,tor,i2p,none)."),
+]
+
+TOR_OPTS = [
+    ("tor-control-port", None, None,
+     "Tor's control port endpoint descriptor string (e.g. tcp:127.0.0.1:9051 or unix:/var/run/tor/control)"),
+    ("tor-executable", None, None,
+     "The 'tor' executable to run (default is to search $PATH)."),
+]
+
+TOR_FLAGS = [
+    ("tor-launch", None, "Launch a tor instead of connecting to a tor control port."),
 ]
 
 def validate_where_options(o):
@@ -68,6 +79,16 @@ def validate_where_options(o):
             if 'tcp' not in listeners and o['hostname']:
                 raise UsageError("--listen= must be tcp to use --hostname")
 
+def validate_tor_options(o):
+    use_tor = "tor" in o["listen"].split(",")
+    if not use_tor:
+        if o["tor-launch"]:
+            raise UsageError("--tor-launch requires --listen=tor")
+        if o["tor-control-port"]:
+            raise UsageError("--tor-control-port= requires --listen=tor")
+    if o["tor-launch"] and o["tor-control-port"]:
+        raise UsageError("use either --tor-launch or --tor-control-port=, not both")
+
 class _CreateBaseOptions(BasedirOptions):
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
@@ -81,6 +102,7 @@ class CreateClientOptions(_CreateBaseOptions):
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
+
         ("nickname", "n", None, "Specify the nickname for this node."),
         ("introducer", "i", None, "Specify the introducer FURL to use."),
         ("webport", "p", "tcp:3456:interface=127.0.0.1",
@@ -97,25 +119,28 @@ class CreateClientOptions(_CreateBaseOptions):
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
-        ]
+        ] + TOR_FLAGS
+
     synopsis = "[options] [NODEDIR]"
     description = "Create a full Tahoe-LAFS node (client+server)."
-    optParameters = CreateClientOptions.optParameters + WHERE_OPTS
+    optParameters = CreateClientOptions.optParameters + WHERE_OPTS + TOR_OPTS
 
     def parseArgs(self, basedir=None):
         CreateClientOptions.parseArgs(self, basedir)
         validate_where_options(self)
+        validate_tor_options(self)
 
 class CreateIntroducerOptions(NoDefaultBasedirOptions):
     subcommand_name = "create-introducer"
     description = "Create a Tahoe-LAFS introducer."
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
-    ]
-    optParameters = NoDefaultBasedirOptions.optParameters + WHERE_OPTS
+    ] + TOR_FLAGS
+    optParameters = NoDefaultBasedirOptions.optParameters + WHERE_OPTS + TOR_OPTS
     def parseArgs(self, basedir=None):
         NoDefaultBasedirOptions.parseArgs(self, basedir)
         validate_where_options(self)
+        validate_tor_options(self)
 
 @defer.inlineCallbacks
 def write_node_config(c, config):
@@ -150,6 +175,8 @@ def write_node_config(c, config):
     c.write("web.static = public_html\n")
 
     listeners = config['listen'].split(",")
+
+    tor_config = {}
     tub_ports = []
     tub_locations = []
     if listeners == ["none"]:
@@ -157,8 +184,10 @@ def write_node_config(c, config):
         c.write("tub.location = disabled\n")
     else:
         if "tor" in listeners:
-            raise NotImplementedError("--listen=tor is under development, "
-                                      "see ticket #2490 for details")
+            (tor_config, tor_port, tor_location) = \
+                         yield tor_provider.create_onion(reactor, config)
+            tub_ports.append(tor_port)
+            tub_locations.append(tor_location)
         if "i2p" in listeners:
             raise NotImplementedError("--listen=i2p is under development, "
                                       "see ticket #2490 for details")
@@ -183,7 +212,13 @@ def write_node_config(c, config):
     c.write("#ssh.port = 8022\n")
     c.write("#ssh.authorized_keys_file = ~/.ssh/authorized_keys\n")
     c.write("\n")
-    yield None
+
+    if tor_config:
+        c.write("[tor]\n")
+        for key, value in tor_config.items():
+            c.write("%s = %s\n" % (key, value))
+        c.write("\n")
+
 
 def write_client_config(c, config):
     c.write("[client]\n")

@@ -87,22 +87,6 @@ For Tahoe-LAFS storage servers there are three use-cases:
    https://geti2p.net/en/about/intro
 
 
-Unresolved tickets
-==================
-
-Tahoe's anonymity support does not yet include automatic configuration of
-servers. This issue is tracked by Tahoe tickets `#2490`_ and `#2773`_: until
-those are resolved, anonymous servers (running as Tor Onion services or I2P
-servers) must be configured manually, as described below.
-
-See also Tahoe-LAFS Tor related tickets `#1010`_ and `#517`_.
-
-.. _`#2490`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2490
-.. _`#2773`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2773
-.. _`#1010`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1010
-.. _`#517`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/517
-
-
 Software Dependencies
 =====================
 
@@ -315,10 +299,6 @@ the location announcement).
 
 Server anonymity, automatic configuration
 -----------------------------------------
-
-(note: this is not yet implemented, see Tahoe tickets `#2490`_ and `#2773`_
-for progress)
-
 
 To configure a server node to listen on an anonymizing network, create the
 node with the ``--listen=tor`` option. This requires a Tor configuration that

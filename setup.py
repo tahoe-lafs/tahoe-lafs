@@ -273,7 +273,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "mock",
               "tox",
               "foolscap[tor] >= 0.12.3",
-              "txtorcon", # in case pip's resolver doesn't work
+              "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
               "foolscap[i2p]",
               "txi2p", # in case pip's resolver doesn't work
               "pytest",
@@ -281,7 +281,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
           ],
           "tor": [
               "foolscap[tor] >= 0.12.3",
-              "txtorcon", # in case pip's resolver doesn't work
+              "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
           ],
           "i2p": [
               "foolscap[i2p]",
