@@ -202,6 +202,74 @@ def introducer_furl(introducer, temp_dir):
 
 
 @pytest.fixture(scope='session')
+def tor_introducer(reactor, temp_dir, flog_gatherer, request):
+    config = '''
+[node]
+nickname = introducer_tor
+web.port = 4561
+log_gatherer.furl = {log_furl}
+'''.format(log_furl=flog_gatherer)
+
+    intro_dir = join(temp_dir, 'introducer_tor')
+    print("making introducer", intro_dir)
+
+    if not exists(intro_dir):
+        mkdir(intro_dir)
+        done_proto = _ProcessExitedProtocol()
+        reactor.spawnProcess(
+            done_proto,
+            sys.executable,
+            (
+                sys.executable, '-m', 'allmydata.scripts.runner',
+                'create-introducer',
+                '--tor-control-port', 'tcp:localhost:8010',
+                '--listen=tor',
+                intro_dir,
+            ),
+        )
+        pytest.blockon(done_proto.done)
+
+    # over-write the config file with our stuff
+    with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
+        f.write(config)
+
+    # on windows, "tahoe start" means: run forever in the foreground,
+    # but on linux it means daemonize. "tahoe run" is consistent
+    # between platforms.
+    protocol = _MagicTextProtocol('introducer running')
+    process = reactor.spawnProcess(
+        protocol,
+        sys.executable,
+        (
+            sys.executable, '-m', 'allmydata.scripts.runner',
+            'run',
+            intro_dir,
+        ),
+    )
+
+    def cleanup():
+        try:
+            process.signalProcess('TERM')
+            pytest.blockon(protocol.exited)
+        except ProcessExitedAlready:
+            pass
+    request.addfinalizer(cleanup)
+
+    pytest.blockon(protocol.magic_seen)
+    return process
+
+
+@pytest.fixture(scope='session')
+def tor_introducer_furl(tor_introducer, temp_dir):
+    furl_fname = join(temp_dir, 'introducer_tor', 'private', 'introducer.furl')
+    while not exists(furl_fname):
+        print("Don't see {} yet".format(furl_fname))
+        time.sleep(.1)
+    furl = open(furl_fname, 'r').read()
+    return furl
+
+
+@pytest.fixture(scope='session')
 def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer, request):
     nodes = []
     # start all 5 nodes in parallel

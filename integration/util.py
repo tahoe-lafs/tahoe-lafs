@@ -1,6 +1,7 @@
 import sys
 import time
-from os.path import exists
+from os import mkdir
+from os.path import exists, join
 from StringIO import StringIO
 
 from twisted.internet.defer import Deferred

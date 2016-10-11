@@ -17,9 +17,9 @@ import util
 # see "conftest.py" for the fixtures (e.g. "magic_folder")
 
 @pytest.inlineCallbacks
-def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
-    yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, introducer_furl)
-    yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, tor_network, introducer_furl)
+def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
+    yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
+    yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
     # ensure both nodes are connected to "a grid" by uploading
     # something via carol, and retrieve it using dave.
     gold_path = join(temp_dir, "gold")
