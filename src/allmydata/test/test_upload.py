@@ -11,13 +11,13 @@ import allmydata # for __full_version__
 from allmydata import uri, monitor, client
 from allmydata.immutable import upload, encode
 from allmydata.interfaces import FileTooLargeError, UploadUnhappinessError
-from allmydata.util import log, base32, fileutil
+from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ShouldFailMixin
 from allmydata.util.happinessutil import servers_of_happiness, \
-                                         shares_by_server, merge_servers
+    shares_by_server, merge_servers
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.server import storage_index_to_dir
 from allmydata.client import Client
