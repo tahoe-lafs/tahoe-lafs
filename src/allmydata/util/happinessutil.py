@@ -126,8 +126,8 @@ def servers_of_happiness(sharemap):
     """
     if sharemap == {}:
         return 0
-    sharemap = shares_by_server(sharemap)
-    graph = flow_network_for(sharemap)
+    servermap = shares_by_server(sharemap)
+    graph = flow_network_for(servermap)
     # This is an implementation of the Ford-Fulkerson method for finding
     # a maximum flow in a flow network applied to a bipartite graph.
     # Specifically, it is the Edmonds-Karp algorithm, since it uses a
@@ -154,7 +154,7 @@ def servers_of_happiness(sharemap):
             flow_function[v][u] -= delta
         residual_graph, residual_function = residual_network(graph,
                                                              flow_function)
-    num_servers = len(sharemap)
+    num_servers = len(servermap)
     # The value of a flow is the total flow out of the source vertex
     # (vertex 0, in our graph). We could just as well sum across all of
     # f[0], but we know that vertex 0 only has edges to the servers in
@@ -163,14 +163,14 @@ def servers_of_happiness(sharemap):
     # matching on the bipartite graph described above.
     return sum([flow_function[0][v] for v in xrange(1, num_servers+1)])
 
-def flow_network_for(sharemap):
+def flow_network_for(servermap):
     """
     I take my argument, a dict of peerid -> set(shareid) mappings, and
     turn it into a flow network suitable for use with Edmonds-Karp. I
     then return the adjacency list representation of that network.
 
     Specifically, I build G = (V, E), where:
-      V = { peerid in sharemap } U { shareid in sharemap } U {s, t}
+      V = { peerid in servermap } U { shareid in servermap } U {s, t}
       E = {(s, peerid) for each peerid}
           U {(peerid, shareid) if peerid is to store shareid }
           U {(shareid, t) for each shareid}
@@ -185,16 +185,16 @@ def flow_network_for(sharemap):
     # we re-index so that all of our vertices have integral indices, and
     # that there aren't any holes. We start indexing at 1, so that we
     # can add a source node at index 0.
-    sharemap, num_shares = reindex(sharemap, base_index=1)
-    num_servers = len(sharemap)
+    servermap, num_shares = reindex(servermap, base_index=1)
+    num_servers = len(servermap)
     graph = [] # index -> [index], an adjacency list
     # Add an entry at the top (index 0) that has an edge to every server
-    # in sharemap
-    graph.append(sharemap.keys())
+    # in servermap
+    graph.append(servermap.keys())
     # For each server, add an entry that has an edge to every share that it
     # contains (or will contain).
-    for k in sharemap:
-        graph.append(sharemap[k])
+    for k in servermap:
+        graph.append(servermap[k])
     # For each share, add an entry that has an edge to the sink.
     sink_num = num_servers + num_shares + 1
     for i in xrange(num_shares):
@@ -203,20 +203,20 @@ def flow_network_for(sharemap):
     graph.append([])
     return graph
 
-def reindex(sharemap, base_index):
+def reindex(servermap, base_index):
     """
-    Given sharemap, I map peerids and shareids to integers that don't
+    Given servermap, I map peerids and shareids to integers that don't
     conflict with each other, so they're useful as indices in a graph. I
-    return a sharemap that is reindexed appropriately, and also the
-    number of distinct shares in the resulting sharemap as a convenience
+    return a servermap that is reindexed appropriately, and also the
+    number of distinct shares in the resulting servermap as a convenience
     for my caller. base_index tells me where to start indexing.
     """
     shares  = {} # shareid  -> vertex index
     num = base_index
-    ret = {} # peerid -> [shareid], a reindexed sharemap.
+    ret = {} # peerid -> [shareid], a reindexed servermap.
     # Number the servers first
-    for k in sharemap:
-        ret[num] = sharemap[k]
+    for k in servermap:
+        ret[num] = servermap[k]
         num += 1
     # Number the shares
     for k in ret:
