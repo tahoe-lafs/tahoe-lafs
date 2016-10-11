@@ -112,6 +112,10 @@ We calculate share placement like so:
 
 1. Query all servers for existing shares.
 
+1a. Query remaining space from all servers. Every server that has
+    enough free space is considered "readwrite" and every server with too
+    little space is "readonly".
+
 2. Construct a bipartite graph G1 of *readonly* servers to pre-existing
    shares, where an edge exists between an arbitrary readonly server S and an
    arbitrary share T if and only if S currently holds T.
@@ -132,12 +136,11 @@ We calculate share placement like so:
 5. Calculate a maximum matching graph of G2, call this M2, again preferring
    earlier servers.
 
-6. Construct a bipartite graph G3 of (only readwrite) servers to shares. Let
-   an edge exist between server S and share T if and only if S already has T,
-   or *could* hold T (i.e. S has enough available space to hold a share of at
-   least T's size). Then remove (from G3) any servers and shares used in M1
-   or M2 (note that we retain servers/shares that were in G1/G2 but *not* in
-   the M1/M2 subsets)
+6. Construct a bipartite graph G3 of (only readwrite) servers to
+   shares (some shares may already exist on a server). Then remove
+   (from G3) any servers and shares used in M1 or M2 (note that we
+   retain servers/shares that were in G1/G2 but *not* in the M1/M2
+   subsets)
 
 7. Calculate a maximum matching graph of G3, call this M3, preferring earlier
    servers. The final placement table is the union of M1+M2+M3.

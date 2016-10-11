@@ -14,8 +14,7 @@ from allmydata.storage.server import si_b2a
 from allmydata.immutable import encode
 from allmydata.util import base32, dictutil, idlib, log, mathutil
 from allmydata.util.happinessutil import servers_of_happiness, \
-                                         shares_by_server, merge_servers, \
-                                         failure_message
+    merge_servers, failure_message
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
@@ -26,7 +25,7 @@ from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
-from happiness_upload import Happiness_Upload
+from happiness_upload import HappinessUpload
 
 
 # this wants to live in storage, not here
@@ -161,14 +160,14 @@ class ServerTracker:
                             sharenums,
                             self.allocated_size,
                             canary=Referenceable())
-        d.addCallback(self._got_reply)
+        d.addCallback(self._buckets_allocated)
         return d
 
     def ask_about_existing_shares(self):
         rref = self._server.get_rref()
         return rref.callRemote("get_buckets", self.storage_index)
 
-    def _got_reply(self, (alreadygot, buckets)):
+    def _buckets_allocated(self, (alreadygot, buckets)):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
         b = {}
         for sharenum, rref in buckets.iteritems():
@@ -253,7 +252,7 @@ class PeerSelector():
 
     def get_tasks(self):
         shares = set(range(self.total_shares))
-        self.h = Happiness_Upload(self.peers, self.full_peers, shares, self.existing_shares)
+        self.h = HappinessUpload(self.peers, self.full_peers, shares, self.existing_shares)
         return self.h.generate_mappings()
 
     def is_healthy(self):
@@ -324,6 +323,11 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                                              share_size, 0, num_segments,
                                              num_share_hashes, EXTENSION_SIZE)
         allocated_size = wbp.get_allocated_size()
+
+        # see docs/specifications/servers-of-happiness.rst
+        # 0. Start with an ordered list of servers. Maybe *2N* of them.
+        #
+
         all_servers = storage_broker.get_servers_for_psi(storage_index)
         if not all_servers:
             raise NoServersError("client gave us zero servers")
@@ -387,6 +391,10 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # index, which we want to know about for accurate
         # servers_of_happiness accounting, then we forget about them.
         readonly_trackers = _make_trackers(readonly_servers)
+
+        # see docs/specifications/servers-of-happiness.rst
+        # 1. Query all servers for existing shares.
+        #
 
         # We now ask servers that can't hold any new shares about existing
         # shares that they might have for our SI. Once this is done, we
@@ -985,22 +993,28 @@ class CHKUploader:
             return defer.succeed(None)
         return self._encoder.abort()
 
+    @defer.inlineCallbacks
     def start_encrypted(self, encrypted):
-        """ Returns a Deferred that will fire with the UploadResults instance. """
+        """
+        Returns a Deferred that will fire with the UploadResults instance.
+        """
         eu = IEncryptedUploadable(encrypted)
 
         started = time.time()
-        self._encoder = e = encode.Encoder(
+        # would be Really Nice to make Encoder just a local; only
+        # abort() really needs self._encoder ...
+        self._encoder = encode.Encoder(
             self._log_number,
             self._upload_status,
             progress=self._progress,
         )
-        d = e.set_encrypted_uploadable(eu)
-        d.addCallback(self.locate_all_shareholders, started)
-        d.addCallback(self.set_shareholders, e)
-        d.addCallback(lambda res: e.start())
-        d.addCallback(self._encrypted_done)
-        return d
+        # this just returns itself
+        yield self._encoder.set_encrypted_uploadable(eu)
+        (upload_trackers, already_serverids) = yield self.locate_all_shareholders(self._encoder, started)
+        yield self.set_shareholders(upload_trackers, already_serverids, self._encoder)
+        verifycap = yield self._encoder.start()
+        results = yield self._encrypted_done(verifycap)
+        defer.returnValue(results)
 
     def locate_all_shareholders(self, encoder, started):
         server_selection_started = now = time.time()
@@ -1031,13 +1045,13 @@ class CHKUploader:
         d.addCallback(_done)
         return d
 
-    def set_shareholders(self, (upload_trackers, already_serverids), encoder):
+    def set_shareholders(self, upload_trackers, already_serverids, encoder):
         """
-        @param upload_trackers: a sequence of ServerTracker objects that
+        :param upload_trackers: a sequence of ServerTracker objects that
                                 have agreed to hold some shares for us (the
                                 shareids are stashed inside the ServerTracker)
 
-        @paran already_serverids: a dict mapping sharenum to a set of
+        :param already_serverids: a dict mapping sharenum to a set of
                                   serverids for servers that claim to already
                                   have this share
         """
