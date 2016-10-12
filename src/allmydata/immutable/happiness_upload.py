@@ -1,7 +1,7 @@
 from Queue import PriorityQueue
 from allmydata.util.happinessutil import augmenting_path_for, residual_network
 
-class Happiness_Upload:
+class HappinessUpload:
     """
     I handle the calculations involved with generating the maximum
     spanning graph for a file when given a set of peers, a set of shares,

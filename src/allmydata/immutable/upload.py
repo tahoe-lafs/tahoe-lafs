@@ -25,7 +25,7 @@ from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
-from happiness_upload import Happiness_Upload
+from happiness_upload import HappinessUpload
 
 
 # this wants to live in storage, not here
@@ -252,7 +252,7 @@ class PeerSelector():
 
     def get_tasks(self):
         shares = set(range(self.total_shares))
-        self.h = Happiness_Upload(self.peers, self.full_peers, shares, self.existing_shares)
+        self.h = HappinessUpload(self.peers, self.full_peers, shares, self.existing_shares)
         return self.h.generate_mappings()
 
     def is_healthy(self):
