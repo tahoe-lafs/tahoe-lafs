@@ -162,6 +162,7 @@ _win32_commands = (('route.exe', ('print',), _win32_re),)
 # These work in most Unices.
 _addr_re = re.compile(r'^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)[\s/].+$', flags=re.M|re.I|re.S)
 _unix_commands = (('/bin/ip', ('addr',), _addr_re),
+                  ('/sbin/ip', ('addr',), _addr_re),
                   ('/sbin/ifconfig', ('-a',), _addr_re),
                   ('/usr/sbin/ifconfig', ('-a',), _addr_re),
                   ('/usr/etc/ifconfig', ('-a',), _addr_re),
