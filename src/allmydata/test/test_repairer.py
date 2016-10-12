@@ -707,7 +707,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         def _then(ign):
             ss = self.g.servers_by_number[0]
             self.g.break_server(ss.my_nodeid, count=1)
-            self.delete_shares_numbered(self.uri, [9])
+            self.delete_shares_numbered(self.uri, [8])
             return self.c0_filenode.check_and_repair(Monitor())
         d.addCallback(_then)
         def _check(rr):
