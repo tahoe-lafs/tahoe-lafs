@@ -480,6 +480,10 @@ class Uploader(QueueMixin):
             self._log("not queueing %r because it is already pending" % (relpath_u,))
             return
         if magicpath.should_ignore_file(relpath_u):
+            fp = self._get_filepath(relpath_u)
+            pathinfo = get_pathinfo(unicode_from_filepath(fp))
+            if pathinfo.isdir:
+                self._notifier.ignore(fp)
             self._log("ignoring event for %r (ignorable path)" % (relpath_u,))
             return
 
