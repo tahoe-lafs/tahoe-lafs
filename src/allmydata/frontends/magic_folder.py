@@ -366,8 +366,12 @@ class Uploader(QueueMixin):
                     | self._inotify.IN_ONLYDIR
                     | IN_EXCL_UNLINK
                     )
-        self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
-                             recursive=False)#True)
+        if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
+            self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
+                                 recursive=False)
+        else:
+            self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
+                                 recursive=True)
 
     def start_monitoring(self):
         self._log("start_monitoring")
