@@ -7,7 +7,13 @@ User-Visible Changes in Tahoe-LAFS
 Release 1.12.0 (?)
 ''''''''''''''''''
 
-#1720
+1720:
+
+The default tahoe.cfg setting of ``web.static = public_html``, where
+``NODEDIR/public_html/`` does not exist, no longer causes web browsers to
+display a traceback which reveals somewhat-private information like the value
+of NODEDIR, and the Python/OS versions in use. Instead it just shows a plain
+404 error.
 
 2367.removal:
 
