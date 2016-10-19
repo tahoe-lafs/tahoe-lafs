@@ -1,6 +1,6 @@
 import os, signal, sys, time
 from random import randrange
-from cStringIO import StringIO
+from six.moves import StringIO
 
 from twisted.internet import reactor, defer
 from twisted.python import failure
@@ -28,7 +28,8 @@ def run_cli(verb, *args, **kwargs):
     nodeargs = kwargs.get("nodeargs", [])
     argv = nodeargs + [verb] + list(args)
     stdin = kwargs.get("stdin", "")
-    stdout, stderr = StringIO(), StringIO()
+    stdout = StringIO()
+    stderr = StringIO()
     d = defer.succeed(argv)
     d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout)
     d.addCallback(runner.dispatch,

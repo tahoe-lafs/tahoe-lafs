@@ -1,6 +1,6 @@
 
 import os, sys
-from cStringIO import StringIO
+from six.moves import StringIO
 
 from twisted.python import usage
 from twisted.internet import defer, task, threads

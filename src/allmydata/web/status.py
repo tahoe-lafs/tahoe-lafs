@@ -966,30 +966,53 @@ class Status(rend.Page):
         return rend.Page.renderHTTP(self, ctx)
 
     def json(self, req):
-        req.setHeader("content-type", "text/plain")
+        # modern browsers now render this instead of forcing downloads
+        req.setHeader("content-type", "application/json")
         data = {}
         data["active"] = active = []
-        for s in self._get_active_operations():
-            si_s = base32.b2a_or_none(s.get_storage_index())
-            size = s.get_size()
-            status = s.get_status()
+        data["recent"] = recent = []
+
+        def _marshal_json(s):
+            # common item data
+            item = {
+                "storage-index-string": base32.b2a_or_none(s.get_storage_index()),
+                "total-size": s.get_size(),
+                "status": s.get_status(),
+            }
+
+            # type-specific item date
             if IUploadStatus.providedBy(s):
-                h,c,e = s.get_progress()
-                active.append({"type": "upload",
-                               "storage-index-string": si_s,
-                               "total-size": size,
-                               "status": status,
-                               "progress-hash": h,
-                               "progress-ciphertext": c,
-                               "progress-encode-push": e,
-                               })
+                h, c, e = s.get_progress()
+                item["type"] = "upload"
+                item["progress-hash"] = h
+                item["progress-ciphertext"] = c
+                item["progress-encode-push"] = e
+
             elif IDownloadStatus.providedBy(s):
-                active.append({"type": "download",
-                               "storage-index-string": si_s,
-                               "total-size": size,
-                               "status": status,
-                               "progress": s.get_progress(),
-                               })
+                item["type"] = "download"
+                item["progress"] = s.get_progress()
+
+            elif IPublishStatus.providedBy(s):
+                item["type"] = "publish"
+
+            elif IRetrieveStatus.providedBy(s):
+                item["type"] = "retrieve"
+
+            elif IServermapUpdaterStatus.providedBy(s):
+                item["type"] = "mapupdate"
+                item["mode"] = s.get_mode()
+
+            else:
+                item["type"] = "unknown"
+                item["class"] = s.__class__.__name__
+
+            return item
+
+        for s in self._get_active_operations():
+            active.append(_marshal_json(s))
+
+        for s in self._get_recent_operations():
+            recent.append(_marshal_json(s))
 
         return json.dumps(data, indent=1) + "\n"
 
@@ -1010,6 +1033,8 @@ class Status(rend.Page):
         active = [s
                   for s in self._get_all_statuses()
                   if s.get_active()]
+        active.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
+        active.reverse()
         return active
 
     def data_recent_operations(self, ctx, data):
@@ -1019,7 +1044,7 @@ class Status(rend.Page):
         recent = [s
                   for s in self._get_all_statuses()
                   if not s.get_active()]
-        recent.sort(lambda a,b: cmp(a.get_started(), b.get_started()))
+        recent.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
         recent.reverse()
         return recent
 

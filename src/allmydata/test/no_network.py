@@ -177,6 +177,10 @@ class NoNetworkStorageBroker(object):
         return None
     def when_connected_enough(self, threshold):
         return defer.Deferred()
+    def get_all_serverids(self):
+        return []  # FIXME?
+    def get_known_servers(self):
+        return []  # FIXME?
 
 class NoNetworkClient(Client):
 
