@@ -4,6 +4,173 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
+Release 1.12.0 (?)
+''''''''''''''''''
+
+#1720
+
+2367.removal:
+
+The little-used "manhole" debugging feature has been removed. This allowed
+you to SSH or Telnet "into" a Tahoe node, providing an interactive
+Read-Eval-Print-Loop (REPL) that executed inside the context of the running
+process. The SSH authentication code used a deprecated feature of Twisted,
+this code had no unit-test coverage, and I haven't personally used it in at
+least 6 years (despite writing it in the first place). Time to go.
+
+2491.config:
+* tub.port is now an Endpoint server specification string (which is pretty
+  much just like a strports string, but can be extended by plugins). It now
+  rejects "tcp:0" and "0". The tahoe.cfg value overrides anything stored on
+  disk (in client.port). This should have no effect on most nodes, which do
+  not set tub.port in tahoe.cfg, and wrote an allocated port number to
+  client.port the first time they launched. Folks who want to listen on a
+  specific port number typically set tub.port to "tcp:12345" or "12345", not
+  "0".
+* The "portnumfile" (e.g. NODEDIR/client.port) is written as soon as the port
+  is allocated, before the tub is created, and only if "tub.port" was empty.
+  The old code wrote to it unconditionally, and after Tub startup. So if the
+  user allows NODEDIR/client.port to be written, then later modifies
+  tahoe.cfg to set "tub.port" to a different value, this difference will
+  persist (and the node will honor tahoe.cfg "tub.port" exclusively).
+* We now encourage static allocation of tub.port, and pre-configuration of
+  the node's externally-reachable IP address or hostname (by setting
+  tub.location). Automatic IP-address detection is deprecated. Automatic port
+  allocation is merely discouraged. Eventually both will be managed by "tahoe
+  create-node", but for now we recommend users edit their tahoe.cfg after
+  node creation and before first launch.
+* "tahoe start" now creates the Tub, and all primary software components,
+  before the child process daemonizes. Many configuration errors which would
+  previously have been reported in a logfile (after node startup), will now
+  be signalled immediately, via stderr. In these cases, the "tahoe start"
+  process will exit with a non-zero return code.
+
+2759.docs:
+Tahoe now uses a separate Foolscap tub for each outbound storage server
+connection. This has two benefits:
+
+* a slight privacy improvement: storage servers can no longer compare client
+  TubIDs to confirm/deny that two clients are the same (but note there are
+  other reliable signals: timing correlations, interest in the same shares,
+  future Accounting identifiers)
+* this enables future per-server connection options, like using Tor for some
+  servers but direct TCP connections for others (#517).
+
+and a few drawbacks:
+
+* It causes a small performance hit to generate new TLS keys (2048-bit RSA)
+  for each connection. On a modern computer, this adds 75ms per server.
+* It breaks a NAT-bypass trick which enabled storage servers to run behind
+  NAT boxes, which was only useful if all the *clients* of the storage server
+  had public IP addresses, and those clients were also configured as servers.
+  The trick was to configure the NAT-bound server as a client too: its
+  outbound connections to the "servers" would be used in the opposite
+  direction to provide storgae service to the clients (Foolscap doesn't care
+  who initiated the connection, as long as both ends have the right TLS
+  keys). We decided that this trick is not sufficiently general to preserve.
+* Server logs that record a TubID are no longer so easy to use: until
+  Accounting (#666) lands and a client-id is used for log messages, it will
+  be difficult to identify exactly which client the log is referencing.
+
+2773.docs:
+The "stats-gatherer", an operation-helper service used to collect runtime
+statistics from a fleet of Tahoe storage servers, must now be assigned a
+hostname, or location+port pair, at creation time. The "tahoe
+create-stats-gatherer" command now requires either "--hostname=", or both
+"--location=" and "--port".
+
+Previously, "tahoe create-stats-gatherer NODEDIR" would attempt to guess its
+location by running something like /sbin/ifconfig to collect local IP
+addresses. While this works if the host has a public IP address (or at least
+lives in the same LAN as the storage servers it monitors), most sysadmins
+would prefer the FURL be created with a real hostname.
+
+To keep your old stats-gatherers working, with their original FURL, you must
+determine a suitable --location and --port, and write their values into
+NODEDIR/location and NODEDIR/port, respectively. Or you could simply rebuild
+it by re-running "tahoe create-stats-gatherer" with the new arguments.
+
+See docs/stats.rst for details.
+
+2776.change:
+Tahoe's testing-only dependencies can now be installed by asking for the
+[test] extra, so if you want to set up a virtualenv for testing, use "pip
+install -e .[test]" instead just of "pip install -e ." . At the moment this
+only includes "coverage" and "pyflakes", but in the future it might include
+"mock" and other utility libraries.
+
+2781.packaging:
+Tahoe now requires Twisted >= 16.1.0, so ensure that unit tests do not fail
+because of uncancelled timers left running by HostnameEndpoint.
+
+2783.docs:
+The "key-generator" node type has been removed. This was a standalone process
+that maintained a queue of RSA keys. Clients could offload the key-generation
+work by adding "key_generator.furl=" in their tahoe.cfg files, to create
+mutable files and directories faster. This seemed important back in 2006, but
+these days computers are faster and RSA key generation only takes about 90ms.
+
+This removes the "tahoe create-key-generator" command. Any
+"key_generator.furl" settings in tahoe.cfg will log a warning and otherwise
+ignored. Attempts to "tahoe start" a previously-generated key-generator node
+will result in an error.
+
+2794.change:
+The little-used "control port" now uses a separate (ephemeral) Tub. This
+means the FURL changes each time the node is restarted, and it only listens
+on the loopback (127.0.0.1) interface, on a random port. As the control port
+is only used by some automated tests (check_memory, check_speed), this
+shouldn't affect anyone.
+
+The slightly-more-used "log port" now also uses a separate (ephemeral) Tub,
+with the same consequences. The lack of a stable (and externally-reachable)
+logport.furl means it is no longer possible to use `flogtool tail FURL`
+against a distant Tahoe server, however `flogtool tail
+.../nodedir/private/logport.furl` still works just fine (and is the more
+common use case anyways). We might bring back the ability to configure the
+port and location of the logport in the future, if there is sufficient
+demand, but for now it seems better to avoid the complexity.
+
+PR242.docs:
+The "stats gatherer" (created with 'tahoe create-stats-gatherer') now updates
+a JSON file named "stats.json"; previously it used Pickle and "stats.pickle".
+The munin plugins in misc/operations_helpers/munin/ have been updated to
+match, and must be re-installed and re-configured if you use munin.
+
+more:
+
+* lots of tox environment cleanups, moving most tooling from Makefile to tox,
+  including code-checks, deprecation warnings, code-coverage
+* 2774 add internal progress API (for magic-folder)
+* 1903 document "/file/" as deprecated, replace with "/named/"
+* 1449 don't start magic-folder until "connected enough"
+* 2491 start Tub synchronously, improves error delivery at startup
+* docs are now hosted at tahoe-lafs.readsthedocs.io (not .org)
+* client uses separate Tub per storage server (privacy improvement)
+* 2788 introducer cache, yaml file, loaded at startup until real introducer
+  arrives: tolerates introducer failure better. static servers can be
+  configured by adding a servers.yaml
+* 2784 remove v1 introducer (sigs now required)
+* BIG replace drop-upload with magic-folders
+* 2754 remove _appname.py
+* 1363 use pubkey as serverid, not tubid. affects new-helper vs old-uploader
+* 517: connection handlers: socks/tor/i2p, tahoe.cfg [connections]
+* 2810 disable foolscap gifts
+* 2816 empty tub.port means don't listen at all
+* 1010 tahoe.cfg reveal-ip-address = false, create-client --hide-ip
+* 2818 show connection hints on welcome page
+* 1942 remove google-based timing chart on mapupdate page (privacy)
+* 2809 reject unrecognized tahoe.cfg options at startup
+* 2735 CLI remove 'debug trial' and 'debug repl'
+* 2773 create-node/create-introducer --location/--port --hostname --listen
+* 68 introducers.yaml, multiple introducers, no introducers
+* 2827 explain ipv6
+* 867 tub.port takes multiple endpoints (comma-separated)
+* 2490 --listen=tor
+* fix IP-autodetect on RHEL (for tests)
+
+
+
 Release 1.11.0 (30-Mar-2016)
 ''''''''''''''''''''''''''''
 
