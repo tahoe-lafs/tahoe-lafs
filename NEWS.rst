@@ -7,22 +7,77 @@ User-Visible Changes in Tahoe-LAFS
 Release 1.12.0 (?)
 ''''''''''''''''''
 
-1720:
+New Features
+------------
 
-The default tahoe.cfg setting of ``web.static = public_html``, where
-``NODEDIR/public_html/`` does not exist, no longer causes web browsers to
-display a traceback which reveals somewhat-private information like the value
-of NODEDIR, and the Python/OS versions in use. Instead it just shows a plain
-404 error.
+"Magic Folders" is an experimental two-way directory synchronization tool,
+contributed by Least Authority Enterprises, which replaces the previous
+experimental (one-way) "dropbox" feature. This allows multiple users to keep
+a single directory in-sync, using Tahoe as the backing store. See
+docs/frontends/magic-folder.rst for details and configuration instructions.
 
-2367.removal:
+Tor/I2P integration: This release makes it easy to::
+
+* use Tor to hide your IP address during external network activity
+* connect to Tor/I2P-based storage servers
+* run an Introducer or a storage node as a Tor "onion service"
+
+See docs/anonymity-configuration.rst for instructions and new node-creation
+arguments (--hide-ip, --listen=tor). This includes ways to use SOCKS servers
+for outbound connections. Tor/I2P/Socks support requires extra python
+libraries to be installed (e.g. 'pip install tahoe-lafs[tor]'), as well as
+having the matching (non-python) daemons available on the host system. #517
+
+Nodes now cache the announcements they receive in a YAML file, and use their
+cached information at startup until the Introducer connection is
+re-established. This makes nodes more tolerant of Introducers that are
+temporarily offline. Nodes admins can copy text from the cache into a new
+``private/servers.yaml`` file to add "static servers", which augment/override
+what the Introducer offers. This can modify aspects of the server, or use
+servers that were never introduced in the first place. #2788
+
+Nodes can use multiple introducers by adding entries to a new
+``private/introducers.yaml`` file, or stop using introduction entirely by
+omitting the ``introducer.furl`` key from tahoe.cfg (introducerless clients
+should use static servers to connect anywhere). Server announcements are sent
+to all connected Introducers, and clients merge all announcements they see.
+This can improve the reliability of introduction. #68
+
+
+
+
+Removed Features
+----------------
 
 The little-used "manhole" debugging feature has been removed. This allowed
 you to SSH or Telnet "into" a Tahoe node, providing an interactive
 Read-Eval-Print-Loop (REPL) that executed inside the context of the running
 process. The SSH authentication code used a deprecated feature of Twisted,
 this code had no unit-test coverage, and I haven't personally used it in at
-least 6 years (despite writing it in the first place). Time to go.
+least 6 years (despite writing it in the first place). Time to go. #2367
+
+
+2783.docs:
+The "key-generator" node type has been removed. This was a standalone process
+that maintained a queue of RSA keys. Clients could offload the key-generation
+work by adding "key_generator.furl=" in their tahoe.cfg files, to create
+mutable files and directories faster. This seemed important back in 2006, but
+these days computers are faster and RSA key generation only takes about 90ms.
+
+This removes the "tahoe create-key-generator" command. Any
+"key_generator.furl" settings in tahoe.cfg will log a warning and otherwise
+ignored. Attempts to "tahoe start" a previously-generated key-generator node
+will result in an error.
+
+* 2784 remove v1 introducer (sigs now required)
+* 2754 remove _appname.py
+* 1903 document "/file/" as deprecated, replace with "/named/"
+* 2735 CLI remove 'debug trial' and 'debug repl'
+* 1942 remove google-based timing chart on mapupdate page (privacy)
+
+
+Configuration Changes
+---------------------
 
 2491.config:
 * tub.port is now an Endpoint server specification string (which is pretty
@@ -51,6 +106,76 @@ least 6 years (despite writing it in the first place). Time to go.
   be signalled immediately, via stderr. In these cases, the "tahoe start"
   process will exit with a non-zero return code.
 
+
+2773.docs:
+The "stats-gatherer", an operation-helper service used to collect runtime
+statistics from a fleet of Tahoe storage servers, must now be assigned a
+hostname, or location+port pair, at creation time. The "tahoe
+create-stats-gatherer" command now requires either "--hostname=", or both
+"--location=" and "--port".
+
+Previously, "tahoe create-stats-gatherer NODEDIR" would attempt to guess its
+location by running something like /sbin/ifconfig to collect local IP
+addresses. While this works if the host has a public IP address (or at least
+lives in the same LAN as the storage servers it monitors), most sysadmins
+would prefer the FURL be created with a real hostname.
+
+To keep your old stats-gatherers working, with their original FURL, you must
+determine a suitable --location and --port, and write their values into
+NODEDIR/location and NODEDIR/port, respectively. Or you could simply rebuild
+it by re-running "tahoe create-stats-gatherer" with the new arguments.
+
+See docs/stats.rst for details.
+
+* 2816 empty tub.port means don't listen at all
+* 2809 reject unrecognized tahoe.cfg options at startup
+* 867 tub.port takes multiple endpoints (comma-separated)
+* 1010 tahoe.cfg reveal-ip-address = false, create-client --hide-ip
+* 2773 create-node/create-introducer --location/--port --hostname --listen
+* 2490 --listen=tor
+
+
+Dependency/Installation changes
+-------------------------------
+
+2776.change:
+Tahoe's testing-only dependencies can now be installed by asking for the
+[test] extra, so if you want to set up a virtualenv for testing, use "pip
+install -e .[test]" instead just of "pip install -e ." . At the moment this
+only includes "coverage" and "pyflakes", but in the future it might include
+"mock" and other utility libraries.
+
+2781.packaging:
+Tahoe now requires Twisted >= 16.1.0, so ensure that unit tests do not fail
+because of uncancelled timers left running by HostnameEndpoint.
+
+Compatibility Issues
+--------------------
+
+Debian/Jesse foolscap problem
+
+* 1363 use pubkey as serverid, not tubid. affects new-helper vs old-uploader
+
+
+Developer Changes
+-----------------
+* lots of tox environment cleanups, moving most tooling from Makefile to tox,
+  including code-checks, deprecation warnings, code-coverage
+
+
+
+UNEDITED:
+
+
+1720:
+
+The default tahoe.cfg setting of ``web.static = public_html``, where
+``NODEDIR/public_html/`` does not exist, no longer causes web browsers to
+display a traceback which reveals somewhat-private information like the value
+of NODEDIR, and the Python/OS versions in use. Instead it just shows a plain
+404 error.
+
+
 2759.docs:
 Tahoe now uses a separate Foolscap tub for each outbound storage server
 connection. This has two benefits:
@@ -78,49 +203,6 @@ and a few drawbacks:
   Accounting (#666) lands and a client-id is used for log messages, it will
   be difficult to identify exactly which client the log is referencing.
 
-2773.docs:
-The "stats-gatherer", an operation-helper service used to collect runtime
-statistics from a fleet of Tahoe storage servers, must now be assigned a
-hostname, or location+port pair, at creation time. The "tahoe
-create-stats-gatherer" command now requires either "--hostname=", or both
-"--location=" and "--port".
-
-Previously, "tahoe create-stats-gatherer NODEDIR" would attempt to guess its
-location by running something like /sbin/ifconfig to collect local IP
-addresses. While this works if the host has a public IP address (or at least
-lives in the same LAN as the storage servers it monitors), most sysadmins
-would prefer the FURL be created with a real hostname.
-
-To keep your old stats-gatherers working, with their original FURL, you must
-determine a suitable --location and --port, and write their values into
-NODEDIR/location and NODEDIR/port, respectively. Or you could simply rebuild
-it by re-running "tahoe create-stats-gatherer" with the new arguments.
-
-See docs/stats.rst for details.
-
-2776.change:
-Tahoe's testing-only dependencies can now be installed by asking for the
-[test] extra, so if you want to set up a virtualenv for testing, use "pip
-install -e .[test]" instead just of "pip install -e ." . At the moment this
-only includes "coverage" and "pyflakes", but in the future it might include
-"mock" and other utility libraries.
-
-2781.packaging:
-Tahoe now requires Twisted >= 16.1.0, so ensure that unit tests do not fail
-because of uncancelled timers left running by HostnameEndpoint.
-
-2783.docs:
-The "key-generator" node type has been removed. This was a standalone process
-that maintained a queue of RSA keys. Clients could offload the key-generation
-work by adding "key_generator.furl=" in their tahoe.cfg files, to create
-mutable files and directories faster. This seemed important back in 2006, but
-these days computers are faster and RSA key generation only takes about 90ms.
-
-This removes the "tahoe create-key-generator" command. Any
-"key_generator.furl" settings in tahoe.cfg will log a warning and otherwise
-ignored. Attempts to "tahoe start" a previously-generated key-generator node
-will result in an error.
-
 2794.change:
 The little-used "control port" now uses a separate (ephemeral) Tub. This
 means the FURL changes each time the node is restarted, and it only listens
@@ -145,35 +227,17 @@ match, and must be re-installed and re-configured if you use munin.
 
 more:
 
-* lots of tox environment cleanups, moving most tooling from Makefile to tox,
-  including code-checks, deprecation warnings, code-coverage
-* 2774 add internal progress API (for magic-folder)
-* 1903 document "/file/" as deprecated, replace with "/named/"
-* 1449 don't start magic-folder until "connected enough"
-* 2491 start Tub synchronously, improves error delivery at startup
 * docs are now hosted at tahoe-lafs.readsthedocs.io (not .org)
+* 2491 start Tub synchronously, improves error delivery at startup
 * client uses separate Tub per storage server (privacy improvement)
-* 2788 introducer cache, yaml file, loaded at startup until real introducer
-  arrives: tolerates introducer failure better. static servers can be
-  configured by adding a servers.yaml
-* 2784 remove v1 introducer (sigs now required)
-* BIG replace drop-upload with magic-folders
-* 2754 remove _appname.py
-* 1363 use pubkey as serverid, not tubid. affects new-helper vs old-uploader
-* 517: connection handlers: socks/tor/i2p, tahoe.cfg [connections]
-* 2810 disable foolscap gifts
-* 2816 empty tub.port means don't listen at all
-* 1010 tahoe.cfg reveal-ip-address = false, create-client --hide-ip
 * 2818 show connection hints on welcome page
-* 1942 remove google-based timing chart on mapupdate page (privacy)
-* 2809 reject unrecognized tahoe.cfg options at startup
-* 2735 CLI remove 'debug trial' and 'debug repl'
-* 2773 create-node/create-introducer --location/--port --hostname --listen
-* 68 introducers.yaml, multiple introducers, no introducers
 * 2827 explain ipv6
-* 867 tub.port takes multiple endpoints (comma-separated)
-* 2490 --listen=tor
+
+Not user visible:
 * fix IP-autodetect on RHEL (for tests)
+* 2810 disable foolscap gifts
+* 1449 don't start magic-folder until "connected enough"
+* 2774 add internal progress API (for magic-folder)
 
 
 
