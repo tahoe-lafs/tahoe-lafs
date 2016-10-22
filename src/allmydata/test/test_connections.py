@@ -15,6 +15,7 @@ class FakeNode(Node):
         self._reveal_ip = True
         self.basedir = "BASEDIR"
         self.services = []
+        self.create_i2p_provider()
         self.create_tor_provider()
 
 BASECONFIG = ("[client]\n"
@@ -141,8 +142,9 @@ class I2P(unittest.TestCase):
         self.assertEqual(h, None)
 
     def test_unimportable(self):
-        n = FakeNode(BASECONFIG)
-        with mock.patch("allmydata.node._import_i2p", return_value=None):
+        with mock.patch("allmydata.util.i2p_provider._import_i2p",
+                        return_value=None):
+            n = FakeNode(BASECONFIG)
             h = n._make_i2p_handler()
         self.assertEqual(h, None)
 

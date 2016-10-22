@@ -5,7 +5,7 @@ from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path
-from allmydata.util import fileutil, iputil, tor_provider
+from allmydata.util import fileutil, i2p_provider, iputil, tor_provider
 
 
 dummy_tac = """
@@ -39,6 +39,17 @@ TOR_OPTS = [
 
 TOR_FLAGS = [
     ("tor-launch", None, "Launch a tor instead of connecting to a tor control port."),
+]
+
+I2P_OPTS = [
+    ("i2p-sam-port", None, None,
+     "I2P's SAM API port endpoint descriptor string (e.g. tcp:127.0.0.1:7656)"),
+    ("i2p-executable", None, None,
+     "(future) The 'i2prouter' executable to run (default is to search $PATH)."),
+]
+
+I2P_FLAGS = [
+    ("i2p-launch", None, "(future) Launch an I2P router instead of connecting to a SAM API port."),
 ]
 
 def validate_where_options(o):
@@ -89,6 +100,18 @@ def validate_tor_options(o):
     if o["tor-launch"] and o["tor-control-port"]:
         raise UsageError("use either --tor-launch or --tor-control-port=, not both")
 
+def validate_i2p_options(o):
+    use_i2p = "i2p" in o["listen"].split(",")
+    if not use_i2p:
+        if o["i2p-launch"]:
+            raise UsageError("--i2p-launch requires --listen=i2p")
+        if o["i2p-sam-port"]:
+            raise UsageError("--i2p-sam-port= requires --listen=i2p")
+    if o["i2p-launch"] and o["i2p-sam-port"]:
+        raise UsageError("use either --i2p-launch or --i2p-sam-port=, not both")
+    if o["i2p-launch"]:
+        raise UsageError("--i2p-launch is under development")
+
 class _CreateBaseOptions(BasedirOptions):
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
@@ -119,28 +142,30 @@ class CreateClientOptions(_CreateBaseOptions):
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
-        ] + TOR_FLAGS
+        ] + TOR_FLAGS + I2P_FLAGS
 
     synopsis = "[options] [NODEDIR]"
     description = "Create a full Tahoe-LAFS node (client+server)."
-    optParameters = CreateClientOptions.optParameters + WHERE_OPTS + TOR_OPTS
+    optParameters = CreateClientOptions.optParameters + WHERE_OPTS + TOR_OPTS + I2P_OPTS
 
     def parseArgs(self, basedir=None):
         CreateClientOptions.parseArgs(self, basedir)
         validate_where_options(self)
         validate_tor_options(self)
+        validate_i2p_options(self)
 
 class CreateIntroducerOptions(NoDefaultBasedirOptions):
     subcommand_name = "create-introducer"
     description = "Create a Tahoe-LAFS introducer."
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
-    ] + TOR_FLAGS
-    optParameters = NoDefaultBasedirOptions.optParameters + WHERE_OPTS + TOR_OPTS
+    ] + TOR_FLAGS + I2P_FLAGS
+    optParameters = NoDefaultBasedirOptions.optParameters + WHERE_OPTS + TOR_OPTS + I2P_OPTS
     def parseArgs(self, basedir=None):
         NoDefaultBasedirOptions.parseArgs(self, basedir)
         validate_where_options(self)
         validate_tor_options(self)
+        validate_i2p_options(self)
 
 @defer.inlineCallbacks
 def write_node_config(c, config):
@@ -177,6 +202,7 @@ def write_node_config(c, config):
     listeners = config['listen'].split(",")
 
     tor_config = {}
+    i2p_config = {}
     tub_ports = []
     tub_locations = []
     if listeners == ["none"]:
@@ -189,8 +215,10 @@ def write_node_config(c, config):
             tub_ports.append(tor_port)
             tub_locations.append(tor_location)
         if "i2p" in listeners:
-            raise NotImplementedError("--listen=i2p is under development, "
-                                      "see ticket #2490 for details")
+            (i2p_config, i2p_port, i2p_location) = \
+                         yield i2p_provider.create_dest(reactor, config)
+            tub_ports.append(i2p_port)
+            tub_locations.append(i2p_location)
         if "tcp" in listeners:
             if config["port"]: # --port/--location are a pair
                 tub_ports.append(config["port"].encode('utf-8'))
@@ -216,6 +244,12 @@ def write_node_config(c, config):
     if tor_config:
         c.write("[tor]\n")
         for key, value in tor_config.items():
+            c.write("%s = %s\n" % (key, value))
+        c.write("\n")
+
+    if i2p_config:
+        c.write("[i2p]\n")
+        for key, value in i2p_config.items():
             c.write("%s = %s\n" % (key, value))
         c.write("\n")
 

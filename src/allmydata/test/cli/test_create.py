@@ -156,14 +156,6 @@ class Config(unittest.TestCase):
                               basedir)
         self.assertEqual(str(e), "--listen= must be none, or one/some of: tcp, tor, i2p")
 
-    @defer.inlineCallbacks
-    def test_node_listen_i2p(self):
-        basedir = self.mktemp()
-        d = run_cli("create-node", "--listen=i2p", basedir)
-        e = yield self.assertFailure(d, NotImplementedError)
-        self.assertEqual(str(e), "--listen=i2p is under development, "
-                         "see ticket #2490 for details")
-
     def test_node_listen_tor_hostname(self):
         e = self.assertRaises(usage.UsageError,
                               parse_cli,
@@ -202,6 +194,19 @@ class Config(unittest.TestCase):
         with mock.patch("allmydata.util.tor_provider.create_onion",
                         return_value=d):
             d2 = run_cli("create-node", "--listen=tor", basedir)
+            d.callback(({}, "port", "location"))
+            rc, out, err = yield d2
+        self.assertEqual(rc, 0)
+        self.assertIn("Node created", out)
+        self.assertEqual(err, "")
+
+    @defer.inlineCallbacks
+    def test_node_slow_i2p(self):
+        basedir = self.mktemp()
+        d = defer.Deferred()
+        with mock.patch("allmydata.util.i2p_provider.create_dest",
+                        return_value=d):
+            d2 = run_cli("create-node", "--listen=i2p", basedir)
             d.callback(({}, "port", "location"))
             rc, out, err = yield d2
         self.assertEqual(rc, 0)
@@ -317,3 +322,68 @@ class Tor(unittest.TestCase):
                               "create-node", "--listen=none",
                               "--tor-control-port=foo")
         self.assertEqual(str(e), "--tor-control-port= requires --listen=tor")
+
+class I2P(unittest.TestCase):
+    def test_default(self):
+        basedir = self.mktemp()
+        i2p_config = {"abc": "def"}
+        i2p_port = "ghi"
+        i2p_location = "jkl"
+        dest_d = defer.succeed( (i2p_config, i2p_port, i2p_location) )
+        with mock.patch("allmydata.util.i2p_provider.create_dest",
+                        return_value=dest_d) as co:
+            rc, out, err = self.successResultOf(
+                run_cli("create-node", "--listen=i2p", basedir))
+        self.assertEqual(len(co.mock_calls), 1)
+        args = co.mock_calls[0][1]
+        self.assertIdentical(args[0], reactor)
+        self.assertIsInstance(args[1], create_node.CreateNodeOptions)
+        self.assertEqual(args[1]["listen"], "i2p")
+        cfg = read_config(basedir)
+        self.assertEqual(cfg.get("i2p", "abc"), "def")
+        self.assertEqual(cfg.get("node", "tub.port"), "ghi")
+        self.assertEqual(cfg.get("node", "tub.location"), "jkl")
+
+    def test_launch(self):
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=i2p", "--i2p-launch")
+        self.assertEqual(str(e), "--i2p-launch is under development")
+
+
+    def test_sam_port(self):
+        basedir = self.mktemp()
+        i2p_config = {"abc": "def"}
+        i2p_port = "ghi"
+        i2p_location = "jkl"
+        dest_d = defer.succeed( (i2p_config, i2p_port, i2p_location) )
+        with mock.patch("allmydata.util.i2p_provider.create_dest",
+                        return_value=dest_d) as co:
+            rc, out, err = self.successResultOf(
+                run_cli("create-node", "--listen=i2p", "--i2p-sam-port=mno",
+                        basedir))
+        args = co.mock_calls[0][1]
+        self.assertEqual(args[1]["listen"], "i2p")
+        self.assertEqual(args[1]["i2p-launch"], False)
+        self.assertEqual(args[1]["i2p-sam-port"], "mno")
+
+    def test_not_both(self):
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=i2p",
+                              "--i2p-launch", "--i2p-sam-port=foo")
+        self.assertEqual(str(e), "use either --i2p-launch or"
+                         " --i2p-sam-port=, not both")
+
+    def test_launch_without_listen(self):
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=none", "--i2p-launch")
+        self.assertEqual(str(e), "--i2p-launch requires --listen=i2p")
+
+    def test_sam_port_without_listen(self):
+        e = self.assertRaises(usage.UsageError,
+                              parse_cli,
+                              "create-node", "--listen=none",
+                              "--i2p-sam-port=foo")
+        self.assertEqual(str(e), "--i2p-sam-port= requires --listen=i2p")
