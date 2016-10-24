@@ -63,7 +63,7 @@ class MagicFolder(service.MultiService):
     name = 'magic-folder'
 
     def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask,
-                 pending_delay=1.0, clock=None):
+                 pending_delay=1.0, clock=None, poll_interval=3):
         precondition_abspath(local_path_u)
 
         service.MultiService.__init__(self)
@@ -83,7 +83,7 @@ class MagicFolder(service.MultiService):
         self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock)
         self.downloader = Downloader(client, local_path_u, db, collective_dirnode,
                                      upload_dirnode.get_readonly_uri(), clock, self.uploader.is_pending, umask,
-                                     self.set_public_status)
+                                     self.set_public_status, poll_interval=poll_interval)
         self._public_status = (False, ['Magic folder has not yet started'])
 
     def enable_debug_log(self, enabled=True):
@@ -131,9 +131,8 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(HookMixin):
-    scan_interval = 0
 
-    def __init__(self, client, local_path_u, db, name, clock, delay=0):
+    def __init__(self, client, local_path_u, db, name, clock):
         self._client = client
         self._local_path_u = local_path_u
         self._local_filepath = to_filepath(local_path_u)
@@ -163,9 +162,6 @@ class QueueMixin(HookMixin):
         # do we also want to bound on "maximum age"?
         self._process_history = deque(maxlen=20)
         self._stopped = False
-        # XXX pass in an initial value for this; it seems like .10 broke this and it's always 0
-        self._turn_delay = delay
-        self._log('delay is %f' % self._turn_delay)
 
         # a Deferred to wait for the _do_processing() loop to exit
         # (gets set to the return from _do_processing() if we get that
@@ -212,34 +208,30 @@ class QueueMixin(HookMixin):
         (processing each item). After that we yield for _turn_deque
         seconds.
         """
-        # we subtract here so there's a scan on the very first iteration
-        last_scan = self._clock.seconds() - self.scan_interval
         while not self._stopped:
             self._log("doing iteration")
-            d = task.deferLater(self._clock, self._turn_delay, lambda: None)
-            # ">=" is important here if scan scan_interval is 0
-            if self._clock.seconds() - last_scan >= self.scan_interval:
-                # XXX can't we unify the "_full_scan" vs what
-                # Downloader does...
-                last_scan = self._clock.seconds()
-                yield self._when_queue_is_empty()  # (this no-op for us, only Downloader uses it...)
-                self._log("did scan; now %d" % last_scan)
-            else:
-                self._log("skipped scan")
+            d = task.deferLater(self._clock, self._next_scan_delay(), lambda: None)
+
+            # adds items to our deque
+            yield self._when_queue_is_empty()
 
             # process anything in our queue
             yield self._process_deque()
-            self._log("one loop; call_hook iteration %r" % self)
-            self._call_hook(None, 'iteration')
+
             # we want to have our callLater queued in the reactor
             # *before* we trigger the 'iteration' hook, so that hook
             # can successfully advance the Clock and bypass the delay
             # if required (e.g. in the tests).
+            self._log("one loop; call_hook iteration %r" % self)
+            self._call_hook(None, 'iteration')
             if not self._stopped:
                 self._log("waiting... %r" % d)
                 yield d
 
         self._log("stopped")
+
+    def _next_scan_delay(self):
+        return self._turn_delay
 
     def _when_queue_is_empty(self):
         return
@@ -346,7 +338,7 @@ class UploadItem(QueuedItem):
 class Uploader(QueueMixin):
 
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
-        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock, delay=pending_delay)
+        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock)
 
         self.is_ready = False
 
@@ -364,6 +356,7 @@ class Uploader(QueueMixin):
 
         self._periodic_full_scan_duration = 10 * 60 # perform a full scan every 10 minutes
         self._periodic_callid = None
+        self._turn_delay = pending_delay
 
         if hasattr(self._notifier, 'set_pending_delay'):
             self._notifier.set_pending_delay(pending_delay)
@@ -753,12 +746,11 @@ class DownloadItem(QueuedItem):
 
 
 class Downloader(QueueMixin, WriteFileMixin):
-    scan_interval = 3
 
     def __init__(self, client, local_path_u, db, collective_dirnode,
                  upload_readonly_dircap, clock, is_upload_pending, umask,
-                 status_reporter):
-        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock, delay=self.scan_interval)
+                 status_reporter, poll_interval=3):
+        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
@@ -772,11 +764,12 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._is_upload_pending = is_upload_pending
         self._umask = umask
         self._status_reporter = status_reporter
+        self._poll_interval = poll_interval
 
     @defer.inlineCallbacks
     def start_downloading(self):
         self._log("start_downloading")
-        self._turn_delay = self.scan_interval
+        self._turn_delay = self._poll_interval
         files = self._db.get_all_relpaths()
         self._log("all files %s" % files)
 
@@ -794,7 +787,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                     "Last tried at %s" % self.nice_current_time(),
                 )
                 twlog.msg("Magic Folder failed initial scan: %s" % (e,))
-                yield task.deferLater(self._clock, self.scan_interval, lambda: None)
+                yield task.deferLater(self._clock, self._poll_interval, lambda: None)
 
     def nice_current_time(self):
         return format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
