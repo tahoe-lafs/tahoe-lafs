@@ -86,10 +86,10 @@ class MagicFolder(service.MultiService):
                                      self.set_public_status)
         self._public_status = (False, ['Magic folder has not yet started'])
 
-    def enable_debug_log(self):
+    def enable_debug_log(self, enabled=True):
         print "enable debug log"
-        self.uploader.enable_debug_log()
-        self.downloader.enable_debug_log()
+        self.uploader.enable_debug_log(enabled)
+        self.downloader.enable_debug_log(enabled)
 
     def get_public_status(self):
         """
@@ -172,9 +172,9 @@ class QueueMixin(HookMixin):
         # far)
         self._processing = defer.succeed(None)
 
-    def enable_debug_log(self):
+    def enable_debug_log(self, enabled=True):
         print "queue mixin enable debug logging"
-        self._debug_log = True
+        self._debug_log = enabled
 
     def get_status(self):
         """

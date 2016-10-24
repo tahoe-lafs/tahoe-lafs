@@ -1032,6 +1032,11 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     def tearDown(self):
         d = super(SingleMagicFolderTestMixin, self).tearDown()
+        def _disable_debugging(res):
+            if self.magicfolder:
+                self.magicfolder.enable_debug_log(False)
+            return res
+        d.addBoth(_disable_debugging)
         d.addCallback(self.cleanup)
         return d
 
