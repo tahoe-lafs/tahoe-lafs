@@ -86,6 +86,11 @@ class MagicFolder(service.MultiService):
                                      self.set_public_status)
         self._public_status = (False, ['Magic folder has not yet started'])
 
+    def enable_debug_log(self, enabled=True):
+        twlog.msg("enable debug log: %s" % enabled)
+        self.uploader.enable_debug_log(enabled)
+        self.downloader.enable_debug_log(enabled)
+
     def get_public_status(self):
         """
         For the web UI, basically.
@@ -135,6 +140,8 @@ class QueueMixin(HookMixin):
         self._db = db
         self._name = name
         self._clock = clock
+        self._debug_log = False
+        self._logger = None
         self._hooks = {
             'processed': None,
             'started': None,
@@ -164,6 +171,10 @@ class QueueMixin(HookMixin):
         # (gets set to the return from _do_processing() if we get that
         # far)
         self._processing = defer.succeed(None)
+
+    def enable_debug_log(self, enabled=True):
+        twlog.msg("queue mixin enable debug logging: %s" % enabled)
+        self._debug_log = enabled
 
     def get_status(self):
         """
@@ -274,7 +285,8 @@ class QueueMixin(HookMixin):
     def _log(self, msg):
         s = "Magic Folder %s %s: %s" % (quote_output(self._client.nickname), self._name, msg)
         self._client.log(s)
-
+        if self._debug_log:
+            twlog.msg(s)
 
 # this isn't in interfaces.py because it's very specific to QueueMixin
 class IQueuedItem(Interface):
