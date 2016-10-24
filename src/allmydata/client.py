@@ -88,6 +88,7 @@ def _valid_config_sections():
             "download.umask",
             "enabled",
             "local.directory",
+            "poll_interval",
         ),
     })
     return cfg
@@ -565,6 +566,11 @@ class Client(node.Node, pollmixin.PollMixin):
 
             db_filename = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
             local_dir_config = self.get_config("magic_folder", "local.directory").decode("utf-8")
+            try:
+                poll_interval = int(self.get_config("magic_folder", "poll_interval", 3))
+            except ValueError:
+                raise ValueError("[magic_folder] poll_interval must be an int")
+
             s = magic_folder.MagicFolder(
                 client=self,
                 upload_dircap=self.get_private_config("magic_folder_dircap"),
@@ -572,6 +578,7 @@ class Client(node.Node, pollmixin.PollMixin):
                 local_path_u=abspath_expanduser_unicode(local_dir_config, base=self.basedir),
                 dbfile=abspath_expanduser_unicode(db_filename),
                 umask=self.get_config("magic_folder", "download.umask", 0077),
+                downloader_delay=poll_interval,
             )
             self._magic_folder = s
             s.setServiceParent(self)
