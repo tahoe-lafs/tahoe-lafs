@@ -322,14 +322,14 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         class MockMagicFolder(service.MultiService):
             name = 'magic-folder'
 
-            def __init__(self, client, upload_dircap, collective_dircap, local_dir, dbfile, umask, inotify=None,
-                         pending_delay=1.0):
+            def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask, inotify=None,
+                         uploader_delay=1.0, clock=None, downloader_delay=3):
                 service.MultiService.__init__(self)
                 self.client = client
                 self._umask = umask
                 self.upload_dircap = upload_dircap
                 self.collective_dircap = collective_dircap
-                self.local_dir = local_dir
+                self.local_dir = local_path_u
                 self.dbfile = dbfile
                 self.inotify = inotify
 
@@ -376,8 +376,8 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         class Boom(Exception):
             pass
-        def BoomMagicFolder(client, upload_dircap, collective_dircap, local_dir, dbfile,
-                            inotify=None, pending_delay=1.0):
+        def BoomMagicFolder(client, upload_dircap, collective_dircap, local_path_u, dbfile,
+                            umask, inotify=None, uploader_delay=1.0, clock=None, downloader_delay=3):
             raise Boom()
         self.patch(allmydata.frontends.magic_folder, 'MagicFolder', BoomMagicFolder)
 
