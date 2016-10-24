@@ -2,10 +2,6 @@
 import os, sys, time
 import shutil, simplejson
 
-if False:
-    from twisted.internet.base import DelayedCall
-    DelayedCall.debug = True
-
 from twisted.trial import unittest
 from twisted.internet import defer, task, reactor
 
