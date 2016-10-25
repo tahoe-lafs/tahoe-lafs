@@ -44,9 +44,42 @@ class Config(unittest.TestCase):
         self.assertFalse(cfg.has_section("connections"))
 
     @defer.inlineCallbacks
+    def test_client_hide_ip_no_i2p_txtorcon(self):
+        # hmm, I must be doing something weird, these don't work as
+        # @mock.patch decorators for some reason
+        txi2p = mock.patch('allmydata.util.i2p_provider._import_txi2p', return_value=None)
+        txtorcon = mock.patch('allmydata.util.tor_provider._import_txtorcon', return_value=None)
+        with txi2p, txtorcon:
+            basedir = self.mktemp()
+            rc, out, err = yield run_cli("create-client", "--hide-ip", basedir)
+            print(rc, out, err)
+            self.assertTrue(rc != 0, out)
+            self.assertTrue('pip install tahoe-lafs[i2p]' in out)
+            self.assertTrue('pip install tahoe-lafs[tor]' in out)
+
+    @defer.inlineCallbacks
+    def test_client_i2p_option_no_txi2p(self):
+        txi2p = mock.patch('allmydata.util.i2p_provider._import_txi2p', return_value=None)
+        with txi2p:
+            basedir = self.mktemp()
+            rc, out, err = yield run_cli("create-node", "--listen=i2p", "--i2p-launch", basedir)
+            self.assertTrue(rc != 0)
+            self.assertTrue("Specifying any I2P options requires the 'txi2p' module" in out)
+
+    @defer.inlineCallbacks
+    def test_client_tor_option_no_txtorcon(self):
+        txtorcon = mock.patch('allmydata.util.tor_provider._import_txtorcon', return_value=None)
+        with txtorcon:
+            basedir = self.mktemp()
+            rc, out, err = yield run_cli("create-node", "--listen=tor", "--tor-launch", basedir)
+            self.assertTrue(rc != 0)
+            self.assertTrue("Specifying any Tor options requires the 'txtorcon' module" in out)
+
+    @defer.inlineCallbacks
     def test_client_hide_ip(self):
         basedir = self.mktemp()
         rc, out, err = yield run_cli("create-client", "--hide-ip", basedir)
+        self.assertEqual(0, rc)
         cfg = read_config(basedir)
         self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), False)
         self.assertEqual(cfg.get("connections", "tcp"), "tor")

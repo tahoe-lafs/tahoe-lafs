@@ -92,6 +92,11 @@ def validate_where_options(o):
 
 def validate_tor_options(o):
     use_tor = "tor" in o["listen"].split(",")
+    if use_tor or any((o["tor-launch"], o["tor-control-port"])):
+        if tor_provider._import_txtorcon() is None:
+            raise UsageError(
+                "Specifying any Tor options requires the 'txtorcon' module"
+            )
     if not use_tor:
         if o["tor-launch"]:
             raise UsageError("--tor-launch requires --listen=tor")
@@ -102,6 +107,11 @@ def validate_tor_options(o):
 
 def validate_i2p_options(o):
     use_i2p = "i2p" in o["listen"].split(",")
+    if use_i2p or any((o["i2p-launch"], o["i2p-sam-port"])):
+        if i2p_provider._import_txi2p() is None:
+            raise UsageError(
+                "Specifying any I2P options requires the 'txi2p' module"
+            )
     if not use_i2p:
         if o["i2p-launch"]:
             raise UsageError("--i2p-launch requires --listen=i2p")
@@ -116,6 +126,16 @@ class _CreateBaseOptions(BasedirOptions):
     optFlags = [
         ("hide-ip", None, "prohibit any configuration that would reveal the node's IP address"),
         ]
+
+    def postOptions(self):
+        super(_CreateBaseOptions, self).postOptions()
+        if self['hide-ip']:
+            if tor_provider._import_txtorcon() is None and i2p_provider._import_txi2p() is None:
+                raise UsageError(
+                    "--hide-ip was specified but neither 'txtorcon' nor 'txi2p' "
+                    "are installed.\nTo do so:\n   pip install tahoe-lafs[tor]\nor\n"
+                    "   pip install tahoe-lafs[i2p]"
+                )
 
 class CreateClientOptions(_CreateBaseOptions):
     synopsis = "[options] [NODEDIR]"
@@ -154,6 +174,7 @@ class CreateNodeOptions(CreateClientOptions):
         validate_tor_options(self)
         validate_i2p_options(self)
 
+
 class CreateIntroducerOptions(NoDefaultBasedirOptions):
     subcommand_name = "create-introducer"
     description = "Create a Tahoe-LAFS introducer."
@@ -166,6 +187,7 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
         validate_where_options(self)
         validate_tor_options(self)
         validate_i2p_options(self)
+
 
 @defer.inlineCallbacks
 def write_node_config(c, config):
