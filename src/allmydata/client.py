@@ -88,6 +88,7 @@ def _valid_config_sections():
             "download.umask",
             "enabled",
             "local.directory",
+            "poll_interval",
         ),
     })
     return cfg
@@ -561,18 +562,24 @@ class Client(node.Node, pollmixin.PollMixin):
 
         if self.get_config("magic_folder", "enabled", False, boolean=True):
             #print "magic folder enabled"
-            upload_dircap = self.get_private_config("magic_folder_dircap")
-            collective_dircap = self.get_private_config("collective_dircap")
-
-            local_dir_config = self.get_config("magic_folder", "local.directory").decode("utf-8")
-            local_dir = abspath_expanduser_unicode(local_dir_config, base=self.basedir)
-
-            dbfile = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
-            dbfile = abspath_expanduser_unicode(dbfile)
-
             from allmydata.frontends import magic_folder
-            umask = self.get_config("magic_folder", "download.umask", 0077)
-            s = magic_folder.MagicFolder(self, upload_dircap, collective_dircap, local_dir, dbfile, umask)
+
+            db_filename = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
+            local_dir_config = self.get_config("magic_folder", "local.directory").decode("utf-8")
+            try:
+                poll_interval = int(self.get_config("magic_folder", "poll_interval", 3))
+            except ValueError:
+                raise ValueError("[magic_folder] poll_interval must be an int")
+
+            s = magic_folder.MagicFolder(
+                client=self,
+                upload_dircap=self.get_private_config("magic_folder_dircap"),
+                collective_dircap=self.get_private_config("collective_dircap"),
+                local_path_u=abspath_expanduser_unicode(local_dir_config, base=self.basedir),
+                dbfile=abspath_expanduser_unicode(db_filename),
+                umask=self.get_config("magic_folder", "download.umask", 0077),
+                downloader_delay=poll_interval,
+            )
             self._magic_folder = s
             s.setServiceParent(self)
             s.startService()

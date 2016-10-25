@@ -63,7 +63,7 @@ class MagicFolder(service.MultiService):
     name = 'magic-folder'
 
     def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask,
-                 pending_delay=1.0, clock=None):
+                 uploader_delay=1.0, clock=None, downloader_delay=3):
         precondition_abspath(local_path_u)
 
         service.MultiService.__init__(self)
@@ -80,10 +80,10 @@ class MagicFolder(service.MultiService):
         upload_dirnode = self._client.create_node_from_uri(upload_dircap)
         collective_dirnode = self._client.create_node_from_uri(collective_dircap)
 
-        self.uploader = Uploader(client, local_path_u, db, upload_dirnode, pending_delay, clock)
+        self.uploader = Uploader(client, local_path_u, db, upload_dirnode, uploader_delay, clock)
         self.downloader = Downloader(client, local_path_u, db, collective_dirnode,
                                      upload_dirnode.get_readonly_uri(), clock, self.uploader.is_pending, umask,
-                                     self.set_public_status)
+                                     self.set_public_status, poll_interval=downloader_delay)
         self._public_status = (False, ['Magic folder has not yet started'])
 
     def enable_debug_log(self, enabled=True):
@@ -131,9 +131,8 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(HookMixin):
-    scan_interval = 0
 
-    def __init__(self, client, local_path_u, db, name, clock, delay=0):
+    def __init__(self, client, local_path_u, db, name, clock):
         self._client = client
         self._local_path_u = local_path_u
         self._local_filepath = to_filepath(local_path_u)
@@ -163,9 +162,6 @@ class QueueMixin(HookMixin):
         # do we also want to bound on "maximum age"?
         self._process_history = deque(maxlen=20)
         self._stopped = False
-        # XXX pass in an initial value for this; it seems like .10 broke this and it's always 0
-        self._turn_delay = delay
-        self._log('delay is %f' % self._turn_delay)
 
         # a Deferred to wait for the _do_processing() loop to exit
         # (gets set to the return from _do_processing() if we get that
@@ -208,40 +204,36 @@ class QueueMixin(HookMixin):
         This is an infinite loop that processes things out of the _deque.
 
         One iteration runs self._process_deque which calls
-        _when_queue_is_empty() and then completely drains the _deque
+        _perform_scan() and then completely drains the _deque
         (processing each item). After that we yield for _turn_deque
         seconds.
         """
-        # we subtract here so there's a scan on the very first iteration
-        last_scan = self._clock.seconds() - self.scan_interval
         while not self._stopped:
             self._log("doing iteration")
-            d = task.deferLater(self._clock, self._turn_delay, lambda: None)
-            # ">=" is important here if scan scan_interval is 0
-            if self._clock.seconds() - last_scan >= self.scan_interval:
-                # XXX can't we unify the "_full_scan" vs what
-                # Downloader does...
-                last_scan = self._clock.seconds()
-                yield self._when_queue_is_empty()  # (this no-op for us, only Downloader uses it...)
-                self._log("did scan; now %d" % last_scan)
-            else:
-                self._log("skipped scan")
+            d = task.deferLater(self._clock, self._scan_delay(), lambda: None)
+
+            # adds items to our deque
+            yield self._perform_scan()
 
             # process anything in our queue
             yield self._process_deque()
-            self._log("one loop; call_hook iteration %r" % self)
-            self._call_hook(None, 'iteration')
+
             # we want to have our callLater queued in the reactor
             # *before* we trigger the 'iteration' hook, so that hook
             # can successfully advance the Clock and bypass the delay
             # if required (e.g. in the tests).
+            self._log("one loop; call_hook iteration %r" % self)
+            self._call_hook(None, 'iteration')
             if not self._stopped:
                 self._log("waiting... %r" % d)
                 yield d
 
         self._log("stopped")
 
-    def _when_queue_is_empty(self):
+    def _scan_delay(self):
+        raise NotImplementedError
+
+    def _perform_scan(self):
         return
 
     @defer.inlineCallbacks
@@ -346,7 +338,7 @@ class UploadItem(QueuedItem):
 class Uploader(QueueMixin):
 
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
-        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock, delay=pending_delay)
+        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock)
 
         self.is_ready = False
 
@@ -360,8 +352,9 @@ class Uploader(QueueMixin):
         self._upload_dirnode = upload_dirnode
         self._inotify = get_inotify_module()
         self._notifier = self._inotify.INotify()
-        self._pending = set()  # of unicode relpaths
 
+        self._pending = set()  # of unicode relpaths
+        self._pending_delay = pending_delay
         self._periodic_full_scan_duration = 10 * 60 # perform a full scan every 10 minutes
         self._periodic_callid = None
 
@@ -422,6 +415,9 @@ class Uploader(QueueMixin):
         # XXX changed this while re-basing; double check we can
         # *really* just call this synchronously.
         return self._begin_processing(None)
+
+    def _scan_delay(self):
+        return self._pending_delay
 
     def _full_scan(self):
         self._periodic_callid = self._clock.callLater(self._periodic_full_scan_duration, self._full_scan)
@@ -753,12 +749,11 @@ class DownloadItem(QueuedItem):
 
 
 class Downloader(QueueMixin, WriteFileMixin):
-    scan_interval = 3
 
     def __init__(self, client, local_path_u, db, collective_dirnode,
                  upload_readonly_dircap, clock, is_upload_pending, umask,
-                 status_reporter):
-        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock, delay=self.scan_interval)
+                 status_reporter, poll_interval=3):
+        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
             raise AssertionError("The URI in '%s' does not refer to a directory."
@@ -772,11 +767,11 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._is_upload_pending = is_upload_pending
         self._umask = umask
         self._status_reporter = status_reporter
+        self._poll_interval = poll_interval
 
     @defer.inlineCallbacks
     def start_downloading(self):
         self._log("start_downloading")
-        self._turn_delay = self.scan_interval
         files = self._db.get_all_relpaths()
         self._log("all files %s" % files)
 
@@ -794,7 +789,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                     "Last tried at %s" % self.nice_current_time(),
                 )
                 twlog.msg("Magic Folder failed initial scan: %s" % (e,))
-                yield task.deferLater(self._clock, self.scan_interval, lambda: None)
+                yield task.deferLater(self._clock, self._poll_interval, lambda: None)
 
     def nice_current_time(self):
         return format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
@@ -948,13 +943,15 @@ class Downloader(QueueMixin, WriteFileMixin):
         d.addCallback(_filter_batch_to_deque)
         return d
 
+
+    def _scan_delay(self):
+        return self._poll_interval
+
     @defer.inlineCallbacks
-    def _when_queue_is_empty(self):
-        # XXX can we amalgamate all the "scan" stuff and just call it
-        # directly from QueueMixin?
+    def _perform_scan(self):
         x = None
         try:
-            x = yield self._scan(None)
+            x = yield self._scan_remote_collective()
             self._status_reporter(
                 True, 'Magic folder is working',
                 'Last scan: %s' % self.nice_current_time(),
@@ -967,9 +964,6 @@ class Downloader(QueueMixin, WriteFileMixin):
                 'Last attempted at %s' % self.nice_current_time(),
             )
         defer.returnValue(x)
-
-    def _scan(self, ign):
-        return self._scan_remote_collective()
 
     def _process(self, item):
         # Downloader

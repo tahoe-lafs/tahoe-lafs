@@ -111,13 +111,13 @@ def iterate_downloader(magic):
     # can do either of these:
     #d = magic.downloader._process_deque()
     d = magic.downloader.set_hook('iteration')
-    magic.downloader._clock.advance(magic.downloader.scan_interval + 1)
+    magic.downloader._clock.advance(magic.downloader._poll_interval + 1)
     return d
 
 
 def iterate_uploader(magic):
     d = magic.uploader.set_hook('iteration')
-    magic.uploader._clock.advance(magic.uploader.scan_interval + 1)
+    magic.uploader._clock.advance(magic.uploader._pending_delay + 1)
     return d
 
 @defer.inlineCallbacks
@@ -308,7 +308,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.alice_fileops = FileOperationsHelper(self.alice_magicfolder.uploader, self.inject_inotify)
             d0 = self.alice_magicfolder.uploader.set_hook('iteration')
             d1 = self.alice_magicfolder.downloader.set_hook('iteration')
-            self.alice_clock.advance(self.alice_magicfolder.uploader.scan_interval + 1)
+            self.alice_clock.advance(self.alice_magicfolder.uploader._pending_delay + 1)
             d0.addCallback(lambda ign: d1)
             d0.addCallback(lambda ign: result)
             return d0
@@ -332,7 +332,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.bob_fileops = FileOperationsHelper(self.bob_magicfolder.uploader, self.inject_inotify)
             d0 = self.bob_magicfolder.uploader.set_hook('iteration')
             d1 = self.bob_magicfolder.downloader.set_hook('iteration')
-            self.bob_clock.advance(self.alice_magicfolder.uploader.scan_interval + 1)
+            self.bob_clock.advance(self.alice_magicfolder.uploader._pending_delay + 1)
             d0.addCallback(lambda ign: d1)
             d0.addCallback(lambda ign: result)
             return d0
@@ -346,8 +346,8 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d1 = self.bob_magicfolder.finish()
 
         for mf in [self.alice_magicfolder, self.bob_magicfolder]:
-            for loader in [mf.uploader, mf.downloader]:
-                loader._clock.advance(loader.scan_interval + 1)
+            mf.uploader._clock.advance(mf.uploader._pending_delay + 1)
+            mf.downloader._clock.advance(mf.downloader._poll_interval + 1)
 
         yield d0
         yield d1
@@ -541,7 +541,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         # now, we ONLY want to do the scan, not a full iteration of
         # the process loop. So we do just the scan part "by hand" in
         # Bob's downloader
-        yield self.bob_magicfolder.downloader._when_queue_is_empty()
+        yield self.bob_magicfolder.downloader._perform_scan()
         # while we're delving into internals, I guess we might as well
         # confirm that we did queue up an item to download
         self.assertEqual(1, len(self.bob_magicfolder.downloader._deque))
