@@ -229,3 +229,14 @@ As mentioned earlier, it is also possible to run the nodes on
 different machines, to synchronize between three or more clients,
 to mix Windows and Linux clients, and to use multiple servers
 (if the Tahoe-LAFS encoding parameters are changed).
+
+
+Configuration
+=============
+
+There will be a ``[magic_folder]`` section in your ``tahoe.cfg`` file
+after setting up Magic Folder.
+
+There is an option you can add to this called ``poll_interval=`` to
+control how ofte (in seconds) the Downloader will check for new things
+to download.
