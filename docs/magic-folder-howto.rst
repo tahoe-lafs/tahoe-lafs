@@ -238,5 +238,5 @@ There will be a ``[magic_folder]`` section in your ``tahoe.cfg`` file
 after setting up Magic Folder.
 
 There is an option you can add to this called ``poll_interval=`` to
-control how ofte (in seconds) the Downloader will check for new things
+control how often (in seconds) the Downloader will check for new things
 to download.
