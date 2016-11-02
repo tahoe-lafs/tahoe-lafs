@@ -1195,6 +1195,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 2))
 
         return d
+    test_move_tree.todo = "fails on certain linux flavors: see ticket #2834"
 
     def test_persistence(self):
         """
