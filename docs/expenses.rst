@@ -85,7 +85,9 @@ running the project website, Trac, buildbot, and other development tools.
 
 * Budget: $20-$25/month, 2007-present
 * Recipient: secorp
-* Address: 1MSWNt1R1fohYxgaMV7gJSWbYjkGbXzKWu
+* Addresses:
+  1MSWNt1R1fohYxgaMV7gJSWbYjkGbXzKWu (<= may-2016)
+  1NHgVsq1nAU9x1Bb8Rs5K3SNtzEH95C5kU (>= jun-2016)
 
 Expenses/Transactions:
 
@@ -101,3 +103,31 @@ Expenses/Transactions:
 * -- Total through 01 May 2016: $2477.68
 * 5861efda59f9ae10952389cf52f968bb469019c77a3642e276a9e35131c36600
   3.78838567 BTC (@$654.02) = $2477.68, plus 0.000113 tx-fee
+*
+* June 2016 - Oct 2016 $27.45/mo, total $137.25
+* 8975b03002166b20782b0f023116b3a391ac5176de1a27e851891bee29c11957
+  0.19269107 BTC (@$712.28) = $137.25, plus 0.000113 tx-fee
+* (Oops, I forgot the process, and sent the BTC directly secorp's key. I
+  should have stuck with the 1MSWN key as the intermediary. Next time I'll go
+  back to doing it that way.)
+
+
+Tahoe Summit
+------------
+
+This pays for office space rental and team dinners for each day of the
+developer summit.
+
+* Recipient: warner
+* Address: 1DskmM8uCvmvTKjPbeDgfmVsGifZCmxouG
+
+* 2016 Summit (Nov 8-9, San Francisco)
+* Rental of the Mechanics Institute Library "Board Room": $300/day *2
+* Team Dinner (Cha Cha Cha): $164.49
+* Team Dinner (Rasoi): $255.34
+* -- total: $1019.83
+* dcd468fb2792b018e9ebc238e9b93992ad5a8fce48a8ff71db5d79ccbbe30a92
+  0.01403961 (@$712.28) = $10, plus 0.000113 tx-fee
+* acdfc299c35eed3bb27f7463ad8cdfcdcd4dcfd5184f290f87530c2be999de3e
+  1.41401086 (@$714.16) = $1009.83, plus 0.000133 tx-fee
+
