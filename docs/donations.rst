@@ -61,12 +61,17 @@ key on this list.
   ~$15/yr for DNS
 
 * tahoe-lafs.org SSL certificates (paid by warner)
-  $0-$50/yr, probably ending 2015
+  $0-$50/yr, ending 2015 (when we switched to LetsEncrypt)
   1EkT8yLvQhnjnLpJ6bNFCfAHJrM9yDjsqa
 
 * website/dev-server hosting (on Linode, paid by secorp)
-  1MSWNt1R1fohYxgaMV7gJSWbYjkGbXzKWu
   ~$20-$25/mo, 2007-present
+  1MSWNt1R1fohYxgaMV7gJSWbYjkGbXzKWu (<= may-2016)
+  1NHgVsq1nAU9x1Bb8Rs5K3SNtzEH95C5kU (>= jun-2016)
+
+* 2016 Tahoe Summit expenses: venue rental, team dinners (paid by warner)
+  ~$1020
+  1DskmM8uCvmvTKjPbeDgfmVsGifZCmxouG
 
 
 Historical Donation Addresses
@@ -95,17 +100,17 @@ This document is signed by the Tahoe-LAFS Release-Signing Key (GPG keyid
 (https://github.com/tahoe-lafs/tahoe-lafs.git) as `docs/donations.rst`.
 Both actions require access to secrets held closely by Tahoe developers.
 
-signed: Brian Warner, 08-Jul-2016
+signed: Brian Warner, 10-Nov-2016
 
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQEcBAEBCAAGBQJXf/v7AAoJEL3g0x1oZmp6eQ8H/A3orFJiSQm1vyZgQWPneKqb
-m7QaPIl5usKcZoGOtOcX4KlhvtOCHUcMjEHe1O+UbSWsKQfQQGiTMF+luwVh5DGZ
-Gmn/gSVVPYYa6MGZaoai0lCE1zh4wMuWsTZWwtjCqvN+bnYud6fbrem6p9XSbcpK
-bImMmig8/OJ0/Y0qhth6CBEqRm8LiALetibzcyEtWG2kwLTV/QYOqbfY3ZPI++bV
-q4VmDP80dNDKDq2JT6ZNU377Biz2/z/oj1ILb11aAylJJ4BV/3L+hJmyLfr0rsMc
-lSTzqAM2PUINnR4LnVdtDjJzBNRpcn535VxQFUc8e/jlOJo1rJse0Pt7WkDFsUA=
-=fyOh
+iQEcBAEBCAAGBQJYJVQBAAoJEL3g0x1oZmp6/8gIAJ5N2jLRQgpfIQTbVvhpnnOc
+MGV/kTN5yiN88laX91BPiX8HoAYrBcrzVH/If/2qGkQOGt8RW/91XJC++85JopzN
+Gw8uoyhxFB2b4+Yw2WLBSFKx58CyNoq47ZSwLUpard7P/qNrN+Szb26X0jDLo+7V
+XL6kXphL82b775xbFxW6afSNSjFJzdbozU+imTqxCu+WqIRW8iD2vjQxx6T6SSrA
+q0aLSlZpmD2mHGG3C3K2yYnX7C0BoGR9j4HAN9HbXtTKdVxq98YZOh11jmU1RVV/
+nTncD4E1CMrv/QqmktjXw/2shiGihYX+3ZqTO5BAZerORn0MkxPOIvESSVUhHVw=
+=Oj0C
 -----END PGP SIGNATURE-----
