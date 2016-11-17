@@ -1287,6 +1287,13 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
         self.failUnlessEqual(metadata['version'], 2)
 
+    def test_write_short_file(self):
+        self.magicfolder.enable_debug_log()
+        d = defer.succeed(None)
+        # Write something short enough for a LIT file.
+        d.addCallback(lambda ign: self._check_file(u"short", "test"))
+        return d
+
     def test_magic_folder(self):
         d = defer.succeed(None)
         # Write something short enough for a LIT file.

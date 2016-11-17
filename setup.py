@@ -263,6 +263,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
                 'allmydata.util',
                 'allmydata.web',
                 'allmydata.windows',
+                'allmydata.watchdog',
                 ],
       classifiers=trove_classifiers,
       install_requires=install_requires,
