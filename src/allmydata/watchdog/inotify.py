@@ -1,10 +1,14 @@
 
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, DirCreatedEvent, FileCreatedEvent
+from watchdog.events import (
+    FileSystemEventHandler, DirCreatedEvent, FileCreatedEvent,
+    DirDeletedEvent, FileDeletedEvent,
+)
 
 
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
+from twisted.python import log as twlog
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 from allmydata.util.pollmixin import PollMixin
@@ -56,13 +60,16 @@ class INotifyEventHandler(FileSystemEventHandler):
                     return
                 self._pending.add(path)
                 def _do_callbacks():
-                    print "DO CALLBACKS"
                     self._pending.remove(path)
                     event_mask = IN_CHANGED
                     if isinstance(event, (DirCreatedEvent, FileCreatedEvent)):
-                        event_mask = event_mask | IN_CREATE
+                        event_mask = event_mask | IN_CREATE | IN_CLOSE_WRITE
+                    if isinstance(event, (DirDeletedEvent, FileDeletedEvent)):
+                        event_mask = event_mask | IN_DELETE
                     if event.is_directory:
                         event_mask = event_mask | IN_ISDIR
+                    if not (self._mask & event_mask):
+                        return
                     for cb in self._callbacks:
                         try:
                             cb(None, FilePath(path), event_mask)
@@ -107,7 +114,9 @@ class INotify(PollMixin):
         print "START READING BEGIN"
         assert self._state != STARTED
         try:
-            _assert(len(self._callbacks) != 0, "no watch set")
+            # XXX twisted.internet.inotify doesn't require watches to
+            # be set before startReading is called.
+            # _assert(len(self._callbacks) != 0, "no watch set")
             self._observer.start()
             self._state = STARTED
         except Exception, e:
