@@ -2,8 +2,12 @@
 # See LICENSE for details.
 
 """
-Tests for the inotify wrapper in L{twisted.internet.inotify}.
+Tests for the inotify-alike implementation L{allmydata.watchdog}.
 """
+
+# Note: See https://twistedmatrix.com/trac/ticket/8915 for a proposal
+# to avoid all of this duplicated code from Twisted.
+
 import sys
 
 from twisted.internet import defer, reactor
@@ -11,27 +15,24 @@ from twisted.python import filepath, runtime
 from twisted.python.reflect import requireModule
 from twisted.trial import unittest
 
-if requireModule('twisted.python._inotify') is not None:
-    from twisted.internet import inotify
-else:
-    inotify = None
+# from allmydata.frontends.magic_folder import get_inotify_module
 
+# inotify = get_inotify_module()
+from allmydata.watchdog import inotify
 
+NO_READ_ONLY_SKIP = "Cannot reliably detect read-only events."
 
 class INotifyTests(unittest.TestCase):
     """
     Define all the tests for the basic functionality exposed by
     L{inotify.INotify}.
     """
-    if not runtime.platform.supportsINotify():
-        skip = "This platform doesn't support INotify."
-
     def setUp(self):
         self.dirname = filepath.FilePath(self.mktemp())
         self.dirname.createDirectory()
         self.inotify = inotify.INotify()
         self.inotify.startReading()
-        self.addCleanup(self.inotify.loseConnection)
+        self.addCleanup(self.inotify.stopReading)
 
 
     def test_initializationErrors(self):
@@ -94,6 +95,7 @@ class INotifyTests(unittest.TestCase):
             path.getContent()
 
         return self._notificationTest(inotify.IN_ACCESS, operation)
+    test_access.skip = NO_READ_ONLY_SKIP
 
 
     def test_modify(self):
@@ -143,6 +145,7 @@ class INotifyTests(unittest.TestCase):
             path.open("r").close()
 
         return self._notificationTest(inotify.IN_CLOSE_NOWRITE, operation)
+    test_closeNoWrite.skip = NO_READ_ONLY_SKIP
 
 
     def test_open(self):
@@ -198,8 +201,14 @@ class INotifyTests(unittest.TestCase):
         C{inotify.IN_DELETE} event to the callback.
         """
         def operation(path):
+            self.inotify.watch(
+                path.parent(),
+                mask=inotify.IN_CREATE,
+                callbacks=[
+                    lambda *args: path.remove(),
+                    ],
+                )
             path.touch()
-            path.remove()
 
         return self._notificationTest(inotify.IN_DELETE, operation)
 
@@ -347,6 +356,8 @@ class INotifyTests(unittest.TestCase):
         os.close(in_._fd)
         in_.loseConnection()
         self.flushLoggedErrors()
+    test_connectionLostError.skip = "Based on Twisted implementation details; not relevant"
+
 
     def test_noAutoAddSubdirectory(self):
         """
@@ -501,3 +512,4 @@ class INotifyTests(unittest.TestCase):
             filename.setContent(
                 filename.path.encode(sys.getfilesystemencoding()))
         return d
+    test_complexSubdirectoryAutoAdd.skip = "Not gonna implement autoAdd"
