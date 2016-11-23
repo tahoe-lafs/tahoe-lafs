@@ -2,13 +2,12 @@
 from watchdog.observers import Observer
 from watchdog.events import (
     FileSystemEventHandler, DirCreatedEvent, FileCreatedEvent,
-    DirDeletedEvent, FileDeletedEvent,
+    DirDeletedEvent, FileDeletedEvent, FileModifiedEvent
 )
 
 
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
-from twisted.python import log as twlog
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 from allmydata.util.pollmixin import PollMixin
@@ -62,8 +61,11 @@ class INotifyEventHandler(FileSystemEventHandler):
                 def _do_callbacks():
                     self._pending.remove(path)
                     event_mask = IN_CHANGED
+                    if isinstance(event, FileModifiedEvent):
+                        event_mask = event_mask | IN_CLOSE_WRITE
+                        event_mask = event_mask | IN_MODIFY
                     if isinstance(event, (DirCreatedEvent, FileCreatedEvent)):
-                        event_mask = event_mask | IN_CREATE | IN_CLOSE_WRITE
+                        event_mask = event_mask | IN_CLOSE_WRITE
                     if isinstance(event, (DirDeletedEvent, FileDeletedEvent)):
                         event_mask = event_mask | IN_DELETE
                     if event.is_directory:
@@ -102,6 +104,7 @@ class INotify(PollMixin):
         self.recursive_includes_new_subdirectories = False
         self._observer = Observer(timeout=self._pending_delay)
         self._callbacks = {}
+        self._watches = {}
         self._state = NOT_STARTED
 
     def set_pending_delay(self, delay):
@@ -129,6 +132,7 @@ class INotify(PollMixin):
         print "stopReading begin"
         if self._state != STOPPED:
             self._state = STOPPING
+        self._observer.unschedule_all()
         self._observer.stop()
         self._observer.join()
         self._state = STOPPED
@@ -137,6 +141,15 @@ class INotify(PollMixin):
     def wait_until_stopped(self):
         print "wait until stopped"
         return self.poll(lambda: self._state == STOPPED)
+
+    def _isWatched(self, path_u):
+        return path_u in self._callbacks.keys()
+
+    def ignore(self, path):
+        path_u = path.path
+        self._observer.unschedule(self._watches[path_u])
+        del self._callbacks[path_u]
+        del self._watches[path_u]
 
     def watch(self, path, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
         precondition(isinstance(autoAdd, bool), autoAdd=autoAdd)
@@ -152,4 +165,7 @@ class INotify(PollMixin):
 
         if path_u not in self._callbacks.keys():
             self._callbacks[path_u] = callbacks or []
-            self._observer.schedule(INotifyEventHandler(path_u, mask, self._callbacks[path_u], self._pending_delay), path=path_u, recursive=recursive)
+            self._watches[path_u] = self._observer.schedule(
+                INotifyEventHandler(path_u, mask, self._callbacks[path_u], self._pending_delay),
+                path=path_u,
+                recursive=recursive)
