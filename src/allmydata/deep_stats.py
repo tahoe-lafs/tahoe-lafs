@@ -10,7 +10,7 @@ from allmydata.uri import LiteralFileURI
 from allmydata.uri import from_string
 from allmydata.util import mathutil
 
-class DeepStats:
+class DeepStats(object):
     """Deep stats object.
 
     Holds results of the deep-stats opetation.
