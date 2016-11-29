@@ -1,3 +1,4 @@
+"""Directory Node implementation."""
 import time, unicodedata
 
 from zope.interface import implements
