@@ -16,9 +16,18 @@ class DeepStats(object):
     Holds results of the deep-stats opetation.
     Used for json generation in the API."""
 
+    # Json API version.
+    # Rules:
+    # - increment each time a field is removed or changes meaning.
+    # - it's ok to add a new field without incrementing the version.
+    API_VERSION = 1
+
     def __init__(self, origin):
+        """Initializes DeepStats object. Sets most of the fields to 0."""
         self.origin = origin
-        self.stats = {}
+        self.stats = {
+            'api-version': self.API_VERSION
+        }
         for k in ["count-immutable-files",
                   "count-mutable-files",
                   "count-literal-files",
