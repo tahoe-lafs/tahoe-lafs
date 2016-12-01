@@ -1810,6 +1810,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                         #"largest-directory": 1590,
                         "largest-directory-children": 8,
                         "largest-immutable-file": 19,
+                        "api-version": 1,
                         }
             for k,v in expected.iteritems():
                 self.failUnlessReallyEqual(stats[k], v,
@@ -4437,4 +4438,3 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # doesn't reveal anything. This addresses #1720.
         d.addCallback(lambda e: self.assertEquals(str(e), "404 Not Found"))
         return d
-
