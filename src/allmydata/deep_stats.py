@@ -52,11 +52,13 @@ class DeepStats(object):
         self.root = math.sqrt(10)
 
     def set_monitor(self, monitor):
+        """Sets a new monitor."""
         self.monitor = monitor
         monitor.origin_si = self.origin.get_storage_index()
         monitor.set_status(self.get_results())
 
     def add_node(self, node, childpath):
+        """Adds a node's stats to calculation."""
         if isinstance(node, UnknownNode):
             self.add("count-unknown")
         elif IDirectoryNode.providedBy(node):
@@ -80,6 +82,7 @@ class DeepStats(object):
                 self.max("largest-immutable-file", size)
 
     def enter_directory(self, parent, children):
+        """Adds directory stats."""
         dirsize_bytes = parent.get_size()
         if dirsize_bytes is not None:
             self.add("size-directories", dirsize_bytes)
@@ -118,6 +121,7 @@ class DeepStats(object):
         h[bucket] += 1
 
     def get_results(self):
+        """Returns deep-stats resutls."""
         stats = self.stats.copy()
         for key in self.histograms:
             h = self.histograms[key]
@@ -127,4 +131,5 @@ class DeepStats(object):
         return stats
 
     def finish(self):
+        """Finishes gathering stats."""
         return self.get_results()
