@@ -24,6 +24,7 @@ class DeepStats(object):
 
     def __init__(self, origin):
         """Initializes DeepStats object. Sets most of the fields to 0."""
+        self.monitor = None
         self.origin = origin
         self.stats = {
             'api-version': self.API_VERSION
