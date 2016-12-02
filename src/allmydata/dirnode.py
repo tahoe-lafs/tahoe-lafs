@@ -28,7 +28,9 @@ from allmydata.util.dictutil import AuxValueDict
 
 def update_metadata(metadata, new_metadata, now):
     """Updates 'metadata' in-place with the information in 'new_metadata'.
-    Timestamps are set according to the time 'now'."""
+
+    Timestamps are set according to the time 'now'.
+    """
 
     if metadata is None:
         metadata = {}
