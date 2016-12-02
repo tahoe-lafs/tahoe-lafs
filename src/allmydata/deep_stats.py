@@ -48,7 +48,7 @@ class DeepStats(object):
         self.histograms = {}
         for k in ["size-files-histogram"]:
             self.histograms[k] = {} # maps (min,max) to count
-        self.buckets = [(0,0), (1,3)]
+        self.buckets = [(0, 0), (1, 3)]
         self.root = math.sqrt(10)
 
     def set_monitor(self, monitor):
