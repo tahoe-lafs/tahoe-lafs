@@ -402,7 +402,7 @@ class MagicFolderCommand(BaseOptions):
         ["invite", None, InviteOptions, "Invite someone to a Magic Folder."],
         ["join", None, JoinOptions, "Join a Magic Folder."],
         ["leave", None, LeaveOptions, "Leave a Magic Folder."],
-        ["status", None, StatusOptions, "Display stutus of uploads/downloads."],
+        ["status", None, StatusOptions, "Display status of uploads/downloads."],
     ]
     optFlags = [
         ["debug", "d", "Print full stack-traces"],
