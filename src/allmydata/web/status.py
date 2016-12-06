@@ -1,5 +1,5 @@
 
-import pprint, itertools
+import pprint, itertools, hashlib
 import simplejson
 from twisted.internet import defer
 from nevow import rend, inevow, tags as T
@@ -597,10 +597,10 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         return l
 
     def color(self, server):
-        peerid = server.get_serverid() # binary
+        h = hashlib.sha256(server.get_serverid()).digest()
         def m(c):
             return min(ord(c) / 2 + 0x80, 0xff)
-        return "#%02x%02x%02x" % (m(peerid[0]), m(peerid[1]), m(peerid[2]))
+        return "#%02x%02x%02x" % (m(h[0]), m(h[1]), m(h[2]))
 
     def render_results(self, ctx, data):
         d = self.download_results()
@@ -949,76 +949,6 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
             l[T.li["[%s]: %s" % (server.get_name(), times_s)]]
         return T.li["Per-Server Response Times: ", l]
 
-    def render_timing_chart(self, ctx, data):
-        imageurl = self._timing_chart()
-        return ctx.tag[imageurl]
-
-    def _timing_chart(self):
-        started = self.update_status.get_started()
-        total = self.update_status.timings.get("total")
-        per_server = self.update_status.timings.get("per_server")
-        # We'd like to use an https: URL here, but the site has a domain/cert mismatch.
-        base = "http://chart.apis.google.com/chart?"
-        pieces = ["cht=bhs"]
-        pieces.append("chco=ffffff,4d89f9,c6d9fd") # colors
-        data0 = []
-        data1 = []
-        data2 = []
-        nb_nodes = 0
-        graph_botom_margin= 21
-        graph_top_margin = 5
-        server_names = []
-        top_abs = started
-        # we sort the queries by the time at which we sent the first request
-        sorttable = [ (times[0][1], server)
-                      for server, times in per_server.items() ]
-        sorttable.sort()
-        servers = [t[1] for t in sorttable]
-
-        for server in servers:
-            nb_nodes += 1
-            times = per_server[server]
-            name = server.get_name()
-            server_names.append(name)
-            # for servermap updates, there are either one or two queries per
-            # peer. The second (if present) is to get the privkey.
-            op,q_started,q_elapsed = times[0]
-            data0.append("%.3f" % (q_started-started))
-            data1.append("%.3f" % q_elapsed)
-            top_abs = max(top_abs, q_started+q_elapsed)
-            if len(times) > 1:
-                op,p_started,p_elapsed = times[0]
-                data2.append("%.3f" % p_elapsed)
-                top_abs = max(top_abs, p_started+p_elapsed)
-            else:
-                data2.append("0.0")
-        finished = self.update_status.get_finished()
-        if finished:
-            top_abs = max(top_abs, finished)
-        top_rel = top_abs - started
-        chs ="chs=400x%d" % ( (nb_nodes*28) + graph_top_margin + graph_botom_margin )
-        chd = "chd=t:" + "|".join([",".join(data0),
-                                   ",".join(data1),
-                                   ",".join(data2)])
-        pieces.append(chd)
-        pieces.append(chs)
-        chds = "chds=0,%0.3f" % top_rel
-        pieces.append(chds)
-        pieces.append("chxt=x,y")
-        pieces.append("chxr=0,0.0,%0.3f" % top_rel)
-        pieces.append("chxl=1:|" + "|".join(reversed(server_names)))
-        # use up to 10 grid lines, at decimal multiples.
-        # mathutil.next_power_of_k doesn't handle numbers smaller than one,
-        # unfortunately.
-        #pieces.append("chg="
-
-        if total is not None:
-            finished_f = 1.0 * total / top_rel
-            pieces.append("chm=r,FF0000,0,%0.3f,%0.3f" % (finished_f,
-                                                          finished_f+0.01))
-        url = base + "&".join(pieces)
-        return T.img(src=url,border="1",align="right", float="right")
-
 
 class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")
@@ -1273,21 +1203,34 @@ class Statistics(rend.Page):
         return "%s files / %s bytes (%s)" % (files, bytes,
                                              abbreviate_size(bytes))
 
-    def render_drop_monitored(self, ctx, data):
-        dirs = data["counters"].get("drop_upload.dirs_monitored", 0)
+    def render_magic_uploader_monitored(self, ctx, data):
+        dirs = data["counters"].get("magic_folder.uploader.dirs_monitored", 0)
         return "%s directories" % (dirs,)
 
-    def render_drop_uploads(self, ctx, data):
+    def render_magic_uploader_succeeded(self, ctx, data):
         # TODO: bytes uploaded
-        files = data["counters"].get("drop_upload.files_uploaded", 0)
+        files = data["counters"].get("magic_folder.uploader.objects_succeeded", 0)
         return "%s files" % (files,)
 
-    def render_drop_queued(self, ctx, data):
-        files = data["counters"].get("drop_upload.files_queued", 0)
+    def render_magic_uploader_queued(self, ctx, data):
+        files = data["counters"].get("magic_folder.uploader.objects_queued", 0)
         return "%s files" % (files,)
 
-    def render_drop_failed(self, ctx, data):
-        files = data["counters"].get("drop_upload.files_failed", 0)
+    def render_magic_uploader_failed(self, ctx, data):
+        files = data["counters"].get("magic_folder.uploader.objects_failed", 0)
+        return "%s files" % (files,)
+
+    def render_magic_downloader_succeeded(self, ctx, data):
+        # TODO: bytes uploaded
+        files = data["counters"].get("magic_folder.downloader.objects_succeeded", 0)
+        return "%s files" % (files,)
+
+    def render_magic_downloader_queued(self, ctx, data):
+        files = data["counters"].get("magic_folder.downloader.objects_queued", 0)
+        return "%s files" % (files,)
+
+    def render_magic_downloader_failed(self, ctx, data):
+        files = data["counters"].get("magic_folder.downloader.objects_failed", 0)
         return "%s files" % (files,)
 
     def render_raw(self, ctx, data):

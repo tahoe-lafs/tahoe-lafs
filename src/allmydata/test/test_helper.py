@@ -81,6 +81,7 @@ class Helper_already_uploaded(Helper_fake_upload):
         return defer.succeed(res)
 
 class FakeClient(service.MultiService):
+    introducer_clients = []
     DEFAULT_ENCODING_PARAMETERS = {"k":25,
                                    "happy": 75,
                                    "n": 100,
@@ -115,13 +116,13 @@ def upload_data(uploader, data, convergence):
 class AssistedUpload(unittest.TestCase):
     timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def setUp(self):
+        self.tub = t = Tub()
+        t.setOption("expose-remote-exception-types", False)
         self.s = FakeClient()
-        self.s.storage_broker = StorageFarmBroker(None, True)
+        self.s.storage_broker = StorageFarmBroker(True, lambda h: self.tub)
         self.s.secret_holder = client.SecretHolder("lease secret", "converge")
         self.s.startService()
 
-        self.tub = t = Tub()
-        t.setOption("expose-remote-exception-types", False)
         t.setServiceParent(self.s)
         self.s.tub = t
         # we never actually use this for network traffic, so it can use a

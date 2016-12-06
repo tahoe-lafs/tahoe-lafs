@@ -12,7 +12,7 @@ from allmydata import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
-from allmydata.web import storage
+from allmydata.web import storage, magic_folder
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
      get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
 
@@ -154,6 +154,9 @@ class Root(rend.Page):
         self.child_uri = URIHandler(client)
         self.child_cap = URIHandler(client)
 
+        # handler for "/magic_folder" URIs
+        self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
+
         self.child_file = FileHandler(client)
         self.child_named = FileHandler(client)
         self.child_status = status.Status(client.get_history())
@@ -183,6 +186,25 @@ class Root(rend.Page):
     def data_my_nickname(self, ctx, data):
         return self.client.nickname
 
+    def render_magic_folder(self, ctx, data):
+        if self.client._magic_folder is None:
+            return T.p()
+
+        (ok, messages) = self.client._magic_folder.get_public_status()
+
+        if ok:
+            ctx.fillSlots("magic_folder_status", "yes")
+            ctx.fillSlots("magic_folder_status_alt", "working")
+        else:
+            ctx.fillSlots("magic_folder_status", "no")
+            ctx.fillSlots("magic_folder_status_alt", "not working")
+
+        status = T.ul()
+        for msg in messages:
+            status[T.li[str(msg)]]
+
+        return ctx.tag[status]
+
     def render_services(self, ctx, data):
         ul = T.ul()
         try:
@@ -208,29 +230,73 @@ class Root(rend.Page):
 
         return ctx.tag[ul]
 
-    def data_introducer_furl_prefix(self, ctx, data):
-        ifurl = self.client.introducer_furl
-        # trim off the secret swissnum
-        (prefix, _, swissnum) = ifurl.rpartition("/")
-        if not ifurl:
-            return None
-        if swissnum == "introducer":
-            return ifurl
-        else:
-            return "%s/[censored]" % (prefix,)
-
     def data_introducer_description(self, ctx, data):
-        if self.data_connected_to_introducer(ctx, data) == "no":
-            return "Introducer not connected"
-        return "Introducer"
+        connected_count = self.data_connected_introducers( ctx, data )
+        if connected_count == 0:
+            return "No introducers connected"
+        elif connected_count == 1:
+            return "1 introducer connected"
+        else:
+            return "%s introducers connected" % (connected_count,)
+
+    def data_total_introducers(self, ctx, data):
+        return len(self.client.introducer_furls)
+
+    def data_connected_introducers(self, ctx, data):
+        return self.client.introducer_connection_statuses().count(True)
 
     def data_connected_to_introducer(self, ctx, data):
         if self.client.connected_to_introducer():
             return "yes"
         return "no"
 
-    def data_connected_to_introducer_alt(self, ctx, data):
-        return self._connectedalts[self.data_connected_to_introducer(ctx, data)]
+    def data_connected_to_at_least_one_introducer(self, ctx, data):
+        if True in self.client.introducer_connection_statuses():
+            return "yes"
+        return "no"
+
+    def data_connected_to_at_least_one_introducer_alt(self, ctx, data):
+        return self._connectedalts[self.data_connected_to_at_least_one_introducer(ctx, data)]
+
+    # In case we configure multiple introducers
+    def data_introducers(self, ctx, data):
+        connection_statuses = self.client.introducer_connection_statuses()
+        s = []
+        furls = self.client.introducer_furls
+        for furl in furls:
+            if connection_statuses:
+                display_furl = furl
+                # trim off the secret swissnum
+                (prefix, _, swissnum) = furl.rpartition("/")
+                if swissnum != "introducer":
+                    display_furl = "%s/[censored]" % (prefix,)
+                i = furls.index(furl)
+                ic = self.client.introducer_clients[i]
+                s.append((display_furl, bool(connection_statuses[i]), ic))
+        s.sort()
+        return s
+
+    def render_introducers_row(self, ctx, s):
+        (furl, connected, ic) = s
+        service_connection_status = "yes" if connected else "no"
+
+        since = ic.get_since()
+        service_connection_status_rel_time = render_time_delta(since, self.now_fn())
+        service_connection_status_abs_time = render_time_attr(since)
+
+        last_received_data_time = ic.get_last_received_data_time()
+        last_received_data_rel_time = render_time_delta(last_received_data_time, self.now_fn())
+        last_received_data_abs_time = render_time_attr(last_received_data_time)
+
+        ctx.fillSlots("introducer_furl", "%s" % (furl))
+        ctx.fillSlots("service_connection_status", "%s" % (service_connection_status,))
+        ctx.fillSlots("service_connection_status_alt",
+            self._connectedalts[service_connection_status])
+        ctx.fillSlots("service_connection_status_abs_time", service_connection_status_abs_time)
+        ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
+        ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)
+        ctx.fillSlots("last_received_data_rel_time", last_received_data_rel_time)
+        return ctx.tag
 
     def data_helper_furl_prefix(self, ctx, data):
         try:
@@ -278,13 +344,13 @@ class Root(rend.Page):
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
     def render_service_row(self, ctx, server):
-        nodeid = server.get_serverid()
+        server_id = server.get_serverid()
 
         ctx.fillSlots("peerid", server.get_longname())
         ctx.fillSlots("nickname", server.get_nickname())
         rhost = server.get_remote_host()
         if server.is_connected():
-            if nodeid == self.client.nodeid:
+            if server_id == self.client.get_long_nodeid():
                 rhost_s = "(loopback)"
             elif isinstance(rhost, address.IPv4Address):
                 rhost_s = "%s:%d" % (rhost.host, rhost.port)
@@ -307,7 +373,7 @@ class Root(rend.Page):
         last_received_data_abs_time = render_time_attr(last_received_data_time)
 
         announcement = server.get_announcement()
-        version = announcement["my-version"]
+        version = announcement.get("my-version", "")
         available_space = server.get_available_space()
         if available_space is None:
             available_space = "N/A"
@@ -315,8 +381,8 @@ class Root(rend.Page):
             available_space = abbreviate_size(available_space)
         ctx.fillSlots("address", addr)
         ctx.fillSlots("service_connection_status", service_connection_status)
-        ctx.fillSlots("service_connection_status_alt", self._connectedalts[service_connection_status])
-        ctx.fillSlots("connected-bool", bool(rhost))
+        ctx.fillSlots("service_connection_status_alt",
+                      self._connectedalts[service_connection_status])
         ctx.fillSlots("service_connection_status_abs_time", service_connection_status_abs_time)
         ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
         ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)

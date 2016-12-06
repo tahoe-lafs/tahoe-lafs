@@ -2,10 +2,11 @@
 import time
 import simplejson
 
-from twisted.web import http, server
+from twisted.web import http, server, resource
 from twisted.python import log
+from twisted.python.failure import Failure
 from zope.interface import Interface
-from nevow import loaders, appserver, rend
+from nevow import loaders, appserver
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata import blacklist
@@ -386,7 +387,7 @@ class RenderMixin:
         return m(ctx)
 
 
-class TokenOnlyWebApi(rend.Page):
+class TokenOnlyWebApi(resource.Resource):
     """
     I provide a rend.Page implementation that only accepts POST calls,
     and only if they have a 'token=' arg with the correct
@@ -395,21 +396,19 @@ class TokenOnlyWebApi(rend.Page):
     provide the "t=" argument to indicate the return-value (the only
     valid value for this is "json")
 
-    Subclasses should override '_render_json' which should process the
-    API call and return a valid JSON object. This will only be called
-    if the correct token is present and valid (during renderHTTP
-    processing).
+    Subclasses should override 'post_json' which should process the
+    API call and return a string which encodes a valid JSON
+    object. This will only be called if the correct token is present
+    and valid (during renderHTTP processing).
     """
 
     def __init__(self, client):
-        super(TokenOnlyWebApi, self).__init__()
         self.client = client
 
     def post_json(self, req):
         return NotImplemented
 
-    def renderHTTP(self, ctx):
-        req = IRequest(ctx)
+    def render(self, req):
         if req.method != 'POST':
             raise server.UnsupportedMethod(('POST',))
         if req.args.get('token', False):
@@ -418,7 +417,7 @@ class TokenOnlyWebApi(rend.Page):
         # argument to work if you passed it as a GET-style argument
         token = None
         if req.fields and 'token' in req.fields:
-            token = req.fields['token'].value[0]
+            token = req.fields['token'].value.strip()
         if not token:
             raise WebError("Missing token", http.UNAUTHORIZED)
         if not timing_safe_compare(token, self.client.get_auth_token()):
@@ -428,6 +427,11 @@ class TokenOnlyWebApi(rend.Page):
         if not t:
             raise WebError("Must provide 't=' argument")
         if t == u'json':
-            return self.post_json(req)
+            try:
+                return self.post_json(req)
+            except Exception:
+                message, code = humanize_failure(Failure())
+                req.setResponseCode(code)
+                return simplejson.dumps({"error": message})
         else:
             raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)

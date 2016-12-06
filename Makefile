@@ -40,6 +40,11 @@ upload-osx-pkg:
 	  echo not uploading tahoe-lafs-osx-pkg because this is not trunk but is branch \"${BB_BRANCH}\" ; \
 	fi
 
+.PHONY: smoketest
+smoketest:
+	-python ./src/allmydata/test/check_magicfolder_smoke.py kill
+	-rm -rf smoke_magicfolder/
+	python ./src/allmydata/test/check_magicfolder_smoke.py
 
 # code coverage-based testing is disabled temporarily, as we switch to tox.
 # This will eventually be added to a tox environment. The following comments
@@ -61,7 +66,16 @@ upload-osx-pkg:
 
 .PHONY: code-checks
 #code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
-code-checks: check-miscaptures -find-trailing-spaces -check-umids pyflakes
+code-checks: check-interfaces check-debugging check-miscaptures -find-trailing-spaces -check-umids pyflakes
+
+.PHONY: check-interfaces
+	$(PYTHON) misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
+	@echo
+
+.PHONY: check-debugging
+check-debugging:
+	$(PYTHON) misc/coding_tools/check-debugging.py
+	@echo
 
 .PHONY: check-miscaptures
 check-miscaptures:
@@ -110,7 +124,6 @@ count-lines:
 # probably work.
 
 # src/allmydata/test/bench_dirnode.py
-# misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
 
 
 # The check-speed and check-grid targets are disabled, since they depend upon

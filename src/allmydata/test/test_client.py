@@ -5,7 +5,7 @@ from twisted.trial import unittest
 from twisted.application import service
 
 import allmydata
-import allmydata.frontends.drop_upload
+import allmydata.frontends.magic_folder
 import allmydata.util.log
 
 from allmydata.node import Node, OldConfigError, OldConfigOptionError, InvalidValueError, \
@@ -32,7 +32,7 @@ BASECONFIG_I = ("[client]\n"
               "introducer.furl = %s\n"
               )
 
-class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
+class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.TestCase):
     def test_loadable(self):
         basedir = "test_client.Basic.test_loadable"
         os.mkdir(basedir)
@@ -57,13 +57,32 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         for s in should_fail:
             self.failUnless(Node._contains_unescaped_hash(s))
             write_config(s)
-            self.failUnlessRaises(UnescapedHashError, client.Client, basedir)
+            e = self.assertRaises(UnescapedHashError, client.Client, basedir)
+            self.assertIn("[client]introducer.furl", str(e))
 
         for s in should_not_fail:
             self.failIf(Node._contains_unescaped_hash(s))
             write_config(s)
             client.Client(basedir)
 
+    def test_unreadable_config(self):
+        if sys.platform == "win32":
+            # if somebody knows a clever way to do this (cause
+            # EnvironmentError when reading a file that really exists), on
+            # windows, please fix this
+            raise unittest.SkipTest("can't make unreadable files on windows")
+        basedir = "test_client.Basic.test_unreadable_config"
+        os.mkdir(basedir)
+        fn = os.path.join(basedir, "tahoe.cfg")
+        fileutil.write(fn, BASECONFIG)
+        old_mode = os.stat(fn).st_mode
+        os.chmod(fn, 0)
+        try:
+            e = self.assertRaises(EnvironmentError, client.Client, basedir)
+            self.assertIn("Permission denied", str(e))
+        finally:
+            # don't leave undeleteable junk lying around
+            os.chmod(fn, old_mode)
 
     def test_error_on_old_config_files(self):
         basedir = "test_client.Basic.test_error_on_old_config_files"
@@ -583,7 +602,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         return [ base32.a2b(s.get_longname()) for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
-        sb = StorageFarmBroker(None, True)
+        sb = StorageFarmBroker(True, None)
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(k),
                    "permutation-seed-base32": base32.b2a(k) }
@@ -595,7 +614,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
     def test_permute_with_preferred(self):
-        sb = StorageFarmBroker(None, True, ['1','4'])
+        sb = StorageFarmBroker(True, None, preferred_peers=['1','4'])
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
                    "permutation-seed-base32": base32.b2a(k) }
@@ -647,76 +666,80 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         _check("helper.furl = None", None)
         _check("helper.furl = pb://blah\n", "pb://blah")
 
-    def test_create_drop_uploader(self):
-        class MockDropUploader(service.MultiService):
-            name = 'drop-upload'
+    def test_create_magic_folder_service(self):
+        class MockMagicFolder(service.MultiService):
+            name = 'magic-folder'
 
-            def __init__(self, client, upload_dircap, local_dir_utf8, inotify=None):
+            def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask, inotify=None,
+                         uploader_delay=1.0, clock=None, downloader_delay=3):
                 service.MultiService.__init__(self)
                 self.client = client
+                self._umask = umask
                 self.upload_dircap = upload_dircap
-                self.local_dir_utf8 = local_dir_utf8
+                self.collective_dircap = collective_dircap
+                self.local_dir = local_path_u
+                self.dbfile = dbfile
                 self.inotify = inotify
 
-        self.patch(allmydata.frontends.drop_upload, 'DropUploader', MockDropUploader)
+            def ready(self):
+                pass
+
+        self.patch(allmydata.frontends.magic_folder, 'MagicFolder', MockMagicFolder)
 
         upload_dircap = "URI:DIR2:blah"
-        local_dir_utf8 = u"loc\u0101l_dir".encode('utf-8')
+        local_dir_u = self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir")
+        local_dir_utf8 = local_dir_u.encode('utf-8')
         config = (BASECONFIG +
                   "[storage]\n" +
                   "enabled = false\n" +
-                  "[drop_upload]\n" +
+                  "[magic_folder]\n" +
                   "enabled = true\n")
 
-        basedir1 = "test_client.Basic.test_create_drop_uploader1"
+        basedir1 = "test_client.Basic.test_create_magic_folder_service1"
         os.mkdir(basedir1)
+
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
                        config + "local.directory = " + local_dir_utf8 + "\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir1)
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"), config)
-        fileutil.write(os.path.join(basedir1, "private", "drop_upload_dircap"), "URI:DIR2:blah")
+        fileutil.write(os.path.join(basedir1, "private", "magic_folder_dircap"), "URI:DIR2:blah")
+        fileutil.write(os.path.join(basedir1, "private", "collective_dircap"), "URI:DIR2:meow")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir1)
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
-                       config + "upload.dircap = " + upload_dircap + "\n")
+                       config.replace("[magic_folder]\n", "[drop_upload]\n"))
         self.failUnlessRaises(OldConfigOptionError, client.Client, basedir1)
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
                        config + "local.directory = " + local_dir_utf8 + "\n")
         c1 = client.Client(basedir1)
-        uploader = c1.getServiceNamed('drop-upload')
-        self.failUnless(isinstance(uploader, MockDropUploader), uploader)
-        self.failUnlessReallyEqual(uploader.client, c1)
-        self.failUnlessReallyEqual(uploader.upload_dircap, upload_dircap)
-        self.failUnlessReallyEqual(uploader.local_dir_utf8, local_dir_utf8)
-        self.failUnless(uploader.inotify is None, uploader.inotify)
-        self.failUnless(uploader.running)
+        magicfolder = c1.getServiceNamed('magic-folder')
+        self.failUnless(isinstance(magicfolder, MockMagicFolder), magicfolder)
+        self.failUnlessReallyEqual(magicfolder.client, c1)
+        self.failUnlessReallyEqual(magicfolder.upload_dircap, upload_dircap)
+        self.failUnlessReallyEqual(os.path.basename(magicfolder.local_dir), local_dir_u)
+        self.failUnless(magicfolder.inotify is None, magicfolder.inotify)
+        self.failUnless(magicfolder.running)
 
         class Boom(Exception):
             pass
-        def BoomDropUploader(client, upload_dircap, local_dir_utf8, inotify=None):
+        def BoomMagicFolder(client, upload_dircap, collective_dircap, local_path_u, dbfile,
+                            umask, inotify=None, uploader_delay=1.0, clock=None, downloader_delay=3):
             raise Boom()
+        self.patch(allmydata.frontends.magic_folder, 'MagicFolder', BoomMagicFolder)
 
-        logged_messages = []
-        def mock_log(*args, **kwargs):
-            logged_messages.append("%r %r" % (args, kwargs))
-        self.patch(allmydata.util.log, 'msg', mock_log)
-        self.patch(allmydata.frontends.drop_upload, 'DropUploader', BoomDropUploader)
-
-        basedir2 = "test_client.Basic.test_create_drop_uploader2"
+        basedir2 = "test_client.Basic.test_create_magic_folder_service2"
         os.mkdir(basedir2)
         os.mkdir(os.path.join(basedir2, "private"))
         fileutil.write(os.path.join(basedir2, "tahoe.cfg"),
                        BASECONFIG +
-                       "[drop_upload]\n" +
+                       "[magic_folder]\n" +
                        "enabled = true\n" +
                        "local.directory = " + local_dir_utf8 + "\n")
-        fileutil.write(os.path.join(basedir2, "private", "drop_upload_dircap"), "URI:DIR2:blah")
-        c2 = client.Client(basedir2)
-        self.failUnlessRaises(KeyError, c2.getServiceNamed, 'drop-upload')
-        self.failUnless([True for arg in logged_messages if "Boom" in arg],
-                        logged_messages)
+        fileutil.write(os.path.join(basedir2, "private", "magic_folder_dircap"), "URI:DIR2:blah")
+        fileutil.write(os.path.join(basedir2, "private", "collective_dircap"), "URI:DIR2:meow")
+        self.failUnlessRaises(Boom, client.Client, basedir2)
 
 
 def flush_but_dont_ignore(res):

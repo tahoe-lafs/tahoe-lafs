@@ -1347,6 +1347,9 @@ class AssistedUploader:
         now = time.time()
         timings["total"] = now - self._started
 
+        # Note: older Helpers (<=1.11) sent tubids as serverids. Newer ones
+        # send pubkeys. get_stub_server() knows how to map both into
+        # IDisplayableServer instances.
         gss = self._storage_broker.get_stub_server
         sharemap = {}
         servermap = {}

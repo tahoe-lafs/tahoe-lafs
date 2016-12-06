@@ -6,7 +6,6 @@ from collections import deque
 
 from twisted.python import usage, failure
 from twisted.internet import defer
-from twisted.scripts import trial as twisted_trial
 
 from foolscap.logging import cli as foolscap_cli
 
@@ -959,48 +958,22 @@ def do_corrupt_share(out, filename, offset="block-random"):
 
 class ReplOptions(BaseOptions):
     def getSynopsis(self):
-        return "Usage: tahoe [global-options] debug repl"
+        return "Usage: tahoe debug repl (OBSOLETE)"
 
 def repl(options):
-    import code
-    return code.interact()
+    print >>options.stderr, "'tahoe debug repl' is obsolete. Please run 'python' in a virtualenv."
+    return 1
 
 
 DEFAULT_TESTSUITE = 'allmydata'
 
-class TrialOptions(twisted_trial.Options):
+class TrialOptions(BaseOptions):
     def getSynopsis(self):
-        return "Usage: tahoe [global-options] debug trial [options] [[file|package|module|TestCase|testmethod]...]"
-
-    def parseOptions(self, all_subargs, *a, **kw):
-        self.trial_args = list(all_subargs)
-
-        # any output from the option parsing will be printed twice, but that's harmless
-        return twisted_trial.Options.parseOptions(self, all_subargs, *a, **kw)
-
-    def parseArgs(self, *nonoption_args):
-        if not nonoption_args:
-            self.trial_args.append(DEFAULT_TESTSUITE)
-
-    longdesc = twisted_trial.Options.longdesc + "\n\n" + (
-        "The 'tahoe debug trial' command uses the correct imports for this "
-        "instance of Tahoe-LAFS. The default test suite is '%s'."
-        % DEFAULT_TESTSUITE)
+        return "Usage: tahoe debug trial (OBSOLETE)"
 
 def trial(config):
-    sys.argv = ['trial'] + config.trial_args
-
-    from allmydata._version import full_version
-    if full_version.endswith("-dirty"):
-        print >>sys.stderr
-        print >>sys.stderr, "WARNING: the source tree has been modified since the last commit."
-        print >>sys.stderr, "(It is usually preferable to commit, then test, then amend the commit(s)"
-        print >>sys.stderr, "if the tests fail.)"
-        print >>sys.stderr
-
-    # This does not return.
-    twisted_trial.run()
-
+    print >>config.stderr, "'tahoe debug trial' is obsolete. Please run 'tox', or use 'trial' in a virtualenv."
+    return 1
 
 def fixOptionsClass( (subcmd, shortcut, OptionsClass, desc) ):
     class FixedOptionsClass(OptionsClass):
@@ -1053,8 +1026,8 @@ class DebugCommand(BaseOptions):
         ["find-shares", None, FindSharesOptions, "Locate sharefiles in node dirs."],
         ["catalog-shares", None, CatalogSharesOptions, "Describe all shares in node dirs."],
         ["corrupt-share", None, CorruptShareOptions, "Corrupt a share by flipping a bit."],
-        ["repl", None, ReplOptions, "Open a Python interpreter."],
-        ["trial", None, TrialOptions, "Run tests using Twisted Trial with the right imports."],
+        ["repl", None, ReplOptions, "OBSOLETE"],
+        ["trial", None, TrialOptions, "OBSOLETE"],
         ["flogtool", None, FlogtoolOptions, "Utilities to access log files."],
         ]
     def postOptions(self):
@@ -1069,32 +1042,6 @@ class DebugCommand(BaseOptions):
 Please run e.g. 'tahoe debug dump-share --help' for more details on each
 subcommand.
 """
-        # See ticket #1441 for why we print different information when
-        # run via /usr/bin/tahoe. Note that argv[0] is the full path.
-        if sys.argv[0] == '/usr/bin/tahoe':
-            t += """
-To get branch coverage for the Tahoe test suite (on the installed copy of
-Tahoe), install the 'python-coverage' package and then use:
-
-    python-coverage run --branch /usr/bin/tahoe debug trial
-"""
-        else:
-            t += """
-Another debugging feature is that bin%stahoe allows executing an arbitrary
-"runner" command (typically an installed Python script, such as 'coverage'),
-with the Tahoe libraries on the PYTHONPATH. The runner command name is
-prefixed with '@', and any occurrences of '@tahoe' in its arguments are
-replaced by the full path to the tahoe script.
-
-For example, if 'coverage' is installed and on the PATH, you can use:
-
-    bin%stahoe @coverage run --branch @tahoe debug trial
-
-to get branch coverage for the Tahoe test suite. Or, to run python with
-the -3 option that warns about Python 3 incompatibilities:
-
-    bin%stahoe @python -3 @tahoe command [options]
-""" % (os.sep, os.sep, os.sep)
         return t
 
 subDispatch = {

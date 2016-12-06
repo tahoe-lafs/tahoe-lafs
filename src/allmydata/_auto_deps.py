@@ -39,7 +39,9 @@ install_requires = [
     # * foolscap 0.8.0 generates 2048-bit RSA-with-SHA-256 signatures,
     #   rather than 1024-bit RSA-with-MD5. This also allows us to work
     #   with a FIPS build of OpenSSL.
-    "foolscap >= 0.10.1",
+    # * foolscap >= 0.12.3 provides tcp/tor/i2p connection handlers we need,
+    #   and allocate_tcp_port
+    "foolscap >= 0.12.3",
 
     # Needed for SFTP.
     # pycrypto 2.2 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/620253>
@@ -68,13 +70,11 @@ install_requires = [
     #   as explained in ticket #2740.
     # * Due to a setuptools bug, we need to declare a dependency on the tls
     #   extra even though we only depend on it via foolscap.
-
     # * Twisted >= 15.1.0 is the first version that provided the [tls] extra.
-    #   Note to OS backporters: we don't really need anything newer than
-    #   13.0.0 yet, so if this is inconvenient, feel free to downgrade this
-    #   dependency to "Twisted >= 13.0.0" as long as your OS package declares
-    #   a dependency on everything that Twisted needs to provide TLS support.
-    "Twisted[tls] >= 15.1.0",
+    # * Twisted-16.1.0 fixes https://twistedmatrix.com/trac/ticket/8223,
+    #   which otherwise causes test_system to fail (DirtyReactorError, due to
+    #   leftover timers)
+    "Twisted[tls] >= 16.1.0",
 
     # We need Nevow >= 0.11.1 which can be installed using pip.
     "Nevow >= 0.11.1",
@@ -93,6 +93,10 @@ install_requires = [
     # needed for cloud backend
     "txAWS == 0.2.1.post5",
     "oauth2client == 1.1.0",
+    "PyYAML >= 3.11",
+
+    # in Python 3.3 stdlib
+    "shutilwhich >= 1.1.0",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.
@@ -125,6 +129,7 @@ package_imports = [
     ('python-dateutil',  'dateutil'),
     ('httplib2',         'httplib2'),
     ('python-gflags',    'gflags'),
+    ('PyYAML',           'yaml'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.

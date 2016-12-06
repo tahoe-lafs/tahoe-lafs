@@ -3,7 +3,7 @@ Tahoe-LAFS
 ==========
 
 .. Please view a nicely formatted version of this documentation at
-   http://tahoe-lafs.readthedocs.org/en/latest/
+   http://tahoe-lafs.readthedocs.io/en/latest/
 
 Contents:
 
@@ -24,6 +24,7 @@ Contents:
 
    known_issues
 
+   servers
    helper
    convergence-secret
    garbage-collection
@@ -33,6 +34,8 @@ Contents:
    cautions
    write_coordination
    backupdb
+
+   anonymity-configuration
 
    nodekeys
    performance

@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
+
 <svg
    xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://web.resource.org/cc/"
+   xmlns:cc="http://creativecommons.org/ns#"
    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
    xmlns:svg="http://www.w3.org/2000/svg"
    xmlns="http://www.w3.org/2000/svg"
@@ -12,11 +13,11 @@
    height="1052.3622047"
    id="svg2"
    sodipodi:version="0.32"
-   inkscape:version="0.45"
-   sodipodi:docbase="/home/warner/trees/tahoe/docs"
+   inkscape:version="0.91 r13725"
    sodipodi:docname="file-encoding2.svg"
    inkscape:output_extension="org.inkscape.output.svg.inkscape"
-   sodipodi:modified="true">
+   sodipodi:modified="true"
+   version="1.1">
   <defs
      id="defs4">
     <marker
@@ -43,15 +44,17 @@
      objecttolerance="10"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.51978303"
-     inkscape:cx="372.04724"
-     inkscape:cy="526.18109"
+     inkscape:zoom="0.87181204"
+     inkscape:cx="384.14974"
+     inkscape:cy="669.3624"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      inkscape:window-width="900"
      inkscape:window-height="756"
-     inkscape:window-x="779"
-     inkscape:window-y="153" />
+     inkscape:window-x="71"
+     inkscape:window-y="268"
+     showgrid="false"
+     inkscape:window-maximized="0" />
   <metadata
      id="metadata7">
     <rdf:RDF>
@@ -213,7 +216,7 @@
          sodipodi:cy="196.10106"
          sodipodi:rx="34.958466"
          sodipodi:ry="34.073441"
-         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         d="m 642.52774,196.10106 a 34.958466,34.073441 0 0 1 -34.95847,34.07344 34.958466,34.073441 0 0 1 -34.95846,-34.07344 34.958466,34.073441 0 0 1 34.95846,-34.07344 34.958466,34.073441 0 0 1 34.95847,34.07344 z"
          transform="matrix(0.923205,0,0,0.923205,-463.3983,190.6491)" />
       <text
          xml:space="preserve"
@@ -376,7 +379,7 @@
        id="g3090">
       <path
          transform="matrix(0.923205,0,0,0.923205,-463.3983,190.6491)"
-         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         d="m 642.52774,196.10106 a 34.958466,34.073441 0 0 1 -34.95847,34.07344 34.958466,34.073441 0 0 1 -34.95846,-34.07344 34.958466,34.073441 0 0 1 34.95846,-34.07344 34.958466,34.073441 0 0 1 34.95847,34.07344 z"
          sodipodi:ry="34.073441"
          sodipodi:rx="34.958466"
          sodipodi:cy="196.10106"
@@ -551,7 +554,7 @@
          sodipodi:cy="196.10106"
          sodipodi:rx="34.958466"
          sodipodi:ry="34.073441"
-         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         d="m 642.52774,196.10106 a 34.958466,34.073441 0 0 1 -34.95847,34.07344 34.958466,34.073441 0 0 1 -34.95846,-34.07344 34.958466,34.073441 0 0 1 34.95846,-34.07344 34.958466,34.073441 0 0 1 34.95847,34.07344 z"
          transform="matrix(0.923205,0,0,0.923205,-463.3983,190.6491)" />
       <text
          xml:space="preserve"
@@ -714,7 +717,7 @@
        id="g3207">
       <path
          transform="matrix(0.923205,0,0,0.923205,-463.3983,190.6491)"
-         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         d="m 642.52774,196.10106 a 34.958466,34.073441 0 0 1 -34.95847,34.07344 34.958466,34.073441 0 0 1 -34.95846,-34.07344 34.958466,34.073441 0 0 1 34.95846,-34.07344 34.958466,34.073441 0 0 1 34.95847,34.07344 z"
          sodipodi:ry="34.073441"
          sodipodi:rx="34.958466"
          sodipodi:cy="196.10106"
@@ -905,15 +908,15 @@
        y="640.30084" />
     <text
        xml:space="preserve"
-       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
-       x="650.27539"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:20px;line-height:100%;font-family:'Bitstream Charter';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="642.25336"
        y="660.8269"
        id="text3839"
        sodipodi:linespacing="100%"><tspan
          sodipodi:role="line"
          id="tspan3841"
-         x="650.27539"
-         y="660.8269">peer 4</tspan></text>
+         x="642.25336"
+         y="660.8269">server 4</tspan></text>
     <path
        style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
        d="M 582.41071,673.68012 C 631.90411,677.13315 631.90411,677.13315 631.90411,677.13315"

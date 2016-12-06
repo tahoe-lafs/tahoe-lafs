@@ -1,7 +1,7 @@
 
 def foo(): pass # keep the line number constant
 
-import os, time, sys
+import os, time, sys, yaml
 from collections import deque
 from StringIO import StringIO
 from datetime import timedelta
@@ -15,7 +15,7 @@ from pycryptopp.hash.sha256 import SHA256 as _hash
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin, cachedir
-from allmydata.util import statistics, dictutil, listutil, pipeline
+from allmydata.util import statistics, dictutil, pipeline, yamlutil, listutil
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
 from allmydata.test.common_util import ReallyEqualMixin, TimezoneMixin
@@ -480,6 +480,74 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failIf(os.path.exists(fn))
         self.failUnless(os.path.exists(fn2))
 
+    def test_rename_no_overwrite(self):
+        workdir = fileutil.abspath_expanduser_unicode(u"test_rename_no_overwrite")
+        fileutil.make_dirs(workdir)
+
+        source_path = os.path.join(workdir, "source")
+        dest_path   = os.path.join(workdir, "dest")
+
+        # when neither file exists
+        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+
+        # when only dest exists
+        fileutil.write(dest_path,   "dest")
+        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+        self.failUnlessEqual(fileutil.read(dest_path),   "dest")
+
+        # when both exist
+        fileutil.write(source_path, "source")
+        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+        self.failUnlessEqual(fileutil.read(source_path), "source")
+        self.failUnlessEqual(fileutil.read(dest_path),   "dest")
+
+        # when only source exists
+        os.remove(dest_path)
+        fileutil.rename_no_overwrite(source_path, dest_path)
+        self.failUnlessEqual(fileutil.read(dest_path), "source")
+        self.failIf(os.path.exists(source_path))
+
+    def test_replace_file(self):
+        workdir = fileutil.abspath_expanduser_unicode(u"test_replace_file")
+        fileutil.make_dirs(workdir)
+
+        backup_path      = os.path.join(workdir, "backup")
+        replaced_path    = os.path.join(workdir, "replaced")
+        replacement_path = os.path.join(workdir, "replacement")
+
+        # when none of the files exist
+        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path, backup_path)
+
+        # when only replaced exists
+        fileutil.write(replaced_path,    "foo")
+        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(replaced_path), "foo")
+
+        # when both replaced and replacement exist, but not backup
+        fileutil.write(replacement_path, "bar")
+        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(backup_path),   "foo")
+        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failIf(os.path.exists(replacement_path))
+
+        # when only replacement exists
+        os.remove(backup_path)
+        os.remove(replaced_path)
+        fileutil.write(replacement_path, "bar")
+        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failIf(os.path.exists(replacement_path))
+        self.failIf(os.path.exists(backup_path))
+
+        # when replaced, replacement and backup all exist
+        fileutil.write(replaced_path,    "foo")
+        fileutil.write(replacement_path, "bar")
+        fileutil.write(backup_path,      "bak")
+        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(backup_path),   "foo")
+        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failIf(os.path.exists(replacement_path))
+
     def test_du(self):
         basedir = "util/FileUtil/test_du"
         fileutil.make_dirs(basedir)
@@ -499,12 +567,14 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
         saved_cwd = os.path.normpath(os.getcwdu())
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
+        abspath_cwd_notlong = fileutil.abspath_expanduser_unicode(u".", long_path=False)
         self.failUnless(isinstance(saved_cwd, unicode), saved_cwd)
         self.failUnless(isinstance(abspath_cwd, unicode), abspath_cwd)
         if sys.platform == "win32":
             self.failUnlessReallyEqual(abspath_cwd, fileutil.to_windows_long_path(saved_cwd))
         else:
             self.failUnlessReallyEqual(abspath_cwd, saved_cwd)
+        self.failUnlessReallyEqual(abspath_cwd_notlong, saved_cwd)
 
         self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\?\\foo"), u"\\\\?\\foo")
         self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\.\\foo"), u"\\\\.\\foo")
@@ -533,7 +603,19 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
             self.failUnlessReallyEqual(baz[4], bar[4])  # same drive
 
+            baz_notlong = fileutil.abspath_expanduser_unicode(u"\\baz", long_path=False)
+            self.failIf(baz_notlong.startswith(u"\\\\?\\"), baz_notlong)
+            self.failUnlessReallyEqual(baz_notlong[1 :], u":\\baz")
+
+            bar_notlong = fileutil.abspath_expanduser_unicode(u"\\bar", base=baz_notlong, long_path=False)
+            self.failIf(bar_notlong.startswith(u"\\\\?\\"), bar_notlong)
+            self.failUnlessReallyEqual(bar_notlong[1 :], u":\\bar")
+            # not u":\\baz\\bar", because \bar is absolute on the current drive.
+
+            self.failUnlessReallyEqual(baz_notlong[0], bar_notlong[0])  # same drive
+
         self.failIfIn(u"~", fileutil.abspath_expanduser_unicode(u"~"))
+        self.failIfIn(u"~", fileutil.abspath_expanduser_unicode(u"~", long_path=False))
 
         cwds = ['cwd']
         try:
@@ -549,8 +631,30 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
                 for upath in (u'', u'fuu', u'f\xf9\xf9', u'/fuu', u'U:\\', u'~'):
                     uabspath = fileutil.abspath_expanduser_unicode(upath)
                     self.failUnless(isinstance(uabspath, unicode), uabspath)
+
+                    uabspath_notlong = fileutil.abspath_expanduser_unicode(upath, long_path=False)
+                    self.failUnless(isinstance(uabspath_notlong, unicode), uabspath_notlong)
             finally:
                 os.chdir(saved_cwd)
+
+    def test_make_dirs_with_absolute_mode(self):
+        if sys.platform == 'win32':
+            raise unittest.SkipTest("Permissions don't work the same on windows.")
+
+        workdir = fileutil.abspath_expanduser_unicode(u"test_make_dirs_with_absolute_mode")
+        fileutil.make_dirs(workdir)
+        abspath = fileutil.abspath_expanduser_unicode(u"a/b/c/d", base=workdir)
+        fileutil.make_dirs_with_absolute_mode(workdir, abspath, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b", "c", "d")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b", "c")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(workdir).st_mode & 0777
+        self.failIfEqual(new_mode, 0766)
 
     def test_create_long_path(self):
         workdir = u"test_create_long_path"
@@ -605,6 +709,60 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         # bytes of available space on your filesystem.
         disk = fileutil.get_disk_stats('.', 2**128)
         self.failUnlessEqual(disk['avail'], 0)
+
+    def test_get_pathinfo(self):
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        # create a directory
+        self.mkdir(basedir, "a")
+        dirinfo = fileutil.get_pathinfo(basedir)
+        self.failUnlessTrue(dirinfo.isdir)
+        self.failUnlessTrue(dirinfo.exists)
+        self.failUnlessFalse(dirinfo.isfile)
+        self.failUnlessFalse(dirinfo.islink)
+
+        # create a file
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
+        fileinfo = fileutil.get_pathinfo(f)
+        self.failUnlessTrue(fileinfo.isfile)
+        self.failUnlessTrue(fileinfo.exists)
+        self.failUnlessFalse(fileinfo.isdir)
+        self.failUnlessFalse(fileinfo.islink)
+        self.failUnlessEqual(fileinfo.size, 10)
+
+        # path at which nothing exists
+        dnename = os.path.join(basedir, "doesnotexist")
+        now_ns = fileutil.seconds_to_ns(time.time())
+        dneinfo = fileutil.get_pathinfo(dnename, now_ns=now_ns)
+        self.failUnlessFalse(dneinfo.exists)
+        self.failUnlessFalse(dneinfo.isfile)
+        self.failUnlessFalse(dneinfo.isdir)
+        self.failUnlessFalse(dneinfo.islink)
+        self.failUnlessEqual(dneinfo.size, None)
+        self.failUnlessEqual(dneinfo.mtime_ns, now_ns)
+        self.failUnlessEqual(dneinfo.ctime_ns, now_ns)
+
+    def test_get_pathinfo_symlink(self):
+        if not hasattr(os, 'symlink'):
+            raise unittest.SkipTest("can't create symlinks on this platform")
+
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
+
+        # create a symlink pointing to 1.txt
+        slname = os.path.join(basedir, "linkto1.txt")
+        os.symlink(f, slname)
+        symlinkinfo = fileutil.get_pathinfo(slname)
+        self.failUnlessTrue(symlinkinfo.islink)
+        self.failUnlessTrue(symlinkinfo.exists)
+        self.failUnlessFalse(symlinkinfo.isfile)
+        self.failUnlessFalse(symlinkinfo.isdir)
+
 
 class PollMixinTests(unittest.TestCase):
     def setUp(self):
@@ -787,6 +945,11 @@ class HashUtilTests(unittest.TestCase):
         self._testknown(hashutil.ssk_readkey_data_hash, "73wsaldnvdzqaf7v4pzbr2ae5a", "iv", "rk")
         self._testknown(hashutil.ssk_storage_index_hash, "j7icz6kigb6hxrej3tv4z7ayym", "")
 
+        self._testknown(hashutil.permute_server_hash,
+                        "kb4354zeeurpo3ze5e275wzbynm6hlap", # b32(expected)
+                        "SI", # peer selection index == storage_index
+                        base32.a2b("u33m4y7klhz3bypswqkozwetvabelhxt"), # seed
+                        )
 
 class Abbreviate(unittest.TestCase):
     def test_time(self):
@@ -2331,3 +2494,11 @@ class StringSpans(unittest.TestCase):
                 length = max(1, int(what[5:6], 16))
                 d1 = s1.get(start, length); d2 = s2.get(start, length)
                 self.failUnlessEqual(d1, d2, "%d+%d" % (start, length))
+
+class YAML(unittest.TestCase):
+    def test_convert(self):
+        data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
+        back = yamlutil.safe_load(data)
+        self.failUnlessEqual(type(back[0]), unicode)
+        self.failUnlessEqual(type(back[1]), unicode)
+        self.failUnlessEqual(type(back[2]), unicode)

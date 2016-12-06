@@ -1,6 +1,6 @@
 
+import json
 import os
-import pickle
 import pprint
 import time
 from collections import deque
@@ -11,7 +11,7 @@ from twisted.application.internet import TimerService
 from zope.interface import implements
 from foolscap.api import eventually, DeadReferenceError, Referenceable, Tub
 
-from allmydata.util import log, fileutil
+from allmydata.util import log
 from allmydata.util.encodingutil import quote_local_unicode_path
 from allmydata.interfaces import RIStatsProvider, RIStatsGatherer, IStatsProducer
 
@@ -148,12 +148,9 @@ class StatsProvider(Referenceable, service.MultiService):
 
     def startService(self):
         if self.node and self.gatherer_furl:
-            d = self.node.when_tub_ready()
-            def connect(junk):
-                nickname_utf8 = self.node.nickname.encode("utf-8")
-                self.node.tub.connectTo(self.gatherer_furl,
-                                        self._connected, nickname_utf8)
-            d.addCallback(connect)
+            nickname_utf8 = self.node.nickname.encode("utf-8")
+            self.node.tub.connectTo(self.gatherer_furl,
+                                    self._connected, nickname_utf8)
         service.MultiService.startService(self)
 
     def count(self, name, delta=1):
@@ -243,22 +240,23 @@ class StdOutStatsGatherer(StatsGatherer):
         print '"%s" [%s]:' % (nickname, tubid)
         pprint.pprint(stats)
 
-class PickleStatsGatherer(StdOutStatsGatherer):
+class JSONStatsGatherer(StdOutStatsGatherer):
     # inherit from StdOutStatsGatherer for connect/disconnect notifications
 
     def __init__(self, basedir=u".", verbose=True):
         self.verbose = verbose
         StatsGatherer.__init__(self, basedir)
-        self.picklefile = os.path.join(basedir, "stats.pickle")
+        self.jsonfile = os.path.join(basedir, "stats.json")
 
-        if os.path.exists(self.picklefile):
-            f = open(self.picklefile, 'rb')
+        if os.path.exists(self.jsonfile):
+            f = open(self.jsonfile, 'rb')
             try:
-                self.gathered_stats = pickle.load(f)
+                self.gathered_stats = json.load(f)
             except Exception:
-                print ("Error while attempting to load pickle file %s.\n"
-                       "You may need to restore this file from a backup, or delete it if no backup is available.\n" %
-                       quote_local_unicode_path(self.picklefile))
+                print ("Error while attempting to load stats file %s.\n"
+                       "You may need to restore this file from a backup,"
+                       " or delete it if no backup is available.\n" %
+                       quote_local_unicode_path(self.jsonfile))
                 raise
             f.close()
         else:
@@ -269,16 +267,16 @@ class PickleStatsGatherer(StdOutStatsGatherer):
         s['timestamp'] = time.time()
         s['nickname'] = nickname
         s['stats'] = stats
-        self.dump_pickle()
+        self.dump_json()
 
-    def dump_pickle(self):
-        tmp = "%s.tmp" % (self.picklefile,)
+    def dump_json(self):
+        tmp = "%s.tmp" % (self.jsonfile,)
         f = open(tmp, 'wb')
-        pickle.dump(self.gathered_stats, f)
+        json.dump(self.gathered_stats, f)
         f.close()
-        if os.path.exists(self.picklefile):
-            os.unlink(self.picklefile)
-        os.rename(tmp, self.picklefile)
+        if os.path.exists(self.jsonfile):
+            os.unlink(self.jsonfile)
+        os.rename(tmp, self.jsonfile)
 
 class StatsGathererService(service.MultiService):
     furl_file = "stats_gatherer.furl"
@@ -293,27 +291,22 @@ class StatsGathererService(service.MultiService):
         self.tub.setOption("logRemoteFailures", True)
         self.tub.setOption("expose-remote-exception-types", False)
 
-        self.stats_gatherer = PickleStatsGatherer(self.basedir, verbose)
+        self.stats_gatherer = JSONStatsGatherer(self.basedir, verbose)
         self.stats_gatherer.setServiceParent(self)
 
-        portnumfile = os.path.join(self.basedir, "portnum")
         try:
-            portnum = open(portnumfile, "r").read()
+            with open(os.path.join(self.basedir, "location")) as f:
+                location = f.read().strip()
         except EnvironmentError:
-            portnum = None
-        self.listener = self.tub.listenOn(portnum or "tcp:0")
-        d = self.tub.setLocationAutomatically()
-        if portnum is None:
-            d.addCallback(self.save_portnum)
-        d.addCallback(self.tub_ready)
-        d.addErrback(log.err)
+            raise ValueError("Unable to find 'location' in BASEDIR, please rebuild your stats-gatherer")
+        try:
+            with open(os.path.join(self.basedir, "port")) as f:
+                port = f.read().strip()
+        except EnvironmentError:
+            raise ValueError("Unable to find 'port' in BASEDIR, please rebuild your stats-gatherer")
 
-    def save_portnum(self, junk):
-        portnum = self.listener.getPortnum()
-        portnumfile = os.path.join(self.basedir, 'portnum')
-        fileutil.write(portnumfile, '%d\n' % (portnum,))
-
-    def tub_ready(self, ignored):
+        self.tub.listenOn(port)
+        self.tub.setLocation(location)
         ff = os.path.join(self.basedir, self.furl_file)
         self.gatherer_furl = self.tub.registerReference(self.stats_gatherer,
                                                         furlFile=ff)

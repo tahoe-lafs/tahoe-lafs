@@ -25,7 +25,7 @@ over the peers in the grid, and in that case shares-of-happiness
 worked fine. However, because it only considered the number of shares,
 and not where they were on the grid, it could not detect situations
 where a file was unhealthy because most or all of the shares generated
-from the file were stored on one or two peers. 
+from the file were stored on one or two peers.
 
 servers-of-happiness addresses this by extending the share-focused
 upload health metric to also consider the location of the shares on
@@ -88,5 +88,5 @@ always find a happy layout if one can be arrived at through
 redistribution. We are investigating improvements to address these
 issues.
 
-We don't use servers-of-happiness for mutable files yet; this fix will 
-likely come in Tahoe-LAFS version 1.8.
+We don't use servers-of-happiness for mutable files yet; this fix will
+likely come in Tahoe-LAFS version 1.13.

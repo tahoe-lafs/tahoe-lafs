@@ -10,8 +10,8 @@
 
 # This should be useful for tests which want to examine and/or manipulate the
 # uploaded shares, checker/verifier/repairer tests, etc. The clients have no
-# Tubs, so it is not useful for tests that involve a Helper, a KeyGenerator,
-# or the control.furl .
+# Tubs, so it is not useful for tests that involve a Helper or the
+# control.furl .
 
 import os, shutil
 
@@ -22,15 +22,17 @@ from twisted.python.failure import Failure
 from foolscap.api import Referenceable, fireEventually, RemoteException
 from base64 import b32encode
 
+from allmydata.util.assertutil import _assert
+
 from allmydata import uri as tahoe_uri
 from allmydata.client import Client
 from allmydata.storage.server import StorageServer
 from allmydata.storage.backends.disk.disk_backend import DiskBackend
 from allmydata.util import fileutil, idlib, hashutil, log
-from allmydata.util.hashutil import sha1
+from allmydata.util.hashutil import permute_server_hash
 from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker, IServer
-from allmydata.test.common import TEST_RSA_KEY_SIZE
+from .common import TEST_RSA_KEY_SIZE
 
 
 PRINT_TRACEBACKS = False
@@ -182,7 +184,7 @@ class NoNetworkStorageBroker:
     def get_servers_for_psi(self, peer_selection_index):
         def _permuted(server):
             seed = server.get_permutation_seed()
-            return sha1(peer_selection_index + seed).digest()
+            return permute_server_hash(peer_selection_index, seed)
         return sorted(self.get_connected_servers(), key=_permuted)
 
     def get_connected_servers(self):
@@ -190,6 +192,8 @@ class NoNetworkStorageBroker:
 
     def get_nickname_for_serverid(self, serverid):
         return None
+    def when_connected_enough(self, threshold):
+        return defer.Deferred()
 
     def get_known_servers(self):
         return self.get_connected_servers()
@@ -199,9 +203,16 @@ class NoNetworkStorageBroker:
 
 
 class NoNetworkClient(Client):
-    def create_tub(self):
+
+    def init_connections(self):
+        pass
+    def create_main_tub(self):
         pass
     def init_introducer_client(self):
+        pass
+    def create_control_tub(self):
+        pass
+    def create_log_tub(self):
         pass
     def setup_logging(self):
         pass
@@ -209,8 +220,6 @@ class NoNetworkClient(Client):
         service.MultiService.startService(self)
     def stopService(self):
         service.MultiService.stopService(self)
-    def when_tub_ready(self):
-        raise NotImplementedError("NoNetworkClient has no Tub")
     def init_control(self):
         pass
     def init_helper(self):
@@ -257,6 +266,7 @@ class NoNetworkGrid(service.MultiService):
         self.proxies_by_id = {} # maps to IServer on which .rref is a wrapped
                                 # StorageServer
         self.clients = []
+        self.client_config_hooks = client_config_hooks
 
         for i in range(num_servers):
             server = self.make_server(i)
@@ -264,30 +274,42 @@ class NoNetworkGrid(service.MultiService):
         self.rebuild_serverlist()
 
         for i in range(num_clients):
-            clientid = hashutil.tagged_hash("clientid", str(i))[:20]
-            clientdir = os.path.join(basedir, "clients",
-                                     idlib.shortnodeid_b2a(clientid))
-            fileutil.make_dirs(clientdir)
-            f = open(os.path.join(clientdir, "tahoe.cfg"), "w")
+            c = self.make_client(i)
+            self.clients.append(c)
+
+    def make_client(self, i, write_config=True):
+        clientid = hashutil.tagged_hash("clientid", str(i))[:20]
+        clientdir = os.path.join(self.basedir, "clients",
+                                 idlib.shortnodeid_b2a(clientid))
+        fileutil.make_dirs(clientdir)
+
+        tahoe_cfg_path = os.path.join(clientdir, "tahoe.cfg")
+        if write_config:
+            f = open(tahoe_cfg_path, "w")
             f.write("[node]\n")
             f.write("nickname = client-%d\n" % i)
             f.write("web.port = tcp:0:interface=127.0.0.1\n")
             f.write("[storage]\n")
             f.write("enabled = false\n")
             f.close()
-            c = None
-            if i in client_config_hooks:
-                # this hook can either modify tahoe.cfg, or return an
-                # entirely new Client instance
-                c = client_config_hooks[i](clientdir)
-            if not c:
-                c = NoNetworkClient(clientdir)
-                c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
-            c.nodeid = clientid
-            c.short_nodeid = b32encode(clientid).lower()[:8]
-            c._servers = self.all_servers # can be updated later
-            c.setServiceParent(self)
-            self.clients.append(c)
+        else:
+            _assert(os.path.exists(tahoe_cfg_path), tahoe_cfg_path=tahoe_cfg_path)
+
+        c = None
+        if i in self.client_config_hooks:
+            # this hook can either modify tahoe.cfg, or return an
+            # entirely new Client instance
+            c = self.client_config_hooks[i](clientdir)
+
+        if not c:
+            c = NoNetworkClient(clientdir)
+            c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
+
+        c.nodeid = clientid
+        c.short_nodeid = b32encode(clientid).lower()[:8]
+        c._servers = self.all_servers # can be updated later
+        c.setServiceParent(self)
+        return c
 
     def make_server(self, i, readonly=False):
         serverid = hashutil.tagged_hash("serverid", str(i))[:20]
@@ -372,13 +394,21 @@ class GridTestMixin:
         return self.s.stopService()
 
     def set_up_grid(self, num_clients=1, num_servers=10,
-                    client_config_hooks={}):
+                    client_config_hooks={}, oneshare=False):
         # self.basedir must be set
         self.g = NoNetworkGrid(self.basedir,
                                num_clients=num_clients,
                                num_servers=num_servers,
                                client_config_hooks=client_config_hooks)
         self.g.setServiceParent(self.s)
+        if oneshare:
+            c = self.get_client(0)
+            c.encoding_params["k"] = 1
+            c.encoding_params["happy"] = 1
+            c.encoding_params["n"] = 1
+        self._record_webports_and_baseurls()
+
+    def _record_webports_and_baseurls(self):
         self.client_webports = [c.getServiceNamed("webish").getPortnum()
                                 for c in self.g.clients]
         self.client_baseurls = [c.getServiceNamed("webish").getURL()
@@ -386,6 +416,23 @@ class GridTestMixin:
 
     def get_clientdir(self, i=0):
         return self.g.clients[i].basedir
+
+    def set_clientdir(self, basedir, i=0):
+        self.g.clients[i].basedir = basedir
+
+    def get_client(self, i=0):
+        return self.g.clients[i]
+
+    def restart_client(self, i=0):
+        client = self.g.clients[i]
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self.g.removeService(client))
+        def _make_client(ign):
+            c = self.g.make_client(i, write_config=False)
+            self.g.clients[i] = c
+            self._record_webports_and_baseurls()
+        d.addCallback(_make_client)
+        return d
 
     def get_server(self, i):
         return self.g.servers_by_number[i]

@@ -8,9 +8,9 @@ fail or are taken over by an attacker, the entire file store continues to
 function correctly, preserving your privacy and security.
 
 For full documentation, please see
-http://tahoe-lafs.readthedocs.org/en/latest/ .
+http://tahoe-lafs.readthedocs.io/en/latest/ .
 
-|readthedocs|  |travis|  |coveralls|
+|readthedocs|  |travis|  |codecov|
 
 INSTALLING
 ==========
@@ -77,12 +77,12 @@ slides.
 
 .. |readthedocs| image:: http://readthedocs.org/projects/tahoe-lafs/badge/?version=latest
     :alt: documentation status
-    :target: http://tahoe-lafs.readthedocs.org/en/latest/?badge=latest
+    :target: http://tahoe-lafs.readthedocs.io/en/latest/?badge=latest
 
 .. |travis| image:: https://travis-ci.org/tahoe-lafs/tahoe-lafs.png?branch=master
     :alt: build status
     :target: https://travis-ci.org/tahoe-lafs/tahoe-lafs
 
-.. |coveralls| image:: https://coveralls.io/repos/tahoe-lafs/tahoe-lafs/badge.png?branch=master
+.. |codecov| image:: https://codecov.io/github/tahoe-lafs/tahoe-lafs/coverage.svg?branch=master
     :alt: test coverage percentage
-    :target: https://coveralls.io/r/tahoe-lafs/tahoe-lafs?branch=master
+    :target: https://codecov.io/github/tahoe-lafs/tahoe-lafs?branch=master

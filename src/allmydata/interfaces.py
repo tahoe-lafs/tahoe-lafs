@@ -749,7 +749,7 @@ class IDisplayableServer(Interface):
 
 class IServer(IDisplayableServer):
     """I live in the client, and represent a single server."""
-    def start_connecting(tub, trigger_cb):
+    def start_connecting(trigger_cb):
         pass
 
     def get_rref():
@@ -3097,20 +3097,6 @@ class IStatsProducer(Interface):
         returns a dictionary, with str keys representing the names of stats
         to be monitored, and numeric values.
         """
-
-class RIKeyGenerator(RemoteInterface):
-    __remote_name__ = "RIKeyGenerator.tahoe.allmydata.com"
-    """
-    Provides a service offering to make RSA key pairs.
-    """
-
-    def get_rsa_key_pair(key_size=int):
-        """
-        @param key_size: the size of the signature key.
-        @return: tuple(verifying_key, signing_key)
-        """
-        return TupleOf(str, str)
-
 
 class FileTooLargeError(Exception):
     pass

@@ -13,7 +13,6 @@
 
 # these are generated at build time, and never checked in
 /src/allmydata/_version.py
-/src/allmydata/_appname.py
 
 # these are generated too
 /bin/tahoe
@@ -32,7 +31,6 @@ zope.interface-*.egg
 /*.patch
 /*.diff
 /dist/
-/twisted/plugins/dropin.cache
 /tahoe-deps/
 /tahoe-deps.tar.gz
 /.coverage
@@ -42,3 +40,5 @@ zope.interface-*.egg
 /violations.txt
 /.tox/
 /docs/_build/
+/coverage.xml
+/smoke_magicfolder/

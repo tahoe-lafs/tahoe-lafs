@@ -30,19 +30,6 @@ def read_version_py(infname):
 VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
-APPNAME='tahoe-lafs'
-APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')
-APPNAMEFILESTR = "__appname__ = '%s'" % (APPNAME,)
-try:
-    curappnamefilestr = open(APPNAMEFILE, 'rU').read()
-except EnvironmentError:
-    # No file, or unreadable or something, okay then let's try to write one.
-    open(APPNAMEFILE, "w").write(APPNAMEFILESTR)
-else:
-    if curappnamefilestr.strip() != APPNAMEFILESTR:
-        print("Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR))
-        sys.exit(-1)
-
 # Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
 # the _auto_deps.install_requires list, which is used in the call to setup()
 # below.
@@ -214,8 +201,8 @@ Warning: no version information found. This may cause tests to fail.
 """)
 
     def try_from_git(self):
-        # If we change APPNAME, the release tag names should also change from then on.
-        versions = versions_from_git(APPNAME + '-')
+        # If we change the release tag names, we must change this too
+        versions = versions_from_git("tahoe-lafs-")
 
         # setup.py might be run by either py2 or py3 (when run by tox, which
         # uses py3 on modern debian/ubuntu distros). We want this generated
@@ -236,12 +223,22 @@ Warning: no version information found. This may cause tests to fail.
 
         return versions.get("normalized", None)
 
+class PleaseUseTox(Command):
+    user_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        print("ERROR: Please use 'tox' to run the test suite.")
+        sys.exit(1)
 
 setup_args = {}
 if version:
     setup_args["version"] = version
 
-setup(name=APPNAME,
+setup(name="tahoe-lafs", # also set in __init__.py
       description='secure, decentralized, fault-tolerant file store',
       long_description=open('README.rst', 'rU').read(),
       author='the Tahoe-LAFS project',
@@ -249,6 +246,7 @@ setup(name=APPNAME,
       url='https://tahoe-lafs.org/',
       license='GNU GPL', # see README.rst -- there is an alternative licence
       cmdclass={"update_version": UpdateVersion,
+                "test": PleaseUseTox,
                 },
       package_dir = {'':'src'},
       packages=['allmydata',
@@ -268,15 +266,36 @@ setup(name=APPNAME,
                 'allmydata.storage.backends.disk',
                 'allmydata.storage.backends.null',
                 'allmydata.test',
+                'allmydata.test.mutable',
+                'allmydata.test.cli',
                 'allmydata.util',
                 'allmydata.web',
                 'allmydata.windows',
                 ],
       classifiers=trove_classifiers,
-      test_suite="allmydata.test",
       install_requires=install_requires,
-      extras_require={"test": ["pyflakes", "coverage"],
-                      },
+      extras_require={
+          "test": [
+              "pyflakes",
+              "coverage",
+              "mock",
+              "tox",
+              "foolscap[tor] >= 0.12.3",
+              "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
+              "foolscap[i2p]",
+              "txi2p >= 0.3.1", # in case pip's resolver doesn't work
+              "pytest",
+              "pytest-twisted",
+          ],
+          "tor": [
+              "foolscap[tor] >= 0.12.3",
+              "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
+          ],
+          "i2p": [
+              "foolscap[i2p]",
+              "txi2p >= 0.3.1", # in case pip's resolver doesn't work
+          ],
+      },
       package_data={"allmydata.web": ["*.xhtml",
                                       "static/*.js", "static/*.png", "static/*.css",
                                       "static/img/*.png",

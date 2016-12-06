@@ -80,8 +80,7 @@ class StartTahoeNodePlugin:
             from allmydata.introducer.server import IntroducerNode
             return IntroducerNode(self.basedir)
         if self.nodetype == "key-generator":
-            from allmydata.key_generator import KeyGeneratorService
-            return KeyGeneratorService(default_key_size=2048)
+            raise ValueError("key-generator support removed, see #2783")
         if self.nodetype == "stats-gatherer":
             from allmydata.stats import StatsGathererService
             return StatsGathererService(verbose=True)
@@ -100,7 +99,9 @@ def identify_node_type(basedir):
             return t
     return None
 
-def start(config, out=sys.stdout, err=sys.stderr):
+def start(config):
+    out = config.stdout
+    err = config.stderr
     basedir = config['basedir']
     quoted_basedir = quote_local_unicode_path(basedir)
     print >>out, "STARTING", quoted_basedir
@@ -170,7 +171,9 @@ def start(config, out=sys.stdout, err=sys.stderr):
     # we should only reach here if --nodaemon or equivalent was used
     return 0
 
-def stop(config, out=sys.stdout, err=sys.stderr):
+def stop(config):
+    out = config.stdout
+    err = config.stderr
     basedir = config['basedir']
     quoted_basedir = quote_local_unicode_path(basedir)
     print >>out, "STOPPING", quoted_basedir
@@ -180,7 +183,8 @@ def stop(config, out=sys.stdout, err=sys.stderr):
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
         return 2
-    pid = open(pidfile, "r").read()
+    with open(pidfile, "r") as f:
+        pid = f.read()
     pid = int(pid)
 
     # kill it hard (SIGKILL), delete the twistd.pid file, then wait for the
@@ -228,23 +232,24 @@ def stop(config, out=sys.stdout, err=sys.stderr):
     # we define rc=1 to mean "I think something is still running, sorry"
     return 1
 
-def restart(config, stdout, stderr):
-    rc = stop(config, stdout, stderr)
+def restart(config):
+    stderr = config.stderr
+    rc = stop(config)
     if rc == 2:
         print >>stderr, "ignoring couldn't-stop"
         rc = 0
     if rc:
         print >>stderr, "not restarting"
         return rc
-    return start(config, stdout, stderr)
+    return start(config)
 
-def run(config, stdout, stderr):
+def run(config):
     config.twistd_args = config.twistd_args + ("--nodaemon",)
     # Previously we would do the equivalent of adding ("--logfile",
     # "tahoesvc.log"), but that redirects stdout/stderr which is often
     # unhelpful, and the user can add that option explicitly if they want.
 
-    return start(config, stdout, stderr)
+    return start(config)
 
 
 subCommands = [

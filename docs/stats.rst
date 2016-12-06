@@ -279,11 +279,12 @@ boxes, as long as the stats-gatherer has a reachable IP address.)
 
 The stats-gatherer is created in the same fashion as regular tahoe client
 nodes and introducer nodes. Choose a base directory for the gatherer to live
-in (but do not create the directory). Then run:
+in (but do not create the directory). Choose the hostname that should be
+advertised in the gatherer's FURL. Then run:
 
 ::
 
-   tahoe create-stats-gatherer $BASEDIR
+   tahoe create-stats-gatherer --hostname=HOSTNAME $BASEDIR
 
 and start it with "tahoe start $BASEDIR". Once running, the gatherer will
 write a FURL into $BASEDIR/stats_gatherer.furl .
@@ -295,47 +296,52 @@ under a key named "stats_gatherer.furl", like so:
 ::
 
     [client]
-    stats_gatherer.furl = pb://qbo4ktl667zmtiuou6lwbjryli2brv6t@192.168.0.8:49997/wxycb4kaexzskubjnauxeoptympyf45y
+    stats_gatherer.furl = pb://qbo4ktl667zmtiuou6lwbjryli2brv6t@HOSTNAME:PORTNUM/wxycb4kaexzskubjnauxeoptympyf45y
 
 or simply copy the stats_gatherer.furl file into the node's base directory
 (next to the tahoe.cfg file): it will be interpreted in the same way.
 
-The first time it is started, the gatherer will listen on a random unused TCP
-port, so it should not conflict with anything else that you have running on
-that host at that time. On subsequent runs, it will re-use the same port (to
-keep its FURL consistent). To explicitly control which port it uses, write
-the desired portnumber into a file named "portnum" (i.e. $BASEDIR/portnum),
-and the next time the gatherer is started, it will start listening on the
-given port. The portnum file is actually a "strports specification string",
-as described in :doc:`configuration`.
+When the gatherer is created, it will allocate a random unused TCP port, so
+it should not conflict with anything else that you have running on that host
+at that time. To explicitly control which port it uses, run the creation
+command with ``--location=`` and ``--port=`` instead of ``--hostname=``. If
+you use a hostname of ``example.org`` and a port number of ``1234``, then
+run::
 
-Once running, the stats gatherer will create a standard python "pickle" file
-in $BASEDIR/stats.pickle . Once a minute, the gatherer will pull stats
-information from every connected node and write them into the pickle. The
-pickle will contain a dictionary, in which node identifiers (known as "tubid"
+  tahoe create-stats-gatherer --location=tcp:example.org:1234 --port=tcp:1234
+
+``--location=`` is a Foolscap FURL hints string (so it can be a
+comma-separated list of connection hints), and ``--port=`` is a Twisted
+"server endpoint specification string", as described in :doc:`configuration`.
+
+Once running, the stats gatherer will create a standard JSON file in
+``$BASEDIR/stats.json``. Once a minute, the gatherer will pull stats
+information from every connected node and write them into the file. The file
+will contain a dictionary, in which node identifiers (known as "tubid"
 strings) are the keys, and the values are a dict with 'timestamp',
 'nickname', and 'stats' keys. d[tubid][stats] will contain the stats
 dictionary as made available at http://localhost:3456/statistics?t=json . The
-pickle file will only contain the most recent update from each node.
+file will only contain the most recent update from each node.
 
 Other tools can be built to examine these stats and render them into
 something useful. For example, a tool could sum the
 "storage_server.disk_avail' values from all servers to compute a
 total-disk-available number for the entire grid (however, the "disk watcher"
-daemon, in misc/operations_helpers/spacetime/, is better suited for this specific task).
+daemon, in misc/operations_helpers/spacetime/, is better suited for this
+specific task).
 
 Using Munin To Graph Stats Values
 =================================
 
-The misc/munin/ directory contains various plugins to graph stats for Tahoe
-nodes. They are intended for use with the Munin_ system-management tool, which
-typically polls target systems every 5 minutes and produces a web page with
-graphs of various things over multiple time scales (last hour, last month,
-last year).
+The misc/operations_helpers/munin/ directory contains various plugins to
+graph stats for Tahoe nodes. They are intended for use with the Munin_
+system-management tool, which typically polls target systems every 5 minutes
+and produces a web page with graphs of various things over multiple time
+scales (last hour, last month, last year).
 
 Most of the plugins are designed to pull stats from a single Tahoe node, and
 are configured with the e.g. http://localhost:3456/statistics?t=json URL. The
-"tahoe_stats" plugin is designed to read from the pickle file created by the
+"tahoe_stats" plugin is designed to read from the JSON file created by the
 stats-gatherer. Some plugins are to be used with the disk watcher, and a few
 (like tahoe_nodememory) are designed to watch the node processes directly
 (and must therefore run on the same host as the target node).

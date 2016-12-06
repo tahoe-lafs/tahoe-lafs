@@ -18,7 +18,8 @@ class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):
 
     def _set_up(self, basedir, num_clients=1, num_servers=10):
         self.basedir = "ftp/" + basedir
-        self.set_up_grid(num_clients=num_clients, num_servers=num_servers)
+        self.set_up_grid(num_clients=num_clients, num_servers=num_servers,
+                         oneshare=True)
 
         self.client = self.g.clients[0]
         self.username = "alice"

@@ -10,6 +10,8 @@ from twisted.internet.error import CannotListenError
 from twisted.python.procutils import which
 from twisted.python import log
 
+from foolscap.util import allocate_tcp_port # re-exported
+
 try:
     import resource
     def increase_rlimits():
@@ -70,6 +72,8 @@ except ImportError:
     # since one might be shadowing the other. This hack appeases pyflakes.
     increase_rlimits = _increase_rlimits
 
+def get_local_addresses_sync():
+    return _synchronously_find_addresses_via_config()
 
 def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     """
@@ -158,6 +162,7 @@ _win32_commands = (('route.exe', ('print',), _win32_re),)
 # These work in most Unices.
 _addr_re = re.compile(r'^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)[\s/].+$', flags=re.M|re.I|re.S)
 _unix_commands = (('/bin/ip', ('addr',), _addr_re),
+                  ('/sbin/ip', ('addr',), _addr_re),
                   ('/sbin/ifconfig', ('-a',), _addr_re),
                   ('/usr/sbin/ifconfig', ('-a',), _addr_re),
                   ('/usr/etc/ifconfig', ('-a',), _addr_re),
@@ -233,3 +238,10 @@ def _cygwin_hack_find_addresses():
             addresses.append(addr)
 
     return defer.succeed(addresses)
+
+__all__ = ["allocate_tcp_port",
+           "increase_rlimits",
+           "get_local_addresses_sync",
+           "get_local_addresses_async",
+           "get_local_ip_for",
+           ]

@@ -1,15 +1,12 @@
 
 import os, simplejson, urllib
-from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.internet import threads # CLI tests use deferToThread
 from allmydata.immutable import upload
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.mutable.publish import MutableData
 from allmydata.util import idlib
 from allmydata.util import base32
-from allmydata.scripts import runner
 from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
      IDeepCheckResults, IDeepCheckAndRepairResults
 from allmydata.monitor import Monitor, OperationCancelledError
@@ -18,21 +15,15 @@ from twisted.web.client import getPage
 
 from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data, \
      ShouldFailMixin
-from allmydata.test.common_util import StallMixin
+from .common_util import StallMixin, run_cli
 from allmydata.test.no_network import GridTestMixin
 from allmydata.scripts import debug
 
+from .cli.common import CLITestMixin
 
 timeout = 2400 # One of these took 1046.091s on Zandr's ARM box.
 
 class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
-    def _run_cli(self, argv):
-        stdout, stderr = StringIO(), StringIO()
-        # this can only do synchronous operations
-        assert argv[0] == "debug"
-        runner.runner(argv, run_by_human=False, stdout=stdout, stderr=stderr)
-        return stdout.getvalue()
-
     def test_good(self):
         self.basedir = "deepcheck/MutableChecker/good"
         self.set_up_grid()
@@ -132,7 +123,8 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
         return d
 
 
-class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin):
+class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
+                    CLITestMixin):
 
     def web_json(self, n, **kwargs):
         kwargs["output"] = "json"
@@ -729,17 +721,6 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
         return d
 
-    def _run_cli(self, argv, stdin=""):
-        #print "CLI:", argv
-        stdout, stderr = StringIO(), StringIO()
-        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
-                                  stdin=StringIO(stdin),
-                                  stdout=stdout, stderr=stderr)
-        def _done(res):
-            return stdout.getvalue(), stderr.getvalue()
-        d.addCallback(_done)
-        return d
-
     def do_test_cli_good(self, ignored):
         d = defer.succeed(None)
         d.addCallback(lambda ign: self.do_cli_manifest_stream1())
@@ -759,11 +740,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         self.failUnless(base32.b2a(self.large.get_storage_index()) in lines)
 
     def do_cli_manifest_stream1(self):
-        basedir = self.get_clientdir(0)
-        d = self._run_cli(["--node-directory", basedir,
-                           "manifest",
-                           self.root_uri])
-        def _check((out,err)):
+        d = self.do_cli("manifest", self.root_uri)
+        def _check((rc,out,err)):
             self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 8)
@@ -787,12 +765,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_manifest_stream2(self):
-        basedir = self.get_clientdir(0)
-        d = self._run_cli(["--node-directory", basedir,
-                           "manifest",
-                           "--raw",
-                           self.root_uri])
-        def _check((out,err)):
+        d = self.do_cli("manifest", "--raw", self.root_uri)
+        def _check((rc,out,err)):
             self.failUnlessEqual(err, "")
             # this should be the same as the POST t=stream-manifest output
             self._check_streamed_manifest(out)
@@ -800,24 +774,16 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_manifest_stream3(self):
-        basedir = self.get_clientdir(0)
-        d = self._run_cli(["--node-directory", basedir,
-                           "manifest",
-                           "--storage-index",
-                           self.root_uri])
-        def _check((out,err)):
+        d = self.do_cli("manifest", "--storage-index", self.root_uri)
+        def _check((rc,out,err)):
             self.failUnlessEqual(err, "")
             self._check_manifest_storage_index(out)
         d.addCallback(_check)
         return d
 
     def do_cli_manifest_stream4(self):
-        basedir = self.get_clientdir(0)
-        d = self._run_cli(["--node-directory", basedir,
-                           "manifest",
-                           "--verify-cap",
-                           self.root_uri])
-        def _check((out,err)):
+        d = self.do_cli("manifest", "--verify-cap", self.root_uri)
+        def _check((rc,out,err)):
             self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 3)
@@ -828,12 +794,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_manifest_stream5(self):
-        basedir = self.get_clientdir(0)
-        d = self._run_cli(["--node-directory", basedir,
-                           "manifest",
-                           "--repair-cap",
-                           self.root_uri])
-        def _check((out,err)):
+        d = self.do_cli("manifest", "--repair-cap", self.root_uri)
+        def _check((rc,out,err)):
             self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 3)
@@ -844,11 +806,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_stats1(self):
-        basedir = self.get_clientdir(0)
-        d = self._run_cli(["--node-directory", basedir,
-                           "stats",
-                           self.root_uri])
-        def _check3((out,err)):
+        d = self.do_cli("stats", self.root_uri)
+        def _check3((rc,out,err)):
             lines = [l.strip() for l in out.split("\n") if l]
             self.failUnless("count-immutable-files: 1" in lines)
             self.failUnless("count-mutable-files: 1" in lines)
@@ -864,12 +823,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_stats2(self):
-        basedir = self.get_clientdir(0)
-        d = self._run_cli(["--node-directory", basedir,
-                           "stats",
-                           "--raw",
-                           self.root_uri])
-        def _check4((out,err)):
+        d = self.do_cli("stats", "--raw", self.root_uri)
+        def _check4((rc,out,err)):
             data = simplejson.loads(out)
             self.failUnlessEqual(data["count-immutable-files"], 1)
             self.failUnlessEqual(data["count-immutable-files"], 1)
@@ -986,6 +941,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
     def _delete_some_shares(self, node):
         return self.delete_shares_numbered(node.get_uri(), [0,1])
 
+    @defer.inlineCallbacks
     def _corrupt_some_shares(self, node):
         d = self.find_uri_shares(node.get_uri())
         def _got_shares(sharelist):

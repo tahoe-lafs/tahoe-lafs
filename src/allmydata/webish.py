@@ -1,8 +1,8 @@
 import re, time
 from twisted.application import service, strports, internet
-from twisted.web import http
+from twisted.web import http, static
 from twisted.internet import defer
-from nevow import appserver, inevow, static
+from nevow import appserver, inevow
 from allmydata.util import log, fileutil
 
 from allmydata.web import introweb, root

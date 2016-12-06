@@ -4,16 +4,18 @@
 Configuring a Tahoe-LAFS node
 =============================
 
-1.  `Node Types`_
-2.  `Overall Node Configuration`_
-3.  `Client Configuration`_
-4.  `Storage Server Configuration`_
-5.  `Frontend Configuration`_
-6.  `Running A Helper`_
-7.  `Running An Introducer`_
-8.  `Other Files in BASEDIR`_
-9.  `Other files`_
-10. `Example`_
+#.  `Node Types`_
+#.  `Overall Node Configuration`_
+#.  `Connection Management`_
+#.  `Client Configuration`_
+#.  `Storage Server Configuration`_
+#.  `Frontend Configuration`_
+#.  `Running A Helper`_
+#.  `Running An Introducer`_
+#.  `Other Files in BASEDIR`_
+#. `Static Server Definitions`_
+#. `Other files`_
+#. `Example`_
 
 A Tahoe-LAFS node is configured by writing to files in its base directory.
 These files are read by the node when it starts, so each time you change
@@ -49,26 +51,34 @@ The item descriptions below use the following types:
     not specified, Tahoe-LAFS will attempt to bind the port specified on all
     interfaces.
 
+``endpoint specification string``
+
+    a Twisted Endpoint specification string, like "``tcp:80``" or
+    "``tcp:3456:interface=127.0.0.1``". These are replacing strports strings.
+    For a full description of the format, see `the Twisted Endpoints
+    documentation`_. Please note, if interface= is not specified, Tahoe-LAFS
+    will attempt to bind the port specified on all interfaces. Also note that
+    ``tub.port`` only works with TCP endpoints right now.
+
 ``FURL string``
 
     a Foolscap endpoint identifier, like
     ``pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm``
 
 .. _the Twisted strports documentation: https://twistedmatrix.com/documents/current/api/twisted.application.strports.html
-
+.. _the Twisted Endpoints documentation: http://twistedmatrix.com/documents/current/core/howto/endpoints.html#endpoint-types-included-with-twisted
 
 Node Types
 ==========
 
-A node can be a client/server, an introducer, a statistics gatherer, or a
-key generator.
+A node can be a client/server, an introducer, or a statistics gatherer.
 
 Client/server nodes provide one or more of the following services:
 
 * web-API service
 * SFTP service
 * FTP service
-* drop-upload service
+* Magic Folder service
 * helper service
 * storage service.
 
@@ -128,71 +138,118 @@ set the ``tub.location`` option described below.
     ``http://127.0.0.1:3456/static/foo.html`` will serve the contents of
     ``BASEDIR/public_html/foo.html`` .
 
-``tub.port = (integer, optional)``
+``tub.port = (endpoint specification strings or "disabled", optional)``
 
     This controls which port the node uses to accept Foolscap connections
-    from other nodes. If not provided, the node will ask the kernel for any
-    available port. The port will be written to a separate file (named
-    ``client.port`` or ``introducer.port``), so that subsequent runs will
-    re-use the same port.
+    from other nodes. It is parsed as a comma-separated list of Twisted
+    "server endpoint descriptor" strings, each of which is a value like
+    ``tcp:12345`` and ``tcp:23456:interface=127.0.0.1``.
 
-``tub.location = (string, optional)``
+    To listen on multiple ports at once (e.g. both TCP-on-IPv4 and TCP-on-IPv6),
+    use something like ``tcp6:interface=2600\:3c01\:f03c\:91ff\:fe93\:d272:3456,tcp:interface=8.8.8.8:3456``.
+    Lists of endpoint descriptor strings like the following ``tcp:12345,tcp6:12345``
+    are known to not work because an ``Address already in use.`` error.
 
-    In addition to running as a client, each Tahoe-LAFS node also runs as a
-    server, listening for connections from other Tahoe-LAFS clients. The node
-    announces its location by publishing a "FURL" (a string with some
+    If ``tub.port`` is the string ``disabled``, the node will not listen at
+    all, and thus cannot accept connections from other nodes. If ``[storage]
+    enabled = true``, or ``[helper] enabled = true``, or the node is an
+    Introducer, then it is an error to have ``tub.port`` be empty. If
+    ``tub.port`` is disabled, then ``tub.location`` must also be disabled,
+    and vice versa.
+
+    For backwards compatibility, if this contains a simple integer, it will
+    be used as a TCP port number, like ``tcp:%d`` (which will accept
+    connections on all interfaces). However ``tub.port`` cannot be ``0`` or
+    ``tcp:0`` (older versions accepted this, but the node is no longer
+    willing to ask Twisted to allocate port numbers in this way). If
+    ``tub.port`` is present, it may not be empty.
+
+    If the ``tub.port`` config key is not provided (e.g. ``tub.port`` appears
+    nowhere in the ``[node]`` section, or is commented out), the node will
+    look in ``BASEDIR/client.port`` (or ``BASEDIR/introducer.port``, for
+    introducers) for the descriptor that was used last time.
+
+    If neither ``tub.port`` nor the port file is available, the node will ask
+    the kernel to allocate any available port (the moral equivalent of
+    ``tcp:0``). The allocated port number will be written into a descriptor
+    string in ``BASEDIR/client.port`` (or ``introducer.port``), so that
+    subsequent runs will re-use the same port.
+
+``tub.location = (hint string or "disabled", optional)``
+
+    In addition to running as a client, each Tahoe-LAFS node can also run as
+    a server, listening for connections from other Tahoe-LAFS clients. The
+    node announces its location by publishing a "FURL" (a string with some
     connection hints) to the Introducer. The string it publishes can be found
     in ``BASEDIR/private/storage.furl`` . The ``tub.location`` configuration
     controls what location is published in this announcement.
 
+    If your node is meant to run as a server, you should fill this in, using
+    a hostname or IP address that is reachable from your intended clients.
+
+    If ``tub.port`` is set to ``disabled``, then ``tub.location`` must also
+    be ``disabled``.
+
     If you don't provide ``tub.location``, the node will try to figure out a
     useful one by itself, by using tools like "``ifconfig``" to determine the
     set of IP addresses on which it can be reached from nodes both near and
-    far.  It will also include the TCP port number on which it is listening
+    far. It will also include the TCP port number on which it is listening
     (either the one specified by ``tub.port``, or whichever port was assigned
-    by the kernel when ``tub.port`` is left unspecified).
+    by the kernel when ``tub.port`` is left unspecified). However this
+    automatic address-detection is discouraged, and will probably be removed
+    from a future release. It will include the ``127.0.0.1`` "localhost"
+    address (which is only useful to clients running on the same computer),
+    and RFC1918 private-network addresses like ``10.*.*.*`` and
+    ``192.168.*.*`` (which are only useful to clients on the local LAN). In
+    general, the automatically-detected IP addresses will only be useful if
+    the node has a public IP address, such as a VPS or colo-hosted server.
 
-    You might want to override this value if your node lives behind a
-    firewall that is doing inbound port forwarding, or if you are using other
-    proxies such that the local IP address or port number is not the same one
-    that remote clients should use to connect. You might also want to control
-    this when using a Tor proxy to avoid revealing your actual IP address
-    through the Introducer announcement.
+    You will certainly need to set ``tub.location`` if your node lives behind
+    a firewall that is doing inbound port forwarding, or if you are using
+    other proxies such that the local IP address or port number is not the
+    same one that remote clients should use to connect. You might also want
+    to control this when using a Tor proxy to avoid revealing your actual IP
+    address through the Introducer announcement.
 
     If ``tub.location`` is specified, by default it entirely replaces the
     automatically determined set of IP addresses. To include the automatically
     determined addresses as well as the specified ones, include the uppercase
     string "``AUTO``" in the list.
 
-    The value is a comma-separated string of host:port location hints, like
-    this::
+    The value is a comma-separated string of method:host:port location hints,
+    like this::
 
-      123.45.67.89:8098,tahoe.example.com:8098,127.0.0.1:8098
+      tcp:123.45.67.89:8098,tcp:tahoe.example.com:8098,tcp:127.0.0.1:8098
 
     A few examples:
 
-    * Emulate default behavior, assuming your host has IP address
-      123.45.67.89 and the kernel-allocated port number was 8098::
+    * Don't listen at all (client-only mode)::
 
-        tub.port = 8098
-        tub.location = 123.45.67.89:8098,127.0.0.1:8098
+        tub.port = disabled
+        tub.location = disabled
 
     * Use a DNS name so you can change the IP address more easily::
 
-        tub.port = 8098
-        tub.location = tahoe.example.com:8098
+        tub.port = tcp:8098
+        tub.location = tcp:tahoe.example.com:8098
+
+    * Run a node behind a firewall (which has an external IP address) that
+      has been configured to forward external port 7912 to our internal
+      node's port 8098::
+
+        tub.port = tcp:8098
+        tub.location = tcp:external-firewall.example.com:7912
+
+    * Emulate default behavior, assuming your host has public IP address of
+      123.45.67.89, and the kernel-allocated port number was 8098::
+
+        tub.port = tcp:8098
+        tub.location = tcp:123.45.67.89:8098,tcp:127.0.0.1:8098
 
     * Use a DNS name but also include the default set of addresses::
 
-        tub.port = 8098
-        tub.location = tahoe.example.com:8098,AUTO
-
-    * Run a node behind a firewall (which has an external IP address) that
-      has been configured to forward port 7912 to our internal node's port
-      8098::
-
-        tub.port = 8098
-        tub.location = external-firewall.example.com:7912
+        tub.port = tcp:8098
+        tub.location = tcp:tahoe.example.com:8098,AUTO
 
     * Run a node behind a Tor proxy (perhaps via ``torsocks``), in
       client-only mode (i.e. we can make outbound connections, but other
@@ -201,8 +258,8 @@ set the ``tub.location`` option described below.
       reminder to human observers that this node cannot be reached. "Don't
       call us.. we'll call you"::
 
-        tub.port = 8098
-        tub.location = unreachable.example.org:0
+        tub.port = tcp:8098
+        tub.location = tcp:unreachable.example.org:0
 
     * Run a node behind a Tor proxy, and make the server available as a Tor
       "hidden service". (This assumes that other clients are running their
@@ -218,10 +275,8 @@ set the ``tub.location`` option described below.
       ``/var/lib/tor/hidden_services/tahoe/hostname``. Then set up your
       ``tahoe.cfg`` like::
 
-        tub.port = 8098
-        tub.location = ualhejtq2p7ohfbb.onion:29212
-
-    Most users will not need to set ``tub.location``.
+        tub.port = tcp:8098
+        tub.location = tor:ualhejtq2p7ohfbb.onion:29212
 
 ``log_gatherer.furl = (FURL, optional)``
 
@@ -284,6 +339,225 @@ set the ``tub.location`` option described below.
     used for files that usually (on a Unix system) go into ``/tmp``. The
     string will be interpreted relative to the node's base directory.
 
+``reveal-IP-address = (boolean, optional, defaults to True)``
+
+    This is a safety flag. When set to False (aka "private mode"), the node
+    will refuse to start if any of the other configuration options would
+    reveal the node's IP address to servers or the external network. This
+    flag does not directly affect the node's behavior: its only power is to
+    veto node startup when something looks unsafe.
+
+    The default is True (non-private mode), because setting it to False
+    requires the installation of additional libraries (use ``pip install
+    tahoe-lafs[tor]`` and/or ``pip install tahoe-lafs[i2p]`` to get them) as
+    well as additional non-python software (Tor/I2P daemons). Performance is
+    also generally reduced when operating in private mode.
+
+    When False, any of the following configuration problems will cause
+    ``tahoe start`` to throw a PrivacyError instead of starting the node:
+
+    * ``[node] tub.location`` contains any ``tcp:`` hints
+
+    * ``[node] tub.location`` uses ``AUTO``, or is missing/empty (because
+      that defaults to AUTO)
+
+    * ``[connections] tcp =`` is set to ``tcp`` (or left as the default),
+      rather than being set to ``tor`` or ``disabled``
+
+
+Connection Management
+=====================
+
+Three sections (``[tor]``, ``[i2p]``, and ``[connections]``) control how the
+Tahoe node makes outbound connections. Tor and I2P are configured here. This
+also controls when Tor and I2P are used: for all TCP connections (to hide
+your IP address), or only when necessary (just for servers which declare that
+they need Tor, because they use ``.onion`` addresses).
+
+Note that if you want to protect your node's IP address, you should set
+``[node] reveal-IP-address = False``, which will refuse to launch the node if
+any of the other configuration settings might violate this privacy property.
+
+``[connections]``
+-----------------
+
+This section controls *when* Tor and I2P are used. The ``[tor]`` and
+``[i2p]`` sections (described later) control *how* Tor/I2P connections are
+managed.
+
+All Tahoe nodes need to make a connection to the Introducer; the ``[client]
+introducer.furl`` setting (described below) indicates where the Introducer
+lives. Tahoe client nodes must also make connections to storage servers:
+these targets are specified in announcements that come from the Introducer.
+Both are expressed as FURLs (a Foolscap URL), which include a list of
+"connection hints". Each connection hint describes one (of perhaps many)
+network endpoints where the service might live.
+
+Connection hints include a type, and look like:
+
+* ``tcp:tahoe.example.org:12345``
+* ``tor:u33m4y7klhz3b.onion:1000``
+* ``i2p:c2ng2pbrmxmlwpijn``
+
+``tor`` hints are always handled by the ``tor`` handler (configured in the
+``[tor]`` section, described below). Likewise, ``i2p`` hints are always
+routed to the ``i2p`` handler. But either will be ignored if Tahoe was not
+installed with the necessary Tor/I2P support libraries, or if the Tor/I2P
+daemon is unreachable.
+
+The ``[connections]`` section lets you control how ``tcp`` hints are handled.
+By default, they use the normal TCP handler, which just makes direct
+connections (revealing your node's IP address to both the target server and
+the intermediate network). The node behaves this way if the ``[connections]``
+section is missing entirely, or if it looks like this::
+
+  [connections]
+   tcp = tcp
+
+To hide the Tahoe node's IP address from the servers that it uses, set the
+``[connections]`` section to use Tor for TCP hints::
+
+  [connections]
+   tcp = tor
+
+You can also disable TCP hints entirely, which would be appropriate when
+running an I2P-only node::
+
+  [connections]
+   tcp = disabled
+
+(Note that I2P does not support connections to normal TCP ports, so
+``[connections] tcp = i2p`` is invalid)
+
+In the future, Tahoe services may be changed to live on HTTP/HTTPS URLs
+instead of Foolscap. In that case, connections will be made using whatever
+handler is configured for ``tcp`` hints. So the same ``tcp = tor``
+configuration will work.
+
+``[tor]``
+---------
+
+This controls how Tor connections are made. The defaults (all empty) mean
+that, when Tor is needed, the node will try to connect to a Tor daemon's
+SOCKS proxy on localhost port 9050 or 9150. Port 9050 is the default Tor
+SOCKS port, so it should be available under any system Tor instance (e.g. the
+one launched at boot time when the standard Debian ``tor`` package is
+installed). Port 9150 is the SOCKS port for the Tor Browser Bundle, so it
+will be available any time the TBB is running.
+
+You can set ``launch = True`` to cause the Tahoe node to launch a new Tor
+daemon when it starts up (and kill it at shutdown), if you don't have a
+system-wide instance available. Note that it takes 30-60 seconds for Tor to
+get running, so using a long-running Tor process may enable a faster startup.
+If your Tor executable doesn't live on ``$PATH``, use ``tor.executable=`` to
+specify it.
+
+``[tor]``
+
+``enabled = (boolean, optional, defaults to True)``
+
+    If False, this will disable the use of Tor entirely. The default of True
+    means the node will use Tor, if necessary, and if possible.
+
+``socks.port = (string, optional, endpoint specification string, defaults to empty)``
+
+    This tells the node that Tor connections should be routed to a SOCKS
+    proxy listening on the given endpoint. The default (of an empty value)
+    will cause the node to first try localhost port 9050, then if that fails,
+    try localhost port 9150. These are the default listening ports of the
+    standard Tor daemon, and the Tor Browser Bundle, respectively.
+
+    While this nominally accepts an arbitrary endpoint string, internal
+    limitations prevent it from accepting anything but ``tcp:HOST:PORT``
+    (unfortunately, unix-domain sockets are not yet supported). See ticket
+    #2813 for details. Also note that using a HOST of anything other than
+    localhost is discouraged, because you would be revealing your IP address
+    to external (and possibly hostile) machines.
+
+``control.port = (string, optional, endpoint specification string)``
+
+    This tells the node to connect to a pre-existing Tor daemon on the given
+    control port (which is typically ``unix://var/run/tor/control`` or
+    ``tcp:localhost:9051``). The node will then ask Tor what SOCKS port it is
+    using, and route Tor connections to that.
+
+``launch = (bool, optional, defaults to False)``
+
+    If True, the node will spawn a new (private) copy of Tor at startup, and
+    will kill it at shutdown. The new Tor will be given a persistent state
+    directory under ``NODEDIR/private/``, where Tor's microdescriptors will
+    be cached, to speed up subsequent startup.
+
+``tor.executable = (string, optional, defaults to empty)``
+
+    This controls which Tor executable is used when ``launch = True``. If
+    empty, the first executable program named ``tor`` found on ``$PATH`` will
+    be used.
+
+There are 5 valid combinations of these configuration settings:
+
+* 1: ``(empty)``: use SOCKS on port 9050/9150
+* 2: ``launch = true``: launch a new Tor
+* 3: ``socks.port = tcp:HOST:PORT``: use an existing Tor on the given SOCKS port
+* 4: ``control.port = ENDPOINT``: use an existing Tor at the given control port
+* 5: ``enabled = false``: no Tor at all
+
+1 is the default, and should work for any Linux host with the system Tor
+package installed. 2 should work on any box with Tor installed into $PATH,
+but will take an extra 30-60 seconds at startup. 3 and 4 can be used for
+specialized installations, where Tor is already running, but not listening on
+the default port. 5 should be used in environments where Tor is installed,
+but should not be used (perhaps due to a site-wide policy).
+
+Note that Tor support depends upon some additional Python libraries. To
+install Tahoe with Tor support, use ``pip install tahoe-lafs[tor]``.
+
+``[i2p]``
+---------
+
+This controls how I2P connections are made. Like with Tor, the all-empty
+defaults will cause I2P connections to be routed to a pre-existing I2P daemon
+on port 7656. This is the default SAM port for the ``i2p`` daemon.
+
+
+``[i2p]``
+
+``enabled = (boolean, optional, defaults to True)``
+
+    If False, this will disable the use of I2P entirely. The default of True
+    means the node will use I2P, if necessary, and if possible.
+
+``sam.port = (string, optional, endpoint descriptor, defaults to empty)``
+
+    This tells the node that I2P connections should be made via the SAM
+    protocol on the given port. The default (of an empty value) will cause
+    the node to try localhost port 7656. This is the default listening port
+    of the standard I2P daemon.
+
+``launch = (bool, optional, defaults to False)``
+
+    If True, the node will spawn a new (private) copy of I2P at startup, and
+    will kill it at shutdown. The new I2P will be given a persistent state
+    directory under ``NODEDIR/private/``, where I2P's microdescriptors will
+    be cached, to speed up subsequent startup. The daemon will allocate its
+    own SAM port, which will be queried from the config directory.
+
+``i2p.configdir = (string, optional, directory)``
+
+    This tells the node to parse an I2P config file in the given directory,
+    and use the SAM port it finds there. If ``launch = True``, the new I2P
+    daemon will be told to use the given directory (which can be
+    pre-populated with a suitable config file). If ``launch = False``, we
+    assume there is a pre-running I2P daemon running from this directory, and
+    can again parse the config file for the SAM port.
+
+``i2p.executable = (string, optional, defaults to empty)``
+
+    This controls which I2P executable is used when ``launch = True``. If
+    empty, the first executable program named ``i2p`` found on ``$PATH`` will
+    be used.
+
+
 
 Client Configuration
 ====================
@@ -302,12 +576,6 @@ Client Configuration
 
     If provided, the node will attempt to connect to and use the given helper
     for uploads. See :doc:`helper` for details.
-
-``key_generator.furl = (FURL string, optional)``
-
-    If provided, the node will attempt to connect to and use the given
-    key-generator service, using RSA keys from the external process rather
-    than generating its own.
 
 ``stats_gatherer.furl = (FURL string, optional)``
 
@@ -434,11 +702,11 @@ SFTP, FTP
     for instructions on configuring these services, and the ``[sftpd]`` and
     ``[ftpd]`` sections of ``tahoe.cfg``.
 
-Drop-Upload
+Magic Folder
 
-    As of Tahoe-LAFS v1.9.0, a node running on Linux can be configured to
-    automatically upload files that are created or changed in a specified
-    local directory. See :doc:`frontends/drop-upload` for details.
+    A node running on Linux or Windows can be configured to automatically
+    upload files that are created or changed in a specified local directory.
+    See :doc:`frontends/magic-folder` for details.
 
 
 Storage Server Configuration
@@ -538,6 +806,8 @@ Other Files in BASEDIR
 
 Some configuration is not kept in ``tahoe.cfg``, for the following reasons:
 
+* it doesn't fit into the INI format of ``tahoe.cfg`` (e.g.
+  ``private/servers.yaml``)
 * it is generated by the node at startup, e.g. encryption keys. The node
   never writes to ``tahoe.cfg``.
 * it is generated by user action, e.g. the "``tahoe create-alias``" command.
@@ -574,11 +844,6 @@ This section describes these other files.
 
   This file is used to construct an introducer, and is created by the
   "``tahoe create-introducer``" command.
-
-``tahoe-key-generator.tac``
-
-  This file is used to construct a key generator, and is created by the
-  "``tahoe create-key-gernerator``" command.
 
 ``tahoe-stats-gatherer.tac``
 
@@ -636,6 +901,138 @@ This section describes these other files.
   with as many people as possible, put the empty string (so that
   ``private/convergence`` is a zero-length file).
 
+Additional Introducer Definitions
+=================================
+
+The ``private/introducers.yaml`` file defines additional Introducers. The
+first introducer is defined in ``tahoe.cfg``, in ``[client]
+introducer.furl``. To use two or more Introducers, choose a locally-unique
+"petname" for each one, then define their FURLs in
+``private/introducers.yaml`` like this::
+
+  introducers:
+    petname2:  furl = FURL2
+    petname3:  furl = FURL3
+
+Servers will announce themselves to all configured introducers. Clients will
+merge the announcements they receive from all introducers. Nothing will
+re-broadcast an announcement (i.e. telling introducer 2 about something you
+heard from introducer 1).
+
+If you omit the introducer definitions from both ``tahoe.cfg`` and
+``introducers.yaml``, the node will not use an Introducer at all. Such
+"introducerless" clients must be configured with static servers (described
+below), or they will not be able to upload and download files.
+
+Static Server Definitions
+=========================
+
+The ``private/servers.yaml`` file defines "static servers": those which are
+not announced through the Introducer. This can also control how we connect to
+those servers.
+
+Most clients do not need this file. It is only necessary if you want to use
+servers which are (for some specialized reason) not announced through the
+Introducer, or to connect to those servers in different ways. You might do
+this to "freeze" the server list: use the Introducer for a while, then copy
+all announcements into ``servers.yaml``, then stop using the Introducer
+entirely. Or you might have a private server that you don't want other users
+to learn about (via the Introducer). Or you might run a local server which is
+announced to everyone else as a Tor onion address, but which you can connect
+to directly (via TCP).
+
+The file syntax is `YAML`_, with a top-level dictionary named ``storage``.
+Other items may be added in the future.
+
+The ``storage`` dictionary takes keys which are server-ids, and values which
+are dictionaries with two keys: ``ann`` and ``connections``. The ``ann``
+value is a dictionary which will be used in lieu of the introducer
+announcement, so it can be populated by copying the ``ann`` dictionary from
+``NODEDIR/introducer_cache.yaml``.
+
+The server-id can be any string, but ideally you should use the public key as
+published by the server. Each server displays this as "Node ID:" in the
+top-right corner of its "WUI" web welcome page. It can also be obtained from
+other client nodes, which record it as ``key_s:`` in their
+``introducer_cache.yaml`` file. The format is "v0-" followed by 52 base32
+characters like so::
+
+  v0-c2ng2pbrmxmlwpijn3mr72ckk5fmzk6uxf6nhowyosaubrt6y5mq
+
+The ``ann`` dictionary really only needs one key:
+
+* ``anonymous-storage-FURL``: how we connect to the server
+
+(note that other important keys may be added in the future, as Accounting and
+HTTP-based servers are implemented)
+
+Optional keys include:
+
+* ``nickname``: the name of this server, as displayed on the Welcome page
+  server list
+* ``permutation-seed-base32``: this controls how shares are mapped to
+  servers. This is normally computed from the server-ID, but can be
+  overridden to maintain the mapping for older servers which used to use
+  Foolscap TubIDs as server-IDs. If your selected server-ID cannot be parsed
+  as a public key, it will be hashed to compute the permutation seed. This is
+  fine as long as all clients use the same thing, but if they don't, then
+  your client will disagree with the other clients about which servers should
+  hold each share. This will slow downloads for everybody, and may cause
+  additional work or consume extra storage when repair operations don't
+  converge.
+* anything else from the ``introducer_cache.yaml`` announcement, like
+  ``my-version``, which is displayed on the Welcome page server list
+
+For example, a private static server could be defined with a
+``private/servers.yaml`` file like this::
+
+  storage:
+    v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia:
+      ann:
+        nickname: my-server-1
+        anonymous-storage-FURL: pb://u33m4y7klhz3bypswqkozwetvabelhxt@tcp:8.8.8.8:51298/eiu2i7p6d6mm4ihmss7ieou5hac3wn6b
+
+Or, if you're feeling really lazy::
+
+  storage:
+    my-serverid-1:
+      ann:
+        anonymous-storage-FURL: pb://u33m4y7klhz3bypswqkozwetvabelhxt@tcp:8.8.8.8:51298/eiu2i7p6d6mm4ihmss7ieou5hac3wn6b
+
+.. _YAML: http://yaml.org/
+
+Overriding Connection-Handlers for Static Servers
+-------------------------------------------------
+
+A ``connections`` entry will override the default connection-handler mapping
+(as established by ``tahoe.cfg [connections]``). This can be used to build a
+"Tor-mostly client": one which is restricted to use Tor for all connections,
+except for a few private servers to which normal TCP connections will be
+made. To override the published announcement (and thus avoid connecting twice
+to the same server), the server ID must exactly match.
+
+``tahoe.cfg``::
+
+  [connections]
+   # this forces the use of Tor for all "tcp" hints
+   tcp = tor
+
+``private/servers.yaml``::
+
+  storage:
+    v0-c2ng2pbrmxmlwpijn3mr72ckk5fmzk6uxf6nhowyosaubrt6y5mq:
+      ann:
+        nickname: my-server-1
+        anonymous-storage-FURL: pb://u33m4y7klhz3bypswqkozwetvabelhxt@tcp:10.1.2.3:51298/eiu2i7p6d6mm4ihmss7ieou5hac3wn6b
+      connections:
+        # this overrides the tcp=tor from tahoe.cfg, for just this server
+        tcp: tcp
+
+The ``connections`` table is needed to override the ``tcp = tor`` mapping
+that comes from ``tahoe.cfg``. Without it, the client would attempt to use
+Tor to connect to ``10.1.2.3``, which would fail because it is a
+local/non-routeable (RFC1918) address.
+
 
 Other files
 ===========
@@ -681,16 +1078,16 @@ a legal one.
 
   [node]
   nickname = Bob's Tahoe-LAFS Node
-  tub.port = 34912
-  tub.location = 123.45.67.89:8098,44.55.66.77:8098
-  web.port = 3456
+  tub.port = tcp:34912
+  tub.location = tcp:123.45.67.89:8098,tcp:44.55.66.77:8098
+  web.port = tcp:3456
   log_gatherer.furl = pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm
   timeout.keepalive = 240
   timeout.disconnect = 1800
   
   [client]
-  introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
-  helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@helper.tahoe.example:7054/kk8lhr
+  introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tcp:tahoe.example:44801/ii3uumo
+  helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@tcp:helper.tahoe.example:7054/kk8lhr
   
   [storage]
   enabled = True

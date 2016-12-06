@@ -30,7 +30,7 @@ next renewal pass.
 
 There are several tradeoffs to be considered when choosing the renewal timer
 and the lease duration, and there is no single optimal pair of values. See
-the the follwing diagram to get an idea for the tradeoffs involved:
+the following diagram to get an idea of the tradeoffs involved:
 
 .. image:: lease-tradeoffs.svg
 

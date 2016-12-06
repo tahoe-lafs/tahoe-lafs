@@ -2,44 +2,20 @@
 import time
 from zope.interface import implements
 from twisted.application import service
-from foolscap.api import Referenceable, eventually, RemoteInterface
+from foolscap.api import Referenceable, eventually
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
-     RIIntroducerSubscriberClient_v1, RIIntroducerSubscriberClient_v2
+     RIIntroducerSubscriberClient_v2
 from allmydata.introducer.common import sign_to_foolscap, unsign_from_foolscap,\
-     convert_announcement_v1_to_v2, convert_announcement_v2_to_v1, \
-     make_index, get_tubid_string_from_ann, get_tubid_string
-from allmydata.util import log
+     get_tubid_string_from_ann
+from allmydata.util import log, yamlutil
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.keyutil import BadSignatureError
+from allmydata.util.assertutil import precondition
 
-class WrapV2ClientInV1Interface(Referenceable): # for_v1
-    """I wrap a v2 IntroducerClient to make it look like a v1 client, so it
-    can be attached to an old server."""
-    implements(RIIntroducerSubscriberClient_v1)
+class InvalidCacheError(Exception):
+    pass
 
-    def __init__(self, original):
-        self.original = original
-
-    def remote_announce(self, announcements):
-        lp = self.original.log("received %d announcements (v1)" %
-                               len(announcements))
-        anns_v1 = set([convert_announcement_v1_to_v2(ann_v1)
-                       for ann_v1 in announcements])
-        return self.original.got_announcements(anns_v1, lp)
-
-class RIStubClient(RemoteInterface): # for_v1
-    """Each client publishes a service announcement for a dummy object called
-    the StubClient. This object doesn't actually offer any services, but the
-    announcement helps the Introducer keep track of which clients are
-    subscribed (so the grid admin can keep track of things like the size of
-    the grid and the client versions in use. This is the (empty)
-    RemoteInterface for the StubClient."""
-
-class StubClient(Referenceable): # for_v1
-    implements(RIStubClient)
-
-V1 = "http://allmydata.org/tahoe/protocols/introducer/v1"
 V2 = "http://allmydata.org/tahoe/protocols/introducer/v2"
 
 class IntroducerClient(service.Service, Referenceable):
@@ -47,7 +23,7 @@ class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions, sequencer):
+                 app_versions, sequencer, cache_filepath):
         self._tub = tub
         self.introducer_furl = introducer_furl
 
@@ -57,6 +33,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._oldest_supported = oldest_supported
         self._app_versions = app_versions
         self._sequencer = sequencer
+        self._cache_filepath = cache_filepath
 
         self._my_subscriber_info = { "version": 0,
                                      "nickname": self._nickname,
@@ -64,14 +41,13 @@ class IntroducerClient(service.Service, Referenceable):
                                      "my-version": self._my_version,
                                      "oldest-supported": self._oldest_supported,
                                      }
-        self._stub_client = None # for_v1
-        self._stub_client_furl = None
 
         self._outbound_announcements = {} # not signed
         self._published_announcements = {} # signed
         self._canary = Referenceable()
 
         self._publisher = None
+        self._since = None
 
         self._local_subscribers = [] # (servicename,cb,args,kwargs) tuples
         self._subscribed_service_names = set()
@@ -110,8 +86,40 @@ class IntroducerClient(service.Service, Referenceable):
         def connect_failed(failure):
             self.log("Initial Introducer connection failed: perhaps it's down",
                      level=log.WEIRD, failure=failure, umid="c5MqUQ")
+            self._load_announcements()
         d = self._tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
+
+    def _load_announcements(self):
+        try:
+            with self._cache_filepath.open() as f:
+                servers = yamlutil.safe_load(f)
+        except EnvironmentError:
+            return # no cache file
+        if not isinstance(servers, list):
+            log.err(InvalidCacheError("not a list"), level=log.WEIRD)
+            return
+        self.log("Using server data from cache", level=log.UNUSUAL)
+        for server_params in servers:
+            if not isinstance(server_params, dict):
+                log.err(InvalidCacheError("not a dict: %r" % (server_params,)),
+                        level=log.WEIRD)
+                continue
+            # everything coming from yamlutil.safe_load is unicode
+            key_s = server_params['key_s'].encode("ascii")
+            self._deliver_announcements(key_s, server_params['ann'])
+
+    def _save_announcements(self):
+        announcements = []
+        for _, value in self._inbound_announcements.items():
+            ann, key_s, time_stamp = value
+            server_params = {
+                "ann" : ann,
+                "key_s" : key_s,
+                }
+            announcements.append(server_params)
+        announcement_cache_yaml = yamlutil.safe_dump(announcements)
+        self._cache_filepath.setContent(announcement_cache_yaml)
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")
@@ -129,10 +137,11 @@ class IntroducerClient(service.Service, Referenceable):
 
     def _got_versioned_introducer(self, publisher):
         self.log("got introducer version: %s" % (publisher.version,))
-        # we require an introducer that speaks at least one of (V1, V2)
-        if not (V1 in publisher.version or V2 in publisher.version):
-            raise InsufficientVersionError("V1 or V2", publisher.version)
+        # we require an introducer that speaks at least V2
+        if V2 not in publisher.version:
+            raise InsufficientVersionError("V2", publisher.version)
         self._publisher = publisher
+        self._since = int(time.time())
         publisher.notifyOnDisconnect(self._disconnected)
         self._maybe_publish()
         self._maybe_subscribe()
@@ -140,6 +149,7 @@ class IntroducerClient(service.Service, Referenceable):
     def _disconnected(self):
         self.log("bummer, we've lost our connection to the introducer")
         self._publisher = None
+        self._since = int(time.time())
         self._subscriptions.clear()
 
     def log(self, *args, **kwargs):
@@ -152,6 +162,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
         for index,(ann,key_s,when) in self._inbound_announcements.items():
+            precondition(isinstance(key_s, str), key_s)
             servicename = index[0]
             if servicename == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
@@ -165,38 +176,13 @@ class IntroducerClient(service.Service, Referenceable):
             if service_name in self._subscriptions:
                 continue
             self._subscriptions.add(service_name)
-            if V2 in self._publisher.version:
-                self._debug_outstanding += 1
-                d = self._publisher.callRemote("subscribe_v2",
-                                               self, service_name,
-                                               self._my_subscriber_info)
-                d.addBoth(self._debug_retired)
-            else:
-                d = self._subscribe_handle_v1(service_name) # for_v1
+            self._debug_outstanding += 1
+            d = self._publisher.callRemote("subscribe_v2",
+                                           self, service_name,
+                                           self._my_subscriber_info)
+            d.addBoth(self._debug_retired)
             d.addErrback(log.err, facility="tahoe.introducer.client",
                          level=log.WEIRD, umid="2uMScQ")
-
-    def _subscribe_handle_v1(self, service_name): # for_v1
-        # they don't speak V2: must be a v1 introducer. Fall back to the v1
-        # 'subscribe' method, using a client adapter.
-        ca = WrapV2ClientInV1Interface(self)
-        self._debug_outstanding += 1
-        d = self._publisher.callRemote("subscribe", ca, service_name)
-        d.addBoth(self._debug_retired)
-        # We must also publish an empty 'stub_client' object, so the
-        # introducer can count how many clients are connected and see what
-        # versions they're running.
-        if not self._stub_client_furl:
-            self._stub_client = sc = StubClient()
-            self._stub_client_furl = self._tub.registerReference(sc)
-        def _publish_stub_client(ignored):
-            furl = self._stub_client_furl
-            self.publish("stub_client",
-                         { "anonymous-storage-FURL": furl,
-                           "permutation-seed-base32": get_tubid_string(furl),
-                           })
-        d.addCallback(_publish_stub_client)
-        return d
 
     def create_announcement_dict(self, service_name, ann):
         ann_d = { "version": 0,
@@ -212,7 +198,7 @@ class IntroducerClient(service.Service, Referenceable):
         ann_d.update(ann)
         return ann_d
 
-    def publish(self, service_name, ann, signing_key=None):
+    def publish(self, service_name, ann, signing_key):
         # we increment the seqnum every time we publish something new
         current_seqnum, current_nonce = self._sequencer()
 
@@ -234,41 +220,25 @@ class IntroducerClient(service.Service, Referenceable):
         # this re-publishes everything. The Introducer ignores duplicates
         for ann_t in self._published_announcements.values():
             self._debug_counts["outbound_message"] += 1
-            if V2 in self._publisher.version:
-                self._debug_outstanding += 1
-                d = self._publisher.callRemote("publish_v2", ann_t,
-                                               self._canary)
-                d.addBoth(self._debug_retired)
-            else:
-                d = self._handle_v1_publisher(ann_t) # for_v1
+            self._debug_outstanding += 1
+            d = self._publisher.callRemote("publish_v2", ann_t, self._canary)
+            d.addBoth(self._debug_retired)
             d.addErrback(log.err, ann_t=ann_t,
                          facility="tahoe.introducer.client",
                          level=log.WEIRD, umid="xs9pVQ")
-
-    def _handle_v1_publisher(self, ann_t): # for_v1
-        # they don't speak V2, so fall back to the old 'publish' method
-        # (which takes an unsigned tuple of bytestrings)
-        self.log("falling back to publish_v1",
-                 level=log.UNUSUAL, umid="9RCT1A")
-        ann_v1 = convert_announcement_v2_to_v1(ann_t)
-        self._debug_outstanding += 1
-        d = self._publisher.callRemote("publish", ann_v1)
-        d.addBoth(self._debug_retired)
-        return d
-
 
     def remote_announce_v2(self, announcements):
         lp = self.log("received %d announcements (v2)" % len(announcements))
         return self.got_announcements(announcements, lp)
 
     def got_announcements(self, announcements, lp=None):
-        # this is the common entry point for both v1 and v2 announcements
         self._debug_counts["inbound_message"] += 1
         for ann_t in announcements:
             try:
                 # this might raise UnknownKeyError or bad-sig error
                 ann, key_s = unsign_from_foolscap(ann_t)
                 # key is "v0-base32abc123"
+                precondition(isinstance(key_s, str), key_s)
             except BadSignatureError:
                 self.log("bad signature on inbound announcement: %s" % (ann_t,),
                          parent=lp, level=log.WEIRD, umid="ZAU15Q")
@@ -278,6 +248,7 @@ class IntroducerClient(service.Service, Referenceable):
             self._process_announcement(ann, key_s)
 
     def _process_announcement(self, ann, key_s):
+        precondition(isinstance(key_s, str), key_s)
         self._debug_counts["inbound_announcement"] += 1
         service_name = str(ann["service-name"])
         if service_name not in self._subscribed_service_names:
@@ -294,15 +265,15 @@ class IntroducerClient(service.Service, Referenceable):
 
         # how do we describe this node in the logs?
         desc_bits = []
-        if key_s:
-            desc_bits.append("serverid=" + key_s[:20])
+        assert key_s
+        desc_bits.append("serverid=" + key_s[:20])
         if "anonymous-storage-FURL" in ann:
             tubid_s = get_tubid_string_from_ann(ann)
             desc_bits.append("tubid=" + tubid_s[:8])
         description = "/".join(desc_bits)
 
         # the index is used to track duplicates
-        index = make_index(ann, key_s)
+        index = (service_name, key_s)
 
         # is this announcement a duplicate?
         if (index in self._inbound_announcements
@@ -343,11 +314,26 @@ class IntroducerClient(service.Service, Referenceable):
                      parent=lp2, level=log.NOISY)
 
         self._inbound_announcements[index] = (ann, key_s, time.time())
+        self._save_announcements()
         # note: we never forget an index, but we might update its value
 
+        self._deliver_announcements(key_s, ann)
+
+    def _deliver_announcements(self, key_s, ann):
+        precondition(isinstance(key_s, str), key_s)
+        service_name = str(ann["service-name"])
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
 
     def connected_to_introducer(self):
         return bool(self._publisher)
+
+    def get_since(self):
+        return self._since
+
+    def get_last_received_data_time(self):
+        if self._publisher is None:
+            return None
+        else:
+            return self._publisher.getDataLastReceivedAt()

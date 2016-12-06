@@ -6,22 +6,21 @@ import simplejson
 from twisted.trial import unittest
 from twisted.internet import defer, address
 from twisted.python import log
+from twisted.python.filepath import FilePath
 
 from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
 from allmydata.interfaces import InsufficientVersionError
-from allmydata.introducer.client import IntroducerClient, \
-     WrapV2ClientInV1Interface
+from allmydata.introducer.client import IntroducerClient
 from allmydata.introducer.server import IntroducerService, FurlFileConflictError
 from allmydata.introducer.common import get_tubid_string_from_ann, \
      get_tubid_string, sign_to_foolscap, unsign_from_foolscap, \
      UnknownKeyError
-from allmydata.introducer import old
 # test compatibility with old introducer .tac files
 from allmydata.introducer import IntroducerNode
 from allmydata.web import introweb
 from allmydata.client import Client as TahoeClient
-from allmydata.util import pollmixin, keyutil, idlib, fileutil
+from allmydata.util import pollmixin, keyutil, idlib, fileutil, iputil, yamlutil
 import allmydata.test.common_util as testutil
 
 class LoggingMultiService(service.MultiService):
@@ -34,45 +33,33 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         os.mkdir(basedir)
         public_fn = os.path.join(basedir, "introducer.furl")
         private_fn = os.path.join(basedir, "private", "introducer.furl")
+
         q1 = IntroducerNode(basedir)
-        d = fireEventually(None)
-        d.addCallback(lambda res: q1.startService())
-        d.addCallback(lambda res: q1.when_tub_ready())
-        d.addCallback(lambda res: q1.stopService())
-        d.addCallback(flushEventualQueue)
-        def _check_furl(res):
-            # new nodes create unguessable furls in private/introducer.furl
-            ifurl = fileutil.read(private_fn)
-            self.failUnless(ifurl)
-            ifurl = ifurl.strip()
-            self.failIf(ifurl.endswith("/introducer"), ifurl)
+        del q1
+        # new nodes create unguessable furls in private/introducer.furl
+        ifurl = fileutil.read(private_fn)
+        self.failUnless(ifurl)
+        ifurl = ifurl.strip()
+        self.failIf(ifurl.endswith("/introducer"), ifurl)
 
-            # old nodes created guessable furls in BASEDIR/introducer.furl
-            guessable = ifurl[:ifurl.rfind("/")] + "/introducer"
-            fileutil.write(public_fn, guessable+"\n", mode="w") # text
+        # old nodes created guessable furls in BASEDIR/introducer.furl
+        guessable = ifurl[:ifurl.rfind("/")] + "/introducer"
+        fileutil.write(public_fn, guessable+"\n", mode="w") # text
 
-            # if we see both files, throw an error
-            self.failUnlessRaises(FurlFileConflictError,
-                                  IntroducerNode, basedir)
+        # if we see both files, throw an error
+        self.failUnlessRaises(FurlFileConflictError,
+                              IntroducerNode, basedir)
 
-            # when we see only the public one, move it to private/ and use
-            # the existing furl instead of creating a new one
-            os.unlink(private_fn)
-            q2 = IntroducerNode(basedir)
-            d2 = fireEventually(None)
-            d2.addCallback(lambda res: q2.startService())
-            d2.addCallback(lambda res: q2.when_tub_ready())
-            d2.addCallback(lambda res: q2.stopService())
-            d2.addCallback(flushEventualQueue)
-            def _check_furl2(res):
-                self.failIf(os.path.exists(public_fn))
-                ifurl2 = fileutil.read(private_fn)
-                self.failUnless(ifurl2)
-                self.failUnlessEqual(ifurl2.strip(), guessable)
-            d2.addCallback(_check_furl2)
-            return d2
-        d.addCallback(_check_furl)
-        return d
+        # when we see only the public one, move it to private/ and use
+        # the existing furl instead of creating a new one
+        os.unlink(private_fn)
+
+        q2 = IntroducerNode(basedir)
+        del q2
+        self.failIf(os.path.exists(public_fn))
+        ifurl2 = fileutil.read(private_fn)
+        self.failUnless(ifurl2)
+        self.failUnlessEqual(ifurl2.strip(), guessable)
 
     def test_web_static(self):
         basedir = u"introducer.Node.test_web_static"
@@ -100,65 +87,15 @@ class ServiceMixin:
         return d
 
 class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
-
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {}, fakeseq,
+                              FilePath(self.mktemp()))
         self.failUnless(isinstance(ic, IntroducerClient))
 
     def test_listen(self):
         i = IntroducerService()
         i.setServiceParent(self.parent)
-
-    def test_duplicate_publish(self):
-        i = IntroducerService()
-        self.failUnlessEqual(len(i.get_announcements()), 0)
-        self.failUnlessEqual(len(i.get_subscribers()), 0)
-        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@192.168.69.247:36106,127.0.0.1:36106/gydnpigj2ja2qr2srq4ikjwnl7xfgbra"
-        furl2 = "pb://ttwwooyunnyhzs7r6vdonnm2hpi52w6y@192.168.69.247:36111,127.0.0.1:36106/ttwwoogj2ja2qr2srq4ikjwnl7xfgbra"
-        ann1 = (furl1, "storage", "RIStorage", "nick1", "ver23", "ver0")
-        ann1b = (furl1, "storage", "RIStorage", "nick1", "ver24", "ver0")
-        ann2 = (furl2, "storage", "RIStorage", "nick2", "ver30", "ver0")
-        i.remote_publish(ann1)
-        self.failUnlessEqual(len(i.get_announcements()), 1)
-        self.failUnlessEqual(len(i.get_subscribers()), 0)
-        i.remote_publish(ann2)
-        self.failUnlessEqual(len(i.get_announcements()), 2)
-        self.failUnlessEqual(len(i.get_subscribers()), 0)
-        i.remote_publish(ann1b)
-        self.failUnlessEqual(len(i.get_announcements()), 2)
-        self.failUnlessEqual(len(i.get_subscribers()), 0)
-
-    def test_id_collision(self):
-        # test replacement case where tubid equals a keyid (one should
-        # not replace the other)
-        i = IntroducerService()
-        ic = IntroducerClient(None,
-                              "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
-        sk_s, vk_s = keyutil.make_keypair()
-        sk, _ignored = keyutil.parse_privkey(sk_s)
-        keyid = keyutil.remove_prefix(vk_s, "pub-v0-")
-        furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
-        ann_t = make_ann_t(ic, furl1, sk, 1)
-        i.remote_publish_v2(ann_t, Referenceable())
-        announcements = i.get_announcements()
-        self.failUnlessEqual(len(announcements), 1)
-        key1 = ("storage", "v0-"+keyid, None)
-        self.failUnlessEqual(announcements[0].index, key1)
-        ann1_out = announcements[0].announcement
-        self.failUnlessEqual(ann1_out["anonymous-storage-FURL"], furl1)
-
-        furl2 = "pb://%s@127.0.0.1:36106/swissnum" % keyid
-        ann2 = (furl2, "storage", "RIStorage", "nick1", "ver23", "ver0")
-        i.remote_publish(ann2)
-        announcements = i.get_announcements()
-        self.failUnlessEqual(len(announcements), 2)
-        key2 = ("storage", None, keyid)
-        wanted = [ad for ad in announcements if ad.index == key2]
-        self.failUnlessEqual(len(wanted), 1)
-        ann2_out = wanted[0].announcement
-        self.failUnlessEqual(ann2_out["anonymous-storage-FURL"], furl2)
 
 
 def fakeseq():
@@ -174,6 +111,7 @@ def make_ann(furl):
     return ann
 
 def make_ann_t(ic, furl, privkey, seqnum):
+    assert privkey
     ann_d = ic.create_announcement_dict("storage", make_ann(furl))
     ann_d["seqnum"] = seqnum
     ann_d["nonce"] = "nonce"
@@ -181,64 +119,17 @@ def make_ann_t(ic, furl, privkey, seqnum):
     return ann_t
 
 class Client(unittest.TestCase):
-    def test_duplicate_receive_v1(self):
-        ic = IntroducerClient(None,
-                              "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
-        announcements = []
-        ic.subscribe_to("storage",
-                        lambda key_s,ann: announcements.append(ann))
-        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnpigj2ja2qr2srq4ikjwnl7xfgbra"
-        ann1 = (furl1, "storage", "RIStorage", "nick1", "ver23", "ver0")
-        ann1b = (furl1, "storage", "RIStorage", "nick1", "ver24", "ver0")
-        ca = WrapV2ClientInV1Interface(ic)
-
-        ca.remote_announce([ann1])
-        d = fireEventually()
-        def _then(ign):
-            self.failUnlessEqual(len(announcements), 1)
-            self.failUnlessEqual(announcements[0]["nickname"], u"nick1")
-            self.failUnlessEqual(announcements[0]["my-version"], "ver23")
-            self.failUnlessEqual(ic._debug_counts["inbound_announcement"], 1)
-            self.failUnlessEqual(ic._debug_counts["new_announcement"], 1)
-            self.failUnlessEqual(ic._debug_counts["update"], 0)
-            self.failUnlessEqual(ic._debug_counts["duplicate_announcement"], 0)
-            # now send a duplicate announcement: this should not notify clients
-            ca.remote_announce([ann1])
-            return fireEventually()
-        d.addCallback(_then)
-        def _then2(ign):
-            self.failUnlessEqual(len(announcements), 1)
-            self.failUnlessEqual(ic._debug_counts["inbound_announcement"], 2)
-            self.failUnlessEqual(ic._debug_counts["new_announcement"], 1)
-            self.failUnlessEqual(ic._debug_counts["update"], 0)
-            self.failUnlessEqual(ic._debug_counts["duplicate_announcement"], 1)
-            # and a replacement announcement: same FURL, new other stuff.
-            # Clients should be notified.
-            ca.remote_announce([ann1b])
-            return fireEventually()
-        d.addCallback(_then2)
-        def _then3(ign):
-            self.failUnlessEqual(len(announcements), 2)
-            self.failUnlessEqual(ic._debug_counts["inbound_announcement"], 3)
-            self.failUnlessEqual(ic._debug_counts["new_announcement"], 1)
-            self.failUnlessEqual(ic._debug_counts["update"], 1)
-            self.failUnlessEqual(ic._debug_counts["duplicate_announcement"], 1)
-            # test that the other stuff changed
-            self.failUnlessEqual(announcements[-1]["nickname"], u"nick1")
-            self.failUnlessEqual(announcements[-1]["my-version"], "ver24")
-        d.addCallback(_then3)
-        return d
-
     def test_duplicate_receive_v2(self):
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, fakeseq)
+                               "ver23", "oldest_version", {}, fakeseq,
+                               FilePath(self.mktemp()))
         # we use a second client just to create a different-looking
         # announcement
         ic2 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver24","oldest_version",{}, fakeseq)
+                               "ver24","oldest_version",{}, fakeseq,
+                               FilePath(self.mktemp()))
         announcements = []
         def _received(key_s, ann):
             announcements.append( (key_s, ann) )
@@ -336,50 +227,13 @@ class Client(unittest.TestCase):
         d.addCallback(_then5)
         return d
 
-    def test_id_collision(self):
-        # test replacement case where tubid equals a keyid (one should
-        # not replace the other)
-        ic = IntroducerClient(None,
-                              "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
-        announcements = []
-        ic.subscribe_to("storage",
-                        lambda key_s,ann: announcements.append(ann))
-        sk_s, vk_s = keyutil.make_keypair()
-        sk, _ignored = keyutil.parse_privkey(sk_s)
-        keyid = keyutil.remove_prefix(vk_s, "pub-v0-")
-        furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
-        furl2 = "pb://%s@127.0.0.1:36106/swissnum" % keyid
-        ann_t = make_ann_t(ic, furl1, sk, 1)
-        ic.remote_announce_v2([ann_t])
-        d = fireEventually()
-        def _then(ign):
-            # first announcement has been processed
-            self.failUnlessEqual(len(announcements), 1)
-            self.failUnlessEqual(announcements[0]["anonymous-storage-FURL"],
-                                 furl1)
-            # now submit a second one, with a tubid that happens to look just
-            # like the pubkey-based serverid we just processed. They should
-            # not overlap.
-            ann2 = (furl2, "storage", "RIStorage", "nick1", "ver23", "ver0")
-            ca = WrapV2ClientInV1Interface(ic)
-            ca.remote_announce([ann2])
-            return fireEventually()
-        d.addCallback(_then)
-        def _then2(ign):
-            # if they overlapped, the second announcement would be ignored
-            self.failUnlessEqual(len(announcements), 2)
-            self.failUnlessEqual(announcements[1]["anonymous-storage-FURL"],
-                                 furl2)
-        d.addCallback(_then2)
-        return d
-
 class Server(unittest.TestCase):
     def test_duplicate(self):
         i = IntroducerService()
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, realseq)
+                               "ver23", "oldest_version", {}, realseq,
+                               FilePath(self.mktemp()))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
 
         privkey_s, _ = keyutil.make_keypair()
@@ -456,17 +310,17 @@ NICKNAME = u"n\u00EDickname-%s" # LATIN SMALL LETTER I WITH ACUTE
 
 class SystemTestMixin(ServiceMixin, pollmixin.PollMixin):
 
-    def create_tub(self, portnum=0):
+    def create_tub(self, portnum=None):
         tubfile = os.path.join(self.basedir, "tub.pem")
         self.central_tub = tub = Tub(certFile=tubfile)
         #tub.setOption("logLocalFailures", True)
         #tub.setOption("logRemoteFailures", True)
         tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
-        l = tub.listenOn("tcp:%d" % portnum)
-        self.central_portnum = l.getPortnum()
-        if portnum != 0:
-            assert self.central_portnum == portnum
+        if portnum is None:
+            portnum = iputil.allocate_tcp_port()
+        tub.listenOn("tcp:%d" % portnum)
+        self.central_portnum = portnum
         tub.setLocation("localhost:%d" % self.central_portnum)
 
 class Queue(SystemTestMixin, unittest.TestCase):
@@ -481,7 +335,8 @@ class Queue(SystemTestMixin, unittest.TestCase):
         tub2 = Tub()
         tub2.setServiceParent(self.parent)
         c = IntroducerClient(tub2, ifurl,
-                             u"nickname", "version", "oldest", {}, fakeseq)
+                             u"nickname", "version", "oldest", {}, fakeseq,
+                             FilePath(self.mktemp()))
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -518,15 +373,11 @@ class Queue(SystemTestMixin, unittest.TestCase):
         return d
 
 
-V1 = "v1"; V2 = "v2"
 class SystemTest(SystemTestMixin, unittest.TestCase):
 
-    def do_system_test(self, server_version):
+    def do_system_test(self):
         self.create_tub()
-        if server_version == V1:
-            introducer = old.IntroducerService_v1()
-        else:
-            introducer = IntroducerService()
+        introducer = IntroducerService()
         introducer.setServiceParent(self.parent)
         iff = os.path.join(self.basedir, "introducer.furl")
         tub = self.central_tub
@@ -548,6 +399,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         printable_serverids = {}
         self.the_introducer = introducer
         privkeys = {}
+        pubkeys = {}
         expected_announcements = [0 for c in range(NUM_CLIENTS)]
 
         for i in range(NUM_CLIENTS):
@@ -556,66 +408,44 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             #tub.setOption("logRemoteFailures", True)
             tub.setOption("expose-remote-exception-types", False)
             tub.setServiceParent(self.parent)
-            l = tub.listenOn("tcp:0")
-            portnum = l.getPortnum()
+            portnum = iputil.allocate_tcp_port()
+            tub.listenOn("tcp:%d" % portnum)
             tub.setLocation("localhost:%d" % portnum)
 
             log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
-            if i == 0:
-                c = old.IntroducerClient_v1(tub, self.introducer_furl,
-                                            NICKNAME % str(i),
-                                            "version", "oldest")
-            else:
-                c = IntroducerClient(tub, self.introducer_furl,
-                                     NICKNAME % str(i),
-                                     "version", "oldest",
-                                     {"component": "component-v1"}, fakeseq)
+            c = IntroducerClient(tub, self.introducer_furl,
+                                 NICKNAME % str(i),
+                                 "version", "oldest",
+                                 {"component": "component-v1"}, fakeseq,
+                                 FilePath(self.mktemp()))
             received_announcements[c] = {}
-            def got(key_s_or_tubid, ann, announcements, i):
-                if i == 0:
-                    index = get_tubid_string_from_ann(ann)
-                else:
-                    index = key_s_or_tubid or get_tubid_string_from_ann(ann)
+            def got(key_s_or_tubid, ann, announcements):
+                index = key_s_or_tubid or get_tubid_string_from_ann(ann)
                 announcements[index] = ann
-            c.subscribe_to("storage", got, received_announcements[c], i)
+            c.subscribe_to("storage", got, received_announcements[c])
             subscribing_clients.append(c)
             expected_announcements[i] += 1 # all expect a 'storage' announcement
 
             node_furl = tub.registerReference(Referenceable())
+            privkey_s, pubkey_s = keyutil.make_keypair()
+            privkey, _ignored = keyutil.parse_privkey(privkey_s)
+            privkeys[i] = privkey
+            pubkeys[i] = pubkey_s
+
             if i < NUM_STORAGE:
-                if i == 0:
-                    c.publish(node_furl, "storage", "ri_name")
-                    printable_serverids[i] = get_tubid_string(node_furl)
-                elif i == 1:
-                    # sign the announcement
-                    privkey_s, pubkey_s = keyutil.make_keypair()
-                    privkey, _ignored = keyutil.parse_privkey(privkey_s)
-                    privkeys[c] = privkey
-                    c.publish("storage", make_ann(node_furl), privkey)
-                    if server_version == V1:
-                        printable_serverids[i] = get_tubid_string(node_furl)
-                    else:
-                        assert pubkey_s.startswith("pub-")
-                        printable_serverids[i] = pubkey_s[len("pub-"):]
-                else:
-                    c.publish("storage", make_ann(node_furl))
-                    printable_serverids[i] = get_tubid_string(node_furl)
+                # sign all announcements
+                c.publish("storage", make_ann(node_furl), privkey)
+                assert pubkey_s.startswith("pub-")
+                printable_serverids[i] = pubkey_s[len("pub-"):]
                 publishing_clients.append(c)
             else:
                 # the last one does not publish anything
                 pass
 
-            if i == 0:
-                # users of the V1 client were required to publish a
-                # 'stub_client' record (somewhat after they published the
-                # 'storage' record), so the introducer could see their
-                # version. Match that behavior.
-                c.publish(node_furl, "stub_client", "stub_ri_name")
-
             if i == 2:
                 # also publish something that nobody cares about
                 boring_furl = tub.registerReference(Referenceable())
-                c.publish("boring", make_ann(boring_furl))
+                c.publish("boring", make_ann(boring_furl), privkey)
 
             c.setServiceParent(self.parent)
             clients.append(c)
@@ -663,24 +493,10 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         def _check1(res):
             log.msg("doing _check1")
             dc = self.the_introducer._debug_counts
-            if server_version == V1:
-                # each storage server publishes a record, and (after its
-                # 'subscribe' has been ACKed) also publishes a "stub_client".
-                # The non-storage client (which subscribes) also publishes a
-                # stub_client. There is also one "boring" service. The number
-                # of messages is higher, because the stub_clients aren't
-                # published until after we get the 'subscribe' ack (since we
-                # don't realize that we're dealing with a v1 server [which
-                # needs stub_clients] until then), and the act of publishing
-                # the stub_client causes us to re-send all previous
-                # announcements.
-                self.failUnlessEqual(dc["inbound_message"] - dc["inbound_duplicate"],
-                                     NUM_STORAGE + NUM_CLIENTS + 1)
-            else:
-                # each storage server publishes a record. There is also one
-                # "stub_client" and one "boring"
-                self.failUnlessEqual(dc["inbound_message"], NUM_STORAGE+2)
-                self.failUnlessEqual(dc["inbound_duplicate"], 0)
+            # each storage server publishes a record. There is also one
+            # "boring"
+            self.failUnlessEqual(dc["inbound_message"], NUM_STORAGE+1)
+            self.failUnlessEqual(dc["inbound_duplicate"], 0)
             self.failUnlessEqual(dc["inbound_update"], 0)
             self.failUnlessEqual(dc["inbound_subscribe"], NUM_CLIENTS)
             # the number of outbound messages is tricky.. I think it depends
@@ -703,41 +519,24 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 anns = received_announcements[c]
                 self.failUnlessEqual(len(anns), NUM_STORAGE)
 
-                nodeid0 = tubs[clients[0]].tubID
-                ann = anns[nodeid0]
+                serverid0 = printable_serverids[0]
+                ann = anns[serverid0]
                 nick = ann["nickname"]
                 self.failUnlessEqual(type(nick), unicode)
                 self.failUnlessEqual(nick, NICKNAME % "0")
-            if server_version == V1:
-                for c in publishing_clients:
-                    cdc = c._debug_counts
-                    expected = 1 # storage
-                    if c is clients[2]:
-                        expected += 1 # boring
-                    if c is not clients[0]:
-                        # the v2 client tries to call publish_v2, which fails
-                        # because the server is v1. It then re-sends
-                        # everything it has so far, plus a stub_client record
-                        expected = 2*expected + 1
-                    if c is clients[0]:
-                        # we always tell v1 client to send stub_client
-                        expected += 1
-                    self.failUnlessEqual(cdc["outbound_message"], expected)
-            else:
-                for c in publishing_clients:
-                    cdc = c._debug_counts
-                    expected = 1
-                    if c in [clients[0], # stub_client
-                             clients[2], # boring
-                             ]:
-                        expected = 2
-                    self.failUnlessEqual(cdc["outbound_message"], expected)
+            for c in publishing_clients:
+                cdc = c._debug_counts
+                expected = 1
+                if c in [clients[2], # boring
+                         ]:
+                    expected = 2
+                self.failUnlessEqual(cdc["outbound_message"], expected)
             # now check the web status, make sure it renders without error
             ir = introweb.IntroducerRoot(self.parent)
             self.parent.nodeid = "NODEID"
             text = ir.renderSynchronously().decode("utf-8")
-            self.failUnlessIn(NICKNAME % "0", text) # the v1 client
-            self.failUnlessIn(NICKNAME % "1", text) # a v2 client
+            self.failUnlessIn(NICKNAME % "0", text) # a v2 client
+            self.failUnlessIn(NICKNAME % "1", text) # another v2 client
             for i in range(NUM_STORAGE):
                 self.failUnlessIn(printable_serverids[i], text,
                                   (i,printable_serverids[i],text))
@@ -827,10 +626,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 for k in c._debug_counts:
                     c._debug_counts[k] = 0
             expected_announcements[i] += 1 # new 'storage' for everyone
-            if server_version == V1:
-                introducer = old.IntroducerService_v1()
-            else:
-                introducer = IntroducerService()
+            introducer = IntroducerService()
             self.the_introducer = introducer
             newfurl = self.central_tub.registerReference(self.the_introducer,
                                                          furlFile=iff)
@@ -863,15 +659,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
     def test_system_v2_server(self):
         self.basedir = "introducer/SystemTest/system_v2_server"
         os.makedirs(self.basedir)
-        return self.do_system_test(V2)
+        return self.do_system_test()
     test_system_v2_server.timeout = 480
-    # occasionally takes longer than 350s on "draco"
-
-    def test_system_v1_server(self):
-        self.basedir = "introducer/SystemTest/system_v1_server"
-        os.makedirs(self.basedir)
-        return self.do_system_test(V1)
-    test_system_v1_server.timeout = 480
     # occasionally takes longer than 350s on "draco"
 
 class FakeRemoteReference:
@@ -889,7 +678,7 @@ class ClientInfo(unittest.TestCase):
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
                                      "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     fakeseq, FilePath(self.mktemp()))
         #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         #ann_s = make_ann_t(client_v2, furl1, None, 10)
         #introducer.remote_publish_v2(ann_s, Referenceable())
@@ -904,76 +693,14 @@ class ClientInfo(unittest.TestCase):
         self.failUnlessEqual(s0.nickname, NICKNAME % u"v2")
         self.failUnlessEqual(s0.version, "my_version")
 
-    def test_client_v1(self):
-        introducer = IntroducerService()
-        subscriber = FakeRemoteReference()
-        introducer.remote_subscribe(subscriber, "storage")
-        # the v1 subscribe interface had no subscriber_info: that was usually
-        # sent in a separate stub_client pseudo-announcement
-        subs = introducer.get_subscribers()
-        self.failUnlessEqual(len(subs), 1)
-        s0 = subs[0]
-        self.failUnlessEqual(s0.nickname, u"?") # not known yet
-        self.failUnlessEqual(s0.service_name, "storage")
-
-        # now submit the stub_client announcement
-        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
-        ann = (furl1, "stub_client", "RIStubClient",
-               (NICKNAME % u"v1").encode("utf-8"), "my_version", "oldest")
-        introducer.remote_publish(ann)
-        # the server should correlate the two
-        subs = introducer.get_subscribers()
-        self.failUnlessEqual(len(subs), 1)
-        s0 = subs[0]
-        self.failUnlessEqual(s0.service_name, "storage")
-        # v1 announcements do not contain app-versions
-        self.failUnlessEqual(s0.app_versions, {})
-        self.failUnlessEqual(s0.nickname, NICKNAME % u"v1")
-        self.failUnlessEqual(s0.version, "my_version")
-
-        # a subscription that arrives after the stub_client announcement
-        # should be correlated too
-        subscriber2 = FakeRemoteReference()
-        introducer.remote_subscribe(subscriber2, "thing2")
-
-        subs = introducer.get_subscribers()
-        self.failUnlessEqual(len(subs), 2)
-        s0 = [s for s in subs if s.service_name == "thing2"][0]
-        # v1 announcements do not contain app-versions
-        self.failUnlessEqual(s0.app_versions, {})
-        self.failUnlessEqual(s0.nickname, NICKNAME % u"v1")
-        self.failUnlessEqual(s0.version, "my_version")
-
 class Announcements(unittest.TestCase):
-    def test_client_v2_unsigned(self):
-        introducer = IntroducerService()
-        tub = introducer_furl = None
-        app_versions = {"whizzy": "fizzy"}
-        client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
-                                     "my_version", "oldest", app_versions,
-                                     fakeseq)
-        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
-        tubid = "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
-        ann_s0 = make_ann_t(client_v2, furl1, None, 10)
-        canary0 = Referenceable()
-        introducer.remote_publish_v2(ann_s0, canary0)
-        a = introducer.get_announcements()
-        self.failUnlessEqual(len(a), 1)
-        self.failUnlessIdentical(a[0].canary, canary0)
-        self.failUnlessEqual(a[0].index, ("storage", None, tubid))
-        self.failUnlessEqual(a[0].announcement["app-versions"], app_versions)
-        self.failUnlessEqual(a[0].nickname, u"nick-v2")
-        self.failUnlessEqual(a[0].service_name, "storage")
-        self.failUnlessEqual(a[0].version, "my_version")
-        self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
-
     def test_client_v2_signed(self):
         introducer = IntroducerService()
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
                                      "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     fakeseq, FilePath(self.mktemp()))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -984,42 +711,126 @@ class Announcements(unittest.TestCase):
         a = introducer.get_announcements()
         self.failUnlessEqual(len(a), 1)
         self.failUnlessIdentical(a[0].canary, canary0)
-        self.failUnlessEqual(a[0].index, ("storage", pks, None))
+        self.failUnlessEqual(a[0].index, ("storage", pks))
         self.failUnlessEqual(a[0].announcement["app-versions"], app_versions)
         self.failUnlessEqual(a[0].nickname, u"nick-v2")
         self.failUnlessEqual(a[0].service_name, "storage")
         self.failUnlessEqual(a[0].version, "my_version")
         self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
 
-    def test_client_v1(self):
-        introducer = IntroducerService()
+    def _load_cache(self, cache_filepath):
+        with cache_filepath.open() as f:
+            return yamlutil.safe_load(f)
 
-        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
-        tubid = "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
-        ann = (furl1, "storage", "RIStorage",
-               u"nick-v1".encode("utf-8"), "my_version", "oldest")
-        introducer.remote_publish(ann)
+    @defer.inlineCallbacks
+    def test_client_cache(self):
+        basedir = "introducer/ClientSeqnums/test_client_cache_1"
+        fileutil.make_dirs(basedir)
+        cache_filepath = FilePath(os.path.join(basedir, "private",
+                                               "introducer_default_cache.yaml"))
 
-        a = introducer.get_announcements()
-        self.failUnlessEqual(len(a), 1)
-        self.failUnlessEqual(a[0].index, ("storage", None, tubid))
-        self.failUnlessEqual(a[0].canary, None)
-        self.failUnlessEqual(a[0].announcement["app-versions"], {})
-        self.failUnlessEqual(a[0].nickname, u"nick-v1".encode("utf-8"))
-        self.failUnlessEqual(a[0].service_name, "storage")
-        self.failUnlessEqual(a[0].version, "my_version")
-        self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
+        # if storage is enabled, the Client will publish its storage server
+        # during startup (although the announcement will wait in a queue
+        # until the introducer connection is established). To avoid getting
+        # confused by this, disable storage.
+        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
+        f.write("[client]\n")
+        f.write("introducer.furl = nope\n")
+        f.write("[storage]\n")
+        f.write("enabled = false\n")
+        f.close()
+
+        c = TahoeClient(basedir)
+        ic = c.introducer_clients[0]
+        sk_s, vk_s = keyutil.make_keypair()
+        sk, _ignored = keyutil.parse_privkey(sk_s)
+        pub1 = keyutil.remove_prefix(vk_s, "pub-")
+        furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
+        ann_t = make_ann_t(ic, furl1, sk, 1)
+
+        ic.got_announcements([ann_t])
+        yield flushEventualQueue()
+
+        # check the cache for the announcement
+        announcements = self._load_cache(cache_filepath)
+        self.failUnlessEqual(len(announcements), 1)
+        self.failUnlessEqual(announcements[0]['key_s'], pub1)
+        ann = announcements[0]["ann"]
+        self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
+        self.failUnlessEqual(ann["seqnum"], 1)
+
+        # a new announcement that replaces the first should replace the
+        # cached entry, not duplicate it
+        furl2 = furl1 + "er"
+        ann_t2 = make_ann_t(ic, furl2, sk, 2)
+        ic.got_announcements([ann_t2])
+        yield flushEventualQueue()
+        announcements = self._load_cache(cache_filepath)
+        self.failUnlessEqual(len(announcements), 1)
+        self.failUnlessEqual(announcements[0]['key_s'], pub1)
+        ann = announcements[0]["ann"]
+        self.failUnlessEqual(ann["anonymous-storage-FURL"], furl2)
+        self.failUnlessEqual(ann["seqnum"], 2)
+
+        # but a third announcement with a different key should add to the
+        # cache
+        sk_s2, vk_s2 = keyutil.make_keypair()
+        sk2, _ignored = keyutil.parse_privkey(sk_s2)
+        pub2 = keyutil.remove_prefix(vk_s2, "pub-")
+        furl3 = "pb://onug64tu@127.0.0.1:456/short"
+        ann_t3 = make_ann_t(ic, furl3, sk2, 1)
+        ic.got_announcements([ann_t3])
+        yield flushEventualQueue()
+
+        announcements = self._load_cache(cache_filepath)
+        self.failUnlessEqual(len(announcements), 2)
+        self.failUnlessEqual(set([pub1, pub2]),
+                             set([a["key_s"] for a in announcements]))
+        self.failUnlessEqual(set([furl2, furl3]),
+                             set([a["ann"]["anonymous-storage-FURL"]
+                                  for a in announcements]))
+
+        # test loading
+        yield flushEventualQueue()
+        ic2 = IntroducerClient(None, "introducer.furl", u"my_nickname",
+                               "my_version", "oldest_version", {}, fakeseq,
+                               ic._cache_filepath)
+        announcements = {}
+        def got(key_s, ann):
+            announcements[key_s] = ann
+        ic2.subscribe_to("storage", got)
+        ic2._load_announcements() # normally happens when connection fails
+        yield flushEventualQueue()
+
+        self.failUnless(pub1 in announcements)
+        self.failUnlessEqual(announcements[pub1]["anonymous-storage-FURL"],
+                             furl2)
+        self.failUnlessEqual(announcements[pub2]["anonymous-storage-FURL"],
+                             furl3)
+
+        c2 = TahoeClient(basedir)
+        c2.introducer_clients[0]._load_announcements()
+        yield flushEventualQueue()
+        self.assertEqual(c2.storage_broker.get_all_serverids(),
+                         frozenset([pub1, pub2]))
 
 class ClientSeqnums(unittest.TestCase):
     def test_client(self):
         basedir = "introducer/ClientSeqnums/test_client"
         fileutil.make_dirs(basedir)
+        # if storage is enabled, the Client will publish its storage server
+        # during startup (although the announcement will wait in a queue
+        # until the introducer connection is established). To avoid getting
+        # confused by this, disable storage.
         f = open(os.path.join(basedir, "tahoe.cfg"), "w")
         f.write("[client]\n")
         f.write("introducer.furl = nope\n")
+        f.write("[storage]\n")
+        f.write("enabled = false\n")
         f.close()
+
         c = TahoeClient(basedir)
-        ic = c.introducer_client
+        ic = c.introducer_clients[0]
         outbound = ic._outbound_announcements
         published = ic._published_announcements
         def read_seqnum():
@@ -1063,7 +874,7 @@ class TooNewServer(IntroducerService):
                 }
 
 class NonV1Server(SystemTestMixin, unittest.TestCase):
-    # if the 1.3.0 client connects to a server that doesn't provide the 'v1'
+    # if the client connects to a server that doesn't provide the 'v2'
     # protocol, it is supposed to provide a useful error instead of a weird
     # exception.
 
@@ -1078,13 +889,13 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         tub = Tub()
         tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
-        l = tub.listenOn("tcp:0")
-        portnum = l.getPortnum()
+        portnum = iputil.allocate_tcp_port()
+        tub.listenOn("tcp:%d" % portnum)
         tub.setLocation("localhost:%d" % portnum)
 
         c = IntroducerClient(tub, self.introducer_furl,
                              u"nickname-client", "version", "oldest", {},
-                             fakeseq)
+                             fakeseq, FilePath(self.mktemp()))
         announcements = {}
         def got(key_s, ann):
             announcements[key_s] = ann
@@ -1129,15 +940,16 @@ class Signatures(unittest.TestCase):
         self.failUnlessEqual(ann2, ann)
         self.failUnlessEqual("pub-"+key2, vk_s)
 
+        # not signed
+        self.failUnlessRaises(UnknownKeyError,
+                              unsign_from_foolscap, (msg, None, key))
+        self.failUnlessRaises(UnknownKeyError,
+                              unsign_from_foolscap, (msg, sig, None))
         # bad signature
         bad_ann = {"key1": "value2"}
         bad_msg = simplejson.dumps(bad_ann).encode("utf-8")
         self.failUnlessRaises(keyutil.BadSignatureError,
                               unsign_from_foolscap, (bad_msg,sig,key))
-        # sneaky bad signature should be ignored
-        (ann2,key2) = unsign_from_foolscap( (bad_msg,None,key) )
-        self.failUnlessEqual(key2, None)
-        self.failUnlessEqual(ann2, bad_ann)
 
         # unrecognized signatures
         self.failUnlessRaises(UnknownKeyError,
