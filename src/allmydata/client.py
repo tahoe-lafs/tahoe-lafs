@@ -24,8 +24,9 @@ from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
                             yamlutil, configutil)
+from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.encodingutil import (get_filesystem_encoding,
-                                         from_utf8_or_none)
+                                         from_utf8_or_none, quote_output)
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.stats import StatsProvider
@@ -370,7 +371,8 @@ class Client(node.Node, pollmixin.PollMixin):
         if not self._tub_is_listening:
             raise ValueError("config error: storage is enabled, but tub "
                              "is not listening ('tub.port=' is empty)")
-        readonly = self.get_config("storage", "readonly", False, boolean=True)
+        # pyflakes says unused:
+        # readonly = self.get_config("storage", "readonly", False, boolean=True)
 
         data = self.get_config("storage", "reserved_space", None)
         try:

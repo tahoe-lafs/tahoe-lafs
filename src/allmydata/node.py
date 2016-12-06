@@ -539,7 +539,7 @@ class Node(service.MultiService, ConfigMixin):
         did not exist. If required=True, raise an exception rather than
         returning None. Any leading or trailing whitespace will be stripped
         from the data."""
-        fn = os.path.join(self.basedir, name)
+        path = os.path.join(self.basedir, name)
         try:
             value = fileutil.read(path)
         except EnvironmentError:
