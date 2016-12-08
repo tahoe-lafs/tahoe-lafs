@@ -271,6 +271,14 @@ class FakeConfig(dict):
             raise KeyError
         return value
 
+class EmptyContext(object):
+    def __init__(self):
+        pass
+    def __enter__(self):
+        pass
+    def __exit__(self, type, value, traceback):
+        pass
+
 class Provider(unittest.TestCase):
     def test_build(self):
         tor_provider.Provider("basedir", FakeConfig(), "reactor")
@@ -298,13 +306,15 @@ class Provider(unittest.TestCase):
         txtorcon = mock.Mock()
         handler = object()
         tor.control_endpoint_maker = mock.Mock(return_value=handler)
+        tor.add_context = mock.Mock(return_value=EmptyContext())
         with mock_tor(tor):
             with mock_txtorcon(txtorcon):
                 p = tor_provider.Provider("basedir", FakeConfig(launch=True),
                                           reactor)
         h = p.get_tor_handler()
         self.assertIs(h, handler)
-        tor.control_endpoint_maker.assert_called_with(p._make_control_endpoint)
+        tor.control_endpoint_maker.assert_called_with(p._make_control_endpoint,
+                                                      takes_status=True)
 
         # make sure Tor is launched just once, the first time an endpoint is
         # requested, and never again. The clientFromString() function is
@@ -316,7 +326,8 @@ class Provider(unittest.TestCase):
         cfs = mock.Mock(return_value=ep)
         with mock.patch("allmydata.util.tor_provider._launch_tor", launch_tor):
             with mock.patch("allmydata.util.tor_provider.clientFromString", cfs):
-                d = p._make_control_endpoint(reactor)
+                d = p._make_control_endpoint(reactor,
+                                             update_status=lambda status: None)
                 yield flushEventualQueue()
                 self.assertIs(self.successResultOf(d), ep)
                 launch_tor.assert_called_with(reactor, None,
@@ -328,7 +339,8 @@ class Provider(unittest.TestCase):
         cfs2 = mock.Mock(return_value=ep)
         with mock.patch("allmydata.util.tor_provider._launch_tor", launch_tor2):
             with mock.patch("allmydata.util.tor_provider.clientFromString", cfs2):
-                d2 = p._make_control_endpoint(reactor)
+                d2 = p._make_control_endpoint(reactor,
+                                              update_status=lambda status: None)
                 yield flushEventualQueue()
                 self.assertIs(self.successResultOf(d2), ep)
                 self.assertEqual(launch_tor2.mock_calls, [])
