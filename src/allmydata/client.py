@@ -256,6 +256,10 @@ class Client(node.Node, pollmixin.PollMixin):
 
         # read furl from tahoe.cfg
         tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
+        if tahoe_cfg_introducer_furl == "None":
+            raise ValueError("tahoe.cfg has invalid 'introducer.furl = None':"
+                             " to disable it, use 'introducer.furl ='"
+                             " or omit the key entirely")
         if tahoe_cfg_introducer_furl:
             introducers[u'default'] = {'furl':tahoe_cfg_introducer_furl}
 

@@ -279,7 +279,8 @@ def write_node_config(c, config):
 def write_client_config(c, config):
     c.write("[client]\n")
     c.write("# Which services should this client connect to?\n")
-    c.write("introducer.furl = %s\n" % config.get("introducer", ""))
+    introducer = config.get("introducer", None) or ""
+    c.write("introducer.furl = %s\n" % introducer)
     c.write("helper.furl =\n")
     c.write("#stats_gatherer.furl =\n")
     c.write("\n")
