@@ -610,7 +610,7 @@ class Client(node.Node, pollmixin.PollMixin):
         return self.encoding_params
 
     def introducer_connection_statuses(self):
-        return [ic.connected_to_introducer() for ic in self.introducer_clients]
+        return [ic.connection_status() for ic in self.introducer_clients]
 
     def connected_to_introducer(self):
         return any([ic.connected_to_introducer() for ic in self.introducer_clients])

@@ -36,7 +36,7 @@ from twisted.application import service
 
 from foolscap.api import eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
-from allmydata.util import log, base32
+from allmydata.util import log, base32, connection_status
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
@@ -364,6 +364,14 @@ class NativeStorageServer(service.MultiService):
         return self.announcement
     def get_remote_host(self):
         return self.remote_host
+
+    def get_connection_status(self):
+        last_received = None
+        if self.rref:
+            last_received = self.rref.getDataLastReceivedAt()
+        return connection_status.from_foolscap_reconnector(self._reconnector,
+                                                           last_received)
+
     def is_connected(self):
         return self._is_connected
     def get_last_connect_time(self):

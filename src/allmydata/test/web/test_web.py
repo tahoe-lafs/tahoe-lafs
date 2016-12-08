@@ -20,6 +20,7 @@ from allmydata.web import status
 from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
 from allmydata.util.encodingutil import to_str
+from ...util.connection_status import ConnectionStatus
 from ..common import FakeCHKFileNode, FakeMutableFileNode, \
      create_chk_filenode, WebErrorMixin, \
      make_mutable_file_uri, create_mutable_filenode
@@ -184,6 +185,9 @@ class FakeDisplayableServer(StubServer):
         return self.announcement["nickname"]
     def get_available_space(self):
         return 123456
+    def get_connection_status(self):
+        return ConnectionStatus(self.connected, "summary", "description",
+                                self.last_connect_time, self.last_rx_time)
 
 class FakeBucketCounter(object):
     def get_state(self):
@@ -243,7 +247,7 @@ class FakeClient(Client):
         self.storage_broker.test_add_server("disconnected_nodeid",
             FakeDisplayableServer(
                 serverid="other_nodeid", nickname=u"disconnected_nickname \u263B", connected = False,
-                last_connect_time = 15, last_loss_time = 25, last_rx_time = 35))
+                last_connect_time = None, last_loss_time = 25, last_rx_time = 35))
         self.introducer_client = None
         self.history = FakeHistory()
         self.uploader = FakeUploader()
@@ -611,6 +615,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_welcome(self):
         d = self.GET("/")
         def _check(res):
+            # TODO: replace this with a parser
             self.failUnlessIn('<title>Tahoe-LAFS - Welcome</title>', res)
             self.failUnlessIn(FAVICON_MARKUP, res)
             self.failUnlessIn('<a href="status">Recent and Active Operations</a>', res)
@@ -624,14 +629,27 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn(u'Connected to <span>1</span>\n              of <span>2</span> known storage servers', res_u)
             def timestamp(t):
                 return (u'"%s"' % (t,)) if self.have_working_tzset() else u'"[^"]*"'
+
+            # TODO: use a real parser to make sure these two nodes are siblings
             self.failUnless(re.search(
-                u'<div class="status-indicator"><img (src="img/connected-yes.png" |alt="Connected" ){2}/>'
-                u'</div>\n                <a( class="timestamp"| title=%s){2}>1d\u00A00h\u00A00m\u00A050s</a>'
+                u'<div class="status-indicator"><img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>'
+                u'\s+'
+                u'<div class="nickname">other_nickname \u263B</div>',
+                res_u), repr(res_u))
+            self.failUnless(re.search(
+                u'<a( class="timestamp"| title=%s){2}>\s+1d\u00A00h\u00A00m\u00A050s\s+</a>'
                 % timestamp(u'1970-01-01 13:00:10'), res_u), repr(res_u))
+
+            # same for these two nodes
             self.failUnless(re.search(
-                u'<div class="status-indicator"><img (src="img/connected-no.png" |alt="Disconnected" ){2}/>'
-                u'</div>\n                <a( class="timestamp"| title=%s){2}>1d\u00A00h\u00A00m\u00A035s</a>'
-                % timestamp(u'1970-01-01 13:00:25'), res_u), repr(res_u))
+                u'<div class="status-indicator"><img (src="img/connected-no.png" |alt="Disconnected" ){2}/></div>'
+                u'\s+'
+                u'<div class="nickname">disconnected_nickname \u263B</div>',
+                res_u), repr(res_u))
+            self.failUnless(re.search(
+                u'<a( class="timestamp"| title="N/A"){2}>\s+N/A\s+</a>',
+                res_u), repr(res_u))
+
             self.failUnless(re.search(
                 u'<td class="service-last-received-data"><a( class="timestamp"| title=%s){2}>'
                 u'1d\u00A00h\u00A00m\u00A030s</a></td>'
@@ -662,6 +680,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 return 0
             def get_last_received_data_time(self):
                 return 0
+            def connection_status(self):
+                return ConnectionStatus(self.connected,
+                                        "summary", "description", 0, 0)
 
         d = defer.succeed(None)
 
@@ -673,7 +694,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_introducer_not_connected_unguessable)
         def _check_introducer_not_connected_unguessable(res):
             html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
+            self.failUnlessIn('<div class="connection-status" title="description">summary</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
             self.failUnless(re.search('<img (alt="Disconnected" |src="img/connected-no.png" ){2}/></div>[ ]*<div>No introducers connected</div>', html), res)
 
@@ -687,7 +708,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_introducer_connected_unguessable)
         def _check_introducer_connected_unguessable(res):
             html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
+            self.failUnlessIn('<div class="connection-status" title="description">summary</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
             self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
         d.addCallback(_check_introducer_connected_unguessable)
@@ -700,7 +721,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_introducer_connected_guessable)
         def _check_introducer_connected_guessable(res):
             html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="furl">pb://someIntroducer/introducer</div>', html)
+            self.failUnlessIn('<div class="connection-status" title="description">summary</div>', html)
             self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
         d.addCallback(_check_introducer_connected_guessable)
         return d

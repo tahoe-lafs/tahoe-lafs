@@ -176,7 +176,7 @@
             <thead>
               <tr n:pattern="header">
                 <td><h3>Nickname</h3></td>
-                <td><h3>Address</h3></td>
+                <td><h3>Connection</h3></td>
                 <td><h3>Last&nbsp;RX</h3></td>
                 <td><h3>Version</h3></td>
                 <td><h3>Available</h3></td>
@@ -185,16 +185,22 @@
             <tr n:pattern="item" n:render="service_row">
               <td class="nickname-and-peerid">
                 <div class="status-indicator"><img><n:attr name="src">img/connected-<n:slot name="service_connection_status" />.png</n:attr><n:attr name="alt"><n:slot name="service_connection_status_alt" /></n:attr></img></div>
-                <a class="timestamp"><n:attr name="title"><n:slot name="service_connection_status_abs_time"/></n:attr><n:slot name="service_connection_status_rel_time"/></a>
                 <div class="nickname"><n:slot name="nickname"/></div>
                 <div class="nodeid"><n:slot name="peerid"/></div>
               </td>
-              <td class="address"><n:slot name="address"/></td>
+              <td class="connection-status">
+                <n:attr name="title"><n:slot name="details"/></n:attr>
+                <n:slot name="summary"/>
+                <a class="timestamp">
+                  <n:attr name="title"><n:slot name="service_connection_status_abs_time"/></n:attr>
+                  <n:slot name="service_connection_status_rel_time"/>
+                </a>
+              </td>
               <td class="service-last-received-data"><a class="timestamp"><n:attr name="title"><n:slot name="last_received_data_abs_time"/></n:attr><n:slot name="last_received_data_rel_time"/></a></td>
               <td class="service-version"><n:slot name="version"/></td>
               <td class="service-available-space"><n:slot name="available_space"/></td>
             </tr>
-            <tr n:pattern="empty"><td colspan="5">You are not presently connected to any peers</td></tr>
+            <tr n:pattern="empty"><td colspan="5">You are not presently connected to any servers.</td></tr>
           </table>
           <div class="row-fluid">
             <h2>Connected to <span n:render="string" n:data="connected_introducers" /> of <span n:render="string" n:data="total_introducers" /> introducers</h2>
@@ -202,7 +208,7 @@
           <table class="table table-striped table-bordered peer-status" n:render="sequence" n:data="introducers">
             <thead>
               <tr n:pattern="header">
-                <td><h3>Address</h3></td>
+                <td><h3>Connection</h3></td>
                 <td><h3>Last&nbsp;RX</h3></td>
               </tr>
             </thead>
@@ -210,7 +216,7 @@
               <td class="nickname-and-peerid">
                 <div class="status-indicator"><img><n:attr name="src">img/connected-<n:slot name="service_connection_status" />.png</n:attr><n:attr name="alt"><n:slot name="service_connection_status_alt" /></n:attr></img></div>
                 <a class="timestamp"><n:attr name="title"><n:slot name="service_connection_status_abs_time"/></n:attr><n:slot name="service_connection_status_rel_time"/></a>
-                <div class="furl"><n:slot name="introducer_furl"/></div>
+                <div class="connection-status"><n:attr name="title"><n:slot name="details"/></n:attr><n:slot name="summary"/></div>
               </td>
               <td class="service-last-received-data"><a class="timestamp"><n:attr name="title"><n:slot name="last_received_data_abs_time"/></n:attr><n:slot name="last_received_data_rel_time"/></a></td>
             </tr>
