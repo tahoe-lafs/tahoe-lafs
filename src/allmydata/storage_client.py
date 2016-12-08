@@ -374,15 +374,6 @@ class NativeStorageServer(service.MultiService):
 
     def is_connected(self):
         return self._is_connected
-    def get_last_connect_time(self):
-        return self.last_connect_time
-    def get_last_loss_time(self):
-        return self.last_loss_time
-    def get_last_received_data_time(self):
-        if self.rref is None:
-            return None
-        else:
-            return self.rref.getDataLastReceivedAt()
 
     def get_available_space(self):
         version = self.get_version()

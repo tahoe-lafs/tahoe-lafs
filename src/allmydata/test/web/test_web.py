@@ -165,20 +165,12 @@ class FakeDisplayableServer(StubServer):
         self.last_loss_time = last_loss_time
         self.last_rx_time = last_rx_time
         self.last_connect_time = last_connect_time
-    def on_status_changed(self, cb):
+    def on_status_changed(self, cb): # TODO: try to remove me
         cb(self)
-    def is_connected(self):
+    def is_connected(self): # TODO: remove me
         return self.connected
     def get_permutation_seed(self):
         return ""
-    def get_remote_host(self):
-        return ""
-    def get_last_loss_time(self):
-        return self.last_loss_time
-    def get_last_received_data_time(self):
-        return self.last_rx_time
-    def get_last_connect_time(self):
-        return self.last_connect_time
     def get_announcement(self):
         return self.announcement
     def get_nickname(self):
@@ -674,12 +666,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         class MockIntroducerClient(object):
             def __init__(self, connected):
                 self.connected = connected
-            def connected_to_introducer(self):
-                return self.connected
-            def get_since(self):
-                return 0
-            def get_last_received_data_time(self):
-                return 0
             def connection_status(self):
                 return ConnectionStatus(self.connected,
                                         "summary", "description", 0, 0)
