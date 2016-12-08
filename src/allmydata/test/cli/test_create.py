@@ -52,7 +52,6 @@ class Config(unittest.TestCase):
         with txi2p, txtorcon:
             basedir = self.mktemp()
             rc, out, err = yield run_cli("create-client", "--hide-ip", basedir)
-            print(rc, out, err)
             self.assertTrue(rc != 0, out)
             self.assertTrue('pip install tahoe-lafs[i2p]' in out)
             self.assertTrue('pip install tahoe-lafs[tor]' in out)
