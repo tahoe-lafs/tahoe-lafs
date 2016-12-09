@@ -1,10 +1,13 @@
 import time, os
+from datetime import datetime
 
 from twisted.web import http
 from nevow import rend, url, tags as T
-from nevow.inevow import IRequest
+from nevow.inevow import IRequest, IContainer
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
+
+from zope.interface import implementer
 
 import allmydata # to display import path
 from allmydata import get_package_versions_string
@@ -14,6 +17,7 @@ from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage, magic_folder
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
      get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
+from allmydata.util.abbreviate import abbreviate_time
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -329,7 +333,40 @@ class Root(rend.Page):
 
     def data_services(self, ctx, data):
         sb = self.client.get_storage_broker()
-        return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
+
+        @implementer(IContainer)
+        class Wrapper(object):
+            """
+            This provides IContainer to Nevow so we can provide a 'child' data
+            at 'connections' and pass-through all the
+            connection-status attributes to the rest of the renderers
+            """
+            def __init__(self, server):
+                self._server = server
+
+            def child(self, context, name):
+                if name == 'connections':
+                    st = self._server.get_connection_status()
+                    if st.connected:
+                        # we don't want the list of all possible hints
+                        # when we're already connected; then we just
+                        # show the one connection
+                        return []
+                    return st.statuses.items()
+                return None  # or are we supposed to raise something?
+
+            def __getattr__(self, x):
+                return getattr(self._server, x)
+
+        return [
+            Wrapper(x)
+            for x in sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
+        ]
+
+    def render_connection_item(self, ctx, server):
+        ctx.tag.fillSlots('details', server[1])
+        ctx.tag.fillSlots('summary', '{}: {}'.format(server[0], server[1]))
+        return ctx.tag
 
     def render_service_row(self, ctx, server):
         cs = server.get_connection_status()
