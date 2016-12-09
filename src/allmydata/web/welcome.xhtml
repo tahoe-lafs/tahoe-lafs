@@ -72,7 +72,7 @@
                 <input type="file" class="freeform-input-file" name="file" />
                 <input type="hidden" name="t" value="upload" />
 
-                <label for="upload-chk" class="radio"> 
+                <label for="upload-chk" class="radio">
                   <input type="radio" checked="checked" id="upload-chk" value="chk" name="format" />
                   Immutable
                 </label>
@@ -95,7 +95,7 @@
             <div class="nav-header">Create Directory</div>
             <div class="nav-form">
               <form action="uri" method="post" enctype="multipart/form-data">
-                <label for="mkdir-sdmf" class="radio"> 
+                <label for="mkdir-sdmf" class="radio">
                   <input type="radio" checked="checked" id="mkdir-sdmf" value="sdmf" name="format" />
                   <acronym title="Small Distributed Mutable File">SDMF</acronym>
                 </label>
@@ -189,12 +189,18 @@
                 <div class="nodeid"><n:slot name="peerid"/></div>
               </td>
               <td class="connection-status">
+
                 <n:attr name="title"><n:slot name="details"/></n:attr>
                 <n:slot name="summary"/>
                 <a class="timestamp">
                   <n:attr name="title"><n:slot name="service_connection_status_abs_time"/></n:attr>
                   <n:slot name="service_connection_status_rel_time"/>
                 </a>
+
+                <ul n:render="sequence" n:data="connections" class="details">
+                  <li n:pattern="item" n:render="connection_item"><n:attr name="title"><n:slot name="details"/></n:attr><n:slot name="summary"/></li>
+                </ul>
+
               </td>
               <td class="service-last-received-data"><a class="timestamp"><n:attr name="title"><n:slot name="last_received_data_abs_time"/></n:attr><n:slot name="last_received_data_rel_time"/></a></td>
               <td class="service-version"><n:slot name="version"/></td>

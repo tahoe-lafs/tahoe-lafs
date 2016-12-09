@@ -6,12 +6,13 @@ from ..interfaces import IConnectionStatus
 class ConnectionStatus:
     def __init__(self, connected, summary,
                  last_connection_description, last_connection_time,
-                 last_received_time):
+                 last_received_time, statuses):
         self.connected = connected
         self.last_connection_summary = summary
         self.last_connection_description = last_connection_description
         self.last_connection_time = last_connection_time
         self.last_received_time = last_received_time
+        self.statuses = statuses
 
 def _describe_statuses(hints, handlers, statuses):
     descriptions = []
@@ -77,5 +78,5 @@ def from_foolscap_reconnector(rc, last_received):
         last_connected = None
 
     cs = ConnectionStatus(connected, summary, details,
-                          last_connected, last_received)
+                          last_connected, last_received, statuses)
     return cs
