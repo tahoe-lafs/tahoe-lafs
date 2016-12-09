@@ -62,7 +62,8 @@ class Tor(unittest.TestCase):
             n = FakeNode(config)
             h = n._make_tor_handler()
             private_dir = os.path.join(n.basedir, "private")
-            exp = mock.call(n._tor_provider._make_control_endpoint)
+            exp = mock.call(n._tor_provider._make_control_endpoint,
+                            takes_status=True)
             self.assertEqual(f.mock_calls, [exp])
             self.assertIdentical(h, h1)
 
@@ -75,7 +76,9 @@ class Tor(unittest.TestCase):
         cfs = mock.Mock(return_value=tcep)
         with mock.patch("allmydata.util.tor_provider._launch_tor", launch_tor):
             with mock.patch("allmydata.util.tor_provider.clientFromString", cfs):
-                cep = self.successResultOf(tp._make_control_endpoint(reactor))
+                d = tp._make_control_endpoint(reactor,
+                                              update_status=lambda status: None)
+                cep = self.successResultOf(d)
         launch_tor.assert_called_with(reactor, executable, private_dir,
                                       tp._txtorcon)
         cfs.assert_called_with(reactor, "ep_desc")

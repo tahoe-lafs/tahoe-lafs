@@ -2,6 +2,7 @@ from twisted.trial import unittest
 
 from ...storage_client import NativeStorageServer
 from ...web.root import Root
+from ...util.connection_status import ConnectionStatus
 
 class FakeRoot(Root):
     def __init__(self):
@@ -26,6 +27,8 @@ class RenderServiceRow(unittest.TestCase):
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
         s = NativeStorageServer("server_id", ann, None, {})
+        cs = ConnectionStatus(False, "summary", "description", 0, 0)
+        s.get_connection_status = lambda: cs
 
         r = FakeRoot()
         ctx = FakeContext()
