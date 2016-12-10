@@ -178,7 +178,7 @@ class FakeDisplayableServer(StubServer):
     def get_available_space(self):
         return 123456
     def get_connection_status(self):
-        return ConnectionStatus(self.connected, "summary", "description",
+        return ConnectionStatus(self.connected, "summary", {},
                                 self.last_connect_time, self.last_rx_time)
 
 class FakeBucketCounter(object):
@@ -667,8 +667,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             def __init__(self, connected):
                 self.connected = connected
             def connection_status(self):
-                return ConnectionStatus(self.connected,
-                                        "summary", "description", 0, 0)
+                return ConnectionStatus(self.connected, "summary", {}, 0, 0)
 
         d = defer.succeed(None)
 
@@ -680,7 +679,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_introducer_not_connected_unguessable)
         def _check_introducer_not_connected_unguessable(res):
             html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="connection-status" title="description">summary</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
             self.failUnless(re.search('<img (alt="Disconnected" |src="img/connected-no.png" ){2}/></div>[ ]*<div>No introducers connected</div>', html), res)
 
@@ -694,7 +692,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_introducer_connected_unguessable)
         def _check_introducer_connected_unguessable(res):
             html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="connection-status" title="description">summary</div>', html)
+            self.failUnlessIn('<div class="connection-status" title="(no other hints)">summary</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
             self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
         d.addCallback(_check_introducer_connected_unguessable)
@@ -707,7 +705,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_introducer_connected_guessable)
         def _check_introducer_connected_guessable(res):
             html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="connection-status" title="description">summary</div>', html)
+            self.failUnlessIn('<div class="connection-status" title="(no other hints)">summary</div>', html)
             self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
         d.addCallback(_check_introducer_connected_guessable)
         return d

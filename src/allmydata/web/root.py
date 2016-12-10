@@ -257,7 +257,7 @@ class Root(rend.Page):
     def data_introducers(self, ctx, data):
         return self.client.introducer_connection_statuses()
 
-    def render_introducers_row(self, ctx, cs):
+    def _render_connection_status(self, ctx, cs):
         connected = "yes" if cs.connected else "no"
         ctx.fillSlots("service_connection_status", connected)
         ctx.fillSlots("service_connection_status_alt",
@@ -282,8 +282,25 @@ class Root(rend.Page):
                       render_time_delta(last_received_data_time, self.now_fn())
                       if last_received_data_time is not None
                       else "N/A")
-        ctx.fillSlots("summary", "%s" % cs.last_connection_summary)
-        ctx.fillSlots("details", "%s" % cs.last_connection_description)
+
+        others = cs.non_connected_statuses
+        if cs.connected:
+            ctx.fillSlots("summary", cs.summary)
+            if others:
+                details = "\n".join(["* %s: %s\n" % (which, others[which])
+                                     for which in sorted(others)])
+                ctx.fillSlots("details", "Other hints:\n" + details)
+            else:
+                ctx.fillSlots("details", "(no other hints)")
+        else:
+            details = T.ul()
+            for which in sorted(others):
+                details[T.li["%s: %s" % (which, others[which])]]
+            ctx.fillSlots("summary", [cs.summary, details])
+            ctx.fillSlots("details", "")
+
+    def render_introducers_row(self, ctx, cs):
+        self._render_connection_status(ctx, cs)
         return ctx.tag
 
     def data_helper_furl_prefix(self, ctx, data):
@@ -333,37 +350,10 @@ class Root(rend.Page):
 
     def render_service_row(self, ctx, server):
         cs = server.get_connection_status()
+        self._render_connection_status(ctx, cs)
 
         ctx.fillSlots("peerid", server.get_longname())
         ctx.fillSlots("nickname", server.get_nickname())
-
-        connected = "yes" if cs.connected else "no"
-        ctx.fillSlots("service_connection_status", connected)
-        ctx.fillSlots("service_connection_status_alt",
-                      self._connectedalts[connected])
-
-        since = cs.last_connection_time
-        ctx.fillSlots("service_connection_status_rel_time",
-                      render_time_delta(since, self.now_fn())
-                      if since is not None
-                      else "N/A")
-        ctx.fillSlots("service_connection_status_abs_time",
-                      render_time_attr(since)
-                      if since is not None
-                      else "N/A")
-
-        last_received_data_time = cs.last_received_time
-        ctx.fillSlots("last_received_data_abs_time",
-                      render_time_attr(last_received_data_time)
-                      if last_received_data_time is not None
-                      else "N/A")
-        ctx.fillSlots("last_received_data_rel_time",
-                      render_time_delta(last_received_data_time, self.now_fn())
-                      if last_received_data_time is not None
-                      else "N/A")
-
-        ctx.fillSlots("summary", "%s" % cs.last_connection_summary)
-        ctx.fillSlots("details", "%s" % cs.last_connection_description)
 
         announcement = server.get_announcement()
         version = announcement.get("my-version", "")
