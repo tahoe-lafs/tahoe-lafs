@@ -345,11 +345,13 @@ class Privacy(unittest.TestCase):
         self.assertEqual(str(e), "tub.location includes tcp: hint")
 
 class Status(unittest.TestCase):
-    def test_describe(self):
-        t = connection_status._describe_statuses(["h2","h1"],
-                                                 {"h1": "hand1"},
-                                                 {"h1": "st1", "h2": "st2"})
-        self.assertEqual(t, " h1 via hand1: st1\n h2: st2\n")
+    def test_hint_statuses(self):
+        ncs = connection_status._hint_statuses(["h2","h1"],
+                                               {"h1": "hand1", "h4": "hand4"},
+                                               {"h1": "st1", "h2": "st2",
+                                                "h3": "st3"})
+        self.assertEqual(ncs, {"h1 via hand1": "st1",
+                               "h2": "st2"})
 
     def test_reconnector_connected(self):
         ci = mock.Mock()
@@ -364,10 +366,8 @@ class Status(unittest.TestCase):
         rc.getReconnectionInfo = mock.Mock(return_value=ri)
         cs = connection_status.from_foolscap_reconnector(rc, 123)
         self.assertEqual(cs.connected, True)
-        self.assertEqual(cs.last_connection_summary,
-                         "Connected to h1 via hand1")
-        self.assertEqual(cs.last_connection_description,
-                         "Connection successful to h1 via hand1")
+        self.assertEqual(cs.summary, "Connected to h1 via hand1")
+        self.assertEqual(cs.non_connected_statuses, {})
         self.assertEqual(cs.last_connection_time, 120)
         self.assertEqual(cs.last_received_time, 123)
 
@@ -384,12 +384,8 @@ class Status(unittest.TestCase):
         rc.getReconnectionInfo = mock.Mock(return_value=ri)
         cs = connection_status.from_foolscap_reconnector(rc, 123)
         self.assertEqual(cs.connected, True)
-        self.assertEqual(cs.last_connection_summary,
-                         "Connected to h1 via hand1")
-        self.assertEqual(cs.last_connection_description,
-                         "Connection successful to h1 via hand1\n"
-                         "other hints:\n"
-                         " h2: st2\n")
+        self.assertEqual(cs.summary, "Connected to h1 via hand1")
+        self.assertEqual(cs.non_connected_statuses, {"h2": "st2"})
         self.assertEqual(cs.last_connection_time, 120)
         self.assertEqual(cs.last_received_time, 123)
 
@@ -407,13 +403,9 @@ class Status(unittest.TestCase):
         rc.getReconnectionInfo = mock.Mock(return_value=ri)
         cs = connection_status.from_foolscap_reconnector(rc, 123)
         self.assertEqual(cs.connected, True)
-        self.assertEqual(cs.last_connection_summary,
-                         "Connected via listener (listener1)")
-        self.assertEqual(cs.last_connection_description,
-                         "Connection successful via listener (listener1)\n"
-                         "other hints:\n"
-                         " h1 via hand1: st1\n"
-                         " h2: st2\n")
+        self.assertEqual(cs.summary, "Connected via listener (listener1)")
+        self.assertEqual(cs.non_connected_statuses,
+                         {"h1 via hand1": "st1", "h2": "st2"})
         self.assertEqual(cs.last_connection_time, 120)
         self.assertEqual(cs.last_received_time, 123)
 
@@ -428,12 +420,9 @@ class Status(unittest.TestCase):
         rc.getReconnectionInfo = mock.Mock(return_value=ri)
         cs = connection_status.from_foolscap_reconnector(rc, 123)
         self.assertEqual(cs.connected, False)
-        self.assertEqual(cs.last_connection_summary,
-                         "Trying to connect")
-        self.assertEqual(cs.last_connection_description,
-                         "Trying to connect:\n"
-                         " h1 via hand1: st1\n"
-                         " h2: st2\n")
+        self.assertEqual(cs.summary, "Trying to connect")
+        self.assertEqual(cs.non_connected_statuses,
+                         {"h1 via hand1": "st1", "h2": "st2"})
         self.assertEqual(cs.last_connection_time, None)
         self.assertEqual(cs.last_received_time, 123)
 
@@ -451,13 +440,10 @@ class Status(unittest.TestCase):
         with mock.patch("time.time", return_value=12):
             cs = connection_status.from_foolscap_reconnector(rc, 5)
         self.assertEqual(cs.connected, False)
-        self.assertEqual(cs.last_connection_summary,
-                         "Reconnecting in 8 seconds")
-        self.assertEqual(cs.last_connection_description,
-                         "Reconnecting in 8 seconds\n"
-                         "Last attempt 2s ago:\n"
-                         " h1 via hand1: st1\n"
-                         " h2: st2\n")
+        self.assertEqual(cs.summary,
+                         "Reconnecting in 8 seconds (last attempt 2s ago)")
+        self.assertEqual(cs.non_connected_statuses,
+                         {"h1 via hand1": "st1", "h2": "st2"})
         self.assertEqual(cs.last_connection_time, None)
         self.assertEqual(cs.last_received_time, 5)
 

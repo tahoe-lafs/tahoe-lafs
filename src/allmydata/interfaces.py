@@ -2857,7 +2857,7 @@ class IConnectionStatus(Interface):
         negotiation was successful. Otherwise it is None.
         """)
 
-    last_connection_summary = Attribute(
+    summary = Attribute(
         """
         A string with a brief summary of the current status, suitable for
         display on an informational page. The more complete text from
@@ -2865,25 +2865,21 @@ class IConnectionStatus(Interface):
         popup.
         """)
 
-    last_connection_description = Attribute(
-        """
-        A string with a description of the results of the most recent
-        connection attempt. For Foolscap connections, this indicates the
-        winning hint and the connection handler which used it, e.g.
-        'tcp:HOST:PORT via tcp' or 'tor:HOST.onion:PORT via tor':
-
-        * 'Connection successful: HINT via HANDLER (other hints: ..)'
-        * 'Connection failed: HINT->HANDLER->FAILURE, ...'
-
-        Note that this describes the last *completed* connection attempt. If
-        a connection attempt is currently in progress, this method will
-        describe the results of the previous attempt.
-        """)
-
     last_received_time = Attribute(
         """
         A timestamp (seconds-since-epoch) describing the last time we heard
         anything (including low-level keep-alives or inbound requests) from
         the other side.
+        """)
+
+    non_connected_statuses = Attribute(
+        """
+        A dictionary, describing all connections that are not (yet)
+        successful. When connected is True, this will only be the losing
+        attempts. When connected is False, this will include all attempts.
+
+        This maps a connection description string (for foolscap this is a
+        connection hint and the handler it is using) to the status string
+        (pending, connected, refused, or other errors).
         """)
 
