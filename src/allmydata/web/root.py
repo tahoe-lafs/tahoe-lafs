@@ -1,13 +1,10 @@
 import time, os
-from datetime import datetime
 
 from twisted.web import http
 from nevow import rend, url, tags as T
-from nevow.inevow import IRequest, IContainer
+from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
-
-from zope.interface import implementer
 
 import allmydata # to display import path
 from allmydata import get_package_versions_string
@@ -17,7 +14,6 @@ from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage, magic_folder
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
      get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
-from allmydata.util.abbreviate import abbreviate_time
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -261,7 +257,7 @@ class Root(rend.Page):
     def data_introducers(self, ctx, data):
         return self.client.introducer_connection_statuses()
 
-    def render_introducers_row(self, ctx, cs):
+    def _render_connection_status(self, ctx, cs):
         connected = "yes" if cs.connected else "no"
         ctx.fillSlots("service_connection_status", connected)
         ctx.fillSlots("service_connection_status_alt",
@@ -286,8 +282,25 @@ class Root(rend.Page):
                       render_time_delta(last_received_data_time, self.now_fn())
                       if last_received_data_time is not None
                       else "N/A")
-        ctx.fillSlots("summary", "%s" % cs.last_connection_summary)
-        ctx.fillSlots("details", "%s" % cs.last_connection_description)
+
+        others = cs.non_connected_statuses
+        if cs.connected:
+            ctx.fillSlots("summary", cs.summary)
+            if others:
+                details = "\n".join(["* %s: %s\n" % (which, others[which])
+                                     for which in sorted(others)])
+                ctx.fillSlots("details", "Other hints:\n" + details)
+            else:
+                ctx.fillSlots("details", "(no other hints)")
+        else:
+            details = T.ul()
+            for which in sorted(others):
+                details[T.li["%s: %s" % (which, others[which])]]
+            ctx.fillSlots("summary", [cs.summary, details])
+            ctx.fillSlots("details", "")
+
+    def render_introducers_row(self, ctx, cs):
+        self._render_connection_status(ctx, cs)
         return ctx.tag
 
     def data_helper_furl_prefix(self, ctx, data):
@@ -333,74 +346,14 @@ class Root(rend.Page):
 
     def data_services(self, ctx, data):
         sb = self.client.get_storage_broker()
-
-        @implementer(IContainer)
-        class Wrapper(object):
-            """
-            This provides IContainer to Nevow so we can provide a 'child' data
-            at 'connections' and pass-through all the
-            connection-status attributes to the rest of the renderers
-            """
-            def __init__(self, server):
-                self._server = server
-
-            def child(self, context, name):
-                if name == 'connections':
-                    st = self._server.get_connection_status()
-                    if st.connected:
-                        # we don't want the list of all possible hints
-                        # when we're already connected; then we just
-                        # show the one connection
-                        return []
-                    return st.statuses.items()
-                return None  # or are we supposed to raise something?
-
-            def __getattr__(self, x):
-                return getattr(self._server, x)
-
-        return [
-            Wrapper(x)
-            for x in sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
-        ]
-
-    def render_connection_item(self, ctx, server):
-        ctx.tag.fillSlots('details', server[1])
-        ctx.tag.fillSlots('summary', '{}: {}'.format(server[0], server[1]))
-        return ctx.tag
+        return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
     def render_service_row(self, ctx, server):
         cs = server.get_connection_status()
+        self._render_connection_status(ctx, cs)
 
         ctx.fillSlots("peerid", server.get_longname())
         ctx.fillSlots("nickname", server.get_nickname())
-
-        connected = "yes" if cs.connected else "no"
-        ctx.fillSlots("service_connection_status", connected)
-        ctx.fillSlots("service_connection_status_alt",
-                      self._connectedalts[connected])
-
-        since = cs.last_connection_time
-        ctx.fillSlots("service_connection_status_rel_time",
-                      render_time_delta(since, self.now_fn())
-                      if since is not None
-                      else "N/A")
-        ctx.fillSlots("service_connection_status_abs_time",
-                      render_time_attr(since)
-                      if since is not None
-                      else "N/A")
-
-        last_received_data_time = cs.last_received_time
-        ctx.fillSlots("last_received_data_abs_time",
-                      render_time_attr(last_received_data_time)
-                      if last_received_data_time is not None
-                      else "N/A")
-        ctx.fillSlots("last_received_data_rel_time",
-                      render_time_delta(last_received_data_time, self.now_fn())
-                      if last_received_data_time is not None
-                      else "N/A")
-
-        ctx.fillSlots("summary", "%s" % cs.last_connection_summary)
-        ctx.fillSlots("details", "%s" % cs.last_connection_description)
 
         announcement = server.get_announcement()
         version = announcement.get("my-version", "")

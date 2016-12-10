@@ -4,24 +4,22 @@ from ..interfaces import IConnectionStatus
 
 @implementer(IConnectionStatus)
 class ConnectionStatus:
-    def __init__(self, connected, summary,
-                 last_connection_description, last_connection_time,
-                 last_received_time, statuses):
+    def __init__(self, connected, summary, non_connected_statuses,
+                 last_connection_time, last_received_time):
         self.connected = connected
-        self.last_connection_summary = summary
-        self.last_connection_description = last_connection_description
+        self.summary = summary
+        self.non_connected_statuses = non_connected_statuses
         self.last_connection_time = last_connection_time
         self.last_received_time = last_received_time
-        self.statuses = statuses
 
-def _describe_statuses(hints, handlers, statuses):
-    descriptions = []
-    for hint in sorted(hints):
+def _hint_statuses(which, handlers, statuses):
+    non_connected_statuses = {}
+    for hint in which:
         handler = handlers.get(hint)
         handler_dsc = " via %s" % handler if handler else ""
-        status = statuses[hint]
-        descriptions.append(" %s%s: %s\n" % (hint, handler_dsc, status))
-    return "".join(descriptions)
+        dsc = statuses[hint]
+        non_connected_statuses["%s%s" % (hint, handler_dsc)] = dsc
+    return non_connected_statuses
 
 def from_foolscap_reconnector(rc, last_received):
     ri = rc.getReconnectionInfo()
@@ -30,53 +28,33 @@ def from_foolscap_reconnector(rc, last_received):
     # should never see "unstarted"
     assert state in ("connected", "connecting", "waiting"), state
     ci = ri.connectionInfo
+    connected = False
+    last_connected = None
+    others = set(ci.connectorStatuses.keys())
 
     if state == "connected":
         connected = True
-        # build a description that shows the winning hint, and the outcomes
-        # of the losing ones
-        statuses = ci.connectorStatuses
-        handlers = ci.connectionHandlers
-        others = set(statuses.keys())
-
-        winner = ci.winningHint
-        if winner:
-            others.remove(winner)
-            winning_handler = ci.connectionHandlers[winner]
-            winning_dsc = "to %s via %s" % (winner, winning_handler)
+        if ci.winningHint:
+            others.remove(ci.winningHint)
+            summary = "Connected to %s via %s" % (
+                ci.winningHint, ci.connectionHandlers[ci.winningHint])
         else:
-            winning_dsc = "via listener (%s)" % ci.listenerStatus[0]
-        if others:
-            other_dsc = "\nother hints:\n%s" % \
-                        _describe_statuses(others, handlers, statuses)
-        else:
-            other_dsc = ""
-        details = "Connection successful " + winning_dsc + other_dsc
-        summary = "Connected %s" % winning_dsc
+            summary = "Connected via listener (%s)" % ci.listenerStatus[0]
         last_connected = ci.establishedAt
     elif state == "connecting":
-        connected = False
         # ci describes the current in-progress attempt
-        statuses = ci.connectorStatuses
-        current = _describe_statuses(sorted(statuses.keys()),
-                                     ci.connectionHandlers, statuses)
-        details = "Trying to connect:\n%s" % current
         summary = "Trying to connect"
-        last_connected = None
     elif state == "waiting":
-        connected = False
         now = time.time()
         elapsed = now - ri.lastAttempt
         delay = ri.nextAttempt - now
+        summary = "Reconnecting in %d seconds (last attempt %ds ago)" % \
+                  (delay, elapsed)
         # ci describes the previous (failed) attempt
-        statuses = ci.connectorStatuses
-        last = _describe_statuses(sorted(statuses.keys()),
-                                  ci.connectionHandlers, statuses)
-        details = "Reconnecting in %d seconds\nLast attempt %ds ago:\n%s" \
-                  % (delay, elapsed, last)
-        summary = "Reconnecting in %d seconds" % delay
-        last_connected = None
 
-    cs = ConnectionStatus(connected, summary, details,
-                          last_connected, last_received, statuses)
+    non_connected_statuses = _hint_statuses(others,
+                                            ci.connectionHandlers,
+                                            ci.connectorStatuses)
+    cs = ConnectionStatus(connected, summary, non_connected_statuses,
+                          last_connected, last_received)
     return cs
