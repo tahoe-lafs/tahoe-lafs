@@ -2845,29 +2845,29 @@ class IConnectionStatus(Interface):
 
     connected = Attribute(
         """
-        Returns True if we appear to be connected: we've been successful
-        in communicating with our target at some point in the past, and we
+        True if we appear to be connected: we've been successful in
+        communicating with our target at some point in the past, and we
         haven't experienced any errors since then.""")
 
     last_connection_time = Attribute(
         """
-        If is_connected() is True, this returns a number
-        (seconds-since-epoch) when we last transitioned from 'not connected'
-        to 'connected', such as when a TCP connect() operation completed and
-        subsequent negotiation was successful. Otherwise it returns None.
+        If is_connected() is True, this is a timestamp (seconds-since-epoch)
+        when we last transitioned from 'not connected' to 'connected', such
+        as when a TCP connect() operation completed and subsequent
+        negotiation was successful. Otherwise it is None.
         """)
 
     last_connection_summary = Attribute(
         """
-        Returns a string with a brief summary of the current status, suitable
-        for display on an informational page. The more complete text from
+        A string with a brief summary of the current status, suitable for
+        display on an informational page. The more complete text from
         last_connection_description would be appropriate for a tool-tip
         popup.
         """)
 
     last_connection_description = Attribute(
         """
-        Returns a string with a description of the results of the most recent
+        A string with a description of the results of the most recent
         connection attempt. For Foolscap connections, this indicates the
         winning hint and the connection handler which used it, e.g.
         'tcp:HOST:PORT via tcp' or 'tor:HOST.onion:PORT via tor':
@@ -2882,8 +2882,8 @@ class IConnectionStatus(Interface):
 
     last_received_time = Attribute(
         """
-        Returns a number (seconds-since-epoch) describing the last time we
-        heard anything (including low-level keep-alives or inbound requests)
-        from the other side.
+        A timestamp (seconds-since-epoch) describing the last time we heard
+        anything (including low-level keep-alives or inbound requests) from
+        the other side.
         """)
 
