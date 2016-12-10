@@ -27,6 +27,7 @@ arguments (--hide-ip, --listen=tor). This includes ways to use SOCKS servers
 for outbound connections. Tor/I2P/Socks support requires extra python
 libraries to be installed (e.g. 'pip install tahoe-lafs[tor]'), as well as
 having the matching (non-python) daemons available on the host system. #517
+#2838
 
 Nodes now cache the announcements they receive in a YAML file, and use their
 cached information at startup until the Introducer connection is
@@ -230,7 +231,7 @@ more:
 * docs are now hosted at tahoe-lafs.readsthedocs.io (not .org)
 * 2491 start Tub synchronously, improves error delivery at startup
 * client uses separate Tub per storage server (privacy improvement)
-* 2818 show connection hints on welcome page
+* 2818/2819 improve connection status on welcome page
 * 2827 explain ipv6
 
 Not user visible:
