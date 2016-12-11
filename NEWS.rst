@@ -171,7 +171,23 @@ Compatibility Issues
 
 Debian/Jesse foolscap problem
 
-* 1363 use pubkey as serverid, not tubid. affects new-helper vs old-uploader
+A compatibility failure in the versions of Tahoe and Foolscap that shipped in
+Debian/Jesse (1.11.0 and 0.6.5 respectively) means that Jesse nodes will be
+unable to connect to servers or introducers created with this release (they
+cannot parse the new ``tcp:HOST:PORT`` hint syntax, which has been around for
+a while, but this is the first release to automatically generate such hints).
+If you need to work around this, then after creating your new node, edit the
+tahoe.cfg of your new server/introducer. In ``[node] tub.location``, make
+each connection hint look like ``HOST:PORT`` instead of ``tcp:HOST:PORT``. If
+your grid only has nodes with Foolscap-0.7.0 or later, you will not need this
+workaround. #2831
+
+Nodes now use an Ed25519 public key as a serverid, instead of a Foolscap "tub
+id", so status displays will report a different serverid after upgrade. For
+the most part this should be self-consistent, however if you have an old
+(1.11) client talking to a new (1.12) Helper, then the client's upload
+results (on the "Recent Uploads And Downloads" web page) will show unusual
+server ids. #1363
 
 
 Developer Changes
