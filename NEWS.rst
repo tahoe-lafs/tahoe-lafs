@@ -27,7 +27,7 @@ arguments (--hide-ip, --listen=tor). This includes ways to use SOCKS servers
 for outbound connections. Tor/I2P/Socks support requires extra python
 libraries to be installed (e.g. 'pip install tahoe-lafs[tor]'), as well as
 having the matching (non-python) daemons available on the host system. #517
-#2838
+#2490 #2838
 
 Nodes now cache the announcements they receive in a YAML file, and use their
 cached information at startup until the Introducer connection is
@@ -40,9 +40,9 @@ servers that were never introduced in the first place. #2788
 Nodes can use multiple introducers by adding entries to a new
 ``private/introducers.yaml`` file, or stop using introduction entirely by
 omitting the ``introducer.furl`` key from tahoe.cfg (introducerless clients
-should use static servers to connect anywhere). Server announcements are sent
-to all connected Introducers, and clients merge all announcements they see.
-This can improve the reliability of introduction. #68
+will need static servers configured to connect anywhere). Server
+announcements are sent to all connected Introducers, and clients merge all
+announcements they see. This can improve the reliability of introduction. #68
 
 
 
@@ -57,24 +57,40 @@ process. The SSH authentication code used a deprecated feature of Twisted,
 this code had no unit-test coverage, and I haven't personally used it in at
 least 6 years (despite writing it in the first place). Time to go. #2367
 
+The "tahoe debug trial" and "tahoe debug repl" CLI commands were removed, as
+"tox" is now the preferred way to run tests. #2735
 
-2783.docs:
 The "key-generator" node type has been removed. This was a standalone process
 that maintained a queue of RSA keys. Clients could offload the key-generation
 work by adding "key_generator.furl=" in their tahoe.cfg files, to create
 mutable files and directories faster. This seemed important back in 2006, but
 these days computers are faster and RSA key generation only takes about 90ms.
-
 This removes the "tahoe create-key-generator" command. Any
-"key_generator.furl" settings in tahoe.cfg will log a warning and otherwise
-ignored. Attempts to "tahoe start" a previously-generated key-generator node
-will result in an error.
+"key_generator.furl" settings in tahoe.cfg will log a warning and are
+otherwise ignored. Attempts to "tahoe start" a previously-generated
+key-generator node will result in an error. #2783
 
-* 2784 remove v1 introducer (sigs now required)
-* 2754 remove _appname.py
-* 1903 document "/file/" as deprecated, replace with "/named/"
-* 2735 CLI remove 'debug trial' and 'debug repl'
-* 1942 remove google-based timing chart on mapupdate page (privacy)
+The old version-1 Introducer protocol has been removed. Tahoe has used the
+version-2 protocol since 1.10 (in 2013), but all nodes (clients, servers, and
+the Introducer itself) provided backwards-compatibility translations when
+encountering older peers. These translations were finally removed, so Tahoe
+nodes at 1.12 or later will not be able to interact with nodes at 1.9 or
+older. #2784
+
+Tahoe's HTTP Web-API (aka "the WAPI") had an endpoint named "/file/". This
+has been deprecated, and applications should use "/named/" instead. #1903.
+
+One of the "recent uploads and downloads" status pages was using a
+Google-hosted API to draw a timing chart of the "mapupdate" operation. This
+has been removed, both for privacy (avoid revealing the contents to Google)
+and because the API was deprecated several years ago. #1942
+
+The "_appname.py" feature was removed. Early in Tahoe's history (at
+AllMyData), this file allowed the "tahoe" executable to be given a different
+name depending upon which Darcs patches were included in the particular
+source tree (one for production, another for development, etc). We haven't
+needed this for a long time, so it was removed. #2754
+
 
 
 Configuration Changes
