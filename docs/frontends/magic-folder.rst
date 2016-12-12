@@ -6,7 +6,7 @@ Tahoe-LAFS Magic Folder Frontend
 
 1.  `Introduction`_
 2.  `Configuration`_
-3.  `Known Issues and Limitations`_
+3.  `Known Issues and Limitations With Magic-Folder`_
 
 
 Introduction
@@ -40,13 +40,14 @@ Configuration
 
 The Magic Folder frontend runs as part of a gateway node. To set it up, you
 must use the tahoe magic-folder CLI. For detailed information see our
-`Magic-Folder CLI design documentation`_. For a given Magic-Folder collective
-directory you need to run the ``tahoe magic-folder create`` command. After
-that the ``tahoe magic-folder invite`` command must used to generate an
-*invite code* for each member of the magic-folder collective. A confidential,
-authenticated communications channel should be used to transmit the invite code
-to each member, who will be joining using the ``tahoe magic-folder join``
-command.
+:doc:`Magic-Folder CLI design
+documentation<../proposed/magic-folder/user-interface-design>`. For a
+given Magic-Folder collective directory you need to run the ``tahoe
+magic-folder create`` command. After that the ``tahoe magic-folder invite``
+command must used to generate an *invite code* for each member of the
+magic-folder collective. A confidential, authenticated communications channel
+should be used to transmit the invite code to each member, who will be
+joining using the ``tahoe magic-folder join`` command.
 
 These settings are persisted in the ``[magic_folder]`` section of the
 gateway's ``tahoe.cfg`` file.
@@ -81,8 +82,10 @@ page and the node :doc:`log<../logging>` may be helpful to determine the
 cause of any failures.
 
 
-Known Issues and Limitations
-============================
+.. _Known Issues in Magic-Folder:
+
+Known Issues and Limitations With Magic-Folder
+==============================================
 
 This feature only works on Linux and Windows. There is a ticket to add
 support for Mac OS X and BSD-based systems (`#1432`_).
@@ -143,6 +146,3 @@ On Windows, when a node has Magic Folder enabled, it is unresponsive to Ctrl-C
 .. _`#2218`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2218
 .. _`#2219`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2219
 .. _`#2440`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2440
-
-.. _`garbage collection`: ../garbage-collection.rst
-.. _`Magic-Folder CLI design documentation`: ../proposed/magic-folder/user-interface-design.rst

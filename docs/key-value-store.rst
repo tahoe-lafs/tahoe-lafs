@@ -26,7 +26,7 @@ options:
       This is spelled "`GET /uri/$FILECAP`_" in the API. "$FILECAP" is the
       key.
 
-   For details, see "immutable files" in `performance.rst`_, but in summary:
+   For details, see "immutable files" in :doc:`performance`, but in summary:
    the performance is not great but not bad.
 
    That document doesn't mention that if the size of the A-byte mutable file
@@ -57,7 +57,7 @@ options:
       change what value you get when you read) depends on the type of the
       key.
 
-   Again, for details, see "mutable files" in `performance.rst`_ (and
+   Again, for details, see "mutable files" in :doc:`performance` (and
    `these tickets`_ about how that doc is incomplete), but in summary, the
    performance of the create() operation is *terrible*! (It involves
    generating a 2048-bit RSA key pair.) The performance of the set and get
@@ -71,7 +71,7 @@ options:
 
       This is spelled "`POST /uri?t=mkdir`_".
 
-      `performance.rst`_ does not mention directories (`#2228`_), but in order
+      :doc:`performance` does not mention directories (`#2228`_), but in order
       to understand the performance of directories you have to understand how
       they are implemented. Mkdir creates a new mutable file, exactly the
       same, and with exactly the same performance, as the "create() mutable"
@@ -133,8 +133,6 @@ sqlite db in a Tahoe-LAFS mutable". ☺
 .. _55 bytes: https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/src/allmydata/immutable/upload.py?rev=196bd583b6c4959c60d3f73cdcefc9edda6a38ae#L1504
 
 .. _PUT /uri?format=mdmf: https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/docs/frontends/webapi.rst#writing-uploading-a-file
-
-.. _performance.rst: https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/docs/performance.rst
 
 .. _#2226: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2226
 

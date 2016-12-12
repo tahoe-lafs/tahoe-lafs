@@ -132,6 +132,12 @@ To use Tahoe-LAFS, please see :doc:`INSTALL`.
 License
 =======
 
-Tahoe-LAFS is an open-source project; please see README.rst_ for details.
+Tahoe-LAFS is an open-source project; please see the `top-level README`_ for
+details.
 
-.. _README.rst: ../README.rst
+..
+   this is really ../README.rst, but it's not included in the Sphinx build so
+   we can't link to it normally
+
+.. _top-level README: https://github.com/tahoe-lafs/tahoe-lafs/blob/master/README.rst
+

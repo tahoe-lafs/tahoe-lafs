@@ -6,7 +6,6 @@ Using Tahoe-LAFS with an anonymizing network: Tor, I2P
 
 #. `Overview`_
 #. `Use cases`_
-#. `Unresolved tickets`_
 
 #. `Software Dependencies`_
 
@@ -147,10 +146,10 @@ extras enabled::
 Connection configuration
 ========================
 
-See :ref:`configuration` "Client Configuration" for a description of the
-``[tor]`` and ``[i2p]`` sections of ``tahoe.cfg``. These control how the
-Tahoe client will connect to a Tor/I2P daemon, and thus make connections to
-Tor/I2P -based servers.
+See :ref:`Connection Management` for a description of the ``[tor]`` and
+``[i2p]`` sections of ``tahoe.cfg``. These control how the Tahoe client will
+connect to a Tor/I2P daemon, and thus make connections to Tor/I2P -based
+servers.
 
 The ``[tor]`` and ``[i2p]`` sections only need to be modified to use unusual
 configurations, or to enable automatic server setup.
