@@ -17,18 +17,18 @@ This release features improved Tor/I2P integration. It is now easy to::
 * run an Introducer or a storage node as a Tor "onion service"
 
 See docs/anonymity-configuration.rst for instructions and new node-creation
-arguments (--hide-ip, --listen=tor), which includes ways to use SOCKS servers
+arguments (--hide-ip, --listen=tor), which include ways to use SOCKS servers
 for outbound connections. Tor/I2P/Socks support requires extra python
 libraries to be installed (e.g. 'pip install tahoe-lafs[tor]'), as well as
-needing the matching (non-python) daemons available on the host system.
-(tickets #517, #2490, #2838)
+matching (non-python) daemons available on the host system. (tickets #517,
+#2490, #2838)
 
 Nodes can use multiple introducers by adding entries to a new
 ``private/introducers.yaml`` file, or stop using introduction entirely by
 omitting the ``introducer.furl`` key from tahoe.cfg (introducerless clients
 will need static servers configured to connect anywhere). Server
 announcements are sent to all connected Introducers, and clients merge all
-announcements they see. This can improve grid reliability. (#68)
+announcements they see, which can improve grid reliability. (#68)
 
 In addition, nodes now cache the announcements they receive in a YAML file,
 and use their cached information at startup until the Introducer connection
@@ -36,19 +36,15 @@ is re-established. This makes nodes more tolerant of Introducers that are
 temporarily offline. Nodes admins can copy text from the cache into a new
 ``private/servers.yaml`` file to add "static servers", which augment/override
 what the Introducer offers. This can modify aspects of the server, or use
-servers that were never introduced in the first place. (#2788)
+servers that were never announced in the first place. (#2788)
 
 Nodes use a separate Foolscap "Tub" for each server connection, so
 ``servers.yaml`` can override the connection rules (Tor vs direct-TCP) for
-each one separately. This offers a slight privacy improvement, as storage
-servers can no longer compare client TubIDs to confirm/deny that two clients
-are the same (but note there are other reliable signals: timing correlations,
-interest in the same shares, future Accounting identifiers). On the other
-hand, it slows down connections slightly (perhaps 75ms per server), breaks a
-n obscure NAT-bypass trick which enabled storage servers to run behind NAT
-boxes (but only when all the *clients* of the storage server had public IP
-addresses, and were also configured as servers), and makes server logs that
-record a TubID are less useful. (#2759, #517)
+each one separately. This offers a slight privacy improvement, but slows down
+connections slightly (perhaps 75ms per server), and breaks an obscure
+NAT-bypass trick which enabled storage servers to run behind NAT boxes (but
+only when all the *clients* of the storage server had public IP addresses,
+and were also configured as servers). (#2759, #517)
 
 "Magic Folders" is an experimental two-way directory synchronization tool,
 contributed by Least Authority Enterprises, which replaces the previous
@@ -60,17 +56,17 @@ Compatibility Issues
 --------------------
 
 The old version-1 Introducer protocol has been removed. Tahoe has used the
-version-2 protocol since 1.10 (in 2013), but all nodes (clients, servers, and
-the Introducer itself) provided backwards-compatibility translations when
-encountering older peers. These translations were finally removed, so Tahoe
-nodes at 1.12 or later will not be able to interact with nodes at 1.9 or
-older. (#2784)
+version-2 protocol since 1.10 (released in 2013), but all nodes (clients,
+servers, and the Introducer itself) provided backwards-compatibility
+translations when encountering older peers. These translations were finally
+removed, so Tahoe nodes at 1.12 or later will not be able to interact with
+nodes at 1.9 or older. (#2784)
 
 The versions of Tahoe (1.11.0) and Foolscap (0.6.5) that shipped in
 Debian/Jesse (the most recent stable release, as of December 2016) are
 regrettably not forwards-compatible with the new release. Nodes running Jesse
 will not be able to connect to servers or introducers created with this
-release (they cannot parse the new ``tcp:HOST:PORT`` hint syntax; this syntax
+release: they cannot parse the new ``tcp:HOST:PORT`` hint syntax (this syntax
 has been around for a while, but this is the first Tahoe release to
 automatically generate such hints). If you need to work around this, then
 after creating your new node, edit the tahoe.cfg of your new
@@ -89,7 +85,8 @@ Dependency/Installation changes
 -------------------------------
 
 Tahoe now requires Twisted >= 16.1.0, so ensure that unit tests do not fail
-because of uncancelled timers left running by HostnameEndpoint. (#2781)
+because of uncancelled timers left running by HostnameEndpoint. It also
+requires the Tor/I2P supporting code from Foolscap >= 0.12.5 . (#2781)
 
 Configuration Changes
 ---------------------
@@ -117,19 +114,18 @@ predictable, and errors should be surfaced earlier.
 * We now encourage static allocation of tub.port, and pre-configuration of
   the node's externally-reachable IP address or hostname (by setting
   tub.location). Automatic IP-address detection is deprecated. Automatic port
-  allocation is discouraged. Eventually both will be managed by "tahoe
-  create-node", but for now we recommend users edit their tahoe.cfg after
-  node creation and before first launch.
+  allocation is discouraged. Both are managed by the new arguments to "tahoe
+  create-node".
 * "tahoe start" now creates the Tub, and all primary software components,
   before the child process daemonizes. Many configuration errors which would
   previously have been reported in a logfile (after node startup), will now
   be signalled immediately, via stderr. In these cases, the "tahoe start"
   process will exit with a non-zero return code. (#2491)
-* An empty ``tub.port`` means don't listen at all, which is appropriate for
-  client-only nodes (#2816)
 * Unrecognized tahoe.cfg options are rejected at startup, not ignored (#2809)
 * ``tub.port`` can take multple (comma-separated) endpoints, to listen on
   multiple ports at the same time, useful for dual IPv4+IPv6 servers. (#867)
+* An empty ``tub.port`` means don't listen at all, which is appropriate for
+  client-only nodes (#2816)
 * A new setting, ``reveal-ip-address = false``, acts as a safety belt,
   causing an error to be thrown if any other setting might reveal the node's
   IP address (i.e. it requires Tor or I2P to be used, rather than direct TCP
@@ -146,15 +142,10 @@ explicitly control the listener and the advertised location. (#2773, #2490)
 
 The "stats-gatherer", used by enterprise deployments to collect runtime
 statistics from a fleet of Tahoe storage servers, must now be assigned a
-hostname, or location+port pair, at creation time. The "tahoe
+hostname, or location+port pair, at creation time. It will no longer attempt
+to guess its location (with /sbin/ifconfig). The "tahoe
 create-stats-gatherer" command requires either "--hostname=", or both
 "--location=" and "--port". (#2773)
-
-Previously, "tahoe create-stats-gatherer NODEDIR" would attempt to guess its
-location by running something like /sbin/ifconfig to collect local IP
-addresses. While this works if the host has a public IP address (or at least
-lives in the same LAN as the storage servers it monitors), most sysadmins
-would prefer the FURL be created with a real hostname.
 
 To keep your old stats-gatherers working, with their original FURL, you must
 determine a suitable --location and --port, and write their values into
@@ -170,7 +161,7 @@ Removed Features
 ----------------
 
 The "key-generator" node type has been removed. This was a standalone process
-that maintained a queue of RSA keys, and clients could offload the
+that maintained a queue of RSA keys, and clients could offload their
 key-generation work by adding "key_generator.furl=" in their tahoe.cfg files,
 to create mutable files and directories faster. This seemed important back in
 2006, but these days computers are faster and RSA key generation only takes
@@ -192,7 +183,7 @@ The "tahoe debug trial" and "tahoe debug repl" CLI commands were removed, as
 
 One of the "recent uploads and downloads" status pages was using a
 Google-hosted API to draw a timing chart of the "mapupdate" operation. This
-has been removed, both for privacy (to avoid revealing the contents to
+has been removed, both for privacy (to avoid revealing the serverids to
 Google) and because the API was deprecated several years ago. (#1942)
 
 The "_appname.py" feature was removed. Early in Tahoe's history (at
@@ -208,10 +199,10 @@ Documentation is now hosted at tahoe-lafs.readthedocs.io (not .org).
 
 Tahoe's testing-only dependencies can now be installed by asking for the
 [test] extra, so if you want to set up a virtualenv for testing, use "pip
-install -e .[test]" instead just of "pip install -e ." . At the moment this
-only includes "coverage" and "pyflakes", but in the future it might include
-"mock" and other utility libraries. Most tooling (code-checks, deprecation
-warnings, etc) has been moved from a Makefile into tox. (#2776)
+install -e .[test]" instead just of "pip install -e ." . This includes "tox",
+"coverage", "pyflakes", "mock", and all the Tor/I2P extras. Most developer
+tooling (code-checks, documentation builds, deprecation warnings, etc) have
+been moved from a Makefile into tox environments. (#2776)
 
 The "Welcome" (web) page now shows more detail about the introducer and
 storage-server connections, including which connection handler is being used
