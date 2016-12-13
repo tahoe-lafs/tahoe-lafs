@@ -238,10 +238,10 @@ class ConfigMixin:
                 value = default.strip()
             else:
                 value = default().strip()
-            fileutil.write(privpath, value, mode="")
+            fileutil.write(privpath, value, mode="w")
         return value
 
-    def write_config(self, name, value, mode=""):
+    def write_config(self, name, value, mode="w"):
         """Write a string to a config file."""
         fn = os.path.join(self.basedir, name)
         try:
@@ -445,7 +445,7 @@ class Node(service.MultiService, ConfigMixin):
             else:
                 tubport = "tcp:%d" % iputil.allocate_tcp_port()
                 fileutil.write_atomically(self._portnumfile, tubport + "\n",
-                                          mode="")
+                                          mode="w")
         else:
             tubport = self._convert_tub_port(cfg_tubport)
 
