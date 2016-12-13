@@ -541,6 +541,65 @@ class Node(service.MultiService, ConfigMixin):
         # TODO: merge this with allmydata.get_package_versions
         return dict(app_versions.versions)
 
+    def startService(self):
+        # Note: this class can be started and stopped at most once.
+        self.log("Node.startService")
+        # Record the process id in the twisted log, after startService()
+        # (__init__ is called before fork(), but startService is called
+        # after). Note that Foolscap logs handle pid-logging by itself, no
+        # need to send a pid to the foolscap log here.
+        twlog.msg("My pid: %s" % os.getpid())
+        try:
+            os.chmod("twistd.pid", 0644)
+        except EnvironmentError:
+            pass
+
+        service.MultiService.startService(self)
+        self.log("%s running" % self.NODETYPE)
+        twlog.msg("%s running" % self.NODETYPE)
+
+    def stopService(self):
+        self.log("Node.stopService")
+        return service.MultiService.stopService(self)
+
+    def shutdown(self):
+        """Shut down the node. Returns a Deferred that fires (with None) when
+        it finally stops kicking."""
+        self.log("Node.shutdown")
+        return self.stopService()
+
+    def setup_logging(self):
+        # we replace the formatTime() method of the log observer that
+        # twistd set up for us, with a method that uses our preferred
+        # timestamp format.
+        for o in twlog.theLogPublisher.observers:
+            # o might be a FileLogObserver's .emit method
+            if type(o) is type(self.setup_logging): # bound method
+                ob = o.im_self
+                if isinstance(ob, twlog.FileLogObserver):
+                    newmeth = types.UnboundMethodType(formatTimeTahoeStyle, ob, ob.__class__)
+                    ob.formatTime = newmeth
+        # TODO: twisted >2.5.0 offers maxRotatedFiles=50
+
+        lgfurl_file = os.path.join(self.basedir, "private", "logport.furl").encode(get_filesystem_encoding())
+        if os.path.exists(lgfurl_file):
+            os.remove(lgfurl_file)
+        self.log_tub.setOption("logport-furlfile", lgfurl_file)
+        lgfurl = self.get_config("node", "log_gatherer.furl", "")
+        if lgfurl:
+            # this is in addition to the contents of log-gatherer-furlfile
+            self.log_tub.setOption("log-gatherer-furl", lgfurl)
+        self.log_tub.setOption("log-gatherer-furlfile",
+                               os.path.join(self.basedir, "log_gatherer.furl"))
+
+        incident_dir = os.path.join(self.basedir, "logs", "incidents")
+        foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
+        twlog.msg("Foolscap logging initialized")
+        twlog.msg("Note to developers: twistd.log does not receive very much.")
+        twlog.msg("Use 'flogtool tail -c NODEDIR/private/logport.furl' instead")
+        twlog.msg("and read docs/logging.rst")
+
+    # XXX should go in the ConfigMixin i guess??
     def get_config_from_file(self, name, required=False):
         """Get the (string) contents of a config file, or None if the file
         did not exist. If required=True, raise an exception rather than
