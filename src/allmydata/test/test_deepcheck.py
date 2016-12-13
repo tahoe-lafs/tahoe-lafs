@@ -943,7 +943,6 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
     def _delete_some_shares(self, node):
         return self.delete_shares_numbered(node.get_uri(), [0,1])
 
-    @defer.inlineCallbacks
     def _corrupt_some_shares(self, node):
         d = self.find_uri_shares(node.get_uri())
         def _got_shares(sharelist):

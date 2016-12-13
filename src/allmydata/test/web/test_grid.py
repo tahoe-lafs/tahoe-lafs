@@ -3,6 +3,7 @@ import simplejson
 from StringIO import StringIO
 from nevow import rend
 from twisted.trial import unittest
+from twisted.internet import defer
 from allmydata import uri, dirnode
 from allmydata.util import base32
 from allmydata.util.encodingutil import to_str
@@ -67,15 +68,16 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
+        @defer.inlineCallbacks
         def _clobber_shares(ignored):
-            good_shares = self.find_uri_shares(self.uris["good"])
+            good_shares = yield self.find_uri_shares(self.uris["good"])
             self.failUnlessReallyEqual(len(good_shares), 10)
-            sick_shares = self.find_uri_shares(self.uris["sick"])
+            sick_shares = yield self.find_uri_shares(self.uris["sick"])
             os.unlink(sick_shares[0][2])
-            dead_shares = self.find_uri_shares(self.uris["dead"])
+            dead_shares = yield self.find_uri_shares(self.uris["dead"])
             for i in range(1, 10):
                 os.unlink(dead_shares[i][2])
-            c_shares = self.find_uri_shares(self.uris["corrupt"])
+            c_shares = yield self.find_uri_shares(self.uris["corrupt"])
             cso = CorruptShareOptions()
             cso.stdout = StringIO()
             cso.parseOptions([c_shares[0][2]])
@@ -209,15 +211,16 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
+        @defer.inlineCallbacks
         def _clobber_shares(ignored):
-            good_shares = self.find_uri_shares(self.uris["good"])
+            good_shares = yield self.find_uri_shares(self.uris["good"])
             self.failUnlessReallyEqual(len(good_shares), 10)
-            sick_shares = self.find_uri_shares(self.uris["sick"])
+            sick_shares = yield self.find_uri_shares(self.uris["sick"])
             os.unlink(sick_shares[0][2])
-            dead_shares = self.find_uri_shares(self.uris["dead"])
+            dead_shares = yield self.find_uri_shares(self.uris["dead"])
             for i in range(1, 10):
                 os.unlink(dead_shares[i][2])
-            c_shares = self.find_uri_shares(self.uris["corrupt"])
+            c_shares = yield self.find_uri_shares(self.uris["corrupt"])
             cso = CorruptShareOptions()
             cso.stdout = StringIO()
             cso.parseOptions([c_shares[0][2]])
@@ -278,8 +281,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
+        @defer.inlineCallbacks
         def _clobber_shares(ignored):
-            sick_shares = self.find_uri_shares(self.uris["sick"])
+            sick_shares = yield self.find_uri_shares(self.uris["sick"])
             os.unlink(sick_shares[0][2])
         d.addCallback(_clobber_shares)
 
@@ -771,10 +775,11 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         #d.addCallback(lambda fn: self.rootnode.set_node(u"corrupt", fn))
         #d.addCallback(_stash_uri, "corrupt")
 
+        @defer.inlineCallbacks
         def _clobber_shares(ignored):
-            good_shares = self.find_uri_shares(self.uris["good"])
+            good_shares = yield self.find_uri_shares(self.uris["good"])
             self.failUnlessReallyEqual(len(good_shares), 10)
-            sick_shares = self.find_uri_shares(self.uris["sick"])
+            sick_shares = yield self.find_uri_shares(self.uris["sick"])
             os.unlink(sick_shares[0][2])
             #dead_shares = self.find_uri_shares(self.uris["dead"])
             #for i in range(1, 10):
@@ -838,15 +843,16 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addErrback(self.explain_web_error)
         return d
 
+    @defer.inlineCallbacks
     def _count_leases(self, ignored, which):
         u = self.uris[which]
-        shares = self.find_uri_shares(u)
+        shares = yield self.find_uri_shares(u)
         lease_counts = []
         for shnum, serverid, fn in shares:
             sf = get_share_file(fn)
             num_leases = len(list(sf.get_leases()))
             lease_counts.append( (fn, num_leases) )
-        return lease_counts
+        defer.returnValue(lease_counts)
 
     def _assert_leasecount(self, lease_counts, expected):
         for (fn, num_leases) in lease_counts:
