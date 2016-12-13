@@ -417,20 +417,14 @@ class Client(node.Node, pollmixin.PollMixin):
         self.storage_server = ss
         self.add_service(ss)
 
-        d = self.when_tub_ready()
-        # we can't do registerReference until the Tub is ready
-        def _publish(res):
-            anonymous_account = self.accountant.get_anonymous_account()
-            anonymous_account_furlfile = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
-            anonymous_account_furl = self.tub.registerReference(anonymous_account, furlFile=anonymous_account_furlfile)
-            ann = {"anonymous-storage-FURL": anonymous_account_furl,
-                   "permutation-seed-base32": self._init_permutation_seed(ss),
-                   }
-            for ic in self.introducer_clients:
-                ic.publish("storage", ann, self._node_key)
-        d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="aLGBKw")
+        anonymous_account = self.accountant.get_anonymous_account()
+        anonymous_account_furlfile = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
+        anonymous_account_furl = self.tub.registerReference(anonymous_account, furlFile=anonymous_account_furlfile)
+        ann = {"anonymous-storage-FURL": anonymous_account_furl,
+               "permutation-seed-base32": self._init_permutation_seed(ss),
+               }
+        for ic in self.introducer_clients:
+            ic.publish("storage", ann, self._node_key)
 
     def get_accountant(self):
         return self.accountant
