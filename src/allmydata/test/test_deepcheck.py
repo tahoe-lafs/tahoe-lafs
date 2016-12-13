@@ -1,5 +1,7 @@
 
 import os, simplejson, urllib
+from StringIO import StringIO
+
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata.immutable import upload
@@ -15,7 +17,7 @@ from twisted.web.client import getPage
 
 from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data, \
      ShouldFailMixin
-from .common_util import StallMixin, run_cli
+from .common_util import StallMixin
 from allmydata.test.no_network import GridTestMixin
 from allmydata.scripts import debug
 

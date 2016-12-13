@@ -9,7 +9,6 @@ import allmydata
 from allmydata import client, uri
 from allmydata.storage.backends.cloud import cloud_common, mock_cloud
 from allmydata.introducer.server import IntroducerNode
-from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
 from allmydata.immutable.literal import LiteralFileNode
@@ -19,7 +18,6 @@ from allmydata.util import log, base32
 from allmydata.util.encodingutil import quote_output, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
-from allmydata.scripts import runner
 from allmydata.scripts.debug import ChunkedShare
 from allmydata.stats import StatsGathererService
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
@@ -1392,7 +1390,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
         def _put_and_get(ign, i):
             name = "file%d" % i
             tahoe_path = "%s/subdir/%s" % (self._root_directory_uri, name)
-            format_options = formats[i]
             fn = os.path.join(self.basedir, name)
             data = "%s%d\n" % (LARGE_DATA, i)
             fileutil.write(fn, data)

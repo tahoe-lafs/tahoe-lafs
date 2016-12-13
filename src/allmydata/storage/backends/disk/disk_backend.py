@@ -149,7 +149,7 @@ class DiskShareSet(ShareSet):
             except CorruptStoredShareError:
                 corrupted.add(shnum)
 
-        valid = [shares[shnum] for shnum in sorted(shares.keys())]
+        valid = [shares[sharenum] for sharenum in sorted(shares.keys())]
         return defer.succeed( (valid, corrupted) )
 
     def _locked_get_share(self, shnum):

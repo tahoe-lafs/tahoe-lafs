@@ -555,6 +555,13 @@ class Node(service.MultiService, ConfigMixin):
             return None
         return value.strip()
 
+    def log(self, *args, **kwargs):
+        return log.msg(*args, **kwargs)
+
+    def add_service(self, s):
+        s.setServiceParent(self)
+        return s
+
 
 class ConfigOnly(object, ConfigMixin):
     GENERATED_FILES = []

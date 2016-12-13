@@ -13,9 +13,9 @@ from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.storage_client import StubServer
+from allmydata.storage.backends.disk.mutable import MutableDiskShare
 from allmydata.mutable.layout import unpack_header
 from allmydata.mutable.publish import MutableData
-from allmydata.storage.mutable import MutableShareFile
 from allmydata.util import hashutil, log
 from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
