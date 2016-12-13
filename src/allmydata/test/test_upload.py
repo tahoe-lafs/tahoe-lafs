@@ -852,8 +852,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         def _store_uri(ur):
             self.uri = ur.get_uri()
         d.addCallback(_store_uri)
-        d.addCallback(lambda ign:
-            self.find_uri_shares(self.uri))
+        d.addCallback(lambda ign: self.find_uri_shares(self.uri))
+
         def _store_shares(shares):
             self.shares = shares
         d.addCallback(_store_shares)

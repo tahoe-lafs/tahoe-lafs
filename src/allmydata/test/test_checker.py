@@ -344,8 +344,7 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
             self.imm = c0.create_node_from_uri(ur.get_uri())
             self.uri = self.imm.get_uri()
         d.addCallback(_stash_immutable)
-        d.addCallback(lambda ign:
-            self.find_uri_shares(self.uri))
+        d.addCallback(lambda ign: self.find_uri_shares(self.uri))
         def _store_shares(shares):
             self.shares = shares
         d.addCallback(_store_shares)

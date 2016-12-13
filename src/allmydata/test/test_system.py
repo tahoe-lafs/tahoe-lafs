@@ -35,7 +35,7 @@ from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error
 
-from .common import TEST_RSA_KEY_SIZE
+from .common import TEST_RSA_KEY_SIZE, FakeCanary
 
 # TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
@@ -385,26 +385,6 @@ def flush_but_dont_ignore(res):
         return res
     d.addCallback(_done)
     return d
-
-
-class Marker:
-    pass
-
-
-class FakeCanary:
-    def __init__(self, ignore_disconnectors=False):
-        self.ignore = ignore_disconnectors
-        self.disconnectors = {}
-    def notifyOnDisconnect(self, f, *args, **kwargs):
-        if self.ignore:
-            return
-        m = Marker()
-        self.disconnectors[m] = (f, args, kwargs)
-        return m
-    def dontNotifyOnDisconnect(self, marker):
-        if self.ignore:
-            return
-        del self.disconnectors[marker]
 
 
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):

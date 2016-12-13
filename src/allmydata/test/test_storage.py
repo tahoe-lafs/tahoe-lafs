@@ -54,10 +54,9 @@ from allmydata.mutable.layout import MDMFSlotWriteProxy, MDMFSlotReadProxy, \
 from allmydata.interfaces import BadWriteEnablerError, RIStorageServer
 from allmydata.test.common import LoggingServiceParent, ShouldFailMixin, CrawlerTestMixin, \
      FakeCanary
-from allmydata.test.common_util import ReallyEqualMixin
+from allmydata.test.common_util import ReallyEqualMixin, parse_cli
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.test.no_network import NoNetworkServer
-from allmydata.test.test_cli import parse_options
 from allmydata.scripts.admin import do_create_container, do_ls_container
 from allmydata.web.storage import StorageStatus, remove_prefix
 
@@ -1556,7 +1555,8 @@ class AdminContainerTests(unittest.TestCase, WorkdirMixin):
             # restarting the reactor or exiting), but that should be sufficient.
 
             ns.result_callback = result_callback
-            options = parse_options(basedir, "admin", ["create-container"])
+            top_opts = parse_cli("admin", "create-container", "--basedir", basedir)
+            options = top_opts.subOptions.subOptions
             options.stdout = StringIO()
             options.stderr = StringIO()
             d = defer.maybeDeferred(do_create_container, options)
@@ -1616,7 +1616,8 @@ class AdminContainerTests(unittest.TestCase, WorkdirMixin):
             # We're really only testing do_ls_container (to avoid problems with
             # restarting the reactor or exiting), but that should be sufficient.
 
-            options = parse_options(self.basedir, "admin", ["ls-container"])
+            top_opts = parse_cli("-d", self.basedir, "admin", "ls-container")
+            options = top_opts.subOptions.subOptions
             options.stdout = StringIO()
             options.stderr = StringIO()
             d = defer.maybeDeferred(do_ls_container, options)
