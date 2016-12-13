@@ -627,6 +627,7 @@ class ConfigOnly(object, ConfigMixin):
 
     def __init__(self, basedir=u"."):
         self.basedir = abspath_expanduser_unicode(unicode(basedir))
+        self.config_fname = os.path.join(self.basedir, "tahoe.cfg")
         self.read_config()
 
 
