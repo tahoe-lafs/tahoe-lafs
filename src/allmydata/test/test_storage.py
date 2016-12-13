@@ -2,8 +2,9 @@
 import time, os.path, platform, re, simplejson, struct, itertools, urllib
 from cStringIO import StringIO
 import thread
-
+import json
 import mock
+
 from twisted.trial import unittest
 
 from twisted.internet import defer
@@ -460,7 +461,11 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
                     self.failUnless(IBodyProducer.providedBy(bodyProducer))
                     body = StringIO()
                     d = bodyProducer.startProducing(FileConsumer(body))
-                    d.addCallback(lambda ign: self.failUnlessEqual(body.getvalue(), expected_body))
+                    # de-serializing these because order isn't spec'd in dicts/json
+                    d.addCallback(lambda ign: self.failUnlessEqual(
+                        json.loads(body.getvalue()),
+                        json.loads(expected_body),
+                    ))
                     d.addCallback(lambda ign: self.failUnlessIn(bodyProducer.length,
                                                                 (len(expected_body), UNKNOWN_LENGTH)))
                 d.addCallback(lambda ign: MockResponse(response_code, response_phrase, response_headers, response_body))

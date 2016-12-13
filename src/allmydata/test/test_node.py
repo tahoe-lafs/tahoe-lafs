@@ -111,9 +111,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         basedir = "test_node/test_private_config"
         privdir = os.path.join(basedir, "private")
         fileutil.make_dirs(privdir)
-        f = open(os.path.join(privdir, 'already'), 'wt')
-        f.write("secret")
-        f.close()
+        with open(os.path.join(privdir, 'already'), 'wt') as f:
+            f.write("secret")
 
         n = TestNode(basedir)
         self.failUnlessEqual(n.get_private_config("already"), "secret")

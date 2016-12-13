@@ -35,7 +35,7 @@ from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error
 
-from .common import TEST_RSA_KEY_SIZE, FakeCanary
+from .common import TEST_RSA_KEY_SIZE
 
 # TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
@@ -1375,7 +1375,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
             fileutil.write(fn, data)
 
             d2 = defer.succeed(None)
-            d2.addCallback(lambda ign: run_cli("put", formats[i], fn, tahoe_path, nodeargs=self.nodeargs))
+            args = []
+            if formats[i]:
+                args.append(formats[i])
+            args.extend([fn, tahoe_path])
+            d2.addCallback(lambda ign: run_cli("put", *args, nodeargs=self.nodeargs))
             def _check_put( (out, err) ):
                 self.failUnlessIn("201 Created", err)
                 self.failUnlessIn("URI:", out)
@@ -1959,7 +1963,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
 
         rc,output,err = yield run_cli("debug", "dump-share", "--offsets",
                                       unicode_to_argv(filename))
-        self.failUnlessEqual(err.getvalue(), "")
+        self.failUnlessEqual(err, "")
         self.failUnlessEqual(rc, 0)
 
         # we only upload a single file, so we can assert some things about
