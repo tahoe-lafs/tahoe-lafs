@@ -181,6 +181,13 @@ class ConfigMixin:
         """Read the (string) contents of a file. Any leading or trailing
         whitespace will be stripped from the data. If the file does not exist,
         return None."""
+        try:
+            value = fileutil.read(path)
+        except EnvironmentError:
+            if os.path.exists(path):
+                raise
+            return None
+        return value.strip()
 
     def _get_private_config_path(self, name):
         return os.path.join(self.basedir, "private", name)
