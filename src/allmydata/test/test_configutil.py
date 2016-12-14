@@ -88,6 +88,9 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
                     "webport": "tcp:3456",
                     "hide-ip": False,
                     "listen": "none",
+                    "shares-needed": "1",
+                    "shares-happy": "1",
+                    "shares-total": "1",
                     }
             create_node.write_node_config(f, opts)
             create_node.write_client_config(f, opts)

@@ -288,6 +288,8 @@ def write_node_config(c, config):
 
 
 def write_client_config(c, config):
+    # note, config can be a plain dict, it seems -- see
+    # test_configutil.py in test_create_client_config
     c.write("[client]\n")
     c.write("# Which services should this client connect to?\n")
     introducer = config.get("introducer", None) or ""
