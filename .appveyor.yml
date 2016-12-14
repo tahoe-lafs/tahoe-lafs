@@ -6,7 +6,7 @@ environment:
 
     # For Python versions available on Appveyor, see
     # http://www.appveyor.com/docs/installed-software#python
-    #- PYTHON: "C:\\Python27"
+    - PYTHON: "C:\\Python27"
     - PYTHON: "C:\\Python27-x64"
     #  DISTUTILS_USE_SDK: "1"
     #  TOX_TESTENV_PASSENV: "DISTUTILS_USE_SDK INCLUDE LIB"
@@ -45,7 +45,8 @@ after_test:
 artifacts:
   # bdist_wheel puts your built wheel in the dist directory
   # "pip wheel -w dist ." puts all the dependency wheels there too
-  - path: dist\*
+  # this gives us a zipfile with everything
+  - path: dist
 
 #on_success:
 #  You can use this step to upload your artifacts to a public website.
