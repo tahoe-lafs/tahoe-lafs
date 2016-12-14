@@ -396,6 +396,8 @@ class GridTestMixin:
     def set_up_grid(self, num_clients=1, num_servers=10,
                     client_config_hooks={}, oneshare=False):
         # self.basedir must be set
+        if hasattr(self, 'g') and self.g is not None:
+            self.s.removeService(self.g)
         self.g = NoNetworkGrid(self.basedir,
                                num_clients=num_clients,
                                num_servers=num_servers,
