@@ -1,5 +1,6 @@
 
 import os, re, sys, time, simplejson
+from contextlib import contextmanager
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -470,6 +471,22 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d.addCallback(get_furl)
         return d
 
+    @contextmanager
+    def _new_encoding_params(self, **kwargs):
+        # save old params
+        old_client_params = [
+            client.encoding_params.copy()
+            for client in self.clients
+        ]
+        for client in self.clients:
+            for k, v in kwargs.items():
+                client.encoding_params[k] = v
+        yield
+        # restore params
+        for old_params, client in zip(old_client_params, self.clients):
+            client.encoding_params = old_params
+
+
     def _set_up_nodes_2(self, res):
         q = self.introducer
         self.introducer_furl = q.introducer_url
@@ -679,14 +696,17 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
         # to disk among all our simulated nodes
         DATA = "Some data to upload\n" * 200
         d = self.set_up_nodes()
+        encoding_params_context = self._new_encoding_params(happy=5)
         def _check_connections(res):
+            encoding_params_context.__enter__()
             for c in self.clients:
-                c.encoding_params['happy'] = 5
                 all_peerids = c.get_storage_broker().get_all_serverids()
                 self.failUnlessEqual(len(all_peerids), self.numclients)
                 sb = c.storage_broker
                 permuted_peers = sb.get_servers_for_psi("a")
                 self.failUnlessEqual(len(permuted_peers), self.numclients)
+        def _old_params(ign):
+            encoding_params_context.__exit__(None, None, None)
         d.addCallback(_check_connections)
 
         def _do_upload(res):
@@ -976,6 +996,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
             d.addCallback(_got_stats)
             return d
         d.addCallback(_grab_stats)
+        d.addBoth(_old_params)
 
         return d
 
@@ -1287,10 +1308,16 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
     def test_filesystem(self):
         self.basedir = self.workdir("test_filesystem")
         self.data = LARGE_DATA
+        params_context_mgr = self._new_encoding_params(happy=1)
         d = self.set_up_nodes(use_stats_gatherer=True)
         def _new_happy_semantics(ign):
-            for c in self.clients:
-                c.encoding_params['happy'] = 1
+            params_context_mgr.__enter__()
+#            for c in self.clients:
+#                c.encoding_params['happy'] = 1
+
+        def _old_happy_semantics(ign):
+            params_context_mgr.__exit__(None, None, None)
+
         d.addCallback(_new_happy_semantics)
         d.addCallback(self._test_introweb)
         d.addCallback(self.log, "starting publish")
@@ -1334,6 +1361,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
         # P/s2-rw/
         # P/test_put/  (empty)
         d.addCallback(self._test_checker)
+        d.addBoth(_old_happy_semantics)
         return d
 
     def test_simple(self):
@@ -1344,16 +1372,15 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
         """
 
         self.basedir = self.workdir("test_simple")
+        encoding_param_context = self._new_encoding_params(k=3, happy=1, n=3)
         d = self.set_up_nodes(NUMCLIENTS=1, use_stats_gatherer=True)
         def _set_happy_and_nodeargs(ign):
-            for c in self.clients:
-                # TODO: this hangs with k = n = 10; figure out why.
-                c.DEFAULT_ENCODING_PARAMETERS['k'] = 3
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
-                c.DEFAULT_ENCODING_PARAMETERS['n'] = 3
+            encoding_param_context.__enter__()
             self.nodeargs = [
                 "--node-directory", self.getdir("client0"),
             ]
+        def _old_params(ign):
+            encoding_param_context.__exit__(None, None, None)
         d.addCallback(_set_happy_and_nodeargs)
         def _publish(ign):
             c0 = self.clients[0]
@@ -1394,6 +1421,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
 
         for i in range(len(formats)):
             d.addCallback(_put_and_get, i)
+        d.addBoth(_old_params)
         return d
 
     def _test_introweb(self, res):
@@ -2389,9 +2417,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
 
         self.basedir = self.workdir("test_filesystem_with_cli_in_subprocess")
         d = self.set_up_nodes()
+        params_context_manager = self._new_encoding_params(happy=1)
         def _new_happy_semantics(ign):
-            for c in self.clients:
-                c.encoding_params['happy'] = 1
+            params_context_manager.__enter__()
+        def _old_happy_semantics(ign):
+            params_context_manager.__exit__(None, None, None)
         d.addCallback(_new_happy_semantics)
 
         def _run_in_subprocess(ignored, verb, *args, **kwargs):
@@ -2428,6 +2458,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
             self.failUnlessIn("tahoe-moved", out)
             self.failIfIn("tahoe-file", out)
         d.addCallback(_check_ls)
+        d.addBoth(_old_happy_semantics)
         return d
 
     def _test_checker(self, res):

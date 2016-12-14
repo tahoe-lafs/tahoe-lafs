@@ -637,7 +637,7 @@ class ServerSelection(unittest.TestCase):
 class StorageIndex(unittest.TestCase):
     def test_params_must_matter(self):
         DATA = "I am some data"
-        PARAMS = Client.DEFAULT_ENCODING_PARAMETERS
+        PARAMS = Client.DEFAULT_ENCODING_PARAMETERS.copy()
 
         u = upload.Data(DATA, convergence="")
         u.set_default_encoding_parameters(PARAMS)
