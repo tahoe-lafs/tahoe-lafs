@@ -91,7 +91,6 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             lines = set(output.splitlines())
             self.failUnless("Mutable slot found:" in lines, output)
             self.failUnless(" share_type: MDMF" in lines, output)
-            self.failUnless(" num_extra_leases: 0" in lines, output)
             self.failUnless(" MDMF contents:" in lines, output)
             self.failUnless("  seqnum: 1" in lines, output)
             self.failUnless("  required_shares: 3" in lines, output)
@@ -107,6 +106,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             cso.stderr = StringIO()
             debug.catalog_shares(cso)
             shares = cso.stdout.getvalue().splitlines()
+            self.failIf(len(shares) < 1, shares)
             oneshare = shares[0] # all shares should be MDMF
             self.failIf(oneshare.startswith("UNKNOWN"), oneshare)
             self.failUnless(oneshare.startswith("MDMF"), oneshare)
