@@ -461,7 +461,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         """
         account_name and container are all required by MS Azure configuration.
         """
-        configs = ["mszure.account_name = theaccount",
+        configs = ["msazure.account_name = theaccount",
                    "msazure.container = bucket"]
         for i in range(len(configs)):
             basedir = self.mktemp()
@@ -599,7 +599,11 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnlessRaises(NeedRootcapLookupScheme, client.Client, basedir)
 
     def _permute(self, sb, key):
-        return [ base32.a2b(s.get_longname()) for s in sb.get_servers_for_psi(key) ]
+        return [
+            # base32.a2b(s.get_longname())  #  daira's branch had this, but why?? (also: it fails)
+            s.get_longname()
+            for s in sb.get_servers_for_psi(key)
+        ]
 
     def test_permute(self):
         sb = StorageFarmBroker(True, None)
