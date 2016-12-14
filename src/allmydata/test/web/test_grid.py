@@ -10,7 +10,7 @@ from allmydata.util.encodingutil import to_str
 from allmydata.util.consumer import download_to_data
 from allmydata.util.netstring import split_netstring
 from allmydata.unknown import UnknownNode
-from allmydata.storage.shares import get_share_file
+from allmydata.storage.backends.disk.disk_backend import get_disk_share
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.immutable import upload
 from allmydata.mutable import publish
@@ -845,11 +845,13 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
     @defer.inlineCallbacks
     def _count_leases(self, ignored, which):
+        # need to re-write this because there's now accounts, and
+        # lease-dbs and suchlike... (in this branch)
         u = self.uris[which]
         shares = yield self.find_uri_shares(u)
         lease_counts = []
         for shnum, serverid, fn in shares:
-            sf = get_share_file(fn)
+            sf = get_disk_share(fn)
             num_leases = len(list(sf.get_leases()))
             lease_counts.append( (fn, num_leases) )
         defer.returnValue(lease_counts)

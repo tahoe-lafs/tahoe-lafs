@@ -90,8 +90,9 @@ install_requires = [
     #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2474>.
     "pyOpenSSL >= 0.14",
 
+    # --find-links https://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-lafs-dep-sdists/
     # needed for cloud backend
-    "txAWS == 0.2.1.post5",
+    "txAWS == 0.2.3", ## but, originally this: what's different? 0.2.1.post5",
     "oauth2client == 1.1.0",
     "PyYAML >= 3.11",
 
