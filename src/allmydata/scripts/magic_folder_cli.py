@@ -92,8 +92,7 @@ def create(options):
             return rc
         invite_code = invite_options.stdout.getvalue().strip()
         join_options = _delegate_options(options, JoinOptions())
-        if 'poll-interval' in options:
-            join_options['poll-interval'] = options['poll-interval']
+        join_options['poll-interval'] = options['poll-interval']
         join_options.local_dir = options.local_dir
         join_options.invite_code = invite_code
         rc = join(join_options)
