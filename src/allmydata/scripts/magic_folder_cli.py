@@ -30,6 +30,10 @@ class CreateOptions(BasedirOptions):
     nickname = None
     local_dir = None
     synopsis = "MAGIC_ALIAS: [NICKNAME LOCAL_DIR]"
+    optParameters = [
+        ("poll-interval", "p", "60", "How often to ask for updates"),
+    ]
+
     def parseArgs(self, alias, nickname=None, local_dir=None):
         BasedirOptions.parseArgs(self)
         alias = argv_to_unicode(alias)
@@ -37,6 +41,13 @@ class CreateOptions(BasedirOptions):
             raise usage.UsageError("An alias must end with a ':' character.")
         self.alias = alias[:-1]
         self.nickname = None if nickname is None else argv_to_unicode(nickname)
+        try:
+            if int(self['poll-interval']) <= 0:
+                raise ValueError("should be positive")
+        except ValueError:
+            raise usage.UsageError(
+                "--poll-interval must be a positive integer"
+            )
 
         # Expand the path relative to the current directory of the CLI command, not the node.
         self.local_dir = None if local_dir is None else argv_to_abspath(local_dir, long_path=False)
@@ -81,6 +92,7 @@ def create(options):
             return rc
         invite_code = invite_options.stdout.getvalue().strip()
         join_options = _delegate_options(options, JoinOptions())
+        join_options['poll-interval'] = options['poll-interval']
         join_options.local_dir = options.local_dir
         join_options.invite_code = invite_code
         rc = join(join_options)
@@ -147,9 +159,20 @@ class JoinOptions(BasedirOptions):
     synopsis = "INVITE_CODE LOCAL_DIR"
     dmd_write_cap = ""
     magic_readonly_cap = ""
+    optParameters = [
+        ("poll-interval", "p", "60", "How often to ask for updates"),
+    ]
+
     def parseArgs(self, invite_code, local_dir):
         BasedirOptions.parseArgs(self)
 
+        try:
+            if int(self['poll-interval']) <= 0:
+                raise ValueError("should be positive")
+        except ValueError:
+            raise usage.UsageError(
+                "--poll-interval must be a positive integer"
+            )
         # Expand the path relative to the current directory of the CLI command, not the node.
         self.local_dir = None if local_dir is None else argv_to_abspath(local_dir, long_path=False)
         self.invite_code = to_str(argv_to_unicode(invite_code))
@@ -175,6 +198,7 @@ def join(options):
     config = configutil.get_config(os.path.join(options["node-directory"], u"tahoe.cfg"))
     configutil.set_config(config, "magic_folder", "enabled", "True")
     configutil.set_config(config, "magic_folder", "local.directory", options.local_dir.encode('utf-8'))
+    configutil.set_config(config, "magic_folder", "poll_interval", options.get("poll-interval", "60"))
     configutil.write_config(os.path.join(options["node-directory"], u"tahoe.cfg"), config)
     return 0
 

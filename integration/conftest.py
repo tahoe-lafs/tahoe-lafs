@@ -337,6 +337,7 @@ def alice_invite(reactor, alice, temp_dir, request):
         [
             sys.executable, '-m', 'allmydata.scripts.runner',
             'magic-folder', 'create',
+            '--poll-interval', '2',
             '--basedir', node_dir, 'magik:', 'alice',
             join(temp_dir, 'magic-alice'),
         ]
@@ -380,6 +381,7 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
         [
             sys.executable, '-m', 'allmydata.scripts.runner',
             'magic-folder', 'join',
+            '--poll-interval', '2',
             '--basedir', bob_dir,
             alice_invite,
             join(temp_dir, 'magic-bob'),
