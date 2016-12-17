@@ -15,7 +15,8 @@
   - [ ] build locally to make sure the release is reporting itself as the
     intended version, make tarballs too (for comparison only)
   - [ ] push tag to trigger buildslaves. Making a code change is no longer
-    necessary
+    necessary (TODO: pushing just 1.12.0b2 was insufficient: travis fired,
+    but not buildbot)
     - git push official master TAGNAME
     - that will build tarballs
   - [ ] make sure buildbot is green
