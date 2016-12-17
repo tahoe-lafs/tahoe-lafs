@@ -24,7 +24,6 @@
   - [ ] announce tree is unlocked
   - [ ] compare tarballs+wheels against local copies (but sign upstreams)
   - [ ] sign each with "gpg -ba -u 68666a7a FILE"
-  - [ ] twine register dist/FILE
   - [ ] twine upload dist/*
   - [ ] test "pip install tahoe-lafs" (from PyPI)
   - [ ] upload *.asc to org ~source/downloads/
