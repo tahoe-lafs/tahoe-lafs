@@ -4,8 +4,8 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.12.0 (?)
-''''''''''''''''''
+Release 1.12.0 (17-Dec-2016)
+''''''''''''''''''''''''''''
 
 New Features
 ------------
@@ -38,10 +38,10 @@ temporarily offline. Nodes admins can copy text from the cache into a new
 what the Introducer offers. This can modify aspects of the server, or use
 servers that were never announced in the first place. (#2788)
 
-Nodes use a separate Foolscap "Tub" for each server connection, so
+Nodes now use a separate Foolscap "Tub" for each server connection, so
 ``servers.yaml`` can override the connection rules (Tor vs direct-TCP) for
-each one separately. This offers a slight privacy improvement, but slows down
-connections slightly (perhaps 75ms per server), and breaks an obscure
+each one independently. This offers a slight privacy improvement, but slows
+down connections slightly (perhaps 75ms per server), and breaks an obscure
 NAT-bypass trick which enabled storage servers to run behind NAT boxes (but
 only when all the *clients* of the storage server had public IP addresses,
 and were also configured as servers). (#2759, #517)
@@ -64,10 +64,10 @@ nodes at 1.9 or older. (#2784)
 
 The versions of Tahoe (1.11.0) and Foolscap (0.6.5) that shipped in
 Debian/Jesse (the most recent stable release, as of December 2016) are
-regrettably not forwards-compatible with the new release. Nodes running Jesse
-will not be able to connect to servers or introducers created with this
-release: they cannot parse the new ``tcp:HOST:PORT`` hint syntax (this syntax
-has been around for a while, but this is the first Tahoe release to
+regrettably not forwards-compatible with this new version. Nodes running
+Jesse will not be able to connect to servers or introducers created with this
+release because they cannot parse the new ``tcp:HOST:PORT`` hint syntax (this
+syntax has been around for a while, but this is the first Tahoe release to
 automatically generate such hints). If you need to work around this, then
 after creating your new node, edit the tahoe.cfg of your new
 server/introducer: in ``[node] tub.location``, make each connection hint look
@@ -195,7 +195,7 @@ needed this for a long time, so it was removed. (#2754)
 Other Changes
 -------------
 
-Documentation is now hosted at tahoe-lafs.readthedocs.io (not .org).
+Documentation is now hosted at http://tahoe-lafs.readthedocs.io/ (not .org).
 
 Tahoe's testing-only dependencies can now be installed by asking for the
 [test] extra, so if you want to set up a virtualenv for testing, use "pip
