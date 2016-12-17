@@ -1,8 +1,9 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.11.0
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.12.0
 
-The Tahoe-LAFS team is pleased to announce version 1.11.0 of
-Tahoe-LAFS, an extremely reliable decentralized storage system.
-Get it here:
+The Tahoe-LAFS team is pleased to announce version 1.12.0 of
+Tahoe-LAFS, an extremely reliable decentralized storage
+system. Get it with "pip install tahoe-lafs", or download a
+tarball here:
 
   https://tahoe-lafs.org/downloads
 
@@ -14,16 +15,17 @@ unique security and fault-tolerance properties:
 
   http://tahoe-lafs.readthedocs.org/en/latest/about.html
 
-The previous stable release of Tahoe-LAFS was v1.10.2, released
-on July 30, 2015.
+The previous stable release of Tahoe-LAFS was v1.11.0,
+released on March 30, 2016.
 
-v1.11.0 overhauls the install/packaging system, bringing Tahoe
-into line with standard Python practices like "pip",
-"virtualenv", and "tox". It can now be installed with "pip
-install tahoe-lafs". This release also includes a few small
-features, like the "preferred peers" server-selection
-configuration, unicode aliases, and welcome-page improvements.
-See the NEWS file [1] for details.
+v1.12.0 adds better Tor/I2P support, enables multiple
+introducers, enables no introducers, allows static server
+definitions, and adds "Magic Folders", an experimental two-way
+directory-synchronization tool. It removes some little-used
+features like the "key-generator" node and the old v1
+introducer protocol (v2 has been available since 1.10). Many
+smaller fixes and changes were made: see the NEWS file [1] for
+details.
 
 
 WHAT IS IT GOOD FOR?
@@ -60,9 +62,14 @@ Tahoe-LAFS. Clients from this release can write files and
 directories in the format used by clients of all versions back
 to v1.0 (which was released March 25, 2008). Clients from this
 release can read files and directories produced by clients of
-all versions since v1.0. Servers from this release can serve
-clients of all versions back to v1.0 and clients from this
-release can use servers of all versions back to v1.0.
+all versions since v1.0.
+
+Network connections are limited by the Introducer protocol in
+use. If the Introducer is running v1.10 or v1.11, then servers
+from this release (v1.12) can serve clients of all versions
+back to v1.0 . If it is running v1.12, then they can only
+serve clients back to v1.10. Clients from this release can use
+servers back to v1.10, but not older servers.
 
 Except for the new optional MDMF format, we have not made any
 intentional compatibility changes. However we do not yet have
@@ -70,12 +77,7 @@ the test infrastructure to continuously verify that all new
 versions are interoperable with previous versions. We intend
 to build such an infrastructure in the future.
 
-The new Introducer protocol added in v1.10 is backwards
-compatible with older clients and introducer servers, however
-some features will be unavailable when an older node is
-involved. Please see docs/nodekeys.rst [14] for details.
-
-This is the twentieth release in the version 1 series. This
+This is the twenty-first release in the version 1 series. This
 series of Tahoe-LAFS will be actively supported and maintained
 for the foreseeable future, and future versions of Tahoe-LAFS
 will retain the ability to read and write files compatible
@@ -135,7 +137,7 @@ Of Fame" [13].
 
 ACKNOWLEDGEMENTS
 
-This is the fifteenth release of Tahoe-LAFS to be created
+This is the sixteenth release of Tahoe-LAFS to be created
 solely as a labor of love by volunteers. Thank you very much
 to the team of "hackers in the public interest" who make
 Tahoe-LAFS possible.
@@ -143,20 +145,19 @@ Tahoe-LAFS possible.
 Brian Warner
 on behalf of the Tahoe-LAFS team
 
-March 30, 2016
+December 17, 2016
 San Francisco, California, USA
 
 
-[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.11.0/NEWS.rst
+[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.0/NEWS.rst
 [2] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/known_issues.rst
 [3] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
-[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.11.0/COPYING.GPL
-[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.11.0/COPYING.TGPPL.rst
-[6] http://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.11.0/INSTALL.html
+[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.0/COPYING.GPL
+[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.0/COPYING.TGPPL.rst
+[6] http://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.12.0/INSTALL.html
 [7] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [8] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
 [9] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/CREDITS
 [10] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Dev
 [12] https://leastauthority.com/
 [13] https://tahoe-lafs.org/hacktahoelafs/
-[14] http://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.11.0/nodekeys.html
