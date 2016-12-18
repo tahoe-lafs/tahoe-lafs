@@ -365,6 +365,8 @@ set the ``tub.location`` option described below.
       rather than being set to ``tor`` or ``disabled``
 
 
+.. _Connection Management:
+
 Connection Management
 =====================
 
@@ -558,6 +560,7 @@ on port 7656. This is the default SAM port for the ``i2p`` daemon.
     be used.
 
 
+.. _Client Configuration:
 
 Client Configuration
 ====================

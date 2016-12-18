@@ -63,7 +63,7 @@ class MagicFolder(service.MultiService):
     name = 'magic-folder'
 
     def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask,
-                 uploader_delay=1.0, clock=None, downloader_delay=3):
+                 uploader_delay=1.0, clock=None, downloader_delay=60):
         precondition_abspath(local_path_u)
 
         service.MultiService.__init__(self)
@@ -752,7 +752,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def __init__(self, client, local_path_u, db, collective_dirnode,
                  upload_readonly_dircap, clock, is_upload_pending, umask,
-                 status_reporter, poll_interval=3):
+                 status_reporter, poll_interval=60):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
 
         if not IDirectoryNode.providedBy(collective_dirnode):

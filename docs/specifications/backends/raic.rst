@@ -404,4 +404,4 @@ References
 
 ¹¹ “Performance costs for some common operations” tahoe-lafs.org (2012)
 
-    https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/docs/performance.rst
+    :doc:`../../performance`

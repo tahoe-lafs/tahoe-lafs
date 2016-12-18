@@ -3120,3 +3120,56 @@ class InsufficientVersionError(Exception):
 
 class EmptyPathnameComponentError(Exception):
     """The webapi disallows empty pathname components."""
+
+class IConnectionStatus(Interface):
+    """
+    I hold information about the 'connectedness' for some reference.
+    Connections are an illusion, of course: only messages hold any meaning,
+    and they are fleeting. But for status displays, it is useful to pretend
+    that 'recently contacted' means a connection is established, and
+    'recently failed' means it is not.
+
+    This object is not 'live': it is created and populated when requested
+    from the connection manager, and it does not change after that point.
+    """
+
+    connected = Attribute(
+        """
+        True if we appear to be connected: we've been successful in
+        communicating with our target at some point in the past, and we
+        haven't experienced any errors since then.""")
+
+    last_connection_time = Attribute(
+        """
+        If is_connected() is True, this is a timestamp (seconds-since-epoch)
+        when we last transitioned from 'not connected' to 'connected', such
+        as when a TCP connect() operation completed and subsequent
+        negotiation was successful. Otherwise it is None.
+        """)
+
+    summary = Attribute(
+        """
+        A string with a brief summary of the current status, suitable for
+        display on an informational page. The more complete text from
+        last_connection_description would be appropriate for a tool-tip
+        popup.
+        """)
+
+    last_received_time = Attribute(
+        """
+        A timestamp (seconds-since-epoch) describing the last time we heard
+        anything (including low-level keep-alives or inbound requests) from
+        the other side.
+        """)
+
+    non_connected_statuses = Attribute(
+        """
+        A dictionary, describing all connections that are not (yet)
+        successful. When connected is True, this will only be the losing
+        attempts. When connected is False, this will include all attempts.
+
+        This maps a connection description string (for foolscap this is a
+        connection hint and the handler it is using) to the status string
+        (pending, connected, refused, or other errors).
+        """)
+
