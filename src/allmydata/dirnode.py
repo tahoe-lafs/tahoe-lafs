@@ -1,33 +1,36 @@
-
-import time, math, unicodedata
+"""Directory Node implementation."""
+import time, unicodedata
 
 from zope.interface import implements
 from twisted.internet import defer
 from foolscap.api import fireEventually
 import simplejson
+
+from allmydata.deep_stats import DeepStats
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.interfaces import IFilesystemNode, IDirectoryNode, IFileNode, \
-     IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable, \
      MustBeDeepImmutableError, CapConstraintError, ChildOfWrongTypeError
 from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
-from allmydata.util import hashutil, mathutil, base32, log
+from allmydata.util import hashutil, base32, log
 from allmydata.util.encodingutil import quote_output
 from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
 from allmydata.util.consumer import download_to_data
-from allmydata.uri import LiteralFileURI, from_string, wrap_dirnode_cap
+from allmydata.uri import wrap_dirnode_cap
 from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
 
 
 def update_metadata(metadata, new_metadata, now):
     """Updates 'metadata' in-place with the information in 'new_metadata'.
-    Timestamps are set according to the time 'now'."""
+
+    Timestamps are set according to the time 'now'.
+    """
 
     if metadata is None:
         metadata = {}
@@ -364,8 +367,8 @@ class DirectoryNode:
                     children.set_with_aux(name, (child, metadata), auxilliary=entry)
                 else:
                     log.msg(format="mutable cap for child %(name)s unpacked from an immutable directory",
-                                   name=quote_output(name, encoding='utf-8'),
-                                   facility="tahoe.webish", level=log.UNUSUAL)
+                            name=quote_output(name, encoding='utf-8'),
+                            facility="tahoe.webish", level=log.UNUSUAL)
             except CapConstraintError, e:
                 log.msg(format="unmet constraint on cap for child %(name)s unpacked from a directory:\n"
                                "%(message)s", message=e.args[0], name=quote_output(name, encoding='utf-8'),
@@ -794,111 +797,6 @@ class DirectoryNode:
         return self.deep_traverse(DeepChecker(self, verify, repair=True, add_lease=add_lease))
 
 
-
-class DeepStats:
-    def __init__(self, origin):
-        self.origin = origin
-        self.stats = {}
-        for k in ["count-immutable-files",
-                  "count-mutable-files",
-                  "count-literal-files",
-                  "count-files",
-                  "count-directories",
-                  "count-unknown",
-                  "size-immutable-files",
-                  #"size-mutable-files",
-                  "size-literal-files",
-                  "size-directories",
-                  "largest-directory",
-                  "largest-directory-children",
-                  "largest-immutable-file",
-                  #"largest-mutable-file",
-                  ]:
-            self.stats[k] = 0
-        self.histograms = {}
-        for k in ["size-files-histogram"]:
-            self.histograms[k] = {} # maps (min,max) to count
-        self.buckets = [ (0,0), (1,3)]
-        self.root = math.sqrt(10)
-
-    def set_monitor(self, monitor):
-        self.monitor = monitor
-        monitor.origin_si = self.origin.get_storage_index()
-        monitor.set_status(self.get_results())
-
-    def add_node(self, node, childpath):
-        if isinstance(node, UnknownNode):
-            self.add("count-unknown")
-        elif IDirectoryNode.providedBy(node):
-            self.add("count-directories")
-        elif IMutableFileNode.providedBy(node):
-            self.add("count-files")
-            self.add("count-mutable-files")
-            # TODO: update the servermap, compute a size, add it to
-            # size-mutable-files, max it into "largest-mutable-file"
-        elif IImmutableFileNode.providedBy(node): # CHK and LIT
-            self.add("count-files")
-            size = node.get_size()
-            self.histogram("size-files-histogram", size)
-            theuri = from_string(node.get_uri())
-            if isinstance(theuri, LiteralFileURI):
-                self.add("count-literal-files")
-                self.add("size-literal-files", size)
-            else:
-                self.add("count-immutable-files")
-                self.add("size-immutable-files", size)
-                self.max("largest-immutable-file", size)
-
-    def enter_directory(self, parent, children):
-        dirsize_bytes = parent.get_size()
-        if dirsize_bytes is not None:
-            self.add("size-directories", dirsize_bytes)
-            self.max("largest-directory", dirsize_bytes)
-        dirsize_children = len(children)
-        self.max("largest-directory-children", dirsize_children)
-
-    def add(self, key, value=1):
-        self.stats[key] += value
-
-    def max(self, key, value):
-        self.stats[key] = max(self.stats[key], value)
-
-    def which_bucket(self, size):
-        # return (min,max) such that min <= size <= max
-        # values are from the set (0,0), (1,3), (4,10), (11,31), (32,100),
-        # (101,316), (317, 1000), etc: two per decade
-        assert size >= 0
-        i = 0
-        while True:
-            if i >= len(self.buckets):
-                # extend the list
-                new_lower = self.buckets[i-1][1]+1
-                new_upper = int(mathutil.next_power_of_k(new_lower, self.root))
-                self.buckets.append( (new_lower, new_upper) )
-            maybe = self.buckets[i]
-            if maybe[0] <= size <= maybe[1]:
-                return maybe
-            i += 1
-
-    def histogram(self, key, size):
-        bucket = self.which_bucket(size)
-        h = self.histograms[key]
-        if bucket not in h:
-            h[bucket] = 0
-        h[bucket] += 1
-
-    def get_results(self):
-        stats = self.stats.copy()
-        for key in self.histograms:
-            h = self.histograms[key]
-            out = [ (bucket[0], bucket[1], h[bucket]) for bucket in h ]
-            out.sort()
-            stats[key] = out
-        return stats
-
-    def finish(self):
-        return self.get_results()
-
 class ManifestWalker(DeepStats):
     def __init__(self, origin):
         DeepStats.__init__(self, origin)
@@ -968,5 +866,3 @@ class DeepChecker:
 
 
 # use client.create_dirnode() to make one of these
-
-

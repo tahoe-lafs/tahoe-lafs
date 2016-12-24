@@ -1,3 +1,5 @@
+"""Tests for the dirnode module."""
+
 import time
 import unicodedata
 from zope.interface import implements
