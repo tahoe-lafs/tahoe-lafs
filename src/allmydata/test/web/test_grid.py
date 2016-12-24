@@ -535,7 +535,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failIfIn("URI:SSK", res)
             get_lonely = "".join([r'<td>FILE</td>',
                                   r'\s+<td>',
-                                  r'<a href="[^"]+%s[^"]+">lonely</a>' % (urllib.quote(lonely_uri),),
+                                  r'<a href="[^"]+%s[^"]+" rel="noreferrer">lonely</a>' % (urllib.quote(lonely_uri),),
                                   r'</td>',
                                   r'\s+<td align="right">%d</td>' % len("one"),
                                   ])
