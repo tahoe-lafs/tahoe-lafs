@@ -267,6 +267,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
       classifiers=trove_classifiers,
       install_requires=install_requires,
       extras_require={
+          ':sys_platform=="win32"': ["pypiwin32"],
           "test": [
               "pyflakes",
               "coverage",
