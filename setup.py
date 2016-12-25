@@ -279,6 +279,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "txi2p >= 0.3.1", # in case pip's resolver doesn't work
               "pytest",
               "pytest-twisted",
+              "shutilwhich >= 1.1.0", # in Python 3.3 stdlib
           ],
           "tor": [
               "foolscap[tor] >= 0.12.5",
