@@ -14,6 +14,14 @@ class ManifestResults(rend.Page, operations.ReloadMixin):
 
     docFactory = common.getxmlfile("manifest.xhtml")
 
+    # Json API version.
+    # Rules:
+    # - increment each time a field is removed or changes meaning.
+    # - it's ok to add a new field without incrementing the version.
+    # Note this does not apply to inner stats object which will have its own
+    # versioning.
+    API_VERSION = 1
+
     def __init__(self, client, monitor):
         """Initialize class."""
         self.client = client
@@ -55,6 +63,7 @@ class ManifestResults(rend.Page, operations.ReloadMixin):
         status = {"stats": s["stats"],
                   "finished": m.is_finished(),
                   "origin": origin_base32,
+                  "api-version": self.API_VERSION
                   }
         if m.is_finished():
             # don't return manifest/verifycaps/SIs unless the operation is

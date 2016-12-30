@@ -10,6 +10,7 @@ from allmydata.uri import LiteralFileURI
 from allmydata.uri import from_string
 from allmydata.util import mathutil
 
+
 class DeepStats(object):
     """Deep stats object.
 
@@ -36,7 +37,7 @@ class DeepStats(object):
                   "count-directories",
                   "count-unknown",
                   "size-immutable-files",
-                  #"size-mutable-files",
+                  # "size-mutable-files",
                   "size-literal-files",
                   "size-directories",
                   "largest-directory",
