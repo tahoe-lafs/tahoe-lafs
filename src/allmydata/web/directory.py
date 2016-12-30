@@ -33,14 +33,16 @@ from allmydata.web.check_results import CheckResultsRenderer, \
      CheckAndRepairResultsRenderer, DeepCheckResultsRenderer, \
      DeepCheckAndRepairResultsRenderer, LiteralCheckResultsRenderer
 from allmydata.web.info import MoreInfo
-from allmydata.web.operations import ReloadMixin
 from allmydata.web.check_results import json_check_results, \
      json_check_and_repair_results
+from allmydata.web import manifest_results
+
 
 class BlockingFileError(Exception):
     # TODO: catch and transform
     """We cannot auto-create a parent directory, because there is a file in
     the way"""
+
 
 def make_handler_for(node, client, parentnode=None, name=None):
     if parentnode:
@@ -50,6 +52,7 @@ def make_handler_for(node, client, parentnode=None, name=None):
     if IDirectoryNode.providedBy(node):
         return DirectoryNodeHandler(client, node, parentnode, name)
     return UnknownNodeHandler(client, node, parentnode, name)
+
 
 class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     addSlash = True
@@ -84,7 +87,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             f.trap(NoSuchChildError)
             # No child by this name. What should we do about it?
             if DEBUG: print "no child", name
-            if DEBUG: print "postpath", req.postpath
+            if DEBUG:
+                print "postpath", req.postpath
             if nonterminal:
                 if DEBUG: print " intermediate"
                 if should_create_intermediate_directories(req):
@@ -503,7 +507,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         if not get_arg(ctx, "ophandle"):
             raise NeedOperationHandleError("slow operation requires ophandle=")
         monitor = self.node.build_manifest()
-        renderer = ManifestResults(self.client, monitor)
+        renderer = manifest_results.ManifestResults(self.client, monitor)
         return self._start_operation(monitor, renderer, ctx)
 
     def _POST_start_deep_size(self, ctx):
@@ -955,97 +959,6 @@ class RenameForm(rend.Page):
         ctx.tag.attributes['value'] = name
         return ctx.tag
 
-class ManifestResults(rend.Page, ReloadMixin):
-    docFactory = getxmlfile("manifest.xhtml")
-
-    def __init__(self, client, monitor):
-        self.client = client
-        self.monitor = monitor
-
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        output = get_arg(req, "output", "html").lower()
-        if output == "text":
-            return self.text(req)
-        if output == "json":
-            return self.json(req)
-        return rend.Page.renderHTTP(self, ctx)
-
-    def slashify_path(self, path):
-        if not path:
-            return ""
-        return "/".join([p.encode("utf-8") for p in path])
-
-    def text(self, req):
-        req.setHeader("content-type", "text/plain")
-        lines = []
-        is_finished = self.monitor.is_finished()
-        lines.append("finished: " + {True: "yes", False: "no"}[is_finished])
-        for (path, cap) in self.monitor.get_status()["manifest"]:
-            lines.append(self.slashify_path(path) + " " + cap)
-        return "\n".join(lines) + "\n"
-
-    def json(self, req):
-        req.setHeader("content-type", "text/plain")
-        m = self.monitor
-        s = m.get_status()
-
-        if m.origin_si:
-            origin_base32 = base32.b2a(m.origin_si)
-        else:
-            origin_base32 = ""
-        status = { "stats": s["stats"],
-                   "finished": m.is_finished(),
-                   "origin": origin_base32,
-                   }
-        if m.is_finished():
-            # don't return manifest/verifycaps/SIs unless the operation is
-            # done, to save on CPU/memory (both here and in the HTTP client
-            # who has to unpack the JSON). Tests show that the ManifestWalker
-            # needs about 1092 bytes per item, the JSON we generate here
-            # requires about 503 bytes per item, and some internal overhead
-            # (perhaps transport-layer buffers in twisted.web?) requires an
-            # additional 1047 bytes per item.
-            status.update({ "manifest": s["manifest"],
-                            "verifycaps": [i for i in s["verifycaps"]],
-                            "storage-index": [i for i in s["storage-index"]],
-                            })
-            # simplejson doesn't know how to serialize a set. We use a
-            # generator that walks the set rather than list(setofthing) to
-            # save a small amount of memory (4B*len) and a moderate amount of
-            # CPU.
-        return simplejson.dumps(status, indent=1)
-
-    def _si_abbrev(self):
-        si = self.monitor.origin_si
-        if not si:
-            return "<LIT>"
-        return base32.b2a(si)[:6]
-
-    def render_title(self, ctx):
-        return T.title["Manifest of SI=%s" % self._si_abbrev()]
-
-    def render_header(self, ctx):
-        return T.p["Manifest of SI=%s" % self._si_abbrev()]
-
-    def data_items(self, ctx, data):
-        return self.monitor.get_status()["manifest"]
-
-    def render_row(self, ctx, (path, cap)):
-        ctx.fillSlots("path", self.slashify_path(path))
-        root = get_root(ctx)
-        # TODO: we need a clean consistent way to get the type of a cap string
-        if cap:
-            if cap.startswith("URI:CHK") or cap.startswith("URI:SSK"):
-                nameurl = urllib.quote(path[-1].encode("utf-8"))
-                uri_link = "%s/file/%s/@@named=/%s" % (root, urllib.quote(cap),
-                                                       nameurl)
-            else:
-                uri_link = "%s/uri/%s" % (root, urllib.quote(cap, safe=""))
-            ctx.fillSlots("cap", T.a(href=uri_link)[cap])
-        else:
-            ctx.fillSlots("cap", "")
-        return ctx.tag
 
 class DeepSizeResults(rend.Page):
     def __init__(self, client, monitor):
