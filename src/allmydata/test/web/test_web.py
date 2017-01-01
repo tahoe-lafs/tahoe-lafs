@@ -1,4 +1,5 @@
-import os.path, re, urllib, time, cgi
+import os.path
+import re, urllib, time, cgi
 import simplejson
 
 from twisted.application import service
@@ -1759,6 +1760,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn("storage-index", res)
             self.failUnlessIn("verifycaps", res)
             self.failUnlessIn("stats", res)
+            self.failUnlessIn("api-version", res)
         d.addCallback(_got_json)
         return d
 

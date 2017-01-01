@@ -77,7 +77,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
     def got_child(self, node_or_failure, ctx, name):
         DEBUG = False
-        if DEBUG: print "GOT_CHILD", name, node_or_failure
+        if DEBUG:
+            print "GOT_CHILD", name, node_or_failure
         req = IRequest(ctx)
         method = req.method
         nonterminal = len(req.postpath) > 1
