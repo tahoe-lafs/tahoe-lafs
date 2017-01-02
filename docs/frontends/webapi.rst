@@ -1725,6 +1725,9 @@ incorrectly.
   storage-index: list of (base32) storage index strings
   stats: a dictionary with the same keys as the t=start-deep-stats command
          (described below)
+  api-version (int): deep-manifest API version. Will be increased every
+               time backwards-incompatible change is introduced. Current version
+               is 1.
 
 ``POST $DIRURL?t=start-deep-size``   (must add &ophandle=XYZ)
 
