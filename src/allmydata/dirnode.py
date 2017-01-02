@@ -1,5 +1,6 @@
 """Directory Node implementation."""
-import time, unicodedata
+import time
+import unicodedata
 
 from zope.interface import implementer
 from twisted.internet import defer
@@ -27,7 +28,7 @@ from allmydata.util.dictutil import AuxValueDict
 
 
 def update_metadata(metadata, new_metadata, now):
-    """Updates 'metadata' in-place with the information in 'new_metadata'.
+    """Update 'metadata' in-place with the information in 'new_metadata'.
 
     Timestamps are set according to the time 'now'.
     """
@@ -55,8 +56,8 @@ def update_metadata(metadata, new_metadata, now):
     sysmd = metadata.get('tahoe', {})
     if 'linkcrtime' not in sysmd:
         # In Tahoe < 1.4.0 we used the word 'ctime' to mean what Tahoe >= 1.4.0
-        # calls 'linkcrtime'. This field is only used if it was in the old metadata,
-        # and 'tahoe:linkcrtime' was not.
+        # calls 'linkcrtime'. This field is only used if it was in the old
+        # metadata, and 'tahoe:linkcrtime' was not.
         if old_ctime is not None:
             sysmd['linkcrtime'] = old_ctime
         else:

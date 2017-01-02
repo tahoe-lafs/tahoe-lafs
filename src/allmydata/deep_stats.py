@@ -43,12 +43,12 @@ class DeepStats(object):
                   "largest-directory",
                   "largest-directory-children",
                   "largest-immutable-file",
-                  #"largest-mutable-file",
-                 ]:
+                  # "largest-mutable-file",
+                  ]:
             self.stats[k] = 0
         self.histograms = {}
         for k in ["size-files-histogram"]:
-            self.histograms[k] = {} # maps (min,max) to count
+            self.histograms[k] = {}  # Maps (min,max) to count.
         self.buckets = [(0, 0), (1, 3)]
         self.root = math.sqrt(10)
 
@@ -69,7 +69,7 @@ class DeepStats(object):
             self.add("count-mutable-files")
             # TODO: update the servermap, compute a size, add it to
             # size-mutable-files, max it into "largest-mutable-file"
-        elif IImmutableFileNode.providedBy(node): # CHK and LIT
+        elif IImmutableFileNode.providedBy(node):  # CHK and LIT
             self.add("count-files")
             size = node.get_size()
             self.histogram("size-files-histogram", size)
@@ -126,7 +126,7 @@ class DeepStats(object):
         stats = self.stats.copy()
         for key in self.histograms:
             h = self.histograms[key]
-            out = [ (bucket[0], bucket[1], h[bucket]) for bucket in h ]
+            out = [(bucket[0], bucket[1], h[bucket]) for bucket in h]
             out.sort()
             stats[key] = out
         return stats
