@@ -1,3 +1,4 @@
+"""Classes and functions dealing with directory web UI."""
 
 import simplejson
 import urllib
@@ -87,11 +88,13 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             f = node_or_failure
             f.trap(NoSuchChildError)
             # No child by this name. What should we do about it?
-            if DEBUG: print "no child", name
+            if DEBUG:
+                print "no child", name
             if DEBUG:
                 print "postpath", req.postpath
             if nonterminal:
-                if DEBUG: print " intermediate"
+                if DEBUG:
+                    print " intermediate"
                 if should_create_intermediate_directories(req):
                     # create intermediate directories
                     if DEBUG: print " making intermediate directory"
@@ -814,20 +817,20 @@ class DirectoryAsHTML(rend.Page):
         mkdir_mdmf = T.input(type='radio', name='format',
                              value='mdmf', id='mkdir-mdmf')
 
-        mkdir_form = T.form(action=".", method="post",
-                            enctype="multipart/form-data")[
-            T.fieldset[
-            T.input(type="hidden", name="t", value="mkdir"),
-            T.input(type="hidden", name="when_done", value="."),
-            T.legend(class_="freeform-form-label")["Create a new directory in this directory"],
-            "New directory name:"+SPACE, T.br,
-            T.input(type="text", name="name"), SPACE,
-            T.div(class_="form-inline")[
-                mkdir_sdmf, T.label(for_='mutable-directory-sdmf')[SPACE, "SDMF"], SPACE*2,
-                mkdir_mdmf, T.label(for_='mutable-directory-mdmf')[SPACE, "MDMF (experimental)"]
-            ],
-            T.input(type="submit", class_="btn", value="Create")
-            ]]
+        mkdir_form = T.form(
+            action=".",
+            method="post",
+            enctype="multipart/form-data")[T.fieldset[
+                T.input(type="hidden", name="t", value="mkdir"),
+                T.input(type="hidden", name="when_done", value="."),
+                T.legend(class_="freeform-form-label")["Create a new directory in this directory"],
+                "New directory name:"+SPACE, T.br,
+                T.input(type="text", name="name"), SPACE,
+                T.div(class_="form-inline")[
+                    mkdir_sdmf, T.label(for_='mutable-directory-sdmf')[SPACE, "SDMF"], SPACE*2,
+                    mkdir_mdmf, T.label(for_='mutable-directory-mdmf')[SPACE, "MDMF (experimental)"]
+                    ],
+                T.input(type="submit", class_="btn", value="Create")]]
         forms.append(T.div(class_="freeform-form")[mkdir_form])
 
         upload_chk  = T.input(type='radio', name='format',
@@ -838,21 +841,22 @@ class DirectoryAsHTML(rend.Page):
         upload_mdmf = T.input(type='radio', name='format',
                               value='mdmf', id='upload-mdmf')
 
-        upload_form = T.form(action=".", method="post",
-                             enctype="multipart/form-data")[
-            T.fieldset[
-            T.input(type="hidden", name="t", value="upload"),
-            T.input(type="hidden", name="when_done", value="."),
-            T.legend(class_="freeform-form-label")["Upload a file to this directory"],
-            "Choose a file to upload:"+SPACE,
-            T.input(type="file", name="file", class_="freeform-input-file"), SPACE,
-            T.div(class_="form-inline")[
-                upload_chk,  T.label(for_="upload-chk") [SPACE, "Immutable"], SPACE*2,
-                upload_sdmf, T.label(for_="upload-sdmf")[SPACE, "SDMF"], SPACE*2,
-                upload_mdmf, T.label(for_="upload-mdmf")[SPACE, "MDMF (experimental)"]
-            ],
-            T.input(type="submit", class_="btn", value="Upload"),             SPACE*2,
-            ]]
+        upload_form = T.form(
+            action=".",
+            method="post",
+            enctype="multipart/form-data")[T.fieldset[
+                T.input(type="hidden", name="t", value="upload"),
+                T.input(type="hidden", name="when_done", value="."),
+                T.legend(class_="freeform-form-label")["Upload a file to this directory"],
+                "Choose a file to upload:"+SPACE,
+                T.input(type="file", name="file", class_="freeform-input-file"), SPACE,
+                T.div(class_="form-inline")[
+                    upload_chk,  T.label(for_="upload-chk") [SPACE, "Immutable"], SPACE*2,
+                    upload_sdmf, T.label(for_="upload-sdmf")[SPACE, "SDMF"], SPACE*2,
+                    upload_mdmf, T.label(for_="upload-mdmf")[SPACE, "MDMF (experimental)"]
+                ],
+                T.input(type="submit", class_="btn", value="Upload"),             SPACE*2,
+                ]]
         forms.append(T.div(class_="freeform-form")[upload_form])
 
         attach_form = T.form(action=".", method="post",
@@ -977,9 +981,9 @@ class DeepSizeResults(rend.Page):
         output = "finished: " + {True: "yes", False: "no"}[is_finished] + "\n"
         if is_finished:
             stats = self.monitor.get_status()
-            total = (stats.get("size-immutable-files", 0)
-                     + stats.get("size-mutable-files", 0)
-                     + stats.get("size-directories", 0))
+            total = (stats.get("size-immutable-files", 0) +
+                     stats.get("size-mutable-files", 0) +
+                     stats.get("size-directories", 0))
             output += "size: %d\n" % total
         return output
 
