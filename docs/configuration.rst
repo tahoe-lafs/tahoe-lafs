@@ -919,8 +919,10 @@ introducer.furl``. To use two or more Introducers, choose a locally-unique
 ``private/introducers.yaml`` like this::
 
   introducers:
-    petname2:  furl = FURL2
-    petname3:  furl = FURL3
+    petname2:
+      furl: FURL2
+    petname3:
+      furl: FURL3
 
 Servers will announce themselves to all configured introducers. Clients will
 merge the announcements they receive from all introducers. Nothing will
