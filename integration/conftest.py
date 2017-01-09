@@ -73,7 +73,7 @@ def temp_dir(request):
 
 @pytest.fixture(scope='session')
 def flog_binary():
-    return which('flogtool')
+    return which('flogtool')[0]
 
 
 @pytest.fixture(scope='session')
@@ -95,7 +95,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     twistd_protocol = _MagicTextProtocol("Gatherer waiting at")
     twistd_process = reactor.spawnProcess(
         twistd_protocol,
-        which('twistd'),
+        which('twistd')[0],
         (
             'twistd', '--nodaemon', '--python',
             join(gather_dir, 'gatherer.tac'),
