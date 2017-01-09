@@ -6,8 +6,8 @@ from sys import stdout as _stdout
 from os import mkdir, listdir, unlink
 from os.path import join, abspath, curdir, exists
 from tempfile import mkdtemp, mktemp
-from shutilwhich import which
 
+from twisted.python.procutils import which
 from twisted.internet.defer import Deferred, DeferredList
 from twisted.internet.task import deferLater
 from twisted.internet.error import ProcessExitedAlready
