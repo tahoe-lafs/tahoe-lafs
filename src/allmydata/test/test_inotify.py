@@ -14,8 +14,12 @@ from twisted.internet import defer, reactor
 from twisted.python import filepath
 from twisted.trial import unittest
 
-from allmydata.frontends.magic_folder import get_inotify_module
-inotify = get_inotify_module()
+#from allmydata.frontends.magic_folder import get_inotify_module
+#inotify = get_inotify_module()
+if runtime.platform.supportsINotify():
+    from twisted.internet import inotify
+elif sys.platform != "linux":
+    from allmydata.watchdog import inotify
 
 
 class INotifyTests(unittest.TestCase):
