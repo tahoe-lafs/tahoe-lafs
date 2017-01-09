@@ -92,6 +92,20 @@ class MultiIntroTests(unittest.TestCase):
         e = self.assertRaises(ValueError, Client, self.basedir)
         self.assertEquals(str(e), "'default' introducer furl cannot be specified in introducers.yaml; please fix impossible configuration.")
 
+SIMPLE_YAML = """
+introducers:
+  one:
+    furl: furl1
+"""
+
+# this format was recommended in docs/configuration.rst in 1.12.0, but it
+# isn't correct (the "furl = furl1" line is recorded as the string value of
+# the ["one"] key, instead of being parsed as a single-key dictionary).
+EQUALS_YAML = """
+introducers:
+  one: furl = furl1
+"""
+
 class NoDefault(unittest.TestCase):
     def setUp(self):
         # setup tahoe.cfg and basedir/private/introducers
@@ -118,6 +132,17 @@ class NoDefault(unittest.TestCase):
         myclient = Client(self.basedir)
         tahoe_cfg_furl = myclient.introducer_furls[0]
         self.assertEquals(tahoe_cfg_furl, 'furl1')
+
+    def test_real_yaml(self):
+        self.yaml_path.setContent(SIMPLE_YAML)
+        myclient = Client(self.basedir)
+        tahoe_cfg_furl = myclient.introducer_furls[0]
+        self.assertEquals(tahoe_cfg_furl, 'furl1')
+
+    def test_invalid_equals_yaml(self):
+        self.yaml_path.setContent(EQUALS_YAML)
+        e = self.assertRaises(TypeError, Client, self.basedir)
+        self.assertEquals(str(e), "string indices must be integers")
 
     def test_introducerless(self):
         connections = {'introducers': {} }

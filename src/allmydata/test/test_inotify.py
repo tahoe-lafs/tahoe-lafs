@@ -13,13 +13,29 @@ import sys
 from twisted.internet import defer, reactor
 from twisted.python import filepath
 from twisted.trial import unittest
+from twisted.python import runtime
+
+
+def get_non_windows_inotify_module():
+    try:
+        if runtime.platform.supportsINotify():
+            from twisted.internet import inotify
+        elif sys.platform != "linux":
+            from allmydata.watchdog import inotify
+        else:
+            raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
+                                      "This currently requires Linux or Windows.")
+        return inotify
+    except (ImportError, AttributeError) as e:
+        log.msg(e)
+        if sys.platform == "win32":
+            raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
+                                      "Windows support requires at least Vista, and has only been tested on Windows 7.")
+        raise
 
 #from allmydata.frontends.magic_folder import get_inotify_module
 #inotify = get_inotify_module()
-if runtime.platform.supportsINotify():
-    from twisted.internet import inotify
-elif sys.platform != "linux":
-    from allmydata.watchdog import inotify
+inotify = get_non_windows_inotify_module()
 
 
 class INotifyTests(unittest.TestCase):

@@ -44,6 +44,32 @@ class Config(unittest.TestCase):
         self.assertFalse(cfg.has_section("connections"))
 
     @defer.inlineCallbacks
+    def test_non_default_storage_args(self):
+        basedir = self.mktemp()
+        rc, out, err = yield run_cli(
+            "create-client",
+            '--shares-total', '19',
+            '--shares-needed', '2',
+            '--shares-happy', '11',
+            basedir,
+        )
+        cfg = read_config(basedir)
+        self.assertEqual(2, cfg.getint("client", "shares.needed"))
+        self.assertEqual(11, cfg.getint("client", "shares.happy"))
+        self.assertEqual(19, cfg.getint("client", "shares.total"))
+
+    @defer.inlineCallbacks
+    def test_illegal_shares_total(self):
+        basedir = self.mktemp()
+        rc, out, err = yield run_cli(
+            "create-client",
+            '--shares-total', 'funballs',
+            basedir,
+        )
+        self.assertNotEqual(0, rc)
+        self.assertTrue('--shares-total must be an integer' in err + out)
+
+    @defer.inlineCallbacks
     def test_client_hide_ip_no_i2p_txtorcon(self):
         # hmm, I must be doing something weird, these don't work as
         # @mock.patch decorators for some reason
@@ -52,7 +78,6 @@ class Config(unittest.TestCase):
         with txi2p, txtorcon:
             basedir = self.mktemp()
             rc, out, err = yield run_cli("create-client", "--hide-ip", basedir)
-            print(rc, out, err)
             self.assertTrue(rc != 0, out)
             self.assertTrue('pip install tahoe-lafs[i2p]' in out)
             self.assertTrue('pip install tahoe-lafs[tor]' in out)

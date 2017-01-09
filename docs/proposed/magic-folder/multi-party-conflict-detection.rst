@@ -44,8 +44,8 @@ The desired behaviour for initially classifying overwrites and conflicts is as f
 * if, in the same situation, V' does not follow V, then the write of the new version should be
   classified as a conflict.
 
-The existing `Magic Folder design for remote-to-local sync`_ defines when an initial overwrite
-should be reclassified as a conflict.
+The existing :doc:`remote-to-local-sync` document defines when an initial
+overwrite should be reclassified as a conflict.
 
 The above definitions completely specify the desired solution of the false
 conflict behaviour described in the `ticket comment`_. However, they do not give
@@ -54,8 +54,6 @@ Tahoe-LAFS file store of the metadata needed to compute it.
 
 We will consider two alternative designs, proposed by Leif Ryge and
 Zooko Wilcox-O'Hearn, that aim to fill this gap.
-
-.. _`Magic Folder design for remote-to-local sync`: remote-to-local-sync.rst
 
 
 

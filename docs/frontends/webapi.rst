@@ -539,7 +539,7 @@ Creating a New Directory
  checking that they are immutable. The "imm." prefix must not be stripped
  off without performing this check. (Future versions of the web-API server
  will perform it where necessary.)
- 
+
  The cap for each child may be given either in the "rw_uri" or "ro_uri"
  field of the PROPDICT (not both). If a cap is given in the "rw_uri" field,
  then the web-API server will check that it is an immutable read-cap of a
@@ -595,7 +595,7 @@ Creating a New Directory
  format of the named target directory; intermediate directories, if created,
  are created using the default mutable type setting, as configured on the
  Tahoe-LAFS server responding to the request.
- 
+
  This operation will return an error if a blocking file is present at any of
  the parent names, preventing the server from creating the necessary parent
  directory; or if it would require changing an immutable directory; or if
@@ -655,7 +655,7 @@ Creating a New Directory
  the immediate parent directory already has a a child named NAME.
 
  Note that the name= argument must be passed as a queryarg, because the POST
- request body is used for the initial children JSON. 
+ request body is used for the initial children JSON.
 
 ``POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-immutable&name=NAME``
 
@@ -770,7 +770,7 @@ Getting Information About a File Or Directory (as JSON)
  if and only if you have read-write access to that directory. The verify_uri
  field will be present if and only if the object has a verify-cap
  (non-distributed LIT files do not have verify-caps).
- 
+
  If the cap is of an unknown format, then the file size and verify_uri will
  not be available::
 
@@ -861,7 +861,7 @@ When an edge is created or updated by "tahoe backup", the 'mtime' and
   the UNIX "ctime" of the local file, which means the last time that
   either the contents or the metadata of the local file was changed.
 
-There are several ways that the 'ctime' field could be confusing: 
+There are several ways that the 'ctime' field could be confusing:
 
 1. You might be confused about whether it reflects the time of the creation
    of a link in the Tahoe filesystem (by a version of Tahoe < v1.7.0) or a
@@ -917,7 +917,7 @@ Attaching an Existing File or Directory by its read- or write-cap
  command). Note that "true", "t", and "1" are all synonyms for "True", and
  "false", "f", and "0" are synonyms for "False", and the parameter is
  case-insensitive.
- 
+
  Note that this operation does not take its child cap in the form of
  separate "rw_uri" and "ro_uri" fields. Therefore, it cannot accept a
  child cap in a format unknown to the web-API server, unless its URI
@@ -966,7 +966,7 @@ Adding Multiple Files or Directories to a Parent Directory at Once
  currently placed here are "linkcrtime" and "linkmotime". For details, see
  the section above entitled "Getting Information About a File Or Directory (as
  JSON)", in the "About the metadata" subsection.
- 
+
  Note that this command was introduced with the name "set_children", which
  uses an underscore rather than a hyphen as other multi-word command names
  do. The variant with a hyphen is now accepted, but clients that desire
@@ -1155,7 +1155,7 @@ Uploading a File
 
  The file must be provided as the "file" field of an HTML encoded form body,
  produced in response to an HTML form like this::
- 
+
   <form action="/uri" method="POST" enctype="multipart/form-data">
    <input type="hidden" name="t" value="upload" />
    <input type="file" name="file" />
@@ -1182,7 +1182,7 @@ Uploading a File
  This uploads a file, and attaches it as a new child of the given directory,
  which must be mutable. The file must be provided as the "file" field of an
  HTML-encoded form body, produced in response to an HTML form like this::
- 
+
   <form action="." method="POST" enctype="multipart/form-data">
    <input type="hidden" name="t" value="upload" />
    <input type="file" name="file" />
@@ -1751,6 +1751,9 @@ incorrectly.
  keys may be missing until 'finished' is True)::
 
   finished: (bool) True if the operation has finished, else False
+  api-version: (int), number of deep-stats API version. Will be increased every
+               time backwards-incompatible change is introduced.
+               Current version is 1.
   count-immutable-files: count of how many CHK files are in the set
   count-mutable-files: same, for mutable files (does not include directories)
   count-literal-files: same, for LIT files (data contained inside the URI)
@@ -2192,4 +2195,3 @@ URLs and HTTP and UTF-8
 .. _RFC2231#4: https://tools.ietf.org/html/rfc2231#section-4
 .. _some developers have reported: http://markmail.org/message/dsjyokgl7hv64ig3
 .. _RFC2616#19.5.1: https://tools.ietf.org/html/rfc2616#section-19.5.1
-

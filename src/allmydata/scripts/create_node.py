@@ -152,12 +152,23 @@ class CreateClientOptions(_CreateBaseOptions):
          "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
         ("basedir", "C", None, "Specify which Tahoe base directory should be used. This has the same effect as the global --node-directory option. [default: %s]"
          % quote_local_unicode_path(_default_nodedir)),
+        ("shares-needed", None, 3, "Needed shares required for uploaded files."),
+        ("shares-happy", None, 7, "How many servers new files must be placed on."),
+        ("shares-total", None, 10, "Total shares required for uploaded files."),
         ]
 
     # This is overridden in order to ensure we get a "Wrong number of
     # arguments." error when more than one argument is given.
     def parseArgs(self, basedir=None):
         BasedirOptions.parseArgs(self, basedir)
+        for name in ["shares-needed", "shares-happy", "shares-total"]:
+            try:
+                int(self[name])
+            except ValueError:
+                raise UsageError(
+                    "--{} must be an integer".format(name)
+                )
+
 
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
@@ -277,9 +288,12 @@ def write_node_config(c, config):
 
 
 def write_client_config(c, config):
+    # note, config can be a plain dict, it seems -- see
+    # test_configutil.py in test_create_client_config
     c.write("[client]\n")
     c.write("# Which services should this client connect to?\n")
-    c.write("introducer.furl = %s\n" % config.get("introducer", ""))
+    introducer = config.get("introducer", None) or ""
+    c.write("introducer.furl = %s\n" % introducer)
     c.write("helper.furl =\n")
     c.write("#stats_gatherer.furl =\n")
     c.write("\n")
@@ -287,9 +301,9 @@ def write_client_config(c, config):
     c.write("# This can be changed at any time: the encoding is saved in\n")
     c.write("# each filecap, and we can download old files with any encoding\n")
     c.write("# settings\n")
-    c.write("#shares.needed = 3\n")
-    c.write("#shares.happy = 7\n")
-    c.write("#shares.total = 10\n")
+    c.write("shares.needed = {}\n".format(config['shares-needed']))
+    c.write("shares.happy = {}\n".format(config['shares-happy']))
+    c.write("shares.total = {}\n".format(config['shares-total']))
     c.write("\n")
 
     boolstr = {True:"true", False:"false"}

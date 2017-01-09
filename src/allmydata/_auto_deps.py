@@ -41,7 +41,8 @@ install_requires = [
     #   with a FIPS build of OpenSSL.
     # * foolscap >= 0.12.3 provides tcp/tor/i2p connection handlers we need,
     #   and allocate_tcp_port
-    "foolscap >= 0.12.3",
+    # * foolscap >= 0.12.5 has ConnectionInfo and ReconnectionInfo
+    "foolscap >= 0.12.5",
 
     # Needed for SFTP.
     # pycrypto 2.2 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/620253>
@@ -90,9 +91,6 @@ install_requires = [
     #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2474>.
     "pyOpenSSL >= 0.14",
     "PyYAML >= 3.11",
-
-    # in Python 3.3 stdlib
-    "shutilwhich >= 1.1.0",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.

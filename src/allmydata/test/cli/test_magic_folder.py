@@ -10,6 +10,7 @@ from allmydata.util.assertutil import precondition
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from ..no_network import GridTestMixin
+from ..common_util import parse_cli
 from .common import CLITestMixin
 from allmydata.test.common_util import NonASCIIPathMixin
 from allmydata.scripts import magic_folder_cli
@@ -382,3 +383,43 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
             d.addCallback(check_success)
 
         return d
+
+class CreateErrors(unittest.TestCase):
+    def test_poll_interval(self):
+        e = self.assertRaises(usage.UsageError, parse_cli,
+                              "magic-folder", "create", "--poll-interval=frog",
+                              "alias:")
+        self.assertEqual(str(e), "--poll-interval must be a positive integer")
+
+        e = self.assertRaises(usage.UsageError, parse_cli,
+                              "magic-folder", "create", "--poll-interval=-4",
+                              "alias:")
+        self.assertEqual(str(e), "--poll-interval must be a positive integer")
+
+    def test_alias(self):
+        e = self.assertRaises(usage.UsageError, parse_cli,
+                              "magic-folder", "create", "no-colon")
+        self.assertEqual(str(e), "An alias must end with a ':' character.")
+
+    def test_nickname(self):
+        e = self.assertRaises(usage.UsageError, parse_cli,
+                              "magic-folder", "create", "alias:", "nickname")
+        self.assertEqual(str(e), "If NICKNAME is specified then LOCAL_DIR must also be specified.")
+
+class InviteErrors(unittest.TestCase):
+    def test_alias(self):
+        e = self.assertRaises(usage.UsageError, parse_cli,
+                              "magic-folder", "invite", "no-colon")
+        self.assertEqual(str(e), "An alias must end with a ':' character.")
+
+class JoinErrors(unittest.TestCase):
+    def test_poll_interval(self):
+        e = self.assertRaises(usage.UsageError, parse_cli,
+                              "magic-folder", "join", "--poll-interval=frog",
+                              "code", "localdir")
+        self.assertEqual(str(e), "--poll-interval must be a positive integer")
+
+        e = self.assertRaises(usage.UsageError, parse_cli,
+                              "magic-folder", "join", "--poll-interval=-2",
+                              "code", "localdir")
+        self.assertEqual(str(e), "--poll-interval must be a positive integer")

@@ -2,94 +2,26 @@
 Magic Folder Set-up Howto
 =========================
 
-1.  `This document`_
-2.  `Preparation`_
-3.  `Setting up a local test grid`_
-4.  `Setting up Magic Folder`_
-5.  `Testing`_
+#.  `This document`_
+#.  `Setting up a local test grid`_
+#.  `Setting up Magic Folder`_
+#.  `Testing`_
 
 
 This document
 =============
 
-This is preliminary documentation of how to set up the
-Magic Folder pre-release using a test grid on a single Linux
-or Windows machine, with two clients and one server. It is
-aimed at a fairly technical audience.
+This is preliminary documentation of how to set up Magic Folder using a test
+grid on a single Linux or Windows machine, with two clients and one server.
+It is aimed at a fairly technical audience.
 
 For an introduction to Magic Folder and how to configure it
-more generally, see `docs/frontends/magic-folder.rst`_.
+more generally, see :doc:`frontends/magic-folder`.
 
 It it possible to adapt these instructions to run the nodes on
 different machines, to synchronize between three or more clients,
 to mix Windows and Linux clients, and to use multiple servers
 (if the Tahoe-LAFS encoding parameters are changed).
-
-.. _`docs/frontends/magic-folder.rst`: ../docs/frontends/magic-folder.rst
-
-
-Preparation
-===========
-
-Linux
------
-
-Install ``git`` from your distribution's package manager.
-Then run these commands::
-
-  git clone -b 2438.magic-folder-stable.8 https://github.com/tahoe-lafs/tahoe-lafs.git
-  cd tahoe-lafs
-  python setup.py test
-
-The test suite usually takes about 15 minutes to run.
-Note that it is normal for some tests to be skipped.
-In the current branch, the Magic Folder tests produce
-considerable debugging output.
-
-If you see an error like ``fatal error: Python.h: No such file or directory``
-while compiling the dependencies, you need the Python development headers. If
-you are on a Debian or Ubuntu system, you can install them with ``sudo
-apt-get install python-dev``. On RedHat/Fedora, install ``python-devel``.
-
-
-Windows
--------
-
-Windows 7 or above is required.
-
-For 64-bit Windows:
-
-* Install Python 2.7 from
-  https://www.python.org/ftp/python/2.7/python-2.7.amd64.msi
-* Install pywin32 from
-  https://tahoe-lafs.org/source/tahoe-lafs/deps/windows/pywin32-219.win-amd64-py2.7.exe
-* Install git from
-  https://github.com/git-for-windows/git/releases/download/v2.6.2.windows.1/Git-2.6.2-64-bit.exe
-
-For 32-bit Windows:
-
-* Install Python 2.7 from
-  https://www.python.org/ftp/python/2.7/python-2.7.msi
-* Install pywin32 from
-  https://tahoe-lafs.org/source/tahoe-lafs/deps/windows/pywin32-219.win32-py2.7.exe
-* Install git from
-  https://github.com/git-for-windows/git/releases/download/v2.6.2.windows.1/Git-2.6.2-32-bit.exe
-
-Then (for any version) run these commands in a Command Prompt::
-
-  git clone -b 2438.magic-folder-stable.5 https://github.com/tahoe-lafs/tahoe-lafs.git
-  cd tahoe-lafs
-  python setup.py build
-
-Open a new Command Prompt with the same current directory,
-then run::
-
-  bin\tahoe --version-and-path
-
-It is normal for this command to print warnings and debugging output
-on some systems. ``python setup.py test`` can also be run, but there
-are some known sources of nondeterministic errors in tests on Windows
-that are unrelated to Magic Folder.
 
 
 Setting up a local test grid
@@ -222,8 +154,8 @@ Note that when a file is deleted, the corresponding file in the
 other directory will be renamed to a filename ending in ``.backup``.
 Deleting a directory will have no effect.
 
-For other known issues and limitations, see
-https://github.com/tahoe-lafs/tahoe-lafs/blob/2438.magic-folder-stable.8/docs/frontends/magic-folder.rst#known-issues-and-limitations
+For other known issues and limitations, see :ref:`Known Issues in
+Magic-Folder`.
 
 As mentioned earlier, it is also possible to run the nodes on
 different machines, to synchronize between three or more clients,

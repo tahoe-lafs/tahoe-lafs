@@ -122,7 +122,7 @@ developer summit.
 * Address: 1DskmM8uCvmvTKjPbeDgfmVsGifZCmxouG
 
 * 2016 Summit (Nov 8-9, San Francisco)
-* Rental of the Mechanics Institute Library "Board Room": $300/day *2
+* Rental of the Mechanics Institute Library "Board Room": $300/day*2
 * Team Dinner (Cha Cha Cha): $164.49
 * Team Dinner (Rasoi): $255.34
 * -- total: $1019.83

@@ -268,20 +268,22 @@ setup(name="tahoe-lafs", # also set in __init__.py
       classifiers=trove_classifiers,
       install_requires=install_requires,
       extras_require={
+          ':sys_platform=="win32"': ["pypiwin32"],
           "test": [
               "pyflakes",
               "coverage",
               "mock",
               "tox",
-              "foolscap[tor] >= 0.12.3",
+              "foolscap[tor] >= 0.12.5",
               "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
               "foolscap[i2p]",
               "txi2p >= 0.3.1", # in case pip's resolver doesn't work
               "pytest",
               "pytest-twisted",
+              "shutilwhich >= 1.1.0", # in Python 3.3 stdlib
           ],
           "tor": [
-              "foolscap[tor] >= 0.12.3",
+              "foolscap[tor] >= 0.12.5",
               "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
           ],
           "i2p": [

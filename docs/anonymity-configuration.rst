@@ -6,7 +6,6 @@ Using Tahoe-LAFS with an anonymizing network: Tor, I2P
 
 #. `Overview`_
 #. `Use cases`_
-#. `Unresolved tickets`_
 
 #. `Software Dependencies`_
 
@@ -147,10 +146,10 @@ extras enabled::
 Connection configuration
 ========================
 
-See :ref:`configuration` "Client Configuration" for a description of the
-``[tor]`` and ``[i2p]`` sections of ``tahoe.cfg``. These control how the
-Tahoe client will connect to a Tor/I2P daemon, and thus make connections to
-Tor/I2P -based servers.
+See :ref:`Connection Management` for a description of the ``[tor]`` and
+``[i2p]`` sections of ``tahoe.cfg``. These control how the Tahoe client will
+connect to a Tor/I2P daemon, and thus make connections to Tor/I2P -based
+servers.
 
 The ``[tor]`` and ``[i2p]`` sections only need to be modified to use unusual
 configurations, or to enable automatic server setup.
@@ -303,7 +302,11 @@ Server anonymity, automatic configuration
 To configure a server node to listen on an anonymizing network, create the
 node with the ``--listen=tor`` option. This requires a Tor configuration that
 either launches a new Tor daemon, or has access to the Tor control port (and
-enough authority to create a new onion service).
+enough authority to create a new onion service). On Debian/Ubuntu systems, do
+``apt install tor``, add yourself to the control group with ``adduser
+YOURUSERNAME debian-tor``, and then logout and log back in: if the ``groups``
+command includes ``debian-tor`` in the output, you should have permission to
+use the unix-domain control port at ``/var/run/tor/control``.
 
 This option will set ``reveal-IP-address = False`` and ``[connections] tcp =
 tor``. It will allocate the necessary ports, instruct Tor to create the onion

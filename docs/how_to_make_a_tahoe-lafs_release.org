@@ -15,7 +15,8 @@
   - [ ] build locally to make sure the release is reporting itself as the
     intended version, make tarballs too (for comparison only)
   - [ ] push tag to trigger buildslaves. Making a code change is no longer
-    necessary
+    necessary (TODO: pushing just 1.12.0b2 was insufficient: travis fired,
+    but not buildbot)
     - git push official master TAGNAME
     - that will build tarballs
   - [ ] make sure buildbot is green
@@ -23,7 +24,6 @@
   - [ ] announce tree is unlocked
   - [ ] compare tarballs+wheels against local copies (but sign upstreams)
   - [ ] sign each with "gpg -ba -u 68666a7a FILE"
-  - [ ] twine register dist/FILE
   - [ ] twine upload dist/*
   - [ ] test "pip install tahoe-lafs" (from PyPI)
   - [ ] upload *.asc to org ~source/downloads/

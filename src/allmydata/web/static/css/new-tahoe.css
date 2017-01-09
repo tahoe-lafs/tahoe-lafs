@@ -50,6 +50,9 @@ body {
     margin-top: 5px;
 }
 
+.connection-status {
+}
+
 .furl {
     font-size: 0.8em;
     word-wrap: break-word;
@@ -78,7 +81,7 @@ body {
     margin: 5px;
 }
 
-.nickname-and-peerid .timestamp {
+.timestamp {
     float: right;
 }
 

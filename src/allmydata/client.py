@@ -256,16 +256,21 @@ class Client(node.Node, pollmixin.PollMixin):
 
         # read furl from tahoe.cfg
         tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
+        if tahoe_cfg_introducer_furl == "None":
+            raise ValueError("tahoe.cfg has invalid 'introducer.furl = None':"
+                             " to disable it, use 'introducer.furl ='"
+                             " or omit the key entirely")
         if tahoe_cfg_introducer_furl:
             introducers[u'default'] = {'furl':tahoe_cfg_introducer_furl}
 
         for petname, introducer in introducers.items():
             introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", "introducer_{}_cache.yaml".format(petname)))
-            ic = IntroducerClient(self.tub, introducer['furl'],
+            ic = IntroducerClient(self.tub, introducer['furl'].encode("ascii"),
                                   self.nickname,
                                   str(allmydata.__full_version__),
                                   str(self.OLDEST_SUPPORTED_VERSION),
-                                  self.get_app_versions(), self._sequencer, introducer_cache_filepath)
+                                  self.get_app_versions(), self._sequencer,
+                                  introducer_cache_filepath)
             self.introducer_clients.append(ic)
             self.introducer_furls.append(introducer['furl'])
             ic.setServiceParent(self)
@@ -606,7 +611,7 @@ class Client(node.Node, pollmixin.PollMixin):
         return self.encoding_params
 
     def introducer_connection_statuses(self):
-        return [ic.connected_to_introducer() for ic in self.introducer_clients]
+        return [ic.connection_status() for ic in self.introducer_clients]
 
     def connected_to_introducer(self):
         return any([ic.connected_to_introducer() for ic in self.introducer_clients])
