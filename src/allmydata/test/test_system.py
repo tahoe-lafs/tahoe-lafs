@@ -477,7 +477,9 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 f.close()
 
             config = "[client]\n"
-            config += "introducer.furl = %s\n" % self.introducer_furl
+            if i != 1:
+                # clients[1] uses private/introducers.yaml, not tahoe.cfg
+                config += "introducer.furl = %s\n" % self.introducer_furl
             if self.stats_gatherer_furl:
                 config += "stats_gatherer.furl = %s\n" % self.stats_gatherer_furl
 
@@ -496,6 +498,13 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 config += "timeout.keepalive = 600\n"
                 config += "[helper]\n"
                 config += "enabled = True\n"
+            elif i == 1:
+                # clients[1] uses private/introducers.yaml, not tahoe.cfg
+                iyaml = ("introducers:\n"
+                         " petname2:\n"
+                         "  furl: %s\n") % self.introducer_furl
+                iyaml_fn = os.path.join(basedir, "private", "introducers.yaml")
+                fileutil.write(iyaml_fn, iyaml)
             elif i == 3:
                 # clients[3] runs a webserver and uses a helper
                 config += nodeconfig
