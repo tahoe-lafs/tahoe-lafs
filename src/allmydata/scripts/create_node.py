@@ -214,7 +214,10 @@ def write_node_config(c, config):
 
     if config["hide-ip"]:
         c.write("[connections]\n")
-        c.write("tcp = tor\n")
+        if tor_provider._import_txtorcon():
+            c.write("tcp = tor\n")
+        else:
+            c.write("tcp = disabled\n")
         c.write("\n")
 
     c.write("[node]\n")

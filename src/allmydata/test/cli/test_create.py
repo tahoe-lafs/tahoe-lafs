@@ -110,6 +110,18 @@ class Config(unittest.TestCase):
         self.assertEqual(cfg.get("connections", "tcp"), "tor")
 
     @defer.inlineCallbacks
+    def test_client_hide_ip_no_txtorcon(self):
+        txtorcon = mock.patch('allmydata.util.tor_provider._import_txtorcon',
+                              return_value=None)
+        with txtorcon:
+            basedir = self.mktemp()
+            rc, out, err = yield run_cli("create-client", "--hide-ip", basedir)
+            self.assertEqual(0, rc)
+            cfg = read_config(basedir)
+            self.assertEqual(cfg.getboolean("node", "reveal-IP-address"), False)
+            self.assertEqual(cfg.get("connections", "tcp"), "disabled")
+
+    @defer.inlineCallbacks
     def test_client_basedir_exists(self):
         basedir = self.mktemp()
         os.mkdir(basedir)
