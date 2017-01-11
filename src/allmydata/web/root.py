@@ -1,7 +1,8 @@
 import time, os
+import simplejson
 
 from twisted.web import http
-from nevow import rend, url, tags as T
+from nevow import rend, inevow, url, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
@@ -182,8 +183,27 @@ class Root(rend.Page):
     def render_my_nodeid(self, ctx, data):
         tubid_s = "TubID: "+self.client.get_long_tubid()
         return T.td(title=tubid_s)[self.client.get_long_nodeid()]
+
     def data_my_nickname(self, ctx, data):
         return self.client.nickname
+
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        t = get_arg(req, "t")
+        if t == "json":
+            return self.json_welcome(ctx)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def json_welcome(self, ctx):
+        connected_count = self.data_connected_introducers( ctx, None )
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        data = {
+            "introducers": {
+                "connected_count": connected_count,
+            },
+            "servers": {},
+        }
+        return simplejson.dumps(data, indent=1) + "\n"
 
     def render_magic_folder(self, ctx, data):
         if self.client._magic_folder is None:
