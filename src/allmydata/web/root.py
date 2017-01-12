@@ -195,13 +195,20 @@ class Root(rend.Page):
         return rend.Page.renderHTTP(self, ctx)
 
     def json_welcome(self, ctx):
-        connected_count = self.data_connected_introducers( ctx, None )
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        intro_summaries = [s.summary for s in self.client.introducer_connection_statuses()]
+        sb = self.client.get_storage_broker()
+        storage_summaries = []
+        for s in sb.get_connected_servers():
+            status = s.get_connection_status()
+            storage_summaries.append(status.summary)
         data = {
             "introducers": {
-                "connected_count": connected_count,
+                "statuses": intro_summaries,
             },
-            "servers": {},
+            "servers": {
+                "statuses": storage_summaries,
+            },
         }
         return simplejson.dumps(data, indent=1) + "\n"
 
