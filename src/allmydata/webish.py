@@ -28,6 +28,7 @@ class MyRequest(appserver.NevowRequest):
         self.content.seek(0,0)
         self.args = {}
         self.stack = []
+        self.setHeader("Referrer-Policy", "no-referrer")
 
         self.method, self.uri = command, path
         self.clientproto = version
