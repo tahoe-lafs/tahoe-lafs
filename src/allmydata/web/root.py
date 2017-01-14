@@ -198,17 +198,20 @@ class Root(rend.Page):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         intro_summaries = [s.summary for s in self.client.introducer_connection_statuses()]
         sb = self.client.get_storage_broker()
-        storage_summaries = []
-        for s in sb.get_connected_servers():
-            status = s.get_connection_status()
-            storage_summaries.append(status.summary)
+        servers = {}
+        for server in sb.get_known_servers():
+            server_id = server.get_serverid()
+            servers[server_id] = {}
+            servers[server_id]["connection_status"] = server.get_connection_status().summary
+            servers[server_id]["available_space"] = server.get_available_space()
+            servers[server_id]["nickname"] = server.get_nickname()
+            servers[server_id]["version"] = server.get_version()["application-version"]
+            servers[server_id]["last_received_data"] = server.rref.getDataLastReceivedAt()
         data = {
             "introducers": {
                 "statuses": intro_summaries,
             },
-            "servers": {
-                "statuses": storage_summaries,
-            },
+            "servers": servers
         }
         return simplejson.dumps(data, indent=1) + "\n"
 
