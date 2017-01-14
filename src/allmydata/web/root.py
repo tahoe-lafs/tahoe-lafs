@@ -205,7 +205,10 @@ class Root(rend.Page):
             servers[server_id]["connection_status"] = server.get_connection_status().summary
             servers[server_id]["available_space"] = server.get_available_space()
             servers[server_id]["nickname"] = server.get_nickname()
-            servers[server_id]["version"] = server.get_version()["application-version"]
+            if server.get_version() is not None:
+                servers[server_id]["version"] = server.get_version()["application-version"]
+            else:
+                servers[server_id]["version"] = ""
             servers[server_id]["last_received_data"] = server.rref.getDataLastReceivedAt()
         data = {
             "introducers": {
