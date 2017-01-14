@@ -209,8 +209,11 @@ class Root(rend.Page):
                 servers[server_id]["version"] = server.get_version()["application-version"]
             else:
                 servers[server_id]["version"] = ""
-            servers[server_id]["last_received_data"] = server.rref.getDataLastReceivedAt()
-        data = {
+            if server.rref is not None:
+                servers[server_id]["last_received_data"] = server.rref.getDataLastReceivedAt()
+            else:
+                servers[server_id]["last_received_data"] = ""
+            data = {
             "introducers": {
                 "statuses": intro_summaries,
             },
