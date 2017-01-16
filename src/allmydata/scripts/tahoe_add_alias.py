@@ -1,6 +1,7 @@
 
 import os.path
 import codecs
+import json
 
 from allmydata.util.assertutil import precondition
 
@@ -104,15 +105,30 @@ def list_aliases(options):
     max_width = max([len(quote_output(name)) for name in alias_names] + [0])
     fmt = "%" + str(max_width) + "s: %s"
     rc = 0
-    for name in alias_names:
-        dircap = uri.from_string(aliases[name])
-        if options['readonly-uri']:
-            dircap = dircap.get_readonly()
+    if options['json']:
+        js = {}
+        for name in alias_names:
+            dircap = uri.from_string(aliases[name])
+            js[name] = {
+                "readwrite": dircap.to_string(),
+                "readonly": dircap.get_readonly().to_string(),
+            }
         try:
-            print >>stdout, fmt % (unicode_to_output(name), unicode_to_output(dircap.to_string().decode('utf-8')))
+            # XXX why are we presuming utf-8 output?
+            print >>stdout, json.dumps(js, indent=4).decode('utf-8')
         except (UnicodeEncodeError, UnicodeDecodeError):
-            print >>stderr, fmt % (quote_output(name), quote_output(aliases[name]))
+            print >>stderr, json.dumps(js, indent=4)
             rc = 1
+    else:
+        for name in alias_names:
+            dircap = uri.from_string(aliases[name])
+            if options['readonly-uri']:
+                dircap = dircap.get_readonly()
+            try:
+                print >>stdout, fmt % (unicode_to_output(name), unicode_to_output(dircap.to_string().decode('utf-8')))
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                print >>stderr, fmt % (quote_output(name), quote_output(aliases[name]))
+                rc = 1
 
     if rc == 1:
         print >>stderr, "\nThis listing included aliases or caps that could not be converted to the terminal" \

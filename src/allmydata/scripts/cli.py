@@ -85,6 +85,7 @@ class ListAliasesOptions(FileStoreOptions):
     description = """Display a table of all configured aliases."""
     optFlags = [
         ("readonly-uri", None, "Show read-only dircaps instead of readwrite"),
+        ("json", None, "Show JSON output"),
     ]
 
 class ListOptions(FileStoreOptions):
