@@ -1,6 +1,7 @@
 
 import os.path
 import codecs
+import json
 
 from allmydata.util.assertutil import precondition
 
@@ -95,24 +96,46 @@ def create_alias(options):
     print >>stdout, "Alias %s created" % (quote_output(alias),)
     return 0
 
+
+def _get_alias_details(nodedir):
+    aliases = get_aliases(nodedir)
+    alias_names = sorted(aliases.keys())
+    data = {}
+    for name in alias_names:
+        dircap = uri.from_string(aliases[name])
+        data[name] = {
+            "readwrite": dircap.to_string(),
+            "readonly": dircap.get_readonly().to_string(),
+        }
+    return data
+
+
 def list_aliases(options):
     nodedir = options['node-directory']
     stdout = options.stdout
     stderr = options.stderr
-    aliases = get_aliases(nodedir)
-    alias_names = sorted(aliases.keys())
-    max_width = max([len(quote_output(name)) for name in alias_names] + [0])
+
+    data = _get_alias_details(nodedir)
+
+    max_width = max([len(quote_output(name)) for name in data.keys()] + [0])
     fmt = "%" + str(max_width) + "s: %s"
     rc = 0
-    for name in alias_names:
-        dircap = uri.from_string(aliases[name])
-        if options['readonly-uri']:
-            dircap = dircap.get_readonly()
+
+    if options['json']:
         try:
-            print >>stdout, fmt % (unicode_to_output(name), unicode_to_output(dircap.to_string().decode('utf-8')))
+            # XXX why are we presuming utf-8 output?
+            print >>stdout, json.dumps(data, indent=4).decode('utf-8')
         except (UnicodeEncodeError, UnicodeDecodeError):
-            print >>stderr, fmt % (quote_output(name), quote_output(aliases[name]))
+            print >>stderr, json.dumps(data, indent=4)
             rc = 1
+    else:
+        for name, details in data.items():
+            dircap = details['readonly'] if options['readonly-uri'] else details['readwrite']
+            try:
+                print >>stdout, fmt % (unicode_to_output(name), unicode_to_output(dircap.decode('utf-8')))
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                print >>stderr, fmt % (quote_output(name), quote_output(dircap))
+                rc = 1
 
     if rc == 1:
         print >>stderr, "\nThis listing included aliases or caps that could not be converted to the terminal" \
