@@ -158,7 +158,7 @@ class I2P(unittest.TestCase):
         with mock.patch("foolscap.connections.i2p.default",
                         return_value=h1) as f:
             h = n._make_i2p_handler()
-            self.assertEqual(f.mock_calls, [mock.call(reactor)])
+            self.assertEqual(f.mock_calls, [mock.call(reactor, keyfile=None)])
             self.assertIdentical(h, h1)
 
     def test_samport(self):
