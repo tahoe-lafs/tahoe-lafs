@@ -4,6 +4,32 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
+Release 1.12.1 (???)
+''''''''''''''''''''
+
+This release fixes a few small problems discovered just after the 1.12.0
+release.
+
+* ``introducers.yaml`` was entirely broken (due to a unicode-vs-ascii
+  problem), and the documentation recommended an invalid syntax. Both were
+  fixed. (#2862)
+* Creating a node with ``--hide-ip`` shouldn't set ``tcp = tor`` if txtorcon
+  is unavailable. I2P-only systems should get ``tcp = disabled``. (#2860)
+* As a result, we now require foolscap-0.12.6 .
+* setup.py now creates identical wheels on win32 and unix. Previously wheels
+  created on windows got an unconditional dependency upon ``pypiwin32``,
+  making them uninstallable on unix. Now the dependency is marked as
+  ``sys_platform=win32`` only. (#2763)
+
+Some other small changes include:
+
+* The deep-stats t=json response now includes an "api-version" field,
+  currently set to 1. (#567)
+* WUI Directory listings use ``rel=noreferrer`` to avoid leaking the dircap
+  to the JS contents of the target file. (#151, #378)
+* Remove the dependency on ``shutilwhich`` (#2856)
+
+
 Release 1.12.0 (17-Dec-2016)
 ''''''''''''''''''''''''''''
 
