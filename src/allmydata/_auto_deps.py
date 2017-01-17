@@ -42,7 +42,8 @@ install_requires = [
     # * foolscap >= 0.12.3 provides tcp/tor/i2p connection handlers we need,
     #   and allocate_tcp_port
     # * foolscap >= 0.12.5 has ConnectionInfo and ReconnectionInfo
-    "foolscap >= 0.12.5",
+    # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
+    "foolscap >= 0.12.6",
 
     # Needed for SFTP.
     # pycrypto 2.2 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/620253>
