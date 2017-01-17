@@ -6,8 +6,8 @@ from sys import stdout as _stdout
 from os import mkdir, listdir, unlink
 from os.path import join, abspath, curdir, exists
 from tempfile import mkdtemp, mktemp
-from shutilwhich import which
 
+from twisted.python.procutils import which
 from twisted.internet.defer import Deferred, DeferredList
 from twisted.internet.task import deferLater
 from twisted.internet.error import ProcessExitedAlready
@@ -73,7 +73,7 @@ def temp_dir(request):
 
 @pytest.fixture(scope='session')
 def flog_binary():
-    return which('flogtool')
+    return which('flogtool')[0]
 
 
 @pytest.fixture(scope='session')
@@ -95,7 +95,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     twistd_protocol = _MagicTextProtocol("Gatherer waiting at")
     twistd_process = reactor.spawnProcess(
         twistd_protocol,
-        which('twistd'),
+        which('twistd')[0],
         (
             'twistd', '--nodaemon', '--python',
             join(gather_dir, 'gatherer.tac'),
