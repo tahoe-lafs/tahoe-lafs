@@ -221,7 +221,7 @@ class Provider(unittest.TestCase):
                 h = p.get_i2p_handler()
         cfs.assert_called_with(reactor, "ep_desc")
         self.assertIs(h, handler)
-        i2p.sam_endpoint.assert_called_with(ep)
+        i2p.sam_endpoint.assert_called_with(ep, keyfile=None)
 
     def test_handler_launch(self):
         i2p = mock.Mock()
@@ -292,7 +292,7 @@ class Provider(unittest.TestCase):
             p = i2p_provider.Provider("basedir", FakeConfig(), reactor)
         h = p.get_i2p_handler()
         self.assertIs(h, handler)
-        i2p.default.assert_called_with(reactor)
+        i2p.default.assert_called_with(reactor, keyfile=None)
 
 class Provider_CheckI2PConfig(unittest.TestCase):
     def test_default(self):

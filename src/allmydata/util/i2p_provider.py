@@ -147,13 +147,14 @@ class Provider(service.MultiService):
         sam_port = self._get_i2p_config("sam.port", None)
         launch = self._get_i2p_config("launch", False, boolean=True)
         configdir = self._get_i2p_config("i2p.configdir", None)
+        keyfile = self._get_i2p_config("dest.private_key_file", None)
 
         if sam_port:
             if launch:
                 raise ValueError("tahoe.cfg [i2p] must not set both "
                                  "sam.port and launch")
             ep = clientFromString(self._reactor, sam_port)
-            return self._i2p.sam_endpoint(ep)
+            return self._i2p.sam_endpoint(ep, keyfile=keyfile)
 
         if launch:
             executable = self._get_i2p_config("i2p.executable", None)
@@ -162,7 +163,7 @@ class Provider(service.MultiService):
         if configdir:
             return self._i2p.local_i2p(configdir)
 
-        return self._i2p.default(self._reactor)
+        return self._i2p.default(self._reactor, keyfile=keyfile)
 
     def check_dest_config(self):
         if self._get_i2p_config("dest", False, boolean=True):
