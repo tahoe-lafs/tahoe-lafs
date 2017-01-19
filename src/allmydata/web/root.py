@@ -214,11 +214,11 @@ class Root(rend.Page):
             else:
                 servers[server_id]["last_received_data"] = ""
             data = {
-            "introducers": {
-                "statuses": intro_summaries,
-            },
-            "servers": servers
-        }
+                "introducers": {
+                    "statuses": intro_summaries,
+                },
+                "servers": servers
+            }
         return simplejson.dumps(data, indent=1) + "\n"
 
     def render_magic_folder(self, ctx, data):
