@@ -1,6 +1,6 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.12.0
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.12.1
 
-The Tahoe-LAFS team is pleased to announce version 1.12.0 of
+The Tahoe-LAFS team is pleased to announce version 1.12.1 of
 Tahoe-LAFS, an extremely reliable decentralized storage
 system. Get it with "pip install tahoe-lafs", or download a
 tarball here:
@@ -15,17 +15,13 @@ unique security and fault-tolerance properties:
 
   http://tahoe-lafs.readthedocs.org/en/latest/about.html
 
-The previous stable release of Tahoe-LAFS was v1.11.0,
-released on March 30, 2016.
+The previous stable release of Tahoe-LAFS was v1.12.0,
+released on December 17, 2016.
 
-v1.12.0 adds better Tor/I2P support, enables multiple
-introducers, enables no introducers, allows static server
-definitions, and adds "Magic Folders", an experimental two-way
-directory-synchronization tool. It removes some little-used
-features like the "key-generator" node and the old v1
-introducer protocol (v2 has been available since 1.10). Many
-smaller fixes and changes were made: see the NEWS file [1] for
-details.
+v1.12.1 fixes a few small problems discovered just after the
+v1.12.0 release in the new "multiple-introducers" feature and
+the new "--hide-ip" feature (on systems with I2P support but
+not Tor).
 
 
 WHAT IS IT GOOD FOR?
@@ -137,7 +133,7 @@ Of Fame" [13].
 
 ACKNOWLEDGEMENTS
 
-This is the sixteenth release of Tahoe-LAFS to be created
+This is the seventeenth release of Tahoe-LAFS to be created
 solely as a labor of love by volunteers. Thank you very much
 to the team of "hackers in the public interest" who make
 Tahoe-LAFS possible.
@@ -145,16 +141,16 @@ Tahoe-LAFS possible.
 Brian Warner
 on behalf of the Tahoe-LAFS team
 
-December 17, 2016
+January 18, 2017
 San Francisco, California, USA
 
 
-[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.0/NEWS.rst
+[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.1/NEWS.rst
 [2] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/known_issues.rst
 [3] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
-[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.0/COPYING.GPL
-[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.0/COPYING.TGPPL.rst
-[6] http://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.12.0/INSTALL.html
+[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.1/COPYING.GPL
+[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.1/COPYING.TGPPL.rst
+[6] http://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.12.1/INSTALL.html
 [7] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [8] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
 [9] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/CREDITS

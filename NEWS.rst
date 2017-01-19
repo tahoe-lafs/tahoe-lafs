@@ -4,21 +4,20 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.12.1 (???)
-''''''''''''''''''''
+Release 1.12.1 (18-Jan-2017)
+''''''''''''''''''''''''''''
 
-This release fixes a few small problems discovered just after the 1.12.0
-release.
+This fixes a few small problems discovered just after 1.12.0 was released.
 
 * ``introducers.yaml`` was entirely broken (due to a unicode-vs-ascii
-  problem), and the documentation recommended an invalid syntax. Both were
-  fixed. (#2862)
+  problem), and the documentation recommended an invalid syntax. Both have
+  been fixed. (#2862)
 * Creating a node with ``--hide-ip`` shouldn't set ``tcp = tor`` if txtorcon
   is unavailable. I2P-only systems should get ``tcp = disabled``. (#2860)
 * As a result, we now require foolscap-0.12.6 .
 * setup.py now creates identical wheels on win32 and unix. Previously wheels
   created on windows got an unconditional dependency upon ``pypiwin32``,
-  making them uninstallable on unix. Now the dependency is marked as
+  making them uninstallable on unix. Now that dependency is marked as
   ``sys_platform=win32`` only. (#2763)
 
 Some other small changes include:

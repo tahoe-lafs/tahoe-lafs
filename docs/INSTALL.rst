@@ -158,7 +158,7 @@ from PyPI with ``venv/bin/pip install tahoe-lafs``. After installation, run
  Successfully installed ...
  
  % venv/bin/tahoe --version
- tahoe-lafs: 1.12.0
+ tahoe-lafs: 1.12.1
  foolscap: ...
  
  %
@@ -178,14 +178,14 @@ You can also install directly from the source tarball URL::
  New python executable in ~/venv/bin/python2.7
  Installing setuptools, pip, wheel...done.
  
- % venv/bin/pip install https://tahoe-lafs.org/downloads/tahoe-lafs-1.12.0.tar.bz2
- Collecting https://tahoe-lafs.org/downloads/tahoe-lafs-1.12.0.tar.bz2
+ % venv/bin/pip install https://tahoe-lafs.org/downloads/tahoe-lafs-1.12.1.tar.bz2
+ Collecting https://tahoe-lafs.org/downloads/tahoe-lafs-1.12.1.tar.bz2
  ...
  Installing collected packages: ...
  Successfully installed ...
  
  % venv/bin/tahoe --version
- tahoe-lafs: 1.12.0
+ tahoe-lafs: 1.12.1
  ...
 
 
@@ -208,7 +208,7 @@ the additional libraries needed to run the unit tests::
  Successfully installed ...
  
  % venv/bin/tahoe --version
- tahoe-lafs: 1.12.0.post34.dev0
+ tahoe-lafs: 1.12.1.post34.dev0
  ...
 
 This way, you won't have to re-run the ``pip install`` step each time you
@@ -257,7 +257,7 @@ result in a "all tests passed" mesage::
  % tox
  GLOB sdist-make: ~/tahoe-lafs/setup.py
  py27 recreate: ~/tahoe-lafs/.tox/py27
- py27 inst: ~/tahoe-lafs/.tox/dist/tahoe-lafs-1.12.0.post8.dev0.zip
+ py27 inst: ~/tahoe-lafs/.tox/dist/tahoe-lafs-1.12.1.post8.dev0.zip
  py27 runtests: commands[0] | tahoe --version
  py27 runtests: commands[1] | trial --rterrors allmydata
  allmydata.test.test_auth
