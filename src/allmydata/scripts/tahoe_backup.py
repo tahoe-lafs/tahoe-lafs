@@ -2,7 +2,7 @@
 import os.path
 import time
 import urllib
-import simplejson
+import json
 import datetime
 from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
                                      UnknownAliasError
@@ -40,7 +40,7 @@ def mkdir(contents, options):
                                 }))
                   for childname in contents
                   ])
-    body = simplejson.dumps(kids).encode("utf-8")
+    body = json.dumps(kids).encode("utf-8")
     url = options['node-url'] + "uri?t=mkdir-immutable"
     resp = do_http("POST", url, body)
     if resp.status < 200 or resp.status >= 300:
@@ -245,7 +245,7 @@ class BackerUpper:
             # can't check, so we must assume it's bad
             return True, r
 
-        cr = simplejson.loads(resp.read())
+        cr = json.loads(resp.read())
         healthy = cr["results"]["healthy"]
         if not healthy:
             # must upload
@@ -278,7 +278,7 @@ class BackerUpper:
             # can't check, so we must assume it's bad
             return True, r
 
-        cr = simplejson.loads(resp.read())
+        cr = json.loads(resp.read())
         healthy = cr["results"]["healthy"]
         if not healthy:
             # must create

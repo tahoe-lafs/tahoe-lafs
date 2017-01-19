@@ -1,6 +1,6 @@
 
 import time
-import simplejson
+import json
 from nevow import rend, inevow, tags as T
 from twisted.web import http, html
 from allmydata.web.common import getxmlfile, get_arg, get_root, WebError
@@ -196,7 +196,7 @@ class LiteralCheckResultsRenderer(rend.Page, ResultsBase):
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         data = json_check_results(None)
-        return simplejson.dumps(data, indent=1) + "\n"
+        return json.dumps(data, indent=1) + "\n"
 
     def render_return(self, ctx, data):
         req = inevow.IRequest(ctx)
@@ -233,7 +233,7 @@ class CheckResultsRenderer(CheckerBase, rend.Page, ResultsBase):
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         data = json_check_results(self.r)
-        return simplejson.dumps(data, indent=1) + "\n"
+        return json.dumps(data, indent=1) + "\n"
 
     def render_summary(self, ctx, data):
         results = []
@@ -278,7 +278,7 @@ class CheckAndRepairResultsRenderer(CheckerBase, rend.Page, ResultsBase):
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         data = json_check_and_repair_results(self.r)
-        return simplejson.dumps(data, indent=1) + "\n"
+        return json.dumps(data, indent=1) + "\n"
 
     def render_summary(self, ctx, data):
         cr = data.get_post_repair_results()
@@ -359,7 +359,7 @@ class DeepCheckResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
                                          in res.get_all_results().items()
                                          if not r.is_healthy() ]
         data["stats"] = res.get_stats()
-        return simplejson.dumps(data, indent=1) + "\n"
+        return json.dumps(data, indent=1) + "\n"
 
     def render_root_storage_index(self, ctx, data):
         return self.monitor.get_status().get_root_storage_index_string()
@@ -529,7 +529,7 @@ class DeepCheckAndRepairResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
                       if not crr.get_pre_repair_results().is_healthy() ]
         data["list-unhealthy-files"] = unhealthy
         data["stats"] = res.get_stats()
-        return simplejson.dumps(data, indent=1) + "\n"
+        return json.dumps(data, indent=1) + "\n"
 
     def render_root_storage_index(self, ctx, data):
         return self.monitor.get_status().get_root_storage_index_string()

@@ -1,5 +1,5 @@
 
-import time, os.path, platform, stat, re, simplejson, struct, shutil
+import time, os.path, platform, stat, re, json, struct, shutil
 
 from twisted.trial import unittest
 
@@ -3279,8 +3279,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessIn("but expiration was not enabled", s)
         d.addCallback(_check_html)
         d.addCallback(lambda ign: self.render_json(webstatus))
-        def _check_json(json):
-            data = simplejson.loads(json)
+        def _check_json(raw):
+            data = json.loads(raw)
             self.failUnlessIn("lease-checker", data)
             self.failUnlessIn("lease-checker-progress", data)
         d.addCallback(_check_json)
@@ -3916,8 +3916,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(_after_first_bucket)
 
         d.addCallback(lambda ign: self.render_json(w))
-        def _check_json(json):
-            data = simplejson.loads(json)
+        def _check_json(raw):
+            data = json.loads(raw)
             # grr. json turns all dict keys into strings.
             so_far = data["lease-checker"]["cycle-to-date"]
             corrupt_shares = so_far["corrupt-shares"]
@@ -3943,8 +3943,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(last["corrupt-shares"], [(first_b32, 0)])
         d.addCallback(_after_first_cycle)
         d.addCallback(lambda ign: self.render_json(w))
-        def _check_json_history(json):
-            data = simplejson.loads(json)
+        def _check_json_history(raw):
+            data = json.loads(raw)
             last = data["lease-checker"]["history"]["0"]
             corrupt_shares = last["corrupt-shares"]
             self.failUnlessEqual(corrupt_shares, [[first_b32, 0]])
@@ -3996,8 +3996,8 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessIn("Reserved space: - 0 B (0)", s)
         d.addCallback(_check_html)
         d.addCallback(lambda ign: self.render_json(w))
-        def _check_json(json):
-            data = simplejson.loads(json)
+        def _check_json(raw):
+            data = json.loads(raw)
             s = data["stats"]
             self.failUnlessEqual(s["storage_server.accepting_immutable_shares"], 1)
             self.failUnlessEqual(s["storage_server.reserved_space"], 0)

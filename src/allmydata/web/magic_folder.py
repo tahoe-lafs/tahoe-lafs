@@ -1,4 +1,4 @@
-import simplejson
+import json
 
 from allmydata.web.common import TokenOnlyWebApi
 
@@ -38,4 +38,4 @@ class MagicFolderWebApi(TokenOnlyWebApi):
             d['percent_done'] = item.progress.progress
             data.append(d)
 
-        return simplejson.dumps(data)
+        return json.dumps(data)

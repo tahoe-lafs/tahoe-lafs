@@ -1,5 +1,5 @@
 
-import os, simplejson, urllib
+import os, json, urllib
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata.immutable import upload
@@ -132,7 +132,7 @@ class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
 
     def decode_json(self, (s,url)):
         try:
-            data = simplejson.loads(s)
+            data = json.loads(s)
         except ValueError:
             self.fail("%s: not JSON: '%s'" % (url, s))
         return data
@@ -143,7 +143,7 @@ class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
                 # stream should end with a newline, so split returns ""
                 continue
             try:
-                yield simplejson.loads(unit)
+                yield json.loads(unit)
             except ValueError, le:
                 le.args = tuple(le.args + (unit,))
                 raise
@@ -162,7 +162,7 @@ class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
         d = getPage(url)
         def _got(res):
             try:
-                data = simplejson.loads(res)
+                data = json.loads(res)
             except ValueError:
                 self.fail("%s: not JSON: '%s'" % (url, res))
             if not data["finished"]:
@@ -182,7 +182,7 @@ class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
         def _got(res):
             if output and output.lower() == "json":
                 try:
-                    return simplejson.loads(res)
+                    return json.loads(res)
                 except ValueError:
                     self.fail("%s: not JSON: '%s'" % (url, res))
             return res
@@ -823,7 +823,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
     def do_cli_stats2(self):
         d = self.do_cli("stats", "--raw", self.root_uri)
         def _check4((rc,out,err)):
-            data = simplejson.loads(out)
+            data = json.loads(out)
             self.failUnlessEqual(data["count-immutable-files"], 1)
             self.failUnlessEqual(data["count-immutable-files"], 1)
             self.failUnlessEqual(data["count-mutable-files"], 1)

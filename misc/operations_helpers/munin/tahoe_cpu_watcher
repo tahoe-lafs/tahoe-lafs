@@ -2,10 +2,10 @@
 
 import os, sys, re
 import urllib
-import simplejson
+import json
 
 url = os.environ["url"]
-current = simplejson.loads(urllib.urlopen(url).read())
+current = json.loads(urllib.urlopen(url).read())
 
 configinfo = """\
 graph_title Tahoe CPU Usage

@@ -33,7 +33,7 @@ a mean of 10kB and a max of 100MB, so filesize=min(int(1.0/random(.0002)),1e8)
 """
 
 import os, sys, httplib, binascii
-import urllib, simplejson, random, time, urlparse
+import urllib, json, random, time, urlparse
 
 if sys.argv[1] == "--stats":
     statsfiles = sys.argv[2:]
@@ -105,7 +105,7 @@ def listdir(nodeurl, root, remote_pathname):
     url += "?t=json"
     data = urllib.urlopen(url).read()
     try:
-        parsed = simplejson.loads(data)
+        parsed = json.loads(data)
     except ValueError:
         print "URL was", url
         print "DATA was", data

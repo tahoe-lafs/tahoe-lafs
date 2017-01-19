@@ -24,9 +24,6 @@ install_requires = [
 
     "zfec >= 1.1.0",
 
-    # Feisty has simplejson 1.4
-    "simplejson >= 1.4",
-
     # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
     # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
     "zope.interface >= 3.6.0, != 3.6.3, != 3.6.4",
@@ -108,7 +105,6 @@ package_imports = [
     ('platform',         None),
     ('pyOpenSSL',        'OpenSSL'),
     ('OpenSSL',          None),
-    ('simplejson',       'simplejson'),
     ('pycrypto',         'Crypto'),
     ('pyasn1',           'pyasn1'),
     ('service-identity', 'service_identity'),

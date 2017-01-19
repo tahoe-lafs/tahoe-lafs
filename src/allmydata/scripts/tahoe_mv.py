@@ -1,7 +1,7 @@
 
 import re
 import urllib
-import simplejson
+import json
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
@@ -33,7 +33,7 @@ def mv(options, mode="move"):
         print >>stderr, format_http_error("Error", resp)
         return 1
     data = resp.read()
-    nodetype, attrs = simplejson.loads(data)
+    nodetype, attrs = json.loads(data)
     cap = to_str(attrs.get("rw_uri") or attrs["ro_uri"])
 
     # now get the target

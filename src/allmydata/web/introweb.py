@@ -4,7 +4,7 @@ from nevow import rend, inevow
 from nevow.static import File as nevow_File
 from nevow.util import resource_filename
 import allmydata
-import simplejson
+import json
 from allmydata import get_package_versions_string
 from allmydata.util import idlib
 from allmydata.web.common import getxmlfile, get_arg, render_time
@@ -49,7 +49,7 @@ class IntroducerRoot(rend.Page):
             announcement_summary[service_name] += 1
         res["announcement_summary"] = announcement_summary
 
-        return simplejson.dumps(res, indent=1) + "\n"
+        return json.dumps(res, indent=1) + "\n"
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):

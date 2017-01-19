@@ -1,5 +1,5 @@
 import os.path, re, urllib, time, cgi
-import simplejson
+import json
 
 from twisted.application import service
 from twisted.trial import unittest
@@ -403,7 +403,7 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnlessReallyEqual(res, self.SUBBAZ_CONTENTS, res)
 
     def failUnlessIsBarJSON(self, res):
-        data = simplejson.loads(res)
+        data = json.loads(res)
         self.failUnless(isinstance(data, list))
         self.failUnlessEqual(data[0], "filenode")
         self.failUnless(isinstance(data[1], dict))
@@ -414,7 +414,7 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnlessReallyEqual(data[1]["size"], len(self.BAR_CONTENTS))
 
     def failUnlessIsQuuxJSON(self, res, readonly=False):
-        data = simplejson.loads(res)
+        data = json.loads(res)
         self.failUnless(isinstance(data, list))
         self.failUnlessEqual(data[0], "filenode")
         self.failUnless(isinstance(data[1], dict))
@@ -433,7 +433,7 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnlessReallyEqual(metadata['size'], len(self.QUUX_CONTENTS))
 
     def failUnlessIsFooJSON(self, res):
-        data = simplejson.loads(res)
+        data = json.loads(res)
         self.failUnless(isinstance(data, list))
         self.failUnlessEqual(data[0], "dirnode", res)
         self.failUnless(isinstance(data[1], dict))
@@ -778,7 +778,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check)
         d.addCallback(lambda res: self.GET("/status/?t=json"))
         def _check_json(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnless(isinstance(data, dict))
             #active = data["active"]
             # TODO: test more. We need a way to fake an active operation
@@ -791,7 +791,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check_dl)
         d.addCallback(lambda res: self.GET("/status/down-%d/event_json" % dl_num))
         def _check_dl_json(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnless(isinstance(data, dict))
             self.failUnlessIn("read", data)
             self.failUnlessEqual(data["read"][0]["length"], 120)
@@ -1165,7 +1165,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # Check that etags work with immutable directories
         (newkids, caps) = self._create_immutable_children()
         d = self.POST2(self.public_url + "/foo/newdir?t=mkdir-immutable",
-                      simplejson.dumps(newkids))
+                      json.dumps(newkids))
         def _stash_immdir_uri(uri):
             self._immdir_uri = uri
             return uri
@@ -1449,7 +1449,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessHasBarDotTxtMetadata(self, res):
-        data = simplejson.loads(res)
+        data = json.loads(res)
         self.failUnless(isinstance(data, list))
         self.failUnlessIn("metadata", data[1])
         self.failUnlessIn("tahoe", data[1]["metadata"])
@@ -1477,8 +1477,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.PUT("/uri?format=mdmf",
                      self.NEWFILE_CONTENTS * 300000)
         d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
-        def _got_json(json, version):
-            data = simplejson.loads(json)
+        def _got_json(raw, version):
+            data = json.loads(raw)
             assert "filenode" == data[0]
             data = data[1]
             assert isinstance(data, dict)
@@ -1692,8 +1692,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # its JSON, we should see their encodings.
         d.addCallback(lambda ignored:
             self.GET(self.public_url + "/foo?t=json"))
-        def _got_json(json):
-            data = simplejson.loads(json)
+        def _got_json(raw):
+            data = json.loads(raw)
             assert data[0] == "dirnode"
 
             data = data[1]
@@ -1830,7 +1830,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.POST(self.public_url + "/foo/?t=stream-manifest")
         def _check(res):
             self.failUnless(res.endswith("\n"))
-            units = [simplejson.loads(t) for t in res[:-1].split("\n")]
+            units = [json.loads(t) for t in res[:-1].split("\n")]
             self.failUnlessReallyEqual(len(units), 10)
             self.failUnlessEqual(units[-1]["type"], "stats")
             first = units[0]
@@ -1944,7 +1944,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         else:
             version = SDMF_VERSION # for later
         d = self.POST2(self.public_url + query,
-                       simplejson.dumps(newkids))
+                       json.dumps(newkids))
         def _check(uri):
             n = self.s.create_node_from_uri(uri.strip())
             d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
@@ -2001,12 +2001,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                     400, "Bad Request", "Unknown format: foo",
                                     self.POST2, self.public_url + \
                                     "/foo/newdir?t=mkdir-with-children&format=foo",
-                                    simplejson.dumps(newkids))
+                                    json.dumps(newkids))
 
     def test_POST_NEWDIRURL_immutable(self):
         (newkids, caps) = self._create_immutable_children()
         d = self.POST2(self.public_url + "/foo/newdir?t=mkdir-immutable",
-                       simplejson.dumps(newkids))
+                       json.dumps(newkids))
         def _check(uri):
             n = self.s.create_node_from_uri(uri.strip())
             d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
@@ -2051,7 +2051,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              "needed to be immutable but was not",
                              self.POST2,
                              self.public_url + "/foo/newdir?t=mkdir-immutable",
-                             simplejson.dumps(newkids))
+                             json.dumps(newkids))
         return d
 
     def test_PUT_NEWDIRURL_exists(self):
@@ -2392,8 +2392,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                 (uri_prefix, filecap))
                 return self.GET("/uri/%s?t=json" % filecap)
             d.addCallback(_got_results)
-            def _got_json(json):
-                data = simplejson.loads(json)
+            def _got_json(raw):
+                data = json.loads(raw)
                 data = data[1]
                 self.failUnlessIn("format", data)
                 self.failUnlessEqual(data["format"], format.upper())
@@ -2426,8 +2426,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 self.failUnless(filecap.startswith(uri_prefix))
                 return self.GET(self.public_url + "/foo/%s?t=json" % filename)
             d.addCallback(_got_filecap)
-            def _got_json(json):
-                data = simplejson.loads(json)
+            def _got_json(raw):
+                data = json.loads(raw)
                 data = data[1]
                 self.failUnlessIn("format", data)
                 self.failUnlessEqual(data["format"], format.upper())
@@ -2518,7 +2518,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                       self.GET(self.public_url + "/foo/?t=json",
                                followRedirect=True))
         def _check_page_json(res):
-            parsed = simplejson.loads(res)
+            parsed = json.loads(res)
             self.failUnlessEqual(parsed[0], "dirnode")
             children = dict( [(unicode(name),value)
                               for (name,value)
@@ -2536,7 +2536,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.GET(self.public_url + "/foo/new.txt?t=json"))
         def _check_file_json(res):
-            parsed = simplejson.loads(res)
+            parsed = json.loads(res)
             self.failUnlessEqual(parsed[0], "filenode")
             self.failUnless(parsed[1]["mutable"])
             self.failUnlessReallyEqual(to_str(parsed[1]["rw_uri"]), self._mutable_uri)
@@ -2710,7 +2710,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.POST(bar_url, t="check", output="JSON"))
         def _check_json(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnlessIn("storage-index", data)
             self.failUnless(data["results"]["healthy"])
         d.addCallback(_check_json)
@@ -2769,7 +2769,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.POST(foo_url, t="check", output="JSON"))
         def _check_json(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnlessIn("storage-index", data)
             self.failUnless(data["results"]["healthy"])
         d.addCallback(_check_json)
@@ -2830,7 +2830,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         url += "?t=status&output=JSON"
         d = self.GET(url)
         def _got(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             if not data["finished"]:
                 d = self.stall(delay=1.0)
                 d.addCallback(self.wait_for_operation, ophandle)
@@ -2847,7 +2847,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET(url)
         def _got(res):
             if output and output.lower() == "json":
-                return simplejson.loads(res)
+                return json.loads(res)
             return res
         d.addCallback(_got)
         return d
@@ -2894,7 +2894,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.GET("/operations/123/%s?output=JSON" % foo_si_s))
         def _check_foo_json(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnlessEqual(data["storage-index"], foo_si_s)
             self.failUnless(data["results"]["healthy"])
         d.addCallback(_check_foo_json)
@@ -2974,7 +2974,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         (newkids, caps) = self._create_initial_children()
         d = self.POST2(self.public_url +
                        "/foo?t=mkdir-with-children&name=newdir",
-                       simplejson.dumps(newkids))
+                       json.dumps(newkids))
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -2987,7 +2987,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         (newkids, caps) = self._create_initial_children()
         d = self.POST2(self.public_url +
                        "/foo?t=mkdir-with-children&name=newdir&format=mdmf",
-                       simplejson.dumps(newkids))
+                       json.dumps(newkids))
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -3003,7 +3003,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         (newkids, caps) = self._create_initial_children()
         d = self.POST2(self.public_url +
                        "/foo?t=mkdir-with-children&name=newdir&format=sdmf",
-                       simplejson.dumps(newkids))
+                       json.dumps(newkids))
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -3020,13 +3020,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                     400, "Bad Request", "Unknown format: foo",
                                     self.POST, self.public_url + \
                                     "/foo?t=mkdir-with-children&name=newdir&format=foo",
-                                    simplejson.dumps(newkids))
+                                    json.dumps(newkids))
 
     def test_POST_mkdir_immutable(self):
         (newkids, caps) = self._create_immutable_children()
         d = self.POST2(self.public_url +
                        "/foo?t=mkdir-immutable&name=newdir",
-                       simplejson.dumps(newkids))
+                       json.dumps(newkids))
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -3051,7 +3051,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              self.POST2,
                              self.public_url +
                              "/foo?t=mkdir-immutable&name=newdir",
-                             simplejson.dumps(newkids))
+                             json.dumps(newkids))
         return d
 
     def test_POST_mkdir_2(self):
@@ -3199,7 +3199,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_POST_mkdir_no_parentdir_initial_children(self):
         (newkids, caps) = self._create_initial_children()
-        d = self.POST2("/uri?t=mkdir-with-children", simplejson.dumps(newkids))
+        d = self.POST2("/uri?t=mkdir-with-children", json.dumps(newkids))
         def _after_mkdir(res):
             self.failUnless(res.startswith("URI:DIR"), res)
             n = self.s.create_node_from_uri(res)
@@ -3238,7 +3238,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                  "t=mkdir does not accept children=, "
                                  "try t=mkdir-with-children instead",
                                  self.POST2, "/uri?t=mkdir", # without children
-                                 simplejson.dumps(newkids))
+                                 json.dumps(newkids))
         return d
 
     def test_POST_noparent_bad(self):
@@ -3251,7 +3251,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_POST_mkdir_no_parentdir_immutable(self):
         (newkids, caps) = self._create_immutable_children()
-        d = self.POST2("/uri?t=mkdir-immutable", simplejson.dumps(newkids))
+        d = self.POST2("/uri?t=mkdir-immutable", json.dumps(newkids))
         def _after_mkdir(res):
             self.failUnless(res.startswith("URI:DIR"), res)
             n = self.s.create_node_from_uri(res)
@@ -3283,7 +3283,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              "needed to be immutable but was not",
                              self.POST2,
                              "/uri?t=mkdir-immutable",
-                             simplejson.dumps(newkids))
+                             json.dumps(newkids))
         return d
 
     def test_welcome_page_mkdir_button(self):
@@ -3582,7 +3582,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessIsEmptyJSON(self, res):
-        data = simplejson.loads(res)
+        data = json.loads(res)
         self.failUnlessEqual(data[0], "dirnode", data)
         self.failUnlessReallyEqual(len(data[1]["children"]), 0)
 
@@ -4006,8 +4006,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      new_contents)
         d.addCallback(lambda ignored:
             self.GET(self.public_url + "/foo/mdmf.txt?t=json"))
-        def _got_json(json):
-            data = simplejson.loads(json)
+        def _got_json(raw):
+            data = json.loads(raw)
             data = data[1]
             self.failUnlessIn("format", data)
             self.failUnlessEqual(data["format"], "MDMF")
@@ -4023,8 +4023,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      new_contents)
         d.addCallback(lambda ignored:
             self.GET(self.public_url + "/foo/sdmf.txt?t=json"))
-        def _got_json(json):
-            data = simplejson.loads(json)
+        def _got_json(raw):
+            data = json.loads(raw)
             data = data[1]
             self.failUnlessIn("format", data)
             self.failUnlessEqual(data["format"], "SDMF")
@@ -4281,12 +4281,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ignored:
                       self.GET("/operations/128?t=status&output=JSON"))
         def _check1(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnless("finished" in data, res)
             monitor = self.ws.root.child_operations.handles["128"][0]
             d = self.POST("/operations/128?t=cancel&output=JSON")
             def _check2(res):
-                data = simplejson.loads(res)
+                data = json.loads(res)
                 self.failUnless("finished" in data, res)
                 # t=cancel causes the handle to be forgotten
                 self.failUnless(monitor.is_cancelled())
@@ -4307,7 +4307,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ignored:
                       self.GET("/operations/129?t=status&output=JSON&retain-for=0"))
         def _check1(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnless("finished" in data, res)
         d.addCallback(_check1)
         # the retain-for=0 will cause the handle to be expired very soon
@@ -4361,7 +4361,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ign:
             self.GET("/operations/131?t=status&output=JSON"))
         def _check1(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnless("finished" in data, res)
         d.addCallback(_check1)
         # Create an ophandle, don't collect it, then try to collect it
@@ -4395,7 +4395,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ign:
             self.GET("/operations/133?t=status&output=JSON"))
         def _check1(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnless("finished" in data, res)
         d.addCallback(_check1)
         # Create another uncollected ophandle, then try to collect it

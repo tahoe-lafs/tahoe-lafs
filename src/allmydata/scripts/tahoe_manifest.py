@@ -1,5 +1,5 @@
 
-import urllib, simplejson
+import urllib, json
 from twisted.protocols.basic import LineOnlyReceiver
 from allmydata.util.abbreviate import abbreviate_space_both
 from allmydata.scripts.slow_operation import SlowOperationRunner
@@ -69,7 +69,7 @@ class ManifestStreamer(LineOnlyReceiver):
             return
 
         try:
-            d = simplejson.loads(line.decode('utf-8'))
+            d = json.loads(line.decode('utf-8'))
         except Exception, e:
             print >>stderr, "ERROR could not decode/parse %s\nERROR  %r" % (quote_output(line), e)
         else:

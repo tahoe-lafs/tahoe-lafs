@@ -2,7 +2,7 @@
 
 import os, sys
 import urllib
-import simplejson
+import json
 
 configinfo = """\
 graph_title Tahoe Root Directory Size

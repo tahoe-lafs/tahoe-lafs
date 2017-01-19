@@ -1,5 +1,5 @@
 
-import time, simplejson
+import time, json
 from nevow import rend, tags as T, inevow
 from allmydata.web.common import getxmlfile, abbreviate_time, get_arg
 from allmydata.util.abbreviate import abbreviate_space
@@ -33,7 +33,7 @@ class StorageStatus(rend.Page):
              "lease-checker": self.storage.lease_checker.get_state(),
              "lease-checker-progress": self.storage.lease_checker.get_progress(),
              }
-        return simplejson.dumps(d, indent=1) + "\n"
+        return json.dumps(d, indent=1) + "\n"
 
     def data_nickname(self, ctx, storage):
         return self.nickname

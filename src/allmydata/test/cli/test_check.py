@@ -1,5 +1,5 @@
 import os.path
-import simplejson
+import json
 from twisted.trial import unittest
 from cStringIO import StringIO
 
@@ -40,7 +40,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check2((rc, out, err)):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
-            data = simplejson.loads(out)
+            data = json.loads(out)
             self.failUnlessReallyEqual(to_str(data["summary"]), "Healthy")
             self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check2)
@@ -62,7 +62,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check_lit_raw((rc, out, err)):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
-            data = simplejson.loads(out)
+            data = json.loads(out)
             self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check_lit_raw)
 
@@ -110,7 +110,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check3_raw((rc, out, err)):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
-            data = simplejson.loads(out)
+            data = json.loads(out)
             self.failUnlessReallyEqual(data["results"]["healthy"], False)
             self.failUnlessIn("Unhealthy: 8 shares (enc 3-of-10)", data["summary"])
             self.failUnlessReallyEqual(data["results"]["count-shares-good"], 8)
@@ -278,7 +278,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
-            units = [simplejson.loads(line) for line in lines]
+            units = [json.loads(line) for line in lines]
             # root, small, g\u00F6\u00F6d, mutable,  stats
             self.failUnlessReallyEqual(len(units), 4+1)
         d.addCallback(_check5)

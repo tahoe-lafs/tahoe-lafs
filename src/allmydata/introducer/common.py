@@ -1,5 +1,6 @@
 
-import re, simplejson
+import re
+import json
 from allmydata.util import keyutil, base32, rrefutil
 
 def get_tubid_string_from_ann(ann):
@@ -16,7 +17,7 @@ def sign_to_foolscap(ann, sk):
     # return (bytes, sig-str, pubkey-str). A future HTTP-based serialization
     # will use JSON({msg:b64(JSON(msg).utf8), sig:v0-b64(sig),
     # pubkey:v0-b64(pubkey)}) .
-    msg = simplejson.dumps(ann).encode("utf-8")
+    msg = json.dumps(ann).encode("utf-8")
     sig = "v0-"+base32.b2a(sk.sign(msg))
     vk_bytes = sk.get_verifying_key_bytes()
     ann_t = (msg, sig, "v0-"+base32.b2a(vk_bytes))
@@ -37,7 +38,7 @@ def unsign_from_foolscap(ann_t):
     sig_bytes = base32.a2b(keyutil.remove_prefix(sig_vs, "v0-"))
     claimed_key.verify(sig_bytes, msg)
     key_vs = claimed_key_vs
-    ann = simplejson.loads(msg.decode("utf-8"))
+    ann = json.loads(msg.decode("utf-8"))
     return (ann, key_vs)
 
 class SubscriberDescriptor:

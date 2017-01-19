@@ -1,6 +1,6 @@
 
 import urllib, time
-import simplejson
+import json
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
@@ -52,7 +52,7 @@ def list(options):
             return 1
 
     try:
-        parsed = simplejson.loads(data)
+        parsed = json.loads(data)
     except Exception, e:
         print >>stderr, "error: %s" % quote_output(e.args[0], quotemarks=False)
         print >>stderr, "Could not parse JSON response:"

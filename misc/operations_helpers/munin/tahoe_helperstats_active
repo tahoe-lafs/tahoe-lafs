@@ -2,7 +2,7 @@
 
 import os, sys
 import urllib
-import simplejson
+import json
 
 configinfo = """\
 graph_title Tahoe Helper Stats - Active Files
@@ -20,6 +20,6 @@ if len(sys.argv) > 1:
 
 url = os.environ["url"]
 
-data = simplejson.loads(urllib.urlopen(url).read())
+data = json.loads(urllib.urlopen(url).read())
 print "fetched.value %d" % data["chk_upload_helper.active_uploads"]
 
