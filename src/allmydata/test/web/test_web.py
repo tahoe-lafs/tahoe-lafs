@@ -184,10 +184,15 @@ class FakeDisplayableServer(StubServer):
         self.last_loss_time = last_loss_time
         self.last_rx_time = last_rx_time
         self.last_connect_time = last_connect_time
+        self.rref = None
     def on_status_changed(self, cb): # TODO: try to remove me
         cb(self)
     def is_connected(self): # TODO: remove me
         return self.connected
+    def get_version(self):
+        return {
+            "application-version": ""
+        }
     def get_permutation_seed(self):
         return ""
     def get_announcement(self):
@@ -733,6 +738,15 @@ class MultiFormatPageTests(unittest.TestCase):
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, unittest.TestCase):
     def test_create(self):
         pass
+
+    def test_welcome_json(self):
+        d = self.GET("/?t=json")
+        def _check(res):
+            decoded = simplejson.loads(res)
+            self.failUnless("introducers" in decoded.keys())
+            self.failUnless("servers" in decoded.keys())
+        d.addCallback(_check)
+        return d
 
     def test_welcome(self):
         d = self.GET("/")
