@@ -25,7 +25,7 @@ from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
-from happiness_upload import HappinessUpload
+from happiness_upload import share_placement, calculate_happiness
 
 
 # this wants to live in storage, not here
@@ -252,12 +252,12 @@ class PeerSelector():
 
     def get_tasks(self):
         shares = set(range(self.total_shares))
-        self.h = HappinessUpload(self.peers, self.full_peers, shares, self.existing_shares)
-        return self.h.generate_mappings()
+        self.happiness_mappings = share_placement(self.peers, self.full_peers, shares, self.existing_shares)
+        self.happiness = calculate_happiness(self.happiness_mappings)
+        return self.happiness_mappings
 
     def is_healthy(self):
-        return self.min_happiness <= self.h.happiness()
-
+        return self.min_happiness <= self.happiness
 
 class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
@@ -438,7 +438,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
     def _handle_existing_response(self, res, tracker):
         """
         I handle responses to the queries sent by
-        Tahoe2ServerSelector._existing_shares.
+        Tahoe2ServerSelector.get_shareholders.
         """
         serverid = tracker.get_serverid()
         if isinstance(res, failure.Failure):
@@ -533,10 +533,20 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
 
     def _request_another_allocation(self):
+        """
+        see docs/specifications/servers-of-happiness.rst
+        10. If any placements from step 9 fail, mark the server as read-only. Go back
+        to step 2 (since we may discover a server is/has-become read-only, or has
+        failed, during step 9).
+        """
         allocation = self._get_next_allocation()
         if allocation is not None:
             tracker, shares_to_ask = allocation
+
+            # see docs/specifications/servers-of-happiness.rst
+            # 8. Renew the shares on their respective servers from M1 and M2.
             d = tracker.query(shares_to_ask)
+
             d.addBoth(self._got_response, tracker, shares_to_ask)
             return d
 
@@ -544,6 +554,8 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             # no more servers. If we haven't placed enough shares, we fail.
             merged = merge_servers(self.peer_selector.get_sharemap_of_preexisting_shares(), self.use_trackers)
             effective_happiness = servers_of_happiness(self.peer_selector.get_allocations())
+            #effective_happiness = self.peer_selector.happiness
+            print "effective_happiness %s" % effective_happiness
             if effective_happiness < self.servers_of_happiness:
                 msg = failure_message(len(self.serverids_with_shares),
                                       self.needed_shares,
