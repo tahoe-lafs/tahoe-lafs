@@ -940,7 +940,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.basedir = "upload/EncodingParameters/aborted_shares"
         self.set_up_grid(num_servers=4)
         c = self.g.clients[0]
-        DATA = upload.Data(100* "kittens", convergence="")
+        DATA = upload.Data(100 * "kittens", convergence="")
         # These parameters are unsatisfiable with only 4 servers, but should
         # work with 5, as long as the original 4 are not stuck in the open
         # BucketWriter state (open() but not

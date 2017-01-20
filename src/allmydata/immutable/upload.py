@@ -201,6 +201,7 @@ class ServerTracker:
 def str_shareloc(shnum, bucketwriter):
     return "%s: %s" % (shnum, bucketwriter.get_servername(),)
 
+
 class PeerSelector():
     implements(IPeerSelector)
 
@@ -258,6 +259,7 @@ class PeerSelector():
 
     def is_healthy(self):
         return self.min_happiness <= self.happiness
+
 
 class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
@@ -554,13 +556,13 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             # no more servers. If we haven't placed enough shares, we fail.
             merged = merge_servers(self.peer_selector.get_sharemap_of_preexisting_shares(), self.use_trackers)
             effective_happiness = servers_of_happiness(self.peer_selector.get_allocations())
-            #effective_happiness = self.peer_selector.happiness
-            print "effective_happiness %s" % effective_happiness
             if effective_happiness < self.servers_of_happiness:
-                msg = failure_message(len(self.serverids_with_shares),
-                                      self.needed_shares,
-                                      self.servers_of_happiness,
-                                      effective_happiness)
+                msg = failure_message(
+                    peer_count=len(self.serverids_with_shares),
+                    k=self.needed_shares,
+                    happy=self.servers_of_happiness,
+                    effective_happy=effective_happiness,
+                )
                 msg = ("server selection failed for %s: %s (%s), merged=%s" %
                        (self, msg, self._get_progress_message(),
                         pretty_print_shnum_to_servers(merged)))

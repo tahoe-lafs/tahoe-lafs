@@ -96,3 +96,38 @@ class Happiness(unittest.TestCase):
             for i in range(10)
         }
         self.assertEqual(expected, places0)
+
+    def test_unhappy(self):
+
+        shares = {
+            'share1', 'share2', 'share3', 'share4', 'share5',
+        }
+        peers = {
+            'peer1', 'peer2', 'peer3', 'peer4',
+        }
+        readonly_peers = set()
+        peers_to_shares = {
+        }
+
+        places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
+        happiness = happiness_upload.calculate_happiness(places)
+        self.assertEqual(4, happiness)
+
+    def test_calc_happy(self):
+        sharemap = {
+            0: set(["\x0e\xd6\xb3>\xd6\x85\x9d\x94')'\xf03:R\x88\xf1\x04\x1b\xa4",
+                    '\x8de\x1cqM\xba\xc3\x0b\x80\x9aC<5\xfc$\xdc\xd5\xd3\x8b&',
+                    '\xb9\xa3N\x80u\x9c_\xf7\x97FSS\xa7\xbd\x02\xf9f$:\t',
+                    '\xc4\x83\x9eJ\x7f\xac| .\xc90\xf4b\xe4\x92\xbe\xaa\xe6\t\x80']),
+            1: set(['\xb9\xa3N\x80u\x9c_\xf7\x97FSS\xa7\xbd\x02\xf9f$:\t']),
+            2: set(['\xb9\xa3N\x80u\x9c_\xf7\x97FSS\xa7\xbd\x02\xf9f$:\t']),
+            3: set(['\xb9\xa3N\x80u\x9c_\xf7\x97FSS\xa7\xbd\x02\xf9f$:\t']),
+            4: set(['\xb9\xa3N\x80u\x9c_\xf7\x97FSS\xa7\xbd\x02\xf9f$:\t']),
+            5: set(['\xb9\xa3N\x80u\x9c_\xf7\x97FSS\xa7\xbd\x02\xf9f$:\t']),
+            6: set(['\xb9\xa3N\x80u\x9c_\xf7\x97FSS\xa7\xbd\x02\xf9f$:\t']),
+            7: set(['\xb9\xa3N\x80u\x9c_\xf7\x97FSS\xa7\xbd\x02\xf9f$:\t']),
+            8: set(['\xb9\xa3N\x80u\x9c_\xf7\x97FSS\xa7\xbd\x02\xf9f$:\t']),
+            9: set(['\xb9\xa3N\x80u\x9c_\xf7\x97FSS\xa7\xbd\x02\xf9f$:\t']),
+        }
+        happy = happiness_upload.calculate_happiness(sharemap)
+        self.assertEqual(2, happy)

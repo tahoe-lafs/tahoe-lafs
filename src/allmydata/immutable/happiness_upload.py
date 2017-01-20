@@ -73,17 +73,6 @@ def residual_network(graph, f):
                 cf[v][i] = -1
     return (new_graph, cf)
 
-def _query_all_shares(servermap, readonly_peers):
-    readonly_shares = set()
-    readonly_map = {}
-    for peer in servermap:
-        if peer in readonly_peers:
-            readonly_map.setdefault(peer, servermap[peer])
-            for share in servermap[peer]:
-                readonly_shares.add(share)
-    return readonly_shares
-
-
 def _convert_mappings(index_to_peer, index_to_share, maximum_graph):
     """
     Now that a maximum spanning graph has been found, convert the indexes
@@ -276,24 +265,19 @@ def _merge_dicts(result, inc):
         elif v is not None:
             result[k] = existing.union(v)
 
+
 def calculate_happiness(mappings):
     """
     I calculate the happiness of the generated mappings
     """
-    happiness = 0
-    for share in mappings:
-        if mappings[share] is not None:
-            happiness += 1
-    return happiness
+    unique_peers = {list(v)[0] for k, v in mappings.items()}
+    return len(unique_peers)
+
 
 def share_placement(peers, readonly_peers, shares, peers_to_shares={}):
     """
     :param servers: ordered list of servers, "Maybe *2N* of them."
     """
-    # "1. Query all servers for existing shares."
-    #shares = _query_all_shares(servers, peers)
-    #print("shares", shares)
-
     # "2. Construct a bipartite graph G1 of *readonly* servers to pre-existing
     # shares, where an edge exists between an arbitrary readonly server S and an
     # arbitrary share T if and only if S currently holds T."
