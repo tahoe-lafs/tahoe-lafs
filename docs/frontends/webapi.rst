@@ -1850,6 +1850,27 @@ This is the "Welcome Page", and contains a few distinct sections::
  Grid Status: introducer information, helper information, connected storage
               servers.
 
+``GET /?t=json``   (the json welcome page)
+
+This is the "json Welcome Page", and contains connectivity status
+of the introducer(s) and storage server(s), here's an example::
+
+  {
+   "introducers": {
+    "statuses": []
+   },
+   "servers": {
+    "other_nodeid": {
+     "available_space": 123456,
+     "nickname": "other_nickname \u263b",
+     "version": "",
+     "connection_status": "summary",
+     "last_received_data": ""
+    }
+   }
+  }
+
+
 ``GET /status/``
 
  This page lists all active uploads and downloads, and contains a short list
