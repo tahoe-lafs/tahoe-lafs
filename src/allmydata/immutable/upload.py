@@ -521,7 +521,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         for shnum, tracker_id in servermap.items():
             if tracker_id == None:
                 continue
-            if tracker.get_serverid() in tracker_id:
+            if tracker.get_serverid() == tracker_id:
                 shares_to_ask.add(shnum)
                 if shnum in self.homeless_shares:
                     self.homeless_shares.remove(shnum)
