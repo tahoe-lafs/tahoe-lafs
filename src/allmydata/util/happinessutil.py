@@ -4,10 +4,7 @@ reporting it in messages
 """
 
 from copy import deepcopy
-from allmydata.immutable.happiness_upload import share_placement
-from allmydata.immutable.happiness_upload import calculate_happiness
 from allmydata.immutable.happiness_upload import residual_network
-from allmydata.immutable.happiness_upload import bfs
 from allmydata.immutable.happiness_upload import augmenting_path_for
 
 

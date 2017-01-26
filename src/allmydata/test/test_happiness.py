@@ -31,25 +31,21 @@ class Happiness(unittest.TestCase):
     def test_placement_simple(self):
 
         shares = {'share0', 'share1', 'share2'}
-        peers = {
-            'peer0',
-            'peer1',
-        }
+        peers = {'peer0', 'peer1'}
         readonly_peers = {'peer0'}
         peers_to_shares = {
             'peer0': {'share2'},
             'peer1': [],
         }
 
-        places0 = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
+        places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
 
         if False:
-            print("places0")
-            for k, v in places0.items():
+            for k, v in places.items():
                 print("  {} -> {}".format(k, v))
 
         self.assertEqual(
-            places0,
+            places,
             {
                 'share0': {'peer1'},
                 'share1': {'peer1'},
@@ -86,7 +82,7 @@ class Happiness(unittest.TestCase):
             'peerB': set(),
         }
 
-        places0 = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
+        places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
 
         # share N maps to peer N
         # i.e. this says that share0 should be on peer0, share1 should
@@ -95,10 +91,9 @@ class Happiness(unittest.TestCase):
             'share{}'.format(i): {'peer{}'.format(i)}
             for i in range(10)
         }
-        self.assertEqual(expected, places0)
+        self.assertEqual(expected, places)
 
     def test_unhappy(self):
-
         shares = {
             'share1', 'share2', 'share3', 'share4', 'share5',
         }
@@ -106,9 +101,7 @@ class Happiness(unittest.TestCase):
             'peer1', 'peer2', 'peer3', 'peer4',
         }
         readonly_peers = set()
-        peers_to_shares = {
-        }
-
+        peers_to_shares = {}
         places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
         happiness = happiness_upload.calculate_happiness(places)
         self.assertEqual(4, happiness)
