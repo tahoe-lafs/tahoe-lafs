@@ -42,7 +42,7 @@ def test_more_hypothesis(peers, shares):
     readonly_peers = set()
     peers_to_shares = {}
 
-    places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
+    places = happiness_upload.share_placement(peers, readonly_peers, set(list(shares)), peers_to_shares)
     happiness = happiness_upload.calculate_happiness(places)
 
     # every share should get placed
