@@ -270,6 +270,7 @@ class DownloadTest(_Base, unittest.TestCase):
         d.addCallback(_clobber_all_shares)
         return d
 
+    # XXX with PYTHONHASHSEED=1 this fails (now)
     def test_lost_servers(self):
         # while downloading a file (after seg[0], before seg[1]), lose the
         # three servers that we were using. The download should switch over

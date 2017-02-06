@@ -58,7 +58,8 @@ class Happiness(unittest.TestCase):
         shares = {
             'share0', 'share1', 'share2',
             'share3', 'share4', 'share5',
-            'share7', 'share8', 'share9',
+            'share6', 'share7', 'share8',
+            'share9',
         }
         peers = {
             'peer0', 'peer1', 'peer2', 'peer3',
@@ -83,11 +84,14 @@ class Happiness(unittest.TestCase):
 
         places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
 
+        # actually many valid answers for this, so long as peer's 0,
+        # 1, 2, 3 all have share 0, 1, 2 3.
+
         # share N maps to peer N
         # i.e. this says that share0 should be on peer0, share1 should
         # be on peer1, etc.
         expected = {
-            'share{}'.format(i): 'set([peer{}])'.format(i)
+            'share{}'.format(i): 'peer{}'.format(i)
             for i in range(10)
         }
         self.assertEqual(expected, places)
@@ -172,3 +176,36 @@ class Happiness(unittest.TestCase):
         }
         happy = happiness_upload.calculate_happiness(share_placements)
         self.assertEqual(2, happy)
+
+    def test_hypothesis_0(self):
+        """
+        an error-case Hypothesis found
+        """
+        peers={u'0'}
+        shares={u'0', u'1'}
+
+        places = happiness_upload.share_placement(peers, set(), shares, {})
+        happiness = happiness_upload.calculate_happiness(places)
+
+        assert set(places.values()).issubset(peers)
+        assert happiness == min(len(peers), len(shares))
+
+    def test_hypothesis_1(self):
+        """
+        an error-case Hypothesis found
+        """
+        peers = {u'0', u'1', u'2', u'3'}
+        shares = {u'0', u'1', u'2', u'3', u'4', u'5', u'6', u'7', u'8'}
+
+        places = happiness_upload.share_placement(peers, set(), shares, {})
+        happiness = happiness_upload.calculate_happiness(places)
+
+        assert set(places.values()).issubset(peers)
+        assert happiness == min(len(peers), len(shares))
+
+    def test_everything_broken(self):
+        peers = set()
+        shares = {u'0', u'1', u'2', u'3'}
+
+        places = happiness_upload.share_placement(peers, set(), shares, {})
+        self.assertEqual(places, dict())
