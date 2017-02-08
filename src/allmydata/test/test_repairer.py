@@ -706,8 +706,10 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # filecheck, but then *do* respond to the post-repair filecheck
         def _then(ign):
             ss = self.g.servers_by_number[0]
-            self.g.break_server(ss.my_nodeid, count=1)
-            self.delete_shares_numbered(self.uri, [8])
+            # we want to delete the share corresponding to the server
+            # we're making not-respond
+            share = next(ss._get_bucket_shares(self.c0_filenode.get_storage_index()))[0]
+            self.delete_shares_numbered(self.uri, [share])
             return self.c0_filenode.check_and_repair(Monitor())
         d.addCallback(_then)
         def _check(rr):

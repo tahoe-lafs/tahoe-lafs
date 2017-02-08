@@ -2,6 +2,7 @@
 import os.path
 from cStringIO import StringIO
 import urllib, sys
+import re
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
@@ -769,15 +770,14 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         # enough shares. The one remaining share might be in either the
         # COMPLETE or the PENDING state.
         in_complete_msg = "ran out of shares: complete=sh0 pending= overdue= unused= need 3"
-        in_pending_msg = "ran out of shares: complete= pending=Share(sh0-on-fob7vqgd) overdue= unused= need 3"
+        in_pending_msg_regex = "ran out of shares: complete= pending=Share\(.+\) overdue= unused= need 3"
 
         d.addCallback(lambda ign: self.do_cli("get", self.uri_1share))
         def _check1((rc, out, err)):
             self.failIfEqual(rc, 0)
             self.failUnless("410 Gone" in err, err)
             self.failUnlessIn("NotEnoughSharesError: ", err)
-            self.failUnless(in_complete_msg in err or in_pending_msg in err,
-                            err)
+            self.failUnless(in_complete_msg in err or re.search(in_pending_msg_regex, err))
         d.addCallback(_check1)
 
         targetf = os.path.join(self.basedir, "output")
@@ -786,8 +786,7 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIfEqual(rc, 0)
             self.failUnless("410 Gone" in err, err)
             self.failUnlessIn("NotEnoughSharesError: ", err)
-            self.failUnless(in_complete_msg in err or in_pending_msg in err,
-                            err)
+            self.failUnless(in_complete_msg in err or re.search(in_pending_msg_regex, err))
             self.failIf(os.path.exists(targetf))
         d.addCallback(_check2)
 

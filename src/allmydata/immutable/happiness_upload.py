@@ -187,7 +187,8 @@ def _distribute_homeless_shares(mappings, homeless_shares, peers_to_shares):
     #print "mappings, homeless_shares, peers_to_shares %s %s %s" % (mappings, homeless_shares, peers_to_shares)
     servermap_peerids = set([key for key in peers_to_shares])
     servermap_shareids = set()
-    for key in peers_to_shares:
+    for key in sorted(peers_to_shares.keys()):
+        # XXX maybe sort?
         for share in peers_to_shares[key]:
             servermap_shareids.add(share)
 
@@ -334,7 +335,7 @@ def share_placement(peers, readonly_peers, shares, peers_to_shares):
     readonly_peers = readonly_peers
     readonly_shares = set()
     readonly_map = {}
-    for peer in peers_to_shares:
+    for peer in sorted(peers_to_shares.keys()):
         if peer in readonly_peers:
             readonly_map.setdefault(peer, peers_to_shares[peer])
             for share in peers_to_shares[peer]:
@@ -349,7 +350,7 @@ def share_placement(peers, readonly_peers, shares, peers_to_shares):
     new_shares = shares - used_shares
 
     servermap = peers_to_shares.copy()
-    for peer in peers_to_shares:
+    for peer in sorted(peers_to_shares.keys()):
         if peer in used_peers:
             servermap.pop(peer, None)
         else:
