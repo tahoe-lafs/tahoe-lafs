@@ -142,6 +142,21 @@ setup_requires = [
     'setuptools >= 28.8.0',  # for PEP-440 style versions
 ]
 
+# Don't try to get the version number of setuptools in frozen builds, because
+# that triggers 'site' processing that causes failures. Note that frozen
+# builds still (unfortunately) import pkg_resources in .tac files, so the
+# entry for setuptools in install_requires above isn't conditional.
+if not hasattr(sys, 'frozen'):
+    package_imports.append(('setuptools', 'setuptools'))
+
+if sys.platform == "win32":
+    install_requires.append('pypiwin32')
+    package_imports.append(('pypiwin32', 'win32api'))
+
+if sys.platform != "win32" and not sys.platform.startswith("linux"):
+    install_requires.append('watchdog')
+    package_imports.append(('watchdog', 'watchdog'))
+
 
 # These are suppressed globally:
 

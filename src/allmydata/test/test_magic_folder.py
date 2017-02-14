@@ -1792,6 +1792,13 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
         self.failUnlessEqual(metadata['version'], 2)
 
+    def test_write_short_file(self):
+        self.magicfolder.enable_debug_log()
+        d = defer.succeed(None)
+        # Write something short enough for a LIT file.
+        d.addCallback(lambda ign: self._check_file(u"short", "test"))
+        return d
+
     def test_magic_folder(self):
         d = defer.succeed(None)
         # Write something short enough for a LIT file.
@@ -1974,32 +1981,3 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
             self.failUnlessEqual(data["counters"]["magic_folder.uploader.objects_queued"], 0)
         d.addCallback(_got_stats_json)
         return d
-
-
-class RealTest(SingleMagicFolderTestMixin, unittest.TestCase):
-    """This is skipped unless both Twisted and the platform support inotify."""
-    inject_inotify = False
-
-    def setUp(self):
-        d = super(RealTest, self).setUp()
-        self.inotify = magic_folder.get_inotify_module()
-        return d
-
-
-class RealTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
-    """This is skipped unless both Twisted and the platform support inotify."""
-    inject_inotify = False
-
-    def setUp(self):
-        d = super(RealTestAliceBob, self).setUp()
-        self.inotify = magic_folder.get_inotify_module()
-        return d
-
-
-try:
-    magic_folder.get_inotify_module()
-except NotImplementedError:
-    msg = "Magic Folder support can only be tested for-real on an OS that " + \
-          "supports inotify or equivalent."
-    for klass in [RealTest, MockTest, MockTestAliceBob, RealTestAliceBob]:
-        klass.skip = msg
