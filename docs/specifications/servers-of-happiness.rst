@@ -120,8 +120,6 @@ We calculate share placement like so:
    shares, where an edge exists between an arbitrary readonly server S and an
    arbitrary share T if and only if S currently holds T.
 
-^--- all passed in to the Happiness_Upload ctor
-
 3. Calculate a maximum matching graph of G1 (a set of S->T edges that has or
    is-tied-for the highest "happiness score"). There is a clever efficient
    algorithm for this, named "Ford-Fulkerson". There may be more than one
@@ -129,8 +127,6 @@ We calculate share placement like so:
    prefer earlier servers. Call this particular placement M1. The placement
    maps shares to servers, where each share appears at most once, and each
    server appears at most once.
-
-^-- is this the "readonly_mappings"
 
 4. Construct a bipartite graph G2 of readwrite servers to pre-existing
    shares. Then remove any edge (from G2) that uses a server or a share found

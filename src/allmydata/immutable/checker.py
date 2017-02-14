@@ -724,12 +724,16 @@ class Checker(log.PrefixingLogMixin):
 
     def _check_server_shares(self, s):
         """Return a deferred which eventually fires with a tuple of
-        (set(sharenum), server, set(), set(), responded) showing all the
-        shares claimed to be served by this server. In case the server is
-        disconnected then it fires with (set(), server, set(), set(), False)
-        (a server disconnecting when we ask it for buckets is the same, for
-        our purposes, as a server that says it has none, except that we want
-        to track and report whether or not each server responded.)"""
+        (set(sharenum), server, set(corrupt), set(incompatible),
+        responded) showing all the shares claimed to be served by this
+        server. In case the server is disconnected then it fires with
+        (set(), server, set(), set(), False) (a server disconnecting
+        when we ask it for buckets is the same, for our purposes, as a
+        server that says it has none, except that we want to track and
+        report whether or not each server responded.)
+
+        see also _verify_server_shares()
+        """
         def _curry_empty_corrupted(res):
             buckets, responded = res
             return (set(buckets), s, set(), set(), responded)

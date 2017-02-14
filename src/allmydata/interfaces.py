@@ -797,13 +797,6 @@ class IPeerSelector(Interface):
         reflect a healthy file, based on my internal definitions.
         """
 
-    def needs_recomputation():
-        """
-        I return True if the share assignments I last returned may have
-        become stale. This is a hint to the caller that they should call
-        get_share_assignments again.
-        """
-
 
 class IWriteable(Interface):
     """
