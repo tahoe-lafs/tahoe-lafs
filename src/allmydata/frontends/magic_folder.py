@@ -75,6 +75,8 @@ def _get_inotify_module():
             from allmydata.windows import inotify
         elif runtime.platform.supportsINotify():
             from twisted.internet import inotify
+        elif sys.platform != "linux":
+            from allmydata.watchdog import inotify
         else:
             raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
                                       "This currently requires Linux or Windows.")
@@ -1153,7 +1155,7 @@ class Uploader(QueueMixin):
                     | IN_EXCL_UNLINK
                     )
         self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
-                             recursive=False)#True)
+                             recursive=True)
 
     def start_monitoring(self):
         action = START_MONITORING(**self._log_fields)
