@@ -61,6 +61,7 @@ class Repairer(log.PrefixingLogMixin):
             # (http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1212)
             happy = 0
             self._encodingparams = (k, happy, N, segsize)
+            # XXX should pass a reactor to this
             ul = upload.CHKUploader(self._storage_broker, self._secret_holder)
             return ul.start(self) # I am the IEncryptedUploadable
         d.addCallback(_got_segsize)

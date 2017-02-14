@@ -4,7 +4,7 @@ import os, shutil
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.python.failure import Failure
-from twisted.internet import defer
+from twisted.internet import defer, task
 from foolscap.api import fireEventually
 
 import allmydata # for __full_version__
@@ -101,19 +101,26 @@ class SetDEPMixin:
         self.node.encoding_params = p
 
 class FakeStorageServer:
-    def __init__(self, mode):
+    def __init__(self, mode, reactor=None):
         self.mode = mode
         self.allocated = []
-        self.queries = 0
-        self.version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
-                         { "maximum-immutable-share-size": 2**32 - 1 },
-                         "application-version": str(allmydata.__full_version__),
-                         }
+        self._alloc_queries = 0
+        self._get_queries = 0
+        self.version = {
+            "http://allmydata.org/tahoe/protocols/storage/v1" :
+            {
+                "maximum-immutable-share-size": 2**32 - 1,
+            },
+            "application-version": str(allmydata.__full_version__),
+        }
         if mode == "small":
-            self.version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
-                             { "maximum-immutable-share-size": 10 },
-                             "application-version": str(allmydata.__full_version__),
-                             }
+            self.version = {
+                "http://allmydata.org/tahoe/protocols/storage/v1" :
+                {
+                    "maximum-immutable-share-size": 10,
+                },
+                "application-version": str(allmydata.__full_version__),
+            }
 
 
     def callRemote(self, methname, *args, **kwargs):
@@ -126,14 +133,16 @@ class FakeStorageServer:
 
     def allocate_buckets(self, storage_index, renew_secret, cancel_secret,
                          sharenums, share_size, canary):
-        #print "FakeStorageServer.allocate_buckets(num=%d, size=%d)" % (len(sharenums), share_size)
+        # print "FakeStorageServer.allocate_buckets(num=%d, size=%d, mode=%s, queries=%d)" % (len(sharenums), share_size, self.mode, self._alloc_queries)
+        if self.mode == "timeout":
+            return defer.Deferred()
         if self.mode == "first-fail":
-            if self.queries == 0:
+            if self._alloc_queries == 0:
                 raise ServerError
         if self.mode == "second-fail":
-            if self.queries == 1:
+            if self._alloc_queries == 1:
                 raise ServerError
-        self.queries += 1
+        self._alloc_queries += 1
         if self.mode == "full":
             return (set(), {},)
         elif self.mode == "already got them":
@@ -145,6 +154,18 @@ class FakeStorageServer:
                     dict([( shnum, FakeBucketWriter(share_size) )
                           for shnum in sharenums]),
                     )
+
+    def get_buckets(self, storage_index, **kw):
+        # this should map shnum to a BucketReader but there isn't a
+        # handy FakeBucketReader and we don't actually read the shares
+        # back anyway (just the keys)
+        return {
+            shnum: None
+            for (si, shnum) in self.allocated
+            if si == storage_index
+        }
+
+
 
 class FakeBucketWriter:
     # a diagnostic version of storageserver.BucketWriter
@@ -184,20 +205,23 @@ class FakeBucketWriter:
     def remote_abort(self):
         pass
 
-class FakeClient:
-    DEFAULT_ENCODING_PARAMETERS = {"k":25,
-                                   "happy": 25,
-                                   "n": 100,
-                                   "max_segment_size": 1*MiB,
-                                   }
+class FakeClient(object):
+    DEFAULT_ENCODING_PARAMETERS = {
+        "k":25,
+        "happy": 25,
+        "n": 100,
+        "max_segment_size": 1 * MiB,
+    }
 
-    def __init__(self, mode="good", num_servers=50):
+    def __init__(self, mode="good", num_servers=50, reactor=None):
         self.num_servers = num_servers
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
         if type(mode) is str:
             mode = dict([i,mode] for i in range(num_servers))
-        servers = [ ("%20d"%fakeid, FakeStorageServer(mode[fakeid]))
-                    for fakeid in range(self.num_servers) ]
+        servers = [
+            ("%20d" % fakeid, FakeStorageServer(mode[fakeid], reactor=reactor))
+            for fakeid in range(self.num_servers)
+        ]
         self.storage_broker = StorageFarmBroker(permute_peers=True, tub_maker=None)
         for (serverid, rref) in servers:
             ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(serverid),
@@ -248,15 +272,21 @@ SIZE_ZERO = 0
 SIZE_SMALL = 16
 SIZE_LARGE = len(DATA)
 
-def upload_data(uploader, data):
+
+def upload_data(uploader, data, reactor=None):
     u = upload.Data(data, convergence=None)
-    return uploader.upload(u)
-def upload_filename(uploader, filename):
+    return uploader.upload(u, reactor=reactor)
+
+
+def upload_filename(uploader, filename, reactor=None):
     u = upload.FileName(filename, convergence=None)
-    return uploader.upload(u)
-def upload_filehandle(uploader, fh):
+    return uploader.upload(u, reactor=reactor)
+
+
+def upload_filehandle(uploader, fh, reactor=None):
     u = upload.FileHandle(fh, convergence=None)
-    return uploader.upload(u)
+    return uploader.upload(u, reactor=reactor)
+
 
 class GoodServer(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
     def setUp(self):
@@ -431,11 +461,102 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
                             "server selection failed",
                             upload_data, self.u, DATA)
         def _check((f,)):
-            self.failUnlessIn("placed 0 shares out of 100 total", str(f.value))
-            # there should also be a 'last failure was' message
-            self.failUnlessIn("ServerError", str(f.value))
+            self.failUnlessIn("shares could be placed or found on only 10 server(s)", str(f.value))
         d.addCallback(_check)
         return d
+
+    def test_allocation_error_some(self):
+        self.make_node({
+            0: "good",
+            1: "good",
+            2: "good",
+            3: "good",
+            4: "good",
+            5: "first-fail",
+            6: "first-fail",
+            7: "first-fail",
+            8: "first-fail",
+            9: "first-fail",
+        })
+        self.set_encoding_parameters(3, 7, 10)
+        d = self.shouldFail(UploadUnhappinessError, "second_error_some",
+                            "server selection failed",
+                            upload_data, self.u, DATA)
+        def _check((f,)):
+            self.failUnlessIn("shares could be placed on only 5 server(s)", str(f.value))
+        d.addCallback(_check)
+        return d
+
+    def test_allocation_error_recovery(self):
+        self.make_node({
+            0: "good",
+            1: "good",
+            2: "good",
+            3: "good",
+            4: "second-fail",
+            5: "second-fail",
+            6: "first-fail",
+            7: "first-fail",
+            8: "first-fail",
+            9: "first-fail",
+        })
+        self.set_encoding_parameters(3, 7, 10)
+        # we placed shares on 0 through 5, which wasn't enough. so
+        # then we looped and only placed on 0-3 (because now 4-9 have
+        # all failed) ... so the error message should say we only
+        # placed on 6 servers (not 4) because those two shares *did*
+        # at some point succeed.
+        d = self.shouldFail(UploadUnhappinessError, "second_error_some",
+                            "server selection failed",
+                            upload_data, self.u, DATA)
+        def _check((f,)):
+            self.failUnlessIn("shares could be placed on only 6 server(s)", str(f.value))
+        d.addCallback(_check)
+        return d
+
+    def test_good_servers_stay_writable(self):
+        self.make_node({
+            0: "good",
+            1: "good",
+            2: "second-fail",
+            3: "second-fail",
+            4: "second-fail",
+            5: "first-fail",
+            6: "first-fail",
+            7: "first-fail",
+            8: "first-fail",
+            9: "first-fail",
+        })
+        self.set_encoding_parameters(3, 7, 10)
+        # we placed shares on 0 through 5, which wasn't enough. so
+        # then we looped and only placed on 0-3 (because now 4-9 have
+        # all failed) ... so the error message should say we only
+        # placed on 6 servers (not 4) because those two shares *did*
+        # at some point succeed.
+        d = self.shouldFail(UploadUnhappinessError, "good_servers_stay_writable",
+                            "server selection failed",
+                            upload_data, self.u, DATA)
+        def _check((f,)):
+            self.failUnlessIn("shares could be placed on only 5 server(s)", str(f.value))
+        d.addCallback(_check)
+        return d
+
+    def test_timeout(self):
+        clock = task.Clock()
+        self.make_node("timeout")
+        self.set_encoding_parameters(k=25, happy=1, n=50)
+        d = self.shouldFail(
+            UploadUnhappinessError, __name__,
+            "server selection failed",
+            upload_data, self.u, DATA, reactor=clock,
+        )
+        # XXX double-check; it's doing 3 iterations?
+        # XXX should only do 1!
+        clock.advance(15)
+        clock.advance(15)
+        return d
+
+
 
 class FullServer(unittest.TestCase):
     def setUp(self):
@@ -495,7 +616,7 @@ class ServerSelection(unittest.TestCase):
             for s in self.node.last_servers:
                 allocated = s.allocated
                 self.failUnlessEqual(len(allocated), 1)
-                self.failUnlessEqual(s.queries, 2)
+                self.failUnlessEqual(s._alloc_queries, 1)
         d.addCallback(_check)
         return d
 
@@ -514,7 +635,7 @@ class ServerSelection(unittest.TestCase):
             for s in self.node.last_servers:
                 allocated = s.allocated
                 self.failUnlessEqual(len(allocated), 2)
-                self.failUnlessEqual(s.queries, 2)
+                self.failUnlessEqual(s._alloc_queries, 1)
         d.addCallback(_check)
         return d
 
@@ -535,10 +656,10 @@ class ServerSelection(unittest.TestCase):
                 allocated = s.allocated
                 self.failUnless(len(allocated) in (1,2), len(allocated))
                 if len(allocated) == 1:
-                    self.failUnlessEqual(s.queries, 2)
+                    self.failUnlessEqual(s._alloc_queries, 1)
                     got_one.append(s)
                 else:
-                    self.failUnlessEqual(s.queries, 2)
+                    self.failUnlessEqual(s._alloc_queries, 1)
                     got_two.append(s)
             self.failUnlessEqual(len(got_one), 49)
             self.failUnlessEqual(len(got_two), 1)
@@ -562,7 +683,7 @@ class ServerSelection(unittest.TestCase):
             for s in self.node.last_servers:
                 allocated = s.allocated
                 self.failUnlessEqual(len(allocated), 4)
-                self.failUnlessEqual(s.queries, 2)
+                self.failUnlessEqual(s._alloc_queries, 1)
         d.addCallback(_check)
         return d
 
@@ -624,7 +745,7 @@ class ServerSelection(unittest.TestCase):
         def _check(res):
             servers_contacted = []
             for s in self.node.last_servers:
-                if(s.queries != 0):
+                if(s._alloc_queries != 0):
                     servers_contacted.append(s)
             self.failUnless(len(servers_contacted), 20)
         d.addCallback(_check)
@@ -723,16 +844,11 @@ def is_happy_enough(servertoshnums, h, k):
     """ I calculate whether servertoshnums achieves happiness level h. I do this with a naïve "brute force search" approach. (See src/allmydata/util/happinessutil.py for a better algorithm.) """
     if len(servertoshnums) < h:
         return False
-    # print "servertoshnums: ", servertoshnums, h, k
     for happysetcombo in combinations(servertoshnums.iterkeys(), h):
-        # print "happysetcombo: ", happysetcombo
         for subsetcombo in combinations(happysetcombo, k):
             shnums = reduce(set.union, [ servertoshnums[s] for s in subsetcombo ])
-            # print "subsetcombo: ", subsetcombo, ", shnums: ", shnums
             if len(shnums) < k:
-                # print "NOT HAAPP{Y", shnums, k
                 return False
-    # print "HAAPP{Y"
     return True
 
 class FakeServerTracker:
@@ -817,6 +933,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         ss = self.g.make_server(server_number, readonly)
         log.msg("just created a server, number: %s => %s" % (server_number, ss,))
         self.g.add_server(server_number, ss)
+        self.g.rebuild_serverlist()
 
     def _add_server_with_share(self, server_number, share_number=None,
                                readonly=False):
@@ -1614,7 +1731,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_then)
         d.addCallback(lambda c:
             self.shouldFail(UploadUnhappinessError, "test_query_counting",
-                            "2 placed none (of which 2 placed none due to "
+                            "4 placed none (of which 4 placed none due to "
                             "the server being full",
                             c.upload, upload.Data("data" * 10000,
                                                   convergence="")))
@@ -1860,6 +1977,33 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             client.upload(upload.Data("data" * 10000, convergence="")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
+        return d
+
+    def test_problem_layout_ticket_1118(self):
+        # #1118 includes a report from a user who hit an assertion in
+        # the upload code with this layout.
+        # Note that 'servers of happiness' lets this test work now
+        self.basedir = self.mktemp()
+        d = self._setup_and_upload(k=2, n=4)
+
+        # server 0: no shares
+        # server 1: shares 0, 3
+        # server 3: share 1
+        # server 2: share 2
+        # The order that they get queries is 0, 1, 3, 2
+        def _setup(ign):
+            self._add_server(server_number=0)
+            self._add_server_with_share(server_number=1, share_number=0)
+            self._add_server_with_share(server_number=2, share_number=2)
+            self._add_server_with_share(server_number=3, share_number=1)
+            # Copy shares
+            self._copy_share_to_server(3, 1)
+            self.delete_all_shares(self.get_serverdir(0))
+            client = self.g.clients[0]
+            client.encoding_params['happy'] = 4
+            return client
+
+        d.addCallback(_setup)
         return d
 
     def test_problem_layout_ticket_1128(self):

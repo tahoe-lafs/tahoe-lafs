@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from twisted.trial import unittest
+from hypothesis import given
+from hypothesis.strategies import text, sets
 from allmydata.immutable import happiness_upload
 
 
@@ -25,6 +27,18 @@ class HappinessUtils(unittest.TestCase):
         self.assertEqual(residual, [[1], [2], [3], []])
         self.assertEqual(capacity, [[0, 1, 0, 0], [-1, 0, 1, 0], [0, -1, 0, 1], [0, 0, -1, 0]])
 
+    def test_trivial_maximum_graph(self):
+        self.assertEqual(
+            {},
+            happiness_upload._compute_maximum_graph([], {})
+        )
+
+    def test_trivial_flow_graph(self):
+        self.assertEqual(
+            [],
+            happiness_upload._servermap_flow_graph(set(), set(), {})
+        )
+
 
 class Happiness(unittest.TestCase):
 
@@ -39,10 +53,6 @@ class Happiness(unittest.TestCase):
         }
 
         places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
-
-        if False:
-            for k, v in places.items():
-                print("  {} -> {}".format(k, v))
 
         self.assertEqual(
             places,
@@ -124,18 +134,16 @@ class Happiness(unittest.TestCase):
 
         self.assertEqual(2, happiness)
 
-    # process just gets killed with anything like 200 (see
-    # test_upload.py)
-    def no_test_50(self):
-        peers = set(['peer{}'.format(x) for x in range(50)])
-        shares = set(['share{}'.format(x) for x in range(50)])
+    def test_100(self):
+        peers = set(['peer{}'.format(x) for x in range(100)])
+        shares = set(['share{}'.format(x) for x in range(100)])
         readonly_peers = set()
         peers_to_shares = dict()
 
         places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
         happiness = happiness_upload.calculate_happiness(places)
 
-        self.assertEqual(50, happiness)
+        self.assertEqual(100, happiness)
 
     def test_redistribute(self):
         """
@@ -209,3 +217,55 @@ class Happiness(unittest.TestCase):
 
         places = happiness_upload.share_placement(peers, set(), shares, {})
         self.assertEqual(places, dict())
+
+
+class PlacementTests(unittest.TestCase):
+
+    @given(
+        sets(elements=text(min_size=1), min_size=4, max_size=4),
+        sets(elements=text(min_size=1), min_size=4),
+    )
+    def test_hypothesis_unhappy(self, peers, shares):
+        """
+        similar to test_unhappy we test that the resulting happiness is
+        always 4 since the size of peers is 4.
+        """
+        # https://hypothesis.readthedocs.io/en/latest/data.html#hypothesis.strategies.sets
+        # hypothesis.strategies.sets(elements=None, min_size=None, average_size=None, max_size=None)[source]
+        readonly_peers = set()
+        peers_to_shares = {}
+        places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
+        happiness = happiness_upload.calculate_happiness(places)
+        assert set(places.keys()) == shares
+        assert happiness == 4
+
+    @given(
+        sets(elements=text(min_size=1), min_size=1, max_size=10),
+        # can we make a readonly_peers that's a subset of ^
+        sets(elements=text(min_size=1), min_size=1, max_size=20),
+    )
+    def test_more_hypothesis(self, peers, shares):
+        """
+        similar to test_unhappy we test that the resulting happiness is
+        always either the number of peers or the number of shares
+        whichever is smaller.
+        """
+        # https://hypothesis.readthedocs.io/en/latest/data.html#hypothesis.strategies.sets
+        # hypothesis.strategies.sets(elements=None, min_size=None, average_size=None, max_size=None)[source]
+        # XXX would be nice to paramaterize these by hypothesis too
+        readonly_peers = set()
+        peers_to_shares = {}
+
+        places = happiness_upload.share_placement(peers, readonly_peers, set(list(shares)), peers_to_shares)
+        happiness = happiness_upload.calculate_happiness(places)
+
+        # every share should get placed
+        assert set(places.keys()) == shares
+
+        # we should only use peers that exist
+        assert set(places.values()).issubset(peers)
+
+        # if we have more shares than peers, happiness is at most # of
+        # peers; if we have fewer shares than peers happiness is capped at
+        # # of peers.
+        assert happiness == min(len(peers), len(shares))

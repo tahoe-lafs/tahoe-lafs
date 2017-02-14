@@ -655,6 +655,6 @@ class Client(node.Node, pollmixin.PollMixin):
         return self.nodemaker.create_mutable_file(contents, keysize,
                                                   version=version)
 
-    def upload(self, uploadable):
+    def upload(self, uploadable, reactor=None):
         uploader = self.getServiceNamed("uploader")
-        return uploader.upload(uploadable)
+        return uploader.upload(uploadable, reactor=reactor)

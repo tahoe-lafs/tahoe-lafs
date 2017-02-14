@@ -233,16 +233,12 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         done = []
         d = self._set_up(False, "test_5_overdue_immutable")
         def _reduce_max_outstanding_requests_and_download(ign):
-            # find all servers (it's a 2-tuple because of what
-            # self._hang() wants, but it only looks at the first one,
-            # which is the ID)
-            servers = [
-                (srv, None) for shn, srv, sharef in self.shares
-            ]
-            # we sort the servers (by id) because that's what the
-            # download-finder is going to do, and we want to hang the
-            # first 5 servers which it will make requests to.
-            self._hang(sorted(servers)[:5])
+            # we need to hang the first 5 servers, so we have to
+            # figure out where the shares were placed.
+            si = uri.from_string(self.uri).get_storage_index()
+            placed = self.c0.storage_broker.get_servers_for_psi(si)
+            self._hang([(s.get_serverid(), s) for s in placed[:5]])
+
             n = self.c0.create_node_from_uri(self.uri)
             n._cnode._maybe_create_download_node()
             self._sf = n._cnode._node._sharefinder

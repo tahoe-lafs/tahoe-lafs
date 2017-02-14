@@ -318,10 +318,10 @@ def _flow_network(peerIndices, shareIndices):
 def share_placement(peers, readonly_peers, shares, peers_to_shares):
     """
     Generates the allocations the upload should based on the given
-    information. We construct a dictionary of 'share_num' -> set(server_ids)
-    and return it to the caller. Each share should be placed on each server
-    in the corresponding set. Existing allocations appear as placements
-    because attempting to place an existing allocation will renew the share.
+    information. We construct a dictionary of 'share_num' ->
+    'server_id' and return it to the caller. Existing allocations
+    appear as placements because attempting to place an existing
+    allocation will renew the share.
 
     For more information on the algorithm this class implements, refer to
     docs/specifications/servers-of-happiness.rst

@@ -72,6 +72,7 @@ class ControlServer(Referenceable, service.Service):
         f.close()
         uploader = self.parent.getServiceNamed("uploader")
         u = upload.FileName(filename, convergence=convergence)
+        # XXX should pass reactor arg
         d = uploader.upload(u)
         d.addCallback(lambda results: results.get_uri())
         def _done(uri):

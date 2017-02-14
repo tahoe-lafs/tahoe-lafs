@@ -18,8 +18,11 @@ from common import COMPLETE, CORRUPT, DEAD, BADSEGNUM
 
 class LayoutInvalid(Exception):
     pass
+
+
 class DataUnavailable(Exception):
     pass
+
 
 class Share:
     """I represent a single instance of a single share (e.g. I reference the

@@ -599,6 +599,7 @@ class DirectoryNode(object):
         name = normalize(namex)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
+        # XXX should pass reactor arg
         d = self._uploader.upload(uploadable, progress=progress)
         d.addCallback(lambda results:
                       self._create_and_validate_node(results.get_uri(), None,
