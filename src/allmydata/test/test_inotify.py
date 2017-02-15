@@ -106,7 +106,7 @@ class INotifyTests(unittest.TestCase):
         return self._notificationTest(inotify.IN_ACCESS, operation)
     test_access.skip = True
 
-
+    @unittest.skipIf(sys.platform == "win32", "not supported in this library version")
     def test_modify(self):
         """
         Writing to a file in a monitored directory sends an
@@ -118,7 +118,7 @@ class INotifyTests(unittest.TestCase):
 
         return self._notificationTest(inotify.IN_MODIFY, operation, ignore_count=1)
 
-
+    @unittest.skipIf(sys.platform == "win32", "not supported in this library version")
     def test_attrib(self):
         """
         Changing the metadata of a file in a monitored directory
@@ -130,7 +130,7 @@ class INotifyTests(unittest.TestCase):
 
         return self._notificationTest(inotify.IN_ATTRIB, operation, ignore_count=1)
 
-
+    @unittest.skipIf(sys.platform == "win32", "not supported in this library version")
     def test_closeWrite(self):
         """
         Closing a file which was open for writing in a monitored
@@ -141,7 +141,6 @@ class INotifyTests(unittest.TestCase):
             path.open("w").close()
 
         return self._notificationTest(inotify.IN_CLOSE_WRITE, operation)
-
 
     def test_closeNoWrite(self):
         """
@@ -207,7 +206,7 @@ class INotifyTests(unittest.TestCase):
         return self._notificationTest(inotify.IN_CREATE, operation)
     test_create.skip = True
 
-
+    @unittest.skipIf(sys.platform == "win32", "not supported in this library version")
     def test_delete(self):
         """
         Deleting a file in a monitored directory sends an
@@ -380,7 +379,7 @@ class INotifyTests(unittest.TestCase):
         self.flushLoggedErrors()
     test_connectionLostError.skip = "Based on Twisted implementation details; not relevant"
 
-
+    @unittest.skipIf(sys.platform == "win32", "not supported in this library version")
     def test_noAutoAddSubdirectory(self):
         """
         L{inotify.INotify.watch} with autoAdd==False will stop inotify
@@ -441,7 +440,6 @@ class INotifyTests(unittest.TestCase):
 
         return notified
     test_seriesOfWatchAndIgnore.skip = True
-
 
     def test_ignoreFilePath(self):
         """
