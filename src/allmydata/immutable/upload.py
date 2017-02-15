@@ -218,9 +218,9 @@ class PeerSelector():
         self.bad_peers = set()
 
     def add_peer_with_share(self, peerid, shnum):
-        if peerid in self.existing_shares.keys():
+        try:
             self.existing_shares[peerid].add(shnum)
-        else:
+        except KeyError:
             self.existing_shares[peerid] = set([shnum])
 
     def confirm_share_allocation(self, shnum, peer):
