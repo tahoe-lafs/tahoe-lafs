@@ -25,6 +25,18 @@ class HappinessUtils(unittest.TestCase):
         self.assertEqual(residual, [[1], [2], [3], []])
         self.assertEqual(capacity, [[0, 1, 0, 0], [-1, 0, 1, 0], [0, -1, 0, 1], [0, 0, -1, 0]])
 
+    def test_trivial_maximum_graph(self):
+        self.assertEqual(
+            {},
+            happiness_upload._compute_maximum_graph([], {})
+        )
+
+    def test_trivial_flow_graph(self):
+        self.assertEqual(
+            [],
+            happiness_upload._servermap_flow_graph(set(), set(), {})
+        )
+
 
 class Happiness(unittest.TestCase):
 
@@ -39,10 +51,6 @@ class Happiness(unittest.TestCase):
         }
 
         places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
-
-        if False:
-            for k, v in places.items():
-                print("  {} -> {}".format(k, v))
 
         self.assertEqual(
             places,
@@ -124,18 +132,16 @@ class Happiness(unittest.TestCase):
 
         self.assertEqual(2, happiness)
 
-    # process just gets killed with anything like 200 (see
-    # test_upload.py)
-    def no_test_50(self):
-        peers = set(['peer{}'.format(x) for x in range(50)])
-        shares = set(['share{}'.format(x) for x in range(50)])
+    def test_100(self):
+        peers = set(['peer{}'.format(x) for x in range(100)])
+        shares = set(['share{}'.format(x) for x in range(100)])
         readonly_peers = set()
         peers_to_shares = dict()
 
         places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
         happiness = happiness_upload.calculate_happiness(places)
 
-        self.assertEqual(50, happiness)
+        self.assertEqual(100, happiness)
 
     def test_redistribute(self):
         """
