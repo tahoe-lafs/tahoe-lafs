@@ -257,9 +257,6 @@ class PeerSelector():
         self.happiness = calculate_happiness(self.happiness_mappings)
         return self.happiness_mappings
 
-    def is_healthy(self):
-        return self.min_happiness <= self.happiness
-
 
 class Tahoe2ServerSelector(log.PrefixingLogMixin):
 

@@ -791,12 +791,6 @@ class IPeerSelector(Interface):
         correctly placed as it can be.
         """
 
-    def is_healthy():
-        """
-        I return whether the share assignments I'm currently using
-        reflect a healthy file, based on my internal definitions.
-        """
-
 
 class IWriteable(Interface):
     """
