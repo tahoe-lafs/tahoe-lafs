@@ -16,12 +16,9 @@ from twisted.trial import unittest
 
 import unittest as u
 
-# XXX todo: make these tests pass for the windows "inotify" as well.
-if sys.platform != "win32":
-    from allmydata.frontends.magic_folder import get_inotify_module
-    inotify = get_inotify_module()
-else:
-    raise NotImplementedError("inotify test suite only works on linux and mac osx, not windows.")
+
+from allmydata.frontends.magic_folder import get_inotify_module
+inotify = get_inotify_module()
 
 
 class INotifyTests(unittest.TestCase):
