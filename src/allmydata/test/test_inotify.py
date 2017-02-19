@@ -11,13 +11,11 @@ Tests for the inotify-alike implementation L{allmydata.watchdog}.
 import sys
 
 from twisted.internet import defer, reactor
-from twisted.python import filepath
+from twisted.python import filepath, runtime
 from twisted.trial import unittest
 
-import unittest as u
-
-
 from allmydata.frontends.magic_folder import get_inotify_module
+
 inotify = get_inotify_module()
 
 
@@ -26,6 +24,10 @@ class INotifyTests(unittest.TestCase):
     Define all the tests for the basic functionality exposed by
     L{inotify.INotify}.
     """
+    def skip_if_windows(self):
+        if runtime.platformType == "win32":
+            raise unittest.SkipTest("twistd does not fork under windows")
+
     def setUp(self):
         self.ignore_count = 0
         self.dirname = filepath.FilePath(self.mktemp())
@@ -33,7 +35,7 @@ class INotifyTests(unittest.TestCase):
         self.inotify = inotify.INotify()
         self.inotify.startReading()
         self.addCleanup(self.inotify.stopReading)
-
+        self.skip_if_windows()
 
     def test_initializationErrors(self):
         """
@@ -105,8 +107,6 @@ class INotifyTests(unittest.TestCase):
         return self._notificationTest(inotify.IN_ACCESS, operation)
     test_access.skip = True
 
-    #@unittest.skipIf(sys.platform == "win32", "not supported in this library version")
-    @u.skipIf(sys.platform == "win32", "not supported in this library version")
     def test_modify(self):
         """
         Writing to a file in a monitored directory sends an
@@ -118,7 +118,6 @@ class INotifyTests(unittest.TestCase):
 
         return self._notificationTest(inotify.IN_MODIFY, operation, ignore_count=1)
 
-    @u.skipIf(sys.platform == "win32", "not supported in this library version")
     def test_attrib(self):
         """
         Changing the metadata of a file in a monitored directory
@@ -130,7 +129,6 @@ class INotifyTests(unittest.TestCase):
 
         return self._notificationTest(inotify.IN_ATTRIB, operation, ignore_count=1)
 
-    @u.skipIf(sys.platform == "win32", "not supported in this library version")
     def test_closeWrite(self):
         """
         Closing a file which was open for writing in a monitored
@@ -206,7 +204,6 @@ class INotifyTests(unittest.TestCase):
         return self._notificationTest(inotify.IN_CREATE, operation)
     test_create.skip = True
 
-    @u.skipIf(sys.platform == "win32", "not supported in this library version")
     def test_delete(self):
         """
         Deleting a file in a monitored directory sends an
@@ -379,7 +376,6 @@ class INotifyTests(unittest.TestCase):
         self.flushLoggedErrors()
     test_connectionLostError.skip = "Based on Twisted implementation details; not relevant"
 
-    @u.skipIf(sys.platform == "win32", "not supported in this library version")
     def test_noAutoAddSubdirectory(self):
         """
         L{inotify.INotify.watch} with autoAdd==False will stop inotify
