@@ -24,9 +24,8 @@ class INotifyTests(unittest.TestCase):
     Define all the tests for the basic functionality exposed by
     L{inotify.INotify}.
     """
-    def skip_if_windows(self):
-        if runtime.platformType == "win32":
-            raise unittest.SkipTest("twistd does not fork under windows")
+    if runtime.platformType == "win32":
+        skip = "inotify does not yet work on windows"
 
     def setUp(self):
         self.ignore_count = 0
@@ -35,7 +34,6 @@ class INotifyTests(unittest.TestCase):
         self.inotify = inotify.INotify()
         self.inotify.startReading()
         self.addCleanup(self.inotify.stopReading)
-        self.skip_if_windows()
 
     def test_initializationErrors(self):
         """
