@@ -16,7 +16,7 @@ def get(options):
         nodeurl += "/"
     try:
         rootcap, path = get_alias(aliases, from_file, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)

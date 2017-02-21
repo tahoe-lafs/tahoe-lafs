@@ -321,7 +321,6 @@ class DeepCheckStreamer(LineOnlyReceiver):
             output.done()
         return 0
 
-
     def run(self, options):
         if len(options.locations) == 0:
             errno = self.deepcheck_location(options, unicode())

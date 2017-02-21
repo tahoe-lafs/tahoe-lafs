@@ -13,9 +13,9 @@ from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.storage_client import StubServer
+from allmydata.storage.backends.disk.mutable import MutableDiskShare
 from allmydata.mutable.layout import unpack_header
 from allmydata.mutable.publish import MutableData
-from allmydata.storage.mutable import MutableShareFile
 from allmydata.util import hashutil, log
 from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
@@ -24,10 +24,32 @@ from allmydata.immutable.upload import Uploader
 
 TEST_RSA_KEY_SIZE = 522
 
+
 class DummyProducer:
     implements(IPullProducer)
     def resumeProducing(self):
         pass
+
+
+class Marker:
+    pass
+
+
+class FakeCanary:
+    def __init__(self, ignore_disconnectors=False):
+        self.ignore = ignore_disconnectors
+        self.disconnectors = {}
+    def notifyOnDisconnect(self, f, *args, **kwargs):
+        if self.ignore:
+            return
+        m = Marker()
+        self.disconnectors[m] = (f, args, kwargs)
+        return m
+    def dontNotifyOnDisconnect(self, marker):
+        if self.ignore:
+            return
+        del self.disconnectors[marker]
+
 
 class FakeCHKFileNode:
     """I provide IImmutableFileNode, but all of my data is stored in a
@@ -419,6 +441,34 @@ def create_mutable_filenode(contents, mdmf=False, all_contents=None):
     return filenode
 
 
+class CrawlerTestMixin:
+    def _wait_for_yield(self, res, crawler):
+        """
+        Wait for the crawler to yield. This should be called at the end of a test
+        so that we leave a clean reactor.
+        """
+        if isinstance(res, failure.Failure):
+            print res
+        d = crawler.set_hook('yield')
+        d.addCallback(lambda ign: res)
+        return d
+
+    def _after_prefix(self, prefix, target_prefix, crawler):
+        """
+        Wait for the crawler to reach a given target_prefix. Return a deferred
+        for the crawler state at that point.
+        """
+        if prefix != target_prefix:
+            d = crawler.set_hook('after_prefix')
+            d.addCallback(self._after_prefix, target_prefix, crawler)
+            return d
+
+        crawler.save_state()
+        state = crawler.get_state()
+        self.failUnlessEqual(prefix, state["last-complete-prefix"])
+        return defer.succeed(state)
+
+
 class LoggingServiceParent(service.MultiService):
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
@@ -681,8 +731,8 @@ def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
 
 def _corrupt_mutable_share_data(data, debug=False):
     prefix = data[:32]
-    assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
-    data_offset = MutableShareFile.DATA_OFFSET
+    assert prefix == MutableDiskShare.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableDiskShare.MAGIC)
+    data_offset = MutableDiskShare.DATA_OFFSET
     sharetype = data[data_offset:data_offset+1]
     assert sharetype == "\x00", "non-SDMF mutable shares not supported"
     (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,

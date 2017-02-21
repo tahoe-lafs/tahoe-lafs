@@ -3,9 +3,13 @@
 *~
 *.DS_Store
 .*.kate-swp
+*.orig
+*.rej
 
 /build/
 /support/
+/_darcs/
+/tahoe/
 
 # these are generated at build time, and never checked in
 /src/allmydata/_version.py
@@ -25,6 +29,7 @@ zope.interface-*.egg
 /_test_memory/
 /tmp*
 /*.patch
+/*.diff
 /dist/
 /tahoe-deps/
 /tahoe-deps.tar.gz

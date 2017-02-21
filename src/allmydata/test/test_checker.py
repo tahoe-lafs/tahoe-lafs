@@ -1,19 +1,19 @@
 
 import simplejson
-import os.path, shutil
+
 from twisted.trial import unittest
 from twisted.internet import defer
+
 from allmydata import check_results, uri
-from allmydata import uri as tahoe_uri
 from allmydata.util import base32
 from allmydata.web import check_results as web_check_results
 from allmydata.storage_client import StorageFarmBroker, NativeStorageServer
-from allmydata.storage.server import storage_index_to_dir
 from allmydata.monitor import Monitor
 from allmydata.test.no_network import GridTestMixin
 from allmydata.immutable.upload import Data
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.mutable.publish import MutableData
+
 
 class FakeClient:
     def get_storage_broker(self):
@@ -312,53 +312,23 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 class BalancingAct(GridTestMixin, unittest.TestCase):
     # test for #1115 regarding the 'count-good-share-hosts' metric
 
-
-    def add_server(self, server_number, readonly=False):
-        assert self.g, "I tried to find a grid at self.g, but failed"
-        ss = self.g.make_server(server_number, readonly)
-        #log.msg("just created a server, number: %s => %s" % (server_number, ss,))
-        self.g.add_server(server_number, ss)
-
-    def add_server_with_share(self, server_number, uri, share_number=None,
-                              readonly=False):
-        self.add_server(server_number, readonly)
-        if share_number is not None:
-            self.copy_share_to_server(uri, share_number, server_number)
-
-    def copy_share_to_server(self, uri, share_number, server_number):
-        ss = self.g.servers_by_number[server_number]
-        # Copy share i from the directory associated with the first
-        # storage server to the directory associated with this one.
-        assert self.g, "I tried to find a grid at self.g, but failed"
-        assert self.shares, "I tried to find shares at self.shares, but failed"
-        old_share_location = self.shares[share_number][2]
-        new_share_location = os.path.join(ss.storedir, "shares")
-        si = tahoe_uri.from_string(self.uri).get_storage_index()
-        new_share_location = os.path.join(new_share_location,
-                                          storage_index_to_dir(si))
-        if not os.path.exists(new_share_location):
-            os.makedirs(new_share_location)
-        new_share_location = os.path.join(new_share_location,
-                                          str(share_number))
-        if old_share_location != new_share_location:
-            shutil.copy(old_share_location, new_share_location)
-        shares = self.find_uri_shares(uri)
-        # Make sure that the storage server has the share.
-        self.failUnless((share_number, ss.my_nodeid, new_share_location)
-                        in shares)
-
-    def _pretty_shares_chart(self, uri):
+    def _print_pretty_shares_chart(self, res):
         # Servers are labeled A-Z, shares are labeled 0-9
         letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         assert len(self.g.servers_by_number) < len(letters), \
             "This little printing function is only meant for < 26 servers"
-        shares_chart = {}
-        names = dict(zip([ss.my_nodeid
+        names = dict(zip([ss.get_serverid()
                           for _,ss in self.g.servers_by_number.iteritems()],
                          letters))
-        for shnum, serverid, _ in self.find_uri_shares(uri):
-            shares_chart.setdefault(shnum, []).append(names[serverid])
-        return shares_chart
+        d = self.find_uri_shares(self.uri)
+        def _got(shares):
+            shares_chart = {}
+            for shnum, serverid, _ in shares:
+                shares_chart.setdefault(shnum, []).append(names[serverid])
+            print shares_chart
+            return res
+        d.addCallback(_got)
+        return d
 
     def test_good_share_hosts(self):
         self.basedir = "checker/BalancingAct/1115"
@@ -374,24 +344,23 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
             self.imm = c0.create_node_from_uri(ur.get_uri())
             self.uri = self.imm.get_uri()
         d.addCallback(_stash_immutable)
-        d.addCallback(lambda ign:
-            self.find_uri_shares(self.uri))
+        d.addCallback(lambda ign: self.find_uri_shares(self.uri))
         def _store_shares(shares):
             self.shares = shares
         d.addCallback(_store_shares)
 
-        def add_three(_, i):
-            # Add a new server with just share 3
-            self.add_server_with_share(i, self.uri, 3)
-            #print self._pretty_shares_chart(self.uri)
-        for i in range(1,5):
-            d.addCallback(add_three, i)
-
-        def _check_and_repair(_):
-            return self.imm.check_and_repair(Monitor())
+        def _layout(ign):
+            # Add servers with just share 3
+            for i in range(1, 5):
+                self.add_server_with_share(self.uri, server_number=i, share_number=3)
+        d.addCallback(_layout)
+        #d.addCallback(self._print_pretty_shares_chart)
+        def _check_and_repair(ign):
+            d2 = self.imm.check_and_repair(Monitor())
+            #d2.addCallback(self._print_pretty_shares_chart)
+            return d2
         def _check_counts(crr, shares_good, good_share_hosts):
             prr = crr.get_post_repair_results()
-            #print self._pretty_shares_chart(self.uri)
             self.failUnlessEqual(prr.get_share_counter_good(), shares_good)
             self.failUnlessEqual(prr.get_host_counter_good_shares(),
                                  good_share_hosts)
@@ -414,6 +383,7 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         d.addCallback(_check_and_repair)
         d.addCallback(_check_counts, 0, 0)
         return d
+
 
 class AddLease(GridTestMixin, unittest.TestCase):
     # test for #875, in which failures in the add-lease call cause
@@ -451,8 +421,9 @@ class AddLease(GridTestMixin, unittest.TestCase):
             def broken_add_lease(*args, **kwargs):
                 really_did_break.append(1)
                 raise KeyError("intentional failure, should be ignored")
-            assert self.g.servers_by_number[0].remote_add_lease
-            self.g.servers_by_number[0].remote_add_lease = broken_add_lease
+            ss = self.g.servers_by_number[0].get_accountant().get_anonymous_account()
+            assert ss.remote_add_lease
+            ss.remote_add_lease = broken_add_lease
         d.addCallback(_break_add_lease)
 
         # and confirm that the files still look healthy

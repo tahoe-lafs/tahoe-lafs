@@ -18,10 +18,10 @@ import allmydata.scripts.common_http
 from pycryptopp.publickey import ed25519
 
 # Test that the scripts can be imported.
-from allmydata.scripts import create_node, debug, startstop_node, \
+from allmydata.scripts import admin, create_node, debug, startstop_node, \
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls, \
     tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen
-_hush_pyflakes = [create_node, debug, startstop_node,
+_hush_pyflakes = [admin, create_node, debug, startstop_node,
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls,
     tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen]
 
@@ -69,10 +69,6 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("k/N: 25/100" in output, output)
         self.failUnless("storage index: hdis5iaveku6lnlaiccydyid7q" in output, output)
 
-        output = self._dump_cap("--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
-                                u.to_string())
-        self.failUnless("client renewal secret: znxmki5zdibb5qlt46xbdvk2t55j7hibejq3i5ijyurkr6m6jkhq" in output, output)
-
         output = self._dump_cap(u.get_verify_cap().to_string())
         self.failIf("key: " in output, output)
         self.failUnless("UEB hash: nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa" in output, output)
@@ -107,31 +103,10 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-        output = self._dump_cap("--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
-                                u.to_string())
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-
-        fileutil.make_dirs("cli/test_dump_cap/private")
-        fileutil.write("cli/test_dump_cap/private/secret", "5s33nk3qpvnj2fw3z4mnm2y6fa\n")
-        output = self._dump_cap("--client-dir", "cli/test_dump_cap",
-                                u.to_string())
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-
-        output = self._dump_cap("--client-dir", "cli/test_dump_cap_BOGUS",
-                                u.to_string())
-        self.failIf("file renewal secret:" in output, output)
-
         output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
                                 u.to_string())
         self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
         self.failIf("file renewal secret:" in output, output)
-
-        output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
-                                "--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
-                                u.to_string())
-        self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-        self.failUnless("lease renewal secret: 7pjtaumrb7znzkkbvekkmuwpqfjyfyamznfz4bwwvmh4nw33lorq" in output, output)
 
         u = u.get_readonly()
         output = self._dump_cap(u.to_string())
@@ -158,31 +133,10 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-        output = self._dump_cap("--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
-                                u.to_string())
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-
-        fileutil.make_dirs("cli/test_dump_cap/private")
-        fileutil.write("cli/test_dump_cap/private/secret", "5s33nk3qpvnj2fw3z4mnm2y6fa\n")
-        output = self._dump_cap("--client-dir", "cli/test_dump_cap",
-                                u.to_string())
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-
-        output = self._dump_cap("--client-dir", "cli/test_dump_cap_BOGUS",
-                                u.to_string())
-        self.failIf("file renewal secret:" in output, output)
-
         output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
                                 u.to_string())
         self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
         self.failIf("file renewal secret:" in output, output)
-
-        output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
-                                "--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
-                                u.to_string())
-        self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-        self.failUnless("lease renewal secret: 7pjtaumrb7znzkkbvekkmuwpqfjyfyamznfz4bwwvmh4nw33lorq" in output, output)
 
         u = u.get_readonly()
         output = self._dump_cap(u.to_string())
@@ -219,10 +173,6 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("k/N: 25/100" in output, output)
         self.failUnless("storage index: hdis5iaveku6lnlaiccydyid7q" in output, output)
 
-        output = self._dump_cap("--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
-                                u.to_string())
-        self.failUnless("file renewal secret: csrvkjgomkyyyil5yo4yk5np37p6oa2ve2hg6xmk2dy7kaxsu6xq" in output, output)
-
         u = u.get_verify_cap()
         output = self._dump_cap(u.to_string())
         self.failUnless("CHK Directory Verifier URI:" in output, output)
@@ -247,21 +197,10 @@ class CLI(CLITestMixin, unittest.TestCase):
                         output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-        output = self._dump_cap("--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
-                                u.to_string())
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-
         output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
                                 u.to_string())
         self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
         self.failIf("file renewal secret:" in output, output)
-
-        output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
-                                "--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
-                                u.to_string())
-        self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-        self.failUnless("lease renewal secret: 7pjtaumrb7znzkkbvekkmuwpqfjyfyamznfz4bwwvmh4nw33lorq" in output, output)
 
         u = u.get_readonly()
         output = self._dump_cap(u.to_string())
@@ -291,21 +230,10 @@ class CLI(CLITestMixin, unittest.TestCase):
                         output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-        output = self._dump_cap("--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
-                                u.to_string())
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-
         output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
                                 u.to_string())
         self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
         self.failIf("file renewal secret:" in output, output)
-
-        output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
-                                "--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
-                                u.to_string())
-        self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
-        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
-        self.failUnless("lease renewal secret: 7pjtaumrb7znzkkbvekkmuwpqfjyfyamznfz4bwwvmh4nw33lorq" in output, output)
 
         u = u.get_readonly()
         output = self._dump_cap(u.to_string())
@@ -664,6 +592,27 @@ class Help(unittest.TestCase):
         for (option, shortcut, oClass, desc) in options.subCommands:
             subhelp = str(oClass())
             self.failUnlessIn(" [global-options] debug flogtool %s " % (option,), subhelp)
+
+    def test_create_admin(self):
+        help = str(admin.AdminCommand())
+        self.failUnlessIn(" [global-options] admin SUBCOMMAND", help)
+
+    def test_create_admin_generate_keypair(self):
+        help = str(admin.GenerateKeypairOptions())
+        self.failUnlessIn(" [global-options] admin generate-keypair", help)
+
+    def test_create_admin_derive_pubkey(self):
+        help = str(admin.DerivePubkeyOptions())
+        self.failUnlessIn(" [global-options] admin derive-pubkey", help)
+
+    def test_create_admin_create_container(self):
+        help = str(admin.CreateContainerOptions())
+        self.failUnlessIn(" [global-options] admin create-container [NODEDIR]", help)
+
+    def test_create_admin_ls_container(self):
+        help = str(admin.ListContainerOptions())
+        self.failUnlessIn(" [global-options] admin ls-container [NODEDIR]", help)
+
 
 
 class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):

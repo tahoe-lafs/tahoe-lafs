@@ -1,0 +1,3 @@
+from allmydata.storage.backends.cloud.msazure.msazure_container import configure_msazure_container
+
+configure_container = configure_msazure_container

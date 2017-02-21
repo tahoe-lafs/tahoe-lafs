@@ -2,10 +2,113 @@
 # do not import any allmydata modules at this level. Do that from inside
 # individual functions instead.
 import struct, time, os, sys
+from collections import deque
+
 from twisted.python import usage, failure
 from twisted.internet import defer
+
 from foolscap.logging import cli as foolscap_cli
+
+from allmydata.util.assertutil import _assert
 from allmydata.scripts.common import BaseOptions
+
+
+class ChunkedShare(object):
+    def __init__(self, filename, preferred_chunksize):
+        self._filename = filename
+        self._position = 0
+        self._chunksize = os.stat(filename).st_size
+        self._total_size = self._chunksize
+        chunknum = 1
+        while True:
+            chunk_filename = self._get_chunk_filename(chunknum)
+            if not os.path.exists(chunk_filename):
+                break
+            size = os.stat(chunk_filename).st_size
+            _assert(size <= self._chunksize, size=size, chunksize=self._chunksize)
+            self._total_size += size
+            chunknum += 1
+
+        if self._chunksize == self._total_size:
+            # There is only one chunk, so we are at liberty to make the chunksize larger
+            # than that chunk, but not smaller.
+            self._chunksize = max(self._chunksize, preferred_chunksize)
+
+    def __repr__(self):
+        return "<ChunkedShare at %r>" % (self._filename,)
+
+    def seek(self, offset):
+        self._position = offset
+
+    def read(self, length):
+        data = self.pread(self._position, length)
+        self._position += len(data)
+        return data
+
+    def write(self, data):
+        self.pwrite(self._position, data)
+        self._position += len(data)
+
+    def pread(self, offset, length):
+        if offset + length > self._total_size:
+            length = max(0, self._total_size - offset)
+
+        pieces = deque()
+        chunknum    = offset / self._chunksize
+        read_offset = offset % self._chunksize
+        remaining   = length
+        while remaining > 0:
+            read_length = min(remaining, self._chunksize - read_offset)
+            _assert(read_length > 0, read_length=read_length)
+            pieces.append(self.read_from_chunk(chunknum, read_offset, read_length))
+            remaining -= read_length
+            read_offset = 0
+            chunknum += 1
+        return ''.join(pieces)
+
+    def _get_chunk_filename(self, chunknum):
+        if chunknum == 0:
+            return self._filename
+        else:
+            return "%s.%d" % (self._filename, chunknum)
+
+    def read_from_chunk(self, chunknum, offset, length):
+        f = open(self._get_chunk_filename(chunknum), "rb")
+        try:
+            f.seek(offset)
+            data = f.read(length)
+            _assert(len(data) == length, len_data = len(data), length=length)
+            return data
+        finally:
+            f.close()
+
+    def pwrite(self, offset, data):
+        if offset > self._total_size:
+            # fill the gap with zeroes
+            data = "\x00"*(offset + len(data) - self._total_size) + data
+            offset = self._total_size
+
+        self._total_size = max(self._total_size, offset + len(data))
+        chunknum     = offset / self._chunksize
+        write_offset = offset % self._chunksize
+        data_offset  = 0
+        remaining = len(data)
+        while remaining > 0:
+            write_length = min(remaining, self._chunksize - write_offset)
+            _assert(write_length > 0, write_length=write_length)
+            self.write_to_chunk(chunknum, write_offset, data[data_offset : data_offset + write_length])
+            remaining -= write_length
+            data_offset += write_length
+            write_offset = 0
+            chunknum += 1
+
+    def write_to_chunk(self, chunknum, offset, data):
+        f = open(self._get_chunk_filename(chunknum), "rw+b")
+        try:
+            f.seek(offset)
+            f.write(data)
+        finally:
+            f.close()
 
 
 class DumpOptions(BaseOptions):
@@ -14,7 +117,6 @@ class DumpOptions(BaseOptions):
 
     optFlags = [
         ["offsets", None, "Display a table of section offsets."],
-        ["leases-only", None, "Dump leases but not CHK contents."],
         ]
 
     description = """
@@ -30,35 +132,37 @@ verify-cap for the file that uses the share.
         from allmydata.util.encodingutil import argv_to_abspath
         self['filename'] = argv_to_abspath(filename)
 
+
 def dump_share(options):
-    from allmydata.storage.mutable import MutableShareFile
     from allmydata.util.encodingutil import quote_output
+    from allmydata.mutable.layout import MUTABLE_MAGIC, MAX_MUTABLE_SHARE_SIZE
 
     out = options.stdout
+    filename = options['filename']
 
     # check the version, to see if we have a mutable or immutable share
-    print >>out, "share filename: %s" % quote_output(options['filename'])
+    print >>out, "share filename: %s" % quote_output(filename)
 
-    f = open(options['filename'], "rb")
-    prefix = f.read(32)
-    f.close()
-    if prefix == MutableShareFile.MAGIC:
-        return dump_mutable_share(options)
-    # otherwise assume it's immutable
-    return dump_immutable_share(options)
+    share = ChunkedShare(filename, MAX_MUTABLE_SHARE_SIZE)
+    prefix = share.pread(0, len(MUTABLE_MAGIC))
 
-def dump_immutable_share(options):
-    from allmydata.storage.immutable import ShareFile
+    if prefix == MUTABLE_MAGIC:
+        return dump_mutable_share(options, share)
+    else:
+        return dump_immutable_share(options, share)
 
+
+def dump_immutable_share(options, share):
+    from allmydata.storage.backends.disk.immutable import ImmutableDiskShare
+
+    share.DATA_OFFSET = ImmutableDiskShare.DATA_OFFSET
     out = options.stdout
-    f = ShareFile(options['filename'])
-    if not options["leases-only"]:
-        dump_immutable_chk_share(f, out, options)
-    dump_immutable_lease_info(f, out)
+    dump_immutable_chk_share(share, out, options)
     print >>out
     return 0
 
-def dump_immutable_chk_share(f, out, options):
+
+def dump_immutable_chk_share(share, out, options):
     from allmydata import uri
     from allmydata.util import base32
     from allmydata.immutable.layout import ReadBucketProxy
@@ -66,13 +170,17 @@ def dump_immutable_chk_share(f, out, options):
 
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = ReadBucketProxy(None, None, '')
-    offsets = bp._parse_offsets(f.read_share_data(0, 0x44))
+
+    def read_share_data(offset, length):
+        return share.pread(share.DATA_OFFSET + offset, length)
+
+    offsets = bp._parse_offsets(read_share_data(0, 0x44))
     print >>out, "%20s: %d" % ("version", bp._version)
     seek = offsets['uri_extension']
     length = struct.unpack(bp._fieldstruct,
-                           f.read_share_data(seek, bp._fieldsize))[0]
+                           read_share_data(seek, bp._fieldsize))[0]
     seek += bp._fieldsize
-    UEB_data = f.read_share_data(seek, length)
+    UEB_data = read_share_data(seek, length)
 
     unpacked = uri.unpack_extension_readable(UEB_data)
     keys1 = ("size", "num_segments", "segment_size",
@@ -132,25 +240,13 @@ def dump_immutable_chk_share(f, out, options):
     if options['offsets']:
         print >>out
         print >>out, " Section Offsets:"
-        print >>out, "%20s: %s" % ("share data", f._data_offset)
+        print >>out, "%20s: %s" % ("share data", share.DATA_OFFSET)
         for k in ["data", "plaintext_hash_tree", "crypttext_hash_tree",
                   "block_hashes", "share_hashes", "uri_extension"]:
             name = {"data": "block data"}.get(k,k)
-            offset = f._data_offset + offsets[k]
+            offset = share.DATA_OFFSET + offsets[k]
             print >>out, "  %20s: %s   (0x%x)" % (name, offset, offset)
-        print >>out, "%20s: %s" % ("leases", f._lease_offset)
 
-def dump_immutable_lease_info(f, out):
-    # display lease information too
-    print >>out
-    leases = list(f.get_leases())
-    if leases:
-        for i,lease in enumerate(leases):
-            when = format_expiration_time(lease.expiration_time)
-            print >>out, " Lease #%d: owner=%d, expire in %s" \
-                  % (i, lease.owner_num, when)
-    else:
-        print >>out, " No leases."
 
 def format_expiration_time(expiration_time):
     now = time.time()
@@ -163,49 +259,32 @@ def format_expiration_time(expiration_time):
     return when
 
 
-def dump_mutable_share(options):
-    from allmydata.storage.mutable import MutableShareFile
+def dump_mutable_share(options, m):
     from allmydata.util import base32, idlib
+    from allmydata.storage.backends.disk.mutable import MutableDiskShare
+
     out = options.stdout
-    m = MutableShareFile(options['filename'])
-    f = open(options['filename'], "rb")
-    WE, nodeid = m._read_write_enabler_and_nodeid(f)
-    num_extra_leases = m._read_num_extra_leases(f)
-    data_length = m._read_data_length(f)
-    extra_lease_offset = m._read_extra_lease_offset(f)
-    container_size = extra_lease_offset - m.DATA_OFFSET
-    leases = list(m._enumerate_leases(f))
+
+    m.DATA_OFFSET = MutableDiskShare.DATA_OFFSET
+    WE, nodeid = MutableDiskShare._read_write_enabler_and_nodeid(m)
+    data_length = MutableDiskShare._read_data_length(m)
+    container_size = MutableDiskShare._read_container_size(m)
 
     share_type = "unknown"
-    f.seek(m.DATA_OFFSET)
-    version = f.read(1)
+    version = m.pread(m.DATA_OFFSET, 1)
     if version == "\x00":
         # this slot contains an SMDF share
         share_type = "SDMF"
     elif version == "\x01":
         share_type = "MDMF"
-    f.close()
 
     print >>out
     print >>out, "Mutable slot found:"
     print >>out, " share_type: %s" % share_type
     print >>out, " write_enabler: %s" % base32.b2a(WE)
     print >>out, " WE for nodeid: %s" % idlib.nodeid_b2a(nodeid)
-    print >>out, " num_extra_leases: %d" % num_extra_leases
     print >>out, " container_size: %d" % container_size
     print >>out, " data_length: %d" % data_length
-    if leases:
-        for (leasenum, lease) in leases:
-            print >>out
-            print >>out, " Lease #%d:" % leasenum
-            print >>out, "  ownerid: %d" % lease.owner_num
-            when = format_expiration_time(lease.expiration_time)
-            print >>out, "  expires in %s" % when
-            print >>out, "  renew_secret: %s" % base32.b2a(lease.renew_secret)
-            print >>out, "  cancel_secret: %s" % base32.b2a(lease.cancel_secret)
-            print >>out, "  secrets are for nodeid: %s" % idlib.nodeid_b2a(lease.nodeid)
-    else:
-        print >>out, "No leases."
     print >>out
 
     if share_type == "SDMF":
@@ -215,6 +294,7 @@ def dump_mutable_share(options):
 
     return 0
 
+
 def dump_SDMF_share(m, length, options):
     from allmydata.mutable.layout import unpack_share, unpack_header
     from allmydata.mutable.common import NeedMoreDataError
@@ -222,24 +302,16 @@ def dump_SDMF_share(m, length, options):
     from allmydata.uri import SSKVerifierURI
     from allmydata.util.encodingutil import quote_output, to_str
 
-    offset = m.DATA_OFFSET
-
     out = options.stdout
 
-    f = open(options['filename'], "rb")
-    f.seek(offset)
-    data = f.read(min(length, 2000))
-    f.close()
+    data = m.pread(m.DATA_OFFSET, min(length, 2000))
 
     try:
         pieces = unpack_share(data)
     except NeedMoreDataError, e:
         # retry once with the larger size
         size = e.needed_bytes
-        f = open(options['filename'], "rb")
-        f.seek(offset)
-        data = f.read(min(length, size))
-        f.close()
+        data = m.pread(m.DATA_OFFSET, min(length, size))
         pieces = unpack_share(data)
 
     (seqnum, root_hash, IV, k, N, segsize, datalen,
@@ -278,12 +350,12 @@ def dump_SDMF_share(m, length, options):
 
     if options['offsets']:
         # NOTE: this offset-calculation code is fragile, and needs to be
-        # merged with MutableShareFile's internals.
+        # merged with MutableDiskShare's internals.
         print >>out
         print >>out, " Section Offsets:"
         def printoffset(name, value, shift=0):
             print >>out, "%s%20s: %s   (0x%x)" % (" "*shift, name, value, value)
-        printoffset("first lease", m.HEADER_SIZE)
+        printoffset("end of header", m.DATA_OFFSET)
         printoffset("share data", m.DATA_OFFSET)
         o_seqnum = m.DATA_OFFSET + struct.calcsize(">B")
         printoffset("seqnum", o_seqnum, 2)
@@ -296,30 +368,27 @@ def dump_SDMF_share(m, length, options):
                     "EOF": "end of share data"}.get(k,k)
             offset = m.DATA_OFFSET + offsets[k]
             printoffset(name, offset, 2)
-        f = open(options['filename'], "rb")
-        printoffset("extra leases", m._read_extra_lease_offset(f) + 4)
-        f.close()
 
     print >>out
+
 
 def dump_MDMF_share(m, length, options):
     from allmydata.mutable.layout import MDMFSlotReadProxy
     from allmydata.util import base32, hashutil
     from allmydata.uri import MDMFVerifierURI
     from allmydata.util.encodingutil import quote_output, to_str
+    from allmydata.storage.backends.disk.mutable import MutableDiskShare
+    DATA_OFFSET = MutableDiskShare.DATA_OFFSET
 
-    offset = m.DATA_OFFSET
     out = options.stdout
 
-    f = open(options['filename'], "rb")
     storage_index = None; shnum = 0
 
     class ShareDumper(MDMFSlotReadProxy):
         def _read(self, readvs, force_remote=False, queue=False):
             data = []
             for (where,length) in readvs:
-                f.seek(offset+where)
-                data.append(f.read(length))
+                data.append(m.pread(DATA_OFFSET + where, length))
             return defer.succeed({shnum: data})
 
     p = ShareDumper(None, storage_index, shnum)
@@ -337,7 +406,6 @@ def dump_MDMF_share(m, length, options):
     pubkey = extract(p.get_verification_key)
     block_hash_tree = extract(p.get_blockhashes)
     share_hash_chain = extract(p.get_sharehashes)
-    f.close()
 
     (seqnum, root_hash, salt_to_use, segsize, datalen, k, N, prefix,
      offsets) = verinfo
@@ -372,13 +440,13 @@ def dump_MDMF_share(m, length, options):
 
     if options['offsets']:
         # NOTE: this offset-calculation code is fragile, and needs to be
-        # merged with MutableShareFile's internals.
+        # merged with MutableDiskShare's internals.
 
         print >>out
         print >>out, " Section Offsets:"
         def printoffset(name, value, shift=0):
             print >>out, "%s%.20s: %s   (0x%x)" % (" "*shift, name, value, value)
-        printoffset("first lease", m.HEADER_SIZE, 2)
+        printoffset("end of header", m.DATA_OFFSET, 2)
         printoffset("share data", m.DATA_OFFSET, 2)
         o_seqnum = m.DATA_OFFSET + struct.calcsize(">B")
         printoffset("seqnum", o_seqnum, 4)
@@ -393,12 +461,8 @@ def dump_MDMF_share(m, length, options):
                     "EOF": "end of share data"}.get(k,k)
             offset = m.DATA_OFFSET + offsets[k]
             printoffset(name, offset, 4)
-        f = open(options['filename'], "rb")
-        printoffset("extra leases", m._read_extra_lease_offset(f) + 4, 2)
-        f.close()
 
     print >>out
-
 
 
 class DumpCapOptions(BaseOptions):
@@ -406,11 +470,7 @@ class DumpCapOptions(BaseOptions):
         return "Usage: tahoe [global-options] debug dump-cap [options] FILECAP"
     optParameters = [
         ["nodeid", "n",
-         None, "Specify the storage server nodeid (ASCII), to construct WE and secrets."],
-        ["client-secret", "c", None,
-         "Specify the client's base secret (ASCII), to construct secrets."],
-        ["client-dir", "d", None,
-         "Specify the client's base directory, from which a -c secret will be read."],
+         None, "Specify the storage server nodeid (ASCII), to construct the write enabler."],
         ]
     def parseArgs(self, cap):
         self.cap = cap
@@ -426,15 +486,13 @@ This may be useful to determine if a read-cap and a write-cap refer to the
 same time, or to extract the storage-index from a file-cap (to then use with
 find-shares)
 
-If additional information is provided (storage server nodeid and/or client
-base secret), this command will compute the shared secrets used for the
-write-enabler and for lease-renewal.
+For mutable write-caps, if the storage server nodeid is provided, this command
+will compute the write enabler.
 """
 
 
 def dump_cap(options):
     from allmydata import uri
-    from allmydata.util import base32
     from base64 import b32decode
     import urlparse, urllib
 
@@ -443,47 +501,18 @@ def dump_cap(options):
     nodeid = None
     if options['nodeid']:
         nodeid = b32decode(options['nodeid'].upper())
-    secret = None
-    if options['client-secret']:
-        secret = base32.a2b(options['client-secret'])
-    elif options['client-dir']:
-        secretfile = os.path.join(options['client-dir'], "private", "secret")
-        try:
-            secret = base32.a2b(open(secretfile, "r").read().strip())
-        except EnvironmentError:
-            pass
 
     if cap.startswith("http"):
         scheme, netloc, path, params, query, fragment = urlparse.urlparse(cap)
-        assert path.startswith("/uri/")
+        _assert(path.startswith("/uri/"), path=path)
         cap = urllib.unquote(path[len("/uri/"):])
 
     u = uri.from_string(cap)
 
     print >>out
-    dump_uri_instance(u, nodeid, secret, out)
+    dump_uri_instance(u, nodeid, out)
 
-def _dump_secrets(storage_index, secret, nodeid, out):
-    from allmydata.util import hashutil
-    from allmydata.util import base32
-
-    if secret:
-        crs = hashutil.my_renewal_secret_hash(secret)
-        print >>out, " client renewal secret:", base32.b2a(crs)
-        frs = hashutil.file_renewal_secret_hash(crs, storage_index)
-        print >>out, " file renewal secret:", base32.b2a(frs)
-        if nodeid:
-            renew = hashutil.bucket_renewal_secret_hash(frs, nodeid)
-            print >>out, " lease renewal secret:", base32.b2a(renew)
-        ccs = hashutil.my_cancel_secret_hash(secret)
-        print >>out, " client cancel secret:", base32.b2a(ccs)
-        fcs = hashutil.file_cancel_secret_hash(ccs, storage_index)
-        print >>out, " file cancel secret:", base32.b2a(fcs)
-        if nodeid:
-            cancel = hashutil.bucket_cancel_secret_hash(fcs, nodeid)
-            print >>out, " lease cancel secret:", base32.b2a(cancel)
-
-def dump_uri_instance(u, nodeid, secret, out, show_header=True):
+def dump_uri_instance(u, nodeid, out, show_header=True):
     from allmydata import uri
     from allmydata.storage.server import si_b2a
     from allmydata.util import base32, hashutil
@@ -497,7 +526,6 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
         print >>out, " size:", u.size
         print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
         print >>out, " storage index:", si_b2a(u.get_storage_index())
-        _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.CHKFileVerifierURI):
         if show_header:
             print >>out, "CHK Verifier URI:"
@@ -523,7 +551,6 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
             we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
             print >>out, " write_enabler:", base32.b2a(we)
             print >>out
-        _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.ReadonlySSKFileURI):
         if show_header:
             print >>out, "SDMF Read-only URI:"
@@ -548,7 +575,6 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
             we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
             print >>out, " write_enabler:", base32.b2a(we)
             print >>out
-        _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.ReadonlyMDMFFileURI):
         if show_header:
             print >>out, "MDMF Read-only URI:"
@@ -561,44 +587,44 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
         print >>out, " storage index:", si_b2a(u.get_storage_index())
         print >>out, " fingerprint:", base32.b2a(u.fingerprint)
 
-
     elif isinstance(u, uri.ImmutableDirectoryURI): # CHK-based directory
         if show_header:
             print >>out, "CHK Directory URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+        dump_uri_instance(u._filenode_uri, nodeid, out, False)
     elif isinstance(u, uri.ImmutableDirectoryURIVerifier):
         if show_header:
             print >>out, "CHK Directory Verifier URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+        dump_uri_instance(u._filenode_uri, nodeid, out, False)
 
     elif isinstance(u, uri.DirectoryURI): # SDMF-based directory
         if show_header:
             print >>out, "Directory Writeable URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+        dump_uri_instance(u._filenode_uri, nodeid, out, False)
     elif isinstance(u, uri.ReadonlyDirectoryURI):
         if show_header:
             print >>out, "Directory Read-only URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+        dump_uri_instance(u._filenode_uri, nodeid, out, False)
     elif isinstance(u, uri.DirectoryURIVerifier):
         if show_header:
             print >>out, "Directory Verifier URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+        dump_uri_instance(u._filenode_uri, nodeid, out, False)
 
     elif isinstance(u, uri.MDMFDirectoryURI): # MDMF-based directory
         if show_header:
             print >>out, "Directory Writeable URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+        dump_uri_instance(u._filenode_uri, nodeid, out, False)
     elif isinstance(u, uri.ReadonlyMDMFDirectoryURI):
         if show_header:
             print >>out, "Directory Read-only URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+        dump_uri_instance(u._filenode_uri, nodeid, out, False)
     elif isinstance(u, uri.MDMFDirectoryURIVerifier):
         if show_header:
             print >>out, "Directory Verifier URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+        dump_uri_instance(u._filenode_uri, nodeid, out, False)
 
     else:
         print >>out, "unknown cap type"
+
 
 class FindSharesOptions(BaseOptions):
     def getSynopsis(self):
@@ -612,7 +638,7 @@ class FindSharesOptions(BaseOptions):
     description = """
 Locate all shares for the given storage index. This command looks through one
 or more node directories to find the shares. It returns a list of filenames,
-one per line, for each share file found.
+one per line, for the initial chunk of each share found.
 
  tahoe debug find-shares 4vozh77tsrw7mdhnj7qvp5ky74 testgrid/node-*
 
@@ -633,16 +659,18 @@ def find_shares(options):
     /home/warner/testnet/node-1/storage/shares/44k/44kai1tui348689nrw8fjegc8c/9
     /home/warner/testnet/node-2/storage/shares/44k/44kai1tui348689nrw8fjegc8c/2
     """
-    from allmydata.storage.server import si_a2b, storage_index_to_dir
-    from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
+    from allmydata.storage.common import si_a2b, NUM_RE
+    from allmydata.storage.backends.disk.disk_backend import si_si2dir
+    from allmydata.util import fileutil
+    from allmydata.util.encodingutil import quote_local_unicode_path
 
     out = options.stdout
-    sharedir = storage_index_to_dir(si_a2b(options.si_s))
-    for d in options.nodedirs:
-        d = os.path.join(d, "storage", "shares", sharedir)
-        if os.path.exists(d):
-            for shnum in listdir_unicode(d):
-                print >>out, quote_local_unicode_path(os.path.join(d, shnum), quotemarks=False)
+    si = si_a2b(options.si_s)
+    for nodedir in options.nodedirs:
+        sharedir = si_si2dir(os.path.join(nodedir, "storage", "shares"), si)
+        for shnumstr in fileutil.listdir(sharedir, filter=NUM_RE):
+            sharefile = os.path.join(sharedir, shnumstr)
+            print >>out, quote_local_unicode_path(sharefile, quotemarks=False)
 
     return 0
 
@@ -665,16 +693,18 @@ of each share. Run it like this:
 
 The lines it emits will look like the following:
 
- CHK $SI $k/$N $filesize $UEB_hash $expiration $abspath_sharefile
- SDMF $SI $k/$N $filesize $seqnum/$roothash $expiration $abspath_sharefile
+ CHK $SI $k/$N $filesize $UEB_hash - $abspath_sharefile
+ SDMF $SI $k/$N $filesize $seqnum/$roothash - $abspath_sharefile
+ MDMF $SI $k/$N $filesize $seqnum/$roothash - $abspath_sharefile
  UNKNOWN $abspath_sharefile
 
 This command can be used to build up a catalog of shares from many storage
 servers and then sort the results to compare all shares for the same file. If
 you see shares with the same SI but different parameters/filesize/UEB_hash,
 then something is wrong. The misc/find-share/anomalies.py script may be
-useful for purpose.
+useful for that purpose.
 """
+
 
 def call(c, *args, **kwargs):
     # take advantage of the fact that ImmediateReadBucketProxy returns
@@ -687,32 +717,27 @@ def call(c, *args, **kwargs):
         failures[0].raiseException()
     return results[0]
 
+
 def describe_share(abs_sharefile, si_s, shnum_s, now, out):
     from allmydata import uri
-    from allmydata.storage.mutable import MutableShareFile
-    from allmydata.storage.immutable import ShareFile
-    from allmydata.mutable.layout import unpack_share
+    from allmydata.storage.backends.disk.immutable import ImmutableDiskShare
+    from allmydata.storage.backends.disk.mutable import MutableDiskShare
+    from allmydata.mutable.layout import unpack_share, MUTABLE_MAGIC, MAX_MUTABLE_SHARE_SIZE
     from allmydata.mutable.common import NeedMoreDataError
     from allmydata.immutable.layout import ReadBucketProxy
     from allmydata.util import base32
     from allmydata.util.encodingutil import quote_output
-    import struct
 
-    f = open(abs_sharefile, "rb")
-    prefix = f.read(32)
+    share = ChunkedShare(abs_sharefile, MAX_MUTABLE_SHARE_SIZE)
+    prefix = share.pread(0, len(MUTABLE_MAGIC))
 
-    if prefix == MutableShareFile.MAGIC:
-        # mutable share
-        m = MutableShareFile(abs_sharefile)
-        WE, nodeid = m._read_write_enabler_and_nodeid(f)
-        data_length = m._read_data_length(f)
-        expiration_time = min( [lease.expiration_time
-                                for (i,lease) in m._enumerate_leases(f)] )
-        expiration = max(0, expiration_time - now)
+    if prefix == MUTABLE_MAGIC:
+        share.DATA_OFFSET = MutableDiskShare.DATA_OFFSET
+        WE, nodeid = MutableDiskShare._read_write_enabler_and_nodeid(share)
+        data_length = MutableDiskShare._read_data_length(share)
 
         share_type = "unknown"
-        f.seek(m.DATA_OFFSET)
-        version = f.read(1)
+        version = share.pread(share.DATA_OFFSET, 1)
         if version == "\x00":
             # this slot contains an SMDF share
             share_type = "SDMF"
@@ -720,25 +745,23 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
             share_type = "MDMF"
 
         if share_type == "SDMF":
-            f.seek(m.DATA_OFFSET)
-            data = f.read(min(data_length, 2000))
+            data = share.pread(share.DATA_OFFSET, min(data_length, 2000))
 
             try:
                 pieces = unpack_share(data)
             except NeedMoreDataError, e:
                 # retry once with the larger size
                 size = e.needed_bytes
-                f.seek(m.DATA_OFFSET)
-                data = f.read(min(data_length, size))
+                data = share.pread(share.DATA_OFFSET, min(data_length, size))
                 pieces = unpack_share(data)
             (seqnum, root_hash, IV, k, N, segsize, datalen,
              pubkey, signature, share_hash_chain, block_hash_tree,
              share_data, enc_privkey) = pieces
 
-            print >>out, "SDMF %s %d/%d %d #%d:%s %d %s" % \
+            print >>out, "SDMF %s %d/%d %d #%d:%s - %s" % \
                   (si_s, k, N, datalen,
                    seqnum, base32.b2a(root_hash),
-                   expiration, quote_output(abs_sharefile))
+                   quote_output(abs_sharefile))
         elif share_type == "MDMF":
             from allmydata.mutable.layout import MDMFSlotReadProxy
             fake_shnum = 0
@@ -747,8 +770,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
                 def _read(self, readvs, force_remote=False, queue=False):
                     data = []
                     for (where,length) in readvs:
-                        f.seek(m.DATA_OFFSET+where)
-                        data.append(f.read(length))
+                        data.append(share.pread(share.DATA_OFFSET + where, length))
                     return defer.succeed({fake_shnum: data})
 
             p = ShareDumper(None, "fake-si", fake_shnum)
@@ -764,32 +786,33 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
             verinfo = extract(p.get_verinfo)
             (seqnum, root_hash, salt_to_use, segsize, datalen, k, N, prefix,
              offsets) = verinfo
-            print >>out, "MDMF %s %d/%d %d #%d:%s %d %s" % \
+            print >>out, "MDMF %s %d/%d %d #%d:%s - %s" % \
                   (si_s, k, N, datalen,
                    seqnum, base32.b2a(root_hash),
-                   expiration, quote_output(abs_sharefile))
+                   quote_output(abs_sharefile))
         else:
             print >>out, "UNKNOWN mutable %s" % quote_output(abs_sharefile)
 
-    elif struct.unpack(">L", prefix[:4]) == (1,):
+    else:
         # immutable
+        share.DATA_OFFSET = ImmutableDiskShare.DATA_OFFSET
+
+        #version = struct.unpack(">L", share.pread(0, struct.calcsize(">L")))
+        #if version != 1:
+        #    print >>out, "UNKNOWN really-unknown %s" % quote_output(abs_sharefile)
+        #    return
 
         class ImmediateReadBucketProxy(ReadBucketProxy):
-            def __init__(self, sf):
-                self.sf = sf
+            def __init__(self, share):
+                self.share = share
                 ReadBucketProxy.__init__(self, None, None, "")
             def __repr__(self):
                 return "<ImmediateReadBucketProxy>"
             def _read(self, offset, size):
-                return defer.succeed(sf.read_share_data(offset, size))
+                return defer.maybeDeferred(self.share.pread, share.DATA_OFFSET + offset, size)
 
         # use a ReadBucketProxy to parse the bucket and find the uri extension
-        sf = ShareFile(abs_sharefile)
-        bp = ImmediateReadBucketProxy(sf)
-
-        expiration_time = min( [lease.expiration_time
-                                for lease in sf.get_leases()] )
-        expiration = max(0, expiration_time - now)
+        bp = ImmediateReadBucketProxy(share)
 
         UEB_data = call(bp.get_uri_extension)
         unpacked = uri.unpack_extension_readable(UEB_data)
@@ -799,69 +822,61 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         filesize = unpacked["size"]
         ueb_hash = unpacked["UEB_hash"]
 
-        print >>out, "CHK %s %d/%d %d %s %d %s" % (si_s, k, N, filesize,
-                                                   ueb_hash, expiration,
-                                                   quote_output(abs_sharefile))
+        print >>out, "CHK %s %d/%d %d %s - %s" % (si_s, k, N, filesize, ueb_hash,
+                                                  quote_output(abs_sharefile))
 
-    else:
-        print >>out, "UNKNOWN really-unknown %s" % quote_output(abs_sharefile)
-
-    f.close()
 
 def catalog_shares(options):
-    from allmydata.util.encodingutil import listdir_unicode, quote_output
+    from allmydata.util import fileutil
+    from allmydata.util.encodingutil import quote_output
 
     out = options.stdout
     err = options.stderr
     now = time.time()
-    for d in options.nodedirs:
-        d = os.path.join(d, "storage", "shares")
+    for node_dir in options.nodedirs:
+        shares_dir = os.path.join(node_dir, "storage", "shares")
         try:
-            abbrevs = listdir_unicode(d)
+            prefixes = fileutil.listdir(shares_dir)
         except EnvironmentError:
             # ignore nodes that have storage turned off altogether
             pass
         else:
-            for abbrevdir in sorted(abbrevs):
-                if abbrevdir == "incoming":
+            for prefix in sorted(prefixes):
+                if prefix == "incoming":
                     continue
-                abbrevdir = os.path.join(d, abbrevdir)
+                prefix_dir = os.path.join(shares_dir, prefix)
                 # this tool may get run against bad disks, so we can't assume
-                # that listdir_unicode will always succeed. Try to catalog as much
+                # that fileutil.listdir will always succeed. Try to catalog as much
                 # as possible.
                 try:
-                    sharedirs = listdir_unicode(abbrevdir)
-                    for si_s in sorted(sharedirs):
-                        si_dir = os.path.join(abbrevdir, si_s)
-                        catalog_shares_one_abbrevdir(si_s, si_dir, now, out,err)
+                    share_dirs = fileutil.listdir(prefix_dir)
+                    for si_s in sorted(share_dirs):
+                        si_dir = os.path.join(prefix_dir, si_s)
+                        catalog_shareset(si_s, si_dir, now, out, err)
                 except:
-                    print >>err, "Error processing %s" % quote_output(abbrevdir)
+                    print >>err, "Error processing %s" % quote_output(prefix_dir)
                     failure.Failure().printTraceback(err)
 
     return 0
 
-def _as_number(s):
-    try:
-        return int(s)
-    except ValueError:
-        return "not int"
-
-def catalog_shares_one_abbrevdir(si_s, si_dir, now, out, err):
-    from allmydata.util.encodingutil import listdir_unicode, quote_output
+def catalog_shareset(si_s, si_dir, now, out, err):
+    from allmydata.storage.common import NUM_RE
+    from allmydata.util import fileutil
+    from allmydata.util.encodingutil import quote_output
 
     try:
-        for shnum_s in sorted(listdir_unicode(si_dir), key=_as_number):
+        for shnum_s in sorted(fileutil.listdir(si_dir, filter=NUM_RE), key=int):
             abs_sharefile = os.path.join(si_dir, shnum_s)
-            assert os.path.isfile(abs_sharefile)
+            _assert(os.path.isfile(abs_sharefile), "%r is not a file" % (abs_sharefile,))
             try:
-                describe_share(abs_sharefile, si_s, shnum_s, now,
-                               out)
+                describe_share(abs_sharefile, si_s, shnum_s, now, out)
             except:
                 print >>err, "Error processing %s" % quote_output(abs_sharefile)
                 failure.Failure().printTraceback(err)
     except:
         print >>err, "Error processing %s" % quote_output(si_dir)
         failure.Failure().printTraceback(err)
+
 
 class CorruptShareOptions(BaseOptions):
     def getSynopsis(self):
@@ -883,61 +898,62 @@ to flip a single random bit of the block data.
 
 Obviously, this command should not be used in normal operation.
 """
+
     def parseArgs(self, filename):
         self['filename'] = filename
 
+
 def corrupt_share(options):
+    do_corrupt_share(options.stdout, options['filename'], options['offset'])
+
+def do_corrupt_share(out, filename, offset="block-random"):
     import random
-    from allmydata.storage.mutable import MutableShareFile
-    from allmydata.storage.immutable import ShareFile
-    from allmydata.mutable.layout import unpack_header
+    from allmydata.storage.backends.disk.immutable import ImmutableDiskShare
+    from allmydata.storage.backends.disk.mutable import MutableDiskShare
+    from allmydata.mutable.layout import unpack_header, MUTABLE_MAGIC, MAX_MUTABLE_SHARE_SIZE
     from allmydata.immutable.layout import ReadBucketProxy
-    out = options.stdout
-    fn = options['filename']
-    assert options["offset"] == "block-random", "other offsets not implemented"
-    # first, what kind of share is it?
+
+    _assert(offset == "block-random", "other offsets not implemented")
 
     def flip_bit(start, end):
         offset = random.randrange(start, end)
         bit = random.randrange(0, 8)
         print >>out, "[%d..%d):  %d.b%d" % (start, end, offset, bit)
-        f = open(fn, "rb+")
-        f.seek(offset)
-        d = f.read(1)
-        d = chr(ord(d) ^ 0x01)
-        f.seek(offset)
-        f.write(d)
-        f.close()
+        f = open(filename, "rb+")
+        try:
+            f.seek(offset)
+            d = f.read(1)
+            d = chr(ord(d) ^ 0x01)
+            f.seek(offset)
+            f.write(d)
+        finally:
+            f.close()
 
-    f = open(fn, "rb")
-    prefix = f.read(32)
-    f.close()
-    if prefix == MutableShareFile.MAGIC:
-        # mutable
-        m = MutableShareFile(fn)
-        f = open(fn, "rb")
-        f.seek(m.DATA_OFFSET)
-        data = f.read(2000)
+    # what kind of share is it?
+
+    share = ChunkedShare(filename, MAX_MUTABLE_SHARE_SIZE)
+    prefix = share.pread(0, len(MUTABLE_MAGIC))
+
+    if prefix == MUTABLE_MAGIC:
+        data = share.pread(MutableDiskShare.DATA_OFFSET, 2000)
         # make sure this slot contains an SMDF share
-        assert data[0] == "\x00", "non-SDMF mutable shares not supported"
-        f.close()
+        _assert(data[0] == "\x00", "non-SDMF mutable shares not supported")
 
         (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
          ig_datalen, offsets) = unpack_header(data)
 
-        assert version == 0, "we only handle v0 SDMF files"
-        start = m.DATA_OFFSET + offsets["share_data"]
-        end = m.DATA_OFFSET + offsets["enc_privkey"]
+        _assert(version == 0, "we only handle v0 SDMF files")
+        start = MutableDiskShare.DATA_OFFSET + offsets["share_data"]
+        end = MutableDiskShare.DATA_OFFSET + offsets["enc_privkey"]
         flip_bit(start, end)
     else:
         # otherwise assume it's immutable
-        f = ShareFile(fn)
         bp = ReadBucketProxy(None, None, '')
-        offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
-        start = f._data_offset + offsets["data"]
-        end = f._data_offset + offsets["plaintext_hash_tree"]
+        header = share.pread(ImmutableDiskShare.DATA_OFFSET, 0x24)
+        offsets = bp._parse_offsets(header)
+        start = ImmutableDiskShare.DATA_OFFSET + offsets["data"]
+        end = ImmutableDiskShare.DATA_OFFSET + offsets["plaintext_hash_tree"]
         flip_bit(start, end)
-
 
 
 class ReplOptions(BaseOptions):

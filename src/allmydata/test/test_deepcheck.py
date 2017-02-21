@@ -1,5 +1,7 @@
 
 import os, simplejson, urllib
+from StringIO import StringIO
+
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata.immutable import upload
@@ -15,8 +17,10 @@ from twisted.web.client import getPage
 
 from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data, \
      ShouldFailMixin
-from .common_util import StallMixin, run_cli
+from .common_util import StallMixin
 from allmydata.test.no_network import GridTestMixin
+from allmydata.scripts import debug
+
 from .cli.common import CLITestMixin
 
 timeout = 2400 # One of these took 1046.091s on Zandr's ARM box.
@@ -54,8 +58,8 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
         def _stash_and_corrupt(node):
             self.node = node
             self.fileurl = "uri/" + urllib.quote(node.get_uri())
-            self.corrupt_shares_numbered(node.get_uri(), [0],
-                                         _corrupt_mutable_share_data)
+            return self.corrupt_shares_numbered(node.get_uri(), [0],
+                                                _corrupt_mutable_share_data)
         d.addCallback(_stash_and_corrupt)
         # now make sure the webapi verifier notices it
         d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=true",
@@ -852,8 +856,6 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         d.addErrback(self.explain_error)
         return d
 
-
-
     def set_up_damaged_tree(self):
         # 6.4s
 
@@ -939,17 +941,19 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         return d
 
     def _delete_some_shares(self, node):
-        self.delete_shares_numbered(node.get_uri(), [0,1])
+        return self.delete_shares_numbered(node.get_uri(), [0,1])
 
-    @defer.inlineCallbacks
     def _corrupt_some_shares(self, node):
-        for (shnum, serverid, sharefile) in self.find_uri_shares(node.get_uri()):
-            if shnum in (0,1):
-                yield run_cli("debug", "corrupt-share", sharefile)
+        d = self.find_uri_shares(node.get_uri())
+        def _got_shares(sharelist):
+            for (shnum, serverid, sharefile) in sharelist:
+                if shnum in (0,1):
+                    debug.do_corrupt_share(StringIO(), sharefile)
+        d.addCallback(_got_shares)
+        return d
 
     def _delete_most_shares(self, node):
-        self.delete_shares_numbered(node.get_uri(), range(1,10))
-
+        return self.delete_shares_numbered(node.get_uri(), range(1,10))
 
     def check_is_healthy(self, cr, where):
         try:

@@ -91,6 +91,11 @@ install_requires = [
     # * pyOpenSSL >= 0.14 is needed in order to avoid
     #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2474>.
     "pyOpenSSL >= 0.14",
+
+    # --find-links https://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-lafs-dep-sdists/
+    # needed for cloud backend
+    "txAWS == 0.2.3", ## but, originally this: what's different? 0.2.1.post5",
+    "oauth2client == 1.1.0",
     "PyYAML >= 3.11",
 ]
 
@@ -119,12 +124,18 @@ package_imports = [
     ('six',              'six'),
     ('enum34',           'enum'),
     ('pycparser',        'pycparser'),
+    ('txAWS',            'txaws'),
+    ('oauth2client',     'oauth2client'),
+    ('python-dateutil',  'dateutil'),
+    ('httplib2',         'httplib2'),
+    ('python-gflags',    'gflags'),
     ('PyYAML',           'yaml'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
 not_import_versionable = [
     'zope.interface',
+    'python-gflags',
 ]
 
 # Dependencies reported by pkg_resources that we can safely ignore.

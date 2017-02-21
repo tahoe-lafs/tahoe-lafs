@@ -29,7 +29,10 @@ from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
 from ..common_web import HTTPClientGETFactory, HTTPClientHEADFactory
 from allmydata.client import Client, SecretHolder
+from allmydata.storage.expiration import ExpirationPolicy
 from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
+
+
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
@@ -189,7 +192,7 @@ class FakeBucketCounter(object):
                 "cycle-in-progress": False,
                 "remaining-wait-time": 0}
 
-class FakeLeaseChecker(object):
+class FakeAccountingCrawler(object):
     def __init__(self):
         self.expiration_enabled = False
         self.mode = "age"
@@ -206,14 +209,28 @@ class FakeStorageServer(service.MultiService):
     name = 'storage'
     def __init__(self, nodeid, nickname):
         service.MultiService.__init__(self)
-        self.my_nodeid = nodeid
+        self.serverid = nodeid
         self.nickname = nickname
         self.bucket_counter = FakeBucketCounter()
-        self.lease_checker = FakeLeaseChecker()
+        self.accounting_crawler = FakeAccountingCrawler()
+        self.accountant = FakeAccountant()
+        self.expiration_policy = ExpirationPolicy(enabled=False)
     def get_stats(self):
         return {"storage_server.accepting_immutable_shares": False}
+    def get_serverid(self):
+        return self.serverid
+    def get_bucket_counter(self):
+        return self.bucket_counter
+    def get_accounting_crawler(self):
+        return self.accounting_crawler
+    def get_expiration_policy(self):
+        return self.expiration_policy
     def on_status_changed(self, cb):
         cb(self)
+
+class FakeAccountant:
+    def get_all_accounts(self):
+        return []
 
 class FakeClient(Client):
     def __init__(self):
@@ -251,7 +268,9 @@ class FakeClient(Client):
                                        None, None, None)
         self.nodemaker.all_contents = self.all_contents
         self.mutable_file_default = SDMF_VERSION
-        self.addService(FakeStorageServer(self.nodeid, self.nickname))
+        server = FakeStorageServer(self.nodeid, self.nickname)
+        self.accountant = server.accountant
+        self.addService(server)
 
     def get_long_nodeid(self):
         return "v0-nodeid"

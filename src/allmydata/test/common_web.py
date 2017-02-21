@@ -51,8 +51,9 @@ class WebRenderingMixin:
         ctx = self.make_context(req)
         return page.renderSynchronously(ctx)
 
-    def failUnlessIn(self, substring, s):
-        self.failUnless(substring in s, s)
+    def render_json(self, page):
+        d = self.render1(page, args={"t": ["json"]})
+        return d
 
     def remove_tags(self, s):
         s = re.sub(r'<[^>]*>', ' ', s)
