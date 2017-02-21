@@ -285,6 +285,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "pytest",
               "pytest-twisted",
               "hypothesis >= 3.6.1",
+              "treq",
           ],
           "tor": [
               "foolscap[tor] >= 0.12.5",
