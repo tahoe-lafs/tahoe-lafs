@@ -82,6 +82,9 @@ class CreateAliasOptions(FilesystemOptions):
 class ListAliasesOptions(FilesystemOptions):
     synopsis = "[options]"
     description = """Display a table of all configured aliases."""
+    optFlags = [
+        ("readonly-uri", None, "Show read-only dircaps instead of readwrite"),
+    ]
 
 class ListOptions(FilesystemOptions):
     optFlags = [

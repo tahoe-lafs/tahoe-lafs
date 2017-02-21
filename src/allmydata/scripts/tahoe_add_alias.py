@@ -105,8 +105,11 @@ def list_aliases(options):
     fmt = "%" + str(max_width) + "s: %s"
     rc = 0
     for name in alias_names:
+        dircap = uri.from_string(aliases[name])
+        if options['readonly-uri']:
+            dircap = dircap.get_readonly()
         try:
-            print >>stdout, fmt % (unicode_to_output(name), unicode_to_output(aliases[name].decode('utf-8')))
+            print >>stdout, fmt % (unicode_to_output(name), unicode_to_output(dircap.to_string().decode('utf-8')))
         except (UnicodeEncodeError, UnicodeDecodeError):
             print >>stderr, fmt % (quote_output(name), quote_output(aliases[name]))
             rc = 1
