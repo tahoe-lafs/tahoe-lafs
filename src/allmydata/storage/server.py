@@ -326,7 +326,7 @@ class StorageServer(service.MultiService):
             # Commonly caused by there being no buckets at all.
             pass
 
-    def client_get_buckets(self, storage_index, self):
+    def client_get_buckets(self, storage_index, account):
         start = time.time()
         self.count("get")
         si_s = si_b2a(storage_index)
