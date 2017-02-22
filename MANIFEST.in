@@ -1,12 +1,13 @@
+include README.rst
 include COPYING.GPL COPYING.TGPPL.rst CREDITS Makefile NEWS.rst Tahoe.home
-include relnotes.txt .darcs-boringfile
-include bin/tahoe-script.template
-recursive-include src *.xhtml *.js *.png *.css
-recursive-include twisted *.py
+include relnotes.txt
+include Dockerfile
+include tox.ini .appveyor.yml .travis.yml
+include .coveragerc
+recursive-include src *.xhtml *.js *.png *.css *.svg *.txt
 graft docs
 graft misc
 graft static
-graft darcsver-1.7.2.egg
+graft integration
 
-graft setuptools-0.6c16dev3.egg
 global-exclude *~ *.pyc

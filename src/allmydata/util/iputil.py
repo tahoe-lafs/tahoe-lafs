@@ -1,11 +1,16 @@
 # from the Python Standard Library
-import os, re, socket, sys, subprocess
+import os, re, socket, subprocess, errno
+
+from sys import platform
 
 # from Twisted
 from twisted.internet import defer, threads, reactor
 from twisted.internet.protocol import DatagramProtocol
+from twisted.internet.error import CannotListenError
 from twisted.python.procutils import which
 from twisted.python import log
+
+from foolscap.util import allocate_tcp_port # re-exported
 
 try:
     import resource
@@ -67,6 +72,8 @@ except ImportError:
     # since one might be shadowing the other. This hack appeases pyflakes.
     increase_rlimits = _increase_rlimits
 
+def get_local_addresses_sync():
+    return _synchronously_find_addresses_via_config()
 
 def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     """
@@ -81,11 +88,11 @@ def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     """
     addresses = []
     local_ip = get_local_ip_for(target)
-    if local_ip:
+    if local_ip is not None:
         addresses.append(local_ip)
 
-    if sys.platform == "cygwin":
-        d = _cygwin_hack_find_addresses(target)
+    if platform == "cygwin":
+        d = _cygwin_hack_find_addresses()
     else:
         d = _find_addresses_via_config()
 
@@ -123,107 +130,70 @@ def get_local_ip_for(target):
         # avoid this DNS lookup. This also makes node startup fractionally
         # faster.
         return None
-    udpprot = DatagramProtocol()
-    port = reactor.listenUDP(0, udpprot)
+
     try:
-        udpprot.transport.connect(target_ipaddr, 7)
-        localip = udpprot.transport.getHost().host
-    except socket.error:
+        udpprot = DatagramProtocol()
+        port = reactor.listenUDP(0, udpprot)
+        try:
+            # connect() will fail if we're offline (e.g. running tests on a
+            # disconnected laptop), which is fine (localip=None), but we must
+            # still do port.stopListening() or we'll get a DirtyReactorError
+            udpprot.transport.connect(target_ipaddr, 7)
+            localip = udpprot.transport.getHost().host
+            return localip
+        finally:
+            d = port.stopListening()
+            d.addErrback(log.err)
+    except (socket.error, CannotListenError):
         # no route to that host
         localip = None
-    port.stopListening() # note, this returns a Deferred
     return localip
 
-# k: result of sys.platform, v: which kind of IP configuration reader we use
-_platform_map = {
-    "linux-i386": "linux", # redhat
-    "linux-ppc": "linux",  # redhat
-    "linux2": "linux",     # debian
-    "linux3": "linux",     # debian
-    "win32": "win32",
-    "irix6-n32": "irix",
-    "irix6-n64": "irix",
-    "irix6": "irix",
-    "openbsd2": "bsd",
-    "openbsd3": "bsd",
-    "openbsd4": "bsd",
-    "openbsd5": "bsd",
-    "darwin": "bsd",       # Mac OS X
-    "freebsd4": "bsd",
-    "freebsd5": "bsd",
-    "freebsd6": "bsd",
-    "freebsd7": "bsd",
-    "freebsd8": "bsd",
-    "freebsd9": "bsd",
-    "netbsd1": "bsd",
-    "netbsd2": "bsd",
-    "netbsd3": "bsd",
-    "netbsd4": "bsd",
-    "netbsd5": "bsd",
-    "netbsd6": "bsd",
-    "sunos5": "sunos",
-    "cygwin": "cygwin",
-    }
-
-class UnsupportedPlatformError(Exception):
-    pass
 
 # Wow, I'm really amazed at home much mileage we've gotten out of calling
 # the external route.exe program on windows...  It appears to work on all
-# versions so far.  Still, the real system calls would much be preferred...
+# versions so far.
 # ... thus wrote Greg Smith in time immemorial...
-_win32_path = 'route.exe'
-_win32_args = ('print',)
-_win32_re = re.compile('^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
+# Also, the Win32 APIs for this are really klunky and error-prone. --Daira
 
-# These work in Redhat 6.x and Debian 2.2 potato
-_linux_path = '/sbin/ifconfig'
-_linux_re = re.compile('^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
+_win32_re = re.compile(r'^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
+_win32_commands = (('route.exe', ('print',), _win32_re),)
 
-# NetBSD 1.4 (submitted by Rhialto), Darwin, Mac OS X
-_netbsd_path = '/sbin/ifconfig'
-_netbsd_args = ('-a',)
-_netbsd_re = re.compile('^\s+inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
+# These work in most Unices.
+_addr_re = re.compile(r'^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)[\s/].+$', flags=re.M|re.I|re.S)
+_unix_commands = (('/bin/ip', ('addr',), _addr_re),
+                  ('/sbin/ip', ('addr',), _addr_re),
+                  ('/sbin/ifconfig', ('-a',), _addr_re),
+                  ('/usr/sbin/ifconfig', ('-a',), _addr_re),
+                  ('/usr/etc/ifconfig', ('-a',), _addr_re),
+                  ('ifconfig', ('-a',), _addr_re),
+                  ('/sbin/ifconfig', (), _addr_re),
+                 )
 
-# Irix 6.5
-_irix_path = '/usr/etc/ifconfig'
-
-# Solaris 2.x
-_sunos_path = '/usr/sbin/ifconfig'
-
-
-# k: platform string as provided in the value of _platform_map
-# v: tuple of (path_to_tool, args, regex,)
-_tool_map = {
-    "linux": (_linux_path, (), _linux_re,),
-    "win32": (_win32_path, _win32_args, _win32_re,),
-    "cygwin": (_win32_path, _win32_args, _win32_re,),
-    "bsd": (_netbsd_path, _netbsd_args, _netbsd_re,),
-    "irix": (_irix_path, _netbsd_args, _netbsd_re,),
-    "sunos": (_sunos_path, _netbsd_args, _netbsd_re,),
-    }
 
 def _find_addresses_via_config():
     return threads.deferToThread(_synchronously_find_addresses_via_config)
 
 def _synchronously_find_addresses_via_config():
-    # originally by Greg Smith, hacked by Zooko to conform to Brian's API
+    # originally by Greg Smith, hacked by Zooko and then Daira
 
-    platform = _platform_map.get(sys.platform)
-    if not platform:
-        raise UnsupportedPlatformError(sys.platform)
-
-    (pathtotool, args, regex,) = _tool_map[platform]
-
-    # If pathtotool is a fully qualified path then we just try that.
-    # If it is merely an executable name then we use Twisted's
-    # "which()" utility and try each executable in turn until one
-    # gives us something that resembles a dotted-quad IPv4 address.
-
-    if os.path.isabs(pathtotool):
-        return _query(pathtotool, args, regex)
+    # We don't reach here for cygwin.
+    if platform == 'win32':
+        commands = _win32_commands
     else:
-        exes_to_try = which(pathtotool)
+        commands = _unix_commands
+
+    for (pathtotool, args, regex) in commands:
+        # If pathtotool is a fully qualified path then we just try that.
+        # If it is merely an executable name then we use Twisted's
+        # "which()" utility and try each executable in turn until one
+        # gives us something that resembles a dotted-quad IPv4 address.
+
+        if os.path.isabs(pathtotool):
+            exes_to_try = [pathtotool]
+        else:
+            exes_to_try = which(pathtotool)
+
         for exe in exes_to_try:
             try:
                 addresses = _query(exe, args, regex)
@@ -231,32 +201,47 @@ def _synchronously_find_addresses_via_config():
                 addresses = []
             if addresses:
                 return addresses
-        return []
+
+    return []
 
 def _query(path, args, regex):
+    if not os.path.isfile(path):
+        return []
     env = {'LANG': 'en_US.UTF-8'}
-    p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-    (output, err) = p.communicate()
+    TRIES = 5
+    for trial in xrange(TRIES):
+        try:
+            p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+            (output, err) = p.communicate()
+            break
+        except OSError, e:
+            if e.errno == errno.EINTR and trial < TRIES-1:
+                continue
+            raise
 
     addresses = []
     outputsplit = output.split('\n')
     for outline in outputsplit:
         m = regex.match(outline)
         if m:
-            addr = m.groupdict()['address']
+            addr = m.group('address')
             if addr not in addresses:
                 addresses.append(addr)
 
     return addresses
 
-def _cygwin_hack_find_addresses(target):
+def _cygwin_hack_find_addresses():
     addresses = []
-    for h in [target, "localhost", "127.0.0.1",]:
-        try:
-            addr = get_local_ip_for(h)
-            if addr not in addresses:
-                addresses.append(addr)
-        except socket.gaierror:
-            pass
+    for h in ["localhost", "127.0.0.1",]:
+        addr = get_local_ip_for(h)
+        if addr is not None and addr not in addresses:
+            addresses.append(addr)
 
     return defer.succeed(addresses)
+
+__all__ = ["allocate_tcp_port",
+           "increase_rlimits",
+           "get_local_addresses_sync",
+           "get_local_addresses_async",
+           "get_local_ip_for",
+           ]

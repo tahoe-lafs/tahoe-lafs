@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 ==========================
 The Tahoe REST-ful Web API
 ==========================
@@ -14,22 +16,22 @@ The Tahoe REST-ful Web API
     1. `Reading a file`_
     2. `Writing/Uploading a File`_
     3. `Creating a New Directory`_
-    4. `Getting Information About A File Or Directory (as JSON)`_
+    4. `Getting Information About a File Or Directory (as JSON)`_
     5. `Attaching an Existing File or Directory by its read- or write-cap`_
     6. `Adding Multiple Files or Directories to a Parent Directory at Once`_
     7. `Unlinking a File or Directory`_
 
 6.  `Browser Operations: Human-Oriented Interfaces`_
 
-    1.  `Viewing A Directory (as HTML)`_
+    1.  `Viewing a Directory (as HTML)`_
     2.  `Viewing/Downloading a File`_
-    3.  `Getting Information About A File Or Directory (as HTML)`_
+    3.  `Getting Information About a File Or Directory (as HTML)`_
     4.  `Creating a Directory`_
     5.  `Uploading a File`_
-    6.  `Attaching An Existing File Or Directory (by URI)`_
-    7.  `Unlinking A Child`_
-    8.  `Renaming A Child`_
-    9.  `Moving A Child`_
+    6.  `Attaching an Existing File Or Directory (by URI)`_
+    7.  `Unlinking a Child`_
+    8.  `Renaming a Child`_
+    9.  `Relinking ("Moving") a Child`_
     10. `Other Utilities`_
     11. `Debugging and Testing Features`_
 
@@ -52,8 +54,7 @@ section of $NODEDIR/tahoe.cfg will cause the node to run a webserver on port
 This string is actually a Twisted "strports" specification, meaning you can
 get more control over the interface to which the server binds by supplying
 additional arguments. For more details, see the documentation on
-`twisted.application.strports
-<https://twistedmatrix.com/documents/current/api/twisted.application.strports.html>`_.
+`twisted.application.strports`_.
 
 Writing "tcp:3456:interface=127.0.0.1" into the web.port line does the same
 but binds to the loopback interface, ensuring that only the programs on the
@@ -64,18 +65,19 @@ This webport can be set when the node is created by passing a --webport
 option to the 'tahoe create-node' command. By default, the node listens on
 port 3456, on the loopback (127.0.0.1) interface.
 
+.. _twisted.application.strports: https://twistedmatrix.com/documents/current/api/twisted.application.strports.html
+
 
 Basic Concepts: GET, PUT, DELETE, POST
 ======================================
 
-As described in `docs/architecture.rst <../architecture.rst>`_, each file
-and directory in a Tahoe virtual filesystem is referenced by an identifier
-that combines the designation of the object with the authority to do something
-with it (such as read or modify the contents). This identifier is called a
-"read-cap" or "write-cap", depending upon whether it enables read-only or
-read-write access. These "caps" are also referred to as URIs (which may be
-confusing because they are not currently `RFC3986
-<https://tools.ietf.org/html/rfc3986>`_-compliant URIs).
+As described in :doc:`../architecture`, each file and directory in a Tahoe
+virtual filesystem is referenced by an identifier that combines the
+designation of the object with the authority to do something with it (such as
+read or modify the contents). This identifier is called a "read-cap" or
+"write-cap", depending upon whether it enables read-only or read-write
+access. These "caps" are also referred to as URIs (which may be confusing
+because they are not currently RFC3986_-compliant URIs).
 
 The Tahoe web-based API is "REST-ful", meaning it implements the concepts of
 "REpresentational State Transfer": the original scheme by which the World
@@ -125,6 +127,8 @@ a plain text stack trace instead. If the Accept header contains ``*/*``, or
 ``text/*``, or text/html (or if there is no Accept header), HTML tracebacks will
 be generated.
 
+.. _RFC3986: https://tools.ietf.org/html/rfc3986
+
 
 URLs
 ====
@@ -157,9 +161,7 @@ listening on this port::
 
  http://127.0.0.1:3456/uri/ + $CAP
 
-So, to access the directory named above (which happens to be the
-publically-writeable sample directory on the Tahoe test grid, described at
-http://allmydata.org/trac/tahoe-lafs/wiki/TestGrid), the URL would be::
+So, to access the directory named above, the URL would be::
 
  http://127.0.0.1:3456/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/
 
@@ -190,12 +192,12 @@ servers is required, /uri should be used.
 Child Lookup
 ------------
 
-Tahoe directories contain named child entries, just like directories in a regular
-local filesystem. These child entries, called "dirnodes", consist of a name,
-metadata, a write slot, and a read slot. The write and read slots normally contain
-a write-cap and read-cap referring to the same object, which can be either a file
-or a subdirectory. The write slot may be empty (actually, both may be empty,
-but that is unusual).
+Tahoe directories contain named child entries, just like directories in a
+regular local filesystem. These child entries, called "dirnodes", consist of
+a name, metadata, a write slot, and a read slot. The write and read slots
+normally contain a write-cap and read-cap referring to the same object, which
+can be either a file or a subdirectory. The write slot may be empty
+(actually, both may be empty, but that is unusual).
 
 If you have a Tahoe URL that refers to a directory, and want to reference a
 named child inside it, just append the child name to the URL. For example, if
@@ -337,7 +339,7 @@ that use HTTP to communicate with a Tahoe node. A later section describes
 operations that are intended for web browsers.
 
 
-Reading A File
+Reading a File
 --------------
 
 ``GET /uri/$FILECAP``
@@ -347,13 +349,21 @@ Reading A File
  This will retrieve the contents of the given file. The HTTP response body
  will contain the sequence of bytes that make up the file.
 
+ The "Range:" header can be used to restrict which portions of the file are
+ returned (see RFC 2616 section 14.35.1 "Byte Ranges"), however Tahoe only
+ supports a single "bytes" range and never provides a
+ ``multipart/byteranges`` response. An attempt to begin a read past the end
+ of the file will provoke a 416 Requested Range Not Satisfiable error, but
+ normal overruns (reads which start at the beginning or middle and go beyond
+ the end) are simply truncated.
+
  To view files in a web browser, you may want more control over the
  Content-Type and Content-Disposition headers. Please see the next section
  "Browser Operations", for details on how to modify these URLs for that
  purpose.
 
 
-Writing/Uploading A File
+Writing/Uploading a File
 ------------------------
 
 ``PUT /uri/$FILECAP``
@@ -416,7 +426,7 @@ Writing/Uploading A File
  interprets those arguments in the same way as the linked forms of PUT
  described immediately above.
 
-Creating A New Directory
+Creating a New Directory
 ------------------------
 
 ``POST /uri?t=mkdir``
@@ -459,7 +469,6 @@ Creating A New Directory
   {
     "Fran\u00e7ais": [ "filenode", {
         "ro_uri": "URI:CHK:...",
-        "size": bytes,
         "metadata": {
           "ctime": 1202777696.7564139,
           "mtime": 1202777696.7564139,
@@ -502,9 +511,9 @@ Creating A New Directory
 
  The metadata may have a "no-write" field. If this is set to true in the
  metadata of a link, it will not be possible to open that link for writing
- via the SFTP frontend; see `<FTP-and-SFTP.rst>`_ for details.
- Also, if the "no-write" field is set to true in the metadata of a link to
- a mutable child, it will cause the link to be diminished to read-only.
+ via the SFTP frontend; see :doc:`FTP-and-SFTP` for details. Also, if the
+ "no-write" field is set to true in the metadata of a link to a mutable
+ child, it will cause the link to be diminished to read-only.
 
  Note that the web-API-using client application must not provide the
  "Content-Type: multipart/form-data" header that usually accompanies HTML
@@ -530,7 +539,7 @@ Creating A New Directory
  checking that they are immutable. The "imm." prefix must not be stripped
  off without performing this check. (Future versions of the web-API server
  will perform it where necessary.)
- 
+
  The cap for each child may be given either in the "rw_uri" or "ro_uri"
  field of the PROPDICT (not both). If a cap is given in the "rw_uri" field,
  then the web-API server will check that it is an immutable read-cap of a
@@ -586,7 +595,7 @@ Creating A New Directory
  format of the named target directory; intermediate directories, if created,
  are created using the default mutable type setting, as configured on the
  Tahoe-LAFS server responding to the request.
- 
+
  This operation will return an error if a blocking file is present at any of
  the parent names, preventing the server from creating the necessary parent
  directory; or if it would require changing an immutable directory; or if
@@ -646,7 +655,7 @@ Creating A New Directory
  the immediate parent directory already has a a child named NAME.
 
  Note that the name= argument must be passed as a queryarg, because the POST
- request body is used for the initial children JSON. 
+ request body is used for the initial children JSON.
 
 ``POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-immutable&name=NAME``
 
@@ -662,7 +671,7 @@ Creating A New Directory
  or already has a child named NAME.
 
 
-Getting Information About A File Or Directory (as JSON)
+Getting Information About a File Or Directory (as JSON)
 -------------------------------------------------------
 
 ``GET /uri/$FILECAP?t=json``
@@ -761,7 +770,7 @@ Getting Information About A File Or Directory (as JSON)
  if and only if you have read-write access to that directory. The verify_uri
  field will be present if and only if the object has a verify-cap
  (non-distributed LIT files do not have verify-caps).
- 
+
  If the cap is of an unknown format, then the file size and verify_uri will
  not be available::
 
@@ -852,7 +861,7 @@ When an edge is created or updated by "tahoe backup", the 'mtime' and
   the UNIX "ctime" of the local file, which means the last time that
   either the contents or the metadata of the local file was changed.
 
-There are several ways that the 'ctime' field could be confusing: 
+There are several ways that the 'ctime' field could be confusing:
 
 1. You might be confused about whether it reflects the time of the creation
    of a link in the Tahoe filesystem (by a version of Tahoe < v1.7.0) or a
@@ -908,7 +917,7 @@ Attaching an Existing File or Directory by its read- or write-cap
  command). Note that "true", "t", and "1" are all synonyms for "True", and
  "false", "f", and "0" are synonyms for "False", and the parameter is
  case-insensitive.
- 
+
  Note that this operation does not take its child cap in the form of
  separate "rw_uri" and "ro_uri" fields. Therefore, it cannot accept a
  child cap in a format unknown to the web-API server, unless its URI
@@ -955,9 +964,9 @@ Adding Multiple Files or Directories to a Parent Directory at Once
  existing "tahoe" metadata is preserved. The metadata["tahoe"] value is
  reserved for metadata generated by the tahoe node itself. The only two keys
  currently placed here are "linkcrtime" and "linkmotime". For details, see
- the section above entitled "Get Information About A File Or Directory (as
+ the section above entitled "Getting Information About a File Or Directory (as
  JSON)", in the "About the metadata" subsection.
- 
+
  Note that this command was introduced with the name "set_children", which
  uses an underscore rather than a hyphen as other multi-word command names
  do. The variant with a hyphen is now accepted, but clients that desire
@@ -1011,7 +1020,7 @@ specified by using <input type="hidden"> elements. For clarity, the
 descriptions below display the most significant arguments as URL query args.
 
 
-Viewing A Directory (as HTML)
+Viewing a Directory (as HTML)
 -----------------------------
 
 ``GET /uri/$DIRCAP/[SUBDIRS../]``
@@ -1031,15 +1040,30 @@ Viewing/Downloading a File
 
 ``GET /uri/$DIRCAP/[SUBDIRS../]FILENAME``
 
- This will retrieve the contents of the given file. The HTTP response body
+``GET /named/$FILECAP/FILENAME``
+
+ These will retrieve the contents of the given file. The HTTP response body
  will contain the sequence of bytes that make up the file.
 
- If you want the HTTP response to include a useful Content-Type header,
- either use the second form (which starts with a $DIRCAP), or add a
- "filename=foo" query argument, like "GET /uri/$FILECAP?filename=foo.jpg".
- The bare "GET /uri/$FILECAP" does not give the Tahoe node enough information
- to determine a Content-Type (since Tahoe immutable files are merely
- sequences of bytes, not typed+named file objects).
+ The ``/named/`` form is an alternative to ``/uri/$FILECAP`` which makes it
+ easier to get the correct filename. The Tahoe server will provide the
+ contents of the given file, with a Content-Type header derived from the
+ given filename. This form is used to get browsers to use the "Save Link As"
+ feature correctly, and also helps command-line tools like "wget" and "curl"
+ use the right filename. Note that this form can *only* be used with file
+ caps; it is an error to use a directory cap after the /named/ prefix.
+
+ URLs may also use /file/$FILECAP/FILENAME as a synonym for
+ /named/$FILECAP/FILENAME. The use of "/file/" is deprecated in favor of
+ "/named/" and support for "/file/" will be removed in a future release of
+ Tahoe-LAFS.
+
+ If you use the first form (``/uri/$FILECAP``) and want the HTTP response to
+ include a useful Content-Type header, add a "filename=foo" query argument,
+ like "GET /uri/$FILECAP?filename=foo.jpg". The bare "GET /uri/$FILECAP" does
+ not give the Tahoe node enough information to determine a Content-Type
+ (since LAFS immutable files are merely sequences of bytes, not typed and
+ named file objects).
 
  If the URL has both filename= and "save=true" in the query arguments, then
  the server to add a "Content-Disposition: attachment" header, along with a
@@ -1048,26 +1072,13 @@ Viewing/Downloading a File
  most browsers will refuse to display it inline). "true", "t", "1", and other
  case-insensitive equivalents are all treated the same.
 
- Character-set handling in URLs and HTTP headers is a dubious art [1]_. For
- maximum compatibility, Tahoe simply copies the bytes from the filename=
- argument into the Content-Disposition header's filename= parameter, without
- trying to interpret them in any particular way.
+ Character-set handling in URLs and HTTP headers is a :ref:`dubious
+ art<urls-and-utf8>`. For maximum compatibility, Tahoe simply copies the
+ bytes from the filename= argument into the Content-Disposition header's
+ filename= parameter, without trying to interpret them in any particular way.
 
 
-``GET /named/$FILECAP/FILENAME``
-
- This is an alternate download form which makes it easier to get the correct
- filename. The Tahoe server will provide the contents of the given file, with
- a Content-Type header derived from the given filename. This form is used to
- get browsers to use the "Save Link As" feature correctly, and also helps
- command-line tools like "wget" and "curl" use the right filename. Note that
- this form can *only* be used with file caps; it is an error to use a
- directory cap after the /named/ prefix.
-
- URLs may also use /file/$FILECAP/FILENAME as a synonym for
- /named/$FILECAP/FILENAME.
-
-Getting Information About A File Or Directory (as HTML)
+Getting Information About a File Or Directory (as HTML)
 -------------------------------------------------------
 
 ``GET /uri/$FILECAP?t=info``
@@ -1123,7 +1134,7 @@ Creating a Directory
 
  This accepts a format= argument in the query string. Refer to the
  documentation of POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=CHILDNAME in
- `Creating A New Directory`_ for information on the behavior of the format=
+ `Creating a New Directory`_ for information on the behavior of the format=
  argument.
 
  If a "when_done=URL" argument is provided, the HTTP response will cause the
@@ -1144,7 +1155,7 @@ Uploading a File
 
  The file must be provided as the "file" field of an HTML encoded form body,
  produced in response to an HTML form like this::
- 
+
   <form action="/uri" method="POST" enctype="multipart/form-data">
    <input type="hidden" name="t" value="upload" />
    <input type="file" name="file" />
@@ -1163,7 +1174,7 @@ Uploading a File
  operation took, etc.
 
  This accepts format= and mutable=true query string arguments. Refer to
- `Writing/Uploading A File`_ for information on the behavior of format= and
+ `Writing/Uploading a File`_ for information on the behavior of format= and
  mutable=true.
 
 ``POST /uri/$DIRCAP/[SUBDIRS../]?t=upload``
@@ -1171,7 +1182,7 @@ Uploading a File
  This uploads a file, and attaches it as a new child of the given directory,
  which must be mutable. The file must be provided as the "file" field of an
  HTML-encoded form body, produced in response to an HTML form like this::
- 
+
   <form action="." method="POST" enctype="multipart/form-data">
    <input type="hidden" name="t" value="upload" />
    <input type="file" name="file" />
@@ -1201,7 +1212,7 @@ Uploading a File
  already exist.
 
  This accepts format= and mutable=true query string arguments. Refer to
- `Writing/Uploading A File`_ for information on the behavior of format= and
+ `Writing/Uploading a File`_ for information on the behavior of format= and
  mutable=true.
 
  If a "when_done=URL" argument is provided, the HTTP response will cause the
@@ -1246,12 +1257,12 @@ Attaching An Existing File Or Directory (by URI)
  This accepts the same replace= argument as POST t=upload.
 
 
-Unlinking A Child
+Unlinking a Child
 -----------------
 
 ``POST /uri/$DIRCAP/[SUBDIRS../]?t=delete&name=CHILDNAME``
 
-``POST /uri/$DIRCAP/[SUBDIRS../]?t=unlink&name=CHILDNAME``
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=unlink&name=CHILDNAME``    (Tahoe >= v1.9)
 
  This instructs the node to remove a child object (file or subdirectory) from
  the given directory, which must be mutable. Note that the entire subtree is
@@ -1265,7 +1276,7 @@ Unlinking A Child
  be used.
 
 
-Renaming A Child
+Renaming a Child
 ----------------
 
 ``POST /uri/$DIRCAP/[SUBDIRS../]?t=rename&from_name=OLD&to_name=NEW``
@@ -1275,34 +1286,73 @@ Renaming A Child
  same child-cap under the new name, except that it preserves metadata. This
  operation cannot move the child to a different directory.
 
- By default, this operation will replace any existing child of the new name,
- making it behave like the UNIX "``mv -f``" command. Adding a "replace=false"
- argument causes the command to throw an HTTP 409 Conflict error if there is
- already a child with the new name.
+ The default behavior is to overwrite any existing link at the destination
+ (replace=true). To prevent this (and make the operation return an error
+ instead of overwriting), add a "replace=false" argument. With replace=false,
+ this operation will return an HTTP 409 "Conflict" error if the destination
+ is not the same link as the source and there is already a link at the
+ destination, rather than overwriting the existing link. To allow the
+ operation to overwrite a link to a file, but return an HTTP 409 error when
+ trying to overwrite a link to a directory, use "replace=only-files" (this
+ behavior is closer to the traditional UNIX "mv" command). Note that "true",
+ "t", and "1" are all synonyms for "True"; "false", "f", and "0" are synonyms
+ for "False"; and the parameter is case-insensitive.
 
-Moving A Child
-----------------
 
-``POST /uri/$DIRCAP/[SUBDIRS../]?t=move&from_name=OLD&to_dir=TARGETNAME[&target_type=name][&to_name=NEWNAME]``
-``POST /uri/$DIRCAP/[SUBDIRS../]?t=move&from_name=OLD&to_dir=TARGETURI&target_type=uri[&to_name=NEWNAME]``
+Relinking ("Moving") a Child
+----------------------------
 
- This instructs the node to move a child of the given directory to a
- different directory, both of which must be mutable. If target_type=name
- or is omitted, the to_dir= parameter should contain the name of a
- subdirectory of the child's current parent directory (multiple levels of
- descent are supported). If target_uri=, then to_dir= will be treated as
- a dircap, allowing the child to be moved to an unrelated directory.
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=relink&from_name=OLD&to_dir=$NEWDIRCAP/[NEWSUBDIRS../]&to_name=NEW``
+ ``[&replace=true|false|only-files]``    (Tahoe >= v1.10)
 
- The child can also be renamed in the process, by providing a new name in
- the to_name= parameter. If omitted, the child will retain its existing
- name.
+ This instructs the node to move a child of the given source directory, into
+ a different directory and/or to a different name. The command is named
+ ``relink`` because what it does is add a new link to the child from the new
+ location, then remove the old link. Nothing is actually "moved": the child
+ is still reachable through any path from which it was formerly reachable,
+ and the storage space occupied by its ciphertext is not affected.
 
- By default, this operation will replace any existing child of the new name,
- making it behave like the UNIX "``mv -f``" command. Adding a "replace=false"
- argument causes the command to throw an HTTP 409 Conflict error if there is
- already a child with the new name. For safety, the child is not unlinked
- from the old directory until its has been successfully added to the new
- directory.
+ The source and destination directories must be writeable. If ``to_dir`` is
+ not present, the child link is renamed within the same directory. If
+ ``to_name`` is not present then it defaults to ``from_name``. If the
+ destination link (directory and name) is the same as the source link, the
+ operation has no effect.
+
+ Metadata from the source directory entry is preserved. Multiple levels of
+ descent in the source and destination paths are supported.
+
+ This operation will return an HTTP 404 "Not Found" error if
+ ``$DIRCAP/[SUBDIRS../]``, the child being moved, or the destination
+ directory does not exist. It will return an HTTP 400 "Bad Request" error
+ if any entry in the source or destination paths is not a directory.
+
+ The default behavior is to overwrite any existing link at the destination
+ (replace=true). To prevent this (and make the operation return an error
+ instead of overwriting), add a "replace=false" argument. With replace=false,
+ this operation will return an HTTP 409 "Conflict" error if the destination
+ is not the same link as the source and there is already a link at the
+ destination, rather than overwriting the existing link. To allow the
+ operation to overwrite a link to a file, but return an HTTP 409 error when
+ trying to overwrite a link to a directory, use "replace=only-files" (this
+ behavior is closer to the traditional UNIX "mv" command). Note that "true",
+ "t", and "1" are all synonyms for "True"; "false", "f", and "0" are synonyms
+ for "False"; and the parameter is case-insensitive.
+
+ When relinking into a different directory, for safety, the child link is
+ not removed from the old directory until it has been successfully added to
+ the new directory. This implies that in case of a crash or failure, the
+ link to the child will not be lost, but it could be linked at both the old
+ and new locations.
+
+ The source link should not be the same as any link (directory and child name)
+ in the ``to_dir`` path. This restriction is not enforced, but it may be
+ enforced in a future version. If it were violated then the result would be
+ to create a cycle in the directory structure that is not necessarily reachable
+ from the root of the destination path (``$NEWDIRCAP``), which could result in
+ data loss, as described in ticket `#943`_.
+
+.. _`#943`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/943
+
 
 Other Utilities
 ---------------
@@ -1372,15 +1422,21 @@ mainly intended for developers.
            this dictionary has only the 'healthy' key, which will always be
            True. For distributed files, this dictionary has the following
            keys:
+    count-happiness: the servers-of-happiness level of the file, as
+                     defined in doc/specifications/servers-of-happiness.
     count-shares-good: the number of good shares that were found
     count-shares-needed: 'k', the number of shares required for recovery
     count-shares-expected: 'N', the number of total shares generated
-    count-good-share-hosts: the number of distinct storage servers with good
-                            shares
+    count-good-share-hosts: the number of distinct storage servers with
+                            good shares. Note that a high value does not
+                            necessarily imply good share distribution,
+                            because some of these servers may only hold
+                            duplicate shares.
     count-wrong-shares: for mutable files, the number of shares for
                         versions other than the 'best' one (highest
                         sequence number, highest roothash). These are
-                        either old ...
+                        either old, or created by an uncoordinated or
+                        not fully successful write.
     count-recoverable-versions: for mutable files, the number of
                                 recoverable versions of the file. For
                                 a healthy file, this will equal 1.
@@ -1391,10 +1447,6 @@ mainly intended for developers.
     list-corrupt-shares: a list of "share locators", one for each share
                          that was found to be corrupt. Each share locator
                          is a list of (serverid, storage_index, sharenum).
-    needs-rebalancing: (bool) True if there are multiple shares on a single
-                       storage server, indicating a reduction in reliability
-                       that could be resolved by moving shares to new
-                       servers.
     servers-responding: list of base32-encoded storage server identifiers,
                         one for each server which responded to the share
                         query.
@@ -1416,6 +1468,11 @@ mainly intended for developers.
               immutable files, it is a string of the form
               'seq%d-%s-sh%d', containing the sequence number, the
               roothash, and the share number.
+
+Before Tahoe-LAFS v1.11, the ``results`` dictionary also had a
+``needs-rebalancing`` field, but that has been removed since it was computed
+incorrectly.
+
 
 ``POST $URL?t=start-deep-check``    (must add &ophandle=XYZ)
 
@@ -1694,6 +1751,9 @@ mainly intended for developers.
  keys may be missing until 'finished' is True)::
 
   finished: (bool) True if the operation has finished, else False
+  api-version: (int), number of deep-stats API version. Will be increased every
+               time backwards-incompatible change is introduced.
+               Current version is 1.
   count-immutable-files: count of how many CHK files are in the set
   count-mutable-files: same, for mutable files (does not include directories)
   count-literal-files: same, for LIT files (data contained inside the URI)
@@ -2026,7 +2086,7 @@ Tahoe-1.1; back with Tahoe-1.0 the web client was responsible for serializing
 web requests themselves).
 
 For more details, please see the "Consistency vs Availability" and "The Prime
-Coordination Directive" sections of `mutable.rst <../specifications/mutable.rst>`_.
+Coordination Directive" sections of :doc:`../specifications/mutable`.
 
 
 Access Blacklist
@@ -2073,23 +2133,24 @@ file/dir will bypass the blacklist.
 The node will log the SI of the file being blocked, and the reason code, into
 the ``logs/twistd.log`` file.
 
+URLs and HTTP and UTF-8
+=======================
 
-.. [1] URLs and HTTP and UTF-8, Oh My
+.. _urls-and-utf8:
 
  HTTP does not provide a mechanism to specify the character set used to
- encode non-ASCII names in URLs
- (`RFC3986#2.1 <https://tools.ietf.org/html/rfc3986#section-2.1>`_).
- We prefer the convention that the ``filename=`` argument shall be a
- URL-escaped UTF-8 encoded Unicode string.
- For example, suppose we want to provoke the server into using a filename of
- "f i a n c e-acute e" (i.e. f i a n c U+00E9 e). The UTF-8 encoding of this
- is 0x66 0x69 0x61 0x6e 0x63 0xc3 0xa9 0x65 (or "fianc\\xC3\\xA9e", as python's
- ``repr()`` function would show). To encode this into a URL, the non-printable
- characters must be escaped with the urlencode ``%XX`` mechanism, giving
- us "fianc%C3%A9e". Thus, the first line of the HTTP request will be
- "``GET /uri/CAP...?save=true&filename=fianc%C3%A9e HTTP/1.1``". Not all
- browsers provide this: IE7 by default uses the Latin-1 encoding, which is
- "fianc%E9e" (although it has a configuration option to send URLs as UTF-8).
+ encode non-ASCII names in URLs (`RFC3986#2.1`_).  We prefer the convention
+ that the ``filename=`` argument shall be a URL-escaped UTF-8 encoded Unicode
+ string.  For example, suppose we want to provoke the server into using a
+ filename of "f i a n c e-acute e" (i.e. f i a n c U+00E9 e). The UTF-8
+ encoding of this is 0x66 0x69 0x61 0x6e 0x63 0xc3 0xa9 0x65 (or
+ "fianc\\xC3\\xA9e", as python's ``repr()`` function would show). To encode
+ this into a URL, the non-printable characters must be escaped with the
+ urlencode ``%XX`` mechanism, giving us "fianc%C3%A9e". Thus, the first line
+ of the HTTP request will be "``GET
+ /uri/CAP...?save=true&filename=fianc%C3%A9e HTTP/1.1``". Not all browsers
+ provide this: IE7 by default uses the Latin-1 encoding, which is "fianc%E9e"
+ (although it has a configuration option to send URLs as UTF-8).
 
  The response header will need to indicate a non-ASCII filename. The actual
  mechanism to do this is not clear. For ASCII filenames, the response header
@@ -2106,17 +2167,15 @@ the ``logs/twistd.log`` file.
     (note, the last four bytes of that line, not including the newline, are
     0xC3 0xA9 0x65 0x22)
 
- `RFC2231#4 <https://tools.ietf.org/html/rfc2231#section-4>`_
- (dated 1997): suggests that the following might work, and
- `some developers have reported <http://markmail.org/message/dsjyokgl7hv64ig3>`_
- that it is supported by Firefox (but not IE7)::
+ `RFC2231#4`_ (dated 1997): suggests that the following might work, and `some
+ developers have reported`_ that it is supported by Firefox (but not IE7)::
 
   #2: Content-Disposition: attachment; filename*=utf-8''fianc%C3%A9e
 
- My reading of `RFC2616#19.5.1 <https://tools.ietf.org/html/rfc2616#section-19.5.1>`_
- (which defines Content-Disposition) says that the filename= parameter is
- defined to be wrapped in quotes (presumably to allow spaces without breaking
- the parsing of subsequent parameters), which would give us::
+ My reading of `RFC2616#19.5.1`_ (which defines Content-Disposition) says
+ that the filename= parameter is defined to be wrapped in quotes (presumably
+ to allow spaces without breaking the parsing of subsequent parameters),
+ which would give us::
 
   #3: Content-Disposition: attachment; filename*=utf-8''"fianc%C3%A9e"
 
@@ -2131,3 +2190,8 @@ the ``logs/twistd.log`` file.
  into the response header, rather than enforcing the UTF-8 convention. This
  means it does not try to decode the filename from the URL argument, nor does
  it encode the filename into the response header.
+
+.. _RFC3986#2.1: https://tools.ietf.org/html/rfc3986#section-2.1
+.. _RFC2231#4: https://tools.ietf.org/html/rfc2231#section-4
+.. _some developers have reported: http://markmail.org/message/dsjyokgl7hv64ig3
+.. _RFC2616#19.5.1: https://tools.ietf.org/html/rfc2616#section-19.5.1

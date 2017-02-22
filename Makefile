@@ -1,21 +1,20 @@
 
 # NOTE: this Makefile requires GNU make
 
-default: build
+default:
+	@echo "no default target"
 
 PYTHON=python
 export PYTHON
+PYFLAKES=pyflakes
+export PYFLAKES
 
-# setup.py will extend sys.path to include our support/lib/... directory
-# itself. It will also create it in the beginning of the 'develop' command.
-
-TAHOE=$(PYTHON) bin/tahoe
-SOURCES=src/allmydata src/buildtest static misc bin/tahoe-script.template twisted setup.py
-
-.PHONY: make-version build
+SOURCES=src/allmydata static misc setup.py
+APPNAME=tahoe-lafs
 
 # This is necessary only if you want to automatically produce a new
-# _version.py file from the current git/darcs history.
+# _version.py file from the current git history (without doing a build).
+.PHONY: make-version
 make-version:
 	$(PYTHON) ./setup.py update_version
 
@@ -25,132 +24,88 @@ make-version:
 src/allmydata/_version.py:
 	$(MAKE) make-version
 
-# It is unnecessary to have this depend on build or src/allmydata/_version.py,
-# since 'setup.py build' always updates the version using 'darcsver --count-all-patches'.
-build:
-	$(PYTHON) setup.py build
-	touch .built
+# Build OS X pkg packages.
+.PHONY: build-osx-pkg test-osx-pkg upload-osx-pkg
+build-osx-pkg:
+	misc/build_helpers/build-osx-pkg.sh $(APPNAME)
 
-# 'make install' will do the following:
-#   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
-# 'make install PREFIX=/usr/local/stow/tahoe-N.N' will do the same, but to
-# a different location
+test-osx-pkg:
+	$(PYTHON) misc/build_helpers/test-osx-pkg.py
 
-install:
-ifdef PREFIX
-	mkdir -p $(PREFIX)
-	$(PYTHON) ./setup.py install --single-version-externally-managed \
-           --prefix=$(PREFIX) --record=./tahoe.files
-else
-	$(PYTHON) ./setup.py install --single-version-externally-managed
-endif
+upload-osx-pkg:
+	@echo "uploading to ~tahoe-tarballs/OS-X-packages/ via flappserver"
+	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then \
+	  flappclient --furlfile ~/.tahoe-osx-pkg-upload.furl upload-file tahoe-lafs-*-osx.pkg; \
+	 else \
+	  echo not uploading tahoe-lafs-osx-pkg because this is not trunk but is branch \"${BB_BRANCH}\" ; \
+	fi
+
+.PHONY: smoketest
+smoketest:
+	-python ./src/allmydata/test/check_magicfolder_smoke.py kill
+	-rm -rf smoke_magicfolder/
+	python ./src/allmydata/test/check_magicfolder_smoke.py
+
+# code coverage-based testing is disabled temporarily, as we switch to tox.
+# This will eventually be added to a tox environment. The following comments
+# and variable settings are retained as notes for that future effort.
+
+## # code coverage: install the "coverage" package from PyPI, do "make
+## # test-coverage" to do a unit test run with coverage-gathering enabled, then
+## # use "make coverage-output" to generate an HTML report. Also see "make
+## # .coverage.el" and misc/coding_tools/coverage.el for Emacs integration.
+##
+## # This might need to be python-coverage on Debian-based distros.
+## COVERAGE=coverage
+##
+## COVERAGEARGS=--branch --source=src/allmydata
+##
+## # --include appeared in coverage-3.4
+## COVERAGE_OMIT=--include '$(CURDIR)/src/allmydata/*' --omit '$(CURDIR)/src/allmydata/test/*'
 
 
-# TESTING
+.PHONY: code-checks
+#code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
+code-checks: check-interfaces check-debugging check-miscaptures -find-trailing-spaces -check-umids pyflakes
 
-.PHONY: signal-error-deps test check test-coverage quicktest quicktest-coverage
-.PHONY: coverage-output get-old-coverage-coverage coverage-delta-output
-
-
-# you can use 'make test TEST=allmydata.test.test_introducer' to run just
-# test_introducer. TEST=allmydata.test.test_client.Basic.test_permute works
-# too.
-TEST=allmydata
-
-# use 'make test TRIALARGS=--reporter=bwverbose' from buildbot, to
-# suppress the ansi color sequences
-
-# It is unnecessary to have this depend on build or src/allmydata/_version.py,
-# since 'setup.py test' always updates the version and builds before testing.
-test:
-	$(PYTHON) setup.py test $(TRIALARGS) -s $(TEST)
-	touch .built
-
-check: test
-
-test-coverage: build
-	rm -f .coverage
-	$(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
-
-quicktest:
-	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
-
-# code-coverage: install the "coverage" package from PyPI, do "make
-# quicktest-coverage" to do a unit test run with coverage-gathering enabled,
-# then use "make coverate-output-text" for a brief report, or "make
-# coverage-output" for a pretty HTML report. Also see "make .coverage.el" and
-# misc/coding_tools/coverage.el for emacs integration.
-
-quicktest-coverage:
-	rm -f .coverage
-	PYTHONPATH=. $(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
-# on my laptop, "quicktest" takes 239s, "quicktest-coverage" takes 304s
-
-# --include appeared in coverage-3.4
-COVERAGE_OMIT=--include '$(CURDIR)/src/allmydata/*' --omit '$(CURDIR)/src/allmydata/test/*'
-coverage-output:
-	rm -rf coverage-html
-	coverage html -i -d coverage-html $(COVERAGE_OMIT)
-	cp .coverage coverage-html/coverage.data
-	@echo "now point your browser at coverage-html/index.html"
-
-.PHONY: upload-coverage .coverage.el pyflakes count-lines
-.PHONY: check-memory check-memory-once check-speed check-grid
-.PHONY: repl test-darcs-boringfile test-clean clean find-trailing-spaces
-
-.coverage.el: .coverage
-	$(PYTHON) misc/coding_tools/coverage2el.py
-
-# 'upload-coverage' is meant to be run with an UPLOAD_TARGET=host:/dir setting
-ifdef UPLOAD_TARGET
-
-ifndef UPLOAD_HOST
-$(error UPLOAD_HOST must be set when using UPLOAD_TARGET)
-endif
-ifndef COVERAGEDIR
-$(error COVERAGEDIR must be set when using UPLOAD_TARGET)
-endif
-
-upload-coverage:
-	rsync -a coverage-html/ $(UPLOAD_TARGET)
-	ssh $(UPLOAD_HOST) make update-tahoe-coverage COVERAGEDIR=$(COVERAGEDIR)
-else
-upload-coverage:
-	echo "this target is meant to be run with UPLOAD_TARGET=host:/path/"
-	false
-endif
-
-code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
-
-version-and-path:
-	$(TAHOE) --version-and-path
-
-check-interfaces:
-	$(TAHOE) @misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
+.PHONY: check-interfaces
+	$(PYTHON) misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
 	@echo
 
+.PHONY: check-debugging
+check-debugging:
+	$(PYTHON) misc/coding_tools/check-debugging.py
+	@echo
+
+.PHONY: check-miscaptures
 check-miscaptures:
 	$(PYTHON) misc/coding_tools/check-miscaptures.py $(SOURCES) 2>&1 |tee miscaptures.txt
 	@echo
 
+.PHONY: pyflakes
 pyflakes:
-	@$(PYTHON) -OOu `which pyflakes` $(SOURCES) |sort |uniq
+	$(PYFLAKES) $(SOURCES) |sort |uniq
 	@echo
 
+.PHONY: check-umids
 check-umids:
 	$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py' -not -name 'old.py'`
 	@echo
 
+.PHONY: -check-umids
 -check-umids:
 	-$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py' -not -name 'old.py'`
 	@echo
 
+.PHONY: doc-checks
 doc-checks: check-rst
 
+.PHONY: check-rst
 check-rst:
 	@for x in `find *.rst docs -name "*.rst"`; do rst2html -v $${x} >/dev/null; done 2>&1 |grep -v 'Duplicate implicit target name:'
 	@echo
 
+.PHONY: count-lines
 count-lines:
 	@echo -n "files: "
 	@find src -name '*.py' |grep -v /build/ |wc -l
@@ -161,19 +116,19 @@ count-lines:
 	@echo -n "XXX: "
 	@grep XXX `find src -name '*.py' |grep -v /build/` | wc -l
 
-check-memory: .built
-	rm -rf _test_memory
-	$(TAHOE) @src/allmydata/test/check_memory.py upload
-	$(TAHOE) @src/allmydata/test/check_memory.py upload-self
-	$(TAHOE) @src/allmydata/test/check_memory.py upload-POST
-	$(TAHOE) @src/allmydata/test/check_memory.py download
-	$(TAHOE) @src/allmydata/test/check_memory.py download-GET
-	$(TAHOE) @src/allmydata/test/check_memory.py download-GET-slow
-	$(TAHOE) @src/allmydata/test/check_memory.py receive
 
-check-memory-once: .built
-	rm -rf _test_memory
-	$(TAHOE) @src/allmydata/test/check_memory.py $(MODE)
+# Here is a list of testing tools that can be run with 'python' from a
+# virtualenv in which Tahoe has been installed. There used to be Makefile
+# targets for each, but the exact path to a suitable python is now up to the
+# developer. But as a hint, after running 'tox', ./.tox/py27/bin/python will
+# probably work.
+
+# src/allmydata/test/bench_dirnode.py
+
+
+# The check-speed and check-grid targets are disabled, since they depend upon
+# the pre-located $(TAHOE) executable that was removed when we switched to
+# tox. They will eventually be resurrected as dedicated tox environments.
 
 # The check-speed target uses a pre-established client node to run a canned
 # set of performance tests against a test network that is also
@@ -186,94 +141,87 @@ check-memory-once: .built
 # The 'sleep 5' is in there to give the new client a chance to connect to its
 # storageservers, since check_speed.py has no good way of doing that itself.
 
-check-speed: .built
-	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
-	@echo "stopping any leftover client code"
-	-$(TAHOE) stop $(TESTCLIENTDIR)
-	$(TAHOE) start $(TESTCLIENTDIR)
-	sleep 5
-	$(TAHOE) @src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
-	$(TAHOE) stop $(TESTCLIENTDIR)
+##.PHONY: check-speed
+##check-speed: .built
+##	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
+##	@echo "stopping any leftover client code"
+##	-$(TAHOE) stop $(TESTCLIENTDIR)
+##	$(TAHOE) start $(TESTCLIENTDIR)
+##	sleep 5
+##	$(TAHOE) @src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
+##	$(TAHOE) stop $(TESTCLIENTDIR)
 
 # The check-grid target also uses a pre-established client node, along with a
 # long-term directory that contains some well-known files. See the docstring
 # in src/allmydata/test/check_grid.py to see how to set this up.
-check-grid: .built
-	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
-	$(TAHOE) @src/allmydata/test/check_grid.py $(TESTCLIENTDIR) bin/tahoe
+##.PHONY: check-grid
+##check-grid: .built
+##	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
+##	$(TAHOE) @src/allmydata/test/check_grid.py $(TESTCLIENTDIR) bin/tahoe
 
-bench-dirnode: .built
-	$(TAHOE) @src/allmydata/test/bench_dirnode.py
-
-# the provisioning tool runs as a stand-alone webapp server
-run-provisioning-tool: .built
-	$(TAHOE) @misc/operations_helpers/provisioning/run.py
-
-# 'make repl' is a simple-to-type command to get a Python interpreter loop
-# from which you can type 'import allmydata'
-repl:
-	$(TAHOE) debug repl
-
-test-darcs-boringfile:
-	$(MAKE)
-	$(PYTHON) misc/build_helpers/test-darcs-boringfile.py
-
+.PHONY: test-get-ignore
 test-git-ignore:
 	$(MAKE)
 	$(PYTHON) misc/build_helpers/test-git-ignore.py
 
+.PHONY: test-clean
 test-clean:
-	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.old
+	find . |grep -vEe "allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.old
 	$(MAKE)
-	$(MAKE) clean
-	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.new
+	$(MAKE) distclean
+	find . |grep -vEe "allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
 # It would be nice if 'make clean' deleted any automatically-generated
 # _version.py too, so that 'make clean; make all' could be useable as a
 # "what the heck is going on, get me back to a clean state', but we need
-# 'make clean' to work on non-darcs trees without destroying useful information.
+# 'make clean' to work on non-checkout trees without destroying useful information.
+# Use 'make distclean' instead to delete all generated files.
+.PHONY: clean
 clean:
 	rm -rf build _trial_temp _test_memory .built
 	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
-	rm -rf src/allmydata_tahoe.egg-info
 	rm -rf support dist
 	rm -rf `ls -d *.egg | grep -vEe"setuptools-|setuptools_darcs-|darcsver-"`
 	rm -rf *.pyc
-	rm -rf misc/dependencies/build misc/dependencies/temp
-	rm -rf misc/dependencies/tahoe_deps.egg-info
 	rm -f bin/tahoe bin/tahoe.pyscript
+	rm -f *.pkg
 
+.PHONY: distclean
+distclean: clean
+	rm -rf src/*.egg-info
+	rm -f src/allmydata/_version.py
+	rm -f src/allmydata/_appname.py
+
+
+.PHONY: find-trailing-spaces
 find-trailing-spaces:
 	$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r $(SOURCES)
 	@echo
 
+.PHONY: -find-trailing-spaces
 -find-trailing-spaces:
 	-$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r $(SOURCES)
 	@echo
 
-# The test-desert-island target grabs the tahoe-deps tarball, unpacks it,
-# does a build, then asserts that the build did not try to download anything
-# as it ran. Invoke this on a new tree, or after a 'clean', to make sure the
-# support/lib/ directory is gone.
-
+.PHONY: fetch-and-unpack-deps
 fetch-and-unpack-deps:
-	test -f tahoe-deps.tar.gz || wget https://tahoe-lafs.org/source/tahoe/deps/tahoe-deps.tar.gz
-	rm -rf tahoe-deps
-	tar xzf tahoe-deps.tar.gz
+	@echo "test-and-unpack-deps is obsolete"
 
+.PHONY: test-desert-island
 test-desert-island:
-	$(MAKE) fetch-and-unpack-deps
-	$(MAKE) 2>&1 | tee make.out
-	$(PYTHON) misc/build_helpers/check-build.py make.out no-downloads
+	@echo "test-desert-island is obsolete"
 
+.PHONY: test-pip-install
+test-pip-install:
+	@echo "test-pip-install is obsolete"
 
 # TARBALL GENERATION
-.PHONY: tarballs upload-tarballs
+.PHONY: tarballs
 tarballs:
 	$(MAKE) make-version
-	$(PYTHON) setup.py sdist --formats=bztar,gztar,zip
-	$(PYTHON) setup.py sdist --sumo --formats=bztar,gztar,zip
+	$(PYTHON) setup.py sdist --formats=bztar,gztar,zip bdist_wheel
 
+.PHONY: upload-tarballs
 upload-tarballs:
-	@if [ "X${BB_BRANCH}" = "Xtrunk" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/allmydata-tahoe-*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi
+	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi

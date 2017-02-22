@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 =========================
 Filesystem-specific notes
 =========================
@@ -21,4 +23,6 @@ automatically, but older filesystems may not have it enabled::
 
 If "dir_index" is present in the "features:" line, then you're all set. If
 not, you'll need to use tune2fs and e2fsck to enable and build the index. See
-`<http://wiki.dovecot.org/MailboxFormat/Maildir>`_ for some hints.
+`http://wiki2.dovecot.org/MailboxFormat/Maildir`_ for some hints.
+
+.. _`http://wiki2.dovecot.org/MailboxFormat/Maildir`: http://wiki2.dovecot.org/MailboxFormat/Maildir

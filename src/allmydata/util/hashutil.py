@@ -1,14 +1,7 @@
 from pycryptopp.hash.sha256 import SHA256
 import os
+import hashlib
 from allmydata.util.netstring import netstring
-
-try:
-    import hashlib
-    sha1 = hashlib.sha1
-except ImportError:
-    # hashlib was added in Python 2.5
-    import sha
-    sha1 = sha.new
 
 # Be very very cautious when modifying this file. Almost any change will
 # cause a compatibility break, invalidating all outstanding URIs and making
@@ -202,10 +195,13 @@ def ssk_readkey_data_hash(IV, readkey):
 def ssk_storage_index_hash(readkey):
     return tagged_hash(MUTABLE_STORAGEINDEX_TAG, readkey, KEYLEN)
 
-def constant_time_compare(a, b):
-    n = os.urandom(8)
+def timing_safe_compare(a, b):
+    n = os.urandom(32)
     return bool(tagged_hash(n, a) == tagged_hash(n, b))
 
 BACKUPDB_DIRHASH_TAG = "allmydata_backupdb_dirhash_v1"
 def backupdb_dirhash(contents):
     return tagged_hash(BACKUPDB_DIRHASH_TAG, contents)
+
+def permute_server_hash(peer_selection_index, server_permutation_seed):
+    return hashlib.sha1(peer_selection_index + server_permutation_seed).digest()

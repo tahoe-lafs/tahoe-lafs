@@ -1,5 +1,5 @@
 
-from zope.interface import Interface
+from zope.interface import Interface, Attribute
 from foolscap.api import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
      ChoiceOf, IntegerConstraint, Any, RemoteInterface, Referenceable
 
@@ -417,7 +417,6 @@ class IStorageBroker(Interface):
         public attributes::
 
           service_name: the type of service provided, like 'storage'
-          announcement_time: when we first heard about this service
           last_connect_time: when we last established a connection
           last_loss_time: when we last lost a connection
 
@@ -460,7 +459,7 @@ class IDisplayableServer(Interface):
 
 class IServer(IDisplayableServer):
     """I live in the client, and represent a single server."""
-    def start_connecting(tub, trigger_cb):
+    def start_connecting(trigger_cb):
         pass
 
     def get_rref():
@@ -625,6 +624,38 @@ class MustNotBeUnknownRWError(CapConstraintError):
     """Cannot add an unknown child cap specified in a rw_uri field."""
 
 
+class IProgress(Interface):
+    """
+    Remembers progress measured in arbitrary units. Users of these
+    instances must call ``set_progress_total`` at least once before
+    progress can be valid, and must use the same units for both
+    ``set_progress_total`` and ``set_progress calls``.
+
+    See also:
+    :class:`allmydata.util.progress.PercentProgress`
+    """
+
+    progress = Attribute(
+        "Current amount of progress (in percentage)"
+    )
+
+    def set_progress(self, value):
+        """
+        Sets the current amount of progress.
+
+        Arbitrary units, but must match units used for
+        set_progress_total.
+        """
+
+    def set_progress_total(self, value):
+        """
+        Sets the total amount of expected progress
+
+        Arbitrary units, but must be same units as used when calling
+        set_progress() on this instance)..
+        """
+
+
 class IReadable(Interface):
     """I represent a readable object -- either an immutable file, or a
     specific version of a mutable file.
@@ -654,9 +685,12 @@ class IReadable(Interface):
     def get_size():
         """Return the length (in bytes) of this readable object."""
 
-    def download_to_data():
+    def download_to_data(progress=None):
         """Download all of the file contents. I return a Deferred that fires
-        with the contents as a byte string."""
+        with the contents as a byte string.
+
+        :param progress: None or IProgress implementer
+        """
 
     def read(consumer, offset=0, size=None):
         """Download a portion (possibly all) of the file's contents, making
@@ -665,7 +699,10 @@ class IReadable(Interface):
         the last byte has been given to it, or because the consumer threw an
         exception during write(), possibly because it no longer wants to
         receive data). The portion downloaded will start at 'offset' and
-        contain 'size' bytes (or the remainder of the file if size==None).
+        contain 'size' bytes (or the remainder of the file if size==None). It
+        is an error to read beyond the end of the file: callers must use
+        get_size() and clip any non-default offset= and size= parameters. It
+        is permissible to read zero bytes.
 
         The consumer will be used in non-streaming mode: an IPullProducer
         will be attached to it.
@@ -913,10 +950,12 @@ class IFileNode(IFilesystemNode):
         the Deferred will errback with an UnrecoverableFileError.
         """
 
-    def download_best_version():
+    def download_best_version(progress=None):
         """Download the contents of the version that would be returned
         by get_best_readable_version(). This is equivalent to calling
         download_to_data() on the IReadable given by that method.
+
+        progress is anything that implements IProgress
 
         I return a Deferred that fires with a byte string when the file
         has been fully downloaded. To support streaming download, use
@@ -1063,7 +1102,7 @@ class IMutableFileNode(IFileNode):
         everything) to get increased visibility.
         """
 
-    def upload(new_contents, servermap):
+    def upload(new_contents, servermap, progress=None):
         """Replace the contents of the file with new ones. This requires a
         servermap that was previously updated with MODE_WRITE.
 
@@ -1083,6 +1122,8 @@ class IMutableFileNode(IFileNode):
         wait a random interval (with exponential backoff) and repeat your
         operation. If I do not signal UncoordinatedWriteError, then I was
         able to write the new version without incident.
+
+        ``progress`` is either None or an IProgress provider
 
         I return a Deferred that fires (with a PublishStatus object) when the
         publish has completed. I will update the servermap in-place with the
@@ -1274,11 +1315,13 @@ class IDirectoryNode(IFilesystemNode):
         equivalent to calling set_node() multiple times, but is much more
         efficient."""
 
-    def add_file(name, uploadable, metadata=None, overwrite=True):
+    def add_file(name, uploadable, metadata=None, overwrite=True, progress=None):
         """I upload a file (using the given IUploadable), then attach the
         resulting ImmutableFileNode to the directory at the given name. I set
         metadata the same way as set_uri and set_node. The child name must be
         a unicode string.
+
+        ``progress`` either provides IProgress or is None
 
         I return a Deferred that fires (with the IFileNode of the uploaded
         file) when the operation completes."""
@@ -1291,7 +1334,8 @@ class IDirectoryNode(IFilesystemNode):
         is a file, or if must_be_file is True and the child is a directory,
         I raise ChildOfWrongTypeError."""
 
-    def create_subdirectory(name, initial_children={}, overwrite=True, metadata=None):
+    def create_subdirectory(name, initial_children={}, overwrite=True,
+                            mutable=True, mutable_version=None, metadata=None):
         """I create and attach a directory at the given name. The new
         directory can be empty, or it can be populated with children
         according to 'initial_children', which takes a dictionary in the same
@@ -2156,18 +2200,16 @@ class ICheckResults(Interface):
         not. Unrecoverable files are obviously unhealthy. Non-distributed LIT
         files always return True."""
 
-    def needs_rebalancing():
-        """Return a boolean, True if the file/dir's reliability could be
-        improved by moving shares to new servers. Non-distributed LIT files
-        always return False."""
-
     # the following methods all return None for non-distributed LIT files
 
+    def get_happiness():
+        """Return the happiness count of the file."""
+
     def get_encoding_needed():
-        """Return 'k', the number of shares required for recovery"""
+        """Return 'k', the number of shares required for recovery."""
 
     def get_encoding_expected():
-        """Return 'N', the number of total shares generated"""
+        """Return 'N', the number of total shares generated."""
 
     def get_share_counter_good():
         """Return the number of distinct good shares that were found. For
@@ -2631,26 +2673,13 @@ class RIControlClient(RemoteInterface):
         storage servers.
         """
 
-    def upload_from_file_to_uri(filename=str,
-                                convergence=ChoiceOf(None,
-                                                     StringConstraint(2**20))):
-        """Upload a file to the grid. This accepts a filename (which must be
-        absolute) that points to a file on the node's local disk. The node will
-        read the contents of this file, upload it to the grid, then return the
-        URI at which it was uploaded.  If convergence is None then a random
-        encryption key will be used, else the plaintext will be hashed, then
-        that hash will be mixed together with the "convergence" string to form
-        the encryption key.
-        """
-        return URI
+    # debug stuff
 
-    def download_from_uri_to_file(uri=URI, filename=str):
-        """Download a file from the grid, placing it on the node's local disk
-        at the given filename (which must be absolute[?]). Returns the
-        absolute filename where the file was written."""
+    def upload_random_data_from_file(size=int, convergence=str):
         return str
 
-    # debug stuff
+    def download_to_tempfile_and_delete(uri=str):
+        return None
 
     def get_memory_usage():
         """Return a dict describes the amount of memory currently in use. The
@@ -2779,20 +2808,6 @@ class IStatsProducer(Interface):
         to be monitored, and numeric values.
         """
 
-class RIKeyGenerator(RemoteInterface):
-    __remote_name__ = "RIKeyGenerator.tahoe.allmydata.com"
-    """
-    Provides a service offering to make RSA key pairs.
-    """
-
-    def get_rsa_key_pair(key_size=int):
-        """
-        @param key_size: the size of the signature key.
-        @return: tuple(verifying_key, signing_key)
-        """
-        return TupleOf(str, str)
-
-
 class FileTooLargeError(Exception):
     pass
 
@@ -2815,3 +2830,56 @@ class InsufficientVersionError(Exception):
 
 class EmptyPathnameComponentError(Exception):
     """The webapi disallows empty pathname components."""
+
+class IConnectionStatus(Interface):
+    """
+    I hold information about the 'connectedness' for some reference.
+    Connections are an illusion, of course: only messages hold any meaning,
+    and they are fleeting. But for status displays, it is useful to pretend
+    that 'recently contacted' means a connection is established, and
+    'recently failed' means it is not.
+
+    This object is not 'live': it is created and populated when requested
+    from the connection manager, and it does not change after that point.
+    """
+
+    connected = Attribute(
+        """
+        True if we appear to be connected: we've been successful in
+        communicating with our target at some point in the past, and we
+        haven't experienced any errors since then.""")
+
+    last_connection_time = Attribute(
+        """
+        If is_connected() is True, this is a timestamp (seconds-since-epoch)
+        when we last transitioned from 'not connected' to 'connected', such
+        as when a TCP connect() operation completed and subsequent
+        negotiation was successful. Otherwise it is None.
+        """)
+
+    summary = Attribute(
+        """
+        A string with a brief summary of the current status, suitable for
+        display on an informational page. The more complete text from
+        last_connection_description would be appropriate for a tool-tip
+        popup.
+        """)
+
+    last_received_time = Attribute(
+        """
+        A timestamp (seconds-since-epoch) describing the last time we heard
+        anything (including low-level keep-alives or inbound requests) from
+        the other side.
+        """)
+
+    non_connected_statuses = Attribute(
+        """
+        A dictionary, describing all connections that are not (yet)
+        successful. When connected is True, this will only be the losing
+        attempts. When connected is False, this will include all attempts.
+
+        This maps a connection description string (for foolscap this is a
+        connection hint and the handler it is using) to the status string
+        (pending, connected, refused, or other errors).
+        """)
+

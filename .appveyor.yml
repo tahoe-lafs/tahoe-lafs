@@ -1,0 +1,55 @@
+# adapted from https://packaging.python.org/en/latest/appveyor/
+
+environment:
+
+  matrix:
+
+    # For Python versions available on Appveyor, see
+    # http://www.appveyor.com/docs/installed-software#python
+    - PYTHON: "C:\\Python27"
+    - PYTHON: "C:\\Python27-x64"
+    #  DISTUTILS_USE_SDK: "1"
+    #  TOX_TESTENV_PASSENV: "DISTUTILS_USE_SDK INCLUDE LIB"
+
+install:
+  - |
+    %PYTHON%\python.exe -m pip install -U pip
+    %PYTHON%\python.exe -m pip install wheel tox virtualenv
+
+# note:
+# %PYTHON% has: python.exe
+# %PYTHON%\Scripts has: pip.exe, tox.exe (and others installed by bare pip)
+
+
+build: off
+
+# we run from C:\projects\tahoe-lafs
+
+test_script:
+  # Put your test command here.
+  # Note that you must use the environment variable %PYTHON% to refer to
+  # the interpreter you're using - Appveyor does not do anything special
+  # to put the Python evrsion you want to use on PATH.
+  - |
+    %PYTHON%\Scripts\tox.exe -e py
+
+after_test:
+  # This builds the main tahoe wheel, and wheels for all dependencies.
+  # Again, you only need build.cmd if you're building C extensions for
+  # 64-bit Python 3.3/3.4. And you need to use %PYTHON% to get the correct
+  # interpreter
+  - |
+    %PYTHON%\python.exe setup.py bdist_wheel
+    %PYTHON%\python.exe -m pip wheel -w dist .
+
+artifacts:
+  # bdist_wheel puts your built wheel in the dist directory
+  # "pip wheel -w dist ." puts all the dependency wheels there too
+  # this gives us a zipfile with everything
+  - path: dist
+
+#on_success:
+#  You can use this step to upload your artifacts to a public website.
+#  See Appveyor's documentation for more details. Or you can simply
+#  access your wheels from the Appveyor "artifacts" tab for your build.
+  

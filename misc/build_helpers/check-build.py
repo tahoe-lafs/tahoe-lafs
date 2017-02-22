@@ -27,7 +27,8 @@ for line in open(build_out, "r"):
         # doesn't even try to check for new packages on remote hosts
         # if it has all the packages that it needs locally, but we
         # currently don't enforce that stronger requirement.
-        if line.startswith("Downloading http:"):
+        if (line.startswith("Downloading http:") or
+            line.startswith("Downloading https:")):
             print line,
             good = False
 if good:

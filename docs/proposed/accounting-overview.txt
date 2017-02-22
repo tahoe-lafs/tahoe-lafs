@@ -51,6 +51,12 @@ to not implement pro-rated quotas, because such a scheme would make usage
 values hard to predict: a given account might suddenly go over quota solely
 because of a third party's actions.
 
+== Accounting Implementation ==
+
+The implementation of these accounting features are tracked in this ticket:
+
+https://tahoe-lafs.org/trac/tahoe-lafs/ticket/666
+
 == Authority Flow ==
 
 The authority to consume space on the storage server originates, of course,

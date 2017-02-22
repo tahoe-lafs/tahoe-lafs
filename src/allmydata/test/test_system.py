@@ -1,24 +1,24 @@
-from base64 import b32encode
-import os, sys, time, simplejson
-from cStringIO import StringIO
+
+import os, re, sys, time, simplejson
+
 from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.internet import threads # CLI tests use deferToThread
+from twisted.application import service
 
 import allmydata
-from allmydata import uri
+from allmydata import client, uri
+from allmydata.introducer.server import IntroducerNode
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
 from allmydata.immutable.literal import LiteralFileNode
 from allmydata.immutable.filenode import ImmutableFileNode
-from allmydata.util import idlib, mathutil
+from allmydata.util import idlib, mathutil, pollmixin, fileutil, iputil
 from allmydata.util import log, base32
-from allmydata.util.verlib import NormalizedVersion
-from allmydata.util.encodingutil import quote_output, unicode_to_argv, get_filesystem_encoding
+from allmydata.util.encodingutil import quote_output, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
-from allmydata.scripts import runner
+from allmydata.stats import StatsGathererService
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
      NoSuchChildError, NoSharesError
 from allmydata.monitor import Monitor
@@ -26,21 +26,603 @@ from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
 from allmydata.mutable.publish import MutableData
 
-import foolscap
-from foolscap.api import DeadReferenceError, fireEventually
+from foolscap.api import DeadReferenceError, fireEventually, flushEventualQueue
 from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error
 
-from allmydata.test.common import SystemTestMixin
+from .common import TEST_RSA_KEY_SIZE
 
 # TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
+from . import common_util as testutil
+from .common_util import run_cli
 
 LARGE_DATA = """
 This is some data to publish to the remote grid.., which needs to be large
 enough to not fit inside a LIT uri.
 """
+
+# our system test uses the same Tub certificates each time, to avoid the
+# overhead of key generation
+SYSTEM_TEST_CERTS = [
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQyMDVaFw0wOTA3MjUyMjQyMDVaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAxHCWajrR
+2h/iurw8k93m8WUdE3xypJiiAITw7GkKlKbCLD+dEce2MXwVVYca0n/MZZsj89Cu
+Ko0lLjksMseoSDoj98iEmVpaY5mc2ntpQ+FXdoEmPP234XRWEg2HQ+EaK6+WkGQg
+DDXQvFJCVCQk/n1MdAwZZ6vqf2ITzSuD44kCAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQBn6qPKGdFjWJy7sOOTUFfm/THhHQqAh1pBDLkjR+OtzuobCoP8n8J1LNG3Yxds
+Jj7NWQL7X5TfOlfoi7e9jK0ujGgWh3yYU6PnHzJLkDiDT3LCSywQuGXCjh0tOStS
+2gaCmmAK2cfxSStKzNcewl2Zs8wHMygq8TLFoZ6ozN1+xQ==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQDEcJZqOtHaH+K6vDyT3ebxZR0TfHKkmKIAhPDsaQqUpsIsP50R
+x7YxfBVVhxrSf8xlmyPz0K4qjSUuOSwyx6hIOiP3yISZWlpjmZzae2lD4Vd2gSY8
+/bfhdFYSDYdD4Rorr5aQZCAMNdC8UkJUJCT+fUx0DBlnq+p/YhPNK4PjiQIDAQAB
+AoGAZyDMdrymiyMOPwavrtlicvyohSBid3MCKc+hRBvpSB0790r2RO1aAySndp1V
+QYmCXx1RhKDbrs8m49t0Dryu5T+sQrFl0E3usAP3vvXWeh4jwJ9GyiRWy4xOEuEQ
+3ewjbEItHqA/bRJF0TNtbOmZTDC7v9FRPf2bTAyFfTZep5kCQQD33q1RA8WUYtmQ
+IArgHqt69i421lpXlOgqotFHwTx4FiGgVzDQCDuXU6txB9EeKRM340poissav/n6
+bkLZ7/VDAkEAyuIPkeI59sE5NnmW+N47NbCfdM1Smy1YxZpv942EmP9Veub5N0dw
+iK5bLAgEguUIjpTsh3BRmsE9Xd+ItmnRQwJBAMZhbg19G1EbnE0BmDKv2UbcaThy
+bnPSNc6J6T2opqDl9ZvCrMqTDD6dNIWOYAvni/4a556sFsoeBBAu10peBskCQE6S
+cB86cuJagLLVMh/dySaI6ahNoFFSpY+ZuQUxfInYUR2Q+DFtbGqyw8JwtHaRBthZ
+WqU1XZVGg2KooISsxIsCQQD1PS7//xHLumBb0jnpL7n6W8gmiTyzblT+0otaCisP
+fN6rTlwV1o8VsOUAz0rmKO5RArCbkmb01WtMgPCDBYkk
+-----END RSA PRIVATE KEY-----
+""", # 0
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQyMDVaFw0wOTA3MjUyMjQyMDVaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAs9CALdmW
+kJ6r0KPSLdGCA8rzQKxWayrMckT22ZtbRv3aw6VA96dWclpY+T2maV0LrAzmMSL8
+n61ydJHM33iYDOyWbwHWN45XCjY/e20PL54XUl/DmbBHEhQVQLIfCldcRcnWEfoO
+iOhDJfWpDO1dmP/aOYLdkZCZvBtPAfyUqRcCAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQAN9eaCREkzzk4yPIaWYkWHg3Igs1vnOR/iDw3OjyxO/xJFP2lkA2WtrwL2RTRq
+dxA8gwdPyrWgdiZElwZH8mzTJ4OdUXLSMclLOg9kvH6gtSvhLztfEDwDP1wRhikh
+OeWWu2GIC+uqFCI1ftoGgU+aIa6yrHswf66rrQvBSSvJPQ==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQCz0IAt2ZaQnqvQo9It0YIDyvNArFZrKsxyRPbZm1tG/drDpUD3
+p1ZyWlj5PaZpXQusDOYxIvyfrXJ0kczfeJgM7JZvAdY3jlcKNj97bQ8vnhdSX8OZ
+sEcSFBVAsh8KV1xFydYR+g6I6EMl9akM7V2Y/9o5gt2RkJm8G08B/JSpFwIDAQAB
+AoGBAIUy5zCPpSP+FeJY6CG+t6Pdm/IFd4KtUoM3KPCrT6M3+uzApm6Ny9Crsor2
+qyYTocjSSVaOxzn1fvpw4qWLrH1veUf8ozMs8Z0VuPHD1GYUGjOXaBPXb5o1fQL9
+h7pS5/HrDDPN6wwDNTsxRf/fP58CnfwQUhwdoxcx8TnVmDQxAkEA6N3jBXt/Lh0z
+UbXHhv3QBOcqLZA2I4tY7wQzvUvKvVmCJoW1tfhBdYQWeQv0jzjL5PzrrNY8hC4l
+8+sFM3h5TwJBAMWtbFIEZfRSG1JhHK3evYHDTZnr/j+CdoWuhzP5RkjkIKsiLEH7
+2ZhA7CdFQLZF14oXy+g1uVCzzfB2WELtUbkCQQDKrb1XWzrBlzbAipfkXWs9qTmj
+uJ32Z+V6+0xRGPOXxJ0sDDqw7CeFMfchWg98zLFiV+SEZV78qPHtkAPR3ayvAkB+
+hUMhM4N13t9x2IoclsXAOhp++9bdG0l0woHyuAdOPATUw6iECwf4NQVxFRgYEZek
+4Ro3Y7taddrHn1dabr6xAkAic47OoLOROYLpljmJJO0eRe3Z5IFe+0D2LfhAW3LQ
+JU+oGq5pCjfnoaDElRRZn0+GmunnWeQEYKoflTi/lI9d
+-----END RSA PRIVATE KEY-----
+""", # 1
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQyMDZaFw0wOTA3MjUyMjQyMDZaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAsxG7LTrz
+DF+9wegOR/BRJhjSumPUbYQnNAUKtPraFsGjAJILP44AHdnHt1MONLgTeX1ynapo
+q6O/q5cdKtBB7uEh7FpkLCCwpZt/m0y79cynn8AmWoQVgl8oS0567UmPeJnTzFPv
+dmT5dlaQALeX5YGceAsEvhmAsdOMttaor38CAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQA345rxotfvh2kfgrmRzAyGewVBV4r23Go30GSZir8X2GoH3qKNwO4SekAohuSw
+AiXzLUbwIdSRSqaLFxSC7Duqc9eIeFDAWjeEmpfFLBNiw3K8SLA00QrHCUXnECTD
+b/Kk6OGuvPOiuuONVjEuEcRdCH3/Li30D0AhJaMynjhQJQ==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQCzEbstOvMMX73B6A5H8FEmGNK6Y9RthCc0BQq0+toWwaMAkgs/
+jgAd2ce3Uw40uBN5fXKdqmiro7+rlx0q0EHu4SHsWmQsILClm3+bTLv1zKefwCZa
+hBWCXyhLTnrtSY94mdPMU+92ZPl2VpAAt5flgZx4CwS+GYCx04y21qivfwIDAQAB
+AoGBAIlhFg/aRPL+VM9539LzHN60dp8GzceDdqwjHhbAySZiQlLCuJx2rcI4/U65
+CpIJku9G/fLV9N2RkA/trDPXeGyqCTJfnNzyZcvvMscRMFqSGyc21Y0a+GS8bIxt
+1R2B18epSVMsWSWWMypeEgsfv29LV7oSWG8UKaqQ9+0h63DhAkEA4i2L/rori/Fb
+wpIBfA+xbXL/GmWR7xPW+3nG3LdLQpVzxz4rIsmtO9hIXzvYpcufQbwgVACyMmRf
+TMABeSDM7wJBAMquEdTaVXjGfH0EJ7z95Ys2rYTiCXjBfyEOi6RXXReqV9SXNKlN
+aKsO22zYecpkAjY1EdUdXWP/mNVEybjpZnECQQCcuh0JPS5RwcTo9c2rjyBOjGIz
+g3B1b5UIG2FurmCrWe6pgO3ZJFEzZ/L2cvz0Hj5UCa2JKBZTDvRutZoPumfnAkAb
+nSW+y1Rz1Q8m9Ub4v9rjYbq4bRd/RVWtyk6KQIDldYbr5wH8wxgsniSVKtVFFuUa
+P5bDY3HS6wMGo42cTOhxAkAcdweQSQ3j7mfc5vh71HeAC1v/VAKGehGOUdeEIQNl
+Sb2WuzpZkbfsrVzW6MdlgY6eE7ufRswhDPLWPC8MP0d1
+-----END RSA PRIVATE KEY-----
+""", # 2
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQyMDZaFw0wOTA3MjUyMjQyMDZaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAxnH+pbOS
+qlJlsHpKUQtV0oN1Mv+ESG+yUDxStFFGjkJv/UIRzpxqFqY/6nJ3D03kZsDdcXyi
+CfV9hPYQaVNMn6z+puPmIagfBQ0aOyuI+nUhCttZIYD9071BjW5bCMX5NZWL/CZm
+E0HdAZ77H6UrRckJ7VR8wAFpihBxD5WliZcCAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQAwXqY1Sjvp9JSTHKklu7s0T6YmH/BKSXrHpS2xO69svK+ze5/+5td3jPn4Qe50
+xwRNZSFmSLuJLfCO32QJSJTB7Vs5D3dNTZ2i8umsaodm97t8hit7L75nXRGHKH//
+xDVWAFB9sSgCQyPMRkL4wB4YSfRhoSKVwMvaz+XRZDUU0A==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICXAIBAAKBgQDGcf6ls5KqUmWwekpRC1XSg3Uy/4RIb7JQPFK0UUaOQm/9QhHO
+nGoWpj/qcncPTeRmwN1xfKIJ9X2E9hBpU0yfrP6m4+YhqB8FDRo7K4j6dSEK21kh
+gP3TvUGNblsIxfk1lYv8JmYTQd0BnvsfpStFyQntVHzAAWmKEHEPlaWJlwIDAQAB
+AoGAdHNMlXwtItm7ZrY8ihZ2xFP0IHsk60TwhHkBp2LSXoTKJvnwbSgIcUYZ18BX
+8Zkp4MpoqEIU7HcssyuaMdR572huV2w0D/2gYJQLQ5JapaR3hMox3YG4wjXasN1U
+1iZt7JkhKlOy+ElL5T9mKTE1jDsX2RAv4WALzMpYFo7vs4ECQQDxqrPaqRQ5uYS/
+ejmIk05nM3Q1zmoLtMDrfRqrjBhaf/W3hqGihiqN2kL3PIIYcxSRWiyNlYXjElsR
+2sllBTe3AkEA0jcMHVThwKt1+Ce5VcE7N6hFfbsgISTjfJ+Q3K2NkvJkmtE8ZRX5
+XprssnPN8owkfF5yuKbcSZL3uvaaSGN9IQJAfTVnN9wwOXQwHhDSbDt9/KRBCnum
+n+gHqDrKLaVJHOJ9SZf8eLswoww5c+UqtkYxmtlwie61Tp+9BXQosilQ4wJBAIZ1
+XVNZmriBM4jR59L5MOZtxF0ilu98R+HLsn3kqLyIPF9mXCoQPxwLHkEan213xFKk
+mt6PJDIPRlOZLqAEuuECQFQMCrn0VUwPg8E40pxMwgMETvVflPs/oZK1Iu+b7+WY
+vBptAyhMu31fHQFnJpiUOyHqSZnOZyEn1Qu2lszNvUg=
+-----END RSA PRIVATE KEY-----
+""", # 3
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQyMDZaFw0wOTA3MjUyMjQyMDZaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAnjiOwipn
+jigDuNMfNG/tBJhPwYUHhSbQdvrTubhsxw1oOq5XpNqUwRtC8hktOKM3hghyqExP
+62EOi0aJBkRhtwtPSLBCINptArZLfkog/nTIqVv4eLEzJ19nTi/llHHWKcgA6XTI
+sU/snUhGlySA3RpETvXqIJTauQRZz0kToSUCAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQCQ+u/CsX5WC5m0cLrpyIS6qZa62lrB3mj9H1aIQhisT5kRsMz3FJ1aOaS8zPRz
+w0jhyRmamCcSsWf5WK539iOtsXbKMdAyjNtkQO3g+fnsLgmznAjjst24jfr+XU59
+0amiy1U6TY93gtEBZHtiLldPdUMsTuFbBlqbcMBQ50x9rA==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICXAIBAAKBgQCeOI7CKmeOKAO40x80b+0EmE/BhQeFJtB2+tO5uGzHDWg6rlek
+2pTBG0LyGS04ozeGCHKoTE/rYQ6LRokGRGG3C09IsEIg2m0Ctkt+SiD+dMipW/h4
+sTMnX2dOL+WUcdYpyADpdMixT+ydSEaXJIDdGkRO9eoglNq5BFnPSROhJQIDAQAB
+AoGAAPrst3s3xQOucjismtCOsVaYN+SxFTwWUoZfRWlFEz6cBLELzfOktEWM9p79
+TrqEH4px22UNobGqO2amdql5yXwEFVhYQkRB8uDA8uVaqpL8NLWTGPRXxZ2DSU+n
+7/FLf/TWT3ti/ZtXaPVRj6E2/Mq9AVEVOjUYzkNjM02OxcECQQDKEqmPbdZq2URU
+7RbUxkq5aTp8nzAgbpUsgBGQ9PDAymhj60BDEP0q28Ssa7tU70pRnQ3AZs9txgmL
+kK2g97FNAkEAyHH9cIb6qXOAJPIr/xamFGr5uuYw9TJPz/hfVkVimW/aZnBB+e6Q
+oALJBDKJWeYPzdNbouJYg8MeU0qWdZ5DOQJADUk+1sxc/bd9U6wnBSRog1pU2x7I
+VkmPC1b8ULCaJ8LnLDKqjf5O9wNuIfwPXB1DoKwX3F+mIcyUkhWYJO5EPQJAUj5D
+KMqZSrGzYHVlC/M1Daee88rDR7fu+3wDUhiCDkbQq7tftrbl7GF4LRq3NIWq8l7I
+eJq6isWiSbaO6Y+YMQJBAJFBpVhlY5Px2BX5+Hsfq6dSP3sVVc0eHkdsoZFFxq37
+fksL/q2vlPczvBihgcxt+UzW/UrNkelOuX3i57PDvFs=
+-----END RSA PRIVATE KEY-----
+""", # 4
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQyMDZaFw0wOTA3MjUyMjQyMDZaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAsCQuudDF
+zgmY5tDpT0TkUo8fpJ5JcvgCkLFpSDD8REpXhLFkHWhTmTj3CAxfv4lA3sQzHZxe
+4S9YCb5c/VTbFEdgwc/wlxMmJiz2jYghdmWPBb8pBEk31YihIhC+u4kex6gJBH5y
+ixiZ3PPRRMaOBBo+ZfM50XIyWbFOOM/7FwcCAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQB4cFURaiiUx6n8eS4j4Vxrii5PtsaNEI4acANFSYknGd0xTP4vnmoivNmo5fWE
+Q4hYtGezNu4a9MnNhcQmI20KzXmvhLJtkwWCgGOVJtMem8hDWXSALV1Ih8hmVkGS
+CI1elfr9eyguunGp9eMMQfKhWH52WHFA0NYa0Kpv5BY33A==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICWwIBAAKBgQCwJC650MXOCZjm0OlPRORSjx+knkly+AKQsWlIMPxESleEsWQd
+aFOZOPcIDF+/iUDexDMdnF7hL1gJvlz9VNsUR2DBz/CXEyYmLPaNiCF2ZY8FvykE
+STfViKEiEL67iR7HqAkEfnKLGJnc89FExo4EGj5l8znRcjJZsU44z/sXBwIDAQAB
+AoGABA7xXKqoxBSIh1js5zypHhXaHsre2l1Igdj0mgs25MPpvE7yBZNvyan8Vx0h
+36Hj8r4Gh3og3YNfvem67sNTwNwONY0ep+Xho/3vG0jFATGduSXdcT04DusgZNqg
+UJqW75cqxrD6o/nya5wUoN9NL5pcd5AgVMdOYvJGbrwQuaECQQDiCs/5dsUkUkeC
+Tlur1wh0wJpW4Y2ctO3ncRdnAoAA9y8dELHXMqwKE4HtlyzHY7Bxds/BDh373EVK
+rsdl+v9JAkEAx3xTmsOQvWa1tf/O30sdItVpGogKDvYqkLCNthUzPaL85BWB03E2
+xunHcVVlqAOE5tFuw0/UEyEkOaGlNTJTzwJAPIVel9FoCUiKYuYt/z1swy3KZRaw
+/tMmm4AZHvh5Y0jLcYHFy/OCQpRkhkOitqQHWunPyEXKW2PnnY5cTv68GQJAHG7H
+B88KCUTjb25nkQIGxBlA4swzCtDhXkAb4rEA3a8mdmfuWjHPyeg2ShwO4jSmM7P0
+Iph1NMjLff9hKcTjlwJARpItOFkYEdtSODC7FMm7KRKQnNB27gFAizsOYWD4D2b7
+w1FTEZ/kSA9wSNhyNGt7dgUo6zFhm2u973HBCUb3dg==
+-----END RSA PRIVATE KEY-----
+""", # 5
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQ3NThaFw0wOTA3MjUyMjQ3NThaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAvhTRj1dA
+NOfse/UBeTfMekZKxZHsNPr+qBYaveWAHDded/BMyMgaMV2n6HQdiDaRjJkzjHCF
+3xBtpIJeEGUqfrF0ob8BIZXy3qk68eX/0CVUbgmjSBN44ahlo63NshyXmZtEAkRV
+VE/+cRKw3N2wtuTed5xwfNcL6dg4KTOEYEkCAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQCN+CLuVwLeWjSdVbdizYyrOVckqtwiIHG9BbGMlcIdm0qpvD7V7/sN2csk5LaT
+BNiHi1t5628/4UHqqodYmFw8ri8ItFwB+MmTJi11CX6dIP9OUhS0qO8Z/BKtot7H
+j04oNwl+WqZZfHIYwTIEL0HBn60nOvCQPDtnWG2BhpUxMA==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQC+FNGPV0A05+x79QF5N8x6RkrFkew0+v6oFhq95YAcN1538EzI
+yBoxXafodB2INpGMmTOMcIXfEG2kgl4QZSp+sXShvwEhlfLeqTrx5f/QJVRuCaNI
+E3jhqGWjrc2yHJeZm0QCRFVUT/5xErDc3bC25N53nHB81wvp2DgpM4RgSQIDAQAB
+AoGALl2BqIdN4Bnac3oV++2CcSkIQB0SEvJOf820hDGhCEDxSCxTbn5w9S21MVxx
+f7Jf2n3cNxuTbA/jzscGDtW+gXCs+WAbAr5aOqHLUPGEobhKQrQT2hrxQHyv3UFp
+0tIl9eXFknOyVAaUJ3athK5tyjSiCZQQHLGzeLaDSKVAPqECQQD1GK7DkTcLaSvw
+hoTJ3dBK3JoKT2HHLitfEE0QV58mkqFMjofpe+nyeKWvEb/oB4WBp/cfTvtf7DJK
+zl1OSf11AkEAxomWmJeub0xpqksCmnVI1Jt1mvmcE4xpIcXq8sxzLHRc2QOv0kTw
+IcFl4QcN6EQBmE+8kl7Tx8SPAVKfJMoZBQJAGsUFYYrczjxAdlba7glyFJsfn/yn
+m0+poQpwwFYxpc7iGzB+G7xTAw62WfbAVSFtLYog7aR8xC9SFuWPP1vJeQJBAILo
+xBj3ovgWTXIRJbVM8mnl28UFI0msgsHXK9VOw/6i93nMuYkPFbtcN14KdbwZ42dX
+5EIrLr+BNr4riW4LqDUCQQCbsEEpTmj3upKUOONPt+6CH/OOMjazUzYHZ/3ORHGp
+Q3Wt+I4IrR/OsiACSIQAhS4kBfk/LGggnj56DrWt+oBl
+-----END RSA PRIVATE KEY-----
+""", #6
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQ3NThaFw0wOTA3MjUyMjQ3NThaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAtKhx6sEA
+jn6HWc6T2klwlPn0quyHtATIw8V3ezP46v6g2rRS7dTywo4GTP4vX58l+sC9z9Je
+qhQ1rWSwMK4FmnDMZCu7AVO7oMIXpXdSz7l0bgCnNjvbpkA2pOfbB1Z8oj8iebff
+J33ID5DdkmCzqYVtKpII1o/5z7Jo292JYy8CAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQA0PYMA07wo9kEH4fv9TCfo+zz42Px6lUxrQBPxBvDiGYhk2kME/wX0IcoZPKTV
+WyBGmDAYWvFaHWbrbbTOfzlLWfYrDD913hCi9cO8iF8oBqRjIlkKcxAoe7vVg5Az
+ydVcrY+zqULJovWwyNmH1QNIQfMat0rj7fylwjiS1y/YsA==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICXAIBAAKBgQC0qHHqwQCOfodZzpPaSXCU+fSq7Ie0BMjDxXd7M/jq/qDatFLt
+1PLCjgZM/i9fnyX6wL3P0l6qFDWtZLAwrgWacMxkK7sBU7ugwheld1LPuXRuAKc2
+O9umQDak59sHVnyiPyJ5t98nfcgPkN2SYLOphW0qkgjWj/nPsmjb3YljLwIDAQAB
+AoGAU4CYRv22mCZ7wVLunDLdyr5ODMMPZnHfqj2XoGbBYz0WdIBs5GlNXAfxeZzz
+oKsbDvAPzANcphh5RxAHMDj/dT8rZOez+eJrs1GEV+crl1T9p83iUkAuOJFtgUgf
+TtQBL9vHaj7DfvCEXcBPmN/teDFmAAOyUNbtuhTkRa3PbuECQQDwaqZ45Kr0natH
+V312dqlf9ms8I6e873pAu+RvA3BAWczk65eGcRjEBxVpTvNEcYKFrV8O5ZYtolrr
+VJl97AfdAkEAwF4w4KJ32fLPVoPnrYlgLw86NejMpAkixblm8cn51avPQmwbtahb
+BZUuca22IpgDpjeEk5SpEMixKe/UjzxMewJBALy4q2cY8U3F+u6sshLtAPYQZIs3
+3fNE9W2dUKsIQvRwyZMlkLN7UhqHCPq6e+HNTM0MlCMIfAPkf4Rdy4N6ZY0CQCKE
+BAMaQ6TwgzFDw5sIjiCDe+9WUPmRxhJyHL1/fvtOs4Z4fVRP290ZklbFU2vLmMQH
+LBuKzfb7+4XJyXrV1+cCQBqfPFQQZLr5UgccABYQ2jnWVbJPISJ5h2b0cwXt+pz/
+8ODEYLjqWr9K8dtbgwdpzwbkaGhQYpyvsguMvNPMohs=
+-----END RSA PRIVATE KEY-----
+""", #7
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQ3NThaFw0wOTA3MjUyMjQ3NThaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAnBfNHycn
+5RnYzDN4EWTk2q1BBxA6ZYtlG1WPkj5iKeaYKzUk58zBL7mNOA0ucq+yTwh9C4IC
+EutWPaKBSKY5XI+Rdebh+Efq+urtOLgfJHlfcCraEx7hYN+tqqMVgEgnO/MqIsn1
+I1Fvnp89mSYbQ9tmvhSH4Hm+nbeK6iL2tIsCAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQBt9zxfsKWoyyV764rRb6XThuTDMNSDaVofqePEWjudAbDu6tp0pHcrL0XpIrnT
+3iPgD47pdlwQNbGJ7xXwZu2QTOq+Lv62E6PCL8FljDVoYqR3WwJFFUigNvBT2Zzu
+Pxx7KUfOlm/M4XUSMu31sNJ0kQniBwpkW43YmHVNFb/R7g==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQCcF80fJyflGdjMM3gRZOTarUEHEDpli2UbVY+SPmIp5pgrNSTn
+zMEvuY04DS5yr7JPCH0LggIS61Y9ooFIpjlcj5F15uH4R+r66u04uB8keV9wKtoT
+HuFg362qoxWASCc78yoiyfUjUW+enz2ZJhtD22a+FIfgeb6dt4rqIva0iwIDAQAB
+AoGBAIHstcnWd7iUeQYPWUNxLaRvTY8pjNH04yWLZEOgNWkXDVX5mExw++RTmB4t
+qpm/cLWkJSEtB7jjthb7ao0j/t2ljqfr6kAbClDv3zByAEDhOu8xB/5ne6Ioo+k2
+dygC+GcVcobhv8qRU+z0fpeXSP8yS1bQQHOaa17bSGsncvHRAkEAzwsn8jBTOqaW
+6Iymvr7Aql++LiwEBrqMMRVyBZlkux4hiKa2P7XXEL6/mOPR0aI2LuCqE2COrO7R
+0wAFZ54bjwJBAMEAe6cs0zI3p3STHwA3LoSZB81lzLhGUnYBvOq1yoDSlJCOYpld
+YM1y3eC0vwiOnEu3GG1bhkW+h6Kx0I/qyUUCQBiH9NqwORxI4rZ4+8S76y4EnA7y
+biOx9KxYIyNgslutTUHYpt1TmUDFqQPfclvJQWw6eExFc4Iv5bJ/XSSSyicCQGyY
+5PrwEfYTsrm5fpwUcKxTnzxHp6WYjBWybKZ0m/lYhBfCxmAdVrbDh21Exqj99Zv0
+7l26PhdIWfGFtCEGrzECQQCtPyXa3ostSceR7zEKxyn9QBCNXKARfNNTBja6+VRE
+qDC6jLqzu/SoOYaqa13QzCsttO2iZk8Ygfy3Yz0n37GE
+-----END RSA PRIVATE KEY-----
+""", #8
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQ3NThaFw0wOTA3MjUyMjQ3NThaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA4mnLf+x0
+CWKDKP5PLZ87t2ReSDE/J5QoI5VhE0bXaahdhPrQTC2wvOpT+N9nzEpI9ASh/ejV
+kYGlc03nNKRL7zyVM1UyGduEwsRssFMqfyJhI1p+VmxDMWNplex7mIAheAdskPj3
+pwi2CP4VIMjOj368AXvXItPzeCfAhYhEVaMCAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQAEzmwq5JFI5Z0dX20m9rq7NKgwRyAH3h5aE8bdjO8nEc69qscfDRx79Lws3kK8
+A0LG0DhxKB8cTNu3u+jy81tjcC4pLNQ5IKap9ksmP7RtIHfTA55G8M3fPl2ZgDYQ
+ZzsWAZvTNXd/eme0SgOzD10rfntA6ZIgJTWHx3E0RkdwKw==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQDiact/7HQJYoMo/k8tnzu3ZF5IMT8nlCgjlWETRtdpqF2E+tBM
+LbC86lP432fMSkj0BKH96NWRgaVzTec0pEvvPJUzVTIZ24TCxGywUyp/ImEjWn5W
+bEMxY2mV7HuYgCF4B2yQ+PenCLYI/hUgyM6PfrwBe9ci0/N4J8CFiERVowIDAQAB
+AoGAQYTl+8XcKl8Un4dAOG6M5FwqIHAH25c3Klzu85obehrbvUCriG/sZi7VT/6u
+VeLlS6APlJ+NNgczbrOLhaNJyYzjICSt8BI96PldFUzCEkVlgE+29pO7RNoZmDYB
+dSGyIDrWdVYfdzpir6kC0KDcrpA16Sc+/bK6Q8ALLRpC7QECQQD7F7fhIQ03CKSk
+lS4mgDuBQrB/52jXgBumtjp71ANNeaWR6+06KDPTLysM+olsh97Q7YOGORbrBnBg
+Y2HPnOgjAkEA5taZaMfdFa8V1SPcX7mgCLykYIujqss0AmauZN/24oLdNE8HtTBF
+OLaxE6PnQ0JWfx9KGIy3E0V3aFk5FWb0gQJBAO4KFEaXgOG1jfCBhNj3JHJseMso
+5Nm4F366r0MJQYBHXNGzqphB2K/Svat2MKX1QSUspk2u/a0d05dtYCLki6UCQHWS
+sChyQ+UbfF9HGKOZBC3vBzo1ZXNEdIUUj5bJjBHq3YgbCK38nAU66A482TmkvDGb
+Wj4OzeB+7Ua0yyJfggECQQDVlAa8HqdAcrbEwI/YfPydFsavBJ0KtcIGK2owQ+dk
+dhlDnpXDud/AtX4Ft2LaquQ15fteRrYjjwI9SFGytjtp
+-----END RSA PRIVATE KEY-----
+""", #9
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQ3NThaFw0wOTA3MjUyMjQ3NThaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAueLfowPT
+kXXtHeU2FZSz2mJhHmjqeyI1oMoyyggonccx65vMxaRfljnz2dOjVVYpCOn/LrdP
+wVxHO8KNDsmQeWPRjnnBa2dFqqOnp/8gEJFJBW7K/gI9se6o+xe9QIWBq6d/fKVR
+BURJe5TycLogzZuxQn1xHHILa3XleYuHAbMCAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQBEC1lfC3XK0galQC96B7faLpnQmhn5lX2FUUoFIQQtBTetoE+gTqnLSOIZcOK4
+pkT3YvxUvgOV0LOLClryo2IknMMGWRSAcXtVUBBLRHVTSSuVUyyLr5kdRU7B4E+l
+OU0j8Md/dzlkm//K1bzLyUaPq204ofH8su2IEX4b3IGmAQ==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICWwIBAAKBgQC54t+jA9ORde0d5TYVlLPaYmEeaOp7IjWgyjLKCCidxzHrm8zF
+pF+WOfPZ06NVVikI6f8ut0/BXEc7wo0OyZB5Y9GOecFrZ0Wqo6en/yAQkUkFbsr+
+Aj2x7qj7F71AhYGrp398pVEFREl7lPJwuiDNm7FCfXEccgtrdeV5i4cBswIDAQAB
+AoGAO4PnJHNaLs16AMNdgKVevEIZZDolMQ1v7C4w+ryH/JRFaHE2q+UH8bpWV9zK
+A82VT9RTrqpkb71S1VBiB2UDyz263XdAI/N2HcIVMmfKb72oV4gCI1KOv4DfFwZv
+tVVcIdVEDBOZ2TgqK4opGOgWMDqgIAl2z3PbsIoNylZHEJECQQDtQeJFhEJGH4Qz
+BGpdND0j2nnnJyhOFHJqikJNdul3uBwmxTK8FPEUUH/rtpyUan3VMOyDx3kX4OQg
+GDNSb32rAkEAyJIZIJ0EMRHVedyWsfqR0zTGKRQ+qsc3sCfyUhFksWms9jsSS0DT
+tVeTdC3F6EIAdpKOGhSyfBTU4jxwbFc0GQJADI4L9znEeAl66Wg2aLA2/Aq3oK/F
+xjv2wgSG9apxOFCZzMNqp+FD0Jth6YtEReZMuldYbLDFi6nu6HPfY2Fa+QJAdpm1
+lAxk6yMxiZK/5VRWoH6HYske2Vtd+aNVbePtF992ME/z3F3kEkpL3hom+dT1cyfs
+MU3l0Ot8ip7Ul6vlGQJAegNzpcfl2GFSdWQMxQ+nN3woKnPqpR1M3jgnqvo7L4Xe
+JW3vRxvfdrUuzdlvZ/Pbsu/vOd+cuIa4h0yD5q3N+g==
+-----END RSA PRIVATE KEY-----
+""", #10
+"""-----BEGIN CERTIFICATE-----
+MIIBnjCCAQcCAgCEMA0GCSqGSIb3DQEBBAUAMBcxFTATBgNVBAMUDG5ld3BiX3Ro
+aW5neTAeFw0wODA3MjUyMjQ3NThaFw0wOTA3MjUyMjQ3NThaMBcxFTATBgNVBAMU
+DG5ld3BiX3RoaW5neTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAruBhwk+J
+XdlwfKXXN8K+43JyEYCV7Fp7ZiES4t4AEJuQuBqJVMxpzeZzu2t/vVb59ThaxxtY
+NGD3Xy6Og5dTv//ztWng8P7HwwvfbrUICU6zo6JAhg7kfaNa116krCYOkC/cdJWt
+o5W+zsDmI1jUVGH0D73h29atc1gn6wLpAsMCAwEAATANBgkqhkiG9w0BAQQFAAOB
+gQAEJ/ITGJ9lK/rk0yHcenW8SHsaSTlZMuJ4yEiIgrJ2t71Rd6mtCC/ljx9USvvK
+bF500whTiZlnWgKi02boBEKa44z/DytF6pljeNPefBQSqZyUByGEb/8Mn58Idyls
+q4/d9iKXMPvbpQdcesOzgOffFZevLQSWyPRaIdYBOOiYUA==
+-----END CERTIFICATE-----
+-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQCu4GHCT4ld2XB8pdc3wr7jcnIRgJXsWntmIRLi3gAQm5C4GolU
+zGnN5nO7a3+9Vvn1OFrHG1g0YPdfLo6Dl1O///O1aeDw/sfDC99utQgJTrOjokCG
+DuR9o1rXXqSsJg6QL9x0la2jlb7OwOYjWNRUYfQPveHb1q1zWCfrAukCwwIDAQAB
+AoGAcZAXC/dYrlBpIxkTRQu7qLqGZuVI9t7fabgqqpceFargdR4Odrn0L5jrKRer
+MYrM8bjyAoC4a/NYUUBLnhrkcCQWO9q5fSQuFKFVWHY53SM63Qdqk8Y9Fmy/h/4c
+UtwZ5BWkUWItvnTMgb9bFcvSiIhEcNQauypnMpgNknopu7kCQQDlSQT10LkX2IGT
+bTUhPcManx92gucaKsPONKq2mP+1sIciThevRTZWZsxyIuoBBY43NcKKi8NlZCtj
+hhSbtzYdAkEAw0B93CXfso8g2QIMj/HJJz/wNTLtg+rriXp6jh5HWe6lKWRVrce+
+1w8Qz6OI/ZP6xuQ9HNeZxJ/W6rZPW6BGXwJAHcTuRPA1p/fvUvHh7Q/0zfcNAbkb
+QlV9GL/TzmNtB+0EjpqvDo2g8XTlZIhN85YCEf8D5DMjSn3H+GMHN/SArQJBAJlW
+MIGPjNoh5V4Hae4xqBOW9wIQeM880rUo5s5toQNTk4mqLk9Hquwh/MXUXGUora08
+2XGpMC1midXSTwhaGmkCQQCdivptFEYl33PrVbxY9nzHynpp4Mi89vQF0cjCmaYY
+N8L+bvLd4BU9g6hRS8b59lQ6GNjryx2bUnCVtLcey4Jd
+-----END RSA PRIVATE KEY-----
+""", #11
+]
+
+# To disable the pre-computed tub certs, uncomment this line.
+#SYSTEM_TEST_CERTS = []
+
+def flush_but_dont_ignore(res):
+    d = flushEventualQueue()
+    def _done(ignored):
+        return res
+    d.addCallback(_done)
+    return d
+
+class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
+
+    # SystemTestMixin tests tend to be a lot of work, and we have a few
+    # buildslaves that are pretty slow, and every once in a while these tests
+    # run up against the default 120 second timeout. So increase the default
+    # timeout. Individual test cases can override this, of course.
+    timeout = 300
+
+    def setUp(self):
+        self.sparent = service.MultiService()
+        self.sparent.startService()
+
+        self.stats_gatherer = None
+        self.stats_gatherer_furl = None
+
+    def tearDown(self):
+        log.msg("shutting down SystemTest services")
+        d = self.sparent.stopService()
+        d.addBoth(flush_but_dont_ignore)
+        return d
+
+    def getdir(self, subdir):
+        return os.path.join(self.basedir, subdir)
+
+    def add_service(self, s):
+        s.setServiceParent(self.sparent)
+        return s
+
+    def set_up_nodes(self, NUMCLIENTS=5, use_stats_gatherer=False):
+        self.numclients = NUMCLIENTS
+        iv_dir = self.getdir("introducer")
+        if not os.path.isdir(iv_dir):
+            fileutil.make_dirs(iv_dir)
+            fileutil.write(os.path.join(iv_dir, 'tahoe.cfg'),
+                           "[node]\n" +
+                           u"nickname = introducer \u263A\n".encode('utf-8') +
+                           "web.port = tcp:0:interface=127.0.0.1\n")
+            if SYSTEM_TEST_CERTS:
+                os.mkdir(os.path.join(iv_dir, "private"))
+                f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
+                f.write(SYSTEM_TEST_CERTS[0])
+                f.close()
+        iv = IntroducerNode(basedir=iv_dir)
+        self.introducer = self.add_service(iv)
+        self._get_introducer_web()
+        d = defer.succeed(None)
+        if use_stats_gatherer:
+            d.addCallback(self._set_up_stats_gatherer)
+        d.addCallback(self._set_up_nodes_2)
+        if use_stats_gatherer:
+            d.addCallback(self._grab_stats)
+        return d
+
+    def _get_introducer_web(self):
+        f = open(os.path.join(self.getdir("introducer"), "node.url"), "r")
+        self.introweb_url = f.read().strip()
+        f.close()
+
+    def _set_up_stats_gatherer(self, res):
+        statsdir = self.getdir("stats_gatherer")
+        fileutil.make_dirs(statsdir)
+        portnum = iputil.allocate_tcp_port()
+        location = "tcp:127.0.0.1:%d" % portnum
+        fileutil.write(os.path.join(statsdir, "location"), location)
+        port = "tcp:%d:interface=127.0.0.1" % portnum
+        fileutil.write(os.path.join(statsdir, "port"), port)
+        self.stats_gatherer_svc = StatsGathererService(statsdir)
+        self.stats_gatherer = self.stats_gatherer_svc.stats_gatherer
+        self.add_service(self.stats_gatherer_svc)
+
+        d = fireEventually()
+        sgf = os.path.join(statsdir, 'stats_gatherer.furl')
+        def check_for_furl():
+            return os.path.exists(sgf)
+        d.addCallback(lambda junk: self.poll(check_for_furl, timeout=30))
+        def get_furl(junk):
+            self.stats_gatherer_furl = file(sgf, 'rb').read().strip()
+        d.addCallback(get_furl)
+        return d
+
+    def _set_up_nodes_2(self, res):
+        q = self.introducer
+        self.introducer_furl = q.introducer_url
+        self.clients = []
+        basedirs = []
+        for i in range(self.numclients):
+            basedir = self.getdir("client%d" % i)
+            basedirs.append(basedir)
+            fileutil.make_dirs(os.path.join(basedir, "private"))
+            if len(SYSTEM_TEST_CERTS) > (i+1):
+                f = open(os.path.join(basedir, "private", "node.pem"), "w")
+                f.write(SYSTEM_TEST_CERTS[i+1])
+                f.close()
+
+            config = "[client]\n"
+            if i != 1:
+                # clients[1] uses private/introducers.yaml, not tahoe.cfg
+                config += "introducer.furl = %s\n" % self.introducer_furl
+            if self.stats_gatherer_furl:
+                config += "stats_gatherer.furl = %s\n" % self.stats_gatherer_furl
+
+            nodeconfig = "[node]\n"
+            nodeconfig += (u"nickname = client %d \u263A\n" % (i,)).encode('utf-8')
+            tub_port = iputil.allocate_tcp_port()
+            # Don't let it use AUTO: there's no need for tests to use
+            # anything other than 127.0.0.1
+            nodeconfig += "tub.port = tcp:%d\n" % tub_port
+            nodeconfig += "tub.location = tcp:127.0.0.1:%d\n" % tub_port
+
+            if i == 0:
+                # clients[0] runs a webserver and a helper
+                config += nodeconfig
+                config += "web.port = tcp:0:interface=127.0.0.1\n"
+                config += "timeout.keepalive = 600\n"
+                config += "[helper]\n"
+                config += "enabled = True\n"
+            elif i == 1:
+                # clients[1] uses private/introducers.yaml, not tahoe.cfg
+                iyaml = ("introducers:\n"
+                         " petname2:\n"
+                         "  furl: %s\n") % self.introducer_furl
+                iyaml_fn = os.path.join(basedir, "private", "introducers.yaml")
+                fileutil.write(iyaml_fn, iyaml)
+            elif i == 3:
+                # clients[3] runs a webserver and uses a helper
+                config += nodeconfig
+                config += "web.port = tcp:0:interface=127.0.0.1\n"
+                config += "timeout.disconnect = 1800\n"
+            else:
+                config += nodeconfig
+
+            fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
+
+        # give subclasses a chance to append lines to the node's tahoe.cfg
+        # files before they are launched.
+        self._set_up_nodes_extra_config()
+
+        # start clients[0], wait for it's tub to be ready (at which point it
+        # will have registered the helper furl).
+        c = self.add_service(client.Client(basedir=basedirs[0]))
+        self.clients.append(c)
+        c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
+
+        f = open(os.path.join(basedirs[0],"private","helper.furl"), "r")
+        helper_furl = f.read()
+        f.close()
+        self.helper_furl = helper_furl
+        if self.numclients >= 4:
+            f = open(os.path.join(basedirs[3], 'tahoe.cfg'), 'ab+')
+            f.write(
+                  "[client]\n"
+                  "helper.furl = %s\n" % helper_furl)
+            f.close()
+
+        # this starts the rest of the clients
+        for i in range(1, self.numclients):
+            c = self.add_service(client.Client(basedir=basedirs[i]))
+            self.clients.append(c)
+            c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
+        log.msg("STARTING")
+        d = self.wait_for_connections()
+        def _connected(res):
+            log.msg("CONNECTED")
+            # now find out where the web port was
+            self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
+            if self.numclients >=4:
+                # and the helper-using webport
+                self.helper_webish_url = self.clients[3].getServiceNamed("webish").getURL()
+        d.addCallback(_connected)
+        return d
+
+    def _set_up_nodes_extra_config(self):
+        # for overriding by subclasses
+        pass
+
+    def _grab_stats(self, res):
+        d = self.stats_gatherer.poll()
+        return d
+
+    def bounce_client(self, num):
+        c = self.clients[num]
+        d = c.disownServiceParent()
+        # I think windows requires a moment to let the connection really stop
+        # and the port number made available for re-use. TODO: examine the
+        # behavior, see if this is really the problem, see if we can do
+        # better than blindly waiting for a second.
+        d.addCallback(self.stall, 1.0)
+        def _stopped(res):
+            new_c = client.Client(basedir=self.getdir("client%d" % num))
+            self.clients[num] = new_c
+            new_c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
+            self.add_service(new_c)
+        d.addCallback(_stopped)
+        d.addCallback(lambda res: self.wait_for_connections())
+        def _maybe_get_webport(res):
+            if num == 0:
+                # now find out where the web port was
+                self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
+        d.addCallback(_maybe_get_webport)
+        return d
+
+    def add_extra_node(self, client_num, helper_furl=None,
+                       add_to_sparent=False):
+        # usually this node is *not* parented to our self.sparent, so we can
+        # shut it down separately from the rest, to exercise the
+        # connection-lost code
+        basedir = self.getdir("client%d" % client_num)
+        if not os.path.isdir(basedir):
+            fileutil.make_dirs(basedir)
+        config = "[client]\n"
+        config += "introducer.furl = %s\n" % self.introducer_furl
+        if helper_furl:
+            config += "helper.furl = %s\n" % helper_furl
+        fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
+
+        c = client.Client(basedir=basedir)
+        self.clients.append(c)
+        c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
+        self.numclients += 1
+        if add_to_sparent:
+            c.setServiceParent(self.sparent)
+        else:
+            c.startService()
+        d = self.wait_for_connections()
+        d.addCallback(lambda res: c)
+        return d
+
+    def _check_connections(self):
+        for c in self.clients:
+            if not c.connected_to_introducer():
+                return False
+            sb = c.get_storage_broker()
+            if len(sb.get_connected_servers()) != self.numclients:
+                return False
+            up = c.getServiceNamed("uploader")
+            if up._helper_furl and not up._helper:
+                return False
+        return True
+
+    def wait_for_connections(self, ignored=None):
+        return self.poll(self._check_connections, timeout=200)
 
 class CountingDataUploadable(upload.Data):
     bytes_read = 0
@@ -101,7 +683,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d = self.set_up_nodes()
         def _check_connections(res):
             for c in self.clients:
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 5
+                c.encoding_params['happy'] = 5
                 all_peerids = c.get_storage_broker().get_all_serverids()
                 self.failUnlessEqual(len(all_peerids), self.numclients)
                 sb = c.storage_broker
@@ -213,7 +795,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                                                       add_to_sparent=True))
         def _added(extra_node):
             self.extra_node = extra_node
-            self.extra_node.DEFAULT_ENCODING_PARAMETERS['happy'] = 5
+            self.extra_node.encoding_params['happy'] = 5
         d.addCallback(_added)
 
         def _has_helper():
@@ -476,7 +1058,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         NEWERDATA = "this is getting old"
         NEWERDATA_uploadable = MutableData(NEWERDATA)
 
-        d = self.set_up_nodes(use_key_generator=True)
+        d = self.set_up_nodes()
 
         def _create_mutable(res):
             c = self.clients[0]
@@ -489,6 +1071,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             return d1
         d.addCallback(_create_mutable)
 
+        @defer.inlineCallbacks
         def _test_debug(res):
             # find a share. It is important to run this while there is only
             # one slot in the grid.
@@ -498,11 +1081,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                     % filename)
             log.msg(" for clients[%d]" % client_num)
 
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(["debug", "dump-share", "--offsets",
-                                filename],
-                               stdout=out, stderr=err)
-            output = out.getvalue()
+            rc,output,err = yield run_cli("debug", "dump-share", "--offsets",
+                                          filename)
             self.failUnlessEqual(rc, 0)
             try:
                 self.failUnless("Mutable slot found:\n" in output)
@@ -674,25 +1254,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             return d1
         d.addCallback(_created_dirnode)
 
-        def wait_for_c3_kg_conn():
-            return self.clients[3]._key_generator is not None
-        d.addCallback(lambda junk: self.poll(wait_for_c3_kg_conn))
-
-        def check_kg_poolsize(junk, size_delta):
-            self.failUnlessEqual(len(self.key_generator_svc.key_generator.keypool),
-                                 self.key_generator_svc.key_generator.pool_size + size_delta)
-
-        d.addCallback(check_kg_poolsize, 0)
-        d.addCallback(lambda junk:
-            self.clients[3].create_mutable_file(MutableData('hello, world')))
-        d.addCallback(check_kg_poolsize, -1)
-        d.addCallback(lambda junk: self.clients[3].create_dirnode())
-        d.addCallback(check_kg_poolsize, -2)
-        # use_helper induces use of clients[3], which is the using-key_gen client
-        d.addCallback(lambda junk:
-                      self.POST("uri?t=mkdir&name=george", use_helper=True))
-        d.addCallback(check_kg_poolsize, -3)
-
         return d
 
     def flip_bit(self, good):
@@ -723,7 +1284,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d = self.set_up_nodes(use_stats_gatherer=True)
         def _new_happy_semantics(ign):
             for c in self.clients:
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+                c.encoding_params['happy'] = 1
         d.addCallback(_new_happy_semantics)
         d.addCallback(self._test_introweb)
         d.addCallback(self.log, "starting publish")
@@ -811,8 +1372,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                                      {"storage": 5})
                 self.failUnlessEqual(data["announcement_summary"],
                                      {"storage": 5})
-                self.failUnlessEqual(data["announcement_distinct_hosts"],
-                                     {"storage": 1})
             except unittest.FailTest:
                 print
                 print "GET %s?t=json output was:" % self.introweb_url
@@ -1096,16 +1655,15 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         public = "uri/" + self._root_directory_uri
         d = getPage(base)
         def _got_welcome(page):
-            # XXX This test is oversensitive to formatting
-            expected = "Connected to <span>%d</span>\n     of <span>%d</span> known storage servers:" % (self.numclients, self.numclients)
-            self.failUnless(expected in page,
-                            "I didn't see the right 'connected storage servers'"
-                            " message in: %s" % page
-                            )
-            expected = "<th>My nodeid:</th> <td class=\"nodeid mine data-chars\">%s</td>" % (b32encode(self.clients[0].nodeid).lower(),)
-            self.failUnless(expected in page,
-                            "I didn't see the right 'My nodeid' message "
-                            "in: %s" % page)
+            html = page.replace('\n', ' ')
+            connected_re = r'Connected to <span>%d</span>\s*of <span>%d</span> known storage servers' % (self.numclients, self.numclients)
+            self.failUnless(re.search(connected_re, html),
+                            "I didn't see the right '%s' message in:\n%s" % (connected_re, page))
+            # nodeids/tubids don't have any regexp-special characters
+            nodeid_re = r'<th>Node ID:</th>\s*<td title="TubID: %s">%s</td>' % (
+                self.clients[0].get_long_tubid(), self.clients[0].get_long_nodeid())
+            self.failUnless(re.search(nodeid_re, html),
+                            "I didn't see the right '%s' message in:\n%s" % (nodeid_re, page))
             self.failUnless("Helper: 0 active uploads" in page)
         d.addCallback(_got_welcome)
         d.addCallback(self.log, "done with _got_welcome")
@@ -1113,9 +1671,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # get the welcome page from the node that uses the helper too
         d.addCallback(lambda res: getPage(self.helper_webish_url))
         def _got_welcome_helper(page):
-            self.failUnless("Connected to helper?: <span>yes</span>" in page,
-                            page)
-            self.failUnless("Not running helper" in page)
+            html = page.replace('\n', ' ')
+            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/>', html), page)
+            self.failUnlessIn("Not running helper", page)
         d.addCallback(_got_welcome_helper)
 
         d.addCallback(lambda res: getPage(base + public))
@@ -1171,7 +1729,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _new_happy_semantics(ign):
             for c in self.clients:
                 # these get reset somewhere? Whatever.
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+                c.encoding_params['happy'] = 1
         d.addCallback(_new_happy_semantics)
         d.addCallback(lambda res: self.PUT(public + "/subdir3/big.txt",
                                            "big" * 500000)) # 1.5MB
@@ -1273,7 +1831,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # itself) doesn't explode when you ask for its status
         d.addCallback(lambda res: getPage(self.helper_webish_url + "status/"))
         def _got_non_helper_status(res):
-            self.failUnless("Upload and Download Status" in res)
+            self.failUnlessIn("Recent and Active Operations", res)
         d.addCallback(_got_non_helper_status)
 
         # or for helper status with t=json
@@ -1287,8 +1845,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # see if the statistics page exists
         d.addCallback(lambda res: self.GET("statistics"))
         def _got_stats(res):
-            self.failUnless("Node Statistics" in res)
-            self.failUnless("  'downloader.files_downloaded': 5," in res, res)
+            self.failUnlessIn("Operational Statistics", res)
+            self.failUnlessIn("  'downloader.files_downloaded': 5,", res)
         d.addCallback(_got_stats)
         d.addCallback(lambda res: self.GET("statistics?t=json"))
         def _got_stats_json(res):
@@ -1309,6 +1867,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         return d
 
+    @defer.inlineCallbacks
     def _test_runner(self, res):
         # exercise some of the diagnostic tools in runner.py
 
@@ -1334,11 +1893,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                       % self.basedir)
         log.msg("test_system.SystemTest._test_runner using %r" % filename)
 
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(["debug", "dump-share", "--offsets",
-                            unicode_to_argv(filename)],
-                           stdout=out, stderr=err)
-        output = out.getvalue()
+        rc,output,err = yield run_cli("debug", "dump-share", "--offsets",
+                                      unicode_to_argv(filename))
         self.failUnlessEqual(rc, 0)
 
         # we only upload a single file, so we can assert some things about
@@ -1364,23 +1920,18 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         sharedir, shnum = os.path.split(filename)
         storagedir, storage_index_s = os.path.split(sharedir)
         storage_index_s = str(storage_index_s)
-        out,err = StringIO(), StringIO()
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
-        cmd = ["debug", "find-shares", storage_index_s] + nodedirs
-        rc = runner.runner(cmd, stdout=out, stderr=err)
+        rc,out,err = yield run_cli("debug", "find-shares", storage_index_s,
+                                   *nodedirs)
         self.failUnlessEqual(rc, 0)
-        out.seek(0)
-        sharefiles = [sfn.strip() for sfn in out.readlines()]
+        sharefiles = [sfn.strip() for sfn in out.splitlines()]
         self.failUnlessEqual(len(sharefiles), 10)
 
         # also exercise the 'catalog-shares' tool
-        out,err = StringIO(), StringIO()
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
-        cmd = ["debug", "catalog-shares"] + nodedirs
-        rc = runner.runner(cmd, stdout=out, stderr=err)
+        rc,out,err = yield run_cli("debug", "catalog-shares", *nodedirs)
         self.failUnlessEqual(rc, 0)
-        out.seek(0)
-        descriptions = [sfn.strip() for sfn in out.readlines()]
+        descriptions = [sfn.strip() for sfn in out.splitlines()]
         self.failUnlessEqual(len(descriptions), 30)
         matching = [line
                     for line in descriptions
@@ -1399,18 +1950,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(self._test_control2, control_furl_file)
         return d
     def _test_control2(self, rref, filename):
-        d = rref.callRemote("upload_from_file_to_uri",
-                            filename.encode(get_filesystem_encoding()), convergence=None)
-        downfile = os.path.join(self.basedir, "control.downfile").encode(get_filesystem_encoding())
-        d.addCallback(lambda uri:
-                      rref.callRemote("download_from_uri_to_file",
-                                      uri, downfile))
-        def _check(res):
-            self.failUnlessEqual(res, downfile)
-            data = open(downfile, "r").read()
-            expected_data = open(filename, "r").read()
-            self.failUnlessEqual(data, expected_data)
-        d.addCallback(_check)
+        d = defer.succeed(None)
         d.addCallback(lambda res: rref.callRemote("speed_test", 1, 200, False))
         if sys.platform in ("linux2", "linux3"):
             d.addCallback(lambda res: rref.callRemote("get_memory_usage"))
@@ -1439,10 +1979,10 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         f.write(private_uri)
         f.close()
 
+        @defer.inlineCallbacks
         def run(ignored, verb, *args, **kwargs):
-            stdin = kwargs.get("stdin", "")
-            newargs = [verb] + nodeargs + list(args)
-            return self._run_cli(newargs, stdin=stdin)
+            rc,out,err = yield run_cli(verb, *args, nodeargs=nodeargs, **kwargs)
+            defer.returnValue((out,err))
 
         def _check_ls((out,err), expected_children, unexpected_children=[]):
             self.failUnlessEqual(err, "")
@@ -1685,7 +2225,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         open(os.path.join(sdn2, "rfile5"), "wb").write("rfile5")
 
         # from disk into tahoe
-        d.addCallback(run, "cp", "-r", dn, "tahoe:dir1")
+        d.addCallback(run, "cp", "-r", dn, "tahoe:")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["dir1"])
         d.addCallback(run, "ls", "dir1")
@@ -1703,7 +2243,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_cp_r_out((out,err)):
             def _cmp(name):
                 old = open(os.path.join(dn, name), "rb").read()
-                newfn = os.path.join(dn_copy, name)
+                newfn = os.path.join(dn_copy, "dir1", name)
                 self.failUnless(os.path.exists(newfn))
                 new = open(newfn, "rb").read()
                 self.failUnlessEqual(old, new)
@@ -1722,7 +2262,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(run, "cp", "-r", "--caps-only", "tahoe:dir1", dn_copy2)
         def _check_capsonly((out,err)):
             # these should all be LITs
-            x = open(os.path.join(dn_copy2, "subdir2", "rfile4")).read()
+            x = open(os.path.join(dn_copy2, "dir1", "subdir2", "rfile4")).read()
             y = uri.from_string_filenode(x)
             self.failUnlessEqual(y.data, "rfile4")
         d.addCallback(_check_capsonly)
@@ -1731,13 +2271,13 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(run, "cp", "-r", "tahoe:dir1", "tahoe:dir1-copy")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["dir1", "dir1-copy"])
-        d.addCallback(run, "ls", "dir1-copy")
+        d.addCallback(run, "ls", "dir1-copy/dir1")
         d.addCallback(_check_ls, ["rfile1", "rfile2", "rfile3", "subdir2"],
                       ["rfile4", "rfile5"])
-        d.addCallback(run, "ls", "tahoe:dir1-copy/subdir2")
+        d.addCallback(run, "ls", "tahoe:dir1-copy/dir1/subdir2")
         d.addCallback(_check_ls, ["rfile4", "rfile5"],
                       ["rfile1", "rfile2", "rfile3"])
-        d.addCallback(run, "get", "dir1-copy/subdir2/rfile4")
+        d.addCallback(run, "get", "dir1-copy/dir1/subdir2/rfile4")
         d.addCallback(_check_stdout_against, data="rfile4")
 
         # and copy it a second time, which ought to overwrite the same files
@@ -1746,7 +2286,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # tahoe_ls doesn't currently handle the error correctly: it tries to
         # JSON-parse a traceback.
 ##         def _ls_missing(res):
-##             argv = ["ls"] + nodeargs + ["bogus"]
+##             argv = nodeargs + ["ls", "bogus"]
 ##             return self._run_cli(argv)
 ##         d.addCallback(_ls_missing)
 ##         def _check_ls_missing((out,err)):
@@ -1764,13 +2304,13 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d = self.set_up_nodes()
         def _new_happy_semantics(ign):
             for c in self.clients:
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+                c.encoding_params['happy'] = 1
         d.addCallback(_new_happy_semantics)
 
         def _run_in_subprocess(ignored, verb, *args, **kwargs):
             stdin = kwargs.get("stdin")
             env = kwargs.get("env")
-            newargs = [verb, "--node-directory", self.getdir("client0")] + list(args)
+            newargs = ["--node-directory", self.getdir("client0"), verb] + list(args)
             return self.run_bintahoe(newargs, stdin=stdin, env=env)
 
         def _check_succeeded(res, check_stderr=True):
@@ -1801,54 +2341,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             self.failUnlessIn("tahoe-moved", out)
             self.failIfIn("tahoe-file", out)
         d.addCallback(_check_ls)
-        return d
-
-    def test_debug_trial(self):
-        def _check_for_line(lines, result, test):
-            for l in lines:
-                if result in l and test in l:
-                    return
-            self.fail("output (prefixed with '##') does not have a line containing both %r and %r:\n## %s"
-                      % (result, test, "\n## ".join(lines)))
-
-        def _check_for_outcome(lines, out, outcome):
-            self.failUnlessIn(outcome, out, "output (prefixed with '##') does not contain %r:\n## %s"
-                                            % (outcome, "\n## ".join(lines)))
-
-        d = self.run_bintahoe(['debug', 'trial', '--reporter=verbose',
-                               'allmydata.test.trialtest'])
-        def _check_failure( (out, err, rc) ):
-            self.failUnlessEqual(rc, 1)
-            lines = out.split('\n')
-            _check_for_line(lines, "[SKIPPED]", "test_skip")
-            _check_for_line(lines, "[TODO]",    "test_todo")
-            _check_for_line(lines, "[FAIL]",    "test_fail")
-            _check_for_line(lines, "[ERROR]",   "test_deferred_error")
-            _check_for_line(lines, "[ERROR]",   "test_error")
-            _check_for_outcome(lines, out, "FAILED")
-        d.addCallback(_check_failure)
-
-        # the --quiet argument regression-tests a problem in finding which arguments to pass to trial
-        d.addCallback(lambda ign: self.run_bintahoe(['--quiet', 'debug', 'trial', '--reporter=verbose',
-                                                     'allmydata.test.trialtest.Success']))
-        def _check_success( (out, err, rc) ):
-            self.failUnlessEqual(rc, 0)
-            lines = out.split('\n')
-            _check_for_line(lines, "[SKIPPED]", "test_skip")
-            _check_for_line(lines, "[TODO]",    "test_todo")
-            _check_for_outcome(lines, out, "PASSED")
-        d.addCallback(_check_success)
-        return d
-
-    def _run_cli(self, argv, stdin=""):
-        #print "CLI:", argv
-        stdout, stderr = StringIO(), StringIO()
-        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
-                                  stdin=StringIO(stdin),
-                                  stdout=stdout, stderr=stderr)
-        def _done(res):
-            return stdout.getvalue(), stderr.getvalue()
-        d.addCallback(_done)
         return d
 
     def _test_checker(self, res):
@@ -1890,16 +2382,12 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 class Connections(SystemTestMixin, unittest.TestCase):
     def test_rref(self):
-        if NormalizedVersion(foolscap.__version__) < NormalizedVersion('0.6.4'):
-            raise unittest.SkipTest("skipped due to http://foolscap.lothar.com/trac/ticket/196 "
-                                    "(which does not affect normal usage of Tahoe-LAFS)")
-
         self.basedir = "system/Connections/rref"
         d = self.set_up_nodes(2)
         def _start(ign):
             self.c0 = self.clients[0]
             nonclients = [s for s in self.c0.storage_broker.get_connected_servers()
-                          if s.get_serverid() != self.c0.nodeid]
+                          if s.get_serverid() != self.c0.get_long_nodeid()]
             self.failUnlessEqual(len(nonclients), 1)
 
             self.s1 = nonclients[0]  # s1 is the server, not c0

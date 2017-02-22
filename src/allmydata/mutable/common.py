@@ -1,6 +1,4 @@
 
-from allmydata.util.spans import DataSpans
-
 MODE_CHECK = "MODE_CHECK" # query all peers
 MODE_ANYTHING = "MODE_ANYTHING" # one recoverable version
 MODE_WRITE = "MODE_WRITE" # replace all shares, probably.. not for initial
@@ -59,56 +57,3 @@ class CorruptShareError(BadShareError):
 
 class UnknownVersionError(BadShareError):
     """The share we received was of a version we don't recognize."""
-
-class ResponseCache:
-    """I cache share data, to reduce the number of round trips used during
-    mutable file operations. All of the data in my cache is for a single
-    storage index, but I will keep information on multiple shares for
-    that storage index.
-
-    I maintain a highest-seen sequence number, and will flush all entries
-    each time this number increases (this doesn't necessarily imply that
-    all entries have the same sequence number).
-
-    My cache is indexed by a (verinfo, shnum) tuple.
-
-    My cache entries are DataSpans instances, each representing a set of
-    non-overlapping byteranges.
-    """
-
-    def __init__(self):
-        self.cache = {}
-        self.seqnum = None
-
-    def _clear(self):
-        # also used by unit tests
-        self.cache = {}
-
-    def add(self, verinfo, shnum, offset, data):
-        seqnum = verinfo[0]
-        if seqnum > self.seqnum:
-            self._clear()
-            self.seqnum = seqnum
-
-        index = (verinfo, shnum)
-        if index in self.cache:
-            self.cache[index].add(offset, data)
-        else:
-            spans = DataSpans()
-            spans.add(offset, data)
-            self.cache[index] = spans
-
-    def read(self, verinfo, shnum, offset, length):
-        """Try to satisfy a read request from cache.
-        Returns data, or None if the cache did not hold the entire requested span.
-        """
-
-        # TODO: perhaps return a DataSpans object representing the fragments
-        # that we have, instead of only returning a hit if we can satisfy the
-        # whole request from cache.
-
-        index = (verinfo, shnum)
-        if index in self.cache:
-            return self.cache[index].get(offset, length)
-        else:
-            return None

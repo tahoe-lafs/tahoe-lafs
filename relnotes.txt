@@ -1,10 +1,11 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.9.2
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.12.1
 
-The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.9.2 of Tahoe-LAFS, an extremely
-reliable distributed storage system. Get it here:
+The Tahoe-LAFS team is pleased to announce version 1.12.1 of
+Tahoe-LAFS, an extremely reliable decentralized storage
+system. Get it with "pip install tahoe-lafs", or download a
+tarball here:
 
-https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.rst
+  https://tahoe-lafs.org/downloads
 
 Tahoe-LAFS is the first distributed storage system to offer
 "provider-independent security" — meaning that not even the
@@ -12,23 +13,24 @@ operators of your storage servers can read or alter your data
 without your consent. Here is the one-page explanation of its
 unique security and fault-tolerance properties:
 
-https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/about.rst
+  http://tahoe-lafs.readthedocs.org/en/latest/about.html
 
-The previous stable release of Tahoe-LAFS was v1.9.1, released
-on January 12, 2012.
+The previous stable release of Tahoe-LAFS was v1.12.0,
+released on December 17, 2016.
 
-v1.9.2 is a bugfix release that primarily fixes regressions
-in mutable file support. See the NEWS file [1] for details.
+v1.12.1 fixes a few small problems discovered just after the
+v1.12.0 release in the new "multiple-introducers" feature and
+the new "--hide-ip" feature (on systems with I2P support but
+not Tor).
 
 
 WHAT IS IT GOOD FOR?
 
-With Tahoe-LAFS, you distribute your filesystem across
-multiple servers, and even if some of the servers fail or are
-taken over by an attacker, the entire filesystem continues to
-work correctly, and continues to preserve your privacy and
-security. You can easily share specific files and directories
-with other people.
+With Tahoe-LAFS, you distribute your data across multiple
+servers. Even if some of the servers fail or are taken over
+by an attacker, the entire file store continues to function
+correctly, preserving your privacy and security. You can
+easily share specific files and directories with other people.
 
 In addition to the core storage system itself, volunteers
 have built other projects on top of Tahoe-LAFS and have
@@ -51,16 +53,27 @@ please see the known_issues.rst file [2].)
 
 COMPATIBILITY
 
-This release is compatible with the version 1 series of
+This release should be compatible with the version 1 series of
 Tahoe-LAFS. Clients from this release can write files and
 directories in the format used by clients of all versions back
 to v1.0 (which was released March 25, 2008). Clients from this
 release can read files and directories produced by clients of
-all versions since v1.0. Servers from this release can serve
-clients of all versions back to v1.0 and clients from this
-release can use servers of all versions back to v1.0.
+all versions since v1.0.
 
-This is the seventeenth release in the version 1 series. This
+Network connections are limited by the Introducer protocol in
+use. If the Introducer is running v1.10 or v1.11, then servers
+from this release (v1.12) can serve clients of all versions
+back to v1.0 . If it is running v1.12, then they can only
+serve clients back to v1.10. Clients from this release can use
+servers back to v1.10, but not older servers.
+
+Except for the new optional MDMF format, we have not made any
+intentional compatibility changes. However we do not yet have
+the test infrastructure to continuously verify that all new
+versions are interoperable with previous versions. We intend
+to build such an infrastructure in the future.
+
+This is the twenty-first release in the version 1 series. This
 series of Tahoe-LAFS will be actively supported and maintained
 for the foreseeable future, and future versions of Tahoe-LAFS
 will retain the ability to read and write files compatible
@@ -90,14 +103,14 @@ licence, at your option.)
 INSTALLATION
 
 Tahoe-LAFS works on Linux, Mac OS X, Windows, Solaris, *BSD,
-and probably most other systems. Start with
-"docs/quickstart.rst" [6].
+and probably most other systems. Start with "docs/INSTALL.rst"
+[6].
 
 
 HACKING AND COMMUNITY
 
 Please join us on the mailing list [7]. Patches are gratefully
-accepted -- the RoadMap page [8] shows the next improvements
+accepted -- the Roadmap page [8] shows the next improvements
 that we plan to make and CREDITS [9] lists the names of people
 who've contributed to the project. The Dev page [10] contains
 resources for hackers.
@@ -105,11 +118,7 @@ resources for hackers.
 
 SPONSORSHIP
 
-Atlas Networks has contributed several hosted servers for
-performance testing. Thank you to Atlas Networks [11] for
-their generous and public-spirited support.
-
-And a special thanks to Least Authority Enterprises [12],
+A special thanks goes out to Least Authority Enterprises [12],
 which employs several Tahoe-LAFS developers, for their
 continued support.
 
@@ -117,35 +126,34 @@ HACK TAHOE-LAFS!
 
 If you can find a security flaw in Tahoe-LAFS which is serious
 enough that we feel compelled to warn our users and issue a fix,
-then we will award you with a customized t-shirts with your
+then we will award you with a customized t-shirt with your
 exploit printed on it and add you to the "Hack Tahoe-LAFS Hall
 Of Fame" [13].
 
 
 ACKNOWLEDGEMENTS
 
-This is the eleventh release of Tahoe-LAFS to be created solely
-as a labor of love by volunteers. Thank you very much to the
-team of "hackers in the public interest" who make Tahoe-LAFS
-possible.
+This is the seventeenth release of Tahoe-LAFS to be created
+solely as a labor of love by volunteers. Thank you very much
+to the team of "hackers in the public interest" who make
+Tahoe-LAFS possible.
 
-David-Sarah Hopwood
+Brian Warner
 on behalf of the Tahoe-LAFS team
 
-July 3, 2012
-Rainhill, Merseyside, UK
+January 18, 2017
+San Francisco, California, USA
 
 
-[1] https://tahoe-lafs.org/trac/tahoe-lafs/browser/NEWS.rst
-[2] https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/known_issues.rst
+[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.1/NEWS.rst
+[2] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/known_issues.rst
 [3] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
-[4] https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.GPL
-[5] https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.TGPPL.rst
-[6] https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/quickstart.rst
+[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.1/COPYING.GPL
+[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.12.1/COPYING.TGPPL.rst
+[6] http://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.12.1/INSTALL.html
 [7] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [8] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
-[9] https://tahoe-lafs.org/trac/tahoe-lafs/browser/CREDITS
+[9] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/CREDITS
 [10] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Dev
-[11] http://atlasnetworks.us/
 [12] https://leastauthority.com/
 [13] https://tahoe-lafs.org/hacktahoelafs/

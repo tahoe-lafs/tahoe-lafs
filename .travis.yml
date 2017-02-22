@@ -1,0 +1,43 @@
+sudo: true
+os:
+ - "linux"
+ - "osx"
+cache: pip
+before_cache:
+  - rm -f $HOME/.cache/pip/log/debug.log
+python:
+  - "2.7"
+  - "pypy"
+before_install:
+  - sh -c set
+  - git config --global user.email "travis-tahoe@tahoe-lafs.org"
+  - git config --global user.name "Travis Tahoe"
+  - git fetch --depth=1000
+install:
+# ~/.local/bin is on $PATH by default, but on OS-X, --user puts it elsewhere
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=$HOME/Library/Python/2.7/bin:$PATH; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then wget https://bootstrap.pypa.io/get-pip.py && sudo python ./get-pip.py; fi
+  - pip list
+  - pip install --user codecov tox
+  - echo $PATH; which python; which pip; which tox
+  - python misc/build_helpers/show-tool-versions.py
+script:
+  - tox -e codechecks
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then tox; else tox -e coverage; fi
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then /bin/bash integration/install-tor.sh; fi
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then tox -e integration; fi
+after_success:
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then codecov; fi
+notifications:
+  email: false
+  irc:
+    channels: "chat.freenode.net#tahoe-lafs"
+    on_success: always # for testing
+    on_failure: always
+    template:
+      - "%{repository}#%{build_number} [%{branch}: %{commit} by %{author}] %{message}"
+      - "Changes: %{compare_url} | Details: %{build_url}"
+matrix:
+  allow_failures:
+    - python: "pypy"
+  fast_finish: true

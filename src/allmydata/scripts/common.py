@@ -1,94 +1,109 @@
 
-import os, sys, urllib
+import os, sys, urllib, textwrap
 import codecs
 from twisted.python import usage
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import unicode_to_url, quote_output, argv_to_abspath
-from allmydata.util.fileutil import abspath_expanduser_unicode
-
-
-_default_nodedir = None
-if sys.platform == 'win32':
-    from allmydata.windows import registry
-    path = registry.get_base_dir_path()
-    if path:
-        precondition(isinstance(path, unicode), path)
-        _default_nodedir = abspath_expanduser_unicode(path)
-
-if _default_nodedir is None:
-    path = abspath_expanduser_unicode(u"~/.tahoe")
-    precondition(isinstance(path, unicode), path)
-    _default_nodedir = path
+from allmydata.util.encodingutil import unicode_to_url, quote_output, \
+    quote_local_unicode_path, argv_to_abspath
+from allmydata.scripts.default_nodedir import _default_nodedir
 
 def get_default_nodedir():
     return _default_nodedir
 
+def wrap_paragraphs(text, width):
+    # like textwrap.wrap(), but preserve paragraphs (delimited by double
+    # newlines) and leading whitespace, and remove internal whitespace.
+    text = textwrap.dedent(text)
+    if text.startswith("\n"):
+        text = text[1:]
+    return "\n\n".join([textwrap.fill(paragraph, width=width)
+                        for paragraph in text.split("\n\n")])
 
 class BaseOptions(usage.Options):
-    # unit tests can override these to point at StringIO instances
-    stdin = sys.stdin
-    stdout = sys.stdout
-    stderr = sys.stderr
-
-    optFlags = [
-        ["quiet", "q", "Operate silently."],
-        ["version", "V", "Display version numbers."],
-        ["version-and-path", None, "Display version numbers and paths to their locations."],
-    ]
-    optParameters = [
-        ["node-directory", "d", None, "Specify which Tahoe node directory should be used." + (
-            _default_nodedir and (" [default for most commands: " + quote_output(_default_nodedir) + "]") or "")],
-    ]
-
     def __init__(self):
         super(BaseOptions, self).__init__()
         self.command_name = os.path.basename(sys.argv[0])
-        if self.command_name == 'trial':
-            self.command_name = 'tahoe'
 
+    # Only allow "tahoe --version", not e.g. "tahoe start --version"
     def opt_version(self):
-        import allmydata
-        print >>self.stdout, allmydata.get_package_versions_string(debug=True)
-        self.no_command_needed = True
+        raise usage.UsageError("--version not allowed on subcommands")
 
-    def opt_version_and_path(self):
-        import allmydata
-        print >>self.stdout, allmydata.get_package_versions_string(show_paths=True, debug=True)
-        self.no_command_needed = True
+    description = None
+    description_unwrapped = None
 
+    def __str__(self):
+        width = int(os.environ.get('COLUMNS', '80'))
+        s = (self.getSynopsis() + '\n' +
+             "(use 'tahoe --help' to view global options)\n" +
+             '\n' +
+             self.getUsage())
+        if self.description:
+            s += '\n' + wrap_paragraphs(self.description, width) + '\n'
+        if self.description_unwrapped:
+            du = textwrap.dedent(self.description_unwrapped)
+            if du.startswith("\n"):
+                du = du[1:]
+            s += '\n' + du + '\n'
+        return s
 
-class BasedirMixin:
+class BasedirOptions(BaseOptions):
     default_nodedir = _default_nodedir
 
     optParameters = [
-        ["basedir", "C", None, "Same as --node-directory."],
+        ["basedir", "C", None, "Specify which Tahoe base directory should be used. [default: %s]"
+         % quote_local_unicode_path(_default_nodedir)],
     ]
 
     def parseArgs(self, basedir=None):
-        if self['node-directory'] and self['basedir']:
-            raise usage.UsageError("The --node-directory (or -d) and --basedir (or -C) "
-                                   "options cannot both be used.")
+        # This finds the node-directory option correctly even if we are in a subcommand.
+        root = self.parent
+        while root.parent is not None:
+            root = root.parent
+
+        if root['node-directory'] and self['basedir']:
+            raise usage.UsageError("The --node-directory (or -d) and --basedir (or -C) options cannot both be used.")
+        if root['node-directory'] and basedir:
+            raise usage.UsageError("The --node-directory (or -d) option and a basedir argument cannot both be used.")
+        if self['basedir'] and basedir:
+            raise usage.UsageError("The --basedir (or -C) option and a basedir argument cannot both be used.")
 
         if basedir:
             b = argv_to_abspath(basedir)
         elif self['basedir']:
             b = argv_to_abspath(self['basedir'])
-        elif self['node-directory']:
-            b = argv_to_abspath(self['node-directory'])
-        else:
+        elif root['node-directory']:
+            b = argv_to_abspath(root['node-directory'])
+        elif self.default_nodedir:
             b = self.default_nodedir
+        else:
+            raise usage.UsageError("No default basedir available, you must provide one with --node-directory, --basedir, or a basedir argument")
         self['basedir'] = b
+        self['node-directory'] = b
 
     def postOptions(self):
         if not self['basedir']:
             raise usage.UsageError("A base directory for the node must be provided.")
+
+class NoDefaultBasedirOptions(BasedirOptions):
+    default_nodedir = None
+
+    optParameters = [
+        ["basedir", "C", None, "Specify which Tahoe base directory should be used."],
+    ]
+
+    # This is overridden in order to ensure we get a "Wrong number of arguments."
+    # error when more than one argument is given.
+    def parseArgs(self, basedir=None):
+        BasedirOptions.parseArgs(self, basedir)
+
+    def getSynopsis(self):
+        return "Usage:  %s [global-options] %s [options] NODEDIR" % (self.command_name, self.subcommand_name)
 
 
 DEFAULT_ALIAS = u"tahoe"
 
 
 def get_aliases(nodedir):
-    from allmydata import uri
     aliases = {}
     aliasfile = os.path.join(nodedir, "private", "aliases")
     rootfile = os.path.join(nodedir, "private", "root_dir.cap")
@@ -96,7 +111,7 @@ def get_aliases(nodedir):
         f = open(rootfile, "r")
         rootcap = f.read().strip()
         if rootcap:
-            aliases[DEFAULT_ALIAS] = uri.from_string_dirnode(rootcap).to_string()
+            aliases[DEFAULT_ALIAS] = rootcap
     except EnvironmentError:
         pass
     try:
@@ -108,7 +123,7 @@ def get_aliases(nodedir):
             name, cap = line.split(u":", 1)
             # normalize it: remove http: prefix, urldecode
             cap = cap.strip().encode('utf-8')
-            aliases[name] = uri.from_string_dirnode(cap).to_string()
+            aliases[name] = cap
     except EnvironmentError:
         pass
     return aliases
@@ -174,7 +189,7 @@ def get_alias(aliases, path_unicode, default):
             raise UnknownAliasError("No alias specified, and the default %s alias doesn't exist. "
                                     "To create it, use 'tahoe create-alias %s'."
                                     % (quote_output(default), quote_output(default, quotemarks=False)))
-        return aliases[default], path
+        return uri.from_string_dirnode(aliases[default]).to_string(), path
     if colon == 1 and default is None and platform_uses_lettercolon_drivename():
         # treat C:\why\must\windows\be\so\weird as a local path, not a tahoe
         # file in the "C:" alias
@@ -191,12 +206,13 @@ def get_alias(aliases, path_unicode, default):
             raise UnknownAliasError("No alias specified, and the default %s alias doesn't exist. "
                                     "To create it, use 'tahoe create-alias %s'."
                                     % (quote_output(default), quote_output(default, quotemarks=False)))
-        return aliases[default], path
+        return uri.from_string_dirnode(aliases[default]).to_string(), path
     if alias not in aliases:
         raise UnknownAliasError("Unknown alias %s, please create it with 'tahoe add-alias' or 'tahoe create-alias'." %
                                 quote_output(alias))
-    return aliases[alias], path[colon+1:]
+    return uri.from_string_dirnode(aliases[alias]).to_string(), path[colon+1:]
 
 def escape_path(path):
+    # this always returns bytes, specifically US-ASCII, valid URL characters
     segments = path.split("/")
     return "/".join([urllib.quote(unicode_to_url(s)) for s in segments])

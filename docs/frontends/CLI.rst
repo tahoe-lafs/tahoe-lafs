@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 ===========================
 The Tahoe-LAFS CLI commands
 ===========================
@@ -21,21 +23,10 @@ The Tahoe-LAFS CLI commands
 Overview
 ========
 
-Tahoe-LAFS provides a single executable named "``tahoe``", which can be used to
-create and manage client/server nodes, manipulate the filesystem, and perform
-several debugging/maintenance tasks.
-
-This executable lives in the source tree at "``bin/tahoe``". Once you've done a
-build (by running "``make``" or "``python setup.py build``"), ``bin/tahoe`` can
-be run in-place: if it discovers that it is being run from within a Tahoe-LAFS
-source tree, it will modify ``sys.path`` as necessary to use all the source code
-and dependent libraries contained in that tree.
-
-If you've installed Tahoe-LAFS (using "``make install``" or
-"``python setup.py install``", or by installing a binary package), then the
-``tahoe`` executable will be available somewhere else, perhaps in
-``/usr/bin/tahoe``. In this case, it will use your platform's normal
-PYTHONPATH search path to find the Tahoe-LAFS code and other libraries.
+Tahoe-LAFS provides a single executable named "``tahoe``", which can be used
+to create and manage client/server nodes, manipulate the filesystem, and
+perform several debugging/maintenance tasks. This executable is installed
+into your virtualenv when you run ``pip install tahoe-lafs``.
 
 
 CLI Command Overview
@@ -56,11 +47,18 @@ functionality) and including versions for a number of dependent libraries,
 like Twisted, Foolscap, pycryptopp, and zfec. "``tahoe --version-and-path``"
 will also show the path from which each library was imported.
 
-On Unix systems, the shell expands filename wildcards (``*`` and ``?``)
-before the program is able to read them, which may produce unexpected
-results for many ``tahoe`` comands. We recommend that you avoid using them.
-On Windows, wildcards cannot be used to specify multiple filenames to
-``tahoe``.
+On Unix systems, the shell expands filename wildcards (``'*'`` and ``'?'``)
+before the program is able to read them, which may produce unexpected results
+for many ``tahoe`` comands. We recommend, if you use wildcards, to start the
+path with "``./``", for example "``tahoe cp -r ./* somewhere:``". This
+prevents the expanded filename from being interpreted as an option or as an
+alias, allowing filenames that start with a dash or contain colons to be
+handled correctly.
+
+On Windows, a single letter followed by a colon is treated as a drive
+specification rather than an alias (and is invalid unless a local path is
+allowed in that context). Wildcards cannot be used to specify multiple
+filenames to ``tahoe`` on Windows.
 
 Unicode Support
 ---------------
@@ -104,16 +102,8 @@ That is, it behaves like "``tahoe create-node --no-storage [NODEDIR]``".
 
 "``tahoe create-introducer [NODEDIR]``" is used to create the Introducer node.
 This node provides introduction services and nothing else. When started, this
-node will produce an ``introducer.furl`` file, which should be published to all
-clients.
-
-"``tahoe create-key-generator [NODEDIR]``" is used to create a special
-"key-generation" service, which allows a client to offload their RSA key
-generation to a separate process. Since RSA key generation takes several
-seconds, and must be done each time a directory is created, moving it to a
-separate process allows the first process (perhaps a busy web-API server) to
-continue servicing other requests. The key generator exports a FURL that can
-be copied into a node to enable this functionality.
+node will produce a ``private/introducer.furl`` file, which should be
+published to all clients.
 
 "``tahoe run [NODEDIR]``" will start a previously-created node in the foreground.
 
@@ -136,7 +126,7 @@ Filesystem Manipulation
 These commands let you exmaine a Tahoe-LAFS filesystem, providing basic
 list/upload/download/unlink/rename/mkdir functionality. They can be used as
 primitives by other scripts. Most of these commands are fairly thin wrappers
-around web-API calls, which are described in `<webapi.rst>`_.
+around web-API calls, which are described in :doc:`webapi`.
 
 By default, all filesystem-manipulation commands look in ``~/.tahoe/`` to
 figure out which Tahoe-LAFS node they should use. When the CLI command makes
@@ -152,13 +142,12 @@ they ought to use a starting point. This is explained in more detail below.
 Starting Directories
 --------------------
 
-As described in `docs/architecture.rst <../architecture.rst>`_, the
-Tahoe-LAFS distributed filesystem consists of a collection of directories
-and files, each of which has a "read-cap" or a "write-cap" (also known as
-a URI). Each directory is simply a table that maps a name to a child file
-or directory, and this table is turned into a string and stored in a
-mutable file. The whole set of directory and file "nodes" are connected
-together into a directed graph.
+As described in :doc:`../architecture`, the Tahoe-LAFS distributed filesystem
+consists of a collection of directories and files, each of which has a
+"read-cap" or a "write-cap" (also known as a URI). Each directory is simply a
+table that maps a name to a child file or directory, and this table is turned
+into a string and stored in a mutable file. The whole set of directory and
+file "nodes" are connected together into a directed graph.
 
 To use this collection of files and directories, you need to choose a
 starting point: some specific directory that we will refer to as a
@@ -194,8 +183,8 @@ The Tahoe-LAFS CLI commands use the same path syntax as ``scp`` and
 ``rsync`` -- an optional ``ALIAS:`` prefix, followed by the pathname or
 filename. Some commands (like "``tahoe cp``") use the lack of an alias to
 mean that you want to refer to a local file, instead of something from the
-Tahoe-LAFS filesystem. [TODO] Another way to indicate this is to start
-the pathname with a dot, slash, or tilde.
+Tahoe-LAFS filesystem. Another way to indicate this is to start the
+pathname with "./", "~/", "~username/", or "/".
 
 When you're dealing a single starting directory, the ``tahoe:`` alias is
 all you need. But when you want to refer to something that isn't yet
@@ -286,6 +275,11 @@ In these summaries, ``PATH``, ``TOPATH`` or ``FROMPATH`` can be one of:
 * ``DIRCAP/[SUBDIRS/]FILENAME`` or ``DIRCAP:./[SUBDIRS/]FILENAME`` for a path
   relative to a directory cap.
 
+See `CLI Command Overview`_ above for information on using wildcards with
+local paths, and different treatment of colons between Unix and Windows.
+
+``FROMLOCAL`` or ``TOLOCAL`` is a path in the local filesystem.
+
 
 Command Examples
 ----------------
@@ -303,6 +297,9 @@ Command Examples
 
  Since Tahoe-LAFS v1.8.2, the alias name can be given with or without the
  trailing colon.
+
+ On Windows, the alias should not be a single character, because it would be
+ confused with the drive letter of a local path.
 
 ``tahoe create-alias fun``
 
@@ -431,6 +428,28 @@ Command Examples
  This copies a file from your ``tahoe:`` root to a different directory, set up
  earlier with "``tahoe add-alias fun DIRCAP``" or "``tahoe create-alias fun``".
 
+ ``tahoe cp -r ~/my_dir/ tahoe:``
+
+ This copies the folder ``~/my_dir/`` and all its children to the grid, creating
+ the new folder ``tahoe:my_dir``. Note that the trailing slash is not required:
+ all source arguments which are directories will be copied into new
+ subdirectories of the target.
+
+ The behavior of ``tahoe cp``, like the regular UNIX ``/bin/cp``, is subtly
+ different depending upon the exact form of the arguments. In particular:
+
+* Trailing slashes indicate directories, but are not required.
+* If the target object does not already exist:
+  * and if the source is a single file, it will be copied into the target;
+  * otherwise, the target will be created as a directory.
+* If there are multiple sources, the target must be a directory.
+* If the target is a pre-existing file, the source must be a single file.
+* If the target is a directory, each source must be a named file, a named
+  directory, or an unnamed directory. It is not possible to copy an unnamed
+  file (e.g. a raw filecap) into a directory, as there is no way to know what
+  the new file should be named.
+
+
 ``tahoe unlink uploaded.txt``
 
 ``tahoe unlink tahoe:uploaded.txt``
@@ -459,28 +478,40 @@ Command Examples
 
 ``tahoe backup ~ work:backups``
 
- This command performs a full versioned backup of every file and directory
+ This command performs a versioned backup of every file and directory
  underneath your "``~``" home directory, placing an immutable timestamped
  snapshot in e.g. ``work:backups/Archives/2009-02-06_04:00:05Z/`` (note that
  the timestamp is in UTC, hence the "Z" suffix), and a link to the latest
  snapshot in work:backups/Latest/ . This command uses a small SQLite database
  known as the "backupdb", stored in ``~/.tahoe/private/backupdb.sqlite``, to
  remember which local files have been backed up already, and will avoid
- uploading files that have already been backed up. It compares timestamps and
- filesizes when making this comparison. It also re-uses existing directories
- which have identical contents. This lets it run faster and reduces the
- number of directories created.
+ uploading files that have already been backed up (except occasionally that
+ will randomly upload them again if it has been awhile since had last been
+ uploaded, just to make sure that the copy of it on the server is still good).
+ It compares timestamps and filesizes when making this comparison. It also
+ re-uses existing directories which have identical contents. This lets it
+ run faster and reduces the number of directories created.
 
  If you reconfigure your client node to switch to a different grid, you
  should delete the stale backupdb.sqlite file, to force "``tahoe backup``"
  to upload all files to the new grid.
+
+ The fact that "tahoe backup" checks timestamps on your local files and
+ skips ones that don't appear to have been changed is one of the major
+ differences between "tahoe backup" and "tahoe cp -r". The other major
+ difference is that "tahoe backup" keeps links to all of the versions that
+ have been uploaded to the grid, so you can navigate among old versions
+ stored in the grid. In contrast, "tahoe cp -r" unlinks the previous
+ version from the grid directory and links the new version into place,
+ so unless you have a link to the older version stored somewhere else,
+ you'll never be able to get back to it.
 
 ``tahoe backup --exclude=*~ ~ work:backups``
 
  Same as above, but this time the backup process will ignore any
  filename that will end with '~'. ``--exclude`` will accept any standard
  Unix shell-style wildcards, as implemented by the
- `Python fnmatch module <http://docs.python.org/library/fnmatch.html>`_.
+ `Python fnmatch module <http://docs.python.org/library/fnmatch.html>`__.
  You may give multiple ``--exclude`` options.  Please pay attention that
  the pattern will be matched against any level of the directory tree;
  it's still impossible to specify absolute path exclusions.
@@ -579,14 +610,6 @@ into separate pieces. The most useful aspect of this command is to reveal the
 storage index for any given URI. This can be used to locate the share files
 that are holding the encoded+encrypted data for this file.
 
-"``tahoe debug repl``" will launch an interactive Python interpreter in which
-the Tahoe-LAFS packages and modules are available on ``sys.path`` (e.g. by using
-'``import allmydata``'). This is most useful from a source tree: it simply sets
-the PYTHONPATH correctly and runs the Python executable.
-
 "``tahoe debug corrupt-share SHAREFILE``" will flip a bit in the given
 sharefile. This can be used to test the client-side verification/repair code.
 Obviously, this command should not be used during normal operation.
-
-"``tahoe debug trial [OPTIONS] [TESTSUITE]``" will run the tests specified by
-TESTSUITE (defaulting to the whole Tahoe test suite), using Twisted Trial.

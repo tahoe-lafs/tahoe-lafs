@@ -26,7 +26,7 @@
 # /etc/munin/plugins/tahoe_server_latency_OPERATION_PERCENTILE to this
 # script. For example:
 
-# ln -s /usr/share/doc/allmydata-tahoe/munin/tahoe_server_latency_ \
+# ln -s /usr/share/munin/plugins/tahoe_server_latency_ \
 #  /etc/munin/plugins/tahoe_server_latency_allocate_99_9
 
 # Also, you will need to put a list of node statistics URLs in the plugin's

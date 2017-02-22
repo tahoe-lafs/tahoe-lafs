@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 =========================
 Debian and Ubuntu Support
 =========================
@@ -33,8 +35,8 @@ Dependency Packages
 
 Tahoe depends upon a number of additional libraries. When building Tahoe from
 source, any dependencies that are not already present in the environment will
-be downloaded (via ``easy_install``) and stored in the ``support/lib``
-directory.
+be downloaded (via ``pip`` and ``easy_install``) and installed in the
+virtualenv.
 
 The ``.deb`` packages, of course, rely solely upon other ``.deb`` packages.
 For reference, here is a list of the debian package names that provide Tahoe's

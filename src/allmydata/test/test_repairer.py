@@ -59,7 +59,7 @@ class RepairTestMixin:
     def upload_and_stash(self):
         c0 = self.g.clients[0]
         c1 = self.g.clients[1]
-        c0.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
+        c0.encoding_params['max_segment_size'] = 12
         d = c0.upload(upload.Data(common.TEST_DATA, convergence=""))
         def _stash_uri(ur):
             self.uri = ur.get_uri()
@@ -678,8 +678,8 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         self.set_up_grid()
         c0 = self.g.clients[0]
         DATA = "a"*135
-        c0.DEFAULT_ENCODING_PARAMETERS['k'] = 22
-        c0.DEFAULT_ENCODING_PARAMETERS['n'] = 66
+        c0.encoding_params['k'] = 22
+        c0.encoding_params['n'] = 66
         d = c0.upload(upload.Data(DATA, convergence=""))
         def _then(ur):
             self.uri = ur.get_uri()
@@ -716,6 +716,9 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             # not respond to the pre-repair filecheck
             prr = rr.get_post_repair_results()
             expected = set(self.g.get_all_serverids())
+            responding_set = frozenset([s.get_serverid() for s in prr.get_servers_responding()])
+            self.failIf(expected - responding_set, expected - responding_set)
+            self.failIf(responding_set - expected, responding_set - expected)
             self.failUnlessEqual(expected,
                                  set([s.get_serverid()
                                       for s in prr.get_servers_responding()]))

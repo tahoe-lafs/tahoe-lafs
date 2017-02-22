@@ -17,7 +17,7 @@ from pycryptopp.cipher.aes import AES
 from allmydata.mutable.publish import Publish, MutableData,\
                                       TransformingUploadable
 from allmydata.mutable.common import MODE_READ, MODE_WRITE, MODE_CHECK, UnrecoverableFileError, \
-     ResponseCache, UncoordinatedWriteError
+     UncoordinatedWriteError
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.checker import MutableChecker, MutableCheckAndRepairer
@@ -65,7 +65,6 @@ class MutableFileNode:
         self._required_shares = default_encoding_parameters["k"]
         self._total_shares = default_encoding_parameters["n"]
         self._sharemap = {} # known shares, shnum-to-[nodeids]
-        self._cache = ResponseCache()
         self._most_recent_size = None
         # filled in after __init__ if we're being created for the first time;
         # filled in by the servermap updater before publishing, otherwise.
@@ -180,10 +179,6 @@ class MutableFileNode:
         self._privkey = privkey
     def _populate_encprivkey(self, encprivkey):
         self._encprivkey = encprivkey
-    def _add_to_cache(self, verinfo, shnum, offset, data):
-        self._cache.add(verinfo, shnum, offset, data)
-    def _read_from_cache(self, verinfo, shnum, offset, length):
-        return self._cache.read(verinfo, shnum, offset, length)
 
     def get_write_enabler(self, server):
         seed = server.get_foolscap_write_enabler_seed()
@@ -408,21 +403,21 @@ class MutableFileNode:
         return d.addCallback(_get_version, version)
 
 
-    def download_best_version(self):
+    def download_best_version(self, progress=None):
         """
         I return a Deferred that fires with the contents of the best
         version of this mutable file.
         """
-        return self._do_serialized(self._download_best_version)
+        return self._do_serialized(self._download_best_version, progress=progress)
 
 
-    def _download_best_version(self):
+    def _download_best_version(self, progress=None):
         """
         I am the serialized sibling of download_best_version.
         """
         d = self.get_best_readable_version()
         d.addCallback(self._record_size)
-        d.addCallback(lambda version: version.download_to_data())
+        d.addCallback(lambda version: version.download_to_data(progress=progress))
 
         # It is possible that the download will fail because there
         # aren't enough shares to be had. If so, we will try again after
@@ -437,7 +432,7 @@ class MutableFileNode:
 
             d = self.get_best_mutable_version()
             d.addCallback(self._record_size)
-            d.addCallback(lambda version: version.download_to_data())
+            d.addCallback(lambda version: version.download_to_data(progress=progress))
             return d
 
         d.addErrback(_maybe_retry)
@@ -940,13 +935,13 @@ class MutableFileVersion:
         return self._servermap.size_of_version(self._version)
 
 
-    def download_to_data(self, fetch_privkey=False):
+    def download_to_data(self, fetch_privkey=False, progress=None):
         """
         I return a Deferred that fires with the contents of this
         readable object as a byte string.
 
         """
-        c = consumer.MemoryConsumer()
+        c = consumer.MemoryConsumer(progress=progress)
         d = self.read(c, fetch_privkey=fetch_privkey)
         d.addCallback(lambda mc: "".join(mc.chunks))
         return d

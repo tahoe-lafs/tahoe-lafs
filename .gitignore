@@ -1,12 +1,14 @@
 *.pyc
 *.pyo
+*~
+*.DS_Store
+.*.kate-swp
 
 /build/
 /support/
 
 # these are generated at build time, and never checked in
 /src/allmydata/_version.py
-/src/allmydata/_appname.py
 
 # these are generated too
 /bin/tahoe
@@ -14,14 +16,24 @@
 /bin/tahoe-script.py
 
 /.built
-/src/allmydata_tahoe.egg-info/
+/src/tahoe_lafs.egg-info/
 Twisted-*.egg
+zope.interface-*.egg
+.pc
 
 /_trial_temp*
+/_test_memory/
+/tmp*
+/*.patch
 /dist/
-/twisted/plugins/dropin.cache
 /tahoe-deps/
 /tahoe-deps.tar.gz
 /.coverage
 /.coverage.el
 /coverage-html/
+/miscaptures.txt
+/violations.txt
+/.tox/
+/docs/_build/
+/coverage.xml
+/smoke_magicfolder/

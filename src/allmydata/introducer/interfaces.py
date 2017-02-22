@@ -1,27 +1,30 @@
 
 from zope.interface import Interface
-from foolscap.api import StringConstraint, TupleOf, SetOf, DictOf, Any, \
+from foolscap.api import StringConstraint, SetOf, DictOf, Any, \
     RemoteInterface, Referenceable
-from old import RIIntroducerSubscriberClient_v1
 FURL = StringConstraint(1000)
 
-# old introducer protocol (v1):
-#
-# Announcements are (FURL, service_name, remoteinterface_name,
-#                    nickname, my_version, oldest_supported)
-#  the (FURL, service_name, remoteinterface_name) refer to the service being
-#  announced. The (nickname, my_version, oldest_supported) refer to the
-#  client as a whole. The my_version/oldest_supported strings can be parsed
-#  by an allmydata.util.version.Version instance, and then compared. The
-#  first goal is to make sure that nodes are not confused by speaking to an
-#  incompatible peer. The second goal is to enable the development of
-#  backwards-compatibility code.
+# v2 protocol over foolscap: Announcements are 3-tuples of (msg, sig_vs,
+# claimed_key_vs):
+# * msg (bytes): UTF-8(json(ann_dict))
+#   * ann_dict has IntroducerClient-provided keys like "version", "nickname",
+#     "app-versions", "my-version", "oldest-supported", and "service-name".
+#     Plus service-specific keys like "anonymous-storage-FURL" and
+#     "permutation-seed-base32" (both for service="storage").
+# * sig_vs (str): "v0-"+base32(signature(msg))
+# * claimed_key_vs (str): "v0-"+base32(pubkey)
 
-Announcement_v1 = TupleOf(FURL, str, str,
-                          str, str, str)
+# (nickname, my_version, oldest_supported) refer to the client as a whole.
+# The my_version/oldest_supported strings can be parsed by an
+# allmydata.util.version.Version instance, and then compared. The first goal
+# is to make sure that nodes are not confused by speaking to an incompatible
+# peer. The second goal is to enable the development of
+# backwards-compatibility code.
 
-# v2 protocol over foolscap: Announcements are 3-tuples of (bytes, str, str)
-# or (bytes, none, none)
+# Note that old v1 clients (which are gone now) did not sign messages, so v2
+# servers would deliver v2-format messages with sig_vs=claimed_key_vs=None.
+# These days we should always get a signature and a pubkey.
+
 Announcement_v2 = Any()
 
 class RIIntroducerSubscriberClient_v2(RemoteInterface):
@@ -29,23 +32,6 @@ class RIIntroducerSubscriberClient_v2(RemoteInterface):
 
     def announce_v2(announcements=SetOf(Announcement_v2)):
         """I accept announcements from the publisher."""
-        return None
-
-    def set_encoding_parameters(parameters=(int, int, int)):
-        """Advise the client of the recommended k-of-n encoding parameters
-        for this grid. 'parameters' is a tuple of (k, desired, n), where 'n'
-        is the total number of shares that will be created for any given
-        file, while 'k' is the number of shares that must be retrieved to
-        recover that file, and 'desired' is the minimum number of shares that
-        must be placed before the uploader will consider its job a success.
-        n/k is the expansion ratio, while k determines the robustness.
-
-        Introducers should specify 'n' according to the expected size of the
-        grid (there is no point to producing more shares than there are
-        peers), and k according to the desired reliability-vs-overhead goals.
-
-        Note that setting k=1 is equivalent to simple replication.
-        """
         return None
 
 SubscriberInfo = DictOf(str, Any())
@@ -58,11 +44,7 @@ class RIIntroducerPublisherAndSubscriberService_v2(RemoteInterface):
     __remote_name__ = "RIIntroducerPublisherAndSubscriberService_v2.tahoe.allmydata.com"
     def get_version():
         return DictOf(str, Any())
-    def publish(announcement=Announcement_v1):
-        return None
     def publish_v2(announcement=Announcement_v2, canary=Referenceable):
-        return None
-    def subscribe(subscriber=RIIntroducerSubscriberClient_v1, service_name=str):
         return None
     def subscribe_v2(subscriber=RIIntroducerSubscriberClient_v2,
                      service_name=str, subscriber_info=SubscriberInfo):

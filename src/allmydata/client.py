@@ -1,10 +1,12 @@
 import os, stat, time, weakref
 from allmydata import node
+from base64 import urlsafe_b64encode
 
 from zope.interface import implements
 from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
+from twisted.python.filepath import FilePath
 from pycryptopp.publickey import rsa
 
 import allmydata
@@ -14,8 +16,11 @@ from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import hashutil, base32, pollmixin, log, keyutil
-from allmydata.util.encodingutil import get_filesystem_encoding
+from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
+                            yamlutil, configutil)
+from allmydata.util.encodingutil import (get_filesystem_encoding,
+                                         from_utf8_or_none)
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.stats import StatsProvider
@@ -23,7 +28,7 @@ from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
-from allmydata.node import OldConfigOptionError
+from allmydata.node import OldConfigOptionError, _common_config_sections
 
 
 KiB=1024
@@ -31,6 +36,63 @@ MiB=1024*KiB
 GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
+
+def _valid_config_sections():
+    cfg = _common_config_sections()
+    cfg.update({
+        "client": (
+            "helper.furl",
+            "introducer.furl",
+            "key_generator.furl",
+            "mutable.format",
+            "peers.preferred",
+            "shares.happy",
+            "shares.needed",
+            "shares.total",
+            "stats_gatherer.furl",
+        ),
+        "drop_upload": (  # deprecated already?
+            "enabled",
+        ),
+        "ftpd": (
+            "accounts.file",
+            "accounts.url",
+            "enabled",
+            "port",
+        ),
+        "storage": (
+            "debug_discard",
+            "enabled",
+            "expire.cutoff_date",
+            "expire.enabled",
+            "expire.immutable",
+            "expire.mode",
+            "expire.mode",
+            "expire.mutable",
+            "expire.override_lease_duration",
+            "readonly",
+            "reserved_space",
+        ),
+        "sftpd": (
+            "accounts.file",
+            "accounts.url",
+            "enabled",
+            "host_privkey_file",
+            "host_pubkey_file",
+            "port",
+        ),
+        "helper": (
+            "enabled",
+        ),
+        "magic_folder": (
+            "download.umask",
+            "enabled",
+            "local.directory",
+            "poll_interval",
+        ),
+    })
+    return cfg
+
 
 def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
@@ -55,11 +117,8 @@ class KeyGenerator:
     to generate(), then with a default set by set_default_keysize(), then
     with a built-in default of 2048 bits."""
     def __init__(self):
-        self._remote = None
         self.default_keysize = 2048
 
-    def set_remote_generator(self, keygen):
-        self._remote = keygen
     def set_default_keysize(self, keysize):
         """Call this to override the size of the RSA keys created for new
         mutable files which don't otherwise specify a size. This will affect
@@ -77,20 +136,11 @@ class KeyGenerator:
         set_default_keysize() has never been called, I will create 2048 bit
         keys."""
         keysize = keysize or self.default_keysize
-        if self._remote:
-            d = self._remote.callRemote('get_rsa_key_pair', keysize)
-            def make_key_objs((verifying_key, signing_key)):
-                v = rsa.create_verifying_key_from_string(verifying_key)
-                s = rsa.create_signing_key_from_string(signing_key)
-                return v, s
-            d.addCallback(make_key_objs)
-            return d
-        else:
-            # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
-            # secs
-            signer = rsa.generate(keysize)
-            verifier = signer.get_verifying_key()
-            return defer.succeed( (verifier, signer) )
+        # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
+        # secs
+        signer = rsa.generate(keysize)
+        verifier = signer.get_verifying_key()
+        return defer.succeed( (verifier, signer) )
 
 class Terminator(service.Service):
     def __init__(self):
@@ -109,13 +159,13 @@ class Client(node.Node, pollmixin.PollMixin):
     PORTNUMFILE = "client.port"
     STOREDIR = 'storage'
     NODETYPE = "client"
-    SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
+    EXIT_TRIGGER_FILE = "exit_trigger"
 
     # This means that if a storage server treats me as though I were a
     # 1.0.0 storage client, it will work as they expect.
     OLDEST_SUPPORTED_VERSION = "1.0.0"
 
-    # this is a tuple of (needed, desired, total, max_segment_size). 'needed'
+    # This is a dictionary of (needed, desired, total, max_segment_size). 'needed'
     # is the number of shares required to reconstruct a file. 'desired' means
     # that we will abort an upload unless we can allocate space for at least
     # this many. 'total' is the total number of shares created by encoding.
@@ -128,34 +178,46 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
+        # All tub.registerReference must happen *after* we upcall, since
+        # that's what does tub.setLocation()
+        configutil.validate_config(self.config_fname, self.config,
+                                   _valid_config_sections())
+        self._magic_folder = None
         self.started_timestamp = time.time()
         self.logSource="Client"
-        self.DEFAULT_ENCODING_PARAMETERS = self.DEFAULT_ENCODING_PARAMETERS.copy()
-        self.init_introducer_client()
+        self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
+        self.init_introducer_clients()
         self.init_stats_provider()
         self.init_secrets()
+        self.init_node_key()
         self.init_storage()
         self.init_control()
-        self.helper = None
-        if self.get_config("helper", "enabled", False, boolean=True):
-            self.init_helper()
         self._key_generator = KeyGenerator()
         key_gen_furl = self.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
-            self.init_key_gen(key_gen_furl)
+            log.msg("[client]key_generator.furl= is now ignored, see #2783")
         self.init_client()
-        # ControlServer and Helper are attached after Tub startup
+        self.load_static_servers()
+        self.helper = None
+        if self.get_config("helper", "enabled", False, boolean=True):
+            if not self._tub_is_listening:
+                raise ValueError("config error: helper is enabled, but tub "
+                                 "is not listening ('tub.port=' is empty)")
+            self.init_helper()
         self.init_ftp_server()
         self.init_sftp_server()
-        self.init_drop_uploader()
+        self.init_magic_folder()
 
-        hotline_file = os.path.join(self.basedir,
-                                    self.SUICIDE_PREVENTION_HOTLINE_FILE)
-        if os.path.exists(hotline_file):
-            age = time.time() - os.stat(hotline_file)[stat.ST_MTIME]
-            self.log("hotline file noticed (%ds old), starting timer" % age)
-            hotline = TimerService(1.0, self._check_hotline, hotline_file)
-            hotline.setServiceParent(self)
+        # If the node sees an exit_trigger file, it will poll every second to see
+        # whether the file still exists, and what its mtime is. If the file does not
+        # exist or has not been modified for a given timeout, the node will exit.
+        exit_trigger_file = os.path.join(self.basedir,
+                                         self.EXIT_TRIGGER_FILE)
+        if os.path.exists(exit_trigger_file):
+            age = time.time() - os.stat(exit_trigger_file)[stat.ST_MTIME]
+            self.log("%s file noticed (%ds old), starting timer" % (self.EXIT_TRIGGER_FILE, age))
+            exit_trigger = TimerService(1.0, self._check_exit_trigger, exit_trigger_file)
+            exit_trigger.setServiceParent(self)
 
         # this needs to happen last, so it can use getServiceNamed() to
         # acquire references to StorageServer and other web-statusable things
@@ -163,23 +225,55 @@ class Client(node.Node, pollmixin.PollMixin):
         if webport:
             self.init_web(webport) # strports string
 
-    def init_introducer_client(self):
-        self.introducer_furl = self.get_config("client", "introducer.furl")
-        ic = IntroducerClient(self.tub, self.introducer_furl,
-                              self.nickname,
-                              str(allmydata.__full_version__),
-                              str(self.OLDEST_SUPPORTED_VERSION),
-                              self.get_app_versions())
-        self.introducer_client = ic
-        # hold off on starting the IntroducerClient until our tub has been
-        # started, so we'll have a useful address on our RemoteReference, so
-        # that the introducer's status page will show us.
-        d = self.when_tub_ready()
-        def _start_introducer_client(res):
+    def _sequencer(self):
+        seqnum_s = self.get_config_from_file("announcement-seqnum")
+        if not seqnum_s:
+            seqnum_s = "0"
+        seqnum = int(seqnum_s.strip())
+        seqnum += 1 # increment
+        self.write_config("announcement-seqnum", "%d\n" % seqnum)
+        nonce = _make_secret().strip()
+        return seqnum, nonce
+
+    def init_introducer_clients(self):
+        self.introducer_clients = []
+        self.introducer_furls = []
+
+        introducers_yaml_filename = os.path.join(self.basedir, "private", "introducers.yaml")
+        introducers_filepath = FilePath(introducers_yaml_filename)
+
+        try:
+            with introducers_filepath.open() as f:
+                introducers_yaml = yamlutil.safe_load(f)
+                introducers = introducers_yaml.get("introducers", {})
+                log.msg("found %d introducers in private/introducers.yaml" %
+                        len(introducers))
+        except EnvironmentError:
+            introducers = {}
+
+        if "default" in introducers.keys():
+            raise ValueError("'default' introducer furl cannot be specified in introducers.yaml; please fix impossible configuration.")
+
+        # read furl from tahoe.cfg
+        tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
+        if tahoe_cfg_introducer_furl == "None":
+            raise ValueError("tahoe.cfg has invalid 'introducer.furl = None':"
+                             " to disable it, use 'introducer.furl ='"
+                             " or omit the key entirely")
+        if tahoe_cfg_introducer_furl:
+            introducers[u'default'] = {'furl':tahoe_cfg_introducer_furl}
+
+        for petname, introducer in introducers.items():
+            introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", "introducer_{}_cache.yaml".format(petname)))
+            ic = IntroducerClient(self.tub, introducer['furl'].encode("ascii"),
+                                  self.nickname,
+                                  str(allmydata.__full_version__),
+                                  str(self.OLDEST_SUPPORTED_VERSION),
+                                  self.get_app_versions(), self._sequencer,
+                                  introducer_cache_filepath)
+            self.introducer_clients.append(ic)
+            self.introducer_furls.append(introducer['furl'])
             ic.setServiceParent(self)
-        d.addCallback(_start_introducer_client)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="URyI5w")
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config("client", "stats_gatherer.furl", None)
@@ -198,21 +292,24 @@ class Client(node.Node, pollmixin.PollMixin):
         self.convergence = base32.a2b(convergence_s)
         self._secret_holder = SecretHolder(lease_secret, self.convergence)
 
-    def _maybe_create_node_key(self):
+    def init_node_key(self):
         # we only create the key once. On all subsequent runs, we re-use the
         # existing key
         def _make_key():
             sk_vs,vk_vs = keyutil.make_keypair()
             return sk_vs+"\n"
-        # for a while (between releases, before 1.10) this was known as
-        # server.privkey, but now it lives in node.privkey. This fallback can
-        # be removed after 1.10 is released.
-        sk_vs = self.get_private_config("server.privkey", None)
-        if not sk_vs:
-            sk_vs = self.get_or_create_private_config("node.privkey", _make_key)
+        sk_vs = self.get_or_create_private_config("node.privkey", _make_key)
         sk,vk_vs = keyutil.parse_privkey(sk_vs.strip())
         self.write_config("node.pubkey", vk_vs+"\n")
-        self._server_key = sk
+        self._node_key = sk
+
+    def get_long_nodeid(self):
+        # this matches what IServer.get_longname() says about us elsewhere
+        vk_bytes = self._node_key.get_verifying_key_bytes()
+        return "v0-"+base32.b2a(vk_bytes)
+
+    def get_long_tubid(self):
+        return idlib.nodeid_b2a(self.nodeid)
 
     def _init_permutation_seed(self, ss):
         seed = self.get_config_from_file("permutation-seed")
@@ -230,7 +327,7 @@ class Client(node.Node, pollmixin.PollMixin):
             else:
                 # otherwise, we're free to use the more natural seed of our
                 # pubkey-based serverid
-                vk_bytes = self._server_key.get_verifying_key_bytes()
+                vk_bytes = self._node_key.get_verifying_key_bytes()
                 seed = base32.b2a(vk_bytes)
             self.write_config("permutation-seed", seed+"\n")
         return seed.strip()
@@ -240,19 +337,20 @@ class Client(node.Node, pollmixin.PollMixin):
         # should we run a storage server (and publish it for others to use)?
         if not self.get_config("storage", "enabled", True, boolean=True):
             return
+        if not self._tub_is_listening:
+            raise ValueError("config error: storage is enabled, but tub "
+                             "is not listening ('tub.port=' is empty)")
         readonly = self.get_config("storage", "readonly", False, boolean=True)
-
-        self._maybe_create_node_key()
 
         storedir = os.path.join(self.basedir, self.STOREDIR)
 
         data = self.get_config("storage", "reserved_space", None)
-        reserved = None
         try:
             reserved = parse_abbreviated_size(data)
         except ValueError:
             log.msg("[storage]reserved_space= contains unparseable value %s"
                     % data)
+            raise
         if reserved is None:
             reserved = 0
         discard = self.get_config("storage", "debug_discard", False,
@@ -287,7 +385,6 @@ class Client(node.Node, pollmixin.PollMixin):
                            stats_provider=self.stats_provider)
         self.storage_server = ss
         self.add_service(ss)
-
         self.accountant = ss.get_accountant()
         self.accountant.set_expiration_policy(
             expiration_enabled=expire,
@@ -296,39 +393,34 @@ class Client(node.Node, pollmixin.PollMixin):
             expiration_cutoff_date=cutoff_date,
             expiration_sharetypes=expiration_sharetypes)
         accountant_window = self.accountant.get_accountant_window(self.tub)
-
-
-        d = self.when_tub_ready()
-        # we can't do registerReference until the Tub is ready
-        def _publish(res):
-            ann = {}
-            ann["permutation-seed-base32"] = self._init_permutation_seed(ss)
-
-            accountant_furlfile = os.path.join(self.basedir, "private", "accountant.furl").encode(get_filesystem_encoding())
-            accountant_furl = self.tub.registerReference(accountant_window,
-                                                         furlFile=accountant_furlfile)
-            ann["accountant-FURL"] = accountant_furl
-
-            if True:
-                legacy_account = self.accountant.get_anonymous_account()
-                anonymous_account_furlfile = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
-                anonymous_account_furl = self.tub.registerReference(ss, furlFile=anonymous_account_furlfile)
-                ann["anonymous-storage-FURL"] = anonymous_account_furl
-
-            self.introducer_client.publish("storage", ann, self._server_key)
-        d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="aLGBKw")
+        accountant_furlfile = os.path.join(self.basedir, "private", "accountant.furl").encode(get_filesystem_encoding())
+        accountant_furl = self.tub.registerReference(accountant_window,
+                                                     furlFile=accountant_furlfile)
+        legacy_account = self.accountant.get_anonymous_account()
+        anonymous_account_furlfile = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
+        anonymous_account_furl = self.tub.registerReference(ss, furlFile=anonymous_account_furlfile)
+        ann = {"anonymous-storage-FURL": anonymous_account_furl,
+               "permutation-seed-base32": self._init_permutation_seed(ss),
+               "accountant-FURL": accountant_furl,
+               }
+        for ic in self.introducer_clients:
+            ic.publish("storage", ann, self._node_key)
 
     def get_accountant(self):
         return self.accountant
 
     def init_client(self):
         helper_furl = self.get_config("client", "helper.furl", None)
-        DEP = self.DEFAULT_ENCODING_PARAMETERS
+        if helper_furl in ("None", ""):
+            helper_furl = None
+
+        DEP = self.encoding_params
         DEP["k"] = int(self.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.get_config("client", "shares.total", DEP["n"]))
         DEP["happy"] = int(self.get_config("client", "shares.happy", DEP["happy"]))
+
+        # for the CLI to authenticate to local JSON endpoints
+        self._create_auth_token()
 
         self.init_client_storage_broker()
         self.history = History(self.stats_provider)
@@ -339,41 +431,61 @@ class Client(node.Node, pollmixin.PollMixin):
         self.init_blacklist()
         self.init_nodemaker()
 
+    def get_auth_token(self):
+        """
+        This returns a local authentication token, which is just some
+        random data in "api_auth_token" which must be echoed to API
+        calls.
+
+        Currently only the URI '/magic' for magic-folder status; other
+        endpoints are invited to include this as well, as appropriate.
+        """
+        return self.get_private_config('api_auth_token')
+
+    def _create_auth_token(self):
+        """
+        Creates new auth-token data written to 'private/api_auth_token'.
+
+        This is intentionally re-created every time the node starts.
+        """
+        self.write_private_config(
+            'api_auth_token',
+            urlsafe_b64encode(os.urandom(32)) + '\n',
+        )
+
     def init_client_storage_broker(self):
         # create a StorageFarmBroker object, for use by Uploader/Downloader
         # (and everybody else who wants to use storage servers)
-        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True)
+        ps = self.get_config("client", "peers.preferred", "").split(",")
+        preferred_peers = tuple([p.strip() for p in ps if p != ""])
+        sb = storage_client.StorageFarmBroker(permute_peers=True,
+                                              tub_maker=self._create_tub,
+                                              preferred_peers=preferred_peers,
+                                              )
         self.storage_broker = sb
-
-        # load static server specifications from tahoe.cfg, if any.
-        # Not quite ready yet.
-        #if self.config.has_section("client-server-selection"):
-        #    server_params = {} # maps serverid to dict of parameters
-        #    for (name, value) in self.config.items("client-server-selection"):
-        #        pieces = name.split(".")
-        #        if pieces[0] == "server":
-        #            serverid = pieces[1]
-        #            if serverid not in server_params:
-        #                server_params[serverid] = {}
-        #            server_params[serverid][pieces[2]] = value
-        #    for serverid, params in server_params.items():
-        #        server_type = params.pop("type")
-        #        if server_type == "tahoe-foolscap":
-        #            s = storage_client.NativeStorageClient(*params)
-        #        else:
-        #            msg = ("unrecognized server type '%s' in "
-        #                   "tahoe.cfg [client-server-selection]server.%s.type"
-        #                   % (server_type, serverid))
-        #            raise storage_client.UnknownServerTypeError(msg)
-        #        sb.add_server(s.serverid, s)
-
-        # check to see if we're supposed to use the introducer too
-        if self.get_config("client-server-selection", "use_introducer",
-                           default=True, boolean=True):
-            sb.use_introducer(self.introducer_client)
+        sb.setServiceParent(self)
+        for ic in self.introducer_clients:
+            sb.use_introducer(ic)
 
     def get_storage_broker(self):
         return self.storage_broker
+
+    def load_static_servers(self):
+        """
+        Load the servers.yaml file if it exists, and provide the static
+        server data to the StorageFarmBroker.
+        """
+        fn = os.path.join(self.basedir, "private", "servers.yaml")
+        servers_filepath = FilePath(fn)
+        try:
+            with servers_filepath.open() as f:
+                servers_yaml = yamlutil.safe_load(f)
+            static_servers = servers_yaml.get("storage", {})
+            log.msg("found %d static servers in private/servers.yaml" %
+                    len(static_servers))
+            self.storage_broker.set_static_servers(static_servers)
+        except EnvironmentError:
+            pass
 
     def init_blacklist(self):
         fn = os.path.join(self.basedir, "access.blacklist")
@@ -399,48 +511,23 @@ class Client(node.Node, pollmixin.PollMixin):
         return self.history
 
     def init_control(self):
-        d = self.when_tub_ready()
-        def _publish(res):
-            c = ControlServer()
-            c.setServiceParent(self)
-            control_url = self.tub.registerReference(c)
-            self.write_private_config("control.furl", control_url + "\n")
-        d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="d3tNXA")
+        c = ControlServer()
+        c.setServiceParent(self)
+        control_url = self.control_tub.registerReference(c)
+        self.write_private_config("control.furl", control_url + "\n")
 
     def init_helper(self):
-        d = self.when_tub_ready()
-        def _publish(self):
-            self.helper = Helper(os.path.join(self.basedir, "helper"),
-                                 self.storage_broker, self._secret_holder,
-                                 self.stats_provider, self.history)
-            # TODO: this is confusing. BASEDIR/private/helper.furl is created
-            # by the helper. BASEDIR/helper.furl is consumed by the client
-            # who wants to use the helper. I like having the filename be the
-            # same, since that makes 'cp' work smoothly, but the difference
-            # between config inputs and generated outputs is hard to see.
-            helper_furlfile = os.path.join(self.basedir,
-                                           "private", "helper.furl").encode(get_filesystem_encoding())
-            self.tub.registerReference(self.helper, furlFile=helper_furlfile)
-        d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="K0mW5w")
-
-    def init_key_gen(self, key_gen_furl):
-        d = self.when_tub_ready()
-        def _subscribe(self):
-            self.tub.connectTo(key_gen_furl, self._got_key_generator)
-        d.addCallback(_subscribe)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="z9DMzw")
-
-    def _got_key_generator(self, key_generator):
-        self._key_generator.set_remote_generator(key_generator)
-        key_generator.notifyOnDisconnect(self._lost_key_generator)
-
-    def _lost_key_generator(self):
-        self._key_generator.set_remote_generator(None)
+        self.helper = Helper(os.path.join(self.basedir, "helper"),
+                             self.storage_broker, self._secret_holder,
+                             self.stats_provider, self.history)
+        # TODO: this is confusing. BASEDIR/private/helper.furl is created by
+        # the helper. BASEDIR/helper.furl is consumed by the client who wants
+        # to use the helper. I like having the filename be the same, since
+        # that makes 'cp' work smoothly, but the difference between config
+        # inputs and generated outputs is hard to see.
+        helper_furlfile = os.path.join(self.basedir,
+                                       "private", "helper.furl").encode(get_filesystem_encoding())
+        self.tub.registerReference(self.helper, furlFile=helper_furlfile)
 
     def set_default_mutable_keysize(self, keysize):
         self._key_generator.set_default_keysize(keysize)
@@ -450,14 +537,17 @@ class Client(node.Node, pollmixin.PollMixin):
 
         from allmydata.webish import WebishServer
         nodeurl_path = os.path.join(self.basedir, "node.url")
-        staticdir = self.get_config("node", "web.static", "public_html")
-        staticdir = os.path.expanduser(staticdir)
+        staticdir_config = self.get_config("node", "web.static", "public_html").decode("utf-8")
+        staticdir = abspath_expanduser_unicode(staticdir_config, base=self.basedir)
         ws = WebishServer(self, webport, nodeurl_path, staticdir)
         self.add_service(ws)
 
     def init_ftp_server(self):
         if self.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = self.get_config("ftpd", "accounts.file", None)
+            accountfile = from_utf8_or_none(
+                self.get_config("ftpd", "accounts.file", None))
+            if accountfile:
+                accountfile = abspath_expanduser_unicode(accountfile, base=self.basedir)
             accounturl = self.get_config("ftpd", "accounts.url", None)
             ftp_portstr = self.get_config("ftpd", "port", "8021")
 
@@ -467,52 +557,76 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_sftp_server(self):
         if self.get_config("sftpd", "enabled", False, boolean=True):
-            accountfile = self.get_config("sftpd", "accounts.file", None)
+            accountfile = from_utf8_or_none(
+                self.get_config("sftpd", "accounts.file", None))
+            if accountfile:
+                accountfile = abspath_expanduser_unicode(accountfile, base=self.basedir)
             accounturl = self.get_config("sftpd", "accounts.url", None)
             sftp_portstr = self.get_config("sftpd", "port", "8022")
-            pubkey_file = self.get_config("sftpd", "host_pubkey_file")
-            privkey_file = self.get_config("sftpd", "host_privkey_file")
+            pubkey_file = from_utf8_or_none(self.get_config("sftpd", "host_pubkey_file"))
+            privkey_file = from_utf8_or_none(self.get_config("sftpd", "host_privkey_file"))
 
             from allmydata.frontends import sftpd
             s = sftpd.SFTPServer(self, accountfile, accounturl,
                                  sftp_portstr, pubkey_file, privkey_file)
             s.setServiceParent(self)
 
-    def init_drop_uploader(self):
+    def init_magic_folder(self):
+        #print "init_magic_folder"
         if self.get_config("drop_upload", "enabled", False, boolean=True):
-            if self.get_config("drop_upload", "upload.dircap", None):
-                raise OldConfigOptionError("The [drop_upload]upload.dircap option is no longer supported; please "
-                                           "put the cap in a 'private/drop_upload_dircap' file, and delete this option.")
+            raise OldConfigOptionError("The [drop_upload] section must be renamed to [magic_folder].\n"
+                                       "See docs/frontends/magic-folder.rst for more information.")
 
-            upload_dircap = self.get_or_create_private_config("drop_upload_dircap")
-            local_dir_utf8 = self.get_config("drop_upload", "local.directory")
+        if self.get_config("magic_folder", "enabled", False, boolean=True):
+            #print "magic folder enabled"
+            from allmydata.frontends import magic_folder
 
+            db_filename = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
+            local_dir_config = self.get_config("magic_folder", "local.directory").decode("utf-8")
             try:
-                from allmydata.frontends import drop_upload
-                s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8)
-                s.setServiceParent(self)
-                s.startService()
-            except Exception, e:
-                self.log("couldn't start drop-uploader: %r", args=(e,))
+                poll_interval = int(self.get_config("magic_folder", "poll_interval", 3))
+            except ValueError:
+                raise ValueError("[magic_folder] poll_interval must be an int")
 
-    def _check_hotline(self, hotline_file):
-        if os.path.exists(hotline_file):
-            mtime = os.stat(hotline_file)[stat.ST_MTIME]
+            s = magic_folder.MagicFolder(
+                client=self,
+                upload_dircap=self.get_private_config("magic_folder_dircap"),
+                collective_dircap=self.get_private_config("collective_dircap"),
+                local_path_u=abspath_expanduser_unicode(local_dir_config, base=self.basedir),
+                dbfile=abspath_expanduser_unicode(db_filename),
+                umask=self.get_config("magic_folder", "download.umask", 0077),
+                downloader_delay=poll_interval,
+            )
+            self._magic_folder = s
+            s.setServiceParent(self)
+            s.startService()
+
+            # start processing the upload queue when we've connected to
+            # enough servers
+            threshold = min(self.encoding_params["k"],
+                            self.encoding_params["happy"] + 1)
+            d = self.storage_broker.when_connected_enough(threshold)
+            d.addCallback(lambda ign: s.ready())
+
+    def _check_exit_trigger(self, exit_trigger_file):
+        if os.path.exists(exit_trigger_file):
+            mtime = os.stat(exit_trigger_file)[stat.ST_MTIME]
             if mtime > time.time() - 120.0:
                 return
             else:
-                self.log("hotline file too old, shutting down")
+                self.log("%s file too old, shutting down" % (self.EXIT_TRIGGER_FILE,))
         else:
-            self.log("hotline file missing, shutting down")
+            self.log("%s file missing, shutting down" % (self.EXIT_TRIGGER_FILE,))
         reactor.stop()
 
     def get_encoding_parameters(self):
-        return self.DEFAULT_ENCODING_PARAMETERS
+        return self.encoding_params
+
+    def introducer_connection_statuses(self):
+        return [ic.connection_status() for ic in self.introducer_clients]
 
     def connected_to_introducer(self):
-        if self.introducer_client:
-            return self.introducer_client.connected_to_introducer()
-        return False
+        return any([ic.connected_to_introducer() for ic in self.introducer_clients])
 
     def get_renewal_secret(self): # this will go away
         return self._secret_holder.get_renewal_secret()

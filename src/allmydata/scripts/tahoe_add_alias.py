@@ -1,6 +1,9 @@
 
 import os.path
 import codecs
+
+from allmydata.util.assertutil import precondition
+
 from allmydata import uri
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases
@@ -29,6 +32,7 @@ def add_line_to_aliasfile(aliasfile, alias, cap):
 def add_alias(options):
     nodedir = options['node-directory']
     alias = options.alias
+    precondition(isinstance(alias, unicode), alias=alias)
     cap = options.cap
     stdout = options.stdout
     stderr = options.stderr
@@ -56,6 +60,7 @@ def create_alias(options):
     # mkdir+add_alias
     nodedir = options['node-directory']
     alias = options.alias
+    precondition(isinstance(alias, unicode), alias=alias)
     stdout = options.stdout
     stderr = options.stderr
     if u":" in alias:

@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 =======================
 Tahoe-LAFS Architecture
 =======================
@@ -18,7 +20,7 @@ Tahoe-LAFS Architecture
 Overview
 ========
 
-(See the `docs/specifications directory <specifications>`_ for more details.)
+(See the `docs/specifications directory`_ for more details.)
 
 There are three layers: the key-value store, the filesystem, and the
 application.
@@ -43,10 +45,10 @@ Allmydata.com used it for a backup service: the application periodically
 copies files from the local disk onto the decentralized filesystem. We later
 provide read-only access to those files, allowing users to recover them.
 There are several other applications built on top of the Tahoe-LAFS
-filesystem (see the `RelatedProjects
-<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects>`_ page of the
-wiki for a list).
+filesystem (see the RelatedProjects_ page of the wiki for a list).
 
+.. _docs/specifications directory: https://github.com/tahoe-lafs/tahoe-lafs/tree/master/docs/specifications
+.. _RelatedProjects: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
 
 The Key-Value Store
 ===================
@@ -314,7 +316,7 @@ commercially-run grid for which all of the storage servers are in a colo
 facility with high interconnect bandwidth. In this case, the helper is placed
 in the same facility, so the helper-to-storage-server bandwidth is huge.
 
-See `<helper.rst>`_ for details about the upload helper.
+See :doc:`helper` for details about the upload helper.
 
 
 The Filesystem Layer
@@ -366,9 +368,8 @@ clients are responsible for renewing their leases on a periodic basis at
 least frequently enough to prevent any of the leases from expiring before the
 next renewal pass.
 
-See `<garbage-collection.rst>`_ for further information, and for how to
+See :doc:`garbage-collection` for further information, and for how to
 configure garbage collection.
-
 
 File Repairer
 =============
@@ -383,7 +384,7 @@ To work against this slow, continual loss of shares, a File Checker is used
 to periodically count the number of shares still available for any given
 file. A more extensive form of checking known as the File Verifier can
 download the ciphertext of the target file and perform integrity checks
-(using strong hashes) to make sure the data is stil intact. When the file is
+(using strong hashes) to make sure the data is still intact. When the file is
 found to have decayed below some threshold, the File Repairer can be used to
 regenerate and re-upload the missing shares. These processes are conceptually
 distinct (the repairer is only run if the checker/verifier decides it is

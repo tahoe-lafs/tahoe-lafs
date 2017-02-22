@@ -56,23 +56,33 @@ if __name__ == "__main__":
     shutil.rmtree(tmpdir)
     sys.exit(0)
 
-from twisted.trial import unittest
-from mock import patch
+
 import os, sys, locale
 
-from allmydata.test.common_util import ReallyEqualMixin
-from allmydata.util import encodingutil
-from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
-    unicode_to_output, quote_output, unicode_platform, listdir_unicode, \
-    FilenameEncodingError, get_io_encoding, get_filesystem_encoding, _reload
-from allmydata.dirnode import normalize
+from twisted.trial import unittest
 
+from twisted.python.filepath import FilePath
+
+from allmydata.test.common_util import ReallyEqualMixin
+from allmydata.util import encodingutil, fileutil
+from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
+    unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
+    quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
+    get_io_encoding, get_filesystem_encoding, to_str, from_utf8_or_none, _reload, \
+    to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from
+from allmydata.dirnode import normalize
+from .common_util import skip_if_cannot_represent_filename
 from twisted.python import usage
 
-class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
 
-    @patch('sys.stdout')
-    def test_get_io_encoding(self, mock_stdout):
+class MockStdout(object):
+    pass
+
+class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
+    def test_get_io_encoding(self):
+        mock_stdout = MockStdout()
+        self.patch(sys, 'stdout', mock_stdout)
+
         mock_stdout.encoding = 'UTF-8'
         _reload()
         self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
@@ -93,29 +103,25 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
         else:
             self.failUnlessRaises(AssertionError, _reload)
 
-    @patch('locale.getpreferredencoding')
-    def test_get_io_encoding_not_from_stdout(self, mock_locale_getpreferredencoding):
-        locale  # hush pyflakes
-        mock_locale_getpreferredencoding.return_value = 'koi8-r'
+    def test_get_io_encoding_not_from_stdout(self):
+        preferredencoding = 'koi8-r'
+        def call_locale_getpreferredencoding():
+            return preferredencoding
+        self.patch(locale, 'getpreferredencoding', call_locale_getpreferredencoding)
+        mock_stdout = MockStdout()
+        self.patch(sys, 'stdout', mock_stdout)
 
-        class DummyStdout:
-            pass
-        old_stdout = sys.stdout
-        sys.stdout = DummyStdout()
-        try:
-            expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
-            _reload()
-            self.failUnlessReallyEqual(get_io_encoding(), expected)
+        expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
+        _reload()
+        self.failUnlessReallyEqual(get_io_encoding(), expected)
 
-            sys.stdout.encoding = None
-            _reload()
-            self.failUnlessReallyEqual(get_io_encoding(), expected)
+        mock_stdout.encoding = None
+        _reload()
+        self.failUnlessReallyEqual(get_io_encoding(), expected)
 
-            mock_locale_getpreferredencoding.return_value = None
-            _reload()
-            self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
-        finally:
-            sys.stdout = old_stdout
+        preferredencoding = None
+        _reload()
+        self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
 
     def test_argv_to_unicode(self):
         encodingutil.io_encoding = 'utf-8'
@@ -127,18 +133,18 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
         encodingutil.io_encoding = 'koi8-r'
         self.failUnlessRaises(UnicodeEncodeError, unicode_to_output, lumiere_nfc)
 
-    @patch('os.listdir')
-    def test_no_unicode_normalization(self, mock):
+    def test_no_unicode_normalization(self):
         # Pretend to run on a Unicode platform.
-        # We normalized to NFC in 1.7beta, but we now don't.
-        orig_platform = sys.platform
-        try:
-            sys.platform = 'darwin'
-            mock.return_value = [Artonwall_nfd]
-            _reload()
-            self.failUnlessReallyEqual(listdir_unicode(u'/dummy'), [Artonwall_nfd])
-        finally:
-            sys.platform = orig_platform
+        # listdir_unicode normalized to NFC in 1.7beta, but now doesn't.
+
+        def call_os_listdir(path):
+            return [Artonwall_nfd]
+        self.patch(os, 'listdir', call_os_listdir)
+        self.patch(sys, 'platform', 'darwin')
+
+        _reload()
+        self.failUnlessReallyEqual(listdir_unicode(u'/dummy'), [Artonwall_nfd])
+
 
 # The following tests apply only to platforms that don't store filenames as
 # Unicode entities on the filesystem.
@@ -152,16 +158,21 @@ class EncodingUtilNonUnicodePlatform(unittest.TestCase):
         sys.platform = self.original_platform
         _reload()
 
-    @patch('sys.getfilesystemencoding')
-    @patch('os.listdir')
-    def test_listdir_unicode(self, mock_listdir, mock_getfilesystemencoding):
+    def test_listdir_unicode(self):
         # What happens if latin1-encoded filenames are encountered on an UTF-8
         # filesystem?
-        mock_listdir.return_value = [
-            lumiere_nfc.encode('utf-8'),
-            lumiere_nfc.encode('latin1')]
+        def call_os_listdir(path):
+            return [
+              lumiere_nfc.encode('utf-8'),
+              lumiere_nfc.encode('latin1')
+            ]
+        self.patch(os, 'listdir', call_os_listdir)
 
-        mock_getfilesystemencoding.return_value = 'utf-8'
+        sys_filesystemencoding = 'utf-8'
+        def call_sys_getfilesystemencoding():
+            return sys_filesystemencoding
+        self.patch(sys, 'getfilesystemencoding', call_sys_getfilesystemencoding)
+
         _reload()
         self.failUnlessRaises(FilenameEncodingError,
                               listdir_unicode,
@@ -169,7 +180,7 @@ class EncodingUtilNonUnicodePlatform(unittest.TestCase):
 
         # We're trying to list a directory whose name cannot be represented in
         # the filesystem encoding.  This should fail.
-        mock_getfilesystemencoding.return_value = 'ascii'
+        sys_filesystemencoding = 'ascii'
         _reload()
         self.failUnlessRaises(FilenameEncodingError,
                               listdir_unicode,
@@ -185,12 +196,14 @@ class EncodingUtil(ReallyEqualMixin):
         sys.platform = self.original_platform
         _reload()
 
-    @patch('sys.stdout')
-    def test_argv_to_unicode(self, mock):
+    def test_argv_to_unicode(self):
         if 'argv' not in dir(self):
             return
 
-        mock.encoding = self.io_encoding
+        mock_stdout = MockStdout()
+        mock_stdout.encoding = self.io_encoding
+        self.patch(sys, 'stdout', mock_stdout)
+
         argu = lumiere_nfc
         argv = self.argv
         _reload()
@@ -199,12 +212,14 @@ class EncodingUtil(ReallyEqualMixin):
     def test_unicode_to_url(self):
         self.failUnless(unicode_to_url(lumiere_nfc), "lumi\xc3\xa8re")
 
-    @patch('sys.stdout')
-    def test_unicode_to_output(self, mock):
+    def test_unicode_to_output(self):
         if 'argv' not in dir(self):
             return
 
-        mock.encoding = self.io_encoding
+        mock_stdout = MockStdout()
+        mock_stdout.encoding = self.io_encoding
+        self.patch(sys, 'stdout', mock_stdout)
+
         _reload()
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.argv)
 
@@ -220,9 +235,7 @@ class EncodingUtil(ReallyEqualMixin):
         _reload()
         self.failUnlessReallyEqual(unicode_platform(), matrix[self.platform])
 
-    @patch('sys.getfilesystemencoding')
-    @patch('os.listdir')
-    def test_listdir_unicode(self, mock_listdir, mock_getfilesystemencoding):
+    def test_listdir_unicode(self):
         if 'dirlist' not in dir(self):
             return
 
@@ -233,8 +246,13 @@ class EncodingUtil(ReallyEqualMixin):
                                     "that we are testing for the benefit of a different platform."
                                     % (self.filesystem_encoding,))
 
-        mock_listdir.return_value = self.dirlist
-        mock_getfilesystemencoding.return_value = self.filesystem_encoding
+        def call_os_listdir(path):
+            return self.dirlist
+        self.patch(os, 'listdir', call_os_listdir)
+
+        def call_sys_getfilesystemencoding():
+            return self.filesystem_encoding
+        self.patch(sys, 'getfilesystemencoding', call_sys_getfilesystemencoding)
 
         _reload()
         filenames = listdir_unicode(u'/dummy')
@@ -247,16 +265,8 @@ class StdlibUnicode(unittest.TestCase):
     """This mainly tests that some of the stdlib functions support Unicode paths, but also that
     listdir_unicode works for valid filenames."""
 
-    def skip_if_cannot_represent_filename(self, u):
-        enc = get_filesystem_encoding()
-        if not unicode_platform():
-            try:
-                u.encode(enc)
-            except UnicodeEncodeError:
-                raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
-
     def test_mkdir_open_exists_abspath_listdir_expanduser(self):
-        self.skip_if_cannot_represent_filename(lumiere_nfc)
+        skip_if_cannot_represent_filename(lumiere_nfc)
 
         try:
             os.mkdir(lumiere_nfc)
@@ -274,8 +284,8 @@ class StdlibUnicode(unittest.TestCase):
         # to lumiere_nfc (on Mac OS X, it will be the NFD equivalent).
         self.failUnlessIn(lumiere_nfc + ".txt", set([normalize(fname) for fname in filenames]))
 
-        expanded = os.path.expanduser("~/" + lumiere_nfc)
-        self.failIfIn("~", expanded)
+        expanded = fileutil.expanduser(u"~/" + lumiere_nfc)
+        self.failIfIn(u"~", expanded)
         self.failUnless(expanded.endswith(lumiere_nfc), expanded)
 
     def test_open_unrepresentable(self):
@@ -295,36 +305,37 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
     def tearDown(self):
         _reload()
 
-    def _check(self, inp, out, enc, optional_quotes):
+    def _check(self, inp, out, enc, optional_quotes, quote_newlines):
         out2 = out
         if optional_quotes:
             out2 = out2[1:-1]
-        self.failUnlessReallyEqual(quote_output(inp, encoding=enc), out)
-        self.failUnlessReallyEqual(quote_output(inp, encoding=enc, quotemarks=False), out2)
+        self.failUnlessReallyEqual(quote_output(inp, encoding=enc, quote_newlines=quote_newlines), out)
+        self.failUnlessReallyEqual(quote_output(inp, encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
         if out[0:2] == 'b"':
             pass
         elif isinstance(inp, str):
-            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc), out)
-            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quotemarks=False), out2)
+            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quote_newlines=quote_newlines), out)
+            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
         else:
-            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc), out)
-            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quotemarks=False), out2)
+            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quote_newlines=quote_newlines), out)
+            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
 
     def _test_quote_output_all(self, enc):
-        def check(inp, out, optional_quotes=False):
-            self._check(inp, out, enc, optional_quotes)
+        def check(inp, out, optional_quotes=False, quote_newlines=None):
+            self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         # optional single quotes
         check("foo",  "'foo'",  True)
         check("\\",   "'\\'",   True)
         check("$\"`", "'$\"`'", True)
+        check("\n",   "'\n'",   True, quote_newlines=False)
 
         # mandatory single quotes
         check("\"",   "'\"'")
 
         # double quotes
         check("'",    "\"'\"")
-        check("\n",   "\"\\x0a\"")
+        check("\n",   "\"\\x0a\"", quote_newlines=True)
         check("\x00", "\"\\x00\"")
 
         # invalid Unicode and astral planes
@@ -343,8 +354,8 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check("\x00\"$\\`\x80\xFF",  "b\"\\x00\\\"\\$\\\\\\`\\x80\\xff\"")
 
     def test_quote_output_ascii(self, enc='ascii'):
-        def check(inp, out, optional_quotes=False):
-            self._check(inp, out, enc, optional_quotes)
+        def check(inp, out, optional_quotes=False, quote_newlines=None):
+            self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)
         check(u"\u00D7",   "\"\\xd7\"")
@@ -353,10 +364,12 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check(u"\u2621",   "\"\\u2621\"")
         check(u"'\u2621",  "\"'\\u2621\"")
         check(u"\"\u2621", "\"\\\"\\u2621\"")
+        check(u"\n",       "'\n'",      True, quote_newlines=False)
+        check(u"\n",       "\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_latin1(self, enc='latin1'):
-        def check(inp, out, optional_quotes=False):
-            self._check(inp, out.encode('latin1'), enc, optional_quotes)
+        def check(inp, out, optional_quotes=False, quote_newlines=None):
+            self._check(inp, out.encode('latin1'), enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)
         check(u"\u00D7",   u"'\u00D7'", True)
@@ -366,26 +379,123 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check(u"\u2621",   u"\"\\u2621\"")
         check(u"'\u2621",  u"\"'\\u2621\"")
         check(u"\"\u2621", u"\"\\\"\\u2621\"")
+        check(u"\n",       u"'\n'", True, quote_newlines=False)
+        check(u"\n",       u"\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_utf8(self, enc='utf-8'):
-        def check(inp, out, optional_quotes=False):
-            self._check(inp, out.encode('utf-8'), enc, optional_quotes)
+        def check(inp, out, optional_quotes=False, quote_newlines=None):
+            self._check(inp, out.encode('utf-8'), enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)
         check(u"\u2621",   u"'\u2621'", True)
         check(u"'\u2621",  u"\"'\u2621\"")
         check(u"\"\u2621", u"'\"\u2621'")
         check(u"\u2621\"", u"'\u2621\"'", True)
+        check(u"\n",       u"'\n'", True, quote_newlines=False)
+        check(u"\n",       u"\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_default(self):
-        encodingutil.io_encoding = 'ascii'
+        self.patch(encodingutil, 'io_encoding', 'ascii')
         self.test_quote_output_ascii(None)
 
-        encodingutil.io_encoding = 'latin1'
+        self.patch(encodingutil, 'io_encoding', 'latin1')
         self.test_quote_output_latin1(None)
 
-        encodingutil.io_encoding = 'utf-8'
+        self.patch(encodingutil, 'io_encoding', 'utf-8')
         self.test_quote_output_utf8(None)
+
+
+def win32_other(win32, other):
+    return win32 if sys.platform == "win32" else other
+
+class QuotePaths(ReallyEqualMixin, unittest.TestCase):
+    def test_quote_path(self):
+        self.failUnlessReallyEqual(quote_path([u'foo', u'bar']), "'foo/bar'")
+        self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=True), "'foo/bar'")
+        self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=False), "foo/bar")
+        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar']), '"foo/\\x0abar"')
+        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=True), '"foo/\\x0abar"')
+        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=False), '"foo/\\x0abar"')
+
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo"),
+                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo", quotemarks=True),
+                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo", quotemarks=False),
+                                   win32_other("C:\\foo", "\\\\?\\C:\\foo"))
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar"),
+                                   win32_other("'\\\\foo\\bar'", "'\\\\?\\UNC\\foo\\bar'"))
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=True),
+                                   win32_other("'\\\\foo\\bar'", "'\\\\?\\UNC\\foo\\bar'"))
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=False),
+                                   win32_other("\\\\foo\\bar", "\\\\?\\UNC\\foo\\bar"))
+
+    def test_quote_filepath(self):
+        foo_bar_fp = FilePath(win32_other(u'C:\\foo\\bar', u'/foo/bar'))
+        self.failUnlessReallyEqual(quote_filepath(foo_bar_fp),
+                                   win32_other("'C:\\foo\\bar'", "'/foo/bar'"))
+        self.failUnlessReallyEqual(quote_filepath(foo_bar_fp, quotemarks=True),
+                                   win32_other("'C:\\foo\\bar'", "'/foo/bar'"))
+        self.failUnlessReallyEqual(quote_filepath(foo_bar_fp, quotemarks=False),
+                                   win32_other("C:\\foo\\bar", "/foo/bar"))
+
+        if sys.platform == "win32":
+            foo_longfp = FilePath(u'\\\\?\\C:\\foo')
+            self.failUnlessReallyEqual(quote_filepath(foo_longfp),
+                                       "'C:\\foo'")
+            self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=True),
+                                       "'C:\\foo'")
+            self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=False),
+                                       "C:\\foo")
+
+
+class FilePaths(ReallyEqualMixin, unittest.TestCase):
+    def test_to_filepath(self):
+        foo_u = win32_other(u'C:\\foo', u'/foo')
+
+        nosep_fp = to_filepath(foo_u)
+        sep_fp = to_filepath(foo_u + os.path.sep)
+
+        for fp in (nosep_fp, sep_fp):
+            self.failUnlessReallyEqual(fp, FilePath(foo_u))
+            if encodingutil.use_unicode_filepath:
+                self.failUnlessReallyEqual(fp.path, foo_u)
+
+        if sys.platform == "win32":
+            long_u = u'\\\\?\\C:\\foo'
+            longfp = to_filepath(long_u + u'\\')
+            self.failUnlessReallyEqual(longfp, FilePath(long_u))
+            self.failUnlessReallyEqual(longfp.path, long_u)
+
+    def test_extend_filepath(self):
+        foo_bfp = FilePath(win32_other(b'C:\\foo', b'/foo'))
+        foo_ufp = FilePath(win32_other(u'C:\\foo', u'/foo'))
+        foo_bar_baz_u = win32_other(u'C:\\foo\\bar\\baz', u'/foo/bar/baz')
+
+        for foo_fp in (foo_bfp, foo_ufp):
+            fp = extend_filepath(foo_fp, [u'bar', u'baz'])
+            self.failUnlessReallyEqual(fp, FilePath(foo_bar_baz_u))
+            if encodingutil.use_unicode_filepath:
+                self.failUnlessReallyEqual(fp.path, foo_bar_baz_u)
+
+    def test_unicode_from_filepath(self):
+        foo_bfp = FilePath(win32_other(b'C:\\foo', b'/foo'))
+        foo_ufp = FilePath(win32_other(u'C:\\foo', u'/foo'))
+        foo_u = win32_other(u'C:\\foo', u'/foo')
+
+        for foo_fp in (foo_bfp, foo_ufp):
+            self.failUnlessReallyEqual(unicode_from_filepath(foo_fp), foo_u)
+
+    def test_unicode_segments_from(self):
+        foo_bfp = FilePath(win32_other(b'C:\\foo', b'/foo'))
+        foo_ufp = FilePath(win32_other(u'C:\\foo', u'/foo'))
+        foo_bar_baz_bfp = FilePath(win32_other(b'C:\\foo\\bar\\baz', b'/foo/bar/baz'))
+        foo_bar_baz_ufp = FilePath(win32_other(u'C:\\foo\\bar\\baz', u'/foo/bar/baz'))
+
+        for foo_fp in (foo_bfp, foo_ufp):
+            for foo_bar_baz_fp in (foo_bar_baz_bfp, foo_bar_baz_ufp):
+                self.failUnlessReallyEqual(unicode_segments_from(foo_bar_baz_fp, foo_fp),
+                                           [u'bar', u'baz'])
 
 
 class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
@@ -433,3 +543,18 @@ class OpenBSD(EncodingUtil, unittest.TestCase):
     filesystem_encoding = '646'
     io_encoding = '646'
     # Oops, I cannot write filenames containing non-ascii characters
+
+
+class TestToFromStr(ReallyEqualMixin, unittest.TestCase):
+    def test_to_str(self):
+        self.failUnlessReallyEqual(to_str("foo"), "foo")
+        self.failUnlessReallyEqual(to_str("lumi\xc3\xa8re"), "lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_str("\xFF"), "\xFF")  # passes through invalid UTF-8 -- is this what we want?
+        self.failUnlessReallyEqual(to_str(u"lumi\u00E8re"), "lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_str(None), None)
+
+    def test_from_utf8_or_none(self):
+        self.failUnlessRaises(AssertionError, from_utf8_or_none, u"foo")
+        self.failUnlessReallyEqual(from_utf8_or_none("lumi\xc3\xa8re"), u"lumi\u00E8re")
+        self.failUnlessReallyEqual(from_utf8_or_none(None), None)
+        self.failUnlessRaises(UnicodeDecodeError, from_utf8_or_none, "\xFF")

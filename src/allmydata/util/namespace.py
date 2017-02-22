@@ -1,0 +1,3 @@
+
+class Namespace(object):
+    pass

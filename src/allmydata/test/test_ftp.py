@@ -18,7 +18,8 @@ class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):
 
     def _set_up(self, basedir, num_clients=1, num_servers=10):
         self.basedir = "ftp/" + basedir
-        self.set_up_grid(num_clients=num_clients, num_servers=num_servers)
+        self.set_up_grid(num_clients=num_clients, num_servers=num_servers,
+                         oneshare=True)
 
         self.client = self.g.clients[0]
         self.username = "alice"
@@ -93,12 +94,12 @@ class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):
 
         expected_root = [
             ('loop',
-             [0, True, 0600, 1, self.FALL_OF_BERLIN_WALL, 'alice', 'alice', '??']),
+             [0, True, ftpd.IntishPermissions(0600), 1, self.FALL_OF_BERLIN_WALL, 'alice', 'alice', '??']),
             ('immutable',
-             [23, False, 0600, 1, self.TURN_OF_MILLENIUM, 'alice', 'alice', '??']),
+             [23, False, ftpd.IntishPermissions(0600), 1, self.TURN_OF_MILLENIUM, 'alice', 'alice', '??']),
             ('mutable',
              # timestamp should be 0 if no timestamp metadata is present
-             [0, False, 0600, 1, 0, 'alice', 'alice', '??'])]
+             [0, False, ftpd.IntishPermissions(0600), 1, 0, 'alice', 'alice', '??'])]
 
         d.addCallback(lambda root: self._compareDirLists(root, expected_root))
 

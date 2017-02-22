@@ -1,4 +1,4 @@
-import os, shutil, sys, urllib, time, stat
+import os, shutil, sys, urllib, time, stat, urlparse
 from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
@@ -10,7 +10,7 @@ from allmydata.util import fileutil, pollmixin
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding
 from foolscap.api import Tub, fireEventually, flushEventualQueue
-from twisted.python import log
+from twisted.python import log, procutils
 
 class StallableHTTPGetterDiscarder(tw_client.HTTPPageGetter):
     full_speed_ahead = False
@@ -49,10 +49,14 @@ def discardPage(url, stall=False, *args, **kwargs):
     # adapted from twisted.web.client.getPage . We can't just wrap or
     # subclass because it provides no way to override the HTTPClientFactory
     # that it creates.
-    scheme, host, port, path = tw_client._parse(url)
+    scheme, netloc, path, params, query, fragment = urlparse.urlparse(url)
+    assert scheme == 'http'
+    host, port = netloc, 80
+    if ":" in host:
+        host, port = host.split(":")
+        port = int(port)
     factory = StallableDiscardingHTTPClientFactory(url, *args, **kwargs)
     factory.do_stall = stall
-    assert scheme == 'http'
     reactor.connectTCP(host, port, factory)
     return factory.deferred
 
@@ -112,10 +116,8 @@ class SystemFramework(pollmixin.PollMixin):
         #print "STARTING"
         self.stats = {}
         self.statsfile = open(os.path.join(self.basedir, "stats.out"), "a")
-        d = self.make_introducer()
-        def _more(res):
-            return self.start_client()
-        d.addCallback(_more)
+        self.make_introducer()
+        d = self.start_client()
         def _record_control_furl(control_furl):
             self.control_furl = control_furl
             #print "OBTAINING '%s'" % (control_furl,)
@@ -145,7 +147,7 @@ class SystemFramework(pollmixin.PollMixin):
 
     def tearDown(self, passthrough):
         # the client node will shut down in a few seconds
-        #os.remove(os.path.join(self.clientdir, "suicide_prevention_hotline"))
+        #os.remove(os.path.join(self.clientdir, client.Client.EXIT_TRIGGER_FILE))
         log.msg("shutting down SystemTest services")
         if self.keepalive_file and os.path.exists(self.keepalive_file):
             age = time.time() - os.stat(self.keepalive_file)[stat.ST_MTIME]
@@ -170,12 +172,7 @@ class SystemFramework(pollmixin.PollMixin):
         os.mkdir(iv_basedir)
         iv = introducer.IntroducerNode(basedir=iv_basedir)
         self.introducer = self.add_service(iv)
-        d = self.introducer.when_tub_ready()
-        def _introducer_ready(res):
-            q = self.introducer
-            self.introducer_furl = q.introducer_url
-        d.addCallback(_introducer_ready)
-        return d
+        self.introducer_furl = self.introducer.introducer_url
 
     def make_nodes(self):
         self.nodes = []
@@ -255,7 +252,7 @@ this file are ignored.
             pass
         f.close()
         self.keepalive_file = os.path.join(clientdir,
-                                           "suicide_prevention_hotline")
+                                           client.Client.EXIT_TRIGGER_FILE)
         # now start updating the mtime.
         self.touch_keepalive()
         ts = internet.TimerService(1.0, self.touch_keepalive)
@@ -264,7 +261,10 @@ this file are ignored.
         pp = ClientWatcher()
         self.proc_done = pp.d = defer.Deferred()
         logfile = os.path.join(self.basedir, "client.log")
-        cmd = ["twistd", "-n", "-y", "tahoe-client.tac", "-l", logfile]
+        tahoes = procutils.which("tahoe")
+        if not tahoes:
+            raise RuntimeError("unable to find a 'tahoe' executable")
+        cmd = [tahoes[0], "run", ".", "-l", logfile]
         env = os.environ.copy()
         self.proc = reactor.spawnProcess(pp, cmd[0], cmd, env, path=clientdir_str)
         log.msg("CLIENT STARTED")
@@ -374,15 +374,9 @@ this file are ignored.
         print
         print "uploading %s" % name
         if self.mode in ("upload", "upload-self"):
-            files[name] = self.create_data(name, size)
-            d = self.control_rref.callRemote("upload_from_file_to_uri",
-                                             files[name].encode("utf-8"),
+            d = self.control_rref.callRemote("upload_random_data_from_file",
+                                             size,
                                              convergence="check-memory")
-            def _done(uri):
-                os.remove(files[name])
-                del files[name]
-                return uri
-            d.addCallback(_done)
         elif self.mode == "upload-POST":
             data = "a" * size
             url = "/uri"
@@ -421,8 +415,8 @@ this file are ignored.
         uri = uris[name]
 
         if self.mode == "download":
-            d = self.control_rref.callRemote("download_from_uri_to_file",
-                                             uri, "dummy.out")
+            d = self.control_rref.callRemote("download_to_tempfile_and_delete",
+                                             uri)
         elif self.mode == "download-GET":
             url = "/uri/%s" % uri
             d = self.GET_discard(urllib.quote(url), stall=False)
@@ -499,6 +493,13 @@ if __name__ == '__main__':
     mode = "upload"
     if len(sys.argv) > 1:
         mode = sys.argv[1]
+    if sys.maxint == 2147483647:
+        bits = "32"
+    elif sys.maxint == 9223372036854775807:
+        bits = "64"
+    else:
+        bits = "?"
+    print "%s-bit system (sys.maxint=%d)" % (bits, sys.maxint)
     # put the logfile and stats.out in _test_memory/ . These stick around.
     # put the nodes and other files in _test_memory/test/ . These are
     # removed each time we run.

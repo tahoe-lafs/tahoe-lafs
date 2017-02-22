@@ -137,7 +137,8 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     def __init__(self, storage_index,
                  helper, storage_broker, secret_holder,
                  incoming_file, encoding_file,
-                 log_number):
+                 log_number, progress=None):
+        upload.CHKUploader.__init__(self, storage_broker, secret_holder, progress=progress)
         self._storage_index = storage_index
         self._helper = helper
         self._incoming_file = incoming_file
@@ -317,17 +318,7 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         if os.path.exists(self._encoding_file):
             self.log("ciphertext already present, bypassing fetch",
                      level=log.UNUSUAL)
-            # XXX the following comment is probably stale, since
-            # LocalCiphertextReader.get_plaintext_hashtree_leaves does not exist.
-            #
-            # we'll still need the plaintext hashes (when
-            # LocalCiphertextReader.get_plaintext_hashtree_leaves() is
-            # called), and currently the easiest way to get them is to ask
-            # the sender for the last byte of ciphertext. That will provoke
-            # them into reading and hashing (but not sending) everything
-            # else.
-            have = os.stat(self._encoding_file)[stat.ST_SIZE]
-            d = self.call("read_encrypted", have-1, 1)
+            d = defer.succeed(None)
         else:
             # first, find out how large the file is going to be
             d = self.call("get_size")

@@ -1,0 +1,91 @@
+body {
+  padding-top: 60px;
+  padding-bottom: 40px;
+}
+
+.sidebar-nav {
+  min-width: 250px;
+  padding: 9px 0;
+}
+
+.node-info {
+    margin-top: 4px;
+    line-height: 14px;
+}
+
+.node-info th {
+    text-align: right;
+}
+
+.node-info td {
+    text-align: left;
+    padding-top: 3px;
+    padding-left: 5px;
+    color: white;
+}
+
+.nav-form {
+    padding-left: 10px;
+}
+
+.status {
+    margin-right: 5px;
+}
+
+.grid-status {
+    padding: 40px;
+    margin-bottom: 30px;
+    background-color: #eeeeee;
+    -webkit-border-radius: 6px;
+    -moz-border-radius: 6px;
+    border-radius: 6px;
+}
+
+.grid-status h1 {
+    font-size: 40px;
+    margin-bottom: 20px;
+}
+
+.grid-status {
+    margin-top: 5px;
+}
+
+.connection-status {
+}
+
+.furl {
+    font-size: 0.8em;
+    word-wrap: break-word;
+}
+
+.peerid {
+    font-size: 0.8em;
+}
+
+.nickname {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.nodeid {
+    font-size: 0.8em;
+}
+
+.minutia {
+    font-size: 0.8em;
+    width: 50%;
+}
+
+.status-indicator {
+    float: left;
+    margin: 5px;
+}
+
+.timestamp {
+    float: right;
+}
+
+a.timestamp {
+    color: inherit;
+    text-decoration:none;
+}

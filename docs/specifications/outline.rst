@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 ==============================
 Specification Document Outline
 ==============================

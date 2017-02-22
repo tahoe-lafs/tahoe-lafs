@@ -1,50 +1,85 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1"><head>
-  <title n:render="title"></title>
-  <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
-  <link href="/icon.png" rel="shortcut icon" />
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-</head><body class="tahoe-directory-page">
+<!DOCTYPE html>
+<html lang="en" xmlns:n="http://nevow.com/ns/nevow/0.1">
+  <head>
+    <meta charset="utf-8"/>
+    <title n:render="title"></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="Tahoe-LAFS is a free and open cloud storage engine"/>
+    <meta name="author" content="Tahoe-LAFS"/>
 
-<h1 n:render="header"></h1>
+    <!-- Le styles -->
+    <link href="/css/bootstrap.css" rel="stylesheet"/>
+    <link href="/css/bootstrap-responsive.css" rel="stylesheet"/>
+    <link href="/css/new-tahoe.css" rel="stylesheet"/>
 
-<div class="toolbar">
-  <div class="toolbar-item" n:render="welcome" />
-  <div class="toolbar-item"><a href=".">Refresh</a></div>
+    <!-- Le fav and touch icons -->
+    <link rel="shortcut icon" href="/icon.png" />
+  </head>
 
-  <div class="toolbar-item"><a href="?t=info">More info on this directory</a></div>
-  <div class="toolbar-item" n:render="show_readonly" />
-</div>
+  <body>
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container-fluid">
+          <a class="brand" href="/"><img src="/img/logo.png" alt="Tahoe-LAFS"/></a>
+        </div>
+      </div>
+    </div>
 
-<div n:render="try_children">
-  <table class="tahoe-directory" n:render="sequence" n:data="children">
-    <tr n:pattern="header">
-      <th>Type</th>
-      <th>Filename</th>
-      <th>Size</th>
-      <th>Times</th>
-      <th></th>
-      <th></th>
-      <th></th>
-    </tr>
-    <tr n:pattern="item" n:render="row">
-      <td><n:slot name="type"/></td>
-      <td><n:slot name="filename"/></td>
-      <td align="right"><n:slot name="size"/></td>
-      <td><n:slot name="times"/></td>
-      <td><n:slot name="unlink"/></td>
-      <td><n:slot name="rename"/></td>
-      <td><n:slot name="info"/></td>
-    </tr>
+    <div class="container-fluid">
+      <div class="row-fluid">
+        <div class="span3">
+          <div class="well sidebar-nav">
+            <ul class="nav nav-list">
+              <li class="toolbar-item" n:render="welcome" />
+              <li class="toolbar-item"><a href=".">Refresh</a></li>
+              <li class="toolbar-item"><a href="?t=info">More info on this directory</a></li>
+              <li class="toolbar-item" n:render="show_readonly" />
+            </ul>
+          </div>
+        </div>
+        <div class="span9">
+          <h1 n:render="header"></h1>
 
-    <tr n:pattern="empty"><td colspan="9" class="empty-marker">This directory is empty.</td></tr>
+          <div n:render="try_children">
+            <table class="table table-striped tahoe-directory" n:render="sequence" n:data="children">
+              <tr n:pattern="header">
+                <th>Type</th>
+                <th>Filename</th>
+                <th>Size</th>
+                <th>Times</th>
+                <th></th>
+                <th></th>
+                <th></th>
+              </tr>
+              <tr n:pattern="item" n:render="row">
+                <td><n:slot name="type"/></td>
+                <td><n:slot name="filename"/></td>
+                <td align="right"><n:slot name="size"/></td>
+                <td><n:slot name="times"/></td>
+                <td><n:slot name="unlink"/></td>
+                <td><n:slot name="rename"/></td>
+                <td><n:slot name="info"/></td>
+              </tr>
 
-  </table>
-</div>
+              <tr n:pattern="empty"><td colspan="9" class="empty-marker">This directory is empty.</td></tr>
 
-<div class="tahoe-directory-footer">
-  <div n:render="forms"/>
+            </table>
+          </div>
 
-  <div class="results" n:render="results"/>
-</div>
+          <div class="tahoe-directory-footer">
+            <div n:render="forms"/>
 
-</body></html>
+            <div class="results" n:render="results"/>
+          </div>
+        </div><!--/span-->
+      </div><!--/row-->
+
+      <hr/>
+
+      <footer>
+        <p>&#169; <a href="http://tahoe-lafs.org/">Tahoe-LAFS 2013</a></p>
+      </footer>
+
+    </div><!--/.fluid-container-->
+  </body>
+</html>

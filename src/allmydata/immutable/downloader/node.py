@@ -56,8 +56,7 @@ class DownloadNode:
         self._history = history
         self._download_status = download_status
 
-        k, N = self._verifycap.needed_shares, self._verifycap.total_shares
-        self.share_hash_tree = IncompleteHashTree(N)
+        self.share_hash_tree = IncompleteHashTree(self._verifycap.total_shares)
 
         # we guess the segment size, so Segmentation can pull non-initial
         # segments in a single roundtrip. This populates
@@ -514,9 +513,9 @@ class DownloadNode:
                                   if t[0] != segnum]
         return retire
 
-    def _cancel_request(self, c):
+    def _cancel_request(self, cancel):
         self._segment_requests = [t for t in self._segment_requests
-                                  if t[2] != c]
+                                  if t[2] != cancel]
         segnums = [segnum for (segnum,d,c,seg_ev,lp) in self._segment_requests]
         # self._active_segment might be None in rare circumstances, so make
         # sure we tolerate it

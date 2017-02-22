@@ -1,8 +1,8 @@
 import re, time
 from twisted.application import service, strports, internet
-from twisted.web import http
+from twisted.web import http, static
 from twisted.internet import defer
-from nevow import appserver, inevow, static
+from nevow import appserver, inevow
 from allmydata.util import log, fileutil
 
 from allmydata.web import introweb, root
@@ -129,14 +129,14 @@ class WebishServer(service.MultiService):
     name = "webish"
 
     def __init__(self, client, webport, nodeurl_path=None, staticdir=None,
-                 clock=None):
+                 clock=None, now_fn=time.time):
         service.MultiService.__init__(self)
         # the 'data' argument to all render() methods default to the Client
         # the 'clock' argument to root.Root is, if set, a
         # twisted.internet.task.Clock that is provided by the unit tests
         # so that they can test features that involve the passage of
         # time in a deterministic manner.
-        self.root = root.Root(client, clock)
+        self.root = root.Root(client, clock, now_fn)
         self.buildServer(webport, nodeurl_path, staticdir)
         if self.root.child_operations:
             self.site.remember(self.root.child_operations, IOpHandleTable)
@@ -147,6 +147,7 @@ class WebishServer(service.MultiService):
         self.site = site = appserver.NevowSite(self.root)
         self.site.requestFactory = MyRequest
         self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
+        self.staticdir = staticdir # so tests can check
         if staticdir:
             self.root.putChild("static", static.File(staticdir))
         if re.search(r'^\d', webport):

@@ -1,6 +1,5 @@
 import time, os
 
-from twisted.internet import address
 from twisted.web import http
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
@@ -9,12 +8,12 @@ from nevow.util import resource_filename
 
 import allmydata # to display import path
 from allmydata import get_package_versions_string
-from allmydata.util import idlib, log
+from allmydata.util import log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
-from allmydata.web import storage
+from allmydata.web import storage, magic_folder
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
-     get_arg, RenderMixin, get_format, get_mutable_type
+     get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -123,7 +122,7 @@ class IncidentReporter(RenderMixin, rend.Page):
                 details=get_arg(req, "details", ""),
                 level=log.WEIRD, umid="LkD9Pw")
         req.setHeader("content-type", "text/plain")
-        return "Thank you for your report!"
+        return "An incident report has been saved to logs/incidents/ in the node directory."
 
 SPACE = u"\u00A0"*2
 
@@ -132,12 +131,19 @@ class Root(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
-    def __init__(self, client, clock=None):
+    _connectedalts = {
+        "not-configured": "Not Configured",
+        "yes": "Connected",
+        "no": "Disconnected",
+        }
+
+    def __init__(self, client, clock=None, now_fn=None):
         rend.Page.__init__(self, client)
         self.client = client
         # If set, clock is a twisted.internet.task.Clock that the tests
         # use to test ophandle expiration.
         self.child_operations = operations.OphandleTable(clock)
+        self.now_fn = now_fn
         try:
             s = client.getServiceNamed("storage")
         except KeyError:
@@ -146,6 +152,9 @@ class Root(rend.Page):
 
         self.child_uri = URIHandler(client)
         self.child_cap = URIHandler(client)
+
+        # handler for "/magic_folder" URIs
+        self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
 
         self.child_file = FileHandler(client)
         self.child_named = FileHandler(client)
@@ -164,14 +173,36 @@ class Root(rend.Page):
     #child_server # let's reserve this for storage-server-over-HTTP
 
     # FIXME: This code is duplicated in root.py and introweb.py.
+    def data_rendered_at(self, ctx, data):
+        return render_time(time.time())
     def data_version(self, ctx, data):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):
         return str(allmydata)
-    def data_my_nodeid(self, ctx, data):
-        return idlib.nodeid_b2a(self.client.nodeid)
+    def render_my_nodeid(self, ctx, data):
+        tubid_s = "TubID: "+self.client.get_long_tubid()
+        return T.td(title=tubid_s)[self.client.get_long_nodeid()]
     def data_my_nickname(self, ctx, data):
         return self.client.nickname
+
+    def render_magic_folder(self, ctx, data):
+        if self.client._magic_folder is None:
+            return T.p()
+
+        (ok, messages) = self.client._magic_folder.get_public_status()
+
+        if ok:
+            ctx.fillSlots("magic_folder_status", "yes")
+            ctx.fillSlots("magic_folder_status_alt", "working")
+        else:
+            ctx.fillSlots("magic_folder_status", "no")
+            ctx.fillSlots("magic_folder_status_alt", "not working")
+
+        status = T.ul()
+        for msg in messages:
+            status[T.li[str(msg)]]
+
+        return ctx.tag[status]
 
     def render_services(self, ctx, data):
         ul = T.ul()
@@ -198,29 +229,112 @@ class Root(rend.Page):
 
         return ctx.tag[ul]
 
-    def data_introducer_furl(self, ctx, data):
-        return self.client.introducer_furl
-    def data_connected_to_introducer(self, ctx, data):
-        if self.client.connected_to_introducer():
+    def data_introducer_description(self, ctx, data):
+        connected_count = self.data_connected_introducers( ctx, data )
+        if connected_count == 0:
+            return "No introducers connected"
+        elif connected_count == 1:
+            return "1 introducer connected"
+        else:
+            return "%s introducers connected" % (connected_count,)
+
+    def data_total_introducers(self, ctx, data):
+        return len(self.client.introducer_connection_statuses())
+
+    def data_connected_introducers(self, ctx, data):
+        return len([1 for cs in self.client.introducer_connection_statuses()
+                    if cs.connected])
+
+    def data_connected_to_at_least_one_introducer(self, ctx, data):
+        if self.data_connected_introducers(ctx, data):
             return "yes"
         return "no"
 
-    def data_helper_furl(self, ctx, data):
+    def data_connected_to_at_least_one_introducer_alt(self, ctx, data):
+        return self._connectedalts[self.data_connected_to_at_least_one_introducer(ctx, data)]
+
+    # In case we configure multiple introducers
+    def data_introducers(self, ctx, data):
+        return self.client.introducer_connection_statuses()
+
+    def _render_connection_status(self, ctx, cs):
+        connected = "yes" if cs.connected else "no"
+        ctx.fillSlots("service_connection_status", connected)
+        ctx.fillSlots("service_connection_status_alt",
+                      self._connectedalts[connected])
+
+        since = cs.last_connection_time
+        ctx.fillSlots("service_connection_status_rel_time",
+                      render_time_delta(since, self.now_fn())
+                      if since is not None
+                      else "N/A")
+        ctx.fillSlots("service_connection_status_abs_time",
+                      render_time_attr(since)
+                      if since is not None
+                      else "N/A")
+
+        last_received_data_time = cs.last_received_time
+        ctx.fillSlots("last_received_data_abs_time",
+                      render_time_attr(last_received_data_time)
+                      if last_received_data_time is not None
+                      else "N/A")
+        ctx.fillSlots("last_received_data_rel_time",
+                      render_time_delta(last_received_data_time, self.now_fn())
+                      if last_received_data_time is not None
+                      else "N/A")
+
+        others = cs.non_connected_statuses
+        if cs.connected:
+            ctx.fillSlots("summary", cs.summary)
+            if others:
+                details = "\n".join(["* %s: %s\n" % (which, others[which])
+                                     for which in sorted(others)])
+                ctx.fillSlots("details", "Other hints:\n" + details)
+            else:
+                ctx.fillSlots("details", "(no other hints)")
+        else:
+            details = T.ul()
+            for which in sorted(others):
+                details[T.li["%s: %s" % (which, others[which])]]
+            ctx.fillSlots("summary", [cs.summary, details])
+            ctx.fillSlots("details", "")
+
+    def render_introducers_row(self, ctx, cs):
+        self._render_connection_status(ctx, cs)
+        return ctx.tag
+
+    def data_helper_furl_prefix(self, ctx, data):
         try:
             uploader = self.client.getServiceNamed("uploader")
         except KeyError:
             return None
         furl, connected = uploader.get_helper_info()
-        return furl
+        if not furl:
+            return None
+        # trim off the secret swissnum
+        (prefix, _, swissnum) = furl.rpartition("/")
+        return "%s/[censored]" % (prefix,)
+
+    def data_helper_description(self, ctx, data):
+        if self.data_connected_to_helper(ctx, data) == "no":
+            return "Helper not connected"
+        return "Helper"
+
     def data_connected_to_helper(self, ctx, data):
         try:
             uploader = self.client.getServiceNamed("uploader")
         except KeyError:
             return "no" # we don't even have an Uploader
         furl, connected = uploader.get_helper_info()
+
+        if furl is None:
+            return "not-configured"
         if connected:
             return "yes"
         return "no"
+
+    def data_connected_to_helper_alt(self, ctx, data):
+        return self._connectedalts[self.data_connected_to_helper(ctx, data)]
 
     def data_known_storage_servers(self, ctx, data):
         sb = self.client.get_storage_broker()
@@ -235,37 +349,21 @@ class Root(rend.Page):
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
     def render_service_row(self, ctx, server):
-        nodeid = server.get_serverid()
+        cs = server.get_connection_status()
+        self._render_connection_status(ctx, cs)
 
         ctx.fillSlots("peerid", server.get_longname())
         ctx.fillSlots("nickname", server.get_nickname())
-        rhost = server.get_remote_host()
-        if rhost:
-            if nodeid == self.client.nodeid:
-                rhost_s = "(loopback)"
-            elif isinstance(rhost, address.IPv4Address):
-                rhost_s = "%s:%d" % (rhost.host, rhost.port)
-            else:
-                rhost_s = str(rhost)
-            connected = "Yes: to " + rhost_s
-            since = server.get_last_connect_time()
-        else:
-            connected = "No"
-            since = server.get_last_loss_time()
-        announced = server.get_announcement_time()
-        announcement = server.get_announcement()
-        version = announcement["my-version"]
-        service_name = announcement["service-name"]
 
-        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-        ctx.fillSlots("connected", connected)
-        ctx.fillSlots("connected-bool", bool(rhost))
-        ctx.fillSlots("since", time.strftime(TIME_FORMAT,
-                                             time.localtime(since)))
-        ctx.fillSlots("announced", time.strftime(TIME_FORMAT,
-                                                 time.localtime(announced)))
+        announcement = server.get_announcement()
+        version = announcement.get("my-version", "")
+        available_space = server.get_available_space()
+        if available_space is None:
+            available_space = "N/A"
+        else:
+            available_space = abbreviate_size(available_space)
         ctx.fillSlots("version", version)
-        ctx.fillSlots("service_name", service_name)
+        ctx.fillSlots("available_space", available_space)
 
         return ctx.tag
 
@@ -349,10 +447,9 @@ class Root(rend.Page):
         form = T.form(action="report_incident", method="post",
                       enctype="multipart/form-data")[
             T.fieldset[
-            T.legend(class_="freeform-form-label")["Report an Incident"],
             T.input(type="hidden", name="t", value="report-incident"),
-            "What went wrong?:"+SPACE,
+            "What went wrong?"+SPACE,
             T.input(type="text", name="details"), SPACE,
-            T.input(type="submit", value="Report!"),
+            T.input(type="submit", value=u"Save \u00BB"),
             ]]
         return T.div[form]

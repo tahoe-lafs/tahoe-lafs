@@ -1,41 +1,46 @@
 ﻿* Tahoe Release Checklist [0/19]
+  - [ ] make sure buildbot, travis, appveyor are green
+  - [ ] NEWS.rst: summarize user-visible changes, aim for one page of text
   - [ ] update doc files
+    - NEWS.rst: Add final release name and date to top-most item in NEWS.
     - relnotes.txt
     - CREDITS
     - docs/known_issues.rst
-    - NEWS.rst: Add release name and date to top-most item in NEWS.
-  - [ ] change docs/quickstart.rst to point to just the current
-    allmydata-tahoe-X.Y.Z.zip source code file, or else to point to a
-    directory which contains only allmydata-tahoe-X.Y.Z.* source code files
-  - [ ] git pull
-  - [ ] git tag allmydata-tahoe-X.Y.Z
+  - [ ] change docs/INSTALL.rst to point to just the current
+    tahoe-lafs-X.Y.Z.tar.gz source code file
+  - [ ] announce the tree is locked on IRC
+  - [ ] git pull, should be empty
+  - [ ] git tag -s -u 68666A7A -m "release Tahoe-LAFS-X.Y.Z" tahoe-lafs-X.Y.Z
+    - produces a "signed tag"
   - [ ] build locally to make sure the release is reporting itself as the
-    intended version
-  - [ ] make sure buildbot is green
-  - [ ] make sure other people aren't committing at that moment
-  - [ ] push tag along with some other documentation-only patch (typically to
-    relnotes.txt) to trigger buildslaves
-    - git push --tags official; git push official
+    intended version, make tarballs too (for comparison only)
+  - [ ] push tag to trigger buildslaves. Making a code change is no longer
+    necessary (TODO: pushing just 1.12.0b2 was insufficient: travis fired,
+    but not buildbot)
+    - git push official master TAGNAME
     - that will build tarballs
   - [ ] make sure buildbot is green
-  - [ ] make sure a sumo sdist tarball got built and uploaded properly
-  - [ ] download tarballs, sign with "gpg -ba -u 68666a7a TAR", upload *.asc
-  - [ ] symlink the release tarball on tahoe-lafs.org:
-    /var/www/source/tahoe-lafs/releases/
-  - [ ] update Wiki: front page news, news, old news, parade of release notes
-  - [ ] send out relnotes.txt to:
-    - tahoe-announce@tahoe-lafs.org
-    - tahoe-dev@tahoe-lafs.org
+  - [ ] download tarballs+wheels
+  - [ ] announce tree is unlocked
+  - [ ] compare tarballs+wheels against local copies (but sign upstreams)
+  - [ ] sign each with "gpg -ba -u 68666a7a FILE"
+  - [ ] twine upload dist/*
+  - [ ] test "pip install tahoe-lafs" (from PyPI)
+  - [ ] upload *.asc to org ~source/downloads/
+  - [ ] copy the release tarball,sigs to tahoe-lafs.org: ~source/downloads/
+  - [ ] move old release out of ~source/downloads (to downloads/old/?)
+  - [ ] send out relnotes.txt:
+    - add prefix with SHA256 of tarballs, release pubkey, git revhash
+    - GPG-sign the email with release key
+    - send to tahoe-announce@tahoe-lafs.org and tahoe-dev@tahoe-lafs.org
+  - [ ] update Wiki front page: version on download link, News column
+  - [ ] update Wiki "Doc": parade of release notes (with rev of NEWS.rst)
+  - [ ] close the Milestone on the trac Roadmap
+  - [ ] tweet to @tahoelafs
+  - other stuff:
   - [ ] update https://tahoe-lafs.org/hacktahoelafs/
   - [ ] make an "announcement of new release" on freshmeat
-  - [ ] upload to pypi with "python ./setup.py sdist upload register"
-    - currently broken (with git). And we want signed tarballs, and we want
-      the tarballs to match the ones on tahoe-lafs.org. So instead do this:
-      - [ ] login to pypi
-      - [ ] from Edit, add new release
-      - [ ] upload .tar.gz, .asc
   - [ ] make an "announcement of new release" on launchpad
-  - [ ] close the Milestone on the trac Roadmap
   - [ ] send out relnotes.txt to:
     - p2p-hackers@lists.zooko.com
     - lwn@lwn.net

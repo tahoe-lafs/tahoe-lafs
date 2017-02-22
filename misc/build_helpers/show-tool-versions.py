@@ -2,18 +2,6 @@
 
 import locale, os, platform, subprocess, sys, traceback
 
-added_zetuptoolz_egg = False
-try:
-    import pkg_resources
-    pkg_resources  # hush pyflakes
-except ImportError:
-    import glob
-    eggz = glob.glob('setuptools-*.egg')
-    if len(eggz) > 0:
-        egg = os.path.realpath(eggz[0])
-        print >>sys.stderr, "Inserting egg on sys.path: %r" % (egg,)
-        added_zetuptoolz_egg = True
-        sys.path.insert(0, egg)
 
 def foldlines(s, numlines=None):
     lines = s.split("\n")
@@ -81,10 +69,6 @@ def print_as_ver():
         pass
 
 def print_setuptools_ver():
-    if added_zetuptoolz_egg:
-        # it would be misleading to report the bundled version of zetuptoolz as the installed version
-        print "setuptools: using bundled egg"
-        return
     try:
         import pkg_resources
         out = str(pkg_resources.require("setuptools"))
@@ -129,6 +113,8 @@ def print_py_pkg_ver(pkgname, modulename=None):
 print_platform()
 print
 print_python_ver()
+print_stdout(['virtualenv', '--version'])
+print_stdout(['tox', '--version'])
 print
 print_stdout(['locale'])
 print_python_encoding_settings()
@@ -142,24 +128,31 @@ print_stdout(['g++', '--version'], numlines=1)
 print_stdout(['cryptest', 'V'])
 print_stdout(['git', '--version'])
 print_stdout(['openssl', 'version'])
-print_stdout(['darcs', '--version'])
-print_stdout(['darcs', '--exact-version'], label='darcs-exact-version')
 print_stdout(['flappclient', '--version'])
 print_stdout(['valgrind', '--version'])
-print_stdout(['lzip', '--version'])
 
 print_as_ver()
 
 print_setuptools_ver()
 
+print_py_pkg_ver('cffi')
 print_py_pkg_ver('coverage')
-print_py_pkg_ver('trialcoverage')
+print_py_pkg_ver('cryptography')
+print_py_pkg_ver('foolscap')
+print_py_pkg_ver('mock')
+print_py_pkg_ver('Nevow', 'nevow')
+print_py_pkg_ver('pyasn1')
+print_py_pkg_ver('pycparser')
+print_py_pkg_ver('pycrypto', 'Crypto')
+print_py_pkg_ver('pycryptopp')
 print_py_pkg_ver('pyflakes')
-print_py_pkg_ver('zope.interface')
-print_py_pkg_ver('setuptools_darcs')
-print_py_pkg_ver('darcsver')
+print_py_pkg_ver('pyOpenSSL', 'OpenSSL')
+print_py_pkg_ver('simplejson')
+print_py_pkg_ver('six')
+print_py_pkg_ver('trialcoverage')
 print_py_pkg_ver('Twisted', 'twisted')
 print_py_pkg_ver('TwistedCore', 'twisted.python')
 print_py_pkg_ver('TwistedWeb', 'twisted.web')
 print_py_pkg_ver('TwistedConch', 'twisted.conch')
-print_py_pkg_ver('pycryptopp')
+print_py_pkg_ver('zfec')
+print_py_pkg_ver('zope.interface')

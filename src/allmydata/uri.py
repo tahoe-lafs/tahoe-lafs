@@ -1,9 +1,12 @@
 
-import re, urllib
+import re
+
 from zope.interface import implements
 from twisted.python.components import registerAdapter
+
 from allmydata.storage.server import si_a2b, si_b2a
 from allmydata.util import base32, hashutil
+from allmydata.util.assertutil import _assert
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IImmutableFileURI, \
     IVerifierURI, IMutableFileURI, IDirectoryURI, IReadonlyDirectoryURI, \
     MustBeDeepImmutableError, MustBeReadonlyError, CapConstraintError
@@ -20,19 +23,11 @@ class BadURIError(CapConstraintError):
 #  - rename all of the *URI classes/interfaces to *Cap
 #  - make variable and method names consistently use _uri for an URI string,
 #    and _cap for a Cap object (decoded URI)
-#  - remove the human_encoding methods?
 
 BASE32STR_128bits = '(%s{25}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_3bits)
 BASE32STR_256bits = '(%s{51}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_1bits)
 
-SEP='(?::|%3A)'
 NUMBER='([0-9]+)'
-NUMBER_IGNORE='(?:[0-9]+)'
-
-# "human-encoded" URIs are allowed to come with a leading
-# 'http://127.0.0.1:(8123|3456)/uri/' that will be ignored.
-# Note that nothing in the Tahoe code currently uses the human encoding.
-OPTIONALHTTPLEAD=r'(?:https?://(?:[^:/]+)(?::%s)?/uri/)?' % NUMBER_IGNORE
 
 
 class _BaseURI:
@@ -51,9 +46,6 @@ class _BaseURI:
         else:
             return True
 
-    def to_human_encoding(self):
-        return 'http://127.0.0.1:3456/uri/'+self.to_string()
-
     def get_storage_index(self):
         return self.storage_index
 
@@ -65,9 +57,6 @@ class CHKFileURI(_BaseURI):
     STRING_RE=re.compile('^URI:CHK:'+BASE32STR_128bits+':'+
                          BASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER+
                          '$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'CHK'+SEP+
-                     BASE32STR_128bits+SEP+BASE32STR_256bits+SEP+NUMBER+
-                     SEP+NUMBER+SEP+NUMBER+'$')
 
     def __init__(self, key, uri_extension_hash, needed_shares, total_shares,
                  size):
@@ -79,14 +68,6 @@ class CHKFileURI(_BaseURI):
         self.storage_index = hashutil.storage_index_hash(self.key)
         if not len(self.storage_index) == 16: # sha256 hash truncated to 128
             raise BadURIError("storage index must be 16 bytes long")
-
-    @classmethod
-    def init_from_human_encoding(cls, uri):
-        mo = cls.HUMAN_RE.search(uri)
-        if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
-                   int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     @classmethod
     def init_from_string(cls, uri):
@@ -127,15 +108,13 @@ class CHKFileURI(_BaseURI):
                                   total_shares=self.total_shares,
                                   size=self.size)
 
+
 class CHKFileVerifierURI(_BaseURI):
     implements(IVerifierURI)
 
     BASE_STRING='URI:CHK-Verifier:'
     STRING_RE=re.compile('^URI:CHK-Verifier:'+BASE32STR_128bits+':'+
                          BASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER)
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'CHK-Verifier'+SEP+
-                        BASE32STR_128bits+SEP+BASE32STR_256bits+SEP+NUMBER+
-                        SEP+NUMBER+SEP+NUMBER)
 
     def __init__(self, storage_index, uri_extension_hash,
                  needed_shares, total_shares, size):
@@ -145,14 +124,6 @@ class CHKFileVerifierURI(_BaseURI):
         self.needed_shares = needed_shares
         self.total_shares = total_shares
         self.size = size
-
-    @classmethod
-    def init_from_human_encoding(cls, uri):
-        mo = cls.HUMAN_RE.search(uri)
-        if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
-                   int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     @classmethod
     def init_from_string(cls, uri):
@@ -192,19 +163,11 @@ class LiteralFileURI(_BaseURI):
 
     BASE_STRING='URI:LIT:'
     STRING_RE=re.compile('^URI:LIT:'+base32.BASE32STR_anybytes+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'LIT'+SEP+base32.BASE32STR_anybytes+'$')
 
     def __init__(self, data=None):
         if data is not None:
             assert isinstance(data, str)
             self.data = data
-
-    @classmethod
-    def init_from_human_encoding(cls, uri):
-        mo = cls.HUMAN_RE.search(uri)
-        if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)))
 
     @classmethod
     def init_from_string(cls, uri):
@@ -242,8 +205,6 @@ class WriteableSSKFileURI(_BaseURI):
     BASE_STRING='URI:SSK:'
     STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+
                          BASE32STR_256bits+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'SSK'+SEP+
-                        BASE32STR_128bits+SEP+BASE32STR_256bits+'$')
 
     def __init__(self, writekey, fingerprint):
         self.writekey = writekey
@@ -251,13 +212,6 @@ class WriteableSSKFileURI(_BaseURI):
         self.storage_index = hashutil.ssk_storage_index_hash(self.readkey)
         assert len(self.storage_index) == 16
         self.fingerprint = fingerprint
-
-    @classmethod
-    def init_from_human_encoding(cls, uri):
-        mo = cls.HUMAN_RE.search(uri)
-        if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
@@ -293,25 +247,18 @@ class WriteableSSKFileURI(_BaseURI):
     def get_verify_cap(self):
         return SSKVerifierURI(self.storage_index, self.fingerprint)
 
+
 class ReadonlySSKFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:SSK-RO:'
     STRING_RE=re.compile('^URI:SSK-RO:'+BASE32STR_128bits+':'+BASE32STR_256bits+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'SSK-RO'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'$')
 
     def __init__(self, readkey, fingerprint):
         self.readkey = readkey
         self.storage_index = hashutil.ssk_storage_index_hash(self.readkey)
         assert len(self.storage_index) == 16
         self.fingerprint = fingerprint
-
-    @classmethod
-    def init_from_human_encoding(cls, uri):
-        mo = cls.HUMAN_RE.search(uri)
-        if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
@@ -347,24 +294,17 @@ class ReadonlySSKFileURI(_BaseURI):
     def get_verify_cap(self):
         return SSKVerifierURI(self.storage_index, self.fingerprint)
 
+
 class SSKVerifierURI(_BaseURI):
     implements(IVerifierURI)
 
     BASE_STRING='URI:SSK-Verifier:'
     STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'SSK-Verifier'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'$')
 
     def __init__(self, storage_index, fingerprint):
         assert len(storage_index) == 16
         self.storage_index = storage_index
         self.fingerprint = fingerprint
-
-    @classmethod
-    def init_from_human_encoding(cls, uri):
-        mo = cls.HUMAN_RE.search(uri)
-        if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
@@ -391,12 +331,12 @@ class SSKVerifierURI(_BaseURI):
     def get_verify_cap(self):
         return self
 
+
 class WriteableMDMFFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:MDMF:'
     STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'MDMF'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'(:|$)')
 
     def __init__(self, writekey, fingerprint):
         self.writekey = writekey
@@ -404,13 +344,6 @@ class WriteableMDMFFileURI(_BaseURI):
         self.storage_index = hashutil.ssk_storage_index_hash(self.readkey)
         assert len(self.storage_index) == 16
         self.fingerprint = fingerprint
-
-    @classmethod
-    def init_from_human_encoding(cls, uri):
-        mo = cls.HUMAN_RE.search(uri)
-        if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
@@ -447,25 +380,18 @@ class WriteableMDMFFileURI(_BaseURI):
     def get_verify_cap(self):
         return MDMFVerifierURI(self.storage_index, self.fingerprint)
 
+
 class ReadonlyMDMFFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:MDMF-RO:'
     STRING_RE=re.compile('^' +BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'MDMF-RO'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'(:|$)')
 
     def __init__(self, readkey, fingerprint):
         self.readkey = readkey
         self.storage_index = hashutil.ssk_storage_index_hash(self.readkey)
         assert len(self.storage_index) == 16
         self.fingerprint = fingerprint
-
-    @classmethod
-    def init_from_human_encoding(cls, uri):
-        mo = cls.HUMAN_RE.search(uri)
-        if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
@@ -503,24 +429,17 @@ class ReadonlyMDMFFileURI(_BaseURI):
     def get_verify_cap(self):
         return MDMFVerifierURI(self.storage_index, self.fingerprint)
 
+
 class MDMFVerifierURI(_BaseURI):
     implements(IVerifierURI)
 
     BASE_STRING='URI:MDMF-Verifier:'
     STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'MDMF-Verifier'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'(:|$)')
 
     def __init__(self, storage_index, fingerprint):
         assert len(storage_index) == 16
         self.storage_index = storage_index
         self.fingerprint = fingerprint
-
-    @classmethod
-    def init_from_human_encoding(cls, uri):
-        mo = cls.HUMAN_RE.search(uri)
-        if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
@@ -548,6 +467,7 @@ class MDMFVerifierURI(_BaseURI):
     def get_verify_cap(self):
         return self
 
+
 class _DirectoryBaseURI(_BaseURI):
     implements(IURI, IDirnodeURI)
     def __init__(self, filenode_uri=None):
@@ -564,18 +484,6 @@ class _DirectoryBaseURI(_BaseURI):
         bits = uri[mo.end():]
         fn = cls.INNER_URI_CLASS.init_from_string(
             cls.INNER_URI_CLASS.BASE_STRING+bits)
-        return cls(fn)
-
-    @classmethod
-    def init_from_human_encoding(cls, uri):
-        mo = cls.BASE_HUMAN_RE.search(uri)
-        if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        bits = uri[mo.end():]
-        while bits and bits[-1] == '/':
-            bits = bits[:-1]
-        fn = cls.INNER_URI_CLASS.init_from_string(
-            cls.INNER_URI_CLASS.BASE_STRING+urllib.unquote(bits))
         return cls(fn)
 
     def to_string(self):
@@ -606,12 +514,12 @@ class _DirectoryBaseURI(_BaseURI):
     def get_storage_index(self):
         return self._filenode_uri.get_storage_index()
 
+
 class DirectoryURI(_DirectoryBaseURI):
     implements(IDirectoryURI)
 
     BASE_STRING='URI:DIR2:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
-    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2'+SEP)
     INNER_URI_CLASS=WriteableSSKFileURI
 
     def __init__(self, filenode_uri=None):
@@ -631,7 +539,6 @@ class ReadonlyDirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING='URI:DIR2-RO:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
-    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-RO'+SEP)
     INNER_URI_CLASS=ReadonlySSKFileURI
 
     def __init__(self, filenode_uri=None):
@@ -666,7 +573,6 @@ class _ImmutableDirectoryBaseURI(_DirectoryBaseURI):
 class ImmutableDirectoryURI(_ImmutableDirectoryBaseURI):
     BASE_STRING='URI:DIR2-CHK:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
-    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-CHK'+SEP)
     INNER_URI_CLASS=CHKFileURI
 
     def get_verify_cap(self):
@@ -677,7 +583,6 @@ class ImmutableDirectoryURI(_ImmutableDirectoryBaseURI):
 class LiteralDirectoryURI(_ImmutableDirectoryBaseURI):
     BASE_STRING='URI:DIR2-LIT:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
-    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-LIT'+SEP)
     INNER_URI_CLASS=LiteralFileURI
 
     def get_verify_cap(self):
@@ -690,7 +595,6 @@ class MDMFDirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING='URI:DIR2-MDMF:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
-    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-MDMF'+SEP)
     INNER_URI_CLASS=WriteableMDMFFileURI
 
     def __init__(self, filenode_uri=None):
@@ -713,7 +617,6 @@ class ReadonlyMDMFDirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING='URI:DIR2-MDMF-RO:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
-    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-MDMF-RO'+SEP)
     INNER_URI_CLASS=ReadonlyMDMFFileURI
 
     def __init__(self, filenode_uri=None):
@@ -730,6 +633,7 @@ class ReadonlyMDMFDirectoryURI(_DirectoryBaseURI):
     def get_verify_cap(self):
         return MDMFDirectoryURIVerifier(self._filenode_uri.get_verify_cap())
 
+
 def wrap_dirnode_cap(filecap):
     if isinstance(filecap, WriteableSSKFileURI):
         return DirectoryURI(filecap)
@@ -743,19 +647,19 @@ def wrap_dirnode_cap(filecap):
         return MDMFDirectoryURI(filecap)
     if isinstance(filecap, ReadonlyMDMFFileURI):
         return ReadonlyMDMFDirectoryURI(filecap)
-    assert False, "cannot interpret as a directory cap: %s" % filecap.__class__
+    raise AssertionError("cannot interpret as a directory cap: %s" % filecap.__class__)
+
 
 class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
     implements(IVerifierURI)
 
     BASE_STRING='URI:DIR2-MDMF-Verifier:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
-    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-MDMF-Verifier'+SEP)
     INNER_URI_CLASS=MDMFVerifierURI
 
     def __init__(self, filenode_uri=None):
         if filenode_uri:
-            assert IVerifierURI.providedBy(filenode_uri)
+            _assert(IVerifierURI.providedBy(filenode_uri))
         self._filenode_uri = filenode_uri
 
     def get_filenode_cap(self):
@@ -776,12 +680,11 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
 
     BASE_STRING='URI:DIR2-Verifier:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
-    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-Verifier'+SEP)
     INNER_URI_CLASS=SSKVerifierURI
 
     def __init__(self, filenode_uri=None):
         if filenode_uri:
-            assert IVerifierURI.providedBy(filenode_uri)
+            _assert(IVerifierURI.providedBy(filenode_uri))
         self._filenode_uri = filenode_uri
 
     def get_filenode_cap(self):
@@ -801,7 +704,6 @@ class ImmutableDirectoryURIVerifier(DirectoryURIVerifier):
     implements(IVerifierURI)
     BASE_STRING='URI:DIR2-CHK-Verifier:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
-    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-CHK-VERIFIER'+SEP)
     INNER_URI_CLASS=CHKFileVerifierURI
 
 
@@ -828,7 +730,7 @@ ALLEGED_IMMUTABLE_PREFIX = 'imm.'
 
 def from_string(u, deep_immutable=False, name=u"<unknown name>"):
     if not isinstance(u, str):
-        raise TypeError("unknown URI type: %s.." % str(u)[:100])
+        raise TypeError("URI must be str: %r" % (u,))
 
     # We allow and check ALLEGED_READONLY_PREFIX or ALLEGED_IMMUTABLE_PREFIX
     # on all URIs, even though we would only strictly need to do so for caps of
@@ -946,27 +848,27 @@ def has_uri_prefix(s):
 
 def from_string_dirnode(s, **kwargs):
     u = from_string(s, **kwargs)
-    assert IDirnodeURI.providedBy(u)
+    _assert(IDirnodeURI.providedBy(u))
     return u
 
 registerAdapter(from_string_dirnode, str, IDirnodeURI)
 
 def from_string_filenode(s, **kwargs):
     u = from_string(s, **kwargs)
-    assert IFileURI.providedBy(u)
+    _assert(IFileURI.providedBy(u))
     return u
 
 registerAdapter(from_string_filenode, str, IFileURI)
 
 def from_string_mutable_filenode(s, **kwargs):
     u = from_string(s, **kwargs)
-    assert IMutableFileURI.providedBy(u)
+    _assert(IMutableFileURI.providedBy(u))
     return u
 registerAdapter(from_string_mutable_filenode, str, IMutableFileURI)
 
 def from_string_verifier(s, **kwargs):
     u = from_string(s, **kwargs)
-    assert IVerifierURI.providedBy(u)
+    _assert(IVerifierURI.providedBy(u))
     return u
 registerAdapter(from_string_verifier, str, IVerifierURI)
 

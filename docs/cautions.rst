@@ -1,11 +1,10 @@
-﻿
+﻿.. -*- coding: utf-8-with-signature -*-
+
 =======================================================
  Things To Be Careful About As We Venture Boldly Forth
 =======================================================
 
-See also known_issues.rst_.
-
-.. _known_issues.rst: file:known_issues.rst
+See also :doc:`known_issues`.
 
 Timing Attacks
 ==============

@@ -1,0 +1,10 @@
+# -*- mode: conf -*-
+
+[run]
+# only record trace data for allmydata.*
+source =
+       allmydata
+# and don't trace the test files themselves, or generated files
+omit =
+     */allmydata/test/*
+     */allmydata/_version.py

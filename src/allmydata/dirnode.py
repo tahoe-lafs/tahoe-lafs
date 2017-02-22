@@ -1,33 +1,36 @@
-
-import time, math, unicodedata
+"""Directory Node implementation."""
+import time, unicodedata
 
 from zope.interface import implements
 from twisted.internet import defer
 from foolscap.api import fireEventually
 import simplejson
+
+from allmydata.deep_stats import DeepStats
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.interfaces import IFilesystemNode, IDirectoryNode, IFileNode, \
-     IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable, \
      MustBeDeepImmutableError, CapConstraintError, ChildOfWrongTypeError
 from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
-from allmydata.util import hashutil, mathutil, base32, log
+from allmydata.util import hashutil, base32, log
 from allmydata.util.encodingutil import quote_output
 from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
 from allmydata.util.consumer import download_to_data
-from allmydata.uri import LiteralFileURI, from_string, wrap_dirnode_cap
+from allmydata.uri import wrap_dirnode_cap
 from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
 
 
 def update_metadata(metadata, new_metadata, now):
     """Updates 'metadata' in-place with the information in 'new_metadata'.
-    Timestamps are set according to the time 'now'."""
+
+    Timestamps are set according to the time 'now'.
+    """
 
     if metadata is None:
         metadata = {}
@@ -134,6 +137,7 @@ class Adder:
         if entries is None:
             entries = {}
         precondition(isinstance(entries, dict), entries)
+        precondition(overwrite in (True, False, "only-files"), overwrite)
         # keys of 'entries' may not be normalized.
         self.entries = entries
         self.overwrite = overwrite
@@ -160,7 +164,7 @@ class Adder:
                     raise ExistingChildError("child %s already exists" % quote_output(name, encoding='utf-8'))
 
                 if self.overwrite == "only-files" and IDirectoryNode.providedBy(children[name][0]):
-                    raise ExistingChildError("child %s already exists" % quote_output(name, encoding='utf-8'))
+                    raise ExistingChildError("child %s already exists as a directory" % quote_output(name, encoding='utf-8'))
                 metadata = children[name][1].copy()
 
             metadata = update_metadata(metadata, new_metadata, now)
@@ -363,8 +367,8 @@ class DirectoryNode:
                     children.set_with_aux(name, (child, metadata), auxilliary=entry)
                 else:
                     log.msg(format="mutable cap for child %(name)s unpacked from an immutable directory",
-                                   name=quote_output(name, encoding='utf-8'),
-                                   facility="tahoe.webish", level=log.UNUSUAL)
+                            name=quote_output(name, encoding='utf-8'),
+                            facility="tahoe.webish", level=log.UNUSUAL)
             except CapConstraintError, e:
                 log.msg(format="unmet constraint on cap for child %(name)s unpacked from a directory:\n"
                                "%(message)s", message=e.args[0], name=quote_output(name, encoding='utf-8'),
@@ -587,7 +591,7 @@ class DirectoryNode:
         return d
 
 
-    def add_file(self, namex, uploadable, metadata=None, overwrite=True):
+    def add_file(self, namex, uploadable, metadata=None, overwrite=True, progress=None):
         """I upload a file (using the given IUploadable), then attach the
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
@@ -595,7 +599,7 @@ class DirectoryNode:
         name = normalize(namex)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
-        d = self._uploader.upload(uploadable)
+        d = self._uploader.upload(uploadable, progress=progress)
         d.addCallback(lambda results:
                       self._create_and_validate_node(results.get_uri(), None,
                                                      name))
@@ -642,22 +646,36 @@ class DirectoryNode:
 
     def move_child_to(self, current_child_namex, new_parent,
                       new_child_namex=None, overwrite=True):
-        """I take one of my children and move them to a new parent. The child
-        is referenced by name. On the new parent, the child will live under
-        'new_child_name', which defaults to 'current_child_name'. I return a
-        Deferred that fires when the operation finishes."""
+        """
+        I take one of my child links and move it to a new parent. The child
+        link is referenced by name. In the new parent, the child link will live
+        at 'new_child_namex', which defaults to 'current_child_namex'. I return
+        a Deferred that fires when the operation finishes.
+        'new_child_namex' and 'current_child_namex' need not be normalized.
 
+        The overwrite parameter may be True (overwrite any existing child),
+        False (error if the new child link already exists), or "only-files"
+        (error if the new child link exists and points to a directory).
+        """
         if self.is_readonly() or new_parent.is_readonly():
             return defer.fail(NotWriteableError())
 
         current_child_name = normalize(current_child_namex)
         if new_child_namex is None:
-            new_child_namex = current_child_name
-        d = self.get(current_child_name)
-        def sn(child):
-            return new_parent.set_node(new_child_namex, child,
+            new_child_name = current_child_name
+        else:
+            new_child_name = normalize(new_child_namex)
+
+        from_uri = self.get_write_uri()
+        if new_parent.get_write_uri() == from_uri and new_child_name == current_child_name:
+            # needed for correctness, otherwise we would delete the child
+            return defer.succeed("redundant rename/relink")
+
+        d = self.get_child_and_metadata(current_child_name)
+        def _got_child( (child, metadata) ):
+            return new_parent.set_node(new_child_name, child, metadata,
                                        overwrite=overwrite)
-        d.addCallback(sn)
+        d.addCallback(_got_child)
         d.addCallback(lambda child: self.delete(current_child_name))
         return d
 
@@ -779,111 +797,6 @@ class DirectoryNode:
         return self.deep_traverse(DeepChecker(self, verify, repair=True, add_lease=add_lease))
 
 
-
-class DeepStats:
-    def __init__(self, origin):
-        self.origin = origin
-        self.stats = {}
-        for k in ["count-immutable-files",
-                  "count-mutable-files",
-                  "count-literal-files",
-                  "count-files",
-                  "count-directories",
-                  "count-unknown",
-                  "size-immutable-files",
-                  #"size-mutable-files",
-                  "size-literal-files",
-                  "size-directories",
-                  "largest-directory",
-                  "largest-directory-children",
-                  "largest-immutable-file",
-                  #"largest-mutable-file",
-                  ]:
-            self.stats[k] = 0
-        self.histograms = {}
-        for k in ["size-files-histogram"]:
-            self.histograms[k] = {} # maps (min,max) to count
-        self.buckets = [ (0,0), (1,3)]
-        self.root = math.sqrt(10)
-
-    def set_monitor(self, monitor):
-        self.monitor = monitor
-        monitor.origin_si = self.origin.get_storage_index()
-        monitor.set_status(self.get_results())
-
-    def add_node(self, node, childpath):
-        if isinstance(node, UnknownNode):
-            self.add("count-unknown")
-        elif IDirectoryNode.providedBy(node):
-            self.add("count-directories")
-        elif IMutableFileNode.providedBy(node):
-            self.add("count-files")
-            self.add("count-mutable-files")
-            # TODO: update the servermap, compute a size, add it to
-            # size-mutable-files, max it into "largest-mutable-file"
-        elif IImmutableFileNode.providedBy(node): # CHK and LIT
-            self.add("count-files")
-            size = node.get_size()
-            self.histogram("size-files-histogram", size)
-            theuri = from_string(node.get_uri())
-            if isinstance(theuri, LiteralFileURI):
-                self.add("count-literal-files")
-                self.add("size-literal-files", size)
-            else:
-                self.add("count-immutable-files")
-                self.add("size-immutable-files", size)
-                self.max("largest-immutable-file", size)
-
-    def enter_directory(self, parent, children):
-        dirsize_bytes = parent.get_size()
-        if dirsize_bytes is not None:
-            self.add("size-directories", dirsize_bytes)
-            self.max("largest-directory", dirsize_bytes)
-        dirsize_children = len(children)
-        self.max("largest-directory-children", dirsize_children)
-
-    def add(self, key, value=1):
-        self.stats[key] += value
-
-    def max(self, key, value):
-        self.stats[key] = max(self.stats[key], value)
-
-    def which_bucket(self, size):
-        # return (min,max) such that min <= size <= max
-        # values are from the set (0,0), (1,3), (4,10), (11,31), (32,100),
-        # (101,316), (317, 1000), etc: two per decade
-        assert size >= 0
-        i = 0
-        while True:
-            if i >= len(self.buckets):
-                # extend the list
-                new_lower = self.buckets[i-1][1]+1
-                new_upper = int(mathutil.next_power_of_k(new_lower, self.root))
-                self.buckets.append( (new_lower, new_upper) )
-            maybe = self.buckets[i]
-            if maybe[0] <= size <= maybe[1]:
-                return maybe
-            i += 1
-
-    def histogram(self, key, size):
-        bucket = self.which_bucket(size)
-        h = self.histograms[key]
-        if bucket not in h:
-            h[bucket] = 0
-        h[bucket] += 1
-
-    def get_results(self):
-        stats = self.stats.copy()
-        for key in self.histograms:
-            h = self.histograms[key]
-            out = [ (bucket[0], bucket[1], h[bucket]) for bucket in h ]
-            out.sort()
-            stats[key] = out
-        return stats
-
-    def finish(self):
-        return self.get_results()
-
 class ManifestWalker(DeepStats):
     def __init__(self, origin):
         DeepStats.__init__(self, origin)
@@ -953,5 +866,3 @@ class DeepChecker:
 
 
 # use client.create_dirnode() to make one of these
-
-

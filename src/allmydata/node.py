@@ -1,17 +1,59 @@
 import datetime, os.path, re, types, ConfigParser, tempfile
 from base64 import b32decode, b32encode
 
+from twisted.internet import reactor
 from twisted.python import log as twlog
 from twisted.application import service
-from twisted.internet import defer, reactor
-from foolscap.api import Tub, eventually, app_versions
+from foolscap.api import Tub, app_versions
 import foolscap.logging.log
 from allmydata import get_package_versions, get_package_versions_string
 from allmydata.util import log
-from allmydata.util import fileutil, iputil, observer
-from allmydata.util.assertutil import precondition, _assert
+from allmydata.util import fileutil, iputil
+from allmydata.util.assertutil import _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
+from allmydata.util import configutil
+from allmydata.util import i2p_provider, tor_provider
+
+def _common_config_sections():
+    return {
+        "connections": (
+            "tcp",
+        ),
+        "node": (
+            "log_gatherer.furl",
+            "nickname",
+            "reveal-ip-address",
+            "tempdir",
+            "timeout.disconnect",
+            "timeout.keepalive",
+            "tub.location",
+            "tub.port",
+            "web.port",
+            "web.static",
+        ),
+        "i2p": (
+            "enabled",
+            "i2p.configdir",
+            "i2p.executable",
+            "launch",
+            "sam.port",
+            "dest",
+            "dest.port",
+            "dest.private_key_file",
+        ),
+        "tor": (
+            "control.port",
+            "enabled",
+            "launch",
+            "socks.port",
+            "tor.executable",
+            "onion",
+            "onion.local_port",
+            "onion.external_port",
+            "onion.private_key_file",
+        ),
+    }
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
@@ -55,6 +97,14 @@ class OldConfigError(Exception):
 class OldConfigOptionError(Exception):
     pass
 
+class UnescapedHashError(Exception):
+    def __str__(self):
+        return ("The configuration entry %s contained an unescaped '#' character."
+                % quote_output("[%s]%s = %s" % self.args))
+
+class PrivacyError(Exception):
+    """reveal-IP-address = false, but the node is configured in such a way
+    that the IP address could be revealed"""
 
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes and Introducer
@@ -67,10 +117,11 @@ class Node(service.MultiService):
     def __init__(self, basedir=u"."):
         service.MultiService.__init__(self)
         self.basedir = abspath_expanduser_unicode(unicode(basedir))
+        self.config_fname = os.path.join(self.basedir, "tahoe.cfg")
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
-        self._tub_ready_observerlist = observer.OneShotObserverList()
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
-        open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
+        with open(os.path.join(self.basedir, "private", "README"), "w") as f:
+            f.write(PRIV_README)
 
         # creates self.config
         self.read_config()
@@ -79,21 +130,28 @@ class Node(service.MultiService):
         assert type(self.nickname) is unicode
 
         self.init_tempdir()
-        self.create_tub()
-        self.logSource="Node"
+        self.check_privacy()
 
-        self.setup_ssh()
+        self.create_log_tub()
+        self.logSource="Node"
         self.setup_logging()
+
+        self.create_i2p_provider()
+        self.create_tor_provider()
+        self.init_connections()
+        self.set_tub_options()
+        self.create_main_tub()
+        self.create_control_tub()
+
         self.log("Node constructed. " + get_package_versions_string())
         iputil.increase_rlimits()
 
     def init_tempdir(self):
-        local_tempdir_utf8 = "tmp" # default is NODEDIR/tmp/
-        tempdir = self.get_config("node", "tempdir", local_tempdir_utf8).decode('utf-8')
-        tempdir = os.path.join(self.basedir, tempdir)
+        tempdir_config = self.get_config("node", "tempdir", "tmp").decode('utf-8')
+        tempdir = abspath_expanduser_unicode(tempdir_config, base=self.basedir)
         if not os.path.exists(tempdir):
             fileutil.make_dirs(tempdir)
-        tempfile.tempdir = abspath_expanduser_unicode(tempdir)
+        tempfile.tempdir = tempdir
         # this should cause twisted.web.http (which uses
         # tempfile.TemporaryFile) to put large request bodies in the given
         # directory. Without this, the default temp dir is usually /tmp/,
@@ -101,11 +159,27 @@ class Node(service.MultiService):
         test_name = tempfile.mktemp()
         _assert(os.path.dirname(test_name) == tempdir, test_name, tempdir)
 
+    @staticmethod
+    def _contains_unescaped_hash(item):
+        characters = iter(item)
+        for c in characters:
+            if c == '\\':
+                characters.next()
+            elif c == '#':
+                return True
+
+        return False
+
     def get_config(self, section, option, default=_None, boolean=False):
         try:
             if boolean:
                 return self.config.getboolean(section, option)
-            return self.config.get(section, option)
+
+            item = self.config.get(section, option)
+            if option.endswith(".furl") and self._contains_unescaped_hash(item):
+                raise UnescapedHashError(section, option, item)
+
+            return item
         except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
             if default is _None:
                 fn = os.path.join(self.basedir, u"tahoe.cfg")
@@ -113,42 +187,15 @@ class Node(service.MultiService):
                                          % (quote_output(fn), section, option))
             return default
 
-    def set_config(self, section, option, value):
-        if not self.config.has_section(section):
-            self.config.add_section(section)
-        self.config.set(section, option, value)
-        assert self.config.get(section, option) == value
-
     def read_config(self):
         self.error_about_old_config_files()
         self.config = ConfigParser.SafeConfigParser()
 
-        tahoe_cfg = os.path.join(self.basedir, "tahoe.cfg")
         try:
-            f = open(tahoe_cfg, "rb")
-            try:
-                # Skip any initial Byte Order Mark. Since this is an ordinary file, we
-                # don't need to handle incomplete reads, and can assume seekability.
-                if f.read(3) != '\xEF\xBB\xBF':
-                    f.seek(0)
-                self.config.readfp(f)
-            finally:
-                f.close()
+            self.config = configutil.get_config(self.config_fname)
         except EnvironmentError:
-            if os.path.exists(tahoe_cfg):
+            if os.path.exists(self.config_fname):
                 raise
-
-        cfg_tubport = self.get_config("node", "tub.port", "")
-        if not cfg_tubport:
-            # For 'tub.port', tahoe.cfg overrides the individual file on
-            # disk. So only read self._portnumfile if tahoe.cfg doesn't
-            # provide a value.
-            try:
-                file_tubport = fileutil.read(self._portnumfile).strip()
-                self.set_config("node", "tub.port", file_tubport)
-            except EnvironmentError:
-                if os.path.exists(self._portnumfile):
-                    raise
 
     def error_about_old_config_files(self):
         """ If any old configuration files are detected, raise OldConfigError. """
@@ -169,41 +216,227 @@ class Node(service.MultiService):
             twlog.msg(e)
             raise e
 
-    def create_tub(self):
-        certfile = os.path.join(self.basedir, "private", self.CERTFILE)
-        self.tub = Tub(certFile=certfile)
-        self.tub.setOption("logLocalFailures", True)
-        self.tub.setOption("logRemoteFailures", True)
-        self.tub.setOption("expose-remote-exception-types", False)
+    def check_privacy(self):
+        self._reveal_ip = self.get_config("node", "reveal-IP-address", True,
+                                          boolean=True)
+    def create_i2p_provider(self):
+        self._i2p_provider = i2p_provider.Provider(self.basedir, self, reactor)
+        self._i2p_provider.check_dest_config()
+        self._i2p_provider.setServiceParent(self)
+
+    def create_tor_provider(self):
+        self._tor_provider = tor_provider.Provider(self.basedir, self, reactor)
+        self._tor_provider.check_onion_config()
+        self._tor_provider.setServiceParent(self)
+
+    def _make_tcp_handler(self):
+        # this is always available
+        from foolscap.connections.tcp import default
+        return default()
+
+    def _make_tor_handler(self):
+        return self._tor_provider.get_tor_handler()
+
+    def _make_i2p_handler(self):
+        return self._i2p_provider.get_i2p_handler()
+
+    def init_connections(self):
+        # We store handlers for everything. None means we were unable to
+        # create that handler, so hints which want it will be ignored.
+        handlers = self._foolscap_connection_handlers = {
+            "tcp": self._make_tcp_handler(),
+            "tor": self._make_tor_handler(),
+            "i2p": self._make_i2p_handler(),
+            }
+        self.log(format="built Foolscap connection handlers for: %(known_handlers)s",
+                 known_handlers=sorted([k for k,v in handlers.items() if v]),
+                 facility="tahoe.node", umid="PuLh8g")
+
+        # then we remember the default mappings from tahoe.cfg
+        self._default_connection_handlers = {"tor": "tor", "i2p": "i2p"}
+        tcp_handler_name = self.get_config("connections", "tcp", "tcp").lower()
+        if tcp_handler_name == "disabled":
+            self._default_connection_handlers["tcp"] = None
+        else:
+            if tcp_handler_name not in handlers:
+                raise ValueError("'tahoe.cfg [connections] tcp='"
+                                 " uses unknown handler type '%s'"
+                                 % tcp_handler_name)
+            if not handlers[tcp_handler_name]:
+                raise ValueError("'tahoe.cfg [connections] tcp=' uses "
+                                 "unavailable/unimportable handler type '%s'. "
+                                 "Please pip install tahoe-lafs[%s] to fix."
+                                 % (tcp_handler_name, tcp_handler_name))
+            self._default_connection_handlers["tcp"] = tcp_handler_name
+
+        if not self._reveal_ip:
+            if self._default_connection_handlers.get("tcp") == "tcp":
+                raise PrivacyError("tcp = tcp, must be set to 'tor' or 'disabled'")
+
+    def set_tub_options(self):
+        self.tub_options = {
+            "logLocalFailures": True,
+            "logRemoteFailures": True,
+            "expose-remote-exception-types": False,
+            "accept-gifts": False,
+            }
 
         # see #521 for a discussion of how to pick these timeout values.
         keepalive_timeout_s = self.get_config("node", "timeout.keepalive", "")
         if keepalive_timeout_s:
-            self.tub.setOption("keepaliveTimeout", int(keepalive_timeout_s))
+            self.tub_options["keepaliveTimeout"] = int(keepalive_timeout_s)
         disconnect_timeout_s = self.get_config("node", "timeout.disconnect", "")
         if disconnect_timeout_s:
             # N.B.: this is in seconds, so use "1800" to get 30min
-            self.tub.setOption("disconnectTimeout", int(disconnect_timeout_s))
+            self.tub_options["disconnectTimeout"] = int(disconnect_timeout_s)
+
+    def _create_tub(self, handler_overrides={}, **kwargs):
+        # Create a Tub with the right options and handlers. It will be
+        # ephemeral unless the caller provides certFile=
+        tub = Tub(**kwargs)
+        for (name, value) in self.tub_options.items():
+            tub.setOption(name, value)
+        handlers = self._default_connection_handlers.copy()
+        handlers.update(handler_overrides)
+        tub.removeAllConnectionHintHandlers()
+        for hint_type, handler_name in handlers.items():
+            handler = self._foolscap_connection_handlers.get(handler_name)
+            if handler:
+                tub.addConnectionHintHandler(hint_type, handler)
+        return tub
+
+    def _convert_tub_port(self, s):
+        if re.search(r'^\d+$', s):
+            return "tcp:%d" % int(s)
+        return s
+
+    def get_tub_portlocation(self, cfg_tubport, cfg_location):
+        # return None, or tuple of (port, location)
+
+        tubport_disabled = False
+        if cfg_tubport is not None:
+            cfg_tubport = cfg_tubport.strip()
+            if cfg_tubport == "":
+                raise ValueError("tub.port must not be empty")
+            if cfg_tubport == "disabled":
+                tubport_disabled = True
+
+        location_disabled = False
+        if cfg_location is not None:
+            cfg_location = cfg_location.strip()
+            if cfg_location == "":
+                raise ValueError("tub.location must not be empty")
+            if cfg_location == "disabled":
+                location_disabled = True
+
+        if tubport_disabled and location_disabled:
+            return None
+        if tubport_disabled and not location_disabled:
+            raise ValueError("tub.port is disabled, but not tub.location")
+        if location_disabled and not tubport_disabled:
+            raise ValueError("tub.location is disabled, but not tub.port")
+
+        if cfg_tubport is None:
+            # For 'tub.port', tahoe.cfg overrides the individual file on
+            # disk. So only read self._portnumfile if tahoe.cfg doesn't
+            # provide a value.
+            if os.path.exists(self._portnumfile):
+                file_tubport = fileutil.read(self._portnumfile).strip()
+                tubport = self._convert_tub_port(file_tubport)
+            else:
+                tubport = "tcp:%d" % iputil.allocate_tcp_port()
+                fileutil.write_atomically(self._portnumfile, tubport + "\n",
+                                          mode="")
+        else:
+            tubport = self._convert_tub_port(cfg_tubport)
+
+        if cfg_location is None:
+            cfg_location = "AUTO"
+
+        # Replace the location "AUTO", if present, with the detected local
+        # addresses. Don't probe for local addresses unless necessary.
+        split_location = cfg_location.split(",")
+        if "AUTO" in split_location:
+            if not self._reveal_ip:
+                raise PrivacyError("tub.location uses AUTO")
+            local_addresses = iputil.get_local_addresses_sync()
+            # tubport must be like "tcp:12345" or "tcp:12345:morestuff"
+            local_portnum = int(tubport.split(":")[1])
+        new_locations = []
+        for loc in split_location:
+            if loc == "AUTO":
+                new_locations.extend(["tcp:%s:%d" % (ip, local_portnum)
+                                      for ip in local_addresses])
+            else:
+                if not self._reveal_ip:
+                    # Legacy hints are "host:port". We use Foolscap's utility
+                    # function to convert all hints into the modern format
+                    # ("tcp:host:port") because that's what the receiving
+                    # client will probably do. We test the converted hint for
+                    # TCP-ness, but publish the original hint because that
+                    # was the user's intent.
+                    from foolscap.connections.tcp import convert_legacy_hint
+                    converted_hint = convert_legacy_hint(loc)
+                    hint_type = converted_hint.split(":")[0]
+                    if hint_type == "tcp":
+                        raise PrivacyError("tub.location includes tcp: hint")
+                new_locations.append(loc)
+        location = ",".join(new_locations)
+
+        return tubport, location
+
+    def create_main_tub(self):
+        certfile = os.path.join(self.basedir, "private", self.CERTFILE)
+        self.tub = self._create_tub(certFile=certfile)
 
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
         self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")
-        self.short_nodeid = b32encode(self.nodeid).lower()[:8] # ready for printing
+        self.short_nodeid = b32encode(self.nodeid).lower()[:8] # for printing
+        cfg_tubport = self.get_config("node", "tub.port", None)
+        cfg_location = self.get_config("node", "tub.location", None)
+        portlocation = self.get_tub_portlocation(cfg_tubport, cfg_location)
+        if portlocation:
+            tubport, location = portlocation
+            for port in tubport.split(","):
+                if port in ("0", "tcp:0"):
+                    raise ValueError("tub.port cannot be 0: you must choose")
+                self.tub.listenOn(port)
+            self.tub.setLocation(location)
+            self._tub_is_listening = True
+            self.log("Tub location set to %s" % (location,))
+            # the Tub is now ready for tub.registerReference()
+        else:
+            self._tub_is_listening = False
+            self.log("Tub is not listening")
 
-        tubport = self.get_config("node", "tub.port", "tcp:0")
-        self.tub.listenOn(tubport)
-        # we must wait until our service has started before we can find out
-        # our IP address and thus do tub.setLocation, and we can't register
-        # any services with the Tub until after that point
         self.tub.setServiceParent(self)
 
-    def setup_ssh(self):
-        ssh_port = self.get_config("node", "ssh.port", "")
-        if ssh_port:
-            ssh_keyfile = self.get_config("node", "ssh.authorized_keys_file").decode('utf-8')
-            from allmydata import manhole
-            m = manhole.AuthorizedKeysManhole(ssh_port, ssh_keyfile.encode(get_filesystem_encoding()))
-            m.setServiceParent(self)
-            self.log("AuthorizedKeysManhole listening on %s" % ssh_port)
+    def create_control_tub(self):
+        # the control port uses a localhost-only ephemeral Tub, with no
+        # control over the listening port or location
+        self.control_tub = Tub()
+        portnum = iputil.allocate_tcp_port()
+        port = "tcp:%d:interface=127.0.0.1" % portnum
+        location = "tcp:127.0.0.1:%d" % portnum
+        self.control_tub.listenOn(port)
+        self.control_tub.setLocation(location)
+        self.log("Control Tub location set to %s" % (location,))
+        self.control_tub.setServiceParent(self)
+
+    def create_log_tub(self):
+        # The logport uses a localhost-only ephemeral Tub, with no control
+        # over the listening port or location. This might change if we
+        # discover a compelling reason for it in the future (e.g. being able
+        # to use "flogtool tail" against a remote server), but for now I
+        # think we can live without it.
+        self.log_tub = Tub()
+        portnum = iputil.allocate_tcp_port()
+        port = "tcp:%d:interface=127.0.0.1" % portnum
+        location = "tcp:127.0.0.1:%d" % portnum
+        self.log_tub.listenOn(port)
+        self.log_tub.setLocation(location)
+        self.log("Log Tub location set to %s" % (location,))
+        self.log_tub.setServiceParent(self)
 
     def get_app_versions(self):
         # TODO: merge this with allmydata.get_package_versions
@@ -228,7 +461,8 @@ class Node(service.MultiService):
         return it.
         """
         privname = os.path.join(self.basedir, "private", name)
-        open(privname, "w").write(value)
+        with open(privname, "w") as f:
+            f.write(value)
 
     def get_private_config(self, name, default=_None):
         """Read the (string) contents of a private config file (which is a
@@ -238,7 +472,7 @@ class Node(service.MultiService):
         """
         privname = os.path.join(self.basedir, "private", name)
         try:
-            return fileutil.read(privname)
+            return fileutil.read(privname).strip()
         except EnvironmentError:
             if os.path.exists(privname):
                 raise
@@ -279,7 +513,7 @@ class Node(service.MultiService):
         """Write a string to a config file."""
         fn = os.path.join(self.basedir, name)
         try:
-            open(fn, mode).write(value)
+            fileutil.write(fn, value, mode)
         except EnvironmentError, e:
             self.log("Unable to write config file '%s'" % fn)
             self.log(e)
@@ -296,43 +530,14 @@ class Node(service.MultiService):
             os.chmod("twistd.pid", 0644)
         except EnvironmentError:
             pass
-        # Delay until the reactor is running.
-        eventually(self._startService)
-
-    def _startService(self):
-        precondition(reactor.running)
-        self.log("Node._startService")
 
         service.MultiService.startService(self)
-        d = defer.succeed(None)
-        d.addCallback(lambda res: iputil.get_local_addresses_async())
-        d.addCallback(self._setup_tub)
-        def _ready(res):
-            self.log("%s running" % self.NODETYPE)
-            self._tub_ready_observerlist.fire(self)
-            return self
-        d.addCallback(_ready)
-        d.addErrback(self._service_startup_failed)
-
-    def _service_startup_failed(self, failure):
-        self.log('_startService() failed')
-        log.err(failure)
-        print "Node._startService failed, aborting"
-        print failure
-        #reactor.stop() # for unknown reasons, reactor.stop() isn't working.  [ ] TODO
-        self.log('calling os.abort()')
-        twlog.msg('calling os.abort()') # make sure it gets into twistd.log
-        print "calling os.abort()"
-        os.abort()
+        self.log("%s running" % self.NODETYPE)
+        twlog.msg("%s running" % self.NODETYPE)
 
     def stopService(self):
         self.log("Node.stopService")
-        d = self._tub_ready_observerlist.when_fired()
-        def _really_stopService(ignored):
-            self.log("Node._really_stopService")
-            return service.MultiService.stopService(self)
-        d.addCallback(_really_stopService)
-        return d
+        return service.MultiService.stopService(self)
 
     def shutdown(self):
         """Shut down the node. Returns a Deferred that fires (with None) when
@@ -354,40 +559,25 @@ class Node(service.MultiService):
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
         lgfurl_file = os.path.join(self.basedir, "private", "logport.furl").encode(get_filesystem_encoding())
-        self.tub.setOption("logport-furlfile", lgfurl_file)
+        if os.path.exists(lgfurl_file):
+            os.remove(lgfurl_file)
+        self.log_tub.setOption("logport-furlfile", lgfurl_file)
         lgfurl = self.get_config("node", "log_gatherer.furl", "")
         if lgfurl:
             # this is in addition to the contents of log-gatherer-furlfile
-            self.tub.setOption("log-gatherer-furl", lgfurl)
-        self.tub.setOption("log-gatherer-furlfile",
-                           os.path.join(self.basedir, "log_gatherer.furl"))
-        self.tub.setOption("bridge-twisted-logs", True)
+            self.log_tub.setOption("log-gatherer-furl", lgfurl)
+        self.log_tub.setOption("log-gatherer-furlfile",
+                               os.path.join(self.basedir, "log_gatherer.furl"))
+
         incident_dir = os.path.join(self.basedir, "logs", "incidents")
-        # this doesn't quite work yet: unit tests fail
         foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
+        twlog.msg("Foolscap logging initialized")
+        twlog.msg("Note to developers: twistd.log does not receive very much.")
+        twlog.msg("Use 'flogtool tail -c NODEDIR/private/logport.furl' instead")
+        twlog.msg("and read docs/logging.rst")
 
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
-
-    def _setup_tub(self, local_addresses):
-        # we can't get a dynamically-assigned portnum until our Tub is
-        # running, which means after startService.
-        l = self.tub.getListeners()[0]
-        portnum = l.getPortnum()
-        # record which port we're listening on, so we can grab the same one
-        # next time
-        fileutil.write_atomically(self._portnumfile, "%d\n" % portnum, mode="")
-
-        base_location = ",".join([ "%s:%d" % (addr, portnum)
-                                   for addr in local_addresses ])
-        location = self.get_config("node", "tub.location", base_location)
-        self.log("Tub location set to %s" % location)
-        self.tub.setLocation(location)
-
-        return self.tub
-
-    def when_tub_ready(self):
-        return self._tub_ready_observerlist.when_fired()
 
     def add_service(self, s):
         s.setServiceParent(self)

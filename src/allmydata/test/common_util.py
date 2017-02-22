@@ -1,12 +1,55 @@
 import os, signal, sys, time
 from random import randrange
+from cStringIO import StringIO
 
 from twisted.internet import reactor, defer
 from twisted.python import failure
+from twisted.trial import unittest
 
 from allmydata.util import fileutil, log
-from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding
+from ..util.assertutil import precondition
+from allmydata.util.encodingutil import (unicode_platform, get_filesystem_encoding,
+                                         get_io_encoding)
+from ..scripts import runner
 
+def skip_if_cannot_represent_filename(u):
+    precondition(isinstance(u, unicode))
+
+    enc = get_filesystem_encoding()
+    if not unicode_platform():
+        try:
+            u.encode(enc)
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
+
+def run_cli(verb, *args, **kwargs):
+    precondition(not [True for arg in args if not isinstance(arg, str)],
+                 "arguments to do_cli must be strs -- convert using unicode_to_argv", args=args)
+    nodeargs = kwargs.get("nodeargs", [])
+    argv = nodeargs + [verb] + list(args)
+    stdin = kwargs.get("stdin", "")
+    stdout, stderr = StringIO(), StringIO()
+    d = defer.succeed(argv)
+    d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout)
+    d.addCallback(runner.dispatch,
+                  stdin=StringIO(stdin),
+                  stdout=stdout, stderr=stderr)
+    def _done(rc):
+        return 0, stdout.getvalue(), stderr.getvalue()
+    def _err(f):
+        f.trap(SystemExit)
+        return f.value.code, stdout.getvalue(), stderr.getvalue()
+    d.addCallbacks(_done, _err)
+    return d
+
+def parse_cli(*argv):
+    # This parses the CLI options (synchronously), and returns the Options
+    # argument, or throws usage.UsageError if something went wrong.
+    return runner.parse_options(argv)
+
+class DevNullDictionary(dict):
+    def __setitem__(self, key, value):
+        return
 
 def insecurerandstr(n):
     return ''.join(map(chr, map(randrange, [0]*n, [256]*n)))
@@ -45,19 +88,28 @@ class NonASCIIPathMixin:
                 try:
                     fileutil.rm_dir(dirpath)
                 finally:
-                    log.err("We were unable to delete a non-ASCII directory %r created by the test. "
-                            "This is liable to cause failures on future builds." % (dirpath,))
+                    if os.path.exists(dirpath):
+                        msg = ("We were unable to delete a non-ASCII directory %r created by the test. "
+                               "This is liable to cause failures on future builds." % (dirpath,))
+                        print msg
+                        log.err(msg)
             self.addCleanup(_cleanup)
         os.mkdir(dirpath)
 
-    def unicode_or_fallback(self, unicode_name, fallback_name):
-        if unicode_platform():
-            return unicode_name
-        try:
-            unicode_name.encode(get_filesystem_encoding())
-            return unicode_name
-        except UnicodeEncodeError:
-            return fallback_name
+    def unicode_or_fallback(self, unicode_name, fallback_name, io_as_well=False):
+        if not unicode_platform():
+            try:
+                unicode_name.encode(get_filesystem_encoding())
+            except UnicodeEncodeError:
+                return fallback_name
+
+        if io_as_well:
+            try:
+                unicode_name.encode(get_io_encoding())
+            except UnicodeEncodeError:
+                return fallback_name
+
+        return unicode_name
 
 
 class SignalMixin:
@@ -169,6 +221,32 @@ class TestMixin(SignalMixin):
                 print "WEIRDNESS! pending timed call not active!"
         if required_to_quiesce and active:
             self.fail("Reactor was still active when it was required to be quiescent.")
+
+
+class TimezoneMixin(object):
+
+    def setTimezone(self, timezone):
+        def tzset_if_possible():
+            # Windows doesn't have time.tzset().
+            if hasattr(time, 'tzset'):
+                time.tzset()
+
+        unset = object()
+        originalTimezone = os.environ.get('TZ', unset)
+        def restoreTimezone():
+            if originalTimezone is unset:
+                del os.environ['TZ']
+            else:
+                os.environ['TZ'] = originalTimezone
+            tzset_if_possible()
+
+        os.environ['TZ'] = timezone
+        self.addCleanup(restoreTimezone)
+        tzset_if_possible()
+
+    def have_working_tzset(self):
+        return hasattr(time, 'tzset')
+
 
 try:
     import win32file

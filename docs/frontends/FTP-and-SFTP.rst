@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 =================================
 Tahoe-LAFS SFTP and FTP Frontends
 =================================
@@ -49,13 +51,12 @@ servers must be configured with a way to first authenticate a user (confirm
 that a prospective client has a legitimate claim to whatever authorities we
 might grant a particular user), and second to decide what directory cap
 should be used as the root directory for a log-in by the authenticated user.
-A username and password is used for this purpose. (The SFTP protocol is also
-capable of using client RSA or DSA public keys, but this is not currently
-implemented in Tahoe-LAFS.)
+A username and password can be used; as of Tahoe-LAFS v1.11, RSA or DSA
+public key authentication is also supported.
 
-Tahoe-LAFS provides two mechanisms to perform this user-to-cap mapping. The
-first is a simple flat file with one account per line. The second is an
-HTTP-based login mechanism, backed by simple PHP script and a database.
+Tahoe-LAFS provides two mechanisms to perform this user-to-cap mapping.
+The first (recommended) is a simple flat file with one account per line.
+The second is an HTTP-based login mechanism.
 
 Creating an Account File
 ========================
@@ -65,14 +66,17 @@ in which each non-comment/non-blank line is a space-separated line of
 (USERNAME, PASSWORD, ROOTCAP), like so::
 
  % cat BASEDIR/private/accounts
- # This is a password line, (username, password, cap)
+ # This is a password line: username password cap
  alice password URI:DIR2:ioej8xmzrwilg772gzj4fhdg7a:wtiizszzz2rgmczv4wl6bqvbv33ag4kvbr6prz3u6w3geixa6m6a
  bob sekrit URI:DIR2:6bdmeitystckbl9yqlw7g56f4e:serp5ioqxnh34mlbmzwvkp3odehsyrr7eytt5f64we3k9hhcrcja
 
-Future versions of Tahoe-LAFS may support using client public keys for SFTP.
-The words "ssh-rsa" and "ssh-dsa" after the username are reserved to specify
-the public key format, so users cannot have a password equal to either of
-these strings.
+ # This is a public key line: username keytype pubkey cap
+ # (Tahoe-LAFS v1.11 or later)
+ carol ssh-rsa AAAA... URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
+
+For public key authentication, the keytype may be either "ssh-rsa" or "ssh-dsa".
+To avoid ambiguity between passwords and public key types, a password cannot
+start with "ssh-".
 
 Now add an ``accounts.file`` directive to your ``tahoe.cfg`` file, as described in
 the next sections.
@@ -88,8 +92,7 @@ password to a Tahoe-LAFS directory cap. The service will receive a
 multipart/form-data POST, just like one created with a <form> and <input>
 fields, with three parameters:
 
-• action: "authenticate" (this is a static string, for backwards
-  compatibility with the old AllMyData authentication service)
+• action: "authenticate" (this is a static string)
 • email: USERNAME (Tahoe-LAFS has no notion of email addresses, but the
   authentication service uses them as account names, so the interface
   presents this argument as "email" rather than "username").
@@ -102,6 +105,8 @@ Tahoe-LAFS recommends the service be secure, preferably localhost-only.  This
 makes it harder for attackers to brute force the password or use DNS
 poisoning to cause the Tahoe-LAFS gateway to talk with the wrong server,
 thereby revealing the usernames and passwords.
+
+Public key authentication is not supported when an account server is used.
 
 Configuring SFTP Access
 =======================
@@ -117,12 +122,16 @@ Exercise caution when connecting to the SFTP server remotely. The AES
 implementation used by the SFTP code does not have defenses against timing
 attacks. The code for encrypting the SFTP connection was not written by the
 Tahoe-LAFS team, and we have not reviewed it as carefully as we have reviewed
-the code for encrypting files and directories in Tahoe-LAFS itself. If you
-can connect to the SFTP server (which is provided by the Tahoe-LAFS gateway)
-only from a client on the same host, then you would be safe from any problem
-with the SFTP connection security. The examples given below enforce this
-policy by including ":interface=127.0.0.1" in the "port" option, which causes
-the server to only accept connections from localhost.
+the code for encrypting files and directories in Tahoe-LAFS itself. (See
+`Twisted ticket #4633`_ for a possible fix to this issue.)
+
+.. _Twisted ticket #4633: https://twistedmatrix.com/trac/ticket/4633
+
+If you can connect to the SFTP server (which is provided by the Tahoe-LAFS
+gateway) only from a client on the same host, then you would be safe from any
+problem with the SFTP connection security. The examples given below enforce
+this policy by including ":interface=127.0.0.1" in the "port" option, which
+causes the server to only accept connections from localhost.
 
 You will use directives in the tahoe.cfg file to tell the SFTP code where to
 find these keys. To create one, use the ``ssh-keygen`` tool (which comes with
@@ -195,6 +204,8 @@ if you connect to the FTP server remotely. The examples above include
 ":interface=127.0.0.1" in the "port" option, which causes the server to only
 accept connections from localhost.
 
+Public key authentication is not supported for FTP.
+
 Dependencies
 ============
 
@@ -218,8 +229,8 @@ be relinked to a different file. Normally, when the path of an immutable file
 is opened for writing by SFTP, the directory entry is relinked to another
 file with the newly written contents when the file handle is closed. The old
 file is still present on the grid, and any other caps to it will remain
-valid. (See `docs/garbage-collection.rst`_ for how to reclaim the space used
-by files that are no longer needed.)
+valid. (See :doc:`../garbage-collection` for how to reclaim the space used by
+files that are no longer needed.)
 
 The 'no-write' metadata field of a directory entry can override this
 behaviour. If the 'no-write' field holds a true value, then a permission
@@ -235,8 +246,6 @@ directory, that link will become read-only.
 
 If SFTP is used to write to an existing mutable file, it will publish a new
 version when the file handle is closed.
-
-.. _docs/garbage-collection.rst: file:../garbage-collection.rst
 
 Known Issues
 ============

@@ -1,8 +1,9 @@
 
 def foo(): pass # keep the line number constant
 
-import os, time, sys
+import os, time, sys, yaml
 from StringIO import StringIO
+from datetime import timedelta
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
@@ -12,9 +13,11 @@ from pycryptopp.hash.sha256 import SHA256 as _hash
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin, cachedir
-from allmydata.util import statistics, dictutil, pipeline
+from allmydata.util import statistics, dictutil, pipeline, yamlutil
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
+from allmydata.test.common_util import ReallyEqualMixin, TimezoneMixin
+
 
 class Base32(unittest.TestCase):
     def test_b2a_matches_Pythons(self):
@@ -72,6 +75,42 @@ class HumanReadable(unittest.TestCase):
             self.failUnless(
                 hr(e) == "<NoArgumentException>" # python-2.4
                 or hr(e) == "NoArgumentException()") # python-2.5
+
+    def test_abbrev_time_1s(self):
+        diff = timedelta(seconds=1)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('1 second ago', s)
+
+    def test_abbrev_time_25s(self):
+        diff = timedelta(seconds=25)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('25 seconds ago', s)
+
+    def test_abbrev_time_future_5_minutes(self):
+        diff = timedelta(minutes=-5)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('5 minutes in the future', s)
+
+    def test_abbrev_time_hours(self):
+        diff = timedelta(hours=4)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('4 hours ago', s)
+
+    def test_abbrev_time_day(self):
+        diff = timedelta(hours=49)  # must be more than 2 days
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('2 days ago', s)
+
+    def test_abbrev_time_month(self):
+        diff = timedelta(days=91)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('3 months ago', s)
+
+    def test_abbrev_time_year(self):
+        diff = timedelta(weeks=(5 * 52) + 1)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('5 years ago', s)
+
 
 
 class MyList(list):
@@ -370,7 +409,7 @@ class Asserts(unittest.TestCase):
         m = self.should_assert(f, False, othermsg="message2")
         self.failUnlessEqual("postcondition: othermsg: 'message2' <type 'str'>", m)
 
-class FileUtil(unittest.TestCase):
+class FileUtil(ReallyEqualMixin, unittest.TestCase):
     def mkdir(self, basedir, path, mode=0777):
         fn = os.path.join(basedir, path)
         fileutil.make_dirs(fn, mode)
@@ -429,34 +468,6 @@ class FileUtil(unittest.TestCase):
         fileutil.write_atomically(fn, "two", mode="") # non-binary
         self.failUnlessEqual(fileutil.read(fn), "two")
 
-    def test_open_or_create(self):
-        basedir = "util/FileUtil/test_open_or_create"
-        fileutil.make_dirs(basedir)
-        fn = os.path.join(basedir, "here")
-        f = fileutil.open_or_create(fn)
-        f.write("stuff.")
-        f.close()
-        f = fileutil.open_or_create(fn)
-        f.seek(0, os.SEEK_END)
-        f.write("more.")
-        f.close()
-        f = open(fn, "r")
-        data = f.read()
-        f.close()
-        self.failUnlessEqual(data, "stuff.more.")
-
-    def test_NamedTemporaryDirectory(self):
-        basedir = "util/FileUtil/test_NamedTemporaryDirectory"
-        fileutil.make_dirs(basedir)
-        td = fileutil.NamedTemporaryDirectory(dir=basedir)
-        name = td.name
-        self.failUnless(basedir in name)
-        self.failUnless(basedir in repr(td))
-        self.failUnless(os.path.isdir(name))
-        del td
-        # it is conceivable that we need to force gc here, but I'm not sure
-        self.failIf(os.path.isdir(name))
-
     def test_rename(self):
         basedir = "util/FileUtil/test_rename"
         fileutil.make_dirs(basedir)
@@ -466,6 +477,74 @@ class FileUtil(unittest.TestCase):
         fileutil.rename(fn, fn2)
         self.failIf(os.path.exists(fn))
         self.failUnless(os.path.exists(fn2))
+
+    def test_rename_no_overwrite(self):
+        workdir = fileutil.abspath_expanduser_unicode(u"test_rename_no_overwrite")
+        fileutil.make_dirs(workdir)
+
+        source_path = os.path.join(workdir, "source")
+        dest_path   = os.path.join(workdir, "dest")
+
+        # when neither file exists
+        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+
+        # when only dest exists
+        fileutil.write(dest_path,   "dest")
+        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+        self.failUnlessEqual(fileutil.read(dest_path),   "dest")
+
+        # when both exist
+        fileutil.write(source_path, "source")
+        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+        self.failUnlessEqual(fileutil.read(source_path), "source")
+        self.failUnlessEqual(fileutil.read(dest_path),   "dest")
+
+        # when only source exists
+        os.remove(dest_path)
+        fileutil.rename_no_overwrite(source_path, dest_path)
+        self.failUnlessEqual(fileutil.read(dest_path), "source")
+        self.failIf(os.path.exists(source_path))
+
+    def test_replace_file(self):
+        workdir = fileutil.abspath_expanduser_unicode(u"test_replace_file")
+        fileutil.make_dirs(workdir)
+
+        backup_path      = os.path.join(workdir, "backup")
+        replaced_path    = os.path.join(workdir, "replaced")
+        replacement_path = os.path.join(workdir, "replacement")
+
+        # when none of the files exist
+        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path, backup_path)
+
+        # when only replaced exists
+        fileutil.write(replaced_path,    "foo")
+        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(replaced_path), "foo")
+
+        # when both replaced and replacement exist, but not backup
+        fileutil.write(replacement_path, "bar")
+        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(backup_path),   "foo")
+        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failIf(os.path.exists(replacement_path))
+
+        # when only replacement exists
+        os.remove(backup_path)
+        os.remove(replaced_path)
+        fileutil.write(replacement_path, "bar")
+        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failIf(os.path.exists(replacement_path))
+        self.failIf(os.path.exists(backup_path))
+
+        # when replaced, replacement and backup all exist
+        fileutil.write(replaced_path,    "foo")
+        fileutil.write(replacement_path, "bar")
+        fileutil.write(backup_path,      "bak")
+        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        self.failUnlessEqual(fileutil.read(backup_path),   "foo")
+        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failIf(os.path.exists(replacement_path))
 
     def test_du(self):
         basedir = "util/FileUtil/test_du"
@@ -486,14 +565,55 @@ class FileUtil(unittest.TestCase):
 
         saved_cwd = os.path.normpath(os.getcwdu())
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
+        abspath_cwd_notlong = fileutil.abspath_expanduser_unicode(u".", long_path=False)
         self.failUnless(isinstance(saved_cwd, unicode), saved_cwd)
         self.failUnless(isinstance(abspath_cwd, unicode), abspath_cwd)
-        self.failUnlessEqual(abspath_cwd, saved_cwd)
+        if sys.platform == "win32":
+            self.failUnlessReallyEqual(abspath_cwd, fileutil.to_windows_long_path(saved_cwd))
+        else:
+            self.failUnlessReallyEqual(abspath_cwd, saved_cwd)
+        self.failUnlessReallyEqual(abspath_cwd_notlong, saved_cwd)
+
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\?\\foo"), u"\\\\?\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\.\\foo"), u"\\\\.\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\server\\foo"), u"\\\\?\\UNC\\server\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"C:\\foo"), u"\\\\?\\C:\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"C:\\foo/bar"), u"\\\\?\\C:\\foo\\bar")
 
         # adapted from <http://svn.python.org/view/python/branches/release26-maint/Lib/test/test_posixpath.py?view=markup&pathrev=78279#test_abspath>
 
-        self.failUnlessIn(u"foo", fileutil.abspath_expanduser_unicode(u"foo"))
+        foo = fileutil.abspath_expanduser_unicode(u"foo")
+        self.failUnless(foo.endswith(u"%sfoo" % (os.path.sep,)), foo)
+
+        foobar = fileutil.abspath_expanduser_unicode(u"bar", base=foo)
+        self.failUnless(foobar.endswith(u"%sfoo%sbar" % (os.path.sep, os.path.sep)), foobar)
+
+        if sys.platform == "win32":
+            # This is checking that a drive letter is added for a path without one.
+            baz = fileutil.abspath_expanduser_unicode(u"\\baz")
+            self.failUnless(baz.startswith(u"\\\\?\\"), baz)
+            self.failUnlessReallyEqual(baz[5 :], u":\\baz")
+
+            bar = fileutil.abspath_expanduser_unicode(u"\\bar", base=baz)
+            self.failUnless(bar.startswith(u"\\\\?\\"), bar)
+            self.failUnlessReallyEqual(bar[5 :], u":\\bar")
+            # not u":\\baz\\bar", because \bar is absolute on the current drive.
+
+            self.failUnlessReallyEqual(baz[4], bar[4])  # same drive
+
+            baz_notlong = fileutil.abspath_expanduser_unicode(u"\\baz", long_path=False)
+            self.failIf(baz_notlong.startswith(u"\\\\?\\"), baz_notlong)
+            self.failUnlessReallyEqual(baz_notlong[1 :], u":\\baz")
+
+            bar_notlong = fileutil.abspath_expanduser_unicode(u"\\bar", base=baz_notlong, long_path=False)
+            self.failIf(bar_notlong.startswith(u"\\\\?\\"), bar_notlong)
+            self.failUnlessReallyEqual(bar_notlong[1 :], u":\\bar")
+            # not u":\\baz\\bar", because \bar is absolute on the current drive.
+
+            self.failUnlessReallyEqual(baz_notlong[0], bar_notlong[0])  # same drive
+
         self.failIfIn(u"~", fileutil.abspath_expanduser_unicode(u"~"))
+        self.failIfIn(u"~", fileutil.abspath_expanduser_unicode(u"~", long_path=False))
 
         cwds = ['cwd']
         try:
@@ -509,8 +629,65 @@ class FileUtil(unittest.TestCase):
                 for upath in (u'', u'fuu', u'f\xf9\xf9', u'/fuu', u'U:\\', u'~'):
                     uabspath = fileutil.abspath_expanduser_unicode(upath)
                     self.failUnless(isinstance(uabspath, unicode), uabspath)
+
+                    uabspath_notlong = fileutil.abspath_expanduser_unicode(upath, long_path=False)
+                    self.failUnless(isinstance(uabspath_notlong, unicode), uabspath_notlong)
             finally:
                 os.chdir(saved_cwd)
+
+    def test_make_dirs_with_absolute_mode(self):
+        if sys.platform == 'win32':
+            raise unittest.SkipTest("Permissions don't work the same on windows.")
+
+        workdir = fileutil.abspath_expanduser_unicode(u"test_make_dirs_with_absolute_mode")
+        fileutil.make_dirs(workdir)
+        abspath = fileutil.abspath_expanduser_unicode(u"a/b/c/d", base=workdir)
+        fileutil.make_dirs_with_absolute_mode(workdir, abspath, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b", "c", "d")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b", "c")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(os.path.join(workdir, "a")).st_mode & 0777
+        self.failUnlessEqual(new_mode, 0766)
+        new_mode = os.stat(workdir).st_mode & 0777
+        self.failIfEqual(new_mode, 0766)
+
+    def test_create_long_path(self):
+        workdir = u"test_create_long_path"
+        fileutil.make_dirs(workdir)
+        long_path = fileutil.abspath_expanduser_unicode(os.path.join(workdir, u'x'*255))
+        def _cleanup():
+            fileutil.remove(long_path)
+        self.addCleanup(_cleanup)
+
+        fileutil.write(long_path, "test")
+        self.failUnless(os.path.exists(long_path))
+        self.failUnlessEqual(fileutil.read(long_path), "test")
+        _cleanup()
+        self.failIf(os.path.exists(long_path))
+
+    def _test_windows_expanduser(self, userprofile=None, homedrive=None, homepath=None):
+        def call_windows_getenv(name):
+            if name == u"USERPROFILE": return userprofile
+            if name == u"HOMEDRIVE":   return homedrive
+            if name == u"HOMEPATH":    return homepath
+            self.fail("unexpected argument to call_windows_getenv")
+        self.patch(fileutil, 'windows_getenv', call_windows_getenv)
+
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"~"), os.path.join(u"C:", u"\\Documents and Settings\\\u0100"))
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"~\\foo"), os.path.join(u"C:", u"\\Documents and Settings\\\u0100", u"foo"))
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"~/foo"), os.path.join(u"C:", u"\\Documents and Settings\\\u0100", u"foo"))
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a"), u"a")
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a~"), u"a~")
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a\\~\\foo"), u"a\\~\\foo")
+
+    def test_windows_expanduser_xp(self):
+        return self._test_windows_expanduser(homedrive=u"C:", homepath=u"\\Documents and Settings\\\u0100")
+
+    def test_windows_expanduser_win7(self):
+        return self._test_windows_expanduser(userprofile=os.path.join(u"C:", u"\\Documents and Settings\\\u0100"))
 
     def test_disk_stats(self):
         avail = fileutil.get_available_space('.', 2**14)
@@ -519,7 +696,8 @@ class FileUtil(unittest.TestCase):
 
         disk = fileutil.get_disk_stats('.', 2**13)
         self.failUnless(disk['total'] > 0, disk['total'])
-        self.failUnless(disk['used'] > 0, disk['used'])
+        # we tolerate used==0 for a Travis-CI bug, see #2290
+        self.failUnless(disk['used'] >= 0, disk['used'])
         self.failUnless(disk['free_for_root'] > 0, disk['free_for_root'])
         self.failUnless(disk['free_for_nonroot'] > 0, disk['free_for_nonroot'])
         self.failUnless(disk['avail'] > 0, disk['avail'])
@@ -529,6 +707,60 @@ class FileUtil(unittest.TestCase):
         # bytes of available space on your filesystem.
         disk = fileutil.get_disk_stats('.', 2**128)
         self.failUnlessEqual(disk['avail'], 0)
+
+    def test_get_pathinfo(self):
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        # create a directory
+        self.mkdir(basedir, "a")
+        dirinfo = fileutil.get_pathinfo(basedir)
+        self.failUnlessTrue(dirinfo.isdir)
+        self.failUnlessTrue(dirinfo.exists)
+        self.failUnlessFalse(dirinfo.isfile)
+        self.failUnlessFalse(dirinfo.islink)
+
+        # create a file
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
+        fileinfo = fileutil.get_pathinfo(f)
+        self.failUnlessTrue(fileinfo.isfile)
+        self.failUnlessTrue(fileinfo.exists)
+        self.failUnlessFalse(fileinfo.isdir)
+        self.failUnlessFalse(fileinfo.islink)
+        self.failUnlessEqual(fileinfo.size, 10)
+
+        # path at which nothing exists
+        dnename = os.path.join(basedir, "doesnotexist")
+        now_ns = fileutil.seconds_to_ns(time.time())
+        dneinfo = fileutil.get_pathinfo(dnename, now_ns=now_ns)
+        self.failUnlessFalse(dneinfo.exists)
+        self.failUnlessFalse(dneinfo.isfile)
+        self.failUnlessFalse(dneinfo.isdir)
+        self.failUnlessFalse(dneinfo.islink)
+        self.failUnlessEqual(dneinfo.size, None)
+        self.failUnlessEqual(dneinfo.mtime_ns, now_ns)
+        self.failUnlessEqual(dneinfo.ctime_ns, now_ns)
+
+    def test_get_pathinfo_symlink(self):
+        if not hasattr(os, 'symlink'):
+            raise unittest.SkipTest("can't create symlinks on this platform")
+
+        basedir = "util/FileUtil/test_get_pathinfo"
+        fileutil.make_dirs(basedir)
+
+        f = os.path.join(basedir, "1.txt")
+        fileutil.write(f, "a"*10)
+
+        # create a symlink pointing to 1.txt
+        slname = os.path.join(basedir, "linkto1.txt")
+        os.symlink(f, slname)
+        symlinkinfo = fileutil.get_pathinfo(slname)
+        self.failUnlessTrue(symlinkinfo.islink)
+        self.failUnlessTrue(symlinkinfo.exists)
+        self.failUnlessFalse(symlinkinfo.isfile)
+        self.failUnlessFalse(symlinkinfo.isdir)
+
 
 class PollMixinTests(unittest.TestCase):
     def setUp(self):
@@ -557,7 +789,7 @@ class PollMixinTests(unittest.TestCase):
         d.addCallbacks(_suc, _err)
         return d
 
-class DeferredUtilTests(unittest.TestCase):
+class DeferredUtilTests(unittest.TestCase, deferredutil.WaitForDelayedCallsMixin):
     def test_gather_results(self):
         d1 = defer.Deferred()
         d2 = defer.Deferred()
@@ -596,6 +828,21 @@ class DeferredUtilTests(unittest.TestCase):
         f = bad[0]
         self.failUnless(isinstance(f, Failure))
         self.failUnless(f.check(ValueError))
+
+    def test_wait_for_delayed_calls(self):
+        """
+        This tests that 'wait_for_delayed_calls' does in fact wait for a
+        delayed call that is active when the test returns. If it didn't,
+        Trial would report an unclean reactor error for this test.
+        """
+        def _trigger():
+            #print "trigger"
+            pass
+        reactor.callLater(0.1, _trigger)
+
+        d = defer.succeed(None)
+        d.addBoth(self.wait_for_delayed_calls)
+        return d
 
 class HashUtilTests(unittest.TestCase):
 
@@ -659,11 +906,11 @@ class HashUtilTests(unittest.TestCase):
         h2.update("foo")
         self.failUnlessEqual(h1, h2.digest())
 
-    def test_constant_time_compare(self):
-        self.failUnless(hashutil.constant_time_compare("a", "a"))
-        self.failUnless(hashutil.constant_time_compare("ab", "ab"))
-        self.failIf(hashutil.constant_time_compare("a", "b"))
-        self.failIf(hashutil.constant_time_compare("a", "aa"))
+    def test_timing_safe_compare(self):
+        self.failUnless(hashutil.timing_safe_compare("a", "a"))
+        self.failUnless(hashutil.timing_safe_compare("ab", "ab"))
+        self.failIf(hashutil.timing_safe_compare("a", "b"))
+        self.failIf(hashutil.timing_safe_compare("a", "aa"))
 
     def _testknown(self, hashf, expected_a, *args):
         got = hashf(*args)
@@ -696,6 +943,11 @@ class HashUtilTests(unittest.TestCase):
         self._testknown(hashutil.ssk_readkey_data_hash, "73wsaldnvdzqaf7v4pzbr2ae5a", "iv", "rk")
         self._testknown(hashutil.ssk_storage_index_hash, "j7icz6kigb6hxrej3tv4z7ayym", "")
 
+        self._testknown(hashutil.permute_server_hash,
+                        "kb4354zeeurpo3ze5e275wzbynm6hlap", # b32(expected)
+                        "SI", # peer selection index == storage_index
+                        base32.a2b("u33m4y7klhz3bypswqkozwetvabelhxt"), # seed
+                        )
 
 class Abbreviate(unittest.TestCase):
     def test_time(self):
@@ -733,7 +985,8 @@ class Abbreviate(unittest.TestCase):
                     (1000*1000*1000, "1.00 GB"),
                     (1000*1000*1000*1000, "1.00 TB"),
                     (1000*1000*1000*1000*1000, "1.00 PB"),
-                    (1234567890123456, "1.23 PB"),
+                    (1000*1000*1000*1000*1000*1000, "1.00 EB"),
+                    (1234567890123456789, "1.23 EB"),
                     ]
         for (x, expected) in tests_si:
             got = abbreviate.abbreviate_space(x, SI=True)
@@ -753,7 +1006,8 @@ class Abbreviate(unittest.TestCase):
                           (1024*1024*1024*1024, "1.00 TiB"),
                           (1000*1000*1000*1000*1000, "909.49 TiB"),
                           (1024*1024*1024*1024*1024, "1.00 PiB"),
-                          (1234567890123456, "1.10 PiB"),
+                          (1024*1024*1024*1024*1024*1024, "1.00 EiB"),
+                          (1234567890123456789, "1.07 EiB"),
                     ]
         for (x, expected) in tests_base1024:
             got = abbreviate.abbreviate_space(x, SI=False)
@@ -775,8 +1029,19 @@ class Abbreviate(unittest.TestCase):
         self.failUnlessEqual(p("10MiB"), 10*1024*1024)
         self.failUnlessEqual(p("5G"), 5*1000*1000*1000)
         self.failUnlessEqual(p("4GiB"), 4*1024*1024*1024)
+        self.failUnlessEqual(p("3TB"), 3*1000*1000*1000*1000)
+        self.failUnlessEqual(p("3TiB"), 3*1024*1024*1024*1024)
+        self.failUnlessEqual(p("6PB"), 6*1000*1000*1000*1000*1000)
+        self.failUnlessEqual(p("6PiB"), 6*1024*1024*1024*1024*1024)
+        self.failUnlessEqual(p("9EB"), 9*1000*1000*1000*1000*1000*1000)
+        self.failUnlessEqual(p("9EiB"), 9*1024*1024*1024*1024*1024*1024)
+
         e = self.failUnlessRaises(ValueError, p, "12 cubits")
-        self.failUnless("12 cubits" in str(e))
+        self.failUnlessIn("12 cubits", str(e))
+        e = self.failUnlessRaises(ValueError, p, "1 BB")
+        self.failUnlessIn("1 BB", str(e))
+        e = self.failUnlessRaises(ValueError, p, "fhtagn")
+        self.failUnlessIn("fhtagn", str(e))
 
 class Limiter(unittest.TestCase):
     timeout = 480 # This takes longer than 240 seconds on Francois's arm box.
@@ -853,7 +1118,7 @@ class Limiter(unittest.TestCase):
         d.addCallback(_all_done)
         return d
 
-class TimeFormat(unittest.TestCase):
+class TimeFormat(unittest.TestCase, TimezoneMixin):
     def test_epoch(self):
         return self._help_test_epoch()
 
@@ -867,19 +1132,12 @@ class TimeFormat(unittest.TestCase):
         # time_format.iso_utc_time_to_localseconds() breaks if the timezone is
         # Europe/London.  (As soon as this unit test is done then I'll change
         # that implementation to something that works even in this case...)
-        origtz = os.environ.get('TZ')
-        os.environ['TZ'] = "Europe/London"
-        if hasattr(time, 'tzset'):
-            time.tzset()
-        try:
-            return self._help_test_epoch()
-        finally:
-            if origtz is None:
-                del os.environ['TZ']
-            else:
-                os.environ['TZ'] = origtz
-            if hasattr(time, 'tzset'):
-                time.tzset()
+
+        if not self.have_working_tzset():
+            raise unittest.SkipTest("This test can't be run on a platform without time.tzset().")
+
+        self.setTimezone("Europe/London")
+        return self._help_test_epoch()
 
     def _help_test_epoch(self):
         origtzname = time.tzname
@@ -940,6 +1198,60 @@ class TimeFormat(unittest.TestCase):
 
     def test_parse_date(self):
         self.failUnlessEqual(time_format.parse_date("2010-02-21"), 1266710400)
+
+    def test_format_time(self):
+        self.failUnlessEqual(time_format.format_time(time.gmtime(0)), '1970-01-01 00:00:00')
+        self.failUnlessEqual(time_format.format_time(time.gmtime(60)), '1970-01-01 00:01:00')
+        self.failUnlessEqual(time_format.format_time(time.gmtime(60*60)), '1970-01-01 01:00:00')
+        seconds_per_day = 60*60*24
+        leap_years_1970_to_2014_inclusive = ((2012 - 1968) // 4)
+        self.failUnlessEqual(time_format.format_time(time.gmtime(seconds_per_day*((2015 - 1970)*365+leap_years_1970_to_2014_inclusive))), '2015-01-01 00:00:00')
+
+    def test_format_time_y2038(self):
+        seconds_per_day = 60*60*24
+        leap_years_1970_to_2047_inclusive = ((2044 - 1968) // 4)
+        t = (seconds_per_day*
+             ((2048 - 1970)*365 + leap_years_1970_to_2047_inclusive))
+        try:
+            gm_t = time.gmtime(t)
+        except ValueError:
+            raise unittest.SkipTest("Note: this system cannot handle dates after 2037.")
+        self.failUnlessEqual(time_format.format_time(gm_t),
+                             '2048-01-01 00:00:00')
+
+    def test_format_delta(self):
+        time_1 = 1389812723
+        time_5s_delta = 1389812728
+        time_28m7s_delta = 1389814410
+        time_1h_delta = 1389816323
+        time_1d21h46m49s_delta = 1389977532
+
+        self.failUnlessEqual(
+            time_format.format_delta(time_1, time_1), '0s')
+
+        self.failUnlessEqual(
+            time_format.format_delta(time_1, time_5s_delta), '5s')
+        self.failUnlessEqual(
+            time_format.format_delta(time_1, time_28m7s_delta), '28m 7s')
+        self.failUnlessEqual(
+            time_format.format_delta(time_1, time_1h_delta), '1h 0m 0s')
+        self.failUnlessEqual(
+            time_format.format_delta(time_1, time_1d21h46m49s_delta), '1d 21h 46m 49s')
+
+        self.failUnlessEqual(
+            time_format.format_delta(time_1d21h46m49s_delta, time_1), '-')
+
+        # time_1 with a decimal fraction will make the delta 1s less
+        time_1decimal = 1389812723.383963
+
+        self.failUnlessEqual(
+            time_format.format_delta(time_1decimal, time_5s_delta), '4s')
+        self.failUnlessEqual(
+            time_format.format_delta(time_1decimal, time_28m7s_delta), '28m 6s')
+        self.failUnlessEqual(
+            time_format.format_delta(time_1decimal, time_1h_delta), '59m 59s')
+        self.failUnlessEqual(
+            time_format.format_delta(time_1decimal, time_1d21h46m49s_delta), '1d 21h 46m 48s')
 
 class CacheDir(unittest.TestCase):
     def test_basic(self):
@@ -1245,7 +1557,8 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(d.item_with_largest_value(), ("b", 6))
 
         d = dictutil.NumDict({"a": 1, "b": 2})
-        self.failUnlessEqual(repr(d), "{'a': 1, 'b': 2}")
+        self.failUnlessIn(repr(d), ("{'a': 1, 'b': 2}",
+                                    "{'b': 2, 'a': 1}"))
         self.failUnless("a" in d)
 
         d2 = dictutil.NumDict({"c": 3, "d": 4})
@@ -1582,11 +1895,6 @@ class SampleError(Exception):
 
 class Log(unittest.TestCase):
     def test_err(self):
-        if not hasattr(self, "flushLoggedErrors"):
-            # without flushLoggedErrors, we can't get rid of the
-            # twisted.log.err that tahoe_log records, so we can't keep this
-            # test from [ERROR]ing
-            raise unittest.SkipTest("needs flushLoggedErrors from Twisted-2.5.0")
         try:
             raise SampleError("simple sample")
         except:
@@ -1973,7 +2281,7 @@ class StringSpans(unittest.TestCase):
         self.failUnlessEqual(ds.len(), 0)
         self.failUnlessEqual(list(ds._dump()), [])
         self.failUnlessEqual(sum([len(d) for (s,d) in ds.get_chunks()]), 0)
-        s = ds.get_spans()
+        s1 = ds.get_spans()
         self.failUnlessEqual(ds.get(0, 4), None)
         self.failUnlessEqual(ds.pop(0, 4), None)
         ds.remove(0, 4)
@@ -1982,8 +2290,8 @@ class StringSpans(unittest.TestCase):
         self.failUnlessEqual(ds.len(), 4)
         self.failUnlessEqual(list(ds._dump()), [2,3,4,5])
         self.failUnlessEqual(sum([len(d) for (s,d) in ds.get_chunks()]), 4)
-        s = ds.get_spans()
-        self.failUnless((2,2) in s)
+        s1 = ds.get_spans()
+        self.failUnless((2,2) in s1)
         self.failUnlessEqual(ds.get(0, 4), None)
         self.failUnlessEqual(ds.pop(0, 4), None)
         self.failUnlessEqual(ds.get(4, 4), None)
@@ -2177,3 +2485,11 @@ class StringSpans(unittest.TestCase):
                 length = max(1, int(what[5:6], 16))
                 d1 = s1.get(start, length); d2 = s2.get(start, length)
                 self.failUnlessEqual(d1, d2, "%d+%d" % (start, length))
+
+class YAML(unittest.TestCase):
+    def test_convert(self):
+        data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
+        back = yamlutil.safe_load(data)
+        self.failUnlessEqual(type(back[0]), unicode)
+        self.failUnlessEqual(type(back[1]), unicode)
+        self.failUnlessEqual(type(back[2]), unicode)
