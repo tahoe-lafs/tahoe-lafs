@@ -11,6 +11,7 @@ from pycryptopp.publickey import rsa
 
 import allmydata
 from allmydata.storage.server import StorageServer
+from allmydata.storage.expiration import ExpirationPolicy
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
@@ -353,8 +354,8 @@ class Client(node.Node, pollmixin.PollMixin):
             raise
         if reserved is None:
             reserved = 0
-        discard = self.get_config("storage", "debug_discard", False,
-                                  boolean=True)
+        if self.get_config("storage", "debug_discard", False, boolean=True):
+            raise OldConfigOptionError("[storage]debug_discard = True is no longer supported.")
 
         expire = self.get_config("storage", "expire.enabled", False, boolean=True)
         if expire:
@@ -371,40 +372,44 @@ class Client(node.Node, pollmixin.PollMixin):
             cutoff_date = self.get_config("storage", "expire.cutoff_date")
             cutoff_date = parse_date(cutoff_date)
 
-        sharetypes = []
-        if self.get_config("storage", "expire.immutable", True, boolean=True):
-            sharetypes.append("immutable")
-        if self.get_config("storage", "expire.mutable", True, boolean=True):
-            sharetypes.append("mutable")
-        expiration_sharetypes = tuple(sharetypes)
+        if not self.get_config("storage", "expire.immutable", True, boolean=True):
+            raise OldConfigOptionError("[storage]expire.immutable = False is no longer supported.")
+        if not self.get_config("storage", "expire.mutable", True, boolean=True):
+            raise OldConfigOptionError("[storage]expire.mutable = False is no longer supported.")
+
+        expiration_policy = ExpirationPolicy(enabled=expire, mode=mode, override_lease_duration=o_l_d,
+                                             cutoff_date=cutoff_date)
 
         ss = StorageServer(storedir, self.nodeid,
                            reserved_space=reserved,
-                           discard_storage=discard,
                            readonly_storage=readonly,
                            stats_provider=self.stats_provider)
         self.storage_server = ss
         self.add_service(ss)
+
         self.accountant = ss.get_accountant()
-        self.accountant.set_expiration_policy(
-            expiration_enabled=expire,
-            expiration_mode=mode,
-            expiration_override_lease_duration=o_l_d,
-            expiration_cutoff_date=cutoff_date,
-            expiration_sharetypes=expiration_sharetypes)
-        accountant_window = self.accountant.get_accountant_window(self.tub)
-        accountant_furlfile = os.path.join(self.basedir, "private", "accountant.furl").encode(get_filesystem_encoding())
-        accountant_furl = self.tub.registerReference(accountant_window,
-                                                     furlFile=accountant_furlfile)
-        legacy_account = self.accountant.get_anonymous_account()
+        self.accountant.set_expiration_policy(expiration_policy)
+
+        # accountant_window = self.accountant.get_accountant_window(self.tub)
+        # accountant_furlfile = os.path.join(self.basedir, "private", "accountant.furl").encode(get_filesystem_encoding())
+        # accountant_furl = self.tub.registerReference(accountant_window,
+        #                                              furlFile=accountant_furlfile)
+
+        anonymous_account = self.accountant.get_anonymous_account()
         anonymous_account_furlfile = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
-        anonymous_account_furl = self.tub.registerReference(ss, furlFile=anonymous_account_furlfile)
-        ann = {"anonymous-storage-FURL": anonymous_account_furl,
-               "permutation-seed-base32": self._init_permutation_seed(ss),
-               "accountant-FURL": accountant_furl,
-               }
+        anonymous_account_furl = self.tub.registerReference(anonymous_account, furlFile=anonymous_account_furlfile)
+        ann = {
+            "anonymous-storage-FURL": anonymous_account_furl,
+            "permutation-seed-base32": self._init_permutation_seed(ss),
+            # "accountant-FURL": accountant_furl,
+        }
         for ic in self.introducer_clients:
             ic.publish("storage", ann, self._node_key)
+        d.addErrback(log.err, facility="tahoe.init",
+                     level=log.BAD, umid="aLGBKw")
+
+    def get_accountant(self):
+        return self.accountant
 
     def get_accountant(self):
         return self.accountant
