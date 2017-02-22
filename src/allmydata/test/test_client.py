@@ -282,7 +282,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnlessRaises(OldConfigOptionError, client.Client, basedir)
 
     def _permute(self, sb, key):
-        return [ base32.a2b(s.get_longname()) for s in sb.get_servers_for_psi(key) ]
+        return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
         sb = StorageFarmBroker(True, None)
