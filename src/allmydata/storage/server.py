@@ -301,8 +301,8 @@ class StorageServer(service.MultiService):
                 bw = BucketWriter(self, account, storage_index, shnum,
                                   incominghome, finalhome,
                                   max_space_per_bucket, canary)
-                if self.no_storage:
-                    bw.throw_out_all_data = True
+#                if self.no_storage:
+#                    bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
                 self._active_writers[bw] = 1
                 if limited:
