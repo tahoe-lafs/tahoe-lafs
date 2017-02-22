@@ -314,7 +314,7 @@ class Server(unittest.TestCase):
 
     def test_declares_available_space(self):
         ss = self.create("test_declares_available_space")
-        ver = ss.remote_get_version()
+        ver = ss.client_get_version(None)
         sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
         self.failUnlessIn('available-space', sv1)
 
