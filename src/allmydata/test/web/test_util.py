@@ -3,6 +3,7 @@ from allmydata.web import status, common
 from ..common import ShouldFailMixin
 from .. import common_util as testutil
 
+
 class Util(ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
     def test_load_file(self):
         # This will raise an exception unless a well-formed XML file is found under that name.
