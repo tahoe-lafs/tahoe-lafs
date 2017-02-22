@@ -405,8 +405,6 @@ class Client(node.Node, pollmixin.PollMixin):
         }
         for ic in self.introducer_clients:
             ic.publish("storage", ann, self._node_key)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="aLGBKw")
 
     def get_accountant(self):
         return self.accountant
