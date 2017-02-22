@@ -533,36 +533,158 @@ def get_available_space(whichdir, reserved_space):
         return 0
 
 
-def get_used_space(path):
-    if path is None:
-        return 0
-    try:
-        s = os.stat(path)
-    except EnvironmentError:
-        if not os.path.exists(path):
-            return 0
-        raise
-    else:
-        # POSIX defines st_blocks (originally a BSDism):
-        #   <http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/stat.h.html>
-        # but does not require stat() to give it a "meaningful value"
-        #   <http://pubs.opengroup.org/onlinepubs/009695399/functions/stat.html>
-        # and says:
-        #   "The unit for the st_blocks member of the stat structure is not defined
-        #    within IEEE Std 1003.1-2001. In some implementations it is 512 bytes.
-        #    It may differ on a file system basis. There is no correlation between
-        #    values of the st_blocks and st_blksize, and the f_bsize (from <sys/statvfs.h>)
-        #    structure members."
-        #
-        # The Linux docs define it as "the number of blocks allocated to the file,
-        # [in] 512-byte units." It is also defined that way on MacOS X. Python does
-        # not set the attribute on Windows.
-        #
-        # We consider platforms that define st_blocks but give it a wrong value, or
-        # measure it in a unit other than 512 bytes, to be broken. See also
-        # <http://bugs.python.org/issue12350>.
+if sys.platform == "win32":
+    # <http://msdn.microsoft.com/en-us/library/aa363858%28v=vs.85%29.aspx>
+    CreateFileW = WINFUNCTYPE(
+        HANDLE,  LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE,
+        use_last_error=True
+    )(("CreateFileW", windll.kernel32))
 
-        if hasattr(s, 'st_blocks'):
-            return s.st_blocks * 512
-        else:
-            return s.st_size
+    GENERIC_WRITE        = 0x40000000
+    FILE_SHARE_READ      = 0x00000001
+    FILE_SHARE_WRITE     = 0x00000002
+    OPEN_EXISTING        = 3
+    INVALID_HANDLE_VALUE = 0xFFFFFFFF
+
+    # <http://msdn.microsoft.com/en-us/library/aa364439%28v=vs.85%29.aspx>
+    FlushFileBuffers = WINFUNCTYPE(
+        BOOL,  HANDLE,
+        use_last_error=True
+    )(("FlushFileBuffers", windll.kernel32))
+
+    # <http://msdn.microsoft.com/en-us/library/ms724211%28v=vs.85%29.aspx>
+    CloseHandle = WINFUNCTYPE(
+        BOOL,  HANDLE,
+        use_last_error=True
+    )(("CloseHandle", windll.kernel32))
+
+    # <http://social.msdn.microsoft.com/forums/en-US/netfxbcl/thread/4465cafb-f4ed-434f-89d8-c85ced6ffaa8/>
+    def flush_volume(path):
+        abspath = os.path.realpath(path)
+        if abspath.startswith("\\\\?\\"):
+            abspath = abspath[4 :]
+        drive = os.path.splitdrive(abspath)[0]
+
+        print "flushing %r" % (drive,)
+        hVolume = CreateFileW(u"\\\\.\\" + drive,
+                              GENERIC_WRITE,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE,
+                              None,
+                              OPEN_EXISTING,
+                              0,
+                              None
+                             )
+        if hVolume == INVALID_HANDLE_VALUE:
+            raise WinError(get_last_error())
+
+        if FlushFileBuffers(hVolume) == 0:
+            raise WinError(get_last_error())
+
+        CloseHandle(hVolume)
+else:
+    def flush_volume(path):
+        # use sync()?
+        pass
+
+
+class ConflictError(Exception):
+    pass
+
+class UnableToUnlinkReplacementError(Exception):
+    pass
+
+def reraise(wrapper):
+    _, exc, tb = sys.exc_info()
+    wrapper_exc = wrapper("%s: %s" % (exc.__class__.__name__, exc))
+    raise wrapper_exc.__class__, wrapper_exc, tb
+
+if sys.platform == "win32":
+    # <https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx>
+    ReplaceFileW = WINFUNCTYPE(
+        BOOL,  LPCWSTR, LPCWSTR, LPCWSTR, DWORD, LPVOID, LPVOID,
+        use_last_error=True
+    )(("ReplaceFileW", windll.kernel32))
+
+    REPLACEFILE_IGNORE_MERGE_ERRORS = 0x00000002
+
+    # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms681382%28v=vs.85%29.aspx>
+    ERROR_FILE_NOT_FOUND = 2
+
+    def rename_no_overwrite(source_path, dest_path):
+        os.rename(source_path, dest_path)
+
+    def replace_file(replaced_path, replacement_path, backup_path):
+        precondition_abspath(replaced_path)
+        precondition_abspath(replacement_path)
+        precondition_abspath(backup_path)
+
+        r = ReplaceFileW(replaced_path, replacement_path, backup_path,
+                         REPLACEFILE_IGNORE_MERGE_ERRORS, None, None)
+        if r == 0:
+            # The UnableToUnlinkReplacementError case does not happen on Windows;
+            # all errors should be treated as signalling a conflict.
+            err = get_last_error()
+            if err != ERROR_FILE_NOT_FOUND:
+                raise ConflictError("WinError: %s" % (WinError(err),))
+
+            try:
+                rename_no_overwrite(replacement_path, replaced_path)
+            except EnvironmentError:
+                reraise(ConflictError)
+else:
+    def rename_no_overwrite(source_path, dest_path):
+        # link will fail with EEXIST if there is already something at dest_path.
+        os.link(source_path, dest_path)
+        try:
+            os.unlink(source_path)
+        except EnvironmentError:
+            reraise(UnableToUnlinkReplacementError)
+
+    def replace_file(replaced_path, replacement_path, backup_path):
+        precondition_abspath(replaced_path)
+        precondition_abspath(replacement_path)
+        precondition_abspath(backup_path)
+
+        if not os.path.exists(replacement_path):
+            raise ConflictError("Replacement file not found: %r" % (replacement_path,))
+
+        try:
+            os.rename(replaced_path, backup_path)
+        except OSError as e:
+            if e.errno != ENOENT:
+                raise
+        try:
+            rename_no_overwrite(replacement_path, replaced_path)
+        except EnvironmentError:
+            reraise(ConflictError)
+
+PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime_ns ctime_ns')
+
+def seconds_to_ns(t):
+    return int(t * 1000000000)
+
+def get_pathinfo(path_u, now_ns=None):
+    try:
+        statinfo = os.lstat(path_u)
+        mode = statinfo.st_mode
+        return PathInfo(isdir   =stat.S_ISDIR(mode),
+                        isfile  =stat.S_ISREG(mode),
+                        islink  =stat.S_ISLNK(mode),
+                        exists  =True,
+                        size    =statinfo.st_size,
+                        mtime_ns=seconds_to_ns(statinfo.st_mtime),
+                        ctime_ns=seconds_to_ns(statinfo.st_ctime),
+                       )
+    except OSError as e:
+        if e.errno == ENOENT:
+            if now_ns is None:
+                now_ns = seconds_to_ns(time.time())
+            return PathInfo(isdir   =False,
+                            isfile  =False,
+                            islink  =False,
+                            exists  =False,
+                            size    =None,
+                            mtime_ns=now_ns,
+                            ctime_ns=now_ns,
+                           )
+        raise
