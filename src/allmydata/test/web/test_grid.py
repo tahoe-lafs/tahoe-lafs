@@ -838,21 +838,18 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addErrback(self.explain_web_error)
         return d
 
-    def _count_leases(self, ignored, which):
+    def _assert_leasecount(self, ignored, which, expected):
         u = self.uris[which]
-        shares = self.find_uri_shares(u)
-        lease_counts = []
-        for shnum, serverid, fn in shares:
-            sf = get_share_file(fn)
-            num_leases = len(list(sf.get_leases()))
-            lease_counts.append( (fn, num_leases) )
-        return lease_counts
+        si = uri.from_string(u).get_storage_index()
+        num_leases = 0
+        for server in self.g.servers_by_number.values():
+            ss = server.get_accountant().get_anonymous_account()
+            ss2 = server.get_accountant().get_starter_account()
+            num_leases += len(ss.get_leases(si)) + len(ss2.get_leases(si))
 
-    def _assert_leasecount(self, lease_counts, expected):
-        for (fn, num_leases) in lease_counts:
-            if num_leases != expected:
-                self.fail("expected %d leases, have %d, on %s" %
-                          (expected, num_leases, fn))
+        if num_leases != expected:
+            self.fail("expected %d leases, have %d, on '%s'" %
+                      (expected, num_leases, which))
 
     def test_add_lease(self):
         self.basedir = "web/Grid/add_lease"
