@@ -516,7 +516,7 @@ class Server(unittest.TestCase):
             }
         self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
 
-        server = self.create("test_reserved_space", reserved_space=reserved_space)
+        server = self.create("test_reserved_space", reserved_space=reserved)
         aa = server.get_accountant().get_anonymous_account()
 
         # 15k available, 10k reserved, leaves 5k for shares
@@ -3576,7 +3576,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Disk space free (non-root): 3.00 GB", s)
         self.failUnlessIn("Reserved space: - 1.00 GB", s)
         self.failUnlessIn("Space Available to Tahoe: 2.00 GB", s)
-        self.failUnlessEqual(server.get_available_space(), 2*GB)
+        self.failUnlessEqual(ss.get_available_space(), 2*GB)
 
     def test_readonly(self):
         basedir = "storage/WebStatus/readonly"
