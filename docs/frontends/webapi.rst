@@ -1862,14 +1862,28 @@ of the introducer(s) and storage server(s), here's an example::
    "servers": {
     "other_nodeid": {
      "available_space": 123456,
-     "nickname": "other_nickname \u263b",
-     "version": "",
+     "nickname": "George \u263b",
+     "version": "1.0",
      "connection_status": "summary",
-     "last_received_data": ""
+     "last_received_data": 1487811257,
     }
    }
   }
 
+
+The abos json ``introducers`` section includes a list of
+introducer connectivity status messages.
+
+The above json ``servers`` section above is a map
+where the key is a storage server node ID and the value
+is a map of properties with the following usage for each key:
+
+1. available_space - the available space in bytes expressed as an integer
+2. nickname - the storage server nickname
+3. version - the storage server Tahoe-LAFS version
+4. connection_status - connectivity status
+5. last_received_data - the time when data was last received,
+   expressed in seconds since epoch
 
 ``GET /status/``
 
