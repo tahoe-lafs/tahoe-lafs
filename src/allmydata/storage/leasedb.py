@@ -113,14 +113,19 @@ CREATE UNIQUE INDEX `cycle` ON `crawler_history` (`cycle`);
 DAY = 24*60*60
 MONTH = 30*DAY
 
-class LeaseDB:
+def create_lease_db(dbfile):
+    sqlite, db = dbutil.get_db(dbfile, create_version=(LEASE_SCHEMA_V1, 1))
+    return LeaseDB(sqlite, db)
+
+
+class LeaseDB(object):
     ANONYMOUS_ACCOUNTID = 0
     STARTER_LEASE_ACCOUNTID = 1
     STARTER_LEASE_DURATION = 2*MONTH
 
-    def __init__(self, dbfile):
-        (self._sqlite,
-         self._db) = dbutil.get_db(dbfile, create_version=(LEASE_SCHEMA_V1, 1))
+    def __init__(self, sqlite, db):
+        self._sqlite = sqlite
+        self._db = db
         self._cursor = self._db.cursor()
         self.debug = False
         self.retained_history_entries = 10

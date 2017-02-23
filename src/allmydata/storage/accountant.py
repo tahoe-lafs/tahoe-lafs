@@ -16,7 +16,7 @@ import weakref
 
 from twisted.application import service
 
-from allmydata.storage.leasedb import LeaseDB
+from allmydata.storage.leasedb import create_lease_db, LeaseDB
 from allmydata.storage.accounting_crawler import AccountingCrawler
 from allmydata.storage.account import Account
 
@@ -25,7 +25,7 @@ class Accountant(service.MultiService):
     def __init__(self, storage_server, dbfile, statefile):
         service.MultiService.__init__(self)
         self.storage_server = storage_server
-        self._leasedb = LeaseDB(dbfile)
+        self._leasedb = create_lease_db(dbfile)
         self._active_accounts = weakref.WeakValueDictionary()
         self._anonymous_account = Account(LeaseDB.ANONYMOUS_ACCOUNTID, None,
                                           self.storage_server, self._leasedb)
