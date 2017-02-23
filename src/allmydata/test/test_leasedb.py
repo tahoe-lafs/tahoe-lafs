@@ -6,7 +6,7 @@ from twisted.trial import unittest
 from allmydata.util import fileutil
 from allmydata.util.dbutil import IntegrityError
 from allmydata.storage.leasedb import LeaseDB, LeaseInfo, NonExistentShareError, \
-     SHARETYPE_IMMUTABLE
+     SHARETYPE_IMMUTABLE, create_lease_db
 
 
 BASE_ACCOUNTS = set([(0, u"anonymous"), (1, u"starter")])
@@ -20,16 +20,16 @@ class DB(unittest.TestCase):
 
     def test_create(self):
         dbfilename = self.make("create")
-        l = LeaseDB(dbfilename)
+        l = create_lease_db(dbfilename)
         self.failUnlessEqual(set(l.get_all_accounts()), BASE_ACCOUNTS)
 
         # should be able to open an existing one too
-        l2 = LeaseDB(dbfilename)
+        l2 = create_lease_db(dbfilename)
         self.failUnlessEqual(set(l2.get_all_accounts()), BASE_ACCOUNTS)
 
     def test_basic(self):
         dbfilename = self.make("create")
-        l = LeaseDB(dbfilename)
+        l = create_lease_db(dbfilename)
 
         l.add_new_share('si1', 0, 12345, SHARETYPE_IMMUTABLE)
 
