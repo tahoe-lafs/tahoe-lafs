@@ -9,7 +9,6 @@ from allmydata.util.encodingutil import to_str
 from allmydata.util.consumer import download_to_data
 from allmydata.util.netstring import split_netstring
 from allmydata.unknown import UnknownNode
-from allmydata.storage.shares import get_share_file
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.immutable import upload
 from allmydata.mutable import publish
