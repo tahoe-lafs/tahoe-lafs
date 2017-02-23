@@ -130,6 +130,9 @@ class LeaseDB(object):
         self.debug = False
         self.retained_history_entries = 10
 
+    def close(self):
+        self._db.close()
+
     # share management
 
     def get_shares_for_prefix(self, prefix):

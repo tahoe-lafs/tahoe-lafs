@@ -36,6 +36,15 @@ class Accountant(service.MultiService):
         self._accounting_crawler = crawler
         crawler.setServiceParent(self)
 
+    # should maybe create_lease_db() in startService()
+
+    def stopService(self):
+        d = super(Accountant, self).stopService()
+        self._leasedb.close()  # should probably use twisted.enterprise.adbapi
+        # anything else?
+        return d
+
+    # XXX can we get rid of this?
     def get_leasedb(self):
         return self._leasedb
 
