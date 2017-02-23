@@ -191,7 +191,7 @@ class FakeDisplayableServer(StubServer):
         return self.connected
     def get_version(self):
         return {
-            "application-version": ""
+            "application-version": "1.0"
         }
     def get_permutation_seed(self):
         return ""
