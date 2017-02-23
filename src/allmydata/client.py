@@ -409,9 +409,6 @@ class Client(node.Node, pollmixin.PollMixin):
     def get_accountant(self):
         return self.accountant
 
-    def get_accountant(self):
-        return self.accountant
-
     def init_client(self):
         helper_furl = self.get_config("client", "helper.furl", None)
         if helper_furl in ("None", ""):
