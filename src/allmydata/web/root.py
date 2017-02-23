@@ -195,7 +195,7 @@ class Root(rend.Page):
         return rend.Page.renderHTTP(self, ctx)
 
     def json_welcome(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        inevow.IRequest(ctx).setHeader("content-type", "application/json; charset=utf-8")
         intro_summaries = [s.summary for s in self.client.introducer_connection_statuses()]
         sb = self.client.get_storage_broker()
         servers = {}
