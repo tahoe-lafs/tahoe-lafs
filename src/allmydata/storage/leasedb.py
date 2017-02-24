@@ -1,6 +1,8 @@
 
 import time, simplejson
 
+from twisted.internet import defer
+
 from allmydata.util.assertutil import _assert
 from allmydata.util import dbutil
 from allmydata.storage.common import si_b2a
@@ -113,9 +115,10 @@ CREATE UNIQUE INDEX `cycle` ON `crawler_history` (`cycle`);
 DAY = 24*60*60
 MONTH = 30*DAY
 
+@defer.inlineCallbacks
 def create_lease_db(dbfile):
-    sqlite, db = dbutil.get_db(dbfile, create_version=(LEASE_SCHEMA_V1, 1))
-    return LeaseDB(sqlite, db)
+    sqlite, db = yield dbutil.get_async_db(dbfile, create_version=(LEASE_SCHEMA_V1, 1))
+    defer.returnValue(LeaseDB(db))
 
 
 class LeaseDB(object):
@@ -123,30 +126,34 @@ class LeaseDB(object):
     STARTER_LEASE_ACCOUNTID = 1
     STARTER_LEASE_DURATION = 2*MONTH
 
-    def __init__(self, sqlite, db):
-        self._sqlite = sqlite
-        self._db = db
-        self._cursor = self._db.cursor()
+    def __init__(self, conn):
+        """
+        conn is an instance of adbapi.ConnectionPool
+        """
+        self._conn = conn
         self.debug = False
         self.retained_history_entries = 10
 
     def close(self):
-        self._db.close()
+        self._conn.close()
+        return defer.succeed(None)
 
     # share management
 
+    @defer.inlineCallbacks
     def get_shares_for_prefix(self, prefix):
         """
         Returns a dict mapping (si_s, shnum) pairs to (used_space, sharetype) pairs.
         """
-        self._cursor.execute("SELECT `storage_index`,`shnum`, `used_space`, `sharetype`"
-                             " FROM `shares`"
-                             " WHERE `prefix` == ?",
-                             (prefix,))
+        fetchall_val = yield self._conn.runQuery("SELECT `storage_index`,`shnum`, `used_space`, `sharetype`"
+                                                 " FROM `shares`"
+                                                 " WHERE `prefix` == ?",
+                                                 (prefix,))
         db_sharemap = dict([((str(si_s), int(shnum)), (int(used_space), int(sharetype)))
-                           for (si_s, shnum, used_space, sharetype) in self._cursor.fetchall()])
-        return db_sharemap
+                            for (si_s, shnum, used_space, sharetype) in fetchall_val])
+        defer.returnValue(db_sharemap)
 
+    @defer.inlineCallbacks
     def add_new_share(self, storage_index, shnum, used_space, sharetype):
         si_s = si_b2a(storage_index)
         prefix = si_s[:2]
@@ -154,17 +161,19 @@ class LeaseDB(object):
         backend_key = None
         # This needs to be an INSERT OR REPLACE because it is possible for add_new_share
         # to be called when this share is already in the database (but not on disk).
-        self._cursor.execute("INSERT OR REPLACE INTO `shares`"
-                             " VALUES (?,?,?,?,?,?,?)",
-                             (si_s, shnum, prefix, backend_key, used_space, sharetype, STATE_COMING))
+        yield self._conn.runOperation("INSERT OR REPLACE INTO `shares`"
+                                      " VALUES (?,?,?,?,?,?,?)",
+                                      (si_s, shnum, prefix, backend_key, used_space, sharetype, STATE_COMING))
 
+    @defer.inlineCallbacks
     def add_starter_lease(self, storage_index, shnum):
         si_s = si_b2a(storage_index)
         if self.debug: print "ADD_STARTER_LEASE", si_s, shnum
         renewal_time = time.time()
-        self.add_or_renew_leases(storage_index, shnum, self.STARTER_LEASE_ACCOUNTID,
-                                 int(renewal_time), int(renewal_time + self.STARTER_LEASE_DURATION))
+        yield self.add_or_renew_leases(storage_index, shnum, self.STARTER_LEASE_ACCOUNTID,
+                                       int(renewal_time), int(renewal_time + self.STARTER_LEASE_DURATION))
 
+    @defer.inlineCallbacks
     def mark_share_as_stable(self, storage_index, shnum, used_space=None, backend_key=None):
         """
         Call this method after adding a share to backend storage.
@@ -172,18 +181,19 @@ class LeaseDB(object):
         si_s = si_b2a(storage_index)
         if self.debug: print "MARK_SHARE_AS_STABLE", si_s, shnum, used_space
         if used_space is not None:
-            self._cursor.execute("UPDATE `shares` SET `state`=?, `used_space`=?, `backend_key`=?"
-                                 " WHERE `storage_index`=? AND `shnum`=? AND `state`!=?",
-                                 (STATE_STABLE, used_space, backend_key, si_s, shnum, STATE_GOING))
+            yield self._conn.runOperation("UPDATE `shares` SET `state`=?, `used_space`=?, `backend_key`=?"
+                                          " WHERE `storage_index`=? AND `shnum`=? AND `state`!=?",
+                                          (STATE_STABLE, used_space, backend_key, si_s, shnum, STATE_GOING))
         else:
             _assert(backend_key is None, backend_key=backend_key)
-            self._cursor.execute("UPDATE `shares` SET `state`=?"
-                                 " WHERE `storage_index`=? AND `shnum`=? AND `state`!=?",
-                                 (STATE_STABLE, si_s, shnum, STATE_GOING))
-        self._db.commit()
-        if self._cursor.rowcount < 1:
-            raise NonExistentShareError(si_s, shnum)
+            yield self._conn.runOperation("UPDATE `shares` SET `state`=?"
+                                          " WHERE `storage_index`=? AND `shnum`=? AND `state`!=?",
+                                          (STATE_STABLE, si_s, shnum, STATE_GOING))
+        # XXX
+        # if self._cursor.rowcount < 1:
+        #     raise NonExistentShareError(si_s, shnum)
 
+    @defer.inlineCallbacks
     def mark_share_as_going(self, storage_index, shnum):
         """
         Call this method and commit before deleting a share from backend storage,
@@ -191,42 +201,39 @@ class LeaseDB(object):
         """
         si_s = si_b2a(storage_index)
         if self.debug: print "MARK_SHARE_AS_GOING", si_s, shnum
-        self._cursor.execute("UPDATE `shares` SET `state`=?"
+        yield self._conn.runOperation("UPDATE `shares` SET `state`=?"
                              " WHERE `storage_index`=? AND `shnum`=? AND `state`!=?",
                              (STATE_GOING, si_s, shnum, STATE_COMING))
-        self._db.commit()
-        if self._cursor.rowcount < 1:
-            raise NonExistentShareError(si_s, shnum)
+        # XXX
+        #if self._cursor.rowcount < 1:
+        #    raise NonExistentShareError(si_s, shnum)
 
+    @defer.inlineCallbacks
     def remove_deleted_share(self, storage_index, shnum):
         si_s = si_b2a(storage_index)
         if self.debug: print "REMOVE_DELETED_SHARE", si_s, shnum
         # delete leases first to maintain integrity constraint
-        self._cursor.execute("DELETE FROM `leases`"
-                             " WHERE `storage_index`=? AND `shnum`=?",
-                             (si_s, shnum))
-        try:
-            self._cursor.execute("DELETE FROM `shares`"
-                                 " WHERE `storage_index`=? AND `shnum`=?",
-                                 (si_s, shnum))
-        except Exception:
-            self._db.rollback()  # roll back the lease deletion
-            raise
-        else:
-            self._db.commit()
+        yield self._conn.runOperation("DELETE FROM `leases`"
+                                      " WHERE `storage_index`=? AND `shnum`=?",
+                                      (si_s, shnum))
+        yield self._conn.runOperation("DELETE FROM `shares`"
+                                      " WHERE `storage_index`=? AND `shnum`=?",
+                                      (si_s, shnum))
 
+    @defer.inlineCallbacks
     def change_share_space(self, storage_index, shnum, used_space):
         si_s = si_b2a(storage_index)
         if self.debug: print "CHANGE_SHARE_SPACE", si_s, shnum, used_space
-        self._cursor.execute("UPDATE `shares` SET `used_space`=?"
-                             " WHERE `storage_index`=? AND `shnum`=?",
-                             (used_space, si_s, shnum))
-        self._db.commit()
-        if self._cursor.rowcount < 1:
-            raise NonExistentShareError(si_s, shnum)
+        yield self._conn.runOperation("UPDATE `shares` SET `used_space`=?"
+                                      " WHERE `storage_index`=? AND `shnum`=?",
+                                      (used_space, si_s, shnum))
+        # XXX
+        #if self._cursor.rowcount < 1:
+        #    raise NonExistentShareError(si_s, shnum)
 
     # lease management
 
+    @defer.inlineCallbacks
     def add_or_renew_leases(self, storage_index, shnum, ownerid,
                             renewal_time, expiration_time):
         """
@@ -237,15 +244,13 @@ class LeaseDB(object):
         si_s = si_b2a(storage_index)
         if self.debug: print "ADD_OR_RENEW_LEASES", si_s, shnum, ownerid, renewal_time, expiration_time
         if shnum is None:
-            self._cursor.execute("SELECT `storage_index`, `shnum` FROM `shares`"
-                                 " WHERE `storage_index`=?",
-                                 (si_s,))
-            rows = self._cursor.fetchall()
+            rows = yield self._conn.runQuery("SELECT `storage_index`, `shnum` FROM `shares`"
+                                             " WHERE `storage_index`=?",
+                                             (si_s,))
         else:
-            self._cursor.execute("SELECT `storage_index`, `shnum` FROM `shares`"
-                                 " WHERE `storage_index`=? AND `shnum`=?",
-                                 (si_s, shnum))
-            rows = self._cursor.fetchall()
+            rows = yield self._conn.runQuery("SELECT `storage_index`, `shnum` FROM `shares`"
+                                             " WHERE `storage_index`=? AND `shnum`=?",
+                                             (si_s, shnum))
             if not rows:
                 raise NonExistentShareError(si_s, shnum)
 
@@ -258,31 +263,31 @@ class LeaseDB(object):
             # the server and time goes backward by more than 31 days. This needs to be
             # revisited for ticket #1816, which would allow the client to request a lease
             # duration.
-            self._cursor.execute("INSERT OR REPLACE INTO `leases` VALUES (?,?,?,?,?)",
-                                 (si_s, found_shnum, ownerid, renewal_time, expiration_time))
-            self._db.commit()
+            yield self._conn.runOperation("INSERT OR REPLACE INTO `leases` VALUES (?,?,?,?,?)",
+                                          (si_s, found_shnum, ownerid, renewal_time, expiration_time))
 
+    @defer.inlineCallbacks
     def get_leases(self, storage_index, ownerid):
         si_s = si_b2a(storage_index)
-        self._cursor.execute("SELECT `shnum`, `account_id`, `renewal_time`, `expiration_time` FROM `leases`"
-                             " WHERE `storage_index`=? AND `account_id`=?",
-                             (si_s, ownerid))
-        rows = self._cursor.fetchall()
+        rows = yield self._conn.runQuery("SELECT `shnum`, `account_id`, `renewal_time`, `expiration_time` FROM `leases`"
+                                         " WHERE `storage_index`=? AND `account_id`=?",
+                                         (si_s, ownerid))
         def _to_LeaseInfo(row):
             (shnum, account_id, renewal_time, expiration_time) = tuple(row)
             return LeaseInfo(storage_index, int(shnum), int(account_id), float(renewal_time), float(expiration_time))
-        return map(_to_LeaseInfo, rows)
+        defer.returnValue(map(_to_LeaseInfo, rows))
 
+    @defer.inlineCallbacks
     def get_lease_ages(self, storage_index, shnum, now):
         si_s = si_b2a(storage_index)
-        self._cursor.execute("SELECT `renewal_time` FROM `leases`"
-                             " WHERE `storage_index`=? AND `shnum`=?",
-                             (si_s, shnum))
-        rows = self._cursor.fetchall()
+        rows = yield self._conn.runQuery("SELECT `renewal_time` FROM `leases`"
+                                        " WHERE `storage_index`=? AND `shnum`=?",
+                                        (si_s, shnum))
         def _to_age(row):
             return now - float(row[0])
-        return map(_to_age, rows)
+        defer.returnValue(map(_to_age, rows))
 
+    @defer.inlineCallbacks
     def get_unleased_shares_for_prefix(self, prefix):
         if self.debug: print "GET_UNLEASED_SHARES_FOR_PREFIX", prefix
         # This would be simpler, but it doesn't work because 'NOT IN' doesn't support multiple columns.
@@ -290,64 +295,58 @@ class LeaseDB(object):
         #         " WHERE (`storage_index`, `shnum`) NOT IN (SELECT DISTINCT `storage_index`, `shnum` FROM `leases`)")
 
         # This "negative join" should be equivalent.
-        self._cursor.execute("SELECT DISTINCT s.storage_index, s.shnum, s.used_space, s.sharetype FROM `shares` s LEFT JOIN `leases` l"
-                             " ON (s.storage_index = l.storage_index AND s.shnum = l.shnum)"
-                             " WHERE s.prefix = ? AND l.storage_index IS NULL",
-                             (prefix,))
+        yield self._conn.runQuery("SELECT DISTINCT s.storage_index, s.shnum, s.used_space, s.sharetype FROM `shares` s LEFT JOIN `leases` l"
+                                  " ON (s.storage_index = l.storage_index AND s.shnum = l.shnum)"
+                                  " WHERE s.prefix = ? AND l.storage_index IS NULL",
+                                  (prefix,))
         db_sharemap = dict([((str(si_s), int(shnum)), (int(used_space), int(sharetype)))
                            for (si_s, shnum, used_space, sharetype) in self._cursor.fetchall()])
-        return db_sharemap
+        defer.returnValue(db_sharemap)
 
+    @defer.inlineCallbacks
     def remove_leases_by_renewal_time(self, renewal_cutoff_time):
         if self.debug: print "REMOVE_LEASES_BY_RENEWAL_TIME", renewal_cutoff_time
-        self._cursor.execute("DELETE FROM `leases` WHERE `renewal_time` < ?",
-                             (renewal_cutoff_time,))
-        self._db.commit()
+        yield self._conn.runOperation("DELETE FROM `leases` WHERE `renewal_time` < ?",
+                                      (renewal_cutoff_time,))
 
+    @defer.inlineCallbacks
     def remove_leases_by_expiration_time(self, expiration_cutoff_time):
         if self.debug: print "REMOVE_LEASES_BY_EXPIRATION_TIME", expiration_cutoff_time
-        self._cursor.execute("DELETE FROM `leases` WHERE `expiration_time` IS NOT NULL AND `expiration_time` < ?",
-                             (expiration_cutoff_time,))
-        self._db.commit()
+        yield self._conn.runOperation("DELETE FROM `leases` WHERE `expiration_time` IS NOT NULL AND `expiration_time` < ?",
+                                      (expiration_cutoff_time,))
 
     # history
 
+    @defer.inlineCallbacks
     def add_history_entry(self, cycle, entry):
         if self.debug: print "ADD_HISTORY_ENTRY", cycle, entry
         json = simplejson.dumps(entry)
-        self._cursor.execute("SELECT `cycle` FROM `crawler_history`")
-        rows = self._cursor.fetchall()
+        rows = yield self._conn.runQuery("SELECT `cycle` FROM `crawler_history`")
         if len(rows) >= self.retained_history_entries:
             first_cycle_to_retain = list(sorted(rows))[-(self.retained_history_entries - 1)][0]
-            self._cursor.execute("DELETE FROM `crawler_history` WHERE `cycle` < ?",
-                                 (first_cycle_to_retain,))
-            self._db.commit()
+            yield self._conn.runOperation("DELETE FROM `crawler_history` WHERE `cycle` < ?",
+                                          (first_cycle_to_retain,))
 
-        try:
-            self._cursor.execute("INSERT OR REPLACE INTO `crawler_history` VALUES (?,?)",
-                                 (cycle, json))
-        except Exception:
-            self._db.rollback()  # roll back the deletion of unretained entries
-            raise
-        else:
-            self._db.commit()
+        yield self._conn.runOperation("INSERT OR REPLACE INTO `crawler_history` VALUES (?,?)",
+                                      (cycle, json))
 
+    @defer.inlineCallbacks
     def get_history(self):
-        self._cursor.execute("SELECT `cycle`,`json` FROM `crawler_history`")
-        rows = self._cursor.fetchall()
+        rows = yield self._conn.runQuery("SELECT `cycle`,`json` FROM `crawler_history`")
         decoded = [(row[0], simplejson.loads(row[1])) for row in rows]
-        return dict(decoded)
+        defer.returnValue(dict(decoded))
 
+    @defer.inlineCallbacks
     def get_account_creation_time(self, owner_num):
-        self._cursor.execute("SELECT `creation_time` from `accounts`"
-                             " WHERE `id`=?",
-                             (owner_num,))
-        row = self._cursor.fetchone()
+        row = yield self._conn.runQuery("SELECT `creation_time` from `accounts`"
+                                        " WHERE `id`=?",
+                                        (owner_num,))
         if row:
-            return row[0]
-        return None
+            defer.returnValue(row[0])
+        defer.returnValue(None)
 
+    @defer.inlineCallbacks
     def get_all_accounts(self):
-        self._cursor.execute("SELECT `id`,`pubkey_vs`"
-                             " FROM `accounts` ORDER BY `id` ASC")
-        return self._cursor.fetchall()
+        fetchall_val = yield self._conn.runQuery("SELECT `id`,`pubkey_vs`"
+                                                 " FROM `accounts` ORDER BY `id` ASC")
+        defer.returnValue(fetchall_val)

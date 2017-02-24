@@ -2,7 +2,9 @@
 import os
 
 from twisted.trial import unittest
+from twisted.internet import defer
 
+from allmydata.test.common import ShouldFailMixin
 from allmydata.util import fileutil
 from allmydata.util.dbutil import IntegrityError
 from allmydata.storage.leasedb import LeaseDB, LeaseInfo, NonExistentShareError, \
@@ -11,44 +13,47 @@ from allmydata.storage.leasedb import LeaseDB, LeaseInfo, NonExistentShareError,
 
 BASE_ACCOUNTS = set([(0, u"anonymous"), (1, u"starter")])
 
-class DB(unittest.TestCase):
+class DB(unittest.TestCase, ShouldFailMixin):
     def make(self, testname):
         basedir = os.path.join("leasedb", "DB", testname)
         fileutil.make_dirs(basedir)
         dbfilename = os.path.join(basedir, "leasedb.sqlite")
         return dbfilename
 
+    @defer.inlineCallbacks
     def test_create(self):
         dbfilename = self.make("create")
-        l = create_lease_db(dbfilename)
-        self.failUnlessEqual(set(l.get_all_accounts()), BASE_ACCOUNTS)
+        l = yield create_lease_db(dbfilename)
+        accounts = yield l.get_all_accounts()
+        self.failUnlessEqual(set(accounts), BASE_ACCOUNTS)
+        yield l.close()
 
         # should be able to open an existing one too
-        l2 = create_lease_db(dbfilename)
-        self.failUnlessEqual(set(l2.get_all_accounts()), BASE_ACCOUNTS)
+        l2 = yield create_lease_db(dbfilename)
+        accounts = yield l2.get_all_accounts()
+        self.failUnlessEqual(set(accounts), BASE_ACCOUNTS)
+        yield l2.close()
 
+    @defer.inlineCallbacks
     def test_basic(self):
         dbfilename = self.make("create")
-        l = create_lease_db(dbfilename)
+        l = yield create_lease_db(dbfilename)
 
-        l.add_new_share('si1', 0, 12345, SHARETYPE_IMMUTABLE)
+        yield l.add_new_share('si1', 0, 12345, SHARETYPE_IMMUTABLE)
 
         # lease for non-existant share
-        self.failUnlessRaises(IntegrityError, l._cursor.execute,
-                              "INSERT INTO `leases` VALUES(?,?,?,?,?)",
-                              ('si2', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0))
+        self.shouldFail(IntegrityError, l._conn.runOperation,
+                        "INSERT INTO `leases` VALUES(?,?,?,?,?)",
+                        ('si2', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0))
 
-        self.failUnlessRaises(NonExistentShareError, l.add_starter_lease,
-                              'si2', 0)
-        self.failUnlessRaises(NonExistentShareError, l.add_or_renew_leases,
-                              'si2', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0)
-
-        l.add_starter_lease('si1', 0)
+        self.shouldFail(NonExistentShareError, l.add_starter_lease, 'si2', 0)
+        self.shouldFail(NonExistentShareError, l.add_or_renew_leases,
+                        'si2', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0)
 
         # updating the lease should succeed
-        l.add_starter_lease('si1', 0)
+        yield l.add_starter_lease('si1', 0)
 
-        leaseinfo = l.get_leases('si1', LeaseDB.STARTER_LEASE_ACCOUNTID)
+        leaseinfo = yield l.get_leases('si1', LeaseDB.STARTER_LEASE_ACCOUNTID)
 
         self.failUnlessEqual(len(leaseinfo), 1)
         self.failUnlessIsInstance(leaseinfo[0], LeaseInfo)
@@ -57,17 +62,17 @@ class DB(unittest.TestCase):
         self.failUnlessEqual(leaseinfo[0].owner_num, LeaseDB.STARTER_LEASE_ACCOUNTID)
 
         # adding a duplicate entry directly should fail
-        self.failUnlessRaises(IntegrityError, l._cursor.execute,
-                              "INSERT INTO `leases` VALUES(?,?,?,?,?)",
-                              ('si1', 0,  LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0))
+        self.shouldFail(IntegrityError, l._conn.runOperation,
+                        "INSERT INTO `leases` VALUES(?,?,?,?,?)",
+                        ('si1', 0,  LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0))
 
         # same for add_or_renew_leases
-        l.add_or_renew_leases('si1', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0)
+        yield l.add_or_renew_leases('si1', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0)
 
         # updating the lease should succeed
-        l.add_or_renew_leases('si1', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 1, 2)
+        yield l.add_or_renew_leases('si1', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 1, 2)
 
-        leaseinfo = l.get_leases('si1', LeaseDB.ANONYMOUS_ACCOUNTID)
+        leaseinfo = yield l.get_leases('si1', LeaseDB.ANONYMOUS_ACCOUNTID)
 
         self.failUnlessEqual(len(leaseinfo), 1)
         self.failUnlessIsInstance(leaseinfo[0], LeaseInfo)
@@ -78,6 +83,6 @@ class DB(unittest.TestCase):
         self.failUnlessEqual(leaseinfo[0].expiration_time, 2)
 
         # adding a duplicate entry directly should fail
-        self.failUnlessRaises(IntegrityError, l._cursor.execute,
-                              "INSERT INTO `leases` VALUES(?,?,?,?,?)",
-                              ('si1', 0,  LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0))
+        self.shouldFail(IntegrityError, l._conn.runOperation,
+                        "INSERT INTO `leases` VALUES(?,?,?,?,?)",
+                        ('si1', 0,  LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0))
