@@ -1,7 +1,7 @@
 
 import os
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from twisted.python import log as twisted_log
 
@@ -56,8 +56,8 @@ class Blacklist:
         return reason
 
 
-class ProhibitedNode:
-    implements(IFileNode)
+@implementer(IFileNode)
+class ProhibitedNode(object):
 
     def __init__(self, wrapped_node, reason):
         assert IFilesystemNode.providedBy(wrapped_node), wrapped_node

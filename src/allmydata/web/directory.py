@@ -2,7 +2,7 @@
 import simplejson
 import urllib
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer
 from twisted.python.failure import Failure
@@ -1087,8 +1087,8 @@ class DeepStatsResults(rend.Page):
         s["finished"] = self.monitor.is_finished()
         return simplejson.dumps(s, indent=1)
 
+@implementer(IPushProducer)
 class ManifestStreamer(dirnode.DeepStats):
-    implements(IPushProducer)
 
     def __init__(self, ctx, origin):
         dirnode.DeepStats.__init__(self, origin)
@@ -1144,8 +1144,8 @@ class ManifestStreamer(dirnode.DeepStats):
         self.req.write(j+"\n")
         return ""
 
+@implementer(IPushProducer)
 class DeepCheckStreamer(dirnode.DeepStats):
-    implements(IPushProducer)
 
     def __init__(self, ctx, origin, verify, repair, add_lease):
         dirnode.DeepStats.__init__(self, origin)

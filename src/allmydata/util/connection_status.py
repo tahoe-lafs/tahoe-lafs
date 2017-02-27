@@ -3,7 +3,7 @@ from zope.interface import implementer
 from ..interfaces import IConnectionStatus
 
 @implementer(IConnectionStatus)
-class ConnectionStatus:
+class ConnectionStatus(object):
     def __init__(self, connected, summary, non_connected_statuses,
                  last_connection_time, last_received_time):
         self.connected = connected

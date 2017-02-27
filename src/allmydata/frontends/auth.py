@@ -1,6 +1,6 @@
 import os
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.web.client import getPage
 from twisted.internet import defer
 from twisted.cred import error, checkers, credentials
@@ -21,8 +21,8 @@ class FTPAvatarID:
         self.username = username
         self.rootcap = rootcap
 
-class AccountFileChecker:
-    implements(checkers.ICredentialsChecker)
+@implementer(checkers.ICredentialsChecker)
+class AccountFileChecker(object):
     credentialInterfaces = (credentials.IUsernamePassword,
                             credentials.IUsernameHashedPassword,
                             credentials.ISSHPrivateKey)
@@ -108,8 +108,8 @@ class AccountFileChecker:
 
         return defer.fail(error.UnauthorizedLogin())
 
-class AccountURLChecker:
-    implements(checkers.ICredentialsChecker)
+@implementer(checkers.ICredentialsChecker)
+class AccountURLChecker(object):
     credentialInterfaces = (credentials.IUsernamePassword,)
 
     def __init__(self, client, auth_url):

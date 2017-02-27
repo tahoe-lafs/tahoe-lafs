@@ -1,4 +1,4 @@
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python.failure import Failure
@@ -17,8 +17,8 @@ class LostPeerError(Exception):
 def flip_bit(good): # flips the last bit
     return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
-class FakeBucketReaderWriterProxy:
-    implements(IStorageBucketWriter, IStorageBucketReader)
+@implementer(IStorageBucketWriter, IStorageBucketReader)
+class FakeBucketReaderWriterProxy(object):
     # these are used for both reading and writing
     def __init__(self, mode="good", peerid="peer"):
         self.mode = mode

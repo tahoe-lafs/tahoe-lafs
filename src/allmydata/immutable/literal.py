@@ -1,13 +1,13 @@
 from cStringIO import StringIO
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer
 from twisted.protocols import basic
 from allmydata.interfaces import IImmutableFileNode, ICheckable
 from allmydata.uri import LiteralFileURI
 
+@implementer(IImmutableFileNode, ICheckable)
 class _ImmutableFileNodeBase(object):
-    implements(IImmutableFileNode, ICheckable)
 
     def get_write_uri(self):
         return None
@@ -44,8 +44,8 @@ class _ImmutableFileNodeBase(object):
             return True
 
 
-class LiteralProducer:
-    implements(IPushProducer)
+@implementer(IPushProducer)
+class LiteralProducer(object):
 
     def pauseProducing(self):
         pass

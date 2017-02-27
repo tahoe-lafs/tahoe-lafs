@@ -1,6 +1,6 @@
 
 import time, os.path, textwrap
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.application import service
 from foolscap.api import Referenceable
 import allmydata
@@ -69,8 +69,8 @@ class IntroducerNode(node.Node):
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         self.add_service(ws)
 
+@implementer(RIIntroducerPublisherAndSubscriberService_v2)
 class IntroducerService(service.MultiService, Referenceable):
-    implements(RIIntroducerPublisherAndSubscriberService_v2)
     name = "introducer"
     # v1 is the original protocol, added in 1.0 (but only advertised starting
     # in 1.3), removed in 1.12. v2 is the new signed protocol, added in 1.10

@@ -1,7 +1,7 @@
 # -*- test-case-name: allmydata.test.test_encode -*-
 
 import time
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from foolscap.api import fireEventually
 from allmydata import uri
@@ -71,8 +71,8 @@ GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
 
+@implementer(IEncoder)
 class Encoder(object):
-    implements(IEncoder)
 
     def __init__(self, log_parent=None, upload_status=None, progress=None):
         object.__init__(self)

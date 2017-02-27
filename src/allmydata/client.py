@@ -2,7 +2,7 @@ import os, stat, time, weakref
 from allmydata import node
 from base64 import urlsafe_b64encode
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
@@ -153,8 +153,8 @@ class Terminator(service.Service):
         return service.Service.stopService(self)
 
 
+@implementer(IStatsProducer)
 class Client(node.Node, pollmixin.PollMixin):
-    implements(IStatsProducer)
 
     PORTNUMFILE = "client.port"
     STOREDIR = 'storage'

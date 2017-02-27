@@ -1,14 +1,14 @@
 # -*- test-case-name: allmydata.test.test_encode_share -*-
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from allmydata.util import mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import ICodecEncoder, ICodecDecoder
 import zfec
 
+@implementer(ICodecEncoder)
 class CRSEncoder(object):
-    implements(ICodecEncoder)
     ENCODER_TYPE = "crs"
 
     def set_params(self, data_size, required_shares, max_shares):
@@ -45,8 +45,8 @@ class CRSEncoder(object):
 
         return defer.succeed((shares, desired_share_ids))
 
+@implementer(ICodecDecoder)
 class CRSDecoder(object):
-    implements(ICodecDecoder)
 
     def set_params(self, data_size, required_shares, max_shares):
         self.data_size = data_size

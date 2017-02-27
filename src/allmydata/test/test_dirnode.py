@@ -2,7 +2,7 @@
 
 import time
 import unicodedata
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
@@ -27,8 +27,8 @@ from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
 import allmydata.test.common_util as testutil
 
-class MemAccum:
-    implements(IConsumer)
+@implementer(IConsumer)
+class MemAccum(object):
     def registerProducer(self, producer, streaming):
         self.producer = producer
         self.producer.resumeProducing()
@@ -1489,8 +1489,8 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
                               dirnode.pack_children,
                               kids, fn.get_writekey(), deep_immutable=True)
 
-class FakeMutableFile:
-    implements(IMutableFileNode)
+@implementer(IMutableFileNode)
+class FakeMutableFile(object):
     counter = 0
     def __init__(self, initial_contents=""):
         data = self._get_initial_contents(initial_contents)

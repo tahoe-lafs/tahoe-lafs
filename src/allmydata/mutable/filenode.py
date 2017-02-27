@@ -1,7 +1,7 @@
 
 import random
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer, reactor
 from foolscap.api import eventually
 from allmydata.interfaces import IMutableFileNode, ICheckable, ICheckResults, \
@@ -48,8 +48,8 @@ class BackoffAgent:
 
 # use nodemaker.create_mutable_file() to make one of these
 
-class MutableFileNode:
-    implements(IMutableFileNode, ICheckable)
+@implementer(IMutableFileNode, ICheckable)
+class MutableFileNode(object):
 
     def __init__(self, storage_broker, secret_holder,
                  default_encoding_parameters, history):
@@ -695,7 +695,8 @@ class MutableFileNode:
         return res
 
 
-class MutableFileVersion:
+@implementer(IMutableFileVersion, IWriteable)
+class MutableFileVersion(object):
     """
     I represent a specific version (most likely the best version) of a
     mutable file.
@@ -708,7 +709,6 @@ class MutableFileVersion:
     overwrite or modify the contents of the mutable file that I
     reference.
     """
-    implements(IMutableFileVersion, IWriteable)
 
     def __init__(self,
                  node,

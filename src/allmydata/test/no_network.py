@@ -14,7 +14,7 @@
 # control.furl .
 
 import os
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.application import service
 from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
@@ -130,8 +130,8 @@ def wrap_storage_server(original):
     wrapper.version = original.remote_get_version()
     return wrapper
 
-class NoNetworkServer:
-    implements(IServer)
+@implementer(IServer)
+class NoNetworkServer(object):
     def __init__(self, serverid, rref):
         self.serverid = serverid
         self.rref = rref
@@ -164,8 +164,8 @@ class NoNetworkServer:
     def get_version(self):
         return self.rref.version
 
-class NoNetworkStorageBroker:
-    implements(IStorageBroker)
+@implementer(IStorageBroker)
+class NoNetworkStorageBroker(object):
     def get_servers_for_psi(self, peer_selection_index):
         def _permuted(server):
             seed = server.get_permutation_seed()

@@ -1,6 +1,6 @@
 
 import os, stat, time, weakref
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from foolscap.api import Referenceable, DeadReferenceError, eventually
 import allmydata # for __full_version__
@@ -123,12 +123,12 @@ class CHKCheckerAndUEBFetcher:
         return False
 
 
+@implementer(interfaces.RICHKUploadHelper)
 class CHKUploadHelper(Referenceable, upload.CHKUploader):
     """I am the helper-server -side counterpart to AssistedUploader. I handle
     peer selection, encoding, and share pushing. I read ciphertext from the
     remote AssistedUploader.
     """
-    implements(interfaces.RICHKUploadHelper)
     VERSION = { "http://allmydata.org/tahoe/protocols/helper/chk-upload/v1" :
                  { },
                 "application-version": str(allmydata.__full_version__),
@@ -447,8 +447,8 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         return self._ciphertext_fetched
 
 
+@implementer(interfaces.IEncryptedUploadable)
 class LocalCiphertextReader(AskUntilSuccessMixin):
-    implements(interfaces.IEncryptedUploadable)
 
     def __init__(self, upload_helper, storage_index, encoding_file):
         self._readers = []
@@ -484,8 +484,8 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
 
 
 
+@implementer(interfaces.RIHelper, interfaces.IStatsProducer)
 class Helper(Referenceable):
-    implements(interfaces.RIHelper, interfaces.IStatsProducer)
     # this is the non-distributed version. When we need to have multiple
     # helpers, this object will become the HelperCoordinator, and will query
     # the farm of Helpers to see if anyone has the storage_index of interest,

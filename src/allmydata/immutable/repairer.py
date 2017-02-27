@@ -1,4 +1,4 @@
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from allmydata.storage.server import si_b2a
 from allmydata.util import log, consumer
@@ -7,8 +7,8 @@ from allmydata.interfaces import IEncryptedUploadable
 
 from allmydata.immutable import upload
 
+@implementer(IEncryptedUploadable)
 class Repairer(log.PrefixingLogMixin):
-    implements(IEncryptedUploadable)
     """I generate any shares which were not available and upload them to
     servers.
 

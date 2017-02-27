@@ -1,6 +1,6 @@
 
 import time
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.application import service
 from foolscap.api import Referenceable, eventually
 from allmydata.interfaces import InsufficientVersionError
@@ -18,8 +18,8 @@ class InvalidCacheError(Exception):
 
 V2 = "http://allmydata.org/tahoe/protocols/introducer/v2"
 
+@implementer(RIIntroducerSubscriberClient_v2, IIntroducerClient)
 class IntroducerClient(service.Service, Referenceable):
-    implements(RIIntroducerSubscriberClient_v2, IIntroducerClient)
 
     def __init__(self, tub, introducer_furl,
                  nickname, my_version, oldest_supported,

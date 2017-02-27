@@ -8,15 +8,15 @@ from collections import deque
 from twisted.internet import reactor
 from twisted.application import service
 from twisted.application.internet import TimerService
-from zope.interface import implements
+from zope.interface import implementer
 from foolscap.api import eventually, DeadReferenceError, Referenceable, Tub
 
 from allmydata.util import log
 from allmydata.util.encodingutil import quote_local_unicode_path
 from allmydata.interfaces import RIStatsProvider, RIStatsGatherer, IStatsProducer
 
+@implementer(IStatsProducer)
 class LoadMonitor(service.MultiService):
-    implements(IStatsProducer)
 
     loop_interval = 1
     num_samples = 60
@@ -69,8 +69,8 @@ class LoadMonitor(service.MultiService):
         return { 'load_monitor.avg_load': avg,
                  'load_monitor.max_load': m_x, }
 
+@implementer(IStatsProducer)
 class CPUUsageMonitor(service.MultiService):
-    implements(IStatsProducer)
     HISTORY_LENGTH = 15
     POLL_INTERVAL = 60
 
@@ -122,8 +122,8 @@ class CPUUsageMonitor(service.MultiService):
         return s
 
 
+@implementer(RIStatsProvider)
 class StatsProvider(Referenceable, service.MultiService):
-    implements(RIStatsProvider)
 
     def __init__(self, node, gatherer_furl):
         service.MultiService.__init__(self)
@@ -175,8 +175,8 @@ class StatsProvider(Referenceable, service.MultiService):
         gatherer.callRemoteOnly('provide', self, nickname or '')
 
 
+@implementer(RIStatsGatherer)
 class StatsGatherer(Referenceable, service.MultiService):
-    implements(RIStatsGatherer)
 
     poll_interval = 60
 

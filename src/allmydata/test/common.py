@@ -1,5 +1,5 @@
 import os, random, struct
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from twisted.internet.interfaces import IPullProducer
 from twisted.python import failure
@@ -24,15 +24,15 @@ from allmydata.immutable.upload import Uploader
 
 TEST_RSA_KEY_SIZE = 522
 
-class DummyProducer:
-    implements(IPullProducer)
+@implementer(IPullProducer)
+class DummyProducer(object):
     def resumeProducing(self):
         pass
 
+@implementer(IImmutableFileNode)
 class FakeCHKFileNode:
     """I provide IImmutableFileNode, but all of my data is stored in a
     class-level dictionary."""
-    implements(IImmutableFileNode)
 
     def __init__(self, filecap, all_contents):
         precondition(isinstance(filecap, (uri.CHKFileURI, uri.LiteralFileURI)), filecap)
@@ -167,11 +167,11 @@ def create_chk_filenode(contents, all_contents):
     return n
 
 
+@implementer(IMutableFileNode, ICheckable)
 class FakeMutableFileNode:
     """I provide IMutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
-    implements(IMutableFileNode, ICheckable)
     MUTABLE_SIZELIMIT = 10000
 
     def __init__(self, storage_broker, secret_holder,

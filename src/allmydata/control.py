@@ -1,6 +1,6 @@
 
 import os, time, tempfile
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.application import service
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
@@ -37,8 +37,8 @@ def log_memory_usage(where=""):
                                               stats["VmPeak"],
                                               where))
 
+@implementer(IConsumer)
 class FileWritingConsumer:
-    implements(IConsumer)
     def __init__(self, filename):
         self.done = False
         self.f = open(filename, "wb")
@@ -54,8 +54,8 @@ class FileWritingConsumer:
         self.done = True
         self.f.close()
 
+@implementer(RIControlClient)
 class ControlServer(Referenceable, service.Service):
-    implements(RIControlClient)
 
     def remote_wait_for_client_connections(self, num_clients):
         return self.parent.debug_wait_for_client_connections(num_clients)
@@ -245,8 +245,8 @@ class SpeedTest:
             os.unlink(fn)
         return res
 
-class DiscardingConsumer:
-    implements(IConsumer)
+@implementer(IConsumer)
+class DiscardingConsumer(object):
     def __init__(self):
         self.done = False
     def registerProducer(self, p, streaming):

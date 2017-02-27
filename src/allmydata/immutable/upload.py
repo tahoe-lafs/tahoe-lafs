@@ -1,5 +1,5 @@
 import os, time, weakref, itertools
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.python import failure
 from twisted.internet import defer
 from twisted.application import service
@@ -57,8 +57,8 @@ class HelperUploadResults(Copyable, RemoteCopy):
         self.preexisting_shares = None # count of shares already present
         self.pushed_shares = None # count of shares we pushed
 
-class UploadResults:
-    implements(IUploadResults)
+@implementer(IUploadResults)
+class UploadResults(object):
 
     def __init__(self, file_size,
                  ciphertext_fetched, # how much the helper fetched
@@ -617,10 +617,10 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         raise UploadUnhappinessError(msg)
 
 
-class EncryptAnUploadable:
+@implementer(IEncryptedUploadable)
+class EncryptAnUploadable(object):
     """This is a wrapper that takes an IUploadable and provides
     IEncryptedUploadable."""
-    implements(IEncryptedUploadable)
     CHUNKSIZE = 50*1024
 
     def __init__(self, original, log_parent=None, progress=None):
@@ -844,8 +844,8 @@ class EncryptAnUploadable:
     def close(self):
         return self.original.close()
 
-class UploadStatus:
-    implements(IUploadStatus)
+@implementer(IUploadStatus)
+class UploadStatus(object):
     statusid_counter = itertools.count(0)
 
     def __init__(self):
@@ -1129,8 +1129,8 @@ class LiteralUploader:
     def get_upload_status(self):
         return self._status
 
+@implementer(RIEncryptedUploadable)
 class RemoteEncryptedUploadable(Referenceable):
-    implements(RIEncryptedUploadable)
 
     def __init__(self, encrypted_uploadable, upload_status):
         self._eu = IEncryptedUploadable(encrypted_uploadable)
@@ -1407,8 +1407,8 @@ class BaseUploadable:
         d.addCallback(_got_size)
         return d
 
+@implementer(IUploadable)
 class FileHandle(BaseUploadable):
-    implements(IUploadable)
 
     def __init__(self, filehandle, convergence):
         """
@@ -1510,11 +1510,11 @@ class Data(FileHandle):
         assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
         FileHandle.__init__(self, StringIO(data), convergence=convergence)
 
+@implementer(IUploader)
 class Uploader(service.MultiService, log.PrefixingLogMixin):
     """I am a service that allows file uploading. I am a service-child of the
     Client.
     """
-    implements(IUploader)
     name = "uploader"
     URI_LIT_SIZE_THRESHOLD = 55
 

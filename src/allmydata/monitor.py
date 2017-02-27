@@ -1,5 +1,5 @@
 
-from zope.interface import Interface, implements
+from zope.interface import Interface, implementer
 from allmydata.util import observer
 
 class IMonitor(Interface):
@@ -80,8 +80,8 @@ class OperationCancelledError(Exception):
     pass
 
 
-class Monitor:
-    implements(IMonitor)
+@implementer(IMonitor)
+class Monitor(object):
 
     def __init__(self):
         self.cancelled = False

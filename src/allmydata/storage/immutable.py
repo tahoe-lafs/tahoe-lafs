@@ -2,7 +2,7 @@ import os, stat, struct, time
 
 from foolscap.api import Referenceable
 
-from zope.interface import implements
+from zope.interface import implementer
 from allmydata.interfaces import RIBucketWriter, RIBucketReader
 from allmydata.util import base32, fileutil, log
 from allmydata.util.assertutil import precondition
@@ -194,8 +194,8 @@ class ShareFile:
         return space_freed
 
 
+@implementer(RIBucketWriter)
 class BucketWriter(Referenceable):
-    implements(RIBucketWriter)
 
     def __init__(self, ss, incominghome, finalhome, max_size, lease_info, canary):
         self.ss = ss
@@ -293,8 +293,8 @@ class BucketWriter(Referenceable):
         self.ss.bucket_writer_closed(self, 0)
 
 
+@implementer(RIBucketReader)
 class BucketReader(Referenceable):
-    implements(RIBucketReader)
 
     def __init__(self, ss, sharefname, storage_index=None, shnum=None):
         self.ss = ss

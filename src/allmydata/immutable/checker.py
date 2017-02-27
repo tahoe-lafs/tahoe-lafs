@@ -1,4 +1,4 @@
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from foolscap.api import DeadReferenceError, RemoteException
 from allmydata import hashtree, codec, uri
@@ -27,8 +27,8 @@ class BadOrMissingHash(IntegrityCheckReject):
 class UnsupportedErasureCodec(BadURIExtension):
     pass
 
-class ValidatedExtendedURIProxy:
-    implements(IValidatedThingProxy)
+@implementer(IValidatedThingProxy)
+class ValidatedExtendedURIProxy(object):
     """ I am a front-end for a remote UEB (using a local ReadBucketProxy),
     responsible for retrieving and validating the elements from the UEB."""
 

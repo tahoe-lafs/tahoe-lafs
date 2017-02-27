@@ -3,11 +3,11 @@
 a filenode's read() method. See download_to_data() for an example of its use.
 """
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet.interfaces import IConsumer
 
-class MemoryConsumer:
-    implements(IConsumer)
+@implementer(IConsumer)
+class MemoryConsumer(object):
 
     def __init__(self, progress=None):
         self.chunks = []

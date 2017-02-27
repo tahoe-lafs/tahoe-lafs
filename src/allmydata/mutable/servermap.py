@@ -1,6 +1,6 @@
 
 import sys, time, copy
-from zope.interface import implements
+from zope.interface import implementer
 from itertools import count
 from twisted.internet import defer
 from twisted.python import failure
@@ -16,8 +16,8 @@ from allmydata.mutable.common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, \
      MODE_READ, MODE_REPAIR, CorruptShareError
 from allmydata.mutable.layout import SIGNED_PREFIX_LENGTH, MDMFSlotReadProxy
 
-class UpdateStatus:
-    implements(IServermapUpdaterStatus)
+@implementer(IServermapUpdaterStatus)
+class UpdateStatus(object):
     statusid_counter = count(0)
     def __init__(self):
         self.timings = {}
