@@ -48,19 +48,18 @@ class DB(unittest.TestCase, ShouldFailMixin):
 
         yield self.db.add_new_share('si1', 0, 12345, SHARETYPE_IMMUTABLE)
 
-        if False:
-            # lease for non-existant share
-            yield self.shouldFail(
-                IntegrityError, "", None, self.db._conn.runOperation,
-                "INSERT INTO `leases` VALUES(?,?,?,?,?)",
-                ('si2', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0),
-            )
+        # lease for non-existant share
+        yield self.shouldFail(
+            IntegrityError, "", None, self.db._conn.runOperation,
+            "INSERT INTO `leases` VALUES(?,?,?,?,?)",
+            ('si2', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0),
+        )
 
-            yield self.shouldFail(NonExistentShareError, "", None, self.db.add_starter_lease, 'si2', 0)
-            yield self.shouldFail(
-                NonExistentShareError, "", None, self.db.add_or_renew_leases,
-                ('si2', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0),
-            )
+        yield self.shouldFail(NonExistentShareError, "", None, self.db.add_starter_lease, 'si2', 0)
+        yield self.shouldFail(
+            NonExistentShareError, "", None, self.db.add_or_renew_leases,
+            ('si2', 0, LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0),
+        )
 
 
         # # updating the lease should succeed
