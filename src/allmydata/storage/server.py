@@ -43,8 +43,7 @@ class StorageServer(service.MultiService):
 
     def __init__(self, storedir, nodeid, reserved_space=0,
                  readonly_storage=False,
-                 stats_provider=None,
-                 expiration_policy=None):
+                 stats_provider=None):
         service.MultiService.__init__(self)
         assert isinstance(nodeid, str)
         assert len(nodeid) == 20
@@ -84,23 +83,6 @@ class StorageServer(service.MultiService):
                           "cancel": [],
                           }
         self.add_bucket_counter()
-        self.init_accountant(expiration_policy or self.DEFAULT_EXPIRATION_POLICY)
-
-    def init_accountant(self, expiration_policy):
-        dbfile = os.path.join(self.storedir, "leasedb.sqlite")
-        statefile = os.path.join(self.storedir, "leasedb_crawler.state")
-        self.accountant = Accountant(self, dbfile, statefile)
-        self.accountant.set_expiration_policy(expiration_policy)
-        self.accountant.setServiceParent(self)
-
-    def get_accountant(self):
-        return self.accountant
-
-    def get_accounting_crawler(self):
-        return self.accountant.get_accounting_crawler()
-
-    def get_expiration_policy(self):
-        return self.accountant.get_accounting_crawler().get_expiration_policy()
 
     def get_bucket_counter(self):
         return self.bucket_counter

@@ -11,12 +11,32 @@ FURLification dance is established, each client will get a different instance
 import time
 
 from foolscap.api import Referenceable
+from twisted.internet import defer
 
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer
 
-from allmydata.storage.leasedb import int_or_none
+from allmydata.storage.leasedb import int_or_none, LeaseDB
 from allmydata.storage.common import si_b2a
+
+
+# XXX think: should this be async, or not?
+def create_anonymous_account(leasedb, storage_server):
+    return defer.succeed(
+        Account(
+            LeaseDB.ANONYMOUS_ACCOUNTID, None,
+            storage_server, leasedb,
+        )
+    )
+
+
+def create_starter_account(leasedb, storage_server):
+    return defer.succeed(
+        Account(
+            LeaseDB.STARTER_LEASE_ACCOUNTID, None,
+            storage_server, leasedb,
+        )
+    )
 
 
 class Account(Referenceable):
@@ -54,9 +74,12 @@ class Account(Referenceable):
     #  new shares: add_share(), add_or_renew_lease(), mark_share_as_stable()
     #  changed shares: change_share_space(), add_or_renew_lease()
 
+    # XXX NOTE that these are all async now!!!
+    # (probably FIXME)
+
     def add_share(self, storage_index, shnum, used_space, sharetype):
         if self.debug: print "ADD_SHARE", si_b2a(storage_index), shnum, used_space, sharetype
-        self._leasedb.add_new_share(storage_index, shnum, used_space, sharetype)
+        return self._leasedb.add_new_share(storage_index, shnum, used_space, sharetype)
 
     def add_or_renew_default_lease(self, storage_index, shnum):
         renewal_time, expiration_time = self.get_renewal_and_expiration_times()
@@ -64,31 +87,31 @@ class Account(Referenceable):
 
     def add_or_renew_lease(self, storage_index, shnum, renewal_time, expiration_time):
         if self.debug: print "ADD_OR_RENEW_LEASE", si_b2a(storage_index), shnum
-        self._leasedb.add_or_renew_leases(storage_index, shnum, self.owner_num,
-                                          renewal_time, expiration_time)
+        return self._leasedb.add_or_renew_leases(storage_index, shnum, self.owner_num,
+                                                 renewal_time, expiration_time)
 
     def change_share_space(self, storage_index, shnum, used_space):
         if self.debug: print "CHANGE_SHARE_SPACE", si_b2a(storage_index), shnum, used_space
-        self._leasedb.change_share_space(storage_index, shnum, used_space)
+        return self._leasedb.change_share_space(storage_index, shnum, used_space)
 
     def mark_share_as_stable(self, storage_index, shnum, used_space):
         if self.debug: print "MARK_SHARE_AS_STABLE", si_b2a(storage_index), shnum, used_space
-        self._leasedb.mark_share_as_stable(storage_index, shnum, used_space)
+        return self._leasedb.mark_share_as_stable(storage_index, shnum, used_space)
 
     def mark_share_as_going(self, storage_index, shnum):
         if self.debug: print "MARK_SHARE_AS_GOING", si_b2a(storage_index), shnum
-        self._leasedb.mark_share_as_going(storage_index, shnum)
+        return self._leasedb.mark_share_as_going(storage_index, shnum)
 
     def remove_share_and_leases(self, storage_index, shnum):
         if self.debug: print "REMOVE_SHARE_AND_LEASES", si_b2a(storage_index), shnum
-        self._leasedb.remove_deleted_share(storage_index, shnum)
+        return self._leasedb.remove_deleted_share(storage_index, shnum)
 
     # remote_add_lease() and remote_renew_lease() do this
     def add_lease_for_bucket(self, storage_index):
         if self.debug: print "ADD_LEASE_FOR_BUCKET", si_b2a(storage_index)
         renewal_time, expiration_time = self.get_renewal_and_expiration_times()
-        self._leasedb.add_or_renew_leases(storage_index, None,
-                                          self.owner_num, renewal_time, expiration_time)
+        return self._leasedb.add_or_renew_leases(storage_index, None,
+                                                 self.owner_num, renewal_time, expiration_time)
 
     # The following RIStorageServer methods are called by remote clients
 
