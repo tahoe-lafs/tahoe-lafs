@@ -1,5 +1,6 @@
 
 import os
+import shutil
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -17,9 +18,9 @@ class DB(unittest.TestCase, ShouldFailMixin):
 
     @defer.inlineCallbacks
     def setUp(self):
-        basedir = os.path.join("leasedb", "DB", "db_test")
-        fileutil.make_dirs(basedir)
-        self.dbfilename = os.path.join(basedir, "leasedb.sqlite")
+        self._basedir = os.path.join("leasedb", "DB", "db_test")
+        fileutil.make_dirs(self._basedir)
+        self.dbfilename = os.path.join(self._basedir, "leasedb.sqlite")
         self.db = yield create_lease_db(self.dbfilename)
 
     @defer.inlineCallbacks
@@ -28,7 +29,7 @@ class DB(unittest.TestCase, ShouldFailMixin):
             yield self.db.close()
         except:
             pass
-        os.unlink(self.dbfilename)
+        shutil.rmtree(self._basedir)
 
     @defer.inlineCallbacks
     def test_create(self):
