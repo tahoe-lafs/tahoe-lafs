@@ -12,15 +12,14 @@ import time
 
 from foolscap.api import Referenceable
 
-from zope.interface import implements
+from zope.interface import implementer
 from allmydata.interfaces import RIStorageServer
 
 from allmydata.storage.leasedb import int_or_none
 from allmydata.storage.common import si_b2a
 
-
+@implementer(RIStorageServer)
 class Account(Referenceable):
-    implements(RIStorageServer)
 
     def __init__(self, owner_num, pubkey_vs, server, leasedb):
         self.owner_num = owner_num
