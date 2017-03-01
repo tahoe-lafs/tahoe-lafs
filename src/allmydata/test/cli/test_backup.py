@@ -5,6 +5,7 @@ import re
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
+from twisted.internet import defer
 
 import __builtin__
 from allmydata.util import fileutil
@@ -36,9 +37,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         mo = re.search(r"(\d)+ files checked, (\d+) directories checked", out)
         return [int(s) for s in mo.groups()]
 
+    @defer.inlineCallbacks
     def test_backup(self):
         self.basedir = "cli/Backup/backup"
-        self.set_up_grid(oneshare=True)
+        yield self.set_up_grid(oneshare=True)
 
         # is the backupdb available? If so, we test that a second backup does
         # not create new directories.
@@ -232,7 +234,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessReallyEqual(out, "foo")
         d.addCallback(_check8)
 
-        return d
+        yield d
 
     # on our old dapper buildslave, this test takes a long time (usually
     # 130s), so we have to bump up the default 120s timeout. The create-alias

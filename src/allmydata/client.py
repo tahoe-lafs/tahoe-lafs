@@ -387,8 +387,14 @@ class Client(node.Node, pollmixin.PollMixin):
         self.storage_server = ss
         self.add_service(ss)
 
-        self.accountant = ss.get_accountant()
-        self.accountant.set_expiration_policy(expiration_policy)
+        dbfile = os.path.join(storedir, "leasedb.sqlite")
+        statefile = os.path.join(storedir, "leasedb_crawler.state")
+        dbfile = os.path.join(self.storedir, "leasedb.sqlite")
+        statefile = os.path.join(self.storedir, "leasedb_crawler.state")
+        #self.accountant = create_accountant(ss, dbfile, statefile)
+        self.accountant = Accountant(self, dbfile, statefile)
+        self.accountant.set_expiration_policy(expiration_policy)  # pass to create_accountant?
+        self.accountant.setServiceParent(self)#ss)
 
         # accountant_window = self.accountant.get_accountant_window(self.tub)
         # accountant_furlfile = os.path.join(self.basedir, "private", "accountant.furl").encode(get_filesystem_encoding())

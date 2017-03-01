@@ -165,9 +165,7 @@ class LeaseDB(object):
                                       " VALUES (?,?,?,?,?,?,?)",
                                       (si_s, shnum, prefix, backend_key, used_space, sharetype, STATE_COMING))
 
-        print "TEST ADD START LEASE %r %r" % (storage_index, shnum)
         yield self.add_starter_lease(storage_index, shnum)
-        print "AFTER TEST ADD START LEASE"
 
     @defer.inlineCallbacks
     def add_starter_lease(self, storage_index, shnum):

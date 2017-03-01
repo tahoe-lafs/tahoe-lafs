@@ -15,42 +15,59 @@ share a prefix with 'account.py' so my tab-autocomplete will work nicely.
 import weakref
 
 from twisted.application import service
+from twisted.internet import defer
 
 from allmydata.storage.leasedb import create_lease_db, LeaseDB
 from allmydata.storage.accounting_crawler import AccountingCrawler
-from allmydata.storage.account import Account
+from allmydata.storage.account import create_anonymous_account, create_starter_account
+
+
+@defer.inlineCallbacks
+def create_accountant(storage_server, dbfile, statefile):
+    leasedb = yield create_lease_db(dbfile)
+    anonymous_account = yield create_anonymous_account(leasedb, storage_server)
+    starter_account = yield create_starter_account(leasedb, storage_server)
+    crawler = AccountingCrawler(storage_server, statefile, leasedb)
+    defer.returnValue(Accountant(leasedb, anonymous_account, starter_account, crawler))
 
 
 class Accountant(service.MultiService):
-    def __init__(self, storage_server, dbfile, statefile):
+    """
+    Manages accounts and owns the LeaseDB instance.
+
+    Acts as an Account factory.
+
+    TODO:
+
+     - (medium-term) should access the leasedb via "a backend".
+
+    """
+
+    def __init__(self, leasedb, anonymous_account, starter_account, crawler):
         service.MultiService.__init__(self)
-        self.storage_server = storage_server
-        self._leasedb = create_lease_db(dbfile)
         self._active_accounts = weakref.WeakValueDictionary()
-        self._anonymous_account = Account(LeaseDB.ANONYMOUS_ACCOUNTID, None,
-                                          self.storage_server, self._leasedb)
-        self._starter_account = Account(LeaseDB.STARTER_LEASE_ACCOUNTID, None,
-                                        self.storage_server, self._leasedb)
+        self._leasedb = leasedb
+        self._anonymous_account = anonymous_account
+        self._starter_account = starter_account
+        self._crawler = crawler
 
-        crawler = AccountingCrawler(storage_server, statefile, self._leasedb)
-        self._accounting_crawler = crawler
-        crawler.setServiceParent(self)
-
-    # should maybe create_lease_db() in startService()
+    def startService(self):
+        # XXX or in ctor?
+        self._crawler.setServiceParent(self)
 
     def stopService(self):
         d = super(Accountant, self).stopService()
-        self._leasedb.close()  # should probably use twisted.enterprise.adbapi
+        if self._leasedb is not None:
+            self._leasedb.close()  # should probably use twisted.enterprise.adbapi
         # anything else?
         return d
-
-    # XXX can we get rid of this?
-    def get_leasedb(self):
-        return self._leasedb
 
     def set_expiration_policy(self, policy):
         self._accounting_crawler.set_expiration_policy(policy)
 
+    # XXX what about:
+    # @property
+    # def anonymous_account(self):
     def get_anonymous_account(self):
         return self._anonymous_account
 
@@ -61,6 +78,7 @@ class Accountant(service.MultiService):
         return self._accounting_crawler
 
     # methods used by admin interfaces
+    # XXX think, fixme: should be async, maybe pass in storage_server?
     def get_all_accounts(self):
         for ownerid, pubkey_vs in self._leasedb.get_all_accounts():
             if pubkey_vs in self._active_accounts:

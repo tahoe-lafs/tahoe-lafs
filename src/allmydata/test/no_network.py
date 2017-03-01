@@ -30,6 +30,7 @@ from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker, IServer
+from allmydata.storage.accountant import create_accountant
 from .common import TEST_RSA_KEY_SIZE
 
 
@@ -243,15 +244,31 @@ class NoNetworkGrid(service.MultiService):
                                 # StorageServer
         self.clients = []
         self.client_config_hooks = client_config_hooks
+        self._num_servers = num_servers
+        self._awaiting = []
 
-        for i in range(num_servers):
+        for i in range(self._num_servers):
             ss = self.make_server(i)
-            self.add_server(i, ss)
+            # XXX this is actually async now...
+            d = self.add_server(i, ss)
+            self._awaiting.append(d)
         self.rebuild_serverlist()
 
         for i in range(num_clients):
             c = self.make_client(i)
             self.clients.append(c)
+
+    def when_ready(self):
+        if self._awaiting:
+            d = defer.succeed(None)
+            d.addCallback(lambda _: defer.DeferredList(self._awaiting))
+
+            def done(arg):
+                self._awaiting = None
+                return arg
+            d.addCallback(done)
+            return d
+        return defer.succeed(None)
 
     def make_client(self, i, write_config=True):
         clientid = hashutil.tagged_hash("clientid", str(i))[:20]
@@ -305,11 +322,17 @@ class NoNetworkGrid(service.MultiService):
         ss.setServiceParent(middleman)
         serverid = ss.my_nodeid
         self.servers_by_number[i] = ss
-        aa = ss.get_accountant().get_anonymous_account()
-        wrapper = wrap_storage_server(aa)
-        self.wrappers_by_id[serverid] = wrapper
-        self.proxies_by_id[serverid] = NoNetworkServer(serverid, wrapper)
-        self.rebuild_serverlist()
+        d = create_accountant(ss, "dbfile_{}".format(i), "statefile_{}".format(i))
+
+        def got_accountant(accountant):
+            accountant.setServiceParent(middleman)
+            aa = accountant.get_anonymous_account()
+            wrapper = wrap_storage_server(aa)
+            self.wrappers_by_id[serverid] = wrapper
+            self.proxies_by_id[serverid] = NoNetworkServer(serverid, wrapper)
+            self.rebuild_serverlist()
+        d.addCallback(got_accountant)
+        return d
 
     def get_all_serverids(self):
         return self.proxies_by_id.keys()
@@ -380,6 +403,7 @@ class GridTestMixin:
             c.encoding_params["happy"] = 1
             c.encoding_params["n"] = 1
         self._record_webports_and_baseurls()
+        return self.g.when_ready()
 
     def _record_webports_and_baseurls(self):
         self.client_webports = [c.getServiceNamed("webish").getPortnum()
