@@ -13,7 +13,7 @@ import time
 from foolscap.api import Referenceable
 from twisted.internet import defer
 
-from zope.interface import implements
+from zope.interface import implementer
 from allmydata.interfaces import RIStorageServer
 
 from allmydata.storage.leasedb import int_or_none, LeaseDB
@@ -39,8 +39,8 @@ def create_starter_account(leasedb, storage_server):
     )
 
 
+@implementer(RIStorageServer)
 class Account(Referenceable):
-    implements(RIStorageServer)
 
     def __init__(self, owner_num, pubkey_vs, server, leasedb):
         self.owner_num = owner_num
