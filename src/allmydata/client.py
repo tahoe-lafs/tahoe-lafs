@@ -10,6 +10,7 @@ from twisted.python.filepath import FilePath
 from pycryptopp.publickey import rsa
 
 import allmydata
+from allmydata.storage.accountant import create_accountant
 from allmydata.storage.server import StorageServer
 from allmydata.storage.expiration import ExpirationPolicy
 from allmydata import storage_client
@@ -389,10 +390,7 @@ class Client(node.Node, pollmixin.PollMixin):
 
         dbfile = os.path.join(storedir, "leasedb.sqlite")
         statefile = os.path.join(storedir, "leasedb_crawler.state")
-        dbfile = os.path.join(self.storedir, "leasedb.sqlite")
-        statefile = os.path.join(self.storedir, "leasedb_crawler.state")
-        #self.accountant = create_accountant(ss, dbfile, statefile)
-        self.accountant = Accountant(self, dbfile, statefile)
+        self.accountant = yield create_accountant(ss, dbfile, statefile)
         self.accountant.set_expiration_policy(expiration_policy)  # pass to create_accountant?
         self.accountant.setServiceParent(self)#ss)
 
