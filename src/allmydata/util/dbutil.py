@@ -125,8 +125,11 @@ def get_async_db(dbfile_name, stderr=sys.stderr,
         yield conn.runOperation("PRAGMA journal_mode = %s;" % (journal_mode,))
 
     if must_create:
-        yield execute_script(conn, schema)
-        yield conn.runOperation("INSERT INTO version (version) VALUES (?)", (target_version,))
+        try:
+            yield execute_script(conn, schema)
+            yield conn.runOperation("INSERT INTO version (version) VALUES (?)", (target_version,))
+        except Exception as e:
+            print("BBBBB", e)
 
     try:
         fetchall_val = yield conn.runQuery("SELECT version FROM version")
