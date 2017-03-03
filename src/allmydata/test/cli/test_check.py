@@ -1,6 +1,7 @@
 import os.path
 import simplejson
 from twisted.trial import unittest
+from twisted.internet import defer
 from cStringIO import StringIO
 
 from allmydata import uri
@@ -18,14 +19,19 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_check(self):
         self.basedir = "cli/Check/check"
-        self.set_up_grid()
-        c0 = self.g.clients[0]
-        DATA = "data" * 100
-        DATA_uploadable = MutableData(DATA)
-        d = c0.create_mutable_file(DATA_uploadable)
-        def _stash_uri(n):
-            self.uri = n.get_uri()
-        d.addCallback(_stash_uri)
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self.set_up_grid())
+
+        def create_data(ign):
+            c0 = self.g.clients[0]
+            DATA = "data" * 100
+            DATA_uploadable = MutableData(DATA)
+            d2 = c0.create_mutable_file(DATA_uploadable)
+            def _stash_uri(n):
+                self.uri = n.get_uri()
+            d2.addCallback(_stash_uri)
+            return d2
+        d.addCallback(create_data)
 
         d.addCallback(lambda ign: self.do_cli("check", self.uri))
         def _check1((rc, out, err)):
@@ -45,7 +51,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check2)
 
-        d.addCallback(lambda ign: c0.upload(upload.Data("literal", convergence="")))
+        d.addCallback(lambda ign: self.g.clients[0].upload(upload.Data("literal", convergence="")))
         def _stash_lit_uri(n):
             self.lit_uri = n.get_uri()
         d.addCallback(_stash_lit_uri)
@@ -66,7 +72,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check_lit_raw)
 
-        d.addCallback(lambda ign: c0.create_immutable_dirnode({}, convergence=""))
+        d.addCallback(lambda ign: self.g.clients[0].create_immutable_dirnode({}, convergence=""))
         def _stash_lit_dir_uri(n):
             self.lit_dir_uri = n.get_uri()
         d.addCallback(_stash_lit_dir_uri)

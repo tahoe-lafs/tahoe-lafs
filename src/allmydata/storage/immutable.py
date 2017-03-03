@@ -3,6 +3,8 @@ import os, struct, time
 
 from foolscap.api import Referenceable
 
+from twisted.internet import defer
+
 from zope.interface import implements
 from allmydata.interfaces import RIBucketWriter, RIBucketReader
 from allmydata.util import base32, fileutil, log
@@ -118,6 +120,15 @@ class ShareFile:
             f.close()
 
 
+@defer.inlineCallbacks
+def create_bucket_writer(ss, account, storage_index, shnum,
+                         incominghome, finalhome, max_size, canary):
+    yield account.add_share(storage_index, shnum, max_size, SHARETYPE_IMMUTABLE)
+    defer.returnValue(
+        BucketWriter(ss, account, storage_index, shnum, incominghome, finalhome, max_size, canary)
+    )
+
+
 class BucketWriter(Referenceable):
     implements(RIBucketWriter)
 
@@ -135,7 +146,6 @@ class BucketWriter(Referenceable):
         self.closed = False
         self.throw_out_all_data = False
         self._sharefile = ShareFile(incominghome, create=True, max_size=max_size)
-        self._account.add_share(self._storage_index, self._shnum, max_size, SHARETYPE_IMMUTABLE)
 
     def allocated_size(self):
         return self._max_size
@@ -185,10 +195,12 @@ class BucketWriter(Referenceable):
 
         filelen = get_used_space(self.finalhome)
         self.ss.bucket_writer_closed(self, filelen)
-        self._account.add_or_renew_default_lease(self._storage_index, self._shnum)
-        self._account.mark_share_as_stable(self._storage_index, self._shnum, filelen)
-        self.ss.add_latency("close", time.time() - start)
-        self.ss.count("close")
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self._account.add_or_renew_default_lease(self._storage_index, self._shnum))
+        d.addCallback(lambda ign: self._account.mark_share_as_stable(self._storage_index, self._shnum, filelen))
+        d.addCallback(lambda ign: self.ss.add_latency("close", time.time() - start))
+        d.addCallback(lambda ign: self.ss.count("close"))
+        return d
 
     def _disconnected(self):
         if not self.closed:
@@ -213,13 +225,18 @@ class BucketWriter(Referenceable):
         if not os.listdir(parentdir):
             os.rmdir(parentdir)
         self._sharefile = None
-        self._account.remove_share_and_leases(self._storage_index, self._shnum)
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self._account.remove_share_and_leases(self._storage_index, self._shnum))
 
         # We are now considered closed for further writing. We must tell
         # the storage server about this so that it stops expecting us to
         # use the space it allocated for us earlier.
-        self.closed = True
-        self.ss.bucket_writer_closed(self, 0)
+        def done(ign):
+            self.closed = True
+            self.ss.bucket_writer_closed(self, 0)
+            return ign
+        d.addCallback(done)
+        return d
 
 
 class BucketReader(Referenceable):

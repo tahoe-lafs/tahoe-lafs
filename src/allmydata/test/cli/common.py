@@ -16,4 +16,5 @@ class CLITestMixin(ReallyEqualMixin):
         client_num = kwargs.get("client_num", 0)
         client_dir = unicode_to_argv(self.get_clientdir(i=client_num))
         nodeargs = [ "--node-directory", client_dir ]
+        print("running", verb, nodeargs, args, kwargs)
         return run_cli(verb, nodeargs=nodeargs, *args, **kwargs)

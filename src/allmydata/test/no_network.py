@@ -264,6 +264,7 @@ class NoNetworkGrid(service.MultiService):
             d.addCallback(lambda _: defer.DeferredList(self._awaiting))
 
             def done(arg):
+                print("DONE!", arg)
                 self._awaiting = None
                 return arg
             d.addCallback(done)

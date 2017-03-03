@@ -12,7 +12,7 @@ class DBError(Exception):
     pass
 
 
-def get_db(dbfile, stderr=sys.stderr,
+def get_db(dbfile_name, stderr=sys.stderr,
            create_version=(None, None), updaters={}, just_create=False, dbname="db",
            journal_mode=None, synchronous=None):
     """Open or create the given db file. The parent directory must exist.
@@ -21,11 +21,11 @@ def get_db(dbfile, stderr=sys.stderr,
     to get from ver=1 to ver=2. Returns a (sqlite3,db) tuple, or raises
     DBError.
     """
-    must_create = not os.path.exists(dbfile)
+    must_create = not os.path.exists(dbfile_name)
     try:
-        db = sqlite3.connect(dbfile)
+        db = sqlite3.connect(dbfile_name)
     except (EnvironmentError, sqlite3.OperationalError), e:
-        raise DBError("Unable to create/open %s file %s: %s" % (dbname, dbfile, e))
+        raise DBError("Unable to create/open %s file %s: %s" % (dbname, dbfile_name, e))
 
     schema, target_version = create_version
     c = db.cursor()
@@ -99,7 +99,7 @@ def execute_script(connection_pool, script):
 
 
 @defer.inlineCallbacks
-def get_async_db(dbfile, stderr=sys.stderr,
+def get_async_db(dbfile_name, stderr=sys.stderr,
            create_version=(None, None), updaters={}, just_create=False, dbname="db",
            journal_mode=None):
     """Open or create the given db file. The parent directory must exist.
@@ -108,11 +108,11 @@ def get_async_db(dbfile, stderr=sys.stderr,
     to get from ver=1 to ver=2. Returns a (sqlite3,db) tuple, or raises
     DBError.
     """
-    must_create = not os.path.exists(dbfile)
+    must_create = not os.path.exists(dbfile_name)
     try:
-        conn = adbapi.ConnectionPool("sqlite3", dbfile, check_same_thread=False)
+        conn = adbapi.ConnectionPool("sqlite3", dbfile_name, check_same_thread=False)
     except (EnvironmentError, sqlite3.OperationalError), e:
-        raise DBError("Unable to create/open %s file %s: %s" % (dbname, dbfile, e))
+        raise DBError("Unable to create/open %s file %s: %s" % (dbname, dbfile_name, e))
     except Exception, e:
         print "wtf %s" % e
     schema, target_version = create_version
@@ -125,8 +125,11 @@ def get_async_db(dbfile, stderr=sys.stderr,
         yield conn.runOperation("PRAGMA journal_mode = %s;" % (journal_mode,))
 
     if must_create:
-        yield execute_script(conn, schema)
-        yield conn.runOperation("INSERT INTO version (version) VALUES (?)", (target_version,))
+        try:
+            yield execute_script(conn, schema)
+            yield conn.runOperation("INSERT INTO version (version) VALUES (?)", (target_version,))
+        except Exception as e:
+            print("BBBBB", e)
 
     try:
         fetchall_val = yield conn.runQuery("SELECT version FROM version")
