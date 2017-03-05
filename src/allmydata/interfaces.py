@@ -831,6 +831,7 @@ class IMutableFileVersion(IReadable):
 
 # The hierarchy looks like this:
 #  IFilesystemNode
+#   IVerifyNode
 #   IFileNode
 #    IMutableFileNode
 #    IImmutableFileNode
@@ -932,6 +933,13 @@ class IFilesystemNode(Interface):
         """I return a Deferred that fires with the length (in bytes) of the
         data this node represents.
         """
+
+
+class IVerifyNode(IFilesystemNode):
+    """
+    I am a node which represents an opaque repairable object. I can be checked
+    and repaired but neither read nor written.
+    """
 
 
 class IFileNode(IFilesystemNode):
