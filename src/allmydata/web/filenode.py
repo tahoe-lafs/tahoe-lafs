@@ -138,6 +138,8 @@ class FileNodeHandler(VerifyNodeHandler, ReplaceMeMixin):
     I handle requests for IFileNodes.
     """
 
+    # NB: __init__() inherited from VerifyNodeHandler.
+
     def childFactory(self, ctx, name):
         req = IRequest(ctx)
         if isinstance(self.node, ProhibitedNode):

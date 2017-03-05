@@ -22,6 +22,10 @@ from allmydata.web.info import MoreInfo
 
 
 class VerifyNodeHandler(RenderMixin, rend.Page):
+    """
+    I handle requests for verifiable nodes.
+    """
+
     def __init__(self, client, node, parentnode=None, name=None):
         rend.Page.__init__(self)
         self.client = client
@@ -33,6 +37,10 @@ class VerifyNodeHandler(RenderMixin, rend.Page):
     def childFactory(self, ctx, name):
         raise WebError("Verifycaps can't have children, certainly not named %s"
                        % quote_output(name, encoding='utf-8'))
+
+    def render_HEAD(self, ctx):
+        # Just delegate to GET; we have to do pretty much the same work.
+        return self.render_GET(ctx)
 
     def render_GET(self, ctx):
         req = IRequest(ctx)
