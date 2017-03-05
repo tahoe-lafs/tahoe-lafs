@@ -87,6 +87,11 @@ class CiphertextFileNode:
         return self._verifycap
     def get_size(self):
         return self._verifycap.size
+    def get_current_size(self):
+        return defer.succeed(self.get_size())
+
+    def get_uri(self):
+        return self._verifycap.to_string()
 
     def raise_error(self):
         pass

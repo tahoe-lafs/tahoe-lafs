@@ -2,7 +2,6 @@
 import simplejson
 
 from twisted.web import http, static
-from twisted.internet import defer
 from nevow import url, rend
 from nevow.inevow import IRequest
 
@@ -10,18 +9,17 @@ from allmydata.interfaces import ExistingChildError
 from allmydata.monitor import Monitor
 from allmydata.immutable.upload import FileHandle
 from allmydata.mutable.publish import MutableFileHandle
-from allmydata.mutable.common import MODE_READ
-from allmydata.util import log, base32
+from allmydata.util import log
 from allmydata.util.encodingutil import quote_output
 from allmydata.blacklist import FileProhibited, ProhibitedNode
 
 from allmydata.web.common import text_plain, WebError, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories, \
-     MyExceptionHandler, parse_replace_arg, parse_offset_arg, \
+     MyExceptionHandler, parse_replace_arg, \
      get_format, get_mutable_type, get_filenode_metadata
 from allmydata.web.check_results import CheckResultsRenderer, \
      CheckAndRepairResultsRenderer, LiteralCheckResultsRenderer
-from allmydata.web.info import MoreInfo
+from allmydata.web.verifynode import VerifyNodeHandler
 
 class ReplaceMeMixin:
     def replace_me_with_a_child(self, req, client, replace):
@@ -135,14 +133,10 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         return d
 
 
-class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
-    def __init__(self, client, node, parentnode=None, name=None):
-        rend.Page.__init__(self)
-        self.client = client
-        assert node
-        self.node = node
-        self.parentnode = parentnode
-        self.name = name
+class FileNodeHandler(VerifyNodeHandler, ReplaceMeMixin):
+    """
+    I handle requests for IFileNodes.
+    """
 
     def childFactory(self, ctx, name):
         req = IRequest(ctx)
@@ -154,116 +148,22 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         raise WebError("Files have no children, certainly not named %s"
                        % quote_output(name, encoding='utf-8'))
 
-    def render_GET(self, ctx):
-        req = IRequest(ctx)
-        t = get_arg(req, "t", "").strip()
-
-        # t=info contains variable ophandles, so is not allowed an ETag.
-        FIXED_OUTPUT_TYPES = ["", "json", "uri", "readonly-uri"]
-        if not self.node.is_mutable() and t in FIXED_OUTPUT_TYPES:
-            # if the client already has the ETag then we can
-            # short-circuit the whole process.
-            si = self.node.get_storage_index()
-            if si and req.setETag('%s-%s' % (base32.b2a(si), t or "")):
-                return ""
-
-        if not t:
-            # just get the contents
-            # the filename arrives as part of the URL or in a form input
-            # element, and will be sent back in a Content-Disposition header.
-            # Different browsers use various character sets for this name,
-            # sometimes depending upon how language environment is
-            # configured. Firefox sends the equivalent of
-            # urllib.quote(name.encode("utf-8")), while IE7 sometimes does
-            # latin-1. Browsers cannot agree on how to interpret the name
-            # they see in the Content-Disposition header either, despite some
-            # 11-year old standards (RFC2231) that explain how to do it
-            # properly. So we assume that at least the browser will agree
-            # with itself, and echo back the same bytes that we were given.
-            filename = get_arg(req, "filename", self.name) or "unknown"
-            d = self.node.get_best_readable_version()
-            d.addCallback(lambda dn: FileDownloader(dn, filename))
-            return d
-        if t == "json":
-            # We do this to make sure that fields like size and
-            # mutable-type (which depend on the file on the grid and not
-            # just on the cap) are filled in. The latter gets used in
-            # tests, in particular.
-            #
-            # TODO: Make it so that the servermap knows how to update in
-            # a mode specifically designed to fill in these fields, and
-            # then update it in that mode.
-            if self.node.is_mutable():
-                d = self.node.get_servermap(MODE_READ)
-            else:
-                d = defer.succeed(None)
-            if self.parentnode and self.name:
-                d.addCallback(lambda ignored:
-                    self.parentnode.get_metadata_for(self.name))
-            else:
-                d.addCallback(lambda ignored: None)
-            d.addCallback(lambda md: FileJSONMetadata(ctx, self.node, md))
-            return d
-        if t == "info":
-            return MoreInfo(self.node)
-        if t == "uri":
-            return FileURI(ctx, self.node)
-        if t == "readonly-uri":
-            return FileReadOnlyURI(ctx, self.node)
-        raise WebError("GET file: bad t=%s" % t)
-
-    def render_HEAD(self, ctx):
-        req = IRequest(ctx)
-        t = get_arg(req, "t", "").strip()
-        if t:
-            raise WebError("HEAD file: bad t=%s" % t)
+    def _get_contents(self, req):
+        # the filename arrives as part of the URL or in a form input
+        # element, and will be sent back in a Content-Disposition header.
+        # Different browsers use various character sets for this name,
+        # sometimes depending upon how language environment is
+        # configured. Firefox sends the equivalent of
+        # urllib.quote(name.encode("utf-8")), while IE7 sometimes does
+        # latin-1. Browsers cannot agree on how to interpret the name
+        # they see in the Content-Disposition header either, despite some
+        # 11-year old standards (RFC2231) that explain how to do it
+        # properly. So we assume that at least the browser will agree
+        # with itself, and echo back the same bytes that we were given.
         filename = get_arg(req, "filename", self.name) or "unknown"
         d = self.node.get_best_readable_version()
         d.addCallback(lambda dn: FileDownloader(dn, filename))
         return d
-
-    def render_PUT(self, ctx):
-        req = IRequest(ctx)
-        t = get_arg(req, "t", "").strip()
-        replace = parse_replace_arg(get_arg(req, "replace", "true"))
-        offset = parse_offset_arg(get_arg(req, "offset", None))
-
-        if not t:
-            if not replace:
-                # this is the early trap: if someone else modifies the
-                # directory while we're uploading, the add_file(overwrite=)
-                # call in replace_me_with_a_child will do the late trap.
-                raise ExistingChildError()
-
-            if self.node.is_mutable():
-                # Are we a readonly filenode? We shouldn't allow callers
-                # to try to replace us if we are.
-                if self.node.is_readonly():
-                    raise WebError("PUT to a mutable file: replace or update"
-                                   " requested with read-only cap")
-                if offset is None:
-                    return self.replace_my_contents(req)
-
-                if offset >= 0:
-                    return self.update_my_contents(req, offset)
-
-                raise WebError("PUT to a mutable file: Invalid offset")
-
-            else:
-                if offset is not None:
-                    raise WebError("PUT to a file: append operation invoked "
-                                   "on an immutable cap")
-
-                assert self.parentnode and self.name
-                return self.replace_me_with_a_child(req, self.client, replace)
-
-        if t == "uri":
-            if not replace:
-                raise ExistingChildError()
-            assert self.parentnode and self.name
-            return self.replace_me_with_a_childcap(req, self.client, replace)
-
-        raise WebError("PUT to a file: bad t=%s" % t)
 
     def render_POST(self, ctx):
         req = IRequest(ctx)

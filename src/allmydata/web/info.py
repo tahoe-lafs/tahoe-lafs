@@ -5,7 +5,7 @@ from nevow import rend, tags as T
 from nevow.inevow import IRequest
 
 from allmydata.util import base32
-from allmydata.interfaces import IDirectoryNode, IFileNode, MDMF_VERSION
+from allmydata.interfaces import IDirectoryNode, IFileNode, IVerifyNode, MDMF_VERSION
 from allmydata.web.common import getxmlfile
 from allmydata.mutable.common import UnrecoverableFileError # TODO: move
 
@@ -36,6 +36,8 @@ class MoreInfo(rend.Page):
                     return ret
                 return "immutable file"
             return "immutable LIT file"
+        if IVerifyNode.providedBy(node):
+            return "verifier"
         return "unknown"
 
     def render_title(self, ctx, data):
@@ -209,6 +211,12 @@ class MoreInfo(rend.Page):
     def render_is_directory(self, ctx, data):
         node = self.original
         if IDirectoryNode.providedBy(node):
+            return ctx.tag
+        return ""
+
+    def render_is_readable(self, ctx, data):
+        node = self.original
+        if IFileNode.providedBy(node):
             return ctx.tag
         return ""
 

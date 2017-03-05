@@ -16,7 +16,7 @@ from allmydata.util import base32
 from allmydata.util.encodingutil import to_str
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
-     IImmutableFileNode, IMutableFileNode, ExistingChildError, \
+     IImmutableFileNode, IMutableFileNode, IVerifyNode, ExistingChildError, \
      NoSuchChildError, EmptyPathnameComponentError, SDMF_VERSION, MDMF_VERSION
 from allmydata.blacklist import ProhibitedNode
 from allmydata.monitor import Monitor, OperationCancelledError
@@ -36,6 +36,7 @@ from allmydata.web.info import MoreInfo
 from allmydata.web.operations import ReloadMixin
 from allmydata.web.check_results import json_check_results, \
      json_check_and_repair_results
+from allmydata.web.verifynode import VerifyNodeHandler
 
 class BlockingFileError(Exception):
     # TODO: catch and transform
@@ -45,6 +46,8 @@ class BlockingFileError(Exception):
 def make_handler_for(node, client, parentnode=None, name=None):
     if parentnode:
         assert IDirectoryNode.providedBy(parentnode)
+    if IVerifyNode.providedBy(node):
+        return VerifyNodeHandler(client, node, parentnode, name)
     if IFileNode.providedBy(node):
         return FileNodeHandler(client, node, parentnode, name)
     if IDirectoryNode.providedBy(node):
