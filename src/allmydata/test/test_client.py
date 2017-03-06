@@ -2,6 +2,7 @@ import os, sys
 import twisted
 from twisted.trial import unittest
 from twisted.application import service
+from twisted.internet import defer
 
 import allmydata
 import allmydata.frontends.magic_folder
@@ -308,6 +309,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         sb.servers.clear()
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
+    @defer.inlineCallbacks
     def test_versions(self):
         basedir = "test_client.Basic.test_versions"
         os.mkdir(basedir)
@@ -316,8 +318,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            "[storage]\n" + \
                            "enabled = true\n")
         c = client.Client(basedir)
+        yield c.startService()
         server = c.getServiceNamed("storage")
-        aa = server.get_accountant().get_anonymous_account()
+        aa = c.get_accountant().get_anonymous_account()
         verdict = aa.remote_get_version()
         self.failUnlessReallyEqual(verdict["application-version"],
                                    str(allmydata.__full_version__))
