@@ -192,7 +192,6 @@ class Client(node.Node, pollmixin.PollMixin):
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
-        self.init_storage()
         self.init_control()
         self._key_generator = KeyGenerator()
         key_gen_furl = self.get_config("client", "key_generator.furl", None)
@@ -226,6 +225,12 @@ class Client(node.Node, pollmixin.PollMixin):
         webport = self.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
+
+    def startService(self):
+        #service.MultiService.startService(self)
+        dl = []
+        dl.append(self.init_storage())
+        return defer.DeferredList(dl)
 
     def _sequencer(self):
         seqnum_s = self.get_config_from_file("announcement-seqnum")
@@ -334,6 +339,7 @@ class Client(node.Node, pollmixin.PollMixin):
             self.write_config("permutation-seed", seed+"\n")
         return seed.strip()
 
+    @defer.inlineCallbacks
     def init_storage(self):
         self.accountant = None
         # should we run a storage server (and publish it for others to use)?
