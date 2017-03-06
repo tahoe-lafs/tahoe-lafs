@@ -63,7 +63,7 @@ class Accountant(service.MultiService):
         return d
 
     def set_expiration_policy(self, policy):
-        self._accounting_crawler.set_expiration_policy(policy)
+        self._crawler.set_expiration_policy(policy)
 
     # XXX what about:
     # @property
@@ -75,7 +75,7 @@ class Accountant(service.MultiService):
         return self._starter_account
 
     def get_accounting_crawler(self):
-        return self._accounting_crawler
+        return self._crawler
 
     # methods used by admin interfaces
     # XXX think, fixme: should be async, maybe pass in storage_server?
