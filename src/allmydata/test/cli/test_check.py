@@ -152,14 +152,21 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_deep_check(self):
         self.basedir = "cli/Check/deep_check"
-        self.set_up_grid()
-        c0 = self.g.clients[0]
+        self.c0 = None
         self.uris = {}
         self.fileurls = {}
         DATA = "data" * 100
         quoted_good = quote_output(u"g\u00F6\u00F6d")
 
-        d = c0.create_dirnode()
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self.set_up_grid())
+
+        def _setup(ignore):
+            self.c0 = self.g.clients[0]
+        d.addCallback(_setup)
+        def _make_dir(ignore):
+            return self.g.clients[0].create_dirnode()
+        d.addCallback(_make_dir)
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturi = n.get_uri()
@@ -175,7 +182,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                                                         convergence="")))
         d.addCallback(_stash_uri, "small")
         d.addCallback(lambda ign:
-            c0.create_mutable_file(MutableData(DATA+"1")))
+            self.c0.create_mutable_file(MutableData(DATA+"1")))
         d.addCallback(lambda fn: self.rootnode.set_node(u"mutable", fn))
         d.addCallback(_stash_uri, "mutable")
 
@@ -391,14 +398,17 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_check_with_multiple_aliases(self):
         self.basedir = "cli/Check/check_with_multiple_aliases"
-        self.set_up_grid(oneshare=True)
         self.uriList = []
-        c0 = self.g.clients[0]
-        d = c0.create_dirnode()
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self.set_up_grid(oneshare=True))
+
+        def _make_dir(ignore):
+            return self.g.clients[0].create_dirnode()
         def _stash_uri(n):
             self.uriList.append(n.get_uri())
+        d.addCallback(_make_dir)
         d.addCallback(_stash_uri)
-        d = c0.create_dirnode()
+        d.addCallback(_make_dir)
         d.addCallback(_stash_uri)
 
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], self.uriList[1]))
