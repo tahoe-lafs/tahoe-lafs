@@ -382,6 +382,26 @@ class NoNetworkGrid(service.MultiService):
                     fileutil.rm_dir(os.path.join(server.sharedir, prefixdir))
 
 
+def grid_ready(*outer_args, **outer_kw):
+    """
+    This is a decorator to use instead of calling "self.set_up_grid()"
+    when you're using GridTestMixin.
+
+    thanks exarkun!
+    """
+
+    # this decorator takes args, which are the args we want to pass on to set_up_grid
+    def inner_decorator(orig_fn):
+        def func(self, *args, **kw):
+            # "self" must be a GridTestMixin
+            self.set_up_grid(*outer_args, **outer_kw)
+            d = self.g.when_ready()
+            d.addCallback(lambda _: defer.maybeDeferred(orig_fn, self, *args, **kw))
+            return d
+        return func
+    return inner_decorator
+
+
 class GridTestMixin:
     def setUp(self):
         self.s = service.MultiService()

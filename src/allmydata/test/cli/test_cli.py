@@ -32,7 +32,7 @@ from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
 from allmydata.scripts import cli, debug, runner
 from ..common_util import (ReallyEqualMixin, skip_if_cannot_represent_filename,
                            run_cli)
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from .common import CLITestMixin, parse_options
 from twisted.python import usage
 
@@ -819,10 +819,14 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
 
 
 class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
-    def test_mkdir(self):
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
 
+    def setUp(self):
+        d = super(Mkdir, self).setUp()
+        self.basedir = os.path.dirname(self.mktemp())
+        return d
+
+    @grid_ready(oneshare=True)
+    def test_mkdir(self):
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("mkdir", "test"))
         def _check((rc, out, err)):
