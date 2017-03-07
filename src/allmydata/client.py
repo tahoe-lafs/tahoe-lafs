@@ -25,6 +25,7 @@ from allmydata.util.encodingutil import (get_filesystem_encoding,
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
+from allmydata.util.observer import OneShotObserverList
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
@@ -184,6 +185,8 @@ class Client(node.Node, pollmixin.PollMixin):
         # that's what does tub.setLocation()
         configutil.validate_config(self.config_fname, self.config,
                                    _valid_config_sections())
+
+        self._storage_done = OneShotObserverList()
         self._magic_folder = None
         self.started_timestamp = time.time()
         self.logSource="Client"
@@ -192,6 +195,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
+        self.init_storage()
         self.init_control()
         self._key_generator = KeyGenerator()
         key_gen_furl = self.get_config("client", "key_generator.furl", None)
@@ -226,11 +230,10 @@ class Client(node.Node, pollmixin.PollMixin):
         if webport:
             self.init_web(webport) # strports string
 
-    def startService(self):
-        #service.MultiService.startService(self)
-        dl = []
-        dl.append(self.init_storage())
-        return defer.DeferredList(dl)
+    # XXX hacking around the fact that there's no good create_client()
+    # factory-function yet
+    def when_ready(self):
+        return self._storage_done.when_fired()
 
     def _sequencer(self):
         seqnum_s = self.get_config_from_file("announcement-seqnum")
@@ -339,7 +342,6 @@ class Client(node.Node, pollmixin.PollMixin):
             self.write_config("permutation-seed", seed+"\n")
         return seed.strip()
 
-    @defer.inlineCallbacks
     def init_storage(self):
         self.accountant = None
         # should we run a storage server (and publish it for others to use)?
@@ -396,25 +398,31 @@ class Client(node.Node, pollmixin.PollMixin):
 
         dbfile = os.path.join(storedir, "leasedb.sqlite")
         statefile = os.path.join(storedir, "leasedb_crawler.state")
-        self.accountant = yield create_accountant(ss, dbfile, statefile)
-        self.accountant.set_expiration_policy(expiration_policy)  # pass to create_accountant?
-        self.accountant.setServiceParent(self)#ss)
 
-        # accountant_window = self.accountant.get_accountant_window(self.tub)
-        # accountant_furlfile = os.path.join(self.basedir, "private", "accountant.furl").encode(get_filesystem_encoding())
-        # accountant_furl = self.tub.registerReference(accountant_window,
-        #                                              furlFile=accountant_furlfile)
+        d = create_accountant(ss, dbfile, statefile)
+        def got_accountant(accountant):
+            self.accountant = accountant
+            self.accountant.set_expiration_policy(expiration_policy)  # pass to create_accountant?
+            self.accountant.setServiceParent(ss)
 
-        anonymous_account = self.accountant.get_anonymous_account()
-        anonymous_account_furlfile = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
-        anonymous_account_furl = self.tub.registerReference(anonymous_account, furlFile=anonymous_account_furlfile)
-        ann = {
-            "anonymous-storage-FURL": anonymous_account_furl,
-            "permutation-seed-base32": self._init_permutation_seed(ss),
-            # "accountant-FURL": accountant_furl,
-        }
-        for ic in self.introducer_clients:
-            ic.publish("storage", ann, self._node_key)
+            # accountant_window = self.accountant.get_accountant_window(self.tub)
+            # accountant_furlfile = os.path.join(self.basedir, "private", "accountant.furl").encode(get_filesystem_encoding())
+            # accountant_furl = self.tub.registerReference(accountant_window,
+            #                                              furlFile=accountant_furlfile)
+
+            anonymous_account = self.accountant.get_anonymous_account()
+            anonymous_account_furlfile = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
+            anonymous_account_furl = self.tub.registerReference(anonymous_account, furlFile=anonymous_account_furlfile)
+            ann = {
+                "anonymous-storage-FURL": anonymous_account_furl,
+                "permutation-seed-base32": self._init_permutation_seed(ss),
+                # "accountant-FURL": accountant_furl,
+            }
+            for ic in self.introducer_clients:
+                ic.publish("storage", ann, self._node_key)
+            self._storage_done.fire(None)
+        d.addCallback(got_accountant)
+        return d
 
     def get_accountant(self):
         return self.accountant
