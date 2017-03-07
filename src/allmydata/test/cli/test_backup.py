@@ -14,7 +14,7 @@ from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
 from allmydata.util.namespace import Namespace
 from allmydata.scripts import cli, backupdb
 from ..common_util import StallMixin
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from .common import CLITestMixin, parse_options
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
@@ -37,11 +37,13 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         mo = re.search(r"(\d)+ files checked, (\d+) directories checked", out)
         return [int(s) for s in mo.groups()]
 
-    @defer.inlineCallbacks
-    def test_backup(self):
-        self.basedir = "cli/Backup/backup"
-        yield self.set_up_grid(oneshare=True)
+    def setUp(self):
+        d = super(Backup, self).setUp()
+        self.basedir = "cli/Backup"
+        return d
 
+    @grid_ready(oneshare=True)
+    def test_backup(self):
         # is the backupdb available? If so, we test that a second backup does
         # not create new directories.
         hush = StringIO()
@@ -233,8 +235,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(out, "foo")
         d.addCallback(_check8)
-
-        yield d
+        return d
 
     # on our old dapper buildslave, this test takes a long time (usually
     # 130s), so we have to bump up the default 120s timeout. The create-alias

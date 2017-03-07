@@ -28,6 +28,7 @@ from allmydata.client import Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
+from allmydata.util.observer import OneShotObserverList
 from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker, IServer
 from allmydata.storage.accountant import create_accountant
@@ -245,31 +246,28 @@ class NoNetworkGrid(service.MultiService):
         self.clients = []
         self.client_config_hooks = client_config_hooks
         self._num_servers = num_servers
-        self._awaiting = []
 
+        self._ready = OneShotObserverList()
+        awaiting = []
         for i in range(self._num_servers):
             ss = self.make_server(i)
             # XXX this is actually async now...
             d = self.add_server(i, ss)
-            self._awaiting.append(d)
+            awaiting.append(d)
         self.rebuild_serverlist()
+
+        def built_servers(ign):
+            self._ready.fire(None)
+            self.rebuild_serverlist()
+        defer.DeferredList(awaiting).addCallback(built_servers)
+
 
         for i in range(num_clients):
             c = self.make_client(i)
             self.clients.append(c)
 
     def when_ready(self):
-        if self._awaiting:
-            d = defer.succeed(None)
-            d.addCallback(lambda _: defer.DeferredList(self._awaiting))
-
-            def done(arg):
-                print("DONE!", arg)
-                self._awaiting = None
-                return arg
-            d.addCallback(done)
-            return d
-        return defer.succeed(None)
+        return self._ready.when_fired()
 
     def make_client(self, i, write_config=True):
         clientid = hashutil.tagged_hash("clientid", str(i))[:20]
