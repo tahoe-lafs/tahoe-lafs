@@ -2,6 +2,7 @@ import os.path, re, urllib
 import simplejson
 from StringIO import StringIO
 from nevow import rend
+from twisted.internet import defer
 from twisted.trial import unittest
 from allmydata import uri, dirnode
 from allmydata.util import base32
@@ -14,7 +15,7 @@ from allmydata.immutable import upload
 from allmydata.mutable import publish
 from .. import common_util as testutil
 from ..common import WebErrorMixin, ShouldFailMixin
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
 
 DIR_HTML_TAG = '<html lang="en">'
@@ -826,14 +827,18 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addErrback(self.explain_web_error)
         return d
 
+    @defer.inlineCallbacks
     def _assert_leasecount(self, ignored, which, expected):
         u = self.uris[which]
         si = uri.from_string(u).get_storage_index()
         num_leases = 0
         for server in self.g.servers_by_number.values():
-            ss = server.get_accountant().get_anonymous_account()
-            ss2 = server.get_accountant().get_starter_account()
-            num_leases += len(ss.get_leases(si)) + len(ss2.get_leases(si))
+            accountant = self.g.server_accountant[server]
+            ss = accountant.get_anonymous_account()
+            ss2 = accountant.get_starter_account()
+            ss_leases = yield ss.get_leases(si)
+            ss2_leases = yield ss2.get_leases(si)
+            num_leases += len(ss_leases) + len(ss2_leases)
 
         if num_leases != expected:
             self.fail("expected %d leases, have %d, on '%s'" %

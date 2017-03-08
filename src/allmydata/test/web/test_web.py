@@ -245,6 +245,9 @@ class FakeAccountant:
     def get_anonymous_account(self):
         return FakeAccount()
 
+    def get_accounting_crawler(self):
+        return FakeAccountingCrawler()
+
 class FakeClient(Client):
     def __init__(self):
         # don't upcall to Client.__init__, since we only want to initialize a

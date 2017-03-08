@@ -239,6 +239,7 @@ class NoNetworkGrid(service.MultiService):
         self.basedir = basedir
         fileutil.make_dirs(basedir)
 
+        self.server_accountant = {} # maps StorageServer instance to Accountant instance
         self.servers_by_number = {} # maps to StorageServer instance
         self.wrappers_by_id = {} # maps to wrapped StorageServer instance
         self.proxies_by_id = {} # maps to IServer on which .rref is a wrapped
@@ -327,6 +328,7 @@ class NoNetworkGrid(service.MultiService):
             accountant.setServiceParent(middleman)
             aa = accountant.get_anonymous_account()
             wrapper = wrap_storage_server(aa)
+            self.server_accountant[ss] = accountant
             self.wrappers_by_id[serverid] = wrapper
             self.proxies_by_id[serverid] = NoNetworkServer(serverid, wrapper)
             self.rebuild_serverlist()
