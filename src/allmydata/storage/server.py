@@ -290,7 +290,6 @@ class StorageServer(service.MultiService):
 #                if self.no_storage:
 #                    bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
-                print("active writer", bw)
                 self._active_writers[bw] = 1
                 if limited:
                     remaining_space -= max_space_per_bucket
@@ -320,7 +319,6 @@ class StorageServer(service.MultiService):
             yield sf
 
     def bucket_writer_closed(self, bw, consumed_size):
-        print("bucket_writer_closed", bw, consumed_size)
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_added', consumed_size)
         del self._active_writers[bw]
