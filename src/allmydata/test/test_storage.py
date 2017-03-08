@@ -1391,10 +1391,12 @@ class MutableServer(unittest.TestCase):
 
 
 class MDMFProxies(unittest.TestCase, ShouldFailMixin):
+
+    @defer.inlineCallbacks
     def setUp(self):
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
-        self.aa = self.create("MDMFProxies storage test server")
+        self.aa = yield self.create("mdmf_proxies")
         self.rref = RemoteBucket()
         self.rref.target = self.aa
         self.secrets = (self.write_enabler("we_secret"),
@@ -1420,9 +1422,10 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # header.
         self.salt_hash_tree_s = self.serialize_blockhashes(self.salt_hash_tree[1:])
 
+    @defer.inlineCallbacks
     def tearDown(self):
-        self.sparent.stopService()
-        shutil.rmtree(self.workdir("MDMFProxies storage test server"))
+        yield self.sparent.stopService()
+        shutil.rmtree(self.workdir("mdmf_proxies"))
 
 
     def write_enabler(self, we_tag):
@@ -1446,6 +1449,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         dbfile = os.path.join(workdir, 'leases.db')
         statefile = os.path.join(workdir, 'state')
         accountant = yield create_accountant(server, dbfile, statefile)
+        accountant.setServiceParent(self.sparent)
         defer.returnValue(accountant.get_anonymous_account())
 
     def build_test_mdmf_share(self, tail_segment=False, empty=False):
@@ -2334,7 +2338,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # is_sdmf method to test this.
         yield self.write_sdmf_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
-        is_sdmf = yield mr.is_sdmf()
+        issdmf = yield mr.is_sdmf()
         self.failUnless(issdmf)
 
     @defer.inlineCallbacks
@@ -2545,8 +2549,9 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                         None,
                         mr.get_block_and_salt, 0)
 
+    @defer.inlineCallbacks
     def test_read_with_empty_sdmf_file(self):
-        self.write_sdmf_share_to_server("si1", empty=True)
+        yield self.write_sdmf_share_to_server("si1", empty=True)
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         # We should be able to get the encoding parameters, and they
         # should be correct
@@ -2564,8 +2569,9 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                         None,
                         mr.get_block_and_salt, 0)
 
+    @defer.inlineCallbacks
     def test_verinfo_with_sdmf_file(self):
-        self.write_sdmf_share_to_server("si1")
+        yield self.write_sdmf_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         # We should be able to get the version information.
         verinfo = yield mr.get_verinfo()
