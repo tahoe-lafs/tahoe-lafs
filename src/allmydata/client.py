@@ -185,8 +185,8 @@ class Client(node.Node, pollmixin.PollMixin):
         # that's what does tub.setLocation()
         configutil.validate_config(self.config_fname, self.config,
                                    _valid_config_sections())
+
         self._storage_done = OneShotObserverList()
-        self.nodeid = b32decode(main_tub.tubID.upper())
         self._magic_folder = None
         self.started_timestamp = time.time()
         self.logSource="Client"
