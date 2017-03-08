@@ -18,19 +18,17 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                   # platforms
 
     def setUp(self):
-        d = super(Update, self).setUp()
-        self.c = self.g.clients[0]
-        self.nm = self.c.nodemaker
+        super(Update, self).setUp()
+        GridTestMixin.setUp(self)
+
         # self.data should be at least three segments long.
         td = "testdata "
         self.data = td*(int(3*SEGSIZE/len(td))+10) # currently about 400kB
         assert len(self.data) > 3*SEGSIZE
         self.small_data = "test data" * 10 # 90 B; SDMF
-        return d
-
 
     def do_upload_sdmf(self):
-        d = self.nm.create_mutable_file(MutableData(self.small_data))
+        d = self.g.clients[0].nodemaker.create_mutable_file(MutableData(self.small_data))
         def _then(n):
             assert isinstance(n, MutableFileNode)
             self.sdmf_node = n
@@ -38,7 +36,8 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
     def do_upload_mdmf(self):
-        d = self.nm.create_mutable_file(MutableData(self.data),
+        d = self.g.clients[0].nodemaker
+        .create_mutable_file(MutableData(self.data),
                                         version=MDMF_VERSION)
         def _then(n):
             assert isinstance(n, MutableFileNode)
