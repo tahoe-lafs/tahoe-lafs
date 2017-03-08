@@ -60,22 +60,16 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addBoth(_done)
         return d
 
-    def _set_up(self, basedir, num_clients=1, num_servers=10):
-        d = self.set_up_grid(num_clients=num_clients, num_servers=num_servers, oneshare=True)
+    @grid_ready(num_clients=1, num_servers=10, oneshare=True)
+    def _set_up(self, basedir):
+        self.client = self.g.clients[0]
+        self.username = "alice"
+        node = yield self.client.create_dirnode()
 
-        def grid(ign):
-            self.client = self.g.clients[0]
-            self.username = "alice"
-            return self.client.create_dirnode()
-        d.addCallback(grid)
-
-        def _created_root(node):
-            self.root = node
-            self.root_uri = node.get_uri()
-            sftpd._reload()
-            self.handler = sftpd.SFTPUserHandler(self.client, self.root, self.username)
-        d.addCallback(_created_root)
-        return d
+        self.root = node
+        self.root_uri = node.get_uri()
+        sftpd._reload()
+        self.handler = sftpd.SFTPUserHandler(self.client, self.root, self.username)
 
     def _set_up_tree(self):
         u = publish.MutableData("mutable file contents")

@@ -396,7 +396,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
 
         return d
 
-    @grid_setup(num_clients=2)
+    @grid_ready(num_clients=2)
     def test_repair_from_deletion_of_1(self):
         """ Repair replaces a share that got deleted. """
         d = self.upload_and_stash()

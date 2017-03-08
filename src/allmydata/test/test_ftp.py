@@ -4,7 +4,7 @@ from twisted.trial import unittest
 from allmydata.frontends import ftpd
 from allmydata.immutable import upload
 from allmydata.mutable import publish
-from allmydata.test.no_network import GridTestMixin
+from allmydata.test.no_network import GridTestMixin, grid_ready
 from allmydata.test.common_util import ReallyEqualMixin
 
 class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):

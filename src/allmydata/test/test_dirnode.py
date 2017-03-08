@@ -21,7 +21,7 @@ from allmydata.util.netstring import split_netstring
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      ErrorMixin
-from allmydata.test.no_network import GridTestMixin
+from allmydata.test.no_network import GridTestMixin, grid_ready
 from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.nodemaker import NodeMaker
 from base64 import b32decode

@@ -14,7 +14,7 @@ from allmydata.interfaces import FileTooLargeError, UploadUnhappinessError
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
-from allmydata.test.no_network import GridTestMixin
+from allmydata.test.no_network import GridTestMixin, grid_ready
 from allmydata.test.common_util import ShouldFailMixin
 from allmydata.util.happinessutil import servers_of_happiness, \
                                          shares_by_server, merge_servers
