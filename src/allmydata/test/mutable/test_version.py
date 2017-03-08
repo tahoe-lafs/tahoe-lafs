@@ -10,17 +10,15 @@ from allmydata.util.deferredutil import gatherResults
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.mutable.common import MODE_WRITE, MODE_READ, UnrecoverableFileError
 from allmydata.mutable.publish import MutableData
-from allmydata.scripts import debug
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from .util import PublishMixin
 from .. import common_util as testutil
 
 class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
               PublishMixin):
+    @grid_ready()
     def setUp(self):
         GridTestMixin.setUp(self)
-        self.basedir = self.mktemp()
-        self.set_up_grid()
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
         self.data = "test data" * 100000 # about 900 KiB; MDMF

@@ -205,7 +205,7 @@ class NoNetworkClient(Client):
     def init_key_gen(self):
         pass
     def init_storage(self):
-        pass
+        self.accountant = None
     def init_client_storage_broker(self):
         self.storage_broker = NoNetworkStorageBroker()
         self.storage_broker.client = self
@@ -392,6 +392,7 @@ def grid_ready(*outer_args, **outer_kw):
     def inner_decorator(orig_fn):
         def func(self, *args, **kw):
             # "self" must be a GridTestMixin
+            self.basedir = os.path.dirname(self.mktemp())
             self.set_up_grid(*outer_args, **outer_kw)
             d = self.g.when_ready()
             d.addCallback(lambda _: defer.maybeDeferred(orig_fn, self, *args, **kw))

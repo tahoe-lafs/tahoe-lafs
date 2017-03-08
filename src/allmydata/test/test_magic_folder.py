@@ -270,12 +270,9 @@ class CheckerMixin(object):
 class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, ReallyEqualMixin, CheckerMixin):
     inject_inotify = False
 
+    @grid_ready(num_clients=2, oneshare=True)
     def setUp(self):
         MagicFolderCLITestMixin.setUp(self)
-        temp = self.mktemp()
-        self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
-        # set_up_grid depends on self.basedir existing
-        self.set_up_grid(num_clients=2, oneshare=True)
 
         self.alice_clock = task.Clock()
         self.bob_clock = task.Clock()
@@ -1012,12 +1009,10 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
     with the real INotify.
     """
 
+    @grid_ready(oneshare=True)
     def setUp(self):
         super(SingleMagicFolderTestMixin, self).setUp()
-        temp = self.mktemp()
-        self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
-        self.set_up_grid(oneshare=True)
         self.local_dir = os.path.join(self.basedir, u"local_dir")
         self.mkdir_nonascii(self.local_dir)
 
@@ -1331,9 +1326,8 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         self.patch(magic_folder, 'get_inotify_module', lambda: self.inotify)
         return d
 
+    @grid_ready(oneshare=True)
     def test_errors(self):
-        self.set_up_grid(oneshare=True)
-
         errors_dir = abspath_expanduser_unicode(u"errors_dir", base=self.basedir)
         os.mkdir(errors_dir)
         not_a_dir = abspath_expanduser_unicode(u"NOT_A_DIR", base=self.basedir)

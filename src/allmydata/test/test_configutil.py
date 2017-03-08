@@ -10,9 +10,8 @@ from .. import client
 
 class ConfigUtilTests(GridTestMixin, unittest.TestCase):
 
+    @grid_ready(oneshare=True)
     def test_config_utils(self):
-        self.basedir = "cli/ConfigUtilTests/test-config-utils"
-        self.set_up_grid(oneshare=True)
         tahoe_cfg = os.path.join(self.get_clientdir(i=0), "tahoe.cfg")
 
         # test that at least one option was read correctly

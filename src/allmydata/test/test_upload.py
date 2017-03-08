@@ -852,19 +852,13 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.failUnless((share_number, ss.my_nodeid, new_share_location)
                         in shares)
 
-    def _setup_grid(self):
-        """
-        I set up a NoNetworkGrid with a single server and client.
-        """
-        self.set_up_grid(num_clients=1, num_servers=1)
-
+    @grid_ready(num_clients=1, num_servers=1)
     def _setup_and_upload(self, **kwargs):
         """
         I set up a NoNetworkGrid with a single server and client,
         upload a file to it, store its uri in self.uri, and store its
         sharedata in self.shares.
         """
-        self._setup_grid()
         client = self.g.clients[0]
         client.encoding_params['happy'] = 1
         if "n" in kwargs and "k" in kwargs:
@@ -883,24 +877,21 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_store_shares)
         return d
 
+    @defer.inlineCallbacks
     def test_configure_parameters(self):
         self.basedir = self.mktemp()
         hooks = {0: self._set_up_nodes_extra_config}
-        self.set_up_grid(client_config_hooks=hooks)
+        yield self.set_up_grid(client_config_hooks=hooks)
         c0 = self.g.clients[0]
 
         DATA = "data" * 100
         u = upload.Data(DATA, convergence="")
-        d = c0.upload(u)
-        d.addCallback(lambda ur: c0.create_node_from_uri(ur.get_uri()))
+        fn = yield c0.upload(u)
+        c0.create_node_from_uri(ur.get_uri())
         m = monitor.Monitor()
-        d.addCallback(lambda fn: fn.check(m))
-        def _check(cr):
-            self.failUnlessEqual(cr.get_encoding_needed(), 7)
-            self.failUnlessEqual(cr.get_encoding_expected(), 12)
-        d.addCallback(_check)
-        return d
-
+        cr = yield fn.check(m)
+        self.failUnlessEqual(cr.get_encoding_needed(), 7)
+        self.failUnlessEqual(cr.get_encoding_expected(), 12)
 
     def _setUp(self, ns):
         # Used by test_happy_semantics and test_preexisting_share_behavior
@@ -941,9 +932,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.u.upload(DATA))
         return d
 
+    @grid_ready(num_servers=4)
     def test_aborted_shares(self):
-        self.basedir = "upload/EncodingParameters/aborted_shares"
-        self.set_up_grid(num_servers=4)
         c = self.g.clients[0]
         DATA = upload.Data(100* "kittens", convergence="")
         # These parameters are unsatisfiable with only 4 servers, but should
@@ -1678,6 +1668,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         return d
 
 
+    @grid_ready(num_clients=1, num_servers=1)
     def test_exception_messages_during_server_selection(self):
         # server 1: read-only, no shares
         # server 2: read-only, no shares
@@ -1763,8 +1754,6 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # We want to make sure that the exception message is worded correctly.
         d.addCallback(_reset)
         d.addCallback(lambda ign:
-            self._setup_grid())
-        d.addCallback(lambda ign:
             self._add_server(server_number=1))
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
@@ -1781,8 +1770,6 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # parameter, it should trigger a different error message than the one
         # above.
         d.addCallback(_reset)
-        d.addCallback(lambda ign:
-            self._setup_grid())
         d.addCallback(lambda ign:
             self._add_server(server_number=1))
         d.addCallback(lambda ign:
@@ -2006,12 +1993,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         return d
 
 
+    @grid_ready(num_servers=5)
     def test_server_selector_bucket_abort(self):
         # If server selection for an upload fails due to an unhappy
         # layout, the server selection process should abort the buckets it
         # allocates before failing, so that the space can be re-used.
-        self.basedir = self.mktemp()
-        self.set_up_grid(num_servers=5)
 
         # Try to upload a file with happy=7, which is unsatisfiable with
         # the current grid. This will fail, but should not take up any
@@ -2036,12 +2022,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         return d
 
 
+    @grid_ready(num_servers=4)
     def test_encoder_bucket_abort(self):
         # If enough servers die in the process of encoding and uploading
         # a file to make the layout unhappy, we should cancel the
         # newly-allocated buckets before dying.
-        self.basedir = self.mktemp()
-        self.set_up_grid(num_servers=4)
 
         client = self.g.clients[0]
         client.encoding_params['happy'] = 7

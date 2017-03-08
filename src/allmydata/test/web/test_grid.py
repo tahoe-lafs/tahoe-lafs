@@ -32,9 +32,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         url = fileurl + "?" + args
         return self.GET(url, method="POST", clientnum=clientnum)
 
+    @grid_ready()
     def test_filecheck(self):
-        self.basedir = "web/Grid/filecheck"
-        self.set_up_grid()
         c0 = self.g.clients[0]
         self.uris = {}
         DATA = "data" * 100
@@ -179,9 +178,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addErrback(self.explain_web_error)
         return d
 
+    @grid_ready()
     def test_repair_html(self):
-        self.basedir = "web/Grid/repair_html"
-        self.set_up_grid()
         c0 = self.g.clients[0]
         self.uris = {}
         DATA = "data" * 100
@@ -260,9 +258,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addErrback(self.explain_web_error)
         return d
 
+    @grid_ready()
     def test_repair_json(self):
-        self.basedir = "web/Grid/repair_json"
-        self.set_up_grid()
         c0 = self.g.clients[0]
         self.uris = {}
         DATA = "data" * 100
@@ -297,12 +294,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addErrback(self.explain_web_error)
         return d
 
+    @grid_ready()
     def test_unknown(self, immutable=False):
-        self.basedir = "web/Grid/unknown"
-        if immutable:
-            self.basedir = "web/Grid/unknown-immutable"
-
-        self.set_up_grid()
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
@@ -432,10 +425,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
     def test_immutable_unknown(self):
         return self.test_unknown(immutable=True)
 
+    @grid_ready()
     def test_mutant_dirnodes_are_omitted(self):
-        self.basedir = "web/Grid/mutant_dirnodes_are_omitted"
-
-        self.set_up_grid()
         c = self.g.clients[0]
         nm = c.nodemaker
         self.uris = {}
@@ -560,9 +551,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_check_json)
         return d
 
+    @grid_ready()
     def test_deep_check(self):
-        self.basedir = "web/Grid/deep_check"
-        self.set_up_grid()
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
@@ -734,9 +724,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addErrback(self.explain_web_error)
         return d
 
+    @grid_ready()
     def test_deep_check_and_repair(self):
-        self.basedir = "web/Grid/deep_check_and_repair"
-        self.set_up_grid()
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
@@ -850,11 +839,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.fail("expected %d leases, have %d, on '%s'" %
                       (expected, num_leases, which))
 
+    @grid_ready(num_clients=2, num_servers=10)
     def test_add_lease(self):
-        self.basedir = "web/Grid/add_lease"
         N = 10
-        self.set_up_grid(num_clients=2, num_servers=N)
-
         c0 = self.g.clients[0]
         self.uris = {}
         DATA = "data" * 100
@@ -921,10 +908,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addErrback(self.explain_web_error)
         return d
 
+    @grid_ready(num_clients=2, num_servers=10)
     def test_deep_add_lease(self):
-        self.basedir = "web/Grid/deep_add_lease"
         N = 10
-        self.set_up_grid(num_clients=2, num_servers=N)
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
@@ -982,9 +968,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         return d
 
 
+    @grid_ready(num_clients=1, num_servers=2)
     def test_exceptions(self):
-        self.basedir = "web/Grid/exceptions"
-        self.set_up_grid(num_clients=1, num_servers=2)
         c0 = self.g.clients[0]
         c0.encoding_params['happy'] = 2
         self.fileurls = {}
@@ -1199,10 +1184,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         return d
 
+    @grid_ready()
     def test_blacklist(self):
         # download from a blacklisted URI, get an error
-        self.basedir = "web/Grid/blacklist"
-        self.set_up_grid()
         c0 = self.g.clients[0]
         c0_basedir = c0.basedir
         fn = os.path.join(c0_basedir, "access.blacklist")

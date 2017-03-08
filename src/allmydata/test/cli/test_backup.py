@@ -37,11 +37,6 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         mo = re.search(r"(\d)+ files checked, (\d+) directories checked", out)
         return [int(s) for s in mo.groups()]
 
-    def setUp(self):
-        d = super(Backup, self).setUp()
-        self.basedir = "cli/Backup"
-        return d
-
     @grid_ready(oneshare=True)
     def test_backup(self):
         # is the backupdb available? If so, we test that a second backup does
@@ -354,12 +349,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
         self.failUnless(ns.called)
 
+    @grid_ready(oneshare=True)
     def test_ignore_symlinks(self):
         if not hasattr(os, 'symlink'):
             raise unittest.SkipTest("Symlinks are not supported by Python on this platform.")
-
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
 
         source = os.path.join(self.basedir, "home")
         self.writeto("foo.txt", "foo")
@@ -388,10 +381,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    @grid_ready(oneshare=True)
     def test_ignore_unreadable_file(self):
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
-
         source = os.path.join(self.basedir, "home")
         self.writeto("foo.txt", "foo")
         os.chmod(os.path.join(source, "foo.txt"), 0000)
@@ -422,10 +413,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         return d
 
+    @grid_ready(oneshare=True)
     def test_ignore_unreadable_directory(self):
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
-
         source = os.path.join(self.basedir, "home")
         os.mkdir(source)
         os.mkdir(os.path.join(source, "test"))
@@ -456,11 +445,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addErrback(_cleanup)
         return d
 
+    @grid_ready(oneshare=True)
     def test_backup_without_alias(self):
         # 'tahoe backup' should output a sensible error message when invoked
         # without an alias instead of a stack trace.
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli('backup', source, source)
         def _check((rc, out, err)):
@@ -470,11 +458,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    @grid_ready(oneshare=True)
     def test_backup_with_nonexistent_alias(self):
         # 'tahoe backup' should output a sensible error message when invoked
         # with a nonexistent alias.
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli("backup", source, "nonexistent:" + source)
         def _check((rc, out, err)):

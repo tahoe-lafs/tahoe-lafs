@@ -4,16 +4,15 @@ from twisted.internet import defer
 from allmydata.immutable import upload
 from allmydata.interfaces import MDMF_VERSION, SDMF_VERSION
 from allmydata.mutable.publish import MutableData
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from allmydata.util.encodingutil import quote_output, get_io_encoding
 from .common import CLITestMixin
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
 class List(GridTestMixin, CLITestMixin, unittest.TestCase):
+    @grid_ready()
     def test_list(self):
-        self.basedir = "cli/List/list"
-        self.set_up_grid()
         c0 = self.g.clients[0]
         small = "small"
 
@@ -161,11 +160,10 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check7)
         return d
 
+    @grid_ready(oneshare=True)
     def test_list_without_alias(self):
         # doing just 'tahoe ls' without specifying an alias or first
         # doing 'tahoe create-alias tahoe' should fail gracefully.
-        self.basedir = "cli/List/list_without_alias"
-        self.set_up_grid(oneshare=True)
         d = self.do_cli("ls")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -174,11 +172,10 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    @grid_ready(oneshare=True)
     def test_list_with_nonexistent_alias(self):
         # doing 'tahoe ls' while specifying an alias that doesn't already
         # exist should fail with an informative error message
-        self.basedir = "cli/List/list_with_nonexistent_alias"
-        self.set_up_grid(oneshare=True)
         d = self.do_cli("ls", "nonexistent:")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -242,10 +239,9 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_got_rootnode)
         return d
 
+    @grid_ready(oneshare=True)
     def test_list_mdmf(self):
         # 'tahoe ls' should include MDMF files.
-        self.basedir = "cli/List/list_mdmf"
-        self.set_up_grid(oneshare=True)
         d = self._create_directory_structure()
         d.addCallback(lambda ignored:
             self.do_cli("ls", self._dircap))
@@ -258,11 +254,10 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_got_ls)
         return d
 
+    @grid_ready(oneshare=True)
     def test_list_mdmf_json(self):
         # 'tahoe ls' should include MDMF caps when invoked with MDMF
         # caps.
-        self.basedir = "cli/List/list_mdmf_json"
-        self.set_up_grid(oneshare=True)
         d = self._create_directory_structure()
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", self._dircap))

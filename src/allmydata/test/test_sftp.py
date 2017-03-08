@@ -61,14 +61,14 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         return d
 
     def _set_up(self, basedir, num_clients=1, num_servers=10):
-        self.basedir = "sftp/" + basedir
-        self.set_up_grid(num_clients=num_clients, num_servers=num_servers,
-                         oneshare=True)
+        d = self.set_up_grid(num_clients=num_clients, num_servers=num_servers, oneshare=True)
 
-        self.client = self.g.clients[0]
-        self.username = "alice"
+        def grid(ign):
+            self.client = self.g.clients[0]
+            self.username = "alice"
+            return self.client.create_dirnode()
+        d.addCallback(grid)
 
-        d = self.client.create_dirnode()
         def _created_root(node):
             self.root = node
             self.root_uri = node.get_uri()

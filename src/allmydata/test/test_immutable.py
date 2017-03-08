@@ -155,9 +155,8 @@ class TestShareFinder(unittest.TestCase):
 
 
 class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
+    @grid_ready(num_clients=2, num_servers=5)
     def startup(self, basedir):
-        self.basedir = basedir
-        self.set_up_grid(num_clients=2, num_servers=5)
         c1 = self.g.clients[1]
         # We need multiple segments to test crypttext hash trees that are
         # non-trivial (i.e. they have more than just one hash in them).

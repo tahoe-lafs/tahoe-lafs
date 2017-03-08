@@ -1,16 +1,15 @@
 import os.path
 from twisted.trial import unittest
 from allmydata.util import fileutil
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from allmydata.scripts import tahoe_mv
 from .common import CLITestMixin
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
 class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
+    @grid_ready(oneshare=True)
     def test_mv_behavior(self):
-        self.basedir = "cli/Mv/mv_behavior"
-        self.set_up_grid(oneshare=True)
         fn1 = os.path.join(self.basedir, "file1")
         DATA1 = "Nuclear launch codes"
         fileutil.write(fn1, DATA1)
@@ -102,9 +101,8 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
                               "mv moved the wrong thing"))
         return d
 
+    @grid_ready(oneshare=True)
     def test_mv_error_if_DELETE_fails(self):
-        self.basedir = "cli/Mv/mv_error_if_DELETE_fails"
-        self.set_up_grid(oneshare=True)
         fn1 = os.path.join(self.basedir, "file1")
         DATA1 = "Nuclear launch codes"
         fileutil.write(fn1, DATA1)
@@ -142,12 +140,11 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addBoth(_restore_do_http)
         return d
 
+    @grid_ready(oneshare=True)
     def test_mv_without_alias(self):
         # doing 'tahoe mv' without explicitly specifying an alias or
         # creating the default 'tahoe' alias should fail with a useful
         # error message.
-        self.basedir = "cli/Mv/mv_without_alias"
-        self.set_up_grid(oneshare=True)
         d = self.do_cli("mv", "afile", "anotherfile")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -169,11 +166,10 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    @grid_ready(oneshare=True)
     def test_mv_with_nonexistent_alias(self):
         # doing 'tahoe mv' with an alias that doesn't exist should fail
         # with an informative error message.
-        self.basedir = "cli/Mv/mv_with_nonexistent_alias"
-        self.set_up_grid(oneshare=True)
         d = self.do_cli("mv", "fake:afile", "fake:anotherfile")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)

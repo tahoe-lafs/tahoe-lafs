@@ -4,7 +4,7 @@ from twisted.internet import defer
 from allmydata.interfaces import MDMF_VERSION
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.mutable.publish import MutableData, DEFAULT_MAX_SEGMENT_SIZE
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from .. import common_util as testutil
 
 # We should really force a smaller segsize for the duration of the tests, to
@@ -16,10 +16,9 @@ SEGSIZE = 128*1024
 class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     timeout = 400 # these tests are too big, 120s is not enough on slow
                   # platforms
+    @grid_ready(num_servers=13)
     def setUp(self):
         GridTestMixin.setUp(self)
-        self.basedir = self.mktemp()
-        self.set_up_grid(num_servers=13)
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
         # self.data should be at least three segments long.

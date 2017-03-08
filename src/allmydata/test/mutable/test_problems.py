@@ -13,7 +13,7 @@ from allmydata.mutable.common import \
 from allmydata.mutable.publish import MutableData
 from allmydata.storage.common import storage_index_to_dir
 from ..common import TEST_RSA_KEY_SIZE
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from .. import common_util as testutil
 from ..common_util import DevNullDictionary
 
@@ -49,9 +49,8 @@ class FirstServerGetsDeleted:
         return retval
 
 class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
+    @grid_ready()
     def do_publish_surprise(self, version):
-        self.basedir = "mutable/Problems/test_publish_surprise_%s" % version
-        self.set_up_grid()
         nm = self.g.clients[0].nodemaker
         d = nm.create_mutable_file(MutableData("contents 1"),
                                     version=version)
@@ -84,9 +83,8 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     def test_publish_surprise_mdmf(self):
         return self.do_publish_surprise(MDMF_VERSION)
 
+    @grid_ready()
     def test_retrieve_surprise(self):
-        self.basedir = "mutable/Problems/test_retrieve_surprise"
-        self.set_up_grid()
         nm = self.g.clients[0].nodemaker
         d = nm.create_mutable_file(MutableData("contents 1"*4000))
         def _created(n):
@@ -116,14 +114,13 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
 
+    @grid_ready()
     def test_unexpected_shares(self):
         # upload the file, take a servermap, shut down one of the servers,
         # upload it again (causing shares to appear on a new server), then
         # upload using the old servermap. The last upload should fail with an
         # UncoordinatedWriteError, because of the shares that didn't appear
         # in the servermap.
-        self.basedir = "mutable/Problems/test_unexpected_shares"
-        self.set_up_grid()
         nm = self.g.clients[0].nodemaker
         d = nm.create_mutable_file(MutableData("contents 1"))
         def _created(n):
@@ -152,9 +149,8 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         return d
 
+    @grid_ready()
     def test_multiply_placed_shares(self):
-        self.basedir = "mutable/Problems/test_multiply_placed_shares"
-        self.set_up_grid()
         nm = self.g.clients[0].nodemaker
         d = nm.create_mutable_file(MutableData("contents 1"))
         # remove one of the servers and reupload the file.
@@ -190,12 +186,11 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_overwritten_again)
         return d
 
+    @grid_ready()
     def test_bad_server(self):
         # Break one server, then create the file: the initial publish should
         # complete with an alternate server. Breaking a second server should
         # not prevent an update from succeeding either.
-        self.basedir = "mutable/Problems/test_bad_server"
-        self.set_up_grid()
         nm = self.g.clients[0].nodemaker
 
         # to make sure that one of the initial peers is broken, we have to
@@ -245,6 +240,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_got_node)
         return d
 
+    @grid_ready()
     def test_bad_server_overlap(self):
         # like test_bad_server, but with no extra unused servers to fall back
         # upon. This means that we must re-use a server which we've already
@@ -255,8 +251,6 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # Break one server, then create the file: the initial publish should
         # complete with an alternate server. Breaking a second server should
         # not prevent an update from succeeding either.
-        self.basedir = "mutable/Problems/test_bad_server_overlap"
-        self.set_up_grid()
         nm = self.g.clients[0].nodemaker
         sb = nm.storage_broker
 
@@ -279,10 +273,9 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         return d
 
+    @grid_ready()
     def test_publish_all_servers_bad(self):
         # Break all servers: the publish should fail
-        self.basedir = "mutable/Problems/test_publish_all_servers_bad"
-        self.set_up_grid()
         nm = self.g.clients[0].nodemaker
         for s in nm.storage_broker.get_connected_servers():
             s.get_rref().broken = True
@@ -293,10 +286,9 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                             nm.create_mutable_file, MutableData("contents"))
         return d
 
+    @grid_ready(num_servers=0)
     def test_publish_no_servers(self):
         # no servers at all: the publish should fail
-        self.basedir = "mutable/Problems/test_publish_no_servers"
-        self.set_up_grid(num_servers=0)
         nm = self.g.clients[0].nodemaker
 
         d = self.shouldFail(NotEnoughServersError,
@@ -306,13 +298,12 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
 
+    @grid_ready(num_servers=20)
     def test_privkey_query_error(self):
         # when a servermap is updated with MODE_WRITE, it tries to get the
         # privkey. Something might go wrong during this query attempt.
         # Exercise the code in _privkey_query_failed which tries to handle
         # such an error.
-        self.basedir = "mutable/Problems/test_privkey_query_error"
-        self.set_up_grid(num_servers=20)
         nm = self.g.clients[0].nodemaker
         nm._node_cache = DevNullDictionary() # disable the nodecache
 
@@ -349,11 +340,10 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
         return d
 
+    @grid_ready(num_servers=20)
     def test_privkey_query_missing(self):
         # like test_privkey_query_error, but the shares are deleted by the
         # second query, instead of raising an exception.
-        self.basedir = "mutable/Problems/test_privkey_query_missing"
-        self.set_up_grid(num_servers=20)
         nm = self.g.clients[0].nodemaker
         LARGE = "These are Larger contents" * 2000 # about 50KiB
         LARGE_uploadable = MutableData(LARGE)
@@ -371,6 +361,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
 
+    @grid_ready(num_servers=20)
     def test_block_and_hash_query_error(self):
         # This tests for what happens when a query to a remote server
         # fails in either the hash validation step or the block getting
@@ -378,8 +369,6 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # We need to have the storage server persist up until the point
         # that its prefix is validated, then suddenly die. This
         # exercises some exception handling code in Retrieve.
-        self.basedir = "mutable/Problems/test_block_and_hash_query_error"
-        self.set_up_grid(num_servers=20)
         nm = self.g.clients[0].nodemaker
         CONTENTS = "contents" * 2000
         CONTENTS_uploadable = MutableData(CONTENTS)
@@ -408,6 +397,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             self.failUnlessEqual(data, CONTENTS))
         return d
 
+    @grid_ready(num_servers=2)
     def test_1654(self):
         # test that the Retrieve object unconditionally verifies the block
         # hash tree root for mutable shares. The failure mode is that
@@ -416,8 +406,6 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # corrupted). When fixed, these shares always cause a
         # CorruptShareError, which results in NotEnoughSharesError in this
         # 2-of-2 file.
-        self.basedir = "mutable/Problems/test_1654"
-        self.set_up_grid(num_servers=2)
         cap = uri.from_string(TEST_1654_CAP)
         si = cap.get_storage_index()
 
