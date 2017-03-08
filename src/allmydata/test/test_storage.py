@@ -449,7 +449,7 @@ class Server(unittest.TestCase):
 
         # Now abort the writers.
         for writer in writers.itervalues():
-            writer.remote_abort()
+            yield writer.remote_abort()
         self.failUnlessEqual(server.allocated_size(), 0)
 
     @defer.inlineCallbacks

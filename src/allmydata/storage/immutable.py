@@ -206,17 +206,18 @@ class BucketWriter(Referenceable):
         if not self.closed:
             self._abort()
 
+    @defer.inlineCallbacks
     def remote_abort(self):
         log.msg("storage: aborting sharefile %s" % self.incominghome,
                 facility="tahoe.storage", level=log.UNUSUAL)
         if not self.closed:
             self._canary.dontNotifyOnDisconnect(self._disconnect_marker)
-        self._abort()
+        yield self._abort()
         self.ss.count("abort")
 
     def _abort(self):
         if self.closed:
-            return
+            return defer.succeed(None)
 
         os.remove(self.incominghome)
         # if we were the last share to be moved, remove the incoming/
