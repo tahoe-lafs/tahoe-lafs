@@ -7,6 +7,7 @@ from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 from twisted.internet.error import ProcessDone, ProcessTerminated
 from allmydata.util import deferredutil
+from no_network import GridTestMixin, grid_ready
 
 conch_interfaces = None
 sftp = None
@@ -61,6 +62,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         return d
 
     @grid_ready(num_clients=1, num_servers=10, oneshare=True)
+    @defer.inlineCallbacks
     def _set_up(self, basedir):
         self.client = self.g.clients[0]
         self.username = "alice"

@@ -1050,7 +1050,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                                        convergence="")))
         return d
 
-
+    @grid_ready(num_clients=1, num_servers=1)
     def test_problem_layout_comment_53(self):
         # This scenario is at
         # http://allmydata.org/trac/tahoe-lafs/ticket/778#comment:53

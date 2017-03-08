@@ -36,9 +36,8 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
     def do_upload_mdmf(self):
-        d = self.g.clients[0].nodemaker
-        .create_mutable_file(MutableData(self.data),
-                                        version=MDMF_VERSION)
+        d = self.g.clients[0].nodemaker.create_mutable_file(MutableData(self.data),
+                                                            version=MDMF_VERSION)
         def _then(n):
             assert isinstance(n, MutableFileNode)
             self.mdmf_node = n
