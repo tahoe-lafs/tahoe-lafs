@@ -228,9 +228,22 @@ class FakeStorageServer(service.MultiService):
     def get_expiration_policy(self):
         return self.expiration_policy
 
+class FakeAccount:
+    def add_share(self, storage_index, shnum, used_space, sharetype, commit=True):
+        pass
+    def add_or_renew_default_lease(self, storage_index, shnum, commit=True):
+        pass
+    def mark_share_as_stable(self, storage_index, shnum, used_space, commit=True):
+        pass
+    def get_expiration_policy(self):
+        return ExpirationPolicy()
+
 class FakeAccountant:
     def get_all_accounts(self):
         return []
+
+    def get_anonymous_account(self):
+        return FakeAccount()
 
 class FakeClient(Client):
     def __init__(self):

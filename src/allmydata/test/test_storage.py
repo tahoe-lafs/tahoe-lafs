@@ -5,6 +5,7 @@ from twisted.trial import unittest
 
 from twisted.internet import defer, reactor
 from twisted.application import service
+from twisted.python.failure import Failure
 from foolscap.api import fireEventually
 import itertools
 
@@ -33,17 +34,46 @@ from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.test.no_network import NoNetworkServer
 from allmydata.web.storage import StorageStatus, remove_prefix
+from allmydata.storage.accountant import create_accountant
 
 class Marker:
     pass
 
-class FakeAccount:
+class FakeAccount(object):
     def add_share(self, storage_index, shnum, used_space, sharetype, commit=True):
         pass
     def add_or_renew_default_lease(self, storage_index, shnum, commit=True):
         pass
     def mark_share_as_stable(self, storage_index, shnum, used_space, commit=True):
         pass
+    def get_expiration_policy(self):
+        return ExpirationPolicy()
+
+class FakeAccountingCrawler(object):
+    def get_progress(self):
+        return {
+            'cycle-in-progress': False,
+            'next-crawl-time': 0.0,
+            'remaining-wait-time': 0.0,
+            'estimated-time-per-cycle': 0.0,
+        }
+
+    def get_state(self):
+        return {
+            'history': [],
+        }
+
+
+class FakeAccountant(object):
+    def get_all_accounts(self):
+        return []
+
+    def get_anonymous_account(self):
+        return FakeAccount()
+
+    def get_accounting_crawler(self):
+        return FakeAccountingCrawler()
+
 
 class FakeCanary:
     def __init__(self, ignore_disconnectors=False):
@@ -284,36 +314,43 @@ class Server(unittest.TestCase):
         basedir = os.path.join("storage", "Server", name)
         return basedir
 
+    @defer.inlineCallbacks
     def create(self, name, reserved_space=0, klass=StorageServer):
         workdir = self.workdir(name)
         server = klass(workdir, "\x00" * 20, reserved_space=reserved_space,
                        stats_provider=FakeStatsProvider())
         server.setServiceParent(self.sparent)
-        return server
+        dbfile = os.path.join(workdir, 'leases_{}.db'.format(name))
+        statefile = os.path.join(workdir, 'state_{}'.format(name))
+        accountant = yield create_accountant(server, dbfile, statefile)
+        defer.returnValue((server, accountant))
 
 
     def test_create(self):
-        self.create("test_create")
+        return self.create("test_create")
 
+    @defer.inlineCallbacks
     def test_declares_fixed_1528(self):
-        server = self.create("test_declares_fixed_1528")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_declares_fixed_1528")
+        aa = accountant.get_anonymous_account()
 
         ver = aa.remote_get_version()
         sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
         self.failUnless(sv1.get('prevents-read-past-end-of-share-data'), sv1)
 
+    @defer.inlineCallbacks
     def test_declares_maximum_share_sizes(self):
-        server = self.create("test_declares_maximum_share_sizes")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_declares_maximum_share_sizes")
+        aa = accountant.get_anonymous_account()
 
         ver = aa.remote_get_version()
         sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
         self.failUnlessIn('maximum-immutable-share-size', sv1)
         self.failUnlessIn('maximum-mutable-share-size', sv1)
 
+    @defer.inlineCallbacks
     def test_declares_available_space(self):
-        ss = self.create("test_declares_available_space")
+        ss, _ = yield self.create("test_declares_available_space")
         ver = ss.client_get_version(None)
         sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
         self.failUnlessIn('available-space', sv1)
@@ -327,6 +364,7 @@ class Server(unittest.TestCase):
                                           renew_secret, cancel_secret,
                                           sharenums, size, canary)
 
+    @defer.inlineCallbacks
     def test_large_share(self):
         syslow = platform.system().lower()
         if 'cygwin' in syslow or 'windows' in syslow or 'darwin' in syslow:
@@ -336,10 +374,10 @@ class Server(unittest.TestCase):
         if avail <= 4*2**30:
             raise unittest.SkipTest("This test will spuriously fail if you have less than 4 GiB free on your filesystem.")
 
-        server = self.create("test_large_share")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_large_share")
+        aa = accountant.get_anonymous_account()
 
-        already,writers = self.allocate(aa, "allocate", [0], 2**32+2)
+        already, writers = yield self.allocate(aa, "allocate", [0], 2**32+2)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0]))
 
@@ -352,16 +390,17 @@ class Server(unittest.TestCase):
         reader = readers[shnum]
         self.failUnlessEqual(reader.remote_read(2**32, 2), "ab")
 
+    @defer.inlineCallbacks
     def test_dont_overfill_dirs(self):
         """
         This test asserts that if you add a second share whose storage index
         share lots of leading bits with an extant share (but isn't the exact
         same storage index), this won't add an entry to the share directory.
         """
-        server = self.create("test_dont_overfill_dirs")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_dont_overfill_dirs")
+        aa = accountant.get_anonymous_account()
 
-        already, writers = self.allocate(aa, "storageindex", [0], 10)
+        already, writers = yield self.allocate(aa, "storageindex", [0], 10)
         for i, wb in writers.items():
             wb.remote_write(0, "%10d" % i)
             wb.remote_close()
@@ -371,7 +410,7 @@ class Server(unittest.TestCase):
 
         # Now store another one under another storageindex that has leading
         # chars the same as the first storageindex.
-        already, writers = self.allocate(aa, "storageindey", [0], 10)
+        already, writers = yield self.allocate(aa, "storageindey", [0], 10)
         for i, wb in writers.items():
             wb.remote_write(0, "%10d" % i)
             wb.remote_close()
@@ -380,11 +419,12 @@ class Server(unittest.TestCase):
         new_children_of_storedir = set(os.listdir(storedir))
         self.failUnlessEqual(children_of_storedir, new_children_of_storedir)
 
+    @defer.inlineCallbacks
     def test_remove_incoming(self):
-        server = self.create("test_remove_incoming")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_remove_incoming")
+        aa = accountant.get_anonymous_account()
 
-        already, writers = self.allocate(aa, "vid", range(3), 10)
+        already, writers = yield self.allocate(aa, "vid", range(3), 10)
         for i,wb in writers.items():
             wb.remote_write(0, "%10d" % i)
             wb.remote_close()
@@ -396,14 +436,15 @@ class Server(unittest.TestCase):
         self.failIf(os.path.exists(incoming_prefix_dir), incoming_prefix_dir)
         self.failUnless(os.path.exists(incoming_dir), incoming_dir)
 
+    @defer.inlineCallbacks
     def test_abort(self):
         # remote_abort, when called on a writer, should make sure that
         # the allocated size of the bucket is not counted by the storage
         # server when accounting for space.
-        server = self.create("test_abort")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_abort")
+        aa = accountant.get_anonymous_account()
 
-        already, writers = self.allocate(aa, "allocate", [0, 1, 2], 150)
+        already, writers = yield self.allocate(aa, "allocate", [0, 1, 2], 150)
         self.failIfEqual(server.allocated_size(), 0)
 
         # Now abort the writers.
@@ -411,13 +452,14 @@ class Server(unittest.TestCase):
             writer.remote_abort()
         self.failUnlessEqual(server.allocated_size(), 0)
 
+    @defer.inlineCallbacks
     def test_allocate(self):
-        server = self.create("test_allocate")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_allocate")
+        aa = accountant.get_anonymous_account()
 
         self.failUnlessEqual(aa.remote_get_buckets("allocate"), {})
 
-        already,writers = self.allocate(aa, "allocate", [0,1,2], 75)
+        already, writers = yield self.allocate(aa, "allocate", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
 
@@ -442,21 +484,21 @@ class Server(unittest.TestCase):
         # now if we ask about writing again, the server should offer those
         # three buckets as already present. It should offer them even if we
         # don't ask about those specific ones.
-        already,writers = self.allocate(aa, "allocate", [2,3,4], 75)
+        already, writers = yield self.allocate(aa, "allocate", [2,3,4], 75)
         self.failUnlessEqual(already, set([0,1,2]))
         self.failUnlessEqual(set(writers.keys()), set([3,4]))
 
         # while those two buckets are open for writing, the server should
         # refuse to offer them to uploaders
 
-        already2,writers2 = self.allocate(aa, "allocate", [2,3,4,5], 75)
+        already2, writers2 = yield self.allocate(aa, "allocate", [2,3,4,5], 75)
         self.failUnlessEqual(already2, set([0,1,2]))
         self.failUnlessEqual(set(writers2.keys()), set([5]))
 
         # aborting the writes should remove the tempfiles
         for i,wb in writers2.items():
             wb.remote_abort()
-        already2,writers2 = self.allocate(aa, "allocate", [2,3,4,5], 75)
+        already2, writers2 = yield self.allocate(aa, "allocate", [2,3,4,5], 75)
         self.failUnlessEqual(already2, set([0,1,2]))
         self.failUnlessEqual(set(writers2.keys()), set([5]))
 
@@ -465,11 +507,12 @@ class Server(unittest.TestCase):
         for i,wb in writers.items():
             wb.remote_abort()
 
+    @defer.inlineCallbacks
     def test_bad_container_version(self):
-        server = self.create("test_bad_container_version")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_bad_container_version")
+        aa = accountant.get_anonymous_account()
 
-        a,w = self.allocate(aa, "si1", [0], 10)
+        a, w = yield self.allocate(aa, "si1", [0], 10)
         w[0].remote_write(0, "\xff"*10)
         w[0].remote_close()
 
@@ -485,13 +528,14 @@ class Server(unittest.TestCase):
                                   aa.remote_get_buckets, "si1")
         self.failUnlessIn(" had version 0 but we wanted 1", str(e))
 
+    @defer.inlineCallbacks
     def test_disconnect(self):
         # simulate a disconnection
-        server = self.create("test_disconnect")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_disconnect")
+        aa = accountant.get_anonymous_account()
 
         canary = FakeCanary()
-        already,writers = self.allocate(aa, "disconnect", [0,1,2], 75, canary)
+        already, writers = yield self.allocate(aa, "disconnect", [0,1,2], 75, canary)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
         for (f,args,kwargs) in canary.disconnectors.values():
@@ -500,10 +544,11 @@ class Server(unittest.TestCase):
         del writers
 
         # that ought to delete the incoming shares
-        already,writers = self.allocate(aa, "disconnect", [0,1,2], 75)
+        already, writers = yield self.allocate(aa, "disconnect", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
 
+    @defer.inlineCallbacks
     def test_reserved_space(self):
         reserved = 10000
         allocated = 0
@@ -516,8 +561,8 @@ class Server(unittest.TestCase):
             }
         self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
 
-        server = self.create("test_reserved_space", reserved_space=reserved)
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_reserved_space", reserved_space=reserved)
+        aa = accountant.get_anonymous_account()
 
         # 15k available, 10k reserved, leaves 5k for shares
 
@@ -526,14 +571,14 @@ class Server(unittest.TestCase):
         OVERHEAD = 3*4
         LEASE_SIZE = 4+32+32+4
         canary = FakeCanary(True)
-        already,writers = self.allocate(aa, "vid1", [0,1,2], 1000, canary)
+        already, writers = yield self.allocate(aa, "vid1", [0,1,2], 1000, canary)
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
         self.failUnlessEqual(len(server._active_writers), 3)
 
         # allocating 1001-byte shares only leaves room for one
-        already2,writers2 = self.allocate(aa, "vid2", [0,1,2], 1001, canary)
+        already2, writers2 = yield self.allocate(aa, "vid2", [0,1,2], 1001, canary)
         self.failUnlessEqual(len(writers2), 1)
         self.failUnlessEqual(len(server._active_writers), 4)
 
@@ -549,7 +594,7 @@ class Server(unittest.TestCase):
         # overhead.
         for bw in writers2.values():
             bw.remote_write(0, "a"*25)
-            bw.remote_close()
+            yield bw.remote_close()
         del already2
         del writers2
         del bw
@@ -558,14 +603,17 @@ class Server(unittest.TestCase):
         # this also changes the amount reported as available by call_get_disk_stats
         allocated = 1001 + OVERHEAD + LEASE_SIZE
 
+        print("calling allocate")
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
-        already3,writers3 = self.allocate(aa, "vid3", range(100), 100, canary)
+        already3, writers3 = yield self.allocate(aa, "vid3", range(100), 100, canary)
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(server._active_writers), 39)
 
+        print("calling del")
         del already3
         del writers3
+        print("done")
         self.failUnlessEqual(len(server._active_writers), 0)
         server.disownServiceParent()
         del server
@@ -598,10 +646,11 @@ class Server(unittest.TestCase):
                 self.failUnlessEqual(a.renewal_time, b.renewal_time)
                 self.failUnlessEqual(a.expiration_time, b.expiration_time)
 
+    @defer.inlineCallbacks
     def test_leases(self):
-        server = self.create("test_leases")
-        aa = server.get_accountant().get_anonymous_account()
-        sa = server.get_accountant().get_starter_account()
+        server, accountant = yield self.create("test_leases")
+        aa = accountant.get_anonymous_account()
+        sa = accountant.get_starter_account()
 
         canary = FakeCanary()
         sharenums = range(5)
@@ -615,14 +664,14 @@ class Server(unittest.TestCase):
         fileutil.write(os.path.join(bucket_dir, "ignore_me.txt"),
                        "you ought to be ignoring me\n")
 
-        already,writers = aa.remote_allocate_buckets("si1", "", "",
-                                                     sharenums, size, canary)
+        already, writers = yield aa.remote_allocate_buckets("si1", "", "",
+                                                            sharenums, size, canary)
         self.failUnlessEqual(len(already), 0)
         self.failUnlessEqual(len(writers), 5)
         for wb in writers.values():
             wb.remote_close()
 
-        leases = aa.get_leases("si1")
+        leases = yield aa.get_leases("si1")
         self.failUnlessEqual(len(leases), 5)
 
         aa.add_share("six", 0, 0, SHARETYPE_IMMUTABLE)
@@ -654,13 +703,19 @@ class Server(unittest.TestCase):
         sa.remote_renew_lease("si1", "")
         self.compare_leases(all_leases2, sa.get_leases("si1"), with_timestamps=False)
 
+    @defer.inlineCallbacks
     def test_readonly(self):
         workdir = self.workdir("test_readonly")
         server = StorageServer(workdir, "\x00" * 20, readonly_storage=True)
+        accountant = yield create_accountant(
+            server,
+            os.path.join(workdir, 'leases.db'),
+            os.path.join(workdir, 'state'),
+        )
         server.setServiceParent(self.sparent)
-        aa = server.get_accountant().get_anonymous_account()
+        aa = accountant.get_anonymous_account()
 
-        already,writers = self.allocate(aa, "vid", [0,1,2], 75)
+        already, writers = yield self.allocate(aa, "vid", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(writers, {})
 
@@ -671,11 +726,17 @@ class Server(unittest.TestCase):
             # But if there are stats, readonly_storage means disk_avail=0
             self.failUnlessEqual(stats["storage_server.disk_avail"], 0)
 
+    @defer.inlineCallbacks
     def test_advise_corruption(self):
         workdir = self.workdir("test_advise_corruption")
         server = StorageServer(workdir, "\x00" * 20)
         server.setServiceParent(self.sparent)
-        aa = server.get_accountant().get_anonymous_account()
+        accountant = yield create_accountant(
+            server,
+            os.path.join(workdir, 'leases.db'),
+            os.path.join(workdir, 'state'),
+        )
+        aa = accountant.get_anonymous_account()
 
         si0_s = base32.b2a("si0")
         aa.remote_advise_corrupt_share("immutable", "si0", 0,
@@ -695,7 +756,7 @@ class Server(unittest.TestCase):
 
         # test the RIBucketWriter version too
         si1_s = base32.b2a("si1")
-        already,writers = self.allocate(aa, "si1", [1], 75)
+        already, writers = yield self.allocate(aa, "si1", [1], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([1]))
         writers[1].remote_write(0, "data")
@@ -730,15 +791,18 @@ class MutableServer(unittest.TestCase):
         basedir = os.path.join("storage", "MutableServer", name)
         return basedir
 
+    @defer.inlineCallbacks
     def create(self, name):
         workdir = self.workdir(name)
         server = StorageServer(workdir, "\x00" * 20)
         server.setServiceParent(self.sparent)
-        return server
+        dbfile = os.path.join(workdir, 'leases.db')
+        statefile = os.path.join(workdir, 'state')
+        accountant = yield create_accountant(server, dbfile, statefile)
+        defer.returnValue((server, accountant))
 
     def test_create(self):
-        self.create("test_create")
-
+        return self.create("test_create")
 
     def write_enabler(self, we_tag):
         return hashutil.tagged_hash("we_blah", we_tag)
@@ -749,29 +813,38 @@ class MutableServer(unittest.TestCase):
     def cancel_secret(self, tag):
         return hashutil.tagged_hash("cancel_blah", str(tag))
 
+    @defer.inlineCallbacks
     def allocate(self, aa, storage_index, we_tag, lease_tag, sharenums, size):
         write_enabler = self.write_enabler(we_tag)
         renew_secret = self.renew_secret(lease_tag)
         cancel_secret = self.cancel_secret(lease_tag)
-        rstaraw = aa.remote_slot_testv_and_readv_and_writev
         testandwritev = dict( [ (shnum, ([], [], None) )
                          for shnum in sharenums ] )
         readv = []
-        rc = rstaraw(storage_index,
-                     (write_enabler, renew_secret, cancel_secret),
-                     testandwritev,
-                     readv)
+        d = aa.remote_slot_testv_and_readv_and_writev(
+            storage_index,
+            (write_enabler, renew_secret, cancel_secret),
+            testandwritev,
+            readv,
+        )
+        print("AA", aa, d)
+        try:
+            rc = yield d
+        except Exception:
+            print Failure()
+            raise
+        print("XXX" ,rc)
         (did_write, readv_data) = rc
         self.failUnless(did_write)
         self.failUnless(isinstance(readv_data, dict))
         self.failUnlessEqual(len(readv_data), 0)
 
-
+    @defer.inlineCallbacks
     def test_bad_magic(self):
-        server = self.create("test_bad_magic")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_bad_magic")
+        aa = accountant.get_anonymous_account()
 
-        self.allocate(aa, "si1", "we1", self._lease_secret.next(), set([0]), 10)
+        yield self.allocate(aa, "si1", "we1", self._lease_secret.next(), set([0]), 10)
         fn = os.path.join(server.sharedir, storage_index_to_dir("si1"), "0")
         f = open(fn, "rb+")
         f.seek(0)
@@ -783,12 +856,13 @@ class MutableServer(unittest.TestCase):
         self.failUnlessIn(" had magic ", str(e))
         self.failUnlessIn(" but we wanted ", str(e))
 
+    @defer.inlineCallbacks
     def test_container_size(self):
-        server = self.create("test_container_size")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_container_size")
+        aa = accountant.get_anonymous_account()
 
-        self.allocate(aa, "si1", "we1", self._lease_secret.next(),
-                      set([0,1,2]), 100)
+        yield self.allocate(aa, "si1", "we1", self._lease_secret.next(),
+                            set([0,1,2]), 100)
         read = aa.remote_slot_readv
         rstaraw = aa.remote_slot_testv_and_readv_and_writev
         secrets = ( self.write_enabler("we1"),
@@ -883,12 +957,13 @@ class MutableServer(unittest.TestCase):
         read_answer = read("si1", [0], [(0,10)])
         self.failUnlessEqual(read_answer, {})
 
+    @defer.inlineCallbacks
     def test_allocate(self):
-        server = self.create("test_allocate")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_allocate")
+        aa = accountant.get_anonymous_account()
 
-        self.allocate(aa, "si1", "we1", self._lease_secret.next(),
-                      set([0,1,2]), 100)
+        yield self.allocate(aa, "si1", "we1", self._lease_secret.next(),
+                            set([0,1,2]), 100)
 
         read = aa.remote_slot_readv
         self.failUnlessEqual(read("si1", [0], [(0, 10)]),
@@ -954,11 +1029,12 @@ class MutableServer(unittest.TestCase):
                                       ))
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
 
+    @defer.inlineCallbacks
     def test_operators(self):
         # test operators, the data we're comparing is '11111' in all cases.
         # test both fail+pass, reset data after each one.
-        server = self.create("test_operators")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_operators")
+        aa = accountant.get_anonymous_account()
 
         secrets = ( self.write_enabler("we1"),
                     self.renew_secret("we1"),
@@ -1135,9 +1211,10 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
         reset()
 
+    @defer.inlineCallbacks
     def test_readv(self):
-        server = self.create("test_readv")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_readv")
+        aa = accountant.get_anonymous_account()
 
         secrets = ( self.write_enabler("we1"),
                     self.renew_secret("we1"),
@@ -1168,10 +1245,11 @@ class MutableServer(unittest.TestCase):
                 self.failUnlessEqual(a.renewal_time, b.renewal_time)
                 self.failUnlessEqual(a.expiration_time, b.expiration_time)
 
+    @defer.inlineCallbacks
     def test_leases(self):
-        server = self.create("test_leases")
-        aa = server.get_accountant().get_anonymous_account()
-        sa = server.get_accountant().get_starter_account()
+        server, accountant = yield self.create("test_leases")
+        aa = accountant.get_anonymous_account()
+        sa = accountant.get_starter_account()
 
         def secrets(n):
             return ( self.write_enabler("we1"),
@@ -1181,7 +1259,7 @@ class MutableServer(unittest.TestCase):
         write = aa.remote_slot_testv_and_readv_and_writev
         write2 = sa.remote_slot_testv_and_readv_and_writev
         read = aa.remote_slot_readv
-        rc = write("si0", secrets(0), {0: ([], [(0,data)], None)}, [])
+        rc = yield write("si0", secrets(0), {0: ([], [(0,data)], None)}, [])
         self.failUnlessEqual(rc, (True, {}))
 
         # create a random non-numeric file in the bucket directory, to
@@ -1199,7 +1277,7 @@ class MutableServer(unittest.TestCase):
         # adding a share does not immediately add a lease
         self.failUnlessEqual(len(aa.get_leases("six")), 0)
 
-        aa.add_or_renew_default_lease("six", 0)
+        yield aa.add_or_renew_default_lease("six", 0)
         self.failUnlessEqual(len(aa.get_leases("six")), 1)
 
         # add-lease on a missing storage index is silently ignored
@@ -1207,7 +1285,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(len(aa.get_leases("si18")), 0)
 
         # update the lease by writing
-        write("si1", secrets(0), {0: ([], [(0,data)], None)}, [])
+        yield write("si1", secrets(0), {0: ([], [(0,data)], None)}, [])
         self.failUnlessEqual(len(aa.get_leases("si1")), 1)
 
         # renew it directly
@@ -1215,7 +1293,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(len(aa.get_leases("si1")), 1)
 
         # now allocate another lease using a different account
-        write2("si1", secrets(1), {0: ([], [(0,data)], None)}, [])
+        yield write2("si1", secrets(1), {0: ([], [(0,data)], None)}, [])
         self.failUnlessEqual(len(aa.get_leases("si1")), 1)
         self.failUnlessEqual(len(sa.get_leases("si1")), 1)
 
@@ -1236,51 +1314,52 @@ class MutableServer(unittest.TestCase):
         read("si1", [], [(0,200)])
         self.compare_leases(aa_leases, aa.get_leases("si1"))
 
-        write("si1", secrets(0),
+        yield write("si1", secrets(0),
               {0: ([], [(200, "make me bigger")], None)}, [])
         self.compare_leases(aa_leases, aa.get_leases("si1"), with_timestamps=False)
 
-        write("si1", secrets(0),
+        yield write("si1", secrets(0),
               {0: ([], [(500, "make me really bigger")], None)}, [])
         self.compare_leases(aa_leases, aa.get_leases("si1"), with_timestamps=False)
 
+    @defer.inlineCallbacks
     def test_remove(self):
-        server = self.create("test_remove")
-        aa = server.get_accountant().get_anonymous_account()
+        server, accountant = yield self.create("test_remove")
+        aa = accountant.get_anonymous_account()
 
-        self.allocate(aa, "si1", "we1", self._lease_secret.next(),
-                      set([0,1,2]), 100)
+        yield self.allocate(aa, "si1", "we1", self._lease_secret.next(),
+                            set([0,1,2]), 100)
         readv = aa.remote_slot_readv
         writev = aa.remote_slot_testv_and_readv_and_writev
         secrets = ( self.write_enabler("we1"),
                     self.renew_secret("we1"),
                     self.cancel_secret("we1") )
         # delete sh0 by setting its size to zero
-        answer = writev("si1", secrets,
-                        {0: ([], [], 0)},
-                        [])
+        answer = yield writev("si1", secrets,
+                              {0: ([], [], 0)},
+                              [])
         # the answer should mention all the shares that existed before the
         # write
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
         # but a new read should show only sh1 and sh2
-        self.failUnlessEqual(readv("si1", [], [(0,10)]),
-                             {1: [""], 2: [""]})
+        answer = yield readv("si1", [], [(0,10)])
+        self.failUnlessEqual(answer, {1: [""], 2: [""]})
 
         # delete sh1 by setting its size to zero
-        answer = writev("si1", secrets,
-                        {1: ([], [], 0)},
-                        [])
+        answer = yield writev("si1", secrets,
+                              {1: ([], [], 0)},
+                              [])
         self.failUnlessEqual(answer, (True, {1:[],2:[]}) )
-        self.failUnlessEqual(readv("si1", [], [(0,10)]),
-                             {2: [""]})
+        answer = yield readv("si1", [], [(0,10)])
+        self.failUnlessEqual(answer, {2: [""]})
 
         # delete sh2 by setting its size to zero
-        answer = writev("si1", secrets,
+        answer = yield writev("si1", secrets,
                         {2: ([], [], 0)},
                         [])
         self.failUnlessEqual(answer, (True, {2:[]}) )
-        self.failUnlessEqual(readv("si1", [], [(0,10)]),
-                             {})
+        answer = yield readv("si1", [], [(0,10)])
+        self.failUnlessEqual(answer, {})
         # and the bucket directory should now be gone
         si = base32.b2a("si1")
         # note: this is a detail of the storage server implementation, and
@@ -1340,11 +1419,15 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         basedir = os.path.join("storage", "MutableServer", name)
         return basedir
 
+    @defer.inlineCallbacks
     def create(self, name):
         workdir = self.workdir(name)
         server = StorageServer(workdir, "\x00" * 20)
         server.setServiceParent(self.sparent)
-        return server.get_accountant().get_anonymous_account()
+        dbfile = os.path.join(workdir, 'leases.db')
+        statefile = os.path.join(workdir, 'state')
+        accountant = yield create_accountant(server, dbfile, statefile)
+        defer.returnValue(accountant.get_anonymous_account())
 
     def build_test_mdmf_share(self, tail_segment=False, empty=False):
         # Start with the checkstring
@@ -2789,7 +2872,7 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
 
         server.setServiceParent(self.s)
 
-        w = StorageStatus(server)
+        w = StorageStatus(server, FakeAccountant())
 
         # this sample is before the crawler has started doing anything
         html = w.renderSynchronously()
@@ -2885,7 +2968,7 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
 
         server.setServiceParent(self.s)
 
-        w = StorageStatus(server)
+        w = StorageStatus(server, FakeAccountant())
 
         def _check_1(prefix1):
             # no ETA is available yet
@@ -2977,7 +3060,7 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         ac.slow_start = 0
         ac.cpu_slice = 500
 
-        webstatus = StorageStatus(server)
+        webstatus = StorageStatus(server, FakeAccountant())
 
         # create a few shares, with some leases on them
         self.make_shares(server)
@@ -3102,6 +3185,7 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         d.addBoth(self._wait_for_yield, ac)
         return d
 
+    @defer.inlineCallbacks
     def test_expire_age(self):
         basedir = "storage/AccountingCrawler/expire_age"
         fileutil.make_dirs(basedir)
@@ -3110,15 +3194,18 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         now = time.time()
         ep = ExpirationPolicy(enabled=True, mode="age", override_lease_duration=2000)
         server = StorageServer(basedir, "\x00" * 20, expiration_policy=ep)
-        aa = server.get_accountant().get_anonymous_account()
-        sa = server.get_accountant().get_starter_account()
+        dbfile = os.path.join(workdir, 'leases.db')
+        statefile = os.path.join(workdir, 'state')
+        accountant = yield create_accountant(server, dbfile, statefile)
+        aa = accountant.get_anonymous_account()
+        sa = accountant.get_starter_account()
 
         # finish as fast as possible
         ac = server.get_accounting_crawler()
         ac.slow_start = 0
         ac.cpu_slice = 500
 
-        webstatus = StorageStatus(server)
+        webstatus = StorageStatus(server, accountant)
 
         # create a few shares, with some leases on them
         self.make_shares(server)
@@ -3150,15 +3237,15 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         # crawler, which will expire the first lease, making some shares get
         # deleted and others stay alive (with one remaining lease)
 
-        aa.add_or_renew_lease(immutable_si_0, 0, new_renewal_time, new_expiration_time)
+        yield aa.add_or_renew_lease(immutable_si_0, 0, new_renewal_time, new_expiration_time)
 
         # immutable_si_1 gets an extra lease
-        sa.add_or_renew_lease(immutable_si_1, 0, new_renewal_time, new_expiration_time)
+        yield sa.add_or_renew_lease(immutable_si_1, 0, new_renewal_time, new_expiration_time)
 
-        aa.add_or_renew_lease(mutable_si_2,   0, new_renewal_time, new_expiration_time)
+        yield aa.add_or_renew_lease(mutable_si_2,   0, new_renewal_time, new_expiration_time)
 
         # mutable_si_3 gets an extra lease
-        sa.add_or_renew_lease(mutable_si_3,   0, new_renewal_time, new_expiration_time)
+        yield sa.add_or_renew_lease(mutable_si_3,   0, new_renewal_time, new_expiration_time)
 
         server.setServiceParent(self.s)
 
@@ -3219,8 +3306,9 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
             self.failUnlessIn(" recovered: 2 shares, 2 sharesets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html_after_cycle)
         d.addBoth(self._wait_for_yield, ac)
-        return d
+        yield d
 
+    @defer.inlineCallbacks
     def test_expire_cutoff_date(self):
         basedir = "storage/AccountingCrawler/expire_cutoff_date"
         fileutil.make_dirs(basedir)
@@ -3230,15 +3318,18 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         then = int(now - 2000)
         ep = ExpirationPolicy(enabled=True, mode="cutoff-date", cutoff_date=then)
         server = StorageServer(basedir, "\x00" * 20, expiration_policy=ep)
-        aa = server.get_accountant().get_anonymous_account()
-        sa = server.get_accountant().get_starter_account()
+        dbfile = os.path.join(workdir, 'leases_{}.db'.format(name))
+        statefile = os.path.join(workdir, 'state_{}'.format(name))
+        accountant = yield create_accountant(server, dbfile, statefile)
+        aa = accountant.get_anonymous_account()
+        sa = accountant.get_starter_account()
 
         # finish as fast as possible
         ac = server.get_accounting_crawler()
         ac.slow_start = 0
         ac.cpu_slice = 500
 
-        webstatus = StorageStatus(server)
+        webstatus = StorageStatus(server, FakeAccountant())
 
         # create a few shares, with some leases on them
         self.make_shares(server)
@@ -3270,15 +3361,15 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         # crawler, which will expire the first lease, making some shares get
         # deleted and others stay alive (with one remaining lease)
 
-        aa.add_or_renew_lease(immutable_si_0, 0, new_renewal_time, new_expiration_time)
+        yield aa.add_or_renew_lease(immutable_si_0, 0, new_renewal_time, new_expiration_time)
 
         # immutable_si_1 gets an extra lease
-        sa.add_or_renew_lease(immutable_si_1, 0, new_renewal_time, new_expiration_time)
+        yield sa.add_or_renew_lease(immutable_si_1, 0, new_renewal_time, new_expiration_time)
 
-        aa.add_or_renew_lease(mutable_si_2,   0, new_renewal_time, new_expiration_time)
+        yield aa.add_or_renew_lease(mutable_si_2,   0, new_renewal_time, new_expiration_time)
 
         # mutable_si_3 gets an extra lease
-        sa.add_or_renew_lease(mutable_si_3,   0, new_renewal_time, new_expiration_time)
+        yield sa.add_or_renew_lease(mutable_si_3,   0, new_renewal_time, new_expiration_time)
 
         server.setServiceParent(self.s)
 
@@ -3342,7 +3433,7 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
             self.failUnlessIn(" recovered: 2 shares, 2 sharesets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html_after_cycle)
         d.addBoth(self._wait_for_yield, ac)
-        return d
+        yield d
 
     def test_bad_mode(self):
         e = self.failUnlessRaises(AssertionError,
@@ -3462,7 +3553,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
 
 
     def test_no_server(self):
-        w = StorageStatus(None)
+        w = StorageStatus(None, None)
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>No Storage Server Running</h1>", html)
 
@@ -3472,7 +3563,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         nodeid = "\x00" * 20
         server = StorageServer(basedir, nodeid)
         server.setServiceParent(self.s)
-        w = StorageStatus(server, "nickname")
+        w = StorageStatus(server, FakeAccountant(), nickname="nickname")
         d = self.render1(w)
         def _check_html(html):
             self.failUnlessIn("<h1>Storage Server Status</h1>", html)
@@ -3509,7 +3600,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         fileutil.make_dirs(basedir)
         server = StorageServer(basedir, "\x00" * 20)
         server.setServiceParent(self.s)
-        w = StorageStatus(server)
+        w = StorageStatus(server, FakeAccountant())
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
@@ -3529,7 +3620,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         fileutil.make_dirs(basedir)
         server = StorageServer(basedir, "\x00" * 20)
         server.setServiceParent(self.s)
-        w = StorageStatus(server)
+        w = StorageStatus(server, FakeAccountant())
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
@@ -3565,7 +3656,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
 
         ss.setServiceParent(self.s)
-        w = StorageStatus(ss)
+        w = StorageStatus(ss, FakeAccountant())
         html = w.renderSynchronously()
 
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
@@ -3583,7 +3674,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         fileutil.make_dirs(basedir)
         server = StorageServer(basedir, "\x00" * 20, readonly_storage=True)
         server.setServiceParent(self.s)
-        w = StorageStatus(server)
+        w = StorageStatus(server, FakeAccountant())
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
@@ -3594,7 +3685,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         fileutil.make_dirs(basedir)
         server = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
         server.setServiceParent(self.s)
-        w = StorageStatus(server)
+        w = StorageStatus(server, FakeAccountant())
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
@@ -3605,14 +3696,14 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         fileutil.make_dirs(basedir)
         server = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
         server.setServiceParent(self.s)
-        w = StorageStatus(server)
+        w = StorageStatus(server, FakeAccountant())
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
 
     def test_util(self):
-        w = StorageStatus(None)
+        w = StorageStatus(None, None)
         self.failUnlessEqual(w.render_space(None, None), "?")
         self.failUnlessEqual(w.render_space(None, 10e6), "10000000")
         self.failUnlessEqual(w.render_abbrev_space(None, None), "?")

@@ -16,9 +16,9 @@ SEGSIZE = 128*1024
 class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     timeout = 400 # these tests are too big, 120s is not enough on slow
                   # platforms
-    @grid_ready(num_servers=13)
+
     def setUp(self):
-        GridTestMixin.setUp(self)
+        d = super(Update, self).setUp()
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
         # self.data should be at least three segments long.
@@ -26,6 +26,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.data = td*(int(3*SEGSIZE/len(td))+10) # currently about 400kB
         assert len(self.data) > 3*SEGSIZE
         self.small_data = "test data" * 10 # 90 B; SDMF
+        return d
 
 
     def do_upload_sdmf(self):
@@ -64,33 +65,41 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d0.addCallback(_run)
         return d0
 
+    @grid_ready(num_servers=13)
     def test_append(self):
         # We should be able to append data to a mutable file and get
         # what we expect.
         return self._test_replace(len(self.data), "appended")
 
+    @grid_ready(num_servers=13)
     def test_replace_middle(self):
         # We should be able to replace data in the middle of a mutable
         # file and get what we expect back.
         return self._test_replace(100, "replaced")
 
+    @grid_ready(num_servers=13)
     def test_replace_beginning(self):
         # We should be able to replace data at the beginning of the file
         # without truncating the file
         return self._test_replace(0, "beginning")
 
+    @grid_ready(num_servers=13)
     def test_replace_segstart1(self):
         return self._test_replace(128*1024+1, "NNNN")
 
+    @grid_ready(num_servers=13)
     def test_replace_zero_length_beginning(self):
         return self._test_replace(0, "")
 
+    @grid_ready(num_servers=13)
     def test_replace_zero_length_middle(self):
         return self._test_replace(50, "")
 
+    @grid_ready(num_servers=13)
     def test_replace_zero_length_segstart1(self):
         return self._test_replace(128*1024+1, "")
 
+    @grid_ready(num_servers=13)
     def test_replace_and_extend(self):
         # We should be able to replace data in the middle of a mutable
         # file and extend that mutable file and get what we expect.
@@ -128,6 +137,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             self.fail("didn't get expected data")
 
 
+    @grid_ready(num_servers=13)
     def test_replace_locations(self):
         # exercise fencepost conditions
         suspects = range(SEGSIZE-3, SEGSIZE+1)+range(2*SEGSIZE-3, 2*SEGSIZE+1)
@@ -154,6 +164,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         return d0
 
 
+    @grid_ready(num_servers=13)
     def test_append_power_of_two(self):
         # If we attempt to extend a mutable file so that its segment
         # count crosses a power-of-two boundary, the update operation
@@ -178,6 +189,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d0.addCallback(_run)
         return d0
 
+    @grid_ready(num_servers=13)
     def test_update_sdmf(self):
         # Running update on a single-segment file should still work.
         new_data = self.small_data + "appended"
@@ -194,6 +206,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d0.addCallback(_run)
         return d0
 
+    @grid_ready(num_servers=13)
     def test_replace_in_last_segment(self):
         # The wrapper should know how to handle the tail segment
         # appropriately.
@@ -214,6 +227,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d0.addCallback(_run)
         return d0
 
+    @grid_ready(num_servers=13)
     def test_multiple_segment_replace(self):
         replace_offset = 2 * DEFAULT_MAX_SEGMENT_SIZE
         new_data = self.data[:replace_offset]

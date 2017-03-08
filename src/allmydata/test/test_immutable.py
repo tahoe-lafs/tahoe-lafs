@@ -6,7 +6,7 @@ from twisted.internet import defer
 from foolscap.api import eventually
 
 from allmydata.test import common
-from allmydata.test.no_network import GridTestMixin
+from allmydata.test.no_network import GridTestMixin, grid_ready
 from allmydata.test.common import TEST_DATA
 from allmydata import uri
 from allmydata.util import log

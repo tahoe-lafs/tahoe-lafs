@@ -16,6 +16,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         o = runner.Options()
         o.parseOptions(["--node-directory", self.get_clientdir(), "webopen"]
                        + list(args))
+        print("BING", o)
         urls = []
         rc = cli.webopen(o, urls.append)
         self.failUnlessReallyEqual(rc, 0)
@@ -144,6 +145,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless("un-corrupted2" in aliases)
             self.failUnless(aliases["un-corrupted2"].startswith("URI:DIR2:"))
         d.addCallback(_check_not_corrupted)
+        return d
 
     @grid_ready(oneshare=True)
     def test_create_unicode(self):

@@ -134,7 +134,7 @@ class LeaseDB(object):
         conn is an instance of adbapi.ConnectionPool
         """
         self._conn = conn
-        self.debug = True
+        self.debug = False
         self.retained_history_entries = 10
 
     def close(self):
@@ -168,7 +168,6 @@ class LeaseDB(object):
                                       " VALUES (?,?,?,?,?,?,?)",
                                       (si_s, shnum, prefix, backend_key, used_space, sharetype, STATE_COMING))
 
-        print("DING", self._conn, dir(self._conn))
         # XXX okay, so I'm sometimes seeing this call error-out
         # because "no share" which leads me to believe the above isn't
         # completing fully / commiting (or something)
@@ -261,10 +260,9 @@ class LeaseDB(object):
             rows = yield self._conn.runQuery("SELECT `storage_index`, `shnum` FROM `shares`"
                                              " WHERE `storage_index`=? AND `shnum`=?",
                                              (si_s, shnum))
-            print("RAWS {} {}".format(thread.get_ident(), rows))
             if not rows:
                 rows = yield self._conn.runQuery("SELECT * FROM `shares`")
-                print("ASDFASDFASDF {}".format(rows))
+                print("ALL ROWS", rows)
                 raise NonExistentShareError(si_s, shnum)
 
         for (found_si_s, found_shnum) in rows:
