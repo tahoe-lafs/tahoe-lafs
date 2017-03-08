@@ -350,11 +350,11 @@ class StorageServer(service.MultiService):
         return bucketreaders
 
     # async
+    @defer.inlineCallbacks
     def client_slot_testv_and_readv_and_writev(self, storage_index,
                                                write_enabler,
                                                test_and_write_vectors,
                                                read_vector, account):
-        d = defer.succeed(None)
         start = time.time()
         self.count("writev")
         si_s = si_b2a(storage_index)
@@ -407,7 +407,7 @@ class StorageServer(service.MultiService):
                 if new_length == 0:
                     if sharenum in shares:
                         shares[sharenum].unlink()
-                        d.addCallback(lambda ign: account.remove_share_and_leases(storage_index, sharenum))
+                        yield account.remove_share_and_leases(storage_index, sharenum)
                 else:
                     if sharenum not in shares:
                         # allocate a new share
@@ -418,27 +418,26 @@ class StorageServer(service.MultiService):
                                                           allocated_size)
                         shares[sharenum] = share
                         shares[sharenum].writev(datav, new_length)
-                        d.addCallback(lambda ign: account.add_share(storage_index, sharenum,
-                                                                    shares[sharenum].get_used_space(), SHARETYPE_MUTABLE))
+                        yield account.add_share(
+                            storage_index, sharenum,
+                            shares[sharenum].get_used_space(), SHARETYPE_MUTABLE
+                        )
                     else:
                         # apply the write vector and update the lease
                         shares[sharenum].writev(datav, new_length)
 
-                    d.addCallback(lambda ign: account.add_or_renew_default_lease(storage_index, sharenum))
-                    d.addCallback(lambda ign: account.mark_share_as_stable(storage_index, sharenum,
-                                                                           shares[sharenum].get_used_space()))
+                    yield account.add_or_renew_default_lease(storage_index, sharenum)
+                    yield account.mark_share_as_stable(
+                        storage_index, sharenum, shares[sharenum].get_used_space()
+                    )
 
             if new_length == 0:
                 # delete empty bucket directories
                 if not os.listdir(bucketdir):
                     os.rmdir(bucketdir)
 
-        # all done
-        def done(ign):
-            self.add_latency("writev", time.time() - start)
-            return (testv_is_good, read_data)
-        d.addCallback(done)
-        return d
+        self.add_latency("writev", time.time() - start)
+        defer.returnValue((testv_is_good, read_data))
 
     def _allocate_slot_share(self, bucketdir, write_enabler, sharenum, allocated_size):
         my_nodeid = self.my_nodeid

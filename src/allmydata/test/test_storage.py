@@ -829,19 +829,12 @@ class MutableServer(unittest.TestCase):
         testandwritev = dict( [ (shnum, ([], [], None) )
                          for shnum in sharenums ] )
         readv = []
-        d = aa.remote_slot_testv_and_readv_and_writev(
+        rc = yield aa.remote_slot_testv_and_readv_and_writev(
             storage_index,
             (write_enabler, renew_secret, cancel_secret),
             testandwritev,
             readv,
         )
-        print("AA", aa, d)
-        try:
-            rc = yield d
-        except Exception:
-            print Failure()
-            raise
-        print("XXX" ,rc)
         (did_write, readv_data) = rc
         self.failUnless(did_write)
         self.failUnless(isinstance(readv_data, dict))
@@ -877,7 +870,7 @@ class MutableServer(unittest.TestCase):
                     self.renew_secret("we1"),
                     self.cancel_secret("we1") )
         data = "".join([ ("%d" % i) * 10 for i in range(10) ])
-        answer = rstaraw("si1", secrets,
+        answer = yield rstaraw("si1", secrets,
                          {0: ([], [(0,data)], len(data)+12)},
                          [])
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
@@ -885,34 +878,34 @@ class MutableServer(unittest.TestCase):
         # Trying to make the container too large (by sending a write vector
         # whose offset is too high) will raise an exception.
         TOOBIG = MutableShareFile.MAX_SIZE + 10
-        self.failUnlessRaises(DataTooLargeError,
-                              rstaraw, "si1", secrets,
-                              {0: ([], [(TOOBIG,data)], None)},
-                              [])
+        with self.assertRaises(DataTooLargeError):
+            yield rstaraw("si1", secrets,
+                          {0: ([], [(TOOBIG,data)], None)},
+                          [])
 
-        answer = rstaraw("si1", secrets,
+        answer = yield rstaraw("si1", secrets,
                          {0: ([], [(0,data)], None)},
                          [])
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
 
-        read_answer = read("si1", [0], [(0,10)])
+        read_answer = yield read("si1", [0], [(0,10)])
         self.failUnlessEqual(read_answer, {0: [data[:10]]})
 
         # Sending a new_length shorter than the current length truncates the
         # data.
-        answer = rstaraw("si1", secrets,
+        answer = yield rstaraw("si1", secrets,
                          {0: ([], [], 9)},
                          [])
-        read_answer = read("si1", [0], [(0,10)])
+        read_answer = yield read("si1", [0], [(0,10)])
         self.failUnlessEqual(read_answer, {0: [data[:9]]})
 
         # Sending a new_length longer than the current length doesn't change
         # the data.
-        answer = rstaraw("si1", secrets,
+        answer = yield rstaraw("si1", secrets,
                          {0: ([], [], 20)},
                          [])
         assert answer == (True, {0:[],1:[],2:[]})
-        read_answer = read("si1", [0], [(0, 20)])
+        read_answer = yield read("si1", [0], [(0, 20)])
         self.failUnlessEqual(read_answer, {0: [data[:9]]})
 
         # Sending a write vector whose start is after the end of the current
@@ -921,31 +914,31 @@ class MutableServer(unittest.TestCase):
 
         # To test this, we fill the data area with a recognizable pattern.
         pattern = ''.join([chr(i) for i in range(100)])
-        answer = rstaraw("si1", secrets,
+        answer = yield rstaraw("si1", secrets,
                          {0: ([], [(0, pattern)], None)},
                          [])
         assert answer == (True, {0:[],1:[],2:[]})
         # Then truncate the data...
-        answer = rstaraw("si1", secrets,
+        answer = yield rstaraw("si1", secrets,
                          {0: ([], [], 20)},
                          [])
         assert answer == (True, {0:[],1:[],2:[]})
         # Just confirm that you get an empty string if you try to read from
         # past the (new) endpoint now.
-        answer = rstaraw("si1", secrets,
+        answer = yield rstaraw("si1", secrets,
                          {0: ([], [], None)},
                          [(20, 1980)])
         self.failUnlessEqual(answer, (True, {0:[''],1:[''],2:['']}))
 
         # Then the extend the file by writing a vector which starts out past
         # the end...
-        answer = rstaraw("si1", secrets,
+        answer = yield rstaraw("si1", secrets,
                          {0: ([], [(50, 'hellothere')], None)},
                          [])
         assert answer == (True, {0:[],1:[],2:[]})
         # Now if you read the stuff between 20 (where we earlier truncated)
         # and 50, it had better be all zeroes.
-        answer = rstaraw("si1", secrets,
+        answer = yield rstaraw("si1", secrets,
                          {0: ([], [], None)},
                          [(20, 30)])
         self.failUnlessEqual(answer, (True, {0:['\x00'*30],1:[''],2:['']}))
@@ -957,12 +950,12 @@ class MutableServer(unittest.TestCase):
         self.failUnless(storage_v1_ver.get("fills-holes-with-zero-bytes"))
 
         # If the size is dropped to zero the share is deleted.
-        answer = rstaraw("si1", secrets,
+        answer = yield rstaraw("si1", secrets,
                          {0: ([], [(0,data)], 0)},
                          [])
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
 
-        read_answer = read("si1", [0], [(0,10)])
+        read_answer = yield read("si1", [0], [(0,10)])
         self.failUnlessEqual(read_answer, {})
 
     @defer.inlineCallbacks
@@ -974,11 +967,14 @@ class MutableServer(unittest.TestCase):
                             set([0,1,2]), 100)
 
         read = aa.remote_slot_readv
-        self.failUnlessEqual(read("si1", [0], [(0, 10)]),
+        ans = yield read("si1", [0], [(0, 10)])
+        self.failUnlessEqual(ans,
                              {0: [""]})
-        self.failUnlessEqual(read("si1", [], [(0, 10)]),
+        ans = yield read("si1", [], [(0, 10)])
+        self.failUnlessEqual(ans,
                              {0: [""], 1: [""], 2: [""]})
-        self.failUnlessEqual(read("si1", [0], [(100, 10)]),
+        ans = yield read("si1", [0], [(100, 10)])
+        self.failUnlessEqual(ans,
                              {0: [""]})
 
         # try writing to one
@@ -987,25 +983,26 @@ class MutableServer(unittest.TestCase):
                     self.cancel_secret("we1") )
         data = "".join([ ("%d" % i) * 10 for i in range(10) ])
         write = aa.remote_slot_testv_and_readv_and_writev
-        answer = write("si1", secrets,
+        answer = yield write("si1", secrets,
                        {0: ([], [(0,data)], None)},
                        [])
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
 
-        self.failUnlessEqual(read("si1", [0], [(0,20)]),
+        answer = yield read("si1", [0], [(0,20)])
+        self.failUnlessEqual(answer,
                              {0: ["00000000001111111111"]})
-        self.failUnlessEqual(read("si1", [0], [(95,10)]),
+        answer = yield read("si1", [0], [(95,10)])
+        self.failUnlessEqual(answer,
                              {0: ["99999"]})
         #self.failUnlessEqual(s0.remote_get_length(), 100)
 
         bad_secrets = ("bad write enabler", secrets[1], secrets[2])
-        f = self.failUnlessRaises(BadWriteEnablerError,
-                                  write, "si1", bad_secrets,
-                                  {}, [])
-        self.failUnlessIn("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.", f)
+        with self.assertRaises(BadWriteEnablerError) as ctx:
+            yield write("si1", bad_secrets, {}, [])
+        self.failUnlessIn("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.", str(ctx.exception))
 
         # this testv should fail
-        answer = write("si1", secrets,
+        answer = yield write("si1", secrets,
                        {0: ([(0, 12, "eq", "444444444444"),
                              (20, 5, "eq", "22222"),
                              ],
@@ -1019,10 +1016,11 @@ class MutableServer(unittest.TestCase):
                                        1: ["", ""],
                                        2: ["", ""],
                                        }))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        answer = yield read("si1", [0], [(0,100)])
+        self.failUnlessEqual(answer, {0: [data]})
 
         # as should this one
-        answer = write("si1", secrets,
+        answer = yield write("si1", secrets,
                        {0: ([(10, 5, "lt", "11111"),
                              ],
                             [(0, "x"*100)],
@@ -1035,7 +1033,8 @@ class MutableServer(unittest.TestCase):
                                        1: [""],
                                        2: [""]},
                                       ))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        answer = yield read("si1", [0], [(0,100)])
+        self.failUnlessEqual(answer, {0: [data]})
 
     @defer.inlineCallbacks
     def test_operators(self):
@@ -1059,7 +1058,7 @@ class MutableServer(unittest.TestCase):
         reset()
 
         #  lt
-        answer = write("si1", secrets, {0: ([(10, 5, "lt", "11110"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "lt", "11110"),
                                              ],
                                             [(0, "x"*100)],
                                             None,
@@ -1069,7 +1068,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "lt", "11111"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "lt", "11111"),
                                              ],
                                             [(0, "x"*100)],
                                             None,
@@ -1078,7 +1077,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "lt", "11112"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "lt", "11112"),
                                              ],
                                             [(0, "y"*100)],
                                             None,
@@ -1088,7 +1087,7 @@ class MutableServer(unittest.TestCase):
         reset()
 
         #  le
-        answer = write("si1", secrets, {0: ([(10, 5, "le", "11110"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "le", "11110"),
                                              ],
                                             [(0, "x"*100)],
                                             None,
@@ -1097,7 +1096,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "le", "11111"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "le", "11111"),
                                              ],
                                             [(0, "y"*100)],
                                             None,
@@ -1106,7 +1105,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "le", "11112"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "le", "11112"),
                                              ],
                                             [(0, "y"*100)],
                                             None,
@@ -1116,7 +1115,7 @@ class MutableServer(unittest.TestCase):
         reset()
 
         #  eq
-        answer = write("si1", secrets, {0: ([(10, 5, "eq", "11112"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "eq", "11112"),
                                              ],
                                             [(0, "x"*100)],
                                             None,
@@ -1125,7 +1124,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "eq", "11111"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "eq", "11111"),
                                              ],
                                             [(0, "y"*100)],
                                             None,
@@ -1135,7 +1134,7 @@ class MutableServer(unittest.TestCase):
         reset()
 
         #  ne
-        answer = write("si1", secrets, {0: ([(10, 5, "ne", "11111"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "ne", "11111"),
                                              ],
                                             [(0, "x"*100)],
                                             None,
@@ -1144,7 +1143,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "ne", "11112"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "ne", "11112"),
                                              ],
                                             [(0, "y"*100)],
                                             None,
@@ -1154,7 +1153,7 @@ class MutableServer(unittest.TestCase):
         reset()
 
         #  ge
-        answer = write("si1", secrets, {0: ([(10, 5, "ge", "11110"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "ge", "11110"),
                                              ],
                                             [(0, "y"*100)],
                                             None,
@@ -1163,7 +1162,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "ge", "11111"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "ge", "11111"),
                                              ],
                                             [(0, "y"*100)],
                                             None,
@@ -1172,7 +1171,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "ge", "11112"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "ge", "11112"),
                                              ],
                                             [(0, "y"*100)],
                                             None,
@@ -1182,7 +1181,7 @@ class MutableServer(unittest.TestCase):
         reset()
 
         #  gt
-        answer = write("si1", secrets, {0: ([(10, 5, "gt", "11110"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "gt", "11110"),
                                              ],
                                             [(0, "y"*100)],
                                             None,
@@ -1191,7 +1190,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "gt", "11111"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "gt", "11111"),
                                              ],
                                             [(0, "x"*100)],
                                             None,
@@ -1200,7 +1199,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "gt", "11112"),
+        answer = yield write("si1", secrets, {0: ([(10, 5, "gt", "11112"),
                                              ],
                                             [(0, "x"*100)],
                                             None,
@@ -1210,7 +1209,7 @@ class MutableServer(unittest.TestCase):
         reset()
 
         # finally, test some operators against empty shares
-        answer = write("si1", secrets, {1: ([(10, 5, "eq", "11112"),
+        answer = yield write("si1", secrets, {1: ([(10, 5, "eq", "11112"),
                                              ],
                                             [(0, "x"*100)],
                                             None,
@@ -1231,7 +1230,7 @@ class MutableServer(unittest.TestCase):
         write = aa.remote_slot_testv_and_readv_and_writev
         read = aa.remote_slot_readv
         data = [("%d" % i) * 100 for i in range(3)]
-        rc = write("si1", secrets,
+        rc = yield write("si1", secrets,
                    {0: ([], [(0,data[0])], None),
                     1: ([], [(0,data[1])], None),
                     2: ([], [(0,data[2])], None),
@@ -1283,52 +1282,64 @@ class MutableServer(unittest.TestCase):
 
         aa.add_share("six", 0, 0, SHARETYPE_MUTABLE)
         # adding a share does not immediately add a lease
-        self.failUnlessEqual(len(aa.get_leases("six")), 0)
+        leases = yield aa.get_leases("six")
+        self.failUnlessEqual(len(leases), 0)
 
         yield aa.add_or_renew_default_lease("six", 0)
-        self.failUnlessEqual(len(aa.get_leases("six")), 1)
+        leases = yield aa.get_leases("six")
+        self.failUnlessEqual(len(leases), 1)
 
         # add-lease on a missing storage index is silently ignored
-        self.failUnlessEqual(aa.remote_add_lease("si18", "", ""), None)
-        self.failUnlessEqual(len(aa.get_leases("si18")), 0)
+        x = yield aa.remote_add_lease("si18", "", "")
+        self.failUnlessEqual(x, None)
+        leases = yield aa.get_leases("si18")
+        self.failUnlessEqual(len(leases), 0)
 
         # update the lease by writing
         yield write("si1", secrets(0), {0: ([], [(0,data)], None)}, [])
-        self.failUnlessEqual(len(aa.get_leases("si1")), 1)
+        leases = yield aa.get_leases("si1")
+        self.failUnlessEqual(len(leases), 1)
 
         # renew it directly
-        aa.remote_renew_lease("si1", secrets(0)[1])
-        self.failUnlessEqual(len(aa.get_leases("si1")), 1)
+        yield aa.remote_renew_lease("si1", secrets(0)[1])
+        leases = yield aa.get_leases("si1")
+        self.failUnlessEqual(len(leases), 1)
 
         # now allocate another lease using a different account
         yield write2("si1", secrets(1), {0: ([], [(0,data)], None)}, [])
-        self.failUnlessEqual(len(aa.get_leases("si1")), 1)
-        self.failUnlessEqual(len(sa.get_leases("si1")), 1)
+        leases = yield sa.get_leases("si1")
+        self.failUnlessEqual(len(leases), 1)
+        self.failUnlessEqual(len(leases), 1)
 
-        aa_leases = aa.get_leases("si1")
-        sa_leases = sa.get_leases("si1")
+        aa_leases = yield aa.get_leases("si1")
+        sa_leases = yield sa.get_leases("si1")
 
-        aa.remote_renew_lease("si1", secrets(0)[1])
-        self.compare_leases(aa_leases, aa.get_leases("si1"), with_timestamps=False)
+        yield aa.remote_renew_lease("si1", secrets(0)[1])
+        leases = yield aa.get_leases("si1")
+        self.compare_leases(aa_leases, leases, with_timestamps=False)
 
-        sa.remote_renew_lease("si1", secrets(1)[1])
-        self.compare_leases(sa_leases, sa.get_leases("si1"), with_timestamps=False)
+        yield sa.remote_renew_lease("si1", secrets(1)[1])
+        leases = yield sa.get_leases("si1")
+        self.compare_leases(sa_leases, leases, with_timestamps=False)
 
         # get a new copy of the leases, with the current timestamps. Reading
         # data should leave the timestamps alone.
-        aa_leases = aa.get_leases("si1")
+        aa_leases = yield aa.get_leases("si1")
 
         # reading shares should not modify the timestamp
-        read("si1", [], [(0,200)])
-        self.compare_leases(aa_leases, aa.get_leases("si1"))
+        yield read("si1", [], [(0,200)])
+        leases = yield aa.get_leases("si1")
+        self.compare_leases(aa_leases, leases)
 
         yield write("si1", secrets(0),
               {0: ([], [(200, "make me bigger")], None)}, [])
-        self.compare_leases(aa_leases, aa.get_leases("si1"), with_timestamps=False)
+        leases = yield aa.get_leases("si1")
+        self.compare_leases(aa_leases, leases, with_timestamps=False)
 
         yield write("si1", secrets(0),
               {0: ([], [(500, "make me really bigger")], None)}, [])
-        self.compare_leases(aa_leases, aa.get_leases("si1"), with_timestamps=False)
+        leases = yield aa.get_leases("si1")
+        self.compare_leases(aa_leases, leases, with_timestamps=False)
 
     @defer.inlineCallbacks
     def test_remove(self):
@@ -1534,6 +1545,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         data += self.block_hash_tree_s
         return data
 
+    @defer.inlineCallbacks
     def write_test_share_to_server(self,
                                    storage_index,
                                    tail_segment=False,
@@ -1552,7 +1564,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         tws = {}
         tws[0] = (testvs, [(0, data)], None)
         readv = [(0, 1)]
-        results = write(storage_index, self.secrets, tws, readv)
+        results = yield write(storage_index, self.secrets, tws, readv)
         self.failUnless(results[0])
 
     def build_test_sdmf_share(self, empty=False):
@@ -1605,6 +1617,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         self.offsets['EOF'] = eof_offset
         return final_share
 
+    @defer.inlineCallbacks
     def write_sdmf_share_to_server(self,
                                    storage_index,
                                    empty=False):
@@ -1617,12 +1630,13 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         tws = {}
         tws[0] = (testvs, [(0, share)], None)
         readv = []
-        results = write(storage_index, self.secrets, tws, readv)
+        results = yield write(storage_index, self.secrets, tws, readv)
         self.failUnless(results[0])
 
 
+    @defer.inlineCallbacks
     def test_read(self):
-        self.write_test_share_to_server("si1")
+        yield self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         # Check that every method equals what we expect it to.
         d = defer.succeed(None)
@@ -1688,10 +1702,11 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             mr.get_checkstring())
         d.addCallback(lambda checkstring:
             self.failUnlessEqual(checkstring, checkstring))
-        return d
+        yield d
 
+    @defer.inlineCallbacks
     def test_read_with_different_tail_segment_size(self):
-        self.write_test_share_to_server("si1", tail_segment=True)
+        yield self.write_test_share_to_server("si1", tail_segment=True)
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         d = mr.get_block_and_salt(5)
         def _check_tail_segment(results):
@@ -1699,20 +1714,22 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(len(block), 1)
             self.failUnlessEqual(block, "a")
         d.addCallback(_check_tail_segment)
-        return d
+        yield d
 
+    @defer.inlineCallbacks
     def test_get_block_with_invalid_segnum(self):
-        self.write_test_share_to_server("si1")
+        yield self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
             self.shouldFail(LayoutInvalid, "test invalid segnum",
                             None,
                             mr.get_block_and_salt, 7))
-        return d
+        yield d
 
+    @defer.inlineCallbacks
     def test_get_encoding_parameters_first(self):
-        self.write_test_share_to_server("si1")
+        yield self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         d = mr.get_encoding_parameters()
         def _check_encoding_parameters((k, n, segment_size, datalen)):
@@ -1721,31 +1738,34 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(segment_size, 6)
             self.failUnlessEqual(datalen, 36)
         d.addCallback(_check_encoding_parameters)
-        return d
+        yield d
 
+    @defer.inlineCallbacks
     def test_get_seqnum_first(self):
-        self.write_test_share_to_server("si1")
+        yield self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         d = mr.get_seqnum()
         d.addCallback(lambda seqnum:
             self.failUnlessEqual(seqnum, 0))
-        return d
+        yield d
 
+    @defer.inlineCallbacks
     def test_get_root_hash_first(self):
-        self.write_test_share_to_server("si1")
+        yield self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         d = mr.get_root_hash()
         d.addCallback(lambda root_hash:
             self.failUnlessEqual(root_hash, self.root_hash))
-        return d
+        yield d
 
+    @defer.inlineCallbacks
     def test_get_checkstring_first(self):
-        self.write_test_share_to_server("si1")
+        yield self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         d = mr.get_checkstring()
         d.addCallback(lambda checkstring:
             self.failUnlessEqual(checkstring, self.checkstring))
-        return d
+        yield d
 
     def test_write_read_vectors(self):
         # When writing for us, the storage server will return to us a
@@ -2307,103 +2327,74 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(checkstring, mw.get_checkstring()))
         return d
 
+    @defer.inlineCallbacks
     def test_is_sdmf(self):
         # The MDMFSlotReadProxy should also know how to read SDMF files,
         # since it will encounter them on the grid. Callers use the
         # is_sdmf method to test this.
-        self.write_sdmf_share_to_server("si1")
+        yield self.write_sdmf_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
-        d = mr.is_sdmf()
-        d.addCallback(lambda issdmf:
-            self.failUnless(issdmf))
-        return d
+        is_sdmf = yield mr.is_sdmf()
+        self.failUnless(issdmf)
 
+    @defer.inlineCallbacks
     def test_reads_sdmf(self):
         # The slot read proxy should, naturally, know how to tell us
         # about data in the SDMF format
-        self.write_sdmf_share_to_server("si1")
+        yield self.write_sdmf_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
-        d = defer.succeed(None)
-        d.addCallback(lambda ignored:
-            mr.is_sdmf())
-        d.addCallback(lambda issdmf:
-            self.failUnless(issdmf))
+        is_sdmf = yield mr.is_sdmf()
+        self.failUnless(is_sdmf)
 
         # What do we need to read?
         #  - The sharedata
         #  - The salt
-        d.addCallback(lambda ignored:
-            mr.get_block_and_salt(0))
-        def _check_block_and_salt(results):
-            block, salt = results
-            # Our original file is 36 bytes long. Then each share is 12
-            # bytes in size. The share is composed entirely of the
-            # letter a. self.block contains 2 as, so 6 * self.block is
-            # what we are looking for.
-            self.failUnlessEqual(block, self.block * 6)
-            self.failUnlessEqual(salt, self.salt)
-        d.addCallback(_check_block_and_salt)
+        block, salt = yield mr.get_block_and_salt(0)
+        # Our original file is 36 bytes long. Then each share is 12
+        # bytes in size. The share is composed entirely of the
+        # letter a. self.block contains 2 as, so 6 * self.block is
+        # what we are looking for.
+        self.failUnlessEqual(block, self.block * 6)
+        self.failUnlessEqual(salt, self.salt)
 
-        #  - The blockhashes
-        d.addCallback(lambda ignored:
-            mr.get_blockhashes())
-        d.addCallback(lambda blockhashes:
-            self.failUnlessEqual(self.block_hash_tree,
-                                 blockhashes,
-                                 blockhashes))
-        #  - The sharehashes
-        d.addCallback(lambda ignored:
-            mr.get_sharehashes())
-        d.addCallback(lambda sharehashes:
-            self.failUnlessEqual(self.share_hash_chain,
-                                 sharehashes))
-        #  - The keys
-        d.addCallback(lambda ignored:
-            mr.get_encprivkey())
-        d.addCallback(lambda encprivkey:
-            self.failUnlessEqual(encprivkey, self.encprivkey, encprivkey))
-        d.addCallback(lambda ignored:
-            mr.get_verification_key())
-        d.addCallback(lambda verification_key:
-            self.failUnlessEqual(verification_key,
-                                 self.verification_key,
-                                 verification_key))
-        #  - The signature
-        d.addCallback(lambda ignored:
-            mr.get_signature())
-        d.addCallback(lambda signature:
-            self.failUnlessEqual(signature, self.signature, signature))
+        blockhashes = yield mr.get_blockhashes()
+        self.failUnlessEqual(self.block_hash_tree,
+                             blockhashes,
+                             blockhashes)
+        sharehashes = yield mr.get_sharehashes()
+        self.failUnlessEqual(self.share_hash_chain,
+                             sharehashes)
 
-        #  - The sequence number
-        d.addCallback(lambda ignored:
-            mr.get_seqnum())
-        d.addCallback(lambda seqnum:
-            self.failUnlessEqual(seqnum, 0, seqnum))
+        encprivkey = yield mr.get_encprivkey()
+        self.failUnlessEqual(encprivkey, self.encprivkey, encprivkey)
+        verification_key = yield mr.get_verification_key()
+        self.failUnlessEqual(verification_key,
+                             self.verification_key,
+                             verification_key)
 
-        #  - The root hash
-        d.addCallback(lambda ignored:
-            mr.get_root_hash())
-        d.addCallback(lambda root_hash:
-            self.failUnlessEqual(root_hash, self.root_hash, root_hash))
-        return d
+        signature = yield mr.get_signature()
+        self.failUnlessEqual(signature, self.signature, signature)
 
+        seqnum = yield mr.get_seqnum()
+        self.failUnlessEqual(seqnum, 0, seqnum)
+
+        root_hash = yield mr.get_root_hash()
+        self.failUnlessEqual(root_hash, self.root_hash, root_hash)
+
+    @defer.inlineCallbacks
     def test_only_reads_one_segment_sdmf(self):
         # SDMF shares have only one segment, so it doesn't make sense to
         # read more segments than that. The reader should know this and
         # complain if we try to do that.
-        self.write_sdmf_share_to_server("si1")
+        yield self.write_sdmf_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
-        d = defer.succeed(None)
-        d.addCallback(lambda ignored:
-            mr.is_sdmf())
-        d.addCallback(lambda issdmf:
-            self.failUnless(issdmf))
-        d.addCallback(lambda ignored:
-            self.shouldFail(LayoutInvalid, "test bad segment",
-                            None,
-                            mr.get_block_and_salt, 1))
-        return d
+        issdmf = yield mr.is_sdmf()
+        self.failUnless(issdmf)
+        self.shouldFail(LayoutInvalid, "test bad segment",
+                        None,
+                        mr.get_block_and_salt, 1)
 
+    @defer.inlineCallbacks
     def test_read_with_prefetched_mdmf_data(self):
         # The MDMFSlotReadProxy will prefill certain fields if you pass
         # it data that you have already fetched. This is useful for
@@ -2411,7 +2402,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # finding out which shares are on the remote peer so that it
         # doesn't waste round trips.
         mdmf_data = self.build_test_mdmf_share()
-        self.write_test_share_to_server("si1")
+        yield self.write_test_share_to_server("si1")
         def _make_mr(ignored, length):
             mr = MDMFSlotReadProxy(self.rref, "si1", 0, mdmf_data[:length])
             return mr
@@ -2466,7 +2457,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda mr:
             mr.get_block_and_salt(0))
         d.addCallback(_check_block_and_salt)
-        return d
+        yield d
 
     def test_read_with_prefetched_sdmf_data(self):
         sdmf_data = self.build_test_sdmf_share()
@@ -2531,136 +2522,116 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_check_block_and_salt)
         return d
 
+    @defer.inlineCallbacks
     def test_read_with_empty_mdmf_file(self):
         # Some tests upload a file with no contents to test things
         # unrelated to the actual handling of the content of the file.
         # The reader should behave intelligently in these cases.
-        self.write_test_share_to_server("si1", empty=True)
+        yield self.write_test_share_to_server("si1", empty=True)
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         # We should be able to get the encoding parameters, and they
         # should be correct.
-        d = defer.succeed(None)
-        d.addCallback(lambda ignored:
-            mr.get_encoding_parameters())
-        def _check_encoding_parameters(params):
-            self.failUnlessEqual(len(params), 4)
-            k, n, segsize, datalen = params
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
-            self.failUnlessEqual(segsize, 0)
-            self.failUnlessEqual(datalen, 0)
-        d.addCallback(_check_encoding_parameters)
+        params = yield mr.get_encoding_parameters()
+        self.failUnlessEqual(len(params), 4)
+        k, n, segsize, datalen = params
+        self.failUnlessEqual(k, 3)
+        self.failUnlessEqual(n, 10)
+        self.failUnlessEqual(segsize, 0)
+        self.failUnlessEqual(datalen, 0)
 
         # We should not be able to fetch a block, since there are no
         # blocks to fetch
-        d.addCallback(lambda ignored:
-            self.shouldFail(LayoutInvalid, "get block on empty file",
-                            None,
-                            mr.get_block_and_salt, 0))
-        return d
+        self.shouldFail(LayoutInvalid, "get block on empty file",
+                        None,
+                        mr.get_block_and_salt, 0)
 
     def test_read_with_empty_sdmf_file(self):
         self.write_sdmf_share_to_server("si1", empty=True)
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         # We should be able to get the encoding parameters, and they
         # should be correct
-        d = defer.succeed(None)
-        d.addCallback(lambda ignored:
-            mr.get_encoding_parameters())
-        def _check_encoding_parameters(params):
-            self.failUnlessEqual(len(params), 4)
-            k, n, segsize, datalen = params
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
-            self.failUnlessEqual(segsize, 0)
-            self.failUnlessEqual(datalen, 0)
-        d.addCallback(_check_encoding_parameters)
+        params = yield mr.get_encoding_parameters()
+        self.failUnlessEqual(len(params), 4)
+        k, n, segsize, datalen = params
+        self.failUnlessEqual(k, 3)
+        self.failUnlessEqual(n, 10)
+        self.failUnlessEqual(segsize, 0)
+        self.failUnlessEqual(datalen, 0)
 
         # It does not make sense to get a block in this format, so we
         # should not be able to.
-        d.addCallback(lambda ignored:
-            self.shouldFail(LayoutInvalid, "get block on an empty file",
-                            None,
-                            mr.get_block_and_salt, 0))
-        return d
+        self.shouldFail(LayoutInvalid, "get block on an empty file",
+                        None,
+                        mr.get_block_and_salt, 0)
 
     def test_verinfo_with_sdmf_file(self):
         self.write_sdmf_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         # We should be able to get the version information.
-        d = defer.succeed(None)
-        d.addCallback(lambda ignored:
-            mr.get_verinfo())
-        def _check_verinfo(verinfo):
-            self.failUnless(verinfo)
-            self.failUnlessEqual(len(verinfo), 9)
-            (seqnum,
-             root_hash,
-             salt,
-             segsize,
-             datalen,
-             k,
-             n,
-             prefix,
-             offsets) = verinfo
-            self.failUnlessEqual(seqnum, 0)
-            self.failUnlessEqual(root_hash, self.root_hash)
-            self.failUnlessEqual(salt, self.salt)
-            self.failUnlessEqual(segsize, 36)
-            self.failUnlessEqual(datalen, 36)
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
-            expected_prefix = struct.pack(">BQ32s16s BBQQ",
-                                          0,
-                                          seqnum,
-                                          root_hash,
-                                          salt,
-                                          k,
-                                          n,
-                                          segsize,
-                                          datalen)
-            self.failUnlessEqual(prefix, expected_prefix)
-            self.failUnlessEqual(offsets, self.offsets)
-        d.addCallback(_check_verinfo)
-        return d
+        verinfo = yield mr.get_verinfo()
+        self.failUnless(verinfo)
+        self.failUnlessEqual(len(verinfo), 9)
+        (seqnum,
+         root_hash,
+         salt,
+         segsize,
+         datalen,
+         k,
+         n,
+         prefix,
+         offsets) = verinfo
+        self.failUnlessEqual(seqnum, 0)
+        self.failUnlessEqual(root_hash, self.root_hash)
+        self.failUnlessEqual(salt, self.salt)
+        self.failUnlessEqual(segsize, 36)
+        self.failUnlessEqual(datalen, 36)
+        self.failUnlessEqual(k, 3)
+        self.failUnlessEqual(n, 10)
+        expected_prefix = struct.pack(">BQ32s16s BBQQ",
+                                      0,
+                                      seqnum,
+                                      root_hash,
+                                      salt,
+                                      k,
+                                      n,
+                                      segsize,
+                                      datalen)
+        self.failUnlessEqual(prefix, expected_prefix)
+        self.failUnlessEqual(offsets, self.offsets)
 
+    @defer.inlineCallbacks
     def test_verinfo_with_mdmf_file(self):
-        self.write_test_share_to_server("si1")
+        yield self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
-        d = defer.succeed(None)
-        d.addCallback(lambda ignored:
-            mr.get_verinfo())
-        def _check_verinfo(verinfo):
-            self.failUnless(verinfo)
-            self.failUnlessEqual(len(verinfo), 9)
-            (seqnum,
-             root_hash,
-             IV,
-             segsize,
-             datalen,
-             k,
-             n,
-             prefix,
-             offsets) = verinfo
-            self.failUnlessEqual(seqnum, 0)
-            self.failUnlessEqual(root_hash, self.root_hash)
-            self.failIf(IV)
-            self.failUnlessEqual(segsize, 6)
-            self.failUnlessEqual(datalen, 36)
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
-            expected_prefix = struct.pack(">BQ32s BBQQ",
-                                          1,
-                                          seqnum,
-                                          root_hash,
-                                          k,
-                                          n,
-                                          segsize,
-                                          datalen)
-            self.failUnlessEqual(prefix, expected_prefix)
-            self.failUnlessEqual(offsets, self.offsets)
-        d.addCallback(_check_verinfo)
-        return d
+        verinfo = yield mr.get_verinfo()
+        self.failUnless(verinfo)
+        self.failUnlessEqual(len(verinfo), 9)
+        (seqnum,
+         root_hash,
+         IV,
+         segsize,
+         datalen,
+         k,
+         n,
+         prefix,
+         offsets) = verinfo
+        self.failUnlessEqual(seqnum, 0)
+        self.failUnlessEqual(root_hash, self.root_hash)
+        self.failIf(IV)
+        self.failUnlessEqual(segsize, 6)
+        self.failUnlessEqual(datalen, 36)
+        self.failUnlessEqual(k, 3)
+        self.failUnlessEqual(n, 10)
+        expected_prefix = struct.pack(">BQ32s BBQQ",
+                                      1,
+                                      seqnum,
+                                      root_hash,
+                                      k,
+                                      n,
+                                      segsize,
+                                      datalen)
+        self.failUnlessEqual(prefix, expected_prefix)
+        self.failUnlessEqual(offsets, self.offsets)
 
     def test_sdmf_writer(self):
         # Go through the motions of writing an SDMF share to the storage
