@@ -886,8 +886,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
         DATA = "data" * 100
         u = upload.Data(DATA, convergence="")
-        fn = yield c0.upload(u)
-        c0.create_node_from_uri(ur.get_uri())
+        ur = yield c0.upload(u)
+        fn = c0.create_node_from_uri(ur.get_uri())
         m = monitor.Monitor()
         cr = yield fn.check(m)
         self.failUnlessEqual(cr.get_encoding_needed(), 7)
