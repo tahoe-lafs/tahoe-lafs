@@ -122,15 +122,16 @@ class Bucket(BucketTestMixin, unittest.TestCase):
         bw.remote_write(25, "b"*25)
         bw.remote_write(50, "c"*25)
         bw.remote_write(75, "d"*7)
-        bw.remote_close()
+        return bw.remote_close()
 
+    @defer.inlineCallbacks
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
         bw = BucketWriter(self, FakeAccount(), "si1", 0, incoming, final, 200, FakeCanary())
         bw.remote_write(0,  "a"*25)
         bw.remote_write(25, "b"*25)
         bw.remote_write(50, "c"*7) # last block may be short
-        bw.remote_close()
+        yield bw.remote_close()
 
         # now read from it
         br = BucketReader(self, bw.finalhome)
@@ -384,7 +385,7 @@ class Server(unittest.TestCase):
         shnum, bucket = writers.items()[0]
         # This test is going to hammer your filesystem if it doesn't make a sparse file for this.  :-(
         bucket.remote_write(2**32, "ab")
-        bucket.remote_close()
+        yield bucket.remote_close()
 
         readers = aa.remote_get_buckets("allocate")
         reader = readers[shnum]
@@ -403,7 +404,7 @@ class Server(unittest.TestCase):
         already, writers = yield self.allocate(aa, "storageindex", [0], 10)
         for i, wb in writers.items():
             wb.remote_write(0, "%10d" % i)
-            wb.remote_close()
+            yield wb.remote_close()
         storedir = os.path.join(self.workdir("test_dont_overfill_dirs"),
                                 "shares")
         children_of_storedir = set(os.listdir(storedir))
@@ -413,7 +414,7 @@ class Server(unittest.TestCase):
         already, writers = yield self.allocate(aa, "storageindey", [0], 10)
         for i, wb in writers.items():
             wb.remote_write(0, "%10d" % i)
-            wb.remote_close()
+            yield wb.remote_close()
         storedir = os.path.join(self.workdir("test_dont_overfill_dirs"),
                                 "shares")
         new_children_of_storedir = set(os.listdir(storedir))
@@ -427,7 +428,7 @@ class Server(unittest.TestCase):
         already, writers = yield self.allocate(aa, "vid", range(3), 10)
         for i,wb in writers.items():
             wb.remote_write(0, "%10d" % i)
-            wb.remote_close()
+            yield wb.remote_close()
         incoming_share_dir = wb.incominghome
         incoming_bucket_dir = os.path.dirname(incoming_share_dir)
         incoming_prefix_dir = os.path.dirname(incoming_bucket_dir)
@@ -469,7 +470,7 @@ class Server(unittest.TestCase):
         # close the buckets
         for i,wb in writers.items():
             wb.remote_write(0, "%25d" % i)
-            wb.remote_close()
+            yield wb.remote_close()
             # aborting a bucket that was already closed is a no-op
             wb.remote_abort()
 
@@ -514,7 +515,7 @@ class Server(unittest.TestCase):
 
         a, w = yield self.allocate(aa, "si1", [0], 10)
         w[0].remote_write(0, "\xff"*10)
-        w[0].remote_close()
+        yield w[0].remote_close()
 
         fn = os.path.join(server.sharedir, storage_index_to_dir("si1"), "0")
         f = open(fn, "rb+")
@@ -603,17 +604,18 @@ class Server(unittest.TestCase):
         # this also changes the amount reported as available by call_get_disk_stats
         allocated = 1001 + OVERHEAD + LEASE_SIZE
 
-        print("calling allocate")
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
         already3, writers3 = yield self.allocate(aa, "vid3", range(100), 100, canary)
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(server._active_writers), 39)
 
-        print("calling del")
+        # "del" doesn't guaruntee anything
+        for w in writers3.values():
+            yield w.remote_close()
         del already3
         del writers3
-        print("done")
+
         self.failUnlessEqual(len(server._active_writers), 0)
         server.disownServiceParent()
         del server
@@ -669,39 +671,45 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(already), 0)
         self.failUnlessEqual(len(writers), 5)
         for wb in writers.values():
-            wb.remote_close()
+            yield wb.remote_close()
 
         leases = yield aa.get_leases("si1")
         self.failUnlessEqual(len(leases), 5)
 
-        aa.add_share("six", 0, 0, SHARETYPE_IMMUTABLE)
+        yield aa.add_share("six", 0, 0, SHARETYPE_IMMUTABLE)
         # adding a share does not immediately add a lease
-        self.failUnlessEqual(len(aa.get_leases("six")), 0)
+        leases = yield aa.get_leases("six")
+        self.failUnlessEqual(len(leases), 0)
 
-        aa.add_or_renew_default_lease("six", 0)
-        self.failUnlessEqual(len(aa.get_leases("six")), 1)
+        yield aa.add_or_renew_default_lease("six", 0)
+        leases = yield aa.get_leases("six")
+        self.failUnlessEqual(len(leases), 1)
 
         # add-lease on a missing storage index is silently ignored
         self.failUnlessEqual(aa.remote_add_lease("si18", "", ""), None)
-        self.failUnlessEqual(len(aa.get_leases("si18")), 0)
+        leases = yield aa.get_leases("si18")
+        self.failUnlessEqual(len(leases), 0)
 
-        all_leases = aa.get_leases("si1")
+        all_leases = yield aa.get_leases("si1")
 
         # renew the lease directly
-        aa.remote_renew_lease("si1", "")
-        self.failUnlessEqual(len(aa.get_leases("si1")), 5)
-        self.compare_leases(all_leases, aa.get_leases("si1"), with_timestamps=False)
+        yield aa.remote_renew_lease("si1", "")
+        leases = yield aa.get_leases("si1")
+        self.failUnlessEqual(len(leases), 5)
+        self.compare_leases(all_leases, leases, with_timestamps=False)
 
         # Now allocate more leases using a different account.
         # A new lease should be allocated for every share in the shareset.
-        sa.remote_renew_lease("si1", "")
-        self.failUnlessEqual(len(aa.get_leases("si1")), 5)
-        self.failUnlessEqual(len(sa.get_leases("si1")), 5)
+        yield sa.remote_renew_lease("si1", "")
+        leases = yield aa.get_leases("si1")
+        self.failUnlessEqual(len(leases), 5)
+        self.failUnlessEqual(len(leases), 5)
 
-        all_leases2 = sa.get_leases("si1")
+        all_leases2 = yield sa.get_leases("si1")
 
         sa.remote_renew_lease("si1", "")
-        self.compare_leases(all_leases2, sa.get_leases("si1"), with_timestamps=False)
+        leases = yield sa.get_leases("si1")
+        self.compare_leases(all_leases2, leases, with_timestamps=False)
 
     @defer.inlineCallbacks
     def test_readonly(self):
@@ -760,7 +768,7 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([1]))
         writers[1].remote_write(0, "data")
-        writers[1].remote_close()
+        yield writers[1].remote_close()
 
         b = aa.remote_get_buckets("si1")
         self.failUnlessEqual(set(b.keys()), set([1]))
@@ -3028,12 +3036,12 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         a,w = aa.remote_allocate_buckets(immutable_si_0, rs0, cs0, sharenums,
                                          1000, canary)
         w[0].remote_write(0, data)
-        w[0].remote_close()
+        yield w[0].remote_close()
 
         a,w = aa.remote_allocate_buckets(immutable_si_1, rs1, cs1, sharenums,
                                          1000, canary)
         w[0].remote_write(0, data)
-        w[0].remote_close()
+        yield w[0].remote_close()
         sa.remote_add_lease(immutable_si_1, rs1a, cs1a)
 
         writev = aa.remote_slot_testv_and_readv_and_writev
