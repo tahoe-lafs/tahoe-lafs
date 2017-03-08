@@ -200,24 +200,10 @@ class Account(Referenceable):
         #last_connected_from = self.get_account_attribute("last_connected_from")
         created = int_or_none(self.get_account_creation_time())
 
-        return {"connected": self.connected,
-                "connected_since": self.connected_since,
-                #"last_connected_from": last_connected_from,
-                #"last_seen": last_seen,
-                "created": created,
-                }
-
-    def get_stats(self):
-        return self.server.get_stats()
-
-    def get_accounting_crawler(self):
-        return self.server.get_accounting_crawler()
-
-    def get_expiration_policy(self):
-        return self.server.get_expiration_policy()
-
-    def get_bucket_counter(self):
-        return self.server.get_bucket_counter()
-
-    def get_nodeid(self):
-        return self.server.get_nodeid()
+        return {
+            "connected": self.connected,
+            "connected_since": self.connected_since,
+            #"last_connected_from": last_connected_from,
+            #"last_seen": last_seen,
+            "created": created,
+        }
