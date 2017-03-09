@@ -17,7 +17,6 @@ from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
 from allmydata.storage.immutable import ShareFile, BucketReader, create_bucket_writer
 from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.storage.accountant import Accountant
-from allmydata.storage.expiration import ExpirationPolicy
 from allmydata.storage.leasedb import SHARETYPE_MUTABLE
 
 

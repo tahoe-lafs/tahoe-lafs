@@ -3191,6 +3191,9 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         yield d
         yield crawler_done
 
+    # XXX FIXME there's something slightly non-deterministic here;
+    # sometimes there is 1 anonymous lease, sometimes 0 ... something
+    # not waiting for a deferred somewhere presumably?
     @defer.inlineCallbacks
     def test_expire_age(self):
         basedir = "storage/AccountingCrawler/expire_age"
@@ -3326,8 +3329,8 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
             self.failUnlessIn("Leases created or last renewed more than 33 minutes ago will be considered expired.", s)
             self.failUnlessIn(" recovered: 2 shares, 2 sharesets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html_after_cycle)
-        yield d
         yield crawler_done
+        yield d
 
     @defer.inlineCallbacks
     def test_expire_cutoff_date(self):
@@ -3471,8 +3474,8 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
             self.failUnlessIn(substr, s)
             self.failUnlessIn(" recovered: 2 shares, 2 sharesets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html_after_cycle)
-        yield d
         yield crawler_done
+        yield d
 
     def test_bad_mode(self):
         e = self.failUnlessRaises(AssertionError,
@@ -3503,8 +3506,8 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         basedir = "storage/AccountingCrawler/limited_history"
         fileutil.make_dirs(basedir)
         server = StorageServer(basedir, "\x00" * 20)
-        dbfile = os.path.join(workdir, 'leases_{}.db'.format(name))
-        statefile = os.path.join(workdir, 'state_{}'.format(name))
+        dbfile = os.path.join(basedir, 'leases.db')
+        statefile = os.path.join(basedir, 'state')
         accountant = yield create_accountant(server, dbfile, statefile)
 
         # finish as fast as possible
@@ -3519,6 +3522,7 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
 
         # create a few shares, with some leases on them
         yield self.make_shares(server, accountant)
+        crawler_done = ac.set_hook('yield')
 
         server.setServiceParent(self.s)
 
@@ -3527,12 +3531,15 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
             if cycle < CYCLES:
                 return ac.set_hook('after_cycle').addCallback(_after_cycle)
 
-            state = ac.get_state()
-            self.failUnlessIn("history", state)
-            h = state["history"]
-            self.failUnlessEqual(len(h), RETAINED)
-            self.failUnlessEqual(max(h.keys()), CYCLES)
-            self.failUnlessEqual(min(h.keys()), CYCLES-RETAINED+1)
+            state_d = ac.get_state()
+            def got_state(state):
+                self.failUnlessIn("history", state)
+                h = state["history"]
+                self.failUnlessEqual(len(h), RETAINED)
+                self.failUnlessEqual(max(h.keys()), CYCLES)
+                self.failUnlessEqual(min(h.keys()), CYCLES-RETAINED+1)
+            state_d.addCallback(got_state)
+            return state_d
         d.addCallback(_after_cycle)
         d.addBoth(self._wait_for_yield, ac)
         yield d

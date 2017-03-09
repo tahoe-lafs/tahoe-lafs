@@ -111,7 +111,7 @@ class AccountingCrawler(ShareCrawler):
             storage_index = si_a2b(si_s)
             try:
                 yield self._leasedb.mark_share_as_going(storage_index, shnum)
-                yield self.server.delete_share(storage_index, shnum)
+                self.server.delete_share(storage_index, shnum)
                 yield self._leasedb.remove_deleted_share(storage_index, shnum)
                 recovered_sharesets[sharetype].add(si_s)
                 self.increment(rec, "actual-shares", 1)
@@ -281,10 +281,11 @@ class AccountingCrawler(ShareCrawler):
         pre-leasedb versions are no longer supported.
         The 'leases-per-share-histogram' is also no longer supported.
         """
+        history = yield self._leasedb.get_history()
         progress = self.get_progress()
 
         state = ShareCrawler.get_state(self) # does a shallow copy
-        state["history"] = yield self._leasedb.get_history()
+        state["history"] = history
 
         if not progress["cycle-in-progress"]:
             del state["cycle-to-date"]

@@ -20,6 +20,7 @@ from twisted.internet import defer
 from allmydata.storage.leasedb import create_lease_db, LeaseDB
 from allmydata.storage.accounting_crawler import AccountingCrawler
 from allmydata.storage.account import create_anonymous_account, create_starter_account
+from allmydata.storage.expiration import ExpirationPolicy
 
 
 @defer.inlineCallbacks
