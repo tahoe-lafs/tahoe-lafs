@@ -1,6 +1,7 @@
 
 import time, simplejson
 from nevow import rend, tags as T, inevow
+from twisted.internet import defer
 from allmydata.web.common import getxmlfile, abbreviate_time, get_arg
 from allmydata.util.abbreviate import abbreviate_space
 from allmydata.util import idlib
@@ -27,16 +28,18 @@ class StorageStatus(rend.Page):
             return self.render_JSON(req)
         return rend.Page.renderHTTP(self, ctx)
 
+    @defer.inlineCallbacks
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
         accounting_crawler = self.accountant.get_accounting_crawler()
         bucket_counter = self.storage.get_bucket_counter()
+        acs = yield accounting_crawler.get_state()
         d = {"stats": self.storage.get_stats(),
              "bucket-counter": bucket_counter.get_state(),
-             "lease-checker": accounting_crawler.get_state(),
+             "lease-checker": acs,
              "lease-checker-progress": accounting_crawler.get_progress(),
              }
-        return simplejson.dumps(d, indent=1) + "\n"
+        defer.returnValue(simplejson.dumps(d, indent=1) + "\n")
 
     def data_nickname(self, ctx, storage):
         return self.nickname
@@ -132,11 +135,11 @@ class StorageStatus(rend.Page):
                     cycletime_s]
 
     def render_lease_expiration_enabled(self, ctx, data):
-        ep = self.accountant.get_anonymous_account().get_expiration_policy()
+        ep = self.accountant.get_expiration_policy()
         return ctx.tag[ep.describe_enabled()]
 
     def render_lease_expiration_mode(self, ctx, data):
-        ep = self.accountant.get_anonymous_account().get_expiration_policy()
+        ep = self.accountant.get_expiration_policy()
         ctx.tag[ep.describe_expiration()]
         return ctx.tag
 
@@ -165,76 +168,83 @@ class StorageStatus(rend.Page):
         p = ac.get_progress()
         if not p["cycle-in-progress"]:
             return ""
-        s = ac.get_state()
-        so_far = s["cycle-to-date"]
-        sr = so_far["space-recovered"]
-        er = s["estimated-remaining-cycle"]
-        esr = er["space-recovered"]
-        ec = s["estimated-current-cycle"]
-        ecr = ec["space-recovered"]
+        d = ac.get_state()
+        def got_state(s):
+            so_far = s["cycle-to-date"]
+            sr = so_far["space-recovered"]
+            er = s["estimated-remaining-cycle"]
+            esr = er["space-recovered"]
+            ec = s["estimated-current-cycle"]
+            ecr = ec["space-recovered"]
 
-        p = T.ul()
-        def add(*pieces):
-            p[T.li[pieces]]
+            p = T.ul()
+            def add(*pieces):
+                p[T.li[pieces]]
 
-        def maybe(d):
-            if d is None:
-                return "?"
-            return "%d" % d
-        add("So far, this cycle has examined %d shares in %d sharesets"
-            % (sr["examined-shares"], sr["examined-buckets"]),
-            " (%d mutable / %d immutable)"
-            % (sr["examined-buckets-mutable"], sr["examined-buckets-immutable"]),
-            " (%s / %s)" % (abbreviate_space(sr["examined-diskbytes-mutable"]),
-                            abbreviate_space(sr["examined-diskbytes-immutable"])),
-            )
-        add("and has recovered: ", self.format_recovered(sr, "actual"))
-        if so_far["expiration-enabled"]:
-            add("The remainder of this cycle is expected to recover: ",
-                self.format_recovered(esr, "actual"))
-            add("The whole cycle is expected to examine %s shares in %s sharesets"
-                % (maybe(ecr["examined-shares"]), maybe(ecr["examined-buckets"])))
-            add("and to recover: ", self.format_recovered(ecr, "actual"))
-        else:
-            add("Expiration was not enabled.")
+            def maybe(d):
+                if d is None:
+                    return "?"
+                return "%d" % d
+            add("So far, this cycle has examined %d shares in %d sharesets"
+                % (sr["examined-shares"], sr["examined-buckets"]),
+                " (%d mutable / %d immutable)"
+                % (sr["examined-buckets-mutable"], sr["examined-buckets-immutable"]),
+                " (%s / %s)" % (abbreviate_space(sr["examined-diskbytes-mutable"]),
+                                abbreviate_space(sr["examined-diskbytes-immutable"])),
+                )
+            add("and has recovered: ", self.format_recovered(sr, "actual"))
+            if so_far["expiration-enabled"]:
+                add("The remainder of this cycle is expected to recover: ",
+                    self.format_recovered(esr, "actual"))
+                add("The whole cycle is expected to examine %s shares in %s sharesets"
+                    % (maybe(ecr["examined-shares"]), maybe(ecr["examined-buckets"])))
+                add("and to recover: ", self.format_recovered(ecr, "actual"))
+            else:
+                add("Expiration was not enabled.")
 
-        if so_far["corrupt-shares"]:
-            add("Corrupt shares:",
-                T.ul[ [T.li[ ["SI %s shnum %d" % corrupt_share
-                              for corrupt_share in so_far["corrupt-shares"] ]
-                             ]]])
+            if so_far["corrupt-shares"]:
+                add("Corrupt shares:",
+                    T.ul[ [T.li[ ["SI %s shnum %d" % corrupt_share
+                                  for corrupt_share in so_far["corrupt-shares"] ]
+                                 ]]])
 
-        return ctx.tag["Current cycle:", p]
+            return ctx.tag["Current cycle:", p]
+        d.addCallback(got_state)
+        return d
 
     def render_lease_last_cycle_results(self, ctx, data):
         ac = self.accountant.get_accounting_crawler()
-        h = ac.get_state()["history"]
-        if not h:
-            return ""
-        last = h[max(h.keys())]
+        d = ac.get_state()
+        def got_state(state):
+            h = state["history"]
+            if not h:
+                return ""
+            last = h[max(h.keys())]
 
-        start, end = last["cycle-start-finish-times"]
-        ctx.tag["Last complete cycle (which took %s and finished %s ago)"
-                " recovered: " % (abbreviate_time(end-start),
-                                  abbreviate_time(time.time() - end)),
-                self.format_recovered(last["space-recovered"], "actual")
-                ]
+            start, end = last["cycle-start-finish-times"]
+            ctx.tag["Last complete cycle (which took %s and finished %s ago)"
+                    " recovered: " % (abbreviate_time(end-start),
+                                      abbreviate_time(time.time() - end)),
+                    self.format_recovered(last["space-recovered"], "actual")
+                    ]
 
-        p = T.ul()
-        def add(*pieces):
-            p[T.li[pieces]]
+            p = T.ul()
+            def add(*pieces):
+                p[T.li[pieces]]
 
-        saw = self.format_recovered(last["space-recovered"], "examined")
-        add("and saw a total of ", saw)
+            saw = self.format_recovered(last["space-recovered"], "examined")
+            add("and saw a total of ", saw)
 
-        if not last["expiration-enabled"]:
-            add("but expiration was not enabled.")
+            if not last["expiration-enabled"]:
+                add("but expiration was not enabled.")
 
-        if last["corrupt-shares"]:
-            add("Corrupt shares:",
-                T.ul[ [T.li[ ["SI %s shnum %d" % corrupt_share
-                              for corrupt_share in last["corrupt-shares"] ]
-                             ]]])
+            if last["corrupt-shares"]:
+                add("Corrupt shares:",
+                    T.ul[ [T.li[ ["SI %s shnum %d" % corrupt_share
+                                  for corrupt_share in last["corrupt-shares"] ]
+                                 ]]])
 
-        return ctx.tag[p]
+            return ctx.tag[p]
+        d.addCallback(got_state)
+        return d
 

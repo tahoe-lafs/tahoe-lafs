@@ -199,6 +199,7 @@ class ShareCrawler(HookMixin, service.MultiService):
         #                            of the last bucket to be processed, or
         #                            None if we are sleeping between cycles
         try:
+            # XXX oh noes! pickle!
             f = open(self.statefile, "rb")
             state = pickle.load(f)
             f.close()
@@ -315,7 +316,10 @@ class ShareCrawler(HookMixin, service.MultiService):
                 state["current-cycle"] = 0
             else:
                 state["current-cycle"] = state["last-cycle-finished"] + 1
-            self.started_cycle(state["current-cycle"])
+            # should be maybe-async?
+            d = defer.maybeDeferred(self.started_cycle, state["current-cycle"])
+        else:
+            d = defer.succeed(None)
         cycle = state["current-cycle"]
 
         def _prefix_loop(i):
@@ -323,7 +327,12 @@ class ShareCrawler(HookMixin, service.MultiService):
             d2.addBoth(self._call_hook, 'after_prefix')
             d2.addCallback(lambda ign: True)
             return d2
-        d = async_iterate(_prefix_loop, xrange(self.last_complete_prefix_index + 1, len(self.prefixes)))
+
+        loop_d = async_iterate(
+            _prefix_loop,
+            xrange(self.last_complete_prefix_index + 1, len(self.prefixes))
+        )
+        d.addCallback(lambda ign: loop_d)
 
         def _cycle_done(ign):
             # yay! we finished the whole cycle
@@ -336,9 +345,12 @@ class ShareCrawler(HookMixin, service.MultiService):
             state["last-cycle-finished"] = cycle
             state["current-cycle"] = None
 
-            self.finished_cycle(cycle)
-            self.save_state()
-            return cycle
+            cycle_d = defer.maybeDeferred(self.finished_cycle, cycle)
+            def done_cycle(ign):
+                self.save_state()
+                return cycle
+            cycle_d.addCallback(done_cycle)
+            return cycle_d
         d.addCallback(_cycle_done)
         d.addBoth(self._call_hook, 'after_cycle')
         return d

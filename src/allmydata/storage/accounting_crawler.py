@@ -30,7 +30,15 @@ class AccountingCrawler(ShareCrawler):
     def __init__(self, server, statefile, leasedb):
         ShareCrawler.__init__(self, server, statefile)
         self._leasedb = leasedb
+        self._expiration_policy = None
 
+    def set_expiration_policy(self, ep):
+        self._expiration_policy = ep
+
+    # XXX this method is *hugely* complex and should be re-factored;
+    # to make leasedb async, I converted to inline-callbacks for
+    # readability .. but should be shorter functions
+    @defer.inlineCallbacks
     def process_prefixdir(self, cycle, prefix, prefixdir, buckets, start_slice):
         # assume that we can list every prefixdir in this prefix quickly.
         # Otherwise we have to retain more state between timeslices.
@@ -48,7 +56,7 @@ class AccountingCrawler(ShareCrawler):
                 disk_shares.add(shareid)
 
         # now check the database for everything in this prefix
-        db_sharemap = self._leasedb.get_shares_for_prefix(prefix)
+        db_sharemap = yield self._leasedb.get_shares_for_prefix(prefix)
         db_shares = set(db_sharemap)
 
         rec = self.state["cycle-to-date"]["space-recovered"]
@@ -64,8 +72,9 @@ class AccountingCrawler(ShareCrawler):
 
             examined_sharesets[sharetype].add(si_s)
 
-            for age in self._leasedb.get_lease_ages(si_a2b(si_s), shnum, start_slice):
-                self.add_lease_age_to_histogram(age)
+            ages = yield self._leasedb.get_lease_ages(si_a2b(si_s), shnum, start_slice)
+            for age in ages:
+                yield self.add_lease_age_to_histogram(age)
 
             self.increment(rec, "examined-shares", 1)
             self.increment(rec, "examined-sharebytes", used_space)
@@ -83,64 +92,47 @@ class AccountingCrawler(ShareCrawler):
             used_space = get_used_space(sharefile)
             # FIXME
             sharetype = SHARETYPE_UNKNOWN
-            self._leasedb.add_new_share(si_a2b(si_s), shnum, used_space, sharetype)
-            self._leasedb.add_starter_lease(si_s, shnum)
+            yield self._leasedb.add_new_share(si_a2b(si_s), shnum, used_space, sharetype)
+            yield self._leasedb.add_starter_lease(si_s, shnum)
 
         # remove disappeared shares from DB
         disappeared_shares = db_shares - disk_shares
         for (si_s, shnum) in disappeared_shares:
             log.msg(format="share SI=%(si_s)s shnum=%(shnum)s unexpectedly disappeared",
                     si_s=si_s, shnum=shnum, level=log.WEIRD)
-            self._leasedb.remove_deleted_share(si_a2b(si_s), shnum)
+            yield self._leasedb.remove_deleted_share(si_a2b(si_s), shnum)
 
         recovered_sharesets = [set() for st in xrange(len(SHARETYPES))]
 
-        def _delete_share(ign, key, value):
+        unleased_sharemap = yield self._leasedb.get_unleased_shares_for_prefix(prefix)
+        for key, value in unleased_sharemap.items():
             (si_s, shnum) = key
             (used_space, sharetype) = value
             storage_index = si_a2b(si_s)
-            d2 = defer.succeed(None)
-            def _mark_and_delete(ign):
-                self._leasedb.mark_share_as_going(storage_index, shnum)
-                return self.server.delete_share(storage_index, shnum)
-            d2.addCallback(_mark_and_delete)
-            def _deleted(ign):
-                self._leasedb.remove_deleted_share(storage_index, shnum)
-
+            try:
+                yield self._leasedb.mark_share_as_going(storage_index, shnum)
+                yield self.server.delete_share(storage_index, shnum)
+                yield self._leasedb.remove_deleted_share(storage_index, shnum)
                 recovered_sharesets[sharetype].add(si_s)
-
                 self.increment(rec, "actual-shares", 1)
                 self.increment(rec, "actual-sharebytes", used_space)
                 self.increment(rec, "actual-shares-" + SHARETYPES[sharetype], 1)
                 self.increment(rec, "actual-sharebytes-" + SHARETYPES[sharetype], used_space)
-            def _not_deleted(f):
+            except Exception:
+                f = Failure()
                 log.err(format="accounting crawler could not delete share SI=%(si_s)s shnum=%(shnum)s",
                         si_s=si_s, shnum=shnum, failure=f, level=log.WEIRD)
                 try:
-                    self._leasedb.mark_share_as_stable(storage_index, shnum)
-                except Exception, e:
+                    yield self._leasedb.mark_share_as_stable(storage_index, shnum)
+                except Exception as e:
                     log.err(e)
                 # discard the failure
-            d2.addCallbacks(_deleted, _not_deleted)
-            return d2
 
-        unleased_sharemap = self._leasedb.get_unleased_shares_for_prefix(prefix)
-        d = for_items(_delete_share, unleased_sharemap)
-
-        def _inc_recovered_sharesets(ign):
-            self.increment(rec, "actual-buckets", sum([len(s) for s in recovered_sharesets]))
-            for st in SHARETYPES:
-                self.increment(rec, "actual-buckets-" + SHARETYPES[st], len(recovered_sharesets[st]))
-        d.addCallback(_inc_recovered_sharesets)
-        return d
+        self.increment(rec, "actual-buckets", sum([len(s) for s in recovered_sharesets]))
+        for st in SHARETYPES:
+            self.increment(rec, "actual-buckets-" + SHARETYPES[st], len(recovered_sharesets[st]))
 
     # these methods are for outside callers to use
-
-    def set_expiration_policy(self, policy):
-        self._expiration_policy = policy
-
-    def get_expiration_policy(self):
-        return self._expiration_policy
 
     def is_expiration_enabled(self):
         return self._expiration_policy.is_enabled()
@@ -203,20 +195,17 @@ class AccountingCrawler(ShareCrawler):
 
     def started_cycle(self, cycle):
         self.state["cycle-to-date"] = self.create_empty_cycle_dict()
-
-        current_time = time.time()
-        self._expiration_policy.remove_expired_leases(self._leasedb, current_time)
+        return self._expiration_policy.remove_expired_leases(self._leasedb, time.time())
 
     def finished_cycle(self, cycle):
         # add to our history state, prune old history
         h = {}
 
         start = self.state["current-cycle-start-time"]
-        now = time.time()
+        now = time.time()  # XXX should use reactor.seconds()
         h["cycle-start-finish-times"] = (start, now)
-        ep = self.get_expiration_policy()
-        h["expiration-enabled"] = ep.is_enabled()
-        h["configured-expiration-mode"] = ep.get_parameters()
+        h["expiration-enabled"] = self._expiration_policy.is_enabled()
+        h["configured-expiration-mode"] = self._expiration_policy.get_parameters()
 
         s = self.state["cycle-to-date"]
 
@@ -233,8 +222,9 @@ class AccountingCrawler(ShareCrawler):
         # copy() needs to become a deepcopy
         h["space-recovered"] = s["space-recovered"].copy()
 
-        self._leasedb.add_history_entry(cycle, h)
+        return self._leasedb.add_history_entry(cycle, h)
 
+    @defer.inlineCallbacks
     def get_state(self):
         """In addition to the crawler state described in
         ShareCrawler.get_state(), I return the following keys which are
@@ -294,11 +284,12 @@ class AccountingCrawler(ShareCrawler):
         progress = self.get_progress()
 
         state = ShareCrawler.get_state(self) # does a shallow copy
-        state["history"] = self._leasedb.get_history()
+        state["history"] = yield self._leasedb.get_history()
 
         if not progress["cycle-in-progress"]:
             del state["cycle-to-date"]
-            return state
+            defer.returnValue(state)
+            return
 
         so_far = state["cycle-to-date"].copy()
         state["cycle-to-date"] = so_far
@@ -339,4 +330,4 @@ class AccountingCrawler(ShareCrawler):
 
         state["estimated-remaining-cycle"] = remaining
         state["estimated-current-cycle"] = cycle
-        return state
+        defer.returnValue(state)

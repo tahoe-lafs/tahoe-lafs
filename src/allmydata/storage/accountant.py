@@ -23,12 +23,19 @@ from allmydata.storage.account import create_anonymous_account, create_starter_a
 
 
 @defer.inlineCallbacks
-def create_accountant(storage_server, dbfile, statefile):
+def create_accountant(storage_server, dbfile, statefile, expiration_policy=None):
     leasedb = yield create_lease_db(dbfile)
     anonymous_account = yield create_anonymous_account(leasedb, storage_server)
     starter_account = yield create_starter_account(leasedb, storage_server)
     crawler = AccountingCrawler(storage_server, statefile, leasedb)
-    defer.returnValue(Accountant(leasedb, anonymous_account, starter_account, crawler))
+    expiration_policy = expiration_policy or ExpirationPolicy(enabled=False)
+
+    accountant = Accountant(
+        leasedb, anonymous_account, starter_account, crawler,
+        expiration_policy
+    )
+    accountant.setServiceParent(storage_server)
+    defer.returnValue(accountant)
 
 
 class Accountant(service.MultiService):
@@ -43,17 +50,17 @@ class Accountant(service.MultiService):
 
     """
 
-    def __init__(self, leasedb, anonymous_account, starter_account, crawler):
+    def __init__(self, leasedb, anonymous_account, starter_account, crawler,
+                 expiration_policy):
         service.MultiService.__init__(self)
         self._active_accounts = weakref.WeakValueDictionary()
         self._leasedb = leasedb
         self._anonymous_account = anonymous_account
         self._starter_account = starter_account
         self._crawler = crawler
-
-    def startService(self):
-        # XXX or in ctor?
         self._crawler.setServiceParent(self)
+        self._crawler.set_expiration_policy(expiration_policy)
+        self._expiration_policy = expiration_policy
 
     def stopService(self):
         d = super(Accountant, self).stopService()
@@ -62,7 +69,11 @@ class Accountant(service.MultiService):
         # anything else?
         return d
 
+    def get_expiration_policy(self):
+        return self._expiration_policy
+
     def set_expiration_policy(self, policy):
+        self._expiration_policy = policy
         self._crawler.set_expiration_policy(policy)
 
     # XXX what about:

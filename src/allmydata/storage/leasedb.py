@@ -1,6 +1,5 @@
 
 import sys
-import thread
 
 import time, simplejson
 
@@ -127,7 +126,7 @@ def create_lease_db(dbfile):
 class LeaseDB(object):
     ANONYMOUS_ACCOUNTID = 0
     STARTER_LEASE_ACCOUNTID = 1
-    STARTER_LEASE_DURATION = 2*MONTH
+    STARTER_LEASE_DURATION = 2 * MONTH
 
     def __init__(self, conn):
         """
@@ -160,7 +159,7 @@ class LeaseDB(object):
     def add_new_share(self, storage_index, shnum, used_space, sharetype):
         si_s = si_b2a(storage_index)
         prefix = si_s[:2]
-        if self.debug: print "ADD_NEW_SHARE", thread.get_ident(), prefix, si_s, shnum, used_space, sharetype
+        if self.debug: print "ADD_NEW_SHARE", prefix, si_s, shnum, used_space, sharetype
         backend_key = None
         # This needs to be an INSERT OR REPLACE because it is possible for add_new_share
         # to be called when this share is already in the database (but not on disk).
@@ -176,7 +175,7 @@ class LeaseDB(object):
     @defer.inlineCallbacks
     def add_starter_lease(self, storage_index, shnum):
         si_s = si_b2a(storage_index)
-        if self.debug: print "ADD_STARTER_LEASE", thread.get_ident(), si_s, shnum
+        if self.debug: print "ADD_STARTER_LEASE", si_s, shnum
         renewal_time = time.time()
         yield self.add_or_renew_leases(storage_index, shnum, self.STARTER_LEASE_ACCOUNTID,
                                        int(renewal_time), int(renewal_time + self.STARTER_LEASE_DURATION))
@@ -187,7 +186,7 @@ class LeaseDB(object):
         Call this method after adding a share to backend storage.
         """
         si_s = si_b2a(storage_index)
-        if self.debug: print "MARK_SHARE_AS_STABLE", thread.get_ident(), si_s, shnum, used_space
+        if self.debug: print "MARK_SHARE_AS_STABLE", si_s, shnum, used_space
         if used_space is not None:
             yield self._conn.runOperation("UPDATE `shares` SET `state`=?, `used_space`=?, `backend_key`=?"
                                           " WHERE `storage_index`=? AND `shnum`=? AND `state`!=?",
@@ -208,7 +207,7 @@ class LeaseDB(object):
         then call remove_deleted_share.
         """
         si_s = si_b2a(storage_index)
-        if self.debug: print "MARK_SHARE_AS_GOING", thread.get_ident(), si_s, shnum
+        if self.debug: print "MARK_SHARE_AS_GOING", si_s, shnum
         yield self._conn.runOperation("UPDATE `shares` SET `state`=?"
                              " WHERE `storage_index`=? AND `shnum`=? AND `state`!=?",
                              (STATE_GOING, si_s, shnum, STATE_COMING))
@@ -219,7 +218,7 @@ class LeaseDB(object):
     @defer.inlineCallbacks
     def remove_deleted_share(self, storage_index, shnum):
         si_s = si_b2a(storage_index)
-        if self.debug: print "REMOVE_DELETED_SHARE", thread.get_ident(), si_s, shnum
+        if self.debug: print "REMOVE_DELETED_SHARE", si_s, shnum
         # delete leases first to maintain integrity constraint
         yield self._conn.runOperation("DELETE FROM `leases`"
                                       " WHERE `storage_index`=? AND `shnum`=?",
@@ -231,7 +230,7 @@ class LeaseDB(object):
     @defer.inlineCallbacks
     def change_share_space(self, storage_index, shnum, used_space):
         si_s = si_b2a(storage_index)
-        if self.debug: print "CHANGE_SHARE_SPACE", thread.get_ident(), si_s, shnum, used_space
+        if self.debug: print "CHANGE_SHARE_SPACE", si_s, shnum, used_space
         yield self._conn.runOperation("UPDATE `shares` SET `used_space`=?"
                                       " WHERE `storage_index`=? AND `shnum`=?",
                                       (used_space, si_s, shnum))
@@ -250,8 +249,7 @@ class LeaseDB(object):
         Raises NonExistentShareError if a specific shnum is given and that share does not exist in the `shares` table.
         """
         si_s = si_b2a(storage_index)
-        if self.debug: print "ADD_OR_RENEW_LEASES", thread.get_ident(), si_s, shnum, ownerid, renewal_time, expiration_time
-#        import traceback; traceback.print_stack(file=sys.stdout)
+        if self.debug: print "ADD_OR_RENEW_LEASES", si_s, shnum, ownerid, renewal_time, expiration_time
         if shnum is None:
             rows = yield self._conn.runQuery("SELECT `storage_index`, `shnum` FROM `shares`"
                                              " WHERE `storage_index`=?",
@@ -262,7 +260,6 @@ class LeaseDB(object):
                                              (si_s, shnum))
             if not rows:
                 rows = yield self._conn.runQuery("SELECT * FROM `shares`")
-                print("ALL ROWS", rows)
                 raise NonExistentShareError(si_s, shnum)
 
         for (found_si_s, found_shnum) in rows:
@@ -294,9 +291,10 @@ class LeaseDB(object):
         rows = yield self._conn.runQuery("SELECT `renewal_time` FROM `leases`"
                                         " WHERE `storage_index`=? AND `shnum`=?",
                                         (si_s, shnum))
-        def _to_age(row):
-            return now - float(row[0])
-        defer.returnValue(map(_to_age, rows))
+        defer.returnValue([
+            now - float(row[0])
+            for row in rows
+        ])
 
     @defer.inlineCallbacks
     def get_unleased_shares_for_prefix(self, prefix):
@@ -306,12 +304,12 @@ class LeaseDB(object):
         #         " WHERE (`storage_index`, `shnum`) NOT IN (SELECT DISTINCT `storage_index`, `shnum` FROM `leases`)")
 
         # This "negative join" should be equivalent.
-        yield self._conn.runQuery("SELECT DISTINCT s.storage_index, s.shnum, s.used_space, s.sharetype FROM `shares` s LEFT JOIN `leases` l"
+        values = yield self._conn.runQuery("SELECT DISTINCT s.storage_index, s.shnum, s.used_space, s.sharetype FROM `shares` s LEFT JOIN `leases` l"
                                   " ON (s.storage_index = l.storage_index AND s.shnum = l.shnum)"
                                   " WHERE s.prefix = ? AND l.storage_index IS NULL",
                                   (prefix,))
         db_sharemap = dict([((str(si_s), int(shnum)), (int(used_space), int(sharetype)))
-                           for (si_s, shnum, used_space, sharetype) in self._cursor.fetchall()])
+                           for (si_s, shnum, used_space, sharetype) in values])
         defer.returnValue(db_sharemap)
 
     @defer.inlineCallbacks

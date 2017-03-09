@@ -886,12 +886,15 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
         DATA = "data" * 100
         u = upload.Data(DATA, convergence="")
-        ur = yield c0.upload(u)
-        fn = c0.create_node_from_uri(ur.get_uri())
+        d = c0.upload(u)
+        d.addCallback(lambda ur: c0.create_node_from_uri(ur.get_uri()))
         m = monitor.Monitor()
-        cr = yield fn.check(m)
-        self.failUnlessEqual(cr.get_encoding_needed(), 7)
-        self.failUnlessEqual(cr.get_encoding_expected(), 12)
+        d.addCallback(lambda fn: fn.check(m))
+        def _check(cr):
+            self.failUnlessEqual(cr.get_encoding_needed(), 7)
+            self.failUnlessEqual(cr.get_encoding_expected(), 12)
+        d.addCallback(_check)
+        yield d
 
     def _setUp(self, ns):
         # Used by test_happy_semantics and test_preexisting_share_behavior

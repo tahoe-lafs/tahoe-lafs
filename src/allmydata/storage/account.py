@@ -57,14 +57,10 @@ class Account(Referenceable):
     def is_static(self):
         return self.owner_num in (0,1)
 
-    # these methods are called by StorageServer
-
-    def get_owner_num(self):
-        return self.owner_num
-
-    def get_renewal_and_expiration_times(self):
-        renewal_time = time.time()
-        return (renewal_time, renewal_time + 31*24*60*60)
+    def _create_renewal_and_expiration_times(self):
+        renewal_time = time.time()  # XXX should use reactor.seconds()
+        expiration_time = renewal_time + 31*24*60*60
+        return renewal_time, expiration_time
 
     # immutable.BucketWriter.close() does:
     #  add_share(), add_or_renew_lease(), mark_share_as_stable()
@@ -82,11 +78,10 @@ class Account(Referenceable):
         return self._leasedb.add_new_share(storage_index, shnum, used_space, sharetype)
 
     def add_or_renew_default_lease(self, storage_index, shnum):
-        renewal_time, expiration_time = self.get_renewal_and_expiration_times()
+        renewal_time, expiration_time = self._create_renewal_and_expiration_times()
         return self.add_or_renew_lease(storage_index, shnum, renewal_time, expiration_time)
 
     def add_or_renew_lease(self, storage_index, shnum, renewal_time, expiration_time):
-        if self.debug: print "ADD_OR_RENEW_LEASE", si_b2a(storage_index), shnum
         return self._leasedb.add_or_renew_leases(storage_index, shnum, self.owner_num,
                                                  renewal_time, expiration_time)
 
@@ -109,7 +104,7 @@ class Account(Referenceable):
     # remote_add_lease() and remote_renew_lease() do this
     def add_lease_for_bucket(self, storage_index):
         if self.debug: print "ADD_LEASE_FOR_BUCKET", si_b2a(storage_index)
-        renewal_time, expiration_time = self.get_renewal_and_expiration_times()
+        renewal_time, expiration_time = self._create_renewal_and_expiration_times()
         return self._leasedb.add_or_renew_leases(storage_index, None,
                                                  self.owner_num, renewal_time, expiration_time)
 

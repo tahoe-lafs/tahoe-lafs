@@ -2,6 +2,7 @@
 import time
 from types import NoneType
 
+from twisted.internet import defer
 from allmydata.util.assertutil import precondition
 from allmydata.util import time_format
 from allmydata.web.common import abbreviate_time
@@ -23,18 +24,19 @@ class ExpirationPolicy(object):
         self._override_lease_duration = override_lease_duration
         self._cutoff_date = cutoff_date
 
+    # this is async!
     def remove_expired_leases(self, leasedb, current_time):
         if not self._enabled:
-            return
+            return defer.succeed(None)
 
         if self._mode == "age":
             if self._override_lease_duration is not None:
-                leasedb.remove_leases_by_renewal_time(current_time - self._override_lease_duration)
+                return leasedb.remove_leases_by_renewal_time(current_time - self._override_lease_duration)
             else:
-                leasedb.remove_leases_by_expiration_time(current_time)
+                return leasedb.remove_leases_by_expiration_time(current_time)
         else:
             # self._mode == "cutoff-date"
-            leasedb.remove_leases_by_renewal_time(self._cutoff_date)
+            return leasedb.remove_leases_by_renewal_time(self._cutoff_date)
 
     def get_parameters(self):
         """
