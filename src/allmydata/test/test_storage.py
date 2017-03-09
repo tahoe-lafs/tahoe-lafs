@@ -3363,13 +3363,21 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
             return list(server._iter_share_files(si))[0]
 
         self.failUnlessEqual(count_shares(immutable_si_0), 1)
-#        self.failUnlessEqual(count_leases(immutable_si_0), (1, 0))
         self.failUnlessEqual(count_shares(immutable_si_1), 1)
-#        self.failUnlessEqual(count_leases(immutable_si_1), (1, 1))
         self.failUnlessEqual(count_shares(mutable_si_2), 1)
-#        self.failUnlessEqual(count_leases(mutable_si_2), (1, 0))
         self.failUnlessEqual(count_shares(mutable_si_3), 1)
-#        self.failUnlessEqual(count_leases(mutable_si_3), (1, 1))
+
+        cases = [
+            (immutable_si_0, 1, 1),
+            (immutable_si_1, 1, 1),
+            (mutable_si_2, 1, 1),
+            (mutable_si_3, 1, 1),
+        ]
+        for si, expect_anon, expect_starter in cases:
+            anon = yield aa.get_leases(si)
+            starter = yield sa.get_leases(si)
+            self.failUnlessEqual(len(anon), expect_anon)
+            self.failUnlessEqual(len(starter), expect_starter)
 
         # artificially crank back the renewal time on the first lease of each
         # share to 3000s ago, and set the expiration time to 31 days later.
@@ -3418,10 +3426,18 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         def _after_first_cycle(ignored):
             self.failUnlessEqual(count_shares(immutable_si_0), 0)
             self.failUnlessEqual(count_shares(immutable_si_1), 1)
-#            self.failUnlessEqual(count_leases(immutable_si_1), (1, 0))
             self.failUnlessEqual(count_shares(mutable_si_2), 0)
             self.failUnlessEqual(count_shares(mutable_si_3), 1)
-#            self.failUnlessEqual(count_leases(mutable_si_3), (1, 0))
+
+            cases = [
+                (immutable_si_1, 1, 0),
+                (mutable_si_3, 1, 0),
+            ]
+            for si, expect_anon, expect_starter in cases:
+                a = yield aa.get_leases(si)
+                s = yield sa.get_leases(si)
+                self.failUnlessEqual(len(a), expect_anon)
+                self.failUnlessEqual(len(s), expect_starter)
 
             s = yield ac.get_state()
             last = s["history"][0]
