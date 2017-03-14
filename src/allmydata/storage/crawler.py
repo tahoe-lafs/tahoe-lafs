@@ -346,7 +346,6 @@ class ShareCrawler(HookMixin, service.MultiService):
 
             cycle_d = defer.maybeDeferred(self.finished_cycle, cycle)
             def done_cycle(ign):
-                print("one cycle")
                 self.save_state()
                 return cycle
             cycle_d.addCallback(done_cycle)
