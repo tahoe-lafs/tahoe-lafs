@@ -123,6 +123,29 @@ def create_lease_db(dbfile):
     defer.returnValue(LeaseDB(db))
 
 
+
+def _locked(orig_fn):
+    """
+    A decorator used below with LeaseDB to lock/unlock the
+    DeferredLock for each data-base accessing method we do.
+
+    This is mostly important for functions that do multiple operations
+    but we lock each method that does any database access anyway.
+    """
+    def guarded_access(obj, *args, **kw):
+        # print("locking for", orig_fn)
+        d = obj._lock.acquire()
+        d.addCallback(lambda ign: orig_fn(obj, *args, **kw))
+
+        def unlock(rtn):
+            # print("unlocking for", orig_fn)
+            obj._lock.release()
+            return rtn
+        d.addBoth(unlock)
+        return d
+    return guarded_access
+
+
 class LeaseDB(object):
     ANONYMOUS_ACCOUNTID = 0
     STARTER_LEASE_ACCOUNTID = 1
@@ -135,6 +158,7 @@ class LeaseDB(object):
         self._conn = conn
         self.debug = False
         self.retained_history_entries = 10
+        self._lock = defer.DeferredLock()
 
     def close(self):
         self._conn.close()
@@ -142,6 +166,7 @@ class LeaseDB(object):
 
     # share management
 
+    @_locked
     @defer.inlineCallbacks
     def get_shares_for_prefix(self, prefix):
         """
@@ -155,6 +180,7 @@ class LeaseDB(object):
                             for (si_s, shnum, used_space, sharetype) in fetchall_val])
         defer.returnValue(db_sharemap)
 
+    @_locked
     @defer.inlineCallbacks
     def add_new_share(self, storage_index, shnum, used_space, sharetype):
         si_s = si_b2a(storage_index)
@@ -170,16 +196,21 @@ class LeaseDB(object):
         # XXX okay, so I'm sometimes seeing this call error-out
         # because "no share" which leads me to believe the above isn't
         # completing fully / commiting (or something)
-        yield self.add_starter_lease(storage_index, shnum)
+        yield self._already_locked_add_starter_lease(storage_index, shnum)
+
+    @_locked
+    def add_starter_lease(self, storage_index, shnum):
+        return self._already_locked_add_starter_lease(storage_index, shnum)
 
     @defer.inlineCallbacks
-    def add_starter_lease(self, storage_index, shnum):
+    def _already_locked_add_starter_lease(self, storage_index, shnum):
         si_s = si_b2a(storage_index)
         if self.debug: print "ADD_STARTER_LEASE", si_s, shnum
         renewal_time = time.time()
-        yield self.add_or_renew_leases(storage_index, shnum, self.STARTER_LEASE_ACCOUNTID,
-                                       int(renewal_time), int(renewal_time + self.STARTER_LEASE_DURATION))
+        yield self._already_locked_add_or_renew_leases(storage_index, shnum, self.STARTER_LEASE_ACCOUNTID,
+                                                       int(renewal_time), int(renewal_time + self.STARTER_LEASE_DURATION))
 
+    @_locked
     @defer.inlineCallbacks
     def mark_share_as_stable(self, storage_index, shnum, used_space=None, backend_key=None):
         """
@@ -200,6 +231,7 @@ class LeaseDB(object):
         # if self._cursor.rowcount < 1:
         #     raise NonExistentShareError(si_s, shnum)
 
+    @_locked
     @defer.inlineCallbacks
     def mark_share_as_going(self, storage_index, shnum):
         """
@@ -215,6 +247,7 @@ class LeaseDB(object):
         #if self._cursor.rowcount < 1:
         #    raise NonExistentShareError(si_s, shnum)
 
+    @_locked
     @defer.inlineCallbacks
     def remove_deleted_share(self, storage_index, shnum):
         si_s = si_b2a(storage_index)
@@ -227,6 +260,7 @@ class LeaseDB(object):
                                       " WHERE `storage_index`=? AND `shnum`=?",
                                       (si_s, shnum))
 
+    @_locked
     @defer.inlineCallbacks
     def change_share_space(self, storage_index, shnum, used_space):
         si_s = si_b2a(storage_index)
@@ -240,7 +274,7 @@ class LeaseDB(object):
 
     # lease management
 
-    @defer.inlineCallbacks
+    @_locked
     def add_or_renew_leases(self, storage_index, shnum, ownerid,
                             renewal_time, expiration_time):
         """
@@ -248,6 +282,13 @@ class LeaseDB(object):
 
         Raises NonExistentShareError if a specific shnum is given and that share does not exist in the `shares` table.
         """
+        return self._already_locked_add_or_renew_leases(
+            storage_index, shnum, ownerid, renewal_time, expiration_time,
+        )
+
+    @defer.inlineCallbacks
+    def _already_locked_add_or_renew_leases(self, storage_index, shnum, ownerid,
+                                            renewal_time, expiration_time):
         si_s = si_b2a(storage_index)
         if self.debug: print "ADD_OR_RENEW_LEASES", si_s, shnum, ownerid, renewal_time, expiration_time
         if shnum is None:
@@ -271,20 +312,27 @@ class LeaseDB(object):
             # the server and time goes backward by more than 31 days. This needs to be
             # revisited for ticket #1816, which would allow the client to request a lease
             # duration.
+            print("doing a lease", si_s, found_shnum)
             yield self._conn.runOperation("INSERT OR REPLACE INTO `leases` VALUES (?,?,?,?,?)",
                                           (si_s, found_shnum, ownerid, renewal_time, expiration_time))
 
+    @_locked
     @defer.inlineCallbacks
     def get_leases(self, storage_index, ownerid):
         si_s = si_b2a(storage_index)
+        print("get leases", si_s, ownerid)
         rows = yield self._conn.runQuery("SELECT `shnum`, `account_id`, `renewal_time`, `expiration_time` FROM `leases`"
                                          " WHERE `storage_index`=? AND `account_id`=?",
                                          (si_s, ownerid))
         def _to_LeaseInfo(row):
             (shnum, account_id, renewal_time, expiration_time) = tuple(row)
             return LeaseInfo(storage_index, int(shnum), int(account_id), float(renewal_time), float(expiration_time))
-        defer.returnValue(map(_to_LeaseInfo, rows))
+        defer.returnValue([
+            _to_LeaseInfo(row)
+            for row in rows
+        ])
 
+    @_locked
     @defer.inlineCallbacks
     def get_lease_ages(self, storage_index, shnum, now):
         si_s = si_b2a(storage_index)
@@ -296,6 +344,7 @@ class LeaseDB(object):
             for row in rows
         ])
 
+    @_locked
     @defer.inlineCallbacks
     def get_unleased_shares_for_prefix(self, prefix):
         if self.debug: print "GET_UNLEASED_SHARES_FOR_PREFIX", prefix
@@ -312,12 +361,14 @@ class LeaseDB(object):
                            for (si_s, shnum, used_space, sharetype) in values])
         defer.returnValue(db_sharemap)
 
+    @_locked
     @defer.inlineCallbacks
     def remove_leases_by_renewal_time(self, renewal_cutoff_time):
         if self.debug: print "REMOVE_LEASES_BY_RENEWAL_TIME", renewal_cutoff_time
         yield self._conn.runOperation("DELETE FROM `leases` WHERE `renewal_time` < ?",
                                       (renewal_cutoff_time,))
 
+    @_locked
     @defer.inlineCallbacks
     def remove_leases_by_expiration_time(self, expiration_cutoff_time):
         if self.debug: print "REMOVE_LEASES_BY_EXPIRATION_TIME", expiration_cutoff_time
@@ -326,6 +377,7 @@ class LeaseDB(object):
 
     # history
 
+    @_locked
     @defer.inlineCallbacks
     def add_history_entry(self, cycle, entry):
         if self.debug: print "ADD_HISTORY_ENTRY", cycle, entry
@@ -339,12 +391,14 @@ class LeaseDB(object):
         yield self._conn.runOperation("INSERT OR REPLACE INTO `crawler_history` VALUES (?,?)",
                                       (cycle, json))
 
+    @_locked
     @defer.inlineCallbacks
     def get_history(self):
         rows = yield self._conn.runQuery("SELECT `cycle`,`json` FROM `crawler_history`")
         decoded = [(row[0], simplejson.loads(row[1])) for row in rows]
         defer.returnValue(dict(decoded))
 
+    @_locked
     @defer.inlineCallbacks
     def get_account_creation_time(self, owner_num):
         row = yield self._conn.runQuery("SELECT `creation_time` from `accounts`"
@@ -354,6 +408,7 @@ class LeaseDB(object):
             defer.returnValue(row[0])
         defer.returnValue(None)
 
+    @_locked
     @defer.inlineCallbacks
     def get_all_accounts(self):
         fetchall_val = yield self._conn.runQuery("SELECT `id`,`pubkey_vs`"
