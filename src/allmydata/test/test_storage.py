@@ -3000,9 +3000,9 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
             return (hashutil.tagged_hash("renew-%d" % num, si),
                     hashutil.tagged_hash("cancel-%d" % num, si))
 
-        # XXX originally this code tried to make immutable_si_0 have
-        # zero leases, but that's not possible because BucketWriter
-        # adds a lease when writing ceases (i.e. when it's closed)
+        # there are 4 leases here, 2 each of immutable and
+        # mutable. The first of each has only starter leases
+        # (i.e. immutable_si_0 and mutable_si_2)
         immutable_si_0, rs0, cs0 = make("\x00" * 16)
         immutable_si_1, rs1, cs1 = make("\x01" * 16)
         rs1a, cs1a = make_extra_lease(immutable_si_1, 1)
@@ -3015,7 +3015,7 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         # inner contents are not a valid CHK share
         data = "\xff" * 1000
 
-        a, w = yield aa.remote_allocate_buckets(immutable_si_0, rs0, cs0, sharenums,
+        a, w = yield sa.remote_allocate_buckets(immutable_si_0, rs0, cs0, sharenums,
                                                 1000, canary)
         yield w[0].remote_write(0, data)
         yield w[0].remote_close()
@@ -3026,12 +3026,12 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         yield w[0].remote_close()
         yield sa.remote_add_lease(immutable_si_1, rs1a, cs1a)
 
-        writev = aa.remote_slot_testv_and_readv_and_writev
+        writev = sa.remote_slot_testv_and_readv_and_writev
         yield writev(mutable_si_2, (we2, rs2, cs2),
                      {0: ([], [(0,data)], len(data))}, [])
         yield writev(mutable_si_3, (we3, rs3, cs3),
                      {0: ([], [(0,data)], len(data))}, [])
-        yield sa.remote_add_lease(mutable_si_3, rs3a, cs3a)
+        yield aa.remote_add_lease(mutable_si_3, rs3a, cs3a)
 
         self.sis = [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3]
         self.renew_secrets = [rs0, rs1, rs1a, rs2, rs3, rs3a]
