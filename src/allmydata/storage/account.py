@@ -39,6 +39,12 @@ def create_starter_account(leasedb, storage_server):
     )
 
 
+# what is happening here is that Account has become the StorageServer
+# interface, which used to be provided (directly) by
+# StorageServer. All the remote_* methods are mirrored with client_*
+# methods in StorageServer except the latter take the Account
+# instance...
+
 @implementer(RIStorageServer)
 class Account(Referenceable):
 
