@@ -46,8 +46,6 @@ class FakeAccount(object):
         pass
     def mark_share_as_stable(self, storage_index, shnum, used_space, commit=True):
         pass
-    def get_expiration_policy(self):
-        return ExpirationPolicy()
 
 class FakeAccountingCrawler(object):
     def get_progress(self):
@@ -73,6 +71,9 @@ class FakeAccountant(object):
 
     def get_accounting_crawler(self):
         return FakeAccountingCrawler()
+
+    def get_expiration_policy(self):
+        return ExpirationPolicy()
 
 
 class FakeCanary:
