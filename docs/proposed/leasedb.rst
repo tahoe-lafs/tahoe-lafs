@@ -183,7 +183,7 @@ State transitions
     1. Remove the entry in the leasedb.
 
 • **STATE_STABLE** → **NONE**
-	
+
     trigger: The accounting crawler noticed that all the store objects for
     this share are gone.
 
