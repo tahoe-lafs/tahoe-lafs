@@ -3234,9 +3234,9 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         self.failUnlessEqual(count_shares(mutable_si_3), 1)
 
         cases = [
-            (immutable_si_0, 1, 1),
+            (immutable_si_0, 0, 1),
             (immutable_si_1, 1, 1),
-            (mutable_si_2, 1, 1),
+            (mutable_si_2, 0, 1),
             (mutable_si_3, 1, 1),
         ]
         for si, expect_anon, expect_starter in cases:

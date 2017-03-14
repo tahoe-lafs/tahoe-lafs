@@ -133,7 +133,7 @@ class LeaseDB(object):
         conn is an instance of adbapi.ConnectionPool
         """
         self._conn = conn
-        self.debug = True
+        self.debug = False
         self.retained_history_entries = 10
 
     def close(self):
