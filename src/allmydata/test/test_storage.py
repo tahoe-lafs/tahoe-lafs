@@ -3359,7 +3359,7 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
 
         # create a few shares, with some leases on them
         yield self.make_shares(server, accountant)
-        [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3] = self.sis
+        (immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3) = self.sis
 
         def count_shares(si):
             return len(list(server._iter_share_files(si)))
@@ -3372,16 +3372,22 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
         self.failUnlessEqual(count_shares(mutable_si_3), 1)
 
         cases = [
-            (immutable_si_0, 1, 1),
+            (immutable_si_0, 0, 1),
             (immutable_si_1, 1, 1),
-            (mutable_si_2, 1, 1),
+            (mutable_si_2, 0, 1),
             (mutable_si_3, 1, 1),
         ]
         for si, expect_anon, expect_starter in cases:
             anon = yield aa.get_leases(si)
             starter = yield sa.get_leases(si)
-            self.failUnlessEqual(len(anon), expect_anon)
-            self.failUnlessEqual(len(starter), expect_starter)
+            self.failUnlessEqual(
+                len(anon), expect_anon,
+                "anon {} not {} for {}".format(len(anon), expect_anon, repr(si))
+            )
+            self.failUnlessEqual(
+                len(starter), expect_starter,
+                "starter {} not {} for {}".format(len(starter), expect_starter, repr(si))
+            )
 
         # artificially crank back the renewal time on the first lease of each
         # share to 3000s ago, and set the expiration time to 31 days later.
