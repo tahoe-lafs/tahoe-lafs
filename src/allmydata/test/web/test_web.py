@@ -199,7 +199,7 @@ class FakeAccountingCrawler(object):
         self.override_lease_duration = None
         self.sharetypes_to_expire = {}
     def get_state(self):
-        return {"history": None}
+        return defer.succeed({"history": None})
     def get_progress(self):
         return {"estimated-time-per-cycle": 0,
                 "cycle-in-progress": False,

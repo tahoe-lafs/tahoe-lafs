@@ -57,9 +57,9 @@ class FakeAccountingCrawler(object):
         }
 
     def get_state(self):
-        return {
+        return defer.succeed({
             'history': [],
-        }
+        })
 
 
 class FakeAccountant(object):
@@ -2844,6 +2844,7 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
         return self.s.stopService()
 
 
+    @defer.inlineCallbacks
     def test_bucket_counter(self):
         basedir = "storage/BucketCounter/bucket_counter"
         fileutil.make_dirs(basedir)
@@ -2861,7 +2862,7 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
         w = StorageStatus(server, FakeAccountant())
 
         # this sample is before the crawler has started doing anything
-        html = w.renderSynchronously()
+        html = yield w.renderString()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: Yes", s)
@@ -2869,18 +2870,19 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
         self.failUnlessIn("Total sharesets: Not computed yet", s)
         self.failUnlessIn("Next crawl in", s)
 
+        @defer.inlineCallbacks
         def _after_first_prefix(prefix):
             server.bucket_counter.save_state()
             state = bucket_counter.get_state()
             self.failUnlessEqual(prefix, state["last-complete-prefix"])
             self.failUnlessEqual(prefix, bucket_counter.prefixes[0])
 
-            html = w.renderSynchronously()
+            html = yield w.renderString()
             s = remove_tags(html)
             self.failUnlessIn(" Current crawl ", s)
             self.failUnlessIn(" (next work in ", s)
-
-            return bucket_counter.set_hook('after_cycle')
+            cycle_num = yield bucket_counter.set_hook('after_cycle')
+            defer.returnValue(cycle_num)
         d.addCallback(_after_first_prefix)
 
         def _after_first_cycle(cycle):
@@ -2890,13 +2892,14 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
         d.addCallback(_after_first_cycle)
         d.addBoth(self._wait_for_yield, bucket_counter)
 
+        @defer.inlineCallbacks
         def _after_yield(ign):
-            html = w.renderSynchronously()
+            html = yield w.renderString()
             s = remove_tags(html)
             self.failUnlessIn("Total sharesets: 0 (the number of", s)
             self.failUnless("Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
         d.addCallback(_after_yield)
-        return d
+        yield d
 
     def test_bucket_counter_cleanup(self):
         basedir = "storage/BucketCounter/bucket_counter_cleanup"
@@ -2956,18 +2959,20 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
 
         w = StorageStatus(server, FakeAccountant())
 
+        @defer.inlineCallbacks
         def _check_1(prefix1):
             # no ETA is available yet
-            html = w.renderSynchronously()
+            html = yield w.renderString()
             s = remove_tags(html)
             self.failUnlessIn("complete (next work", s)
 
-            return bucket_counter.set_hook('after_prefix')
+            rtn = yield bucket_counter.set_hook('after_prefix')
+            defer.returnValue(rtn)
         d.addCallback(_check_1)
 
         def _check_2(prefix2):
             # an ETA based upon elapsed time should be available.
-            html = w.renderSynchronously()
+            html = yield w.renderString()
             s = remove_tags(html)
             self.failUnlessIn("complete (ETA ", s)
         d.addCallback(_check_2)
@@ -3100,9 +3105,7 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
             lah = so_far["lease-age-histogram"]
             self.failUnlessEqual(type(lah), list)
             self.failUnlessEqual(len(lah), 1)
-            # XXX is the "2" correct below? I think so because there's
-            # an anonymous + starter lease...but it said 1 before
-            self.failUnlessEqual(lah, [ (0, DAY, 2) ] )
+            self.failUnlessEqual(lah, [ (0, DAY, 1) ] )
             self.failUnlessEqual(so_far["corrupt-shares"], [])
             sr1 = so_far["space-recovered"]
             self.failUnlessEqual(sr1["examined-buckets"], 1)
@@ -3149,7 +3152,7 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
             lah = last["lease-age-histogram"]
             self.failUnlessEqual(type(lah), list)
             self.failUnlessEqual(len(lah), 1)
-            self.failUnlessEqual(tuple(lah[0]), (0.0, DAY, 8) )  # XXX FIXME changed to 8 from 6
+            self.failUnlessEqual(tuple(lah[0]), (0.0, DAY, 6) )
 
             self.failUnlessEqual(last["corrupt-shares"], [])
 
@@ -3167,9 +3170,9 @@ class AccountingCrawlerTest(unittest.TestCase, CrawlerTestMixin, WebRenderingMix
                 self.failUnlessEqual(len(a), anon)
                 self.failUnlessEqual(len(s), starter)
 
-            yield confirm_leases(immutable_si_0, 1, 1)
+            yield confirm_leases(immutable_si_0, 1, 0)
             yield confirm_leases(immutable_si_1, 1, 1)
-            yield confirm_leases(mutable_si_2, 1, 1)
+            yield confirm_leases(mutable_si_2, 1, 0)
             yield confirm_leases(mutable_si_3, 1, 1)
         d.addCallback(_after_first_cycle)
 
@@ -3612,9 +3615,10 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         return self.s.stopService()
 
 
+    @defer.inlineCallbacks
     def test_no_server(self):
         w = StorageStatus(None, None)
-        html = w.renderSynchronously()
+        html = yield w.renderString()
         self.failUnlessIn("<h1>No Storage Server Running</h1>", html)
 
     def test_status(self):
@@ -3649,6 +3653,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         d = self.render1(page, args={"t": ["json"]})
         return d
 
+    @defer.inlineCallbacks
     def test_status_no_disk_stats(self):
         def call_get_disk_stats(whichdir, reserved_space=0):
             raise AttributeError()
@@ -3661,7 +3666,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         server = StorageServer(basedir, "\x00" * 20)
         server.setServiceParent(self.s)
         w = StorageStatus(server, FakeAccountant())
-        html = w.renderSynchronously()
+        html = yield w.renderString()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: Yes", s)
@@ -3669,6 +3674,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Space Available to Tahoe: ?", s)
         self.failUnless(server.get_available_space() is None)
 
+    @defer.inlineCallbacks
     def test_status_bad_disk_stats(self):
         def call_get_disk_stats(whichdir, reserved_space=0):
             raise OSError()
@@ -3681,7 +3687,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         server = StorageServer(basedir, "\x00" * 20)
         server.setServiceParent(self.s)
         w = StorageStatus(server, FakeAccountant())
-        html = w.renderSynchronously()
+        html = yield w.renderString()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: No", s)
@@ -3689,6 +3695,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Space Available to Tahoe: ?", s)
         self.failUnlessEqual(server.get_available_space(), 0)
 
+    @defer.inlineCallbacks
     def test_status_right_disk_stats(self):
         GB = 1000000000
         total            = 5*GB
@@ -3717,7 +3724,7 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
 
         ss.setServiceParent(self.s)
         w = StorageStatus(ss, FakeAccountant())
-        html = w.renderSynchronously()
+        html = yield w.renderString()
 
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
@@ -3729,35 +3736,38 @@ class WebStatus(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Space Available to Tahoe: 2.00 GB", s)
         self.failUnlessEqual(ss.get_available_space(), 2*GB)
 
+    @defer.inlineCallbacks
     def test_readonly(self):
         basedir = "storage/WebStatus/readonly"
         fileutil.make_dirs(basedir)
         server = StorageServer(basedir, "\x00" * 20, readonly_storage=True)
         server.setServiceParent(self.s)
         w = StorageStatus(server, FakeAccountant())
-        html = w.renderSynchronously()
+        html = yield w.renderString()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: No", s)
 
+    @defer.inlineCallbacks
     def test_reserved(self):
         basedir = "storage/WebStatus/reserved"
         fileutil.make_dirs(basedir)
         server = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
         server.setServiceParent(self.s)
         w = StorageStatus(server, FakeAccountant())
-        html = w.renderSynchronously()
+        html = yield w.renderString()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
 
+    @defer.inlineCallbacks
     def test_huge_reserved(self):
         basedir = "storage/WebStatus/reserved"
         fileutil.make_dirs(basedir)
         server = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
         server.setServiceParent(self.s)
         w = StorageStatus(server, FakeAccountant())
-        html = w.renderSynchronously()
+        html = yield w.renderString()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
