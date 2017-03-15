@@ -159,7 +159,7 @@ class FileNodeHandler(VerifyNodeHandler, ReplaceMeMixin):
         # urllib.quote(name.encode("utf-8")), while IE7 sometimes does
         # latin-1. Browsers cannot agree on how to interpret the name
         # they see in the Content-Disposition header either, despite some
-        # 11-year old standards (RFC2231) that explain how to do it
+        # 20-year old standards (RFC2231) that explain how to do it
         # properly. So we assume that at least the browser will agree
         # with itself, and echo back the same bytes that we were given.
         filename = get_arg(req, "filename", self.name) or "unknown"

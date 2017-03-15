@@ -1025,6 +1025,23 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              self.GET, "/file")
         return d
 
+    def test_GET_unhandled_URI_named(self):
+        unknown_cap = "URI:UNK:xxx"
+        base = "/file/%s" % urllib.quote(unknown_cap)
+        d = self.shouldFail2(error.Error, "GET_unhandled_URI_named",
+                             "400 Bad Request", "is not a file-cap",
+                             self.GET, base)
+        return d
+
+    def test_GET_unhandled_URI(self):
+        unknown_cap = "URI:UNK:xxx"
+        base = "/uri/%s" % urllib.quote(unknown_cap)
+        d = self.shouldFail2(error.Error, "test_GET_unhandled_URI",
+                             "400 Bad Request",
+                             "GET unknown URI type: can only do t=info",
+                             self.GET, base)
+        return d
+
     def test_GET_FILE_URI(self):
         base = "/uri/%s" % urllib.quote(self._bar_txt_uri)
         d = self.GET(base)

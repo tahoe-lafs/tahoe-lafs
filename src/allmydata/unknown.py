@@ -166,7 +166,7 @@ class UnknownNode:
         return None
 
     def get_verify_cap(self):
-        return None
+        return uri.UnknownURI(self.rw_uri or self.ro_uri)
 
     def get_repair_cap(self):
         return None

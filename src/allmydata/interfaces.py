@@ -938,7 +938,7 @@ class IFilesystemNode(Interface):
 class IVerifyNode(IFilesystemNode):
     """
     I am a node which represents an opaque repairable object. I can be checked
-    and repaired but neither read nor written.
+    and repaired.
     """
 
 
