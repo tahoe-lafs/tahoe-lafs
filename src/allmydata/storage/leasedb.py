@@ -4,6 +4,7 @@ import sys
 import time, simplejson
 
 from twisted.internet import defer
+from twisted._threads import AlreadyQuit
 
 from allmydata.util.assertutil import _assert
 from allmydata.util import dbutil
@@ -123,7 +124,6 @@ def create_lease_db(dbfile):
     defer.returnValue(LeaseDB(db))
 
 
-
 def _locked(orig_fn):
     """
     A decorator used below with LeaseDB to lock/unlock the
@@ -161,7 +161,10 @@ class LeaseDB(object):
         self._lock = defer.DeferredLock()
 
     def close(self):
-        self._conn.close()
+        try:
+            self._conn.close()
+        except AlreadyQuit:
+            pass
         return defer.succeed(None)
 
     # share management
