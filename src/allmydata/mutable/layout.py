@@ -218,7 +218,7 @@ def pack_prefix(seqnum, root_hash, IV,
     return prefix
 
 
-class SDMFSlotWriteProxy:
+class SDMFSlotWriteProxy(object):
     implements(IMutableSlotWriter)
     """
     I represent a remote write slot for an SDMF mutable file. I build a
