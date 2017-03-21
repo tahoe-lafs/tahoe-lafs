@@ -641,12 +641,16 @@ class Publish(object):
             return self.push_segment(self._current_segment)
 
         elif self._state == PUSHING_EVERYTHING_ELSE_STATE:
-            return self.push_everything_else()
+            print("pushing_everything_else_state")
 
-        # If we make it to this point, we were successful in placing the
-        # file.
-        return self._done()
-
+            d = self.push_everything_else()
+            print("PUSH EVERYTHING", d)
+            return d
+        elif self._state == DONE_STATE:
+            print("done, somehow")
+            # If we make it to this point, we were successful in placing the
+            # file.
+            return self._done()
 
     def push_segment(self, segnum):
         if self.num_segments == 0 and self._version == SDMF_VERSION:
