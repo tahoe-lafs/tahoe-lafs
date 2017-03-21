@@ -4,7 +4,7 @@ from allmydata import uri
 from allmydata.storage.common import storage_index_to_dir
 from allmydata.util import fileutil
 from .. import common_util as testutil
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 
 class Interoperability(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     sdmf_old_shares = {}
@@ -43,9 +43,8 @@ class Interoperability(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixi
         shares = self.find_uri_shares(self.sdmf_old_cap)
         assert len(shares) == 10
 
+    @grid_ready()
     def test_new_downloader_can_read_old_shares(self):
-        self.basedir = "mutable/Interoperability/new_downloader_can_read_old_shares"
-        self.set_up_grid()
         self.copy_sdmf_shares()
         nm = self.g.clients[0].nodemaker
         n = nm.create_from_cap(self.sdmf_old_cap)

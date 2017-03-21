@@ -218,7 +218,7 @@ def pack_prefix(seqnum, root_hash, IV,
     return prefix
 
 
-class SDMFSlotWriteProxy:
+class SDMFSlotWriteProxy(object):
     implements(IMutableSlotWriter)
     """
     I represent a remote write slot for an SDMF mutable file. I build a
@@ -1095,6 +1095,7 @@ class MDMFSlotWriteProxy:
         assert self._offsets['verification_key_end'] <= self._offsets['share_data']
         self._writevs.append(tuple([self._offsets['verification_key'],
                             verification_key]))
+        return defer.succeed(None)
 
 
     def _get_offsets_tuple(self):

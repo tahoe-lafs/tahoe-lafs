@@ -11,16 +11,18 @@ from allmydata.mutable.filenode import MutableFileNode
 from allmydata.mutable.common import MODE_WRITE, MODE_READ, UnrecoverableFileError
 from allmydata.mutable.publish import MutableData
 from allmydata.scripts import debug
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from .util import PublishMixin
 from .. import common_util as testutil
 
 class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
               PublishMixin):
+
+    @defer.inlineCallbacks
     def setUp(self):
+        self.basedir = 'test_version'
         GridTestMixin.setUp(self)
-        self.basedir = self.mktemp()
-        self.set_up_grid()
+        yield self.set_up_grid()
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
         self.data = "test data" * 100000 # about 900 KiB; MDMF
@@ -91,7 +93,6 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             lines = set(output.splitlines())
             self.failUnless("Mutable slot found:" in lines, output)
             self.failUnless(" share_type: MDMF" in lines, output)
-            self.failUnless(" num_extra_leases: 0" in lines, output)
             self.failUnless(" MDMF contents:" in lines, output)
             self.failUnless("  seqnum: 1" in lines, output)
             self.failUnless("  required_shares: 3" in lines, output)

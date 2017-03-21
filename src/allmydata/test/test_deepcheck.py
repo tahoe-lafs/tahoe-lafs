@@ -16,15 +16,14 @@ from twisted.web.client import getPage
 from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data, \
      ShouldFailMixin
 from .common_util import StallMixin, run_cli
-from allmydata.test.no_network import GridTestMixin
+from allmydata.test.no_network import GridTestMixin, grid_ready
 from .cli.common import CLITestMixin
 
 timeout = 2400 # One of these took 1046.091s on Zandr's ARM box.
 
 class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
+    @grid_ready()
     def test_good(self):
-        self.basedir = "deepcheck/MutableChecker/good"
-        self.set_up_grid()
         CONTENTS = "a little bit of data"
         CONTENTS_uploadable = MutableData(CONTENTS)
         d = self.g.clients[0].create_mutable_file(CONTENTS_uploadable)
@@ -45,9 +44,8 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
         d.addErrback(self.explain_web_error)
         return d
 
+    @grid_ready()
     def test_corrupt(self):
-        self.basedir = "deepcheck/MutableChecker/corrupt"
-        self.set_up_grid()
         CONTENTS = "a little bit of data"
         CONTENTS_uploadable = MutableData(CONTENTS)
         d = self.g.clients[0].create_mutable_file(CONTENTS_uploadable)
@@ -83,9 +81,8 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
 
         return d
 
+    @grid_ready()
     def test_delete_share(self):
-        self.basedir = "deepcheck/MutableChecker/delete_share"
-        self.set_up_grid()
         CONTENTS = "a little bit of data"
         CONTENTS_uploadable = MutableData(CONTENTS)
         d = self.g.clients[0].create_mutable_file(CONTENTS_uploadable)
@@ -318,9 +315,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                              num_healthy, where)
         self.failUnlessEqual(c["count-repairs-attempted"], 0, where)
 
+    @grid_ready()
     def test_good(self):
-        self.basedir = "deepcheck/DeepCheckWebGood/good"
-        self.set_up_grid()
         d = self.set_up_tree()
         d.addCallback(self.do_stats)
         d.addCallback(self.do_web_stream_manifest)
@@ -840,9 +836,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
 
 class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
+    @grid_ready()
     def test_bad(self):
-        self.basedir = "deepcheck/DeepCheckWebBad/bad"
-        self.set_up_grid()
         d = self.set_up_damaged_tree()
         d.addCallback(self.do_check)
         d.addCallback(self.do_deepcheck)
@@ -1158,9 +1153,8 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         return d
 
 class Large(DeepCheckBase, unittest.TestCase):
+    @grid_ready()
     def test_lots_of_lits(self):
-        self.basedir = "deepcheck/Large/lots_of_lits"
-        self.set_up_grid()
         # create the following directory structure:
         #  root/
         #   subdir/

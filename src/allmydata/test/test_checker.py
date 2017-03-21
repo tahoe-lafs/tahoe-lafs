@@ -10,7 +10,7 @@ from allmydata.web import check_results as web_check_results
 from allmydata.storage_client import StorageFarmBroker, NativeStorageServer
 from allmydata.storage.server import storage_index_to_dir
 from allmydata.monitor import Monitor
-from allmydata.test.no_network import GridTestMixin
+from allmydata.test.no_network import GridTestMixin, grid_ready
 from allmydata.immutable.upload import Data
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.mutable.publish import MutableData
@@ -360,9 +360,8 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
             shares_chart.setdefault(shnum, []).append(names[serverid])
         return shares_chart
 
+    @grid_ready(num_servers=1)
     def test_good_share_hosts(self):
-        self.basedir = "checker/BalancingAct/1115"
-        self.set_up_grid(num_servers=1)
         c0 = self.g.clients[0]
         c0.encoding_params['happy'] = 1
         c0.encoding_params['n'] = 4
@@ -419,9 +418,8 @@ class AddLease(GridTestMixin, unittest.TestCase):
     # test for #875, in which failures in the add-lease call cause
     # false-negatives in the checker
 
+    @grid_ready(num_servers=1)
     def test_875(self):
-        self.basedir = "checker/AddLease/875"
-        self.set_up_grid(num_servers=1)
         c0 = self.g.clients[0]
         c0.encoding_params['happy'] = 1
         self.uris = {}
@@ -451,8 +449,9 @@ class AddLease(GridTestMixin, unittest.TestCase):
             def broken_add_lease(*args, **kwargs):
                 really_did_break.append(1)
                 raise KeyError("intentional failure, should be ignored")
-            assert self.g.servers_by_number[0].remote_add_lease
-            self.g.servers_by_number[0].remote_add_lease = broken_add_lease
+            ss = self.g.servers_by_number[0].get_accountant().get_anonymous_account()
+            assert ss.remote_add_lease
+            ss.remote_add_lease = broken_add_lease
         d.addCallback(_break_add_lease)
 
         # and confirm that the files still look healthy
@@ -493,11 +492,10 @@ class TooParallel(GridTestMixin, unittest.TestCase):
     # blocks of all shares at the same time, blowing our memory budget and
     # crashing with MemoryErrors on >1GB files.
 
+    @grid_ready(num_servers=4)
     def test_immutable(self):
         import allmydata.immutable.checker
         origVRBP = allmydata.immutable.checker.ValidatedReadBucketProxy
-
-        self.basedir = "checker/TooParallel/immutable"
 
         # If any code asks to instantiate a ValidatedReadBucketProxy,
         # we give them a MockVRBP which is configured to use our
@@ -509,7 +507,6 @@ class TooParallel(GridTestMixin, unittest.TestCase):
 
         d = defer.succeed(None)
         def _start(ign):
-            self.set_up_grid(num_servers=4)
             self.c0 = self.g.clients[0]
             self.c0.encoding_params = { "k": 1,
                                         "happy": 4,

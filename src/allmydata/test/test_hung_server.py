@@ -70,7 +70,8 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
     def _copy_share(self, share, to_server):
         (sharenum, sharefile) = share
         (id, ss) = to_server
-        shares_dir = os.path.join(ss.original.storedir, "shares")
+        original_server = ss.original.server
+        shares_dir = os.path.join(original_server.storedir, "shares")
         si = uri.from_string(self.uri).get_storage_index()
         si_dir = os.path.join(shares_dir, storage_index_to_dir(si))
         if not os.path.exists(si_dir):
@@ -79,8 +80,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         shutil.copy(sharefile, new_sharefile)
         self.shares = self.find_uri_shares(self.uri)
         # Make sure that the storage server has the share.
-        self.failUnless((sharenum, ss.original.my_nodeid, new_sharefile)
-                        in self.shares)
+        self.failUnlessIn((sharenum, original_server.get_nodeid(), new_sharefile), self.shares)
 
     def _corrupt_share(self, share, corruptor_func):
         (sharenum, sharefile) = share
@@ -91,14 +91,8 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         wf.write(newdata)
         wf.close()
 
-    def _set_up(self, mutable, testdir, num_clients=1, num_servers=10):
+    def _set_up(self, mutable):
         self.mutable = mutable
-        if mutable:
-            self.basedir = "hung_server/mutable_" + testdir
-        else:
-            self.basedir = "hung_server/immutable_" + testdir
-
-        self.set_up_grid(num_clients=num_clients, num_servers=num_servers)
 
         self.c0 = self.g.clients[0]
         nm = self.c0.nodemaker
@@ -159,70 +153,79 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
                                    self._download_and_check)
 
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_10_good_sanity_check(self):
         d = defer.succeed(None)
         for mutable in [False, True]:
-            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable, "test_10_good_sanity_check"))
+            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable))
             d.addCallback(lambda ign: self._download_and_check())
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_10_good_copied_share(self):
         d = defer.succeed(None)
         for mutable in [False, True]:
-            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable, "test_10_good_copied_share"))
+            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable))
             d.addCallback(lambda ign: self._copy_all_shares_from(self.servers[2:3], self.servers[0]))
             d.addCallback(lambda ign: self._download_and_check())
             return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_3_good_7_noshares(self):
         d = defer.succeed(None)
         for mutable in [False, True]:
-            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable, "test_3_good_7_noshares"))
+            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable))
             d.addCallback(lambda ign: self._delete_all_shares_from(self.servers[3:]))
             d.addCallback(lambda ign: self._download_and_check())
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_2_good_8_broken_fail(self):
         d = defer.succeed(None)
         for mutable in [False, True]:
-            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable, "test_2_good_8_broken_fail"))
+            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable))
             d.addCallback(lambda ign: self._break(self.servers[2:]))
             d.addCallback(lambda ign: self._should_fail_download())
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_2_good_8_noshares_fail(self):
         d = defer.succeed(None)
         for mutable in [False, True]:
-            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable, "test_2_good_8_noshares_fail"))
+            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable))
             d.addCallback(lambda ign: self._delete_all_shares_from(self.servers[2:]))
             d.addCallback(lambda ign: self._should_fail_download())
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_2_good_8_broken_copied_share(self):
         d = defer.succeed(None)
         for mutable in [False, True]:
-            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable, "test_2_good_8_broken_copied_share"))
+            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable))
             d.addCallback(lambda ign: self._copy_all_shares_from(self.servers[2:3], self.servers[0]))
             d.addCallback(lambda ign: self._break(self.servers[2:]))
             d.addCallback(lambda ign: self._download_and_check())
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_2_good_8_broken_duplicate_share_fail(self):
         d = defer.succeed(None)
         for mutable in [False, True]:
-            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable, "test_2_good_8_broken_duplicate_share_fail"))
+            d.addCallback(lambda ign, mutable=mutable: self._set_up(mutable))
             d.addCallback(lambda ign: self._copy_all_shares_from(self.servers[1:2], self.servers[0]))
             d.addCallback(lambda ign: self._break(self.servers[2:]))
             d.addCallback(lambda ign: self._should_fail_download())
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_3_good_7_hung_immutable(self):
         d = defer.succeed(None)
-        d.addCallback(lambda ign: self._set_up(False, "test_3_good_7_hung"))
+        d.addCallback(lambda ign: self._set_up(False))
         d.addCallback(lambda ign: self._hang(self.servers[3:]))
         d.addCallback(lambda ign: self._download_and_check())
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_5_overdue_immutable(self):
         # restrict the ShareFinder to only allow 5 outstanding requests, and
         # arrange for the first 5 servers to hang. Then trigger the OVERDUE
@@ -231,7 +234,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         # quickly. If we didn't have OVERDUE timers, this test would fail by
         # timing out.
         done = []
-        d = self._set_up(False, "test_5_overdue_immutable")
+        d = self._set_up(False))
         def _reduce_max_outstanding_requests_and_download(ign):
             self._hang_shares(range(5))
             n = self.c0.create_node_from_uri(self.uri)
@@ -281,18 +284,20 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         d.addCallback(_check_done)
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_2_good_8_hung_then_1_recovers_immutable(self):
         d = defer.succeed(None)
-        d.addCallback(lambda ign: self._set_up(False, "test_2_good_8_hung_then_1_recovers"))
+        d.addCallback(lambda ign: self._set_up(False))
         d.addCallback(lambda ign: self._hang(self.servers[2:3]))
         d.addCallback(lambda ign: self._hang(self.servers[3:]))
         d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
         d.addCallback(lambda ign: self._download_and_check())
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_2_good_8_hung_then_1_recovers_with_2_shares_immutable(self):
         d = defer.succeed(None)
-        d.addCallback(lambda ign: self._set_up(False, "test_2_good_8_hung_then_1_recovers_with_2_shares"))
+        d.addCallback(lambda ign: self._set_up(False))
         d.addCallback(lambda ign: self._copy_all_shares_from(self.servers[0:1], self.servers[2]))
         d.addCallback(lambda ign: self._hang(self.servers[2:3]))
         d.addCallback(lambda ign: self._hang(self.servers[3:]))
@@ -304,28 +309,31 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
     # mutable-file downloader does not yet handle hung servers, and the tests
     # hang forever (hence the use of SkipTest rather than .todo)
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_3_good_7_hung_mutable(self):
         raise unittest.SkipTest("still broken")
         d = defer.succeed(None)
-        d.addCallback(lambda ign: self._set_up(True, "test_3_good_7_hung"))
+        d.addCallback(lambda ign: self._set_up(True))
         d.addCallback(lambda ign: self._hang(self.servers[3:]))
         d.addCallback(lambda ign: self._download_and_check())
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_2_good_8_hung_then_1_recovers_mutable(self):
         raise unittest.SkipTest("still broken")
         d = defer.succeed(None)
-        d.addCallback(lambda ign: self._set_up(True, "test_2_good_8_hung_then_1_recovers"))
+        d.addCallback(lambda ign: self._set_up(True))
         d.addCallback(lambda ign: self._hang(self.servers[2:3]))
         d.addCallback(lambda ign: self._hang(self.servers[3:]))
         d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
         d.addCallback(lambda ign: self._download_and_check())
         return d
 
+    @grid_ready(num_clients=1, num_servers=10)
     def test_2_good_8_hung_then_1_recovers_with_2_shares_mutable(self):
         raise unittest.SkipTest("still broken")
         d = defer.succeed(None)
-        d.addCallback(lambda ign: self._set_up(True, "test_2_good_8_hung_then_1_recovers_with_2_shares"))
+        d.addCallback(lambda ign: self._set_up(True))
         d.addCallback(lambda ign: self._copy_all_shares_from(self.servers[0:1], self.servers[2]))
         d.addCallback(lambda ign: self._hang(self.servers[2:3]))
         d.addCallback(lambda ign: self._hang(self.servers[3:]))

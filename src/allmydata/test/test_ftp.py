@@ -4,7 +4,7 @@ from twisted.trial import unittest
 from allmydata.frontends import ftpd
 from allmydata.immutable import upload
 from allmydata.mutable import publish
-from allmydata.test.no_network import GridTestMixin
+from allmydata.test.no_network import GridTestMixin, grid_ready
 from allmydata.test.common_util import ReallyEqualMixin
 
 class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):
@@ -15,24 +15,6 @@ class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):
 
     FALL_OF_BERLIN_WALL = 626644800
     TURN_OF_MILLENIUM = 946684800
-
-    def _set_up(self, basedir, num_clients=1, num_servers=10):
-        self.basedir = "ftp/" + basedir
-        self.set_up_grid(num_clients=num_clients, num_servers=num_servers,
-                         oneshare=True)
-
-        self.client = self.g.clients[0]
-        self.username = "alice"
-        self.convergence = ""
-
-        d = self.client.create_dirnode()
-        def _created_root(node):
-            self.root = node
-            self.root_uri = node.get_uri()
-            self.handler = ftpd.Handler(self.client, self.root, self.username,
-                                        self.convergence)
-        d.addCallback(_created_root)
-        return d
 
     def _set_metadata(self, name, metadata):
         """Set metadata for `name', avoiding MetadataSetter's timestamp reset
@@ -84,10 +66,25 @@ class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):
            self.failUnlessReallyEqual(name, expected_name)
            self.failUnlessReallyEqual(meta, expected_meta)
 
+    def _set_up(self, num_clients=1, num_servers=10):
+        self.client = self.g.clients[0]
+        self.username = "alice"
+        self.convergence = ""
+
+        d = self.client.create_dirnode()
+        def _created_root(node):
+            self.root = node
+            self.root_uri = node.get_uri()
+            self.handler = ftpd.Handler(self.client, self.root, self.username,
+                                        self.convergence)
+        d.addCallback(_created_root)
+        return d
+
+    @grid_ready(num_clients=1, num_servers=10, oneshare=True)
     def test_list(self):
         keys = ("size", "directory", "permissions", "hardlinks", "modified",
                 "owner", "group", "unexpected")
-        d = self._set_up("list")
+        d = self._set_up()
 
         d.addCallback(lambda _: self._set_up_tree())
         d.addCallback(lambda _: self.handler.list("", keys=keys))

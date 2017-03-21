@@ -102,7 +102,8 @@ class PublishStatus:
 class LoopLimitExceededError(Exception):
     pass
 
-class Publish:
+
+class Publish(object):
     """I represent a single act of publishing the mutable file to the grid. I
     will only publish my data if the servermap I am using still represents
     the current state of the world.
@@ -640,12 +641,16 @@ class Publish:
             return self.push_segment(self._current_segment)
 
         elif self._state == PUSHING_EVERYTHING_ELSE_STATE:
-            return self.push_everything_else()
+            print("pushing_everything_else_state")
 
-        # If we make it to this point, we were successful in placing the
-        # file.
-        return self._done()
-
+            d = self.push_everything_else()
+            print("PUSH EVERYTHING", d)
+            return d
+        elif self._state == DONE_STATE:
+            print("done, somehow")
+            # If we make it to this point, we were successful in placing the
+            # file.
+            return self._done()
 
     def push_segment(self, segnum):
         if self.num_segments == 0 and self._version == SDMF_VERSION:
@@ -664,7 +669,7 @@ class Publish:
         # should be handled within push_segment.
         d.addCallback(_increment_segnum)
         d.addCallback(self._turn_barrier)
-        d.addCallback(self._push)
+        d.addCallback(lambda ign: self.push_segment(self._current_segment))
         d.addErrback(self._failure)
 
 
@@ -870,20 +875,23 @@ class Publish:
 
         for (shnum, writers) in self.writers.copy().iteritems():
             for writer in writers:
-                writer.put_verification_key(verification_key)
-                self.num_outstanding += 1
-                def _no_longer_outstanding(res):
-                    self.num_outstanding -= 1
-                    return res
+                d0 = writer.put_verification_key(verification_key)
+                def put_key(res):
+                    self.num_outstanding += 1
+                    def _no_longer_outstanding(res):
+                        self.num_outstanding -= 1
+                        return res
 
-                d = writer.finish_publishing()
-                d.addBoth(_no_longer_outstanding)
-                d.addErrback(self._connection_problem, writer)
-                d.addCallback(self._got_write_answer, writer, started)
-                ds.append(d)
+                    d = writer.finish_publishing()
+                    d.addBoth(_no_longer_outstanding)
+                    d.addErrback(self._connection_problem, writer)
+                    d.addCallback(self._got_write_answer, writer, started)
+                    return d
+                d0.addCallback(put_key)
+                ds.append(d0)
         self._record_verinfo()
         self._status.timings['pack'] = time.time() - started
-        return defer.DeferredList(ds)
+        return defer.DeferredList(ds, consumeErrors=True)
 
 
     def _record_verinfo(self):
@@ -1196,7 +1204,7 @@ class Publish:
             self.log("Publish failed with UncoordinatedWriteError")
             e = UncoordinatedWriteError()
         f = failure.Failure(e)
-        eventually(self.done_deferred.callback, f)
+        eventually(self.done_deferred.errback, f)
 
 
 class MutableFileHandle:

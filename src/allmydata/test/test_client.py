@@ -2,6 +2,7 @@ import os, sys
 import twisted
 from twisted.trial import unittest
 from twisted.application import service
+from twisted.internet import defer
 
 import allmydata
 import allmydata.frontends.magic_folder
@@ -251,13 +252,43 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                         "port = tcp:0:interface=127.0.0.1\n"))
         self.failUnlessRaises(NeedRootcapLookupScheme, client.Client, basedir)
 
+    def test_expire_mutable_false_unsupported(self):
+        basedir = "client.Basic.test_expire_mutable_false_unsupported"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                       BASECONFIG + \
+                       "[storage]\n" + \
+                       "enabled = true\n" + \
+                       "expire.mutable = False\n")
+        self.failUnlessRaises(OldConfigOptionError, client.Client, basedir)
+
+    def test_expire_immutable_false_unsupported(self):
+        basedir = "client.Basic.test_expire_immutable_false_unsupported"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                       BASECONFIG + \
+                       "[storage]\n" + \
+                       "enabled = true\n" + \
+                       "expire.immutable = False\n")
+        self.failUnlessRaises(OldConfigOptionError, client.Client, basedir)
+
+    def test_debug_discard_true_unsupported(self):
+        basedir = "client.Basic.test_debug_discard_true_unsupported"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                       BASECONFIG + \
+                       "[storage]\n" + \
+                       "enabled = true\n" + \
+                       "debug_discard = true\n")
+        self.failUnlessRaises(OldConfigOptionError, client.Client, basedir)
+
     def _permute(self, sb, key):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
         sb = StorageFarmBroker(True, None)
         for k in ["%d" % i for i in range(5)]:
-            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(k),
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
@@ -278,6 +309,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         sb.servers.clear()
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
+    @defer.inlineCallbacks
     def test_versions(self):
         basedir = "test_client.Basic.test_versions"
         os.mkdir(basedir)
@@ -285,20 +317,26 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            BASECONFIG + \
                            "[storage]\n" + \
                            "enabled = true\n")
-        c = client.Client(basedir)
-        ss = c.getServiceNamed("storage")
-        verdict = ss.remote_get_version()
-        self.failUnlessReallyEqual(verdict["application-version"],
-                                   str(allmydata.__full_version__))
-        self.failIfEqual(str(allmydata.__version__), "unknown")
-        self.failUnless("." in str(allmydata.__full_version__),
-                        "non-numeric version in '%s'" % allmydata.__version__)
-        all_versions = allmydata.get_package_versions_string()
-        self.failUnless(allmydata.__appname__ in all_versions)
-        # also test stats
-        stats = c.get_stats()
-        self.failUnless("node.uptime" in stats)
-        self.failUnless(isinstance(stats["node.uptime"], float))
+        try:
+            c = client.Client(basedir)
+            c.startService()
+            yield c.when_ready()
+            server = c.getServiceNamed("storage")
+            aa = c.get_accountant().get_anonymous_account()
+            verdict = aa.remote_get_version()
+            self.failUnlessReallyEqual(verdict["application-version"],
+                                       str(allmydata.__full_version__))
+            self.failIfEqual(str(allmydata.__version__), "unknown")
+            self.failUnless("." in str(allmydata.__full_version__),
+                            "non-numeric version in '%s'" % allmydata.__version__)
+            all_versions = allmydata.get_package_versions_string()
+            self.failUnless(allmydata.__appname__ in all_versions)
+            # also test stats
+            stats = c.get_stats()
+            self.failUnless("node.uptime" in stats)
+            self.failUnless(isinstance(stats["node.uptime"], float))
+        finally:
+            yield c.stopService()
 
     def test_helper_furl(self):
         basedir = "test_client.Basic.test_helper_furl"

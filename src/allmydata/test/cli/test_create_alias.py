@@ -4,7 +4,7 @@ import urllib
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli, runner
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from allmydata.util.encodingutil import quote_output, get_io_encoding
 from .common import CLITestMixin
 
@@ -16,15 +16,15 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         o = runner.Options()
         o.parseOptions(["--node-directory", self.get_clientdir(), "webopen"]
                        + list(args))
+        print("BING", o)
         urls = []
         rc = cli.webopen(o, urls.append)
         self.failUnlessReallyEqual(rc, 0)
         self.failUnlessReallyEqual(len(urls), 1)
         self.failUnlessReallyEqual(urls[0], expected_url)
 
+    @grid_ready(oneshare=True)
     def test_create(self):
-        self.basedir = "cli/CreateAlias/create"
-        self.set_up_grid(oneshare=True)
         aliasfile = os.path.join(self.get_clientdir(), "private", "aliases")
 
         d = self.do_cli("create-alias", "tahoe")
@@ -145,10 +145,10 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless("un-corrupted2" in aliases)
             self.failUnless(aliases["un-corrupted2"].startswith("URI:DIR2:"))
         d.addCallback(_check_not_corrupted)
+        return d
 
+    @grid_ready(oneshare=True)
     def test_create_unicode(self):
-        self.basedir = "cli/CreateAlias/create_unicode"
-        self.set_up_grid(oneshare=True)
 
         try:
             etudes_arg = u"\u00E9tudes".encode(get_io_encoding())

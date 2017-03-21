@@ -28,8 +28,10 @@ from allmydata.client import Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
+from allmydata.util.observer import OneShotObserverList
 from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker, IServer
+from allmydata.storage.accountant import create_accountant
 from .common import TEST_RSA_KEY_SIZE
 
 
@@ -203,7 +205,7 @@ class NoNetworkClient(Client):
     def init_key_gen(self):
         pass
     def init_storage(self):
-        pass
+        self.accountant = None
     def init_client_storage_broker(self):
         self.storage_broker = NoNetworkStorageBroker()
         self.storage_broker.client = self
@@ -237,21 +239,36 @@ class NoNetworkGrid(service.MultiService):
         self.basedir = basedir
         fileutil.make_dirs(basedir)
 
+        self.server_accountant = {} # maps StorageServer instance to Accountant instance
         self.servers_by_number = {} # maps to StorageServer instance
         self.wrappers_by_id = {} # maps to wrapped StorageServer instance
         self.proxies_by_id = {} # maps to IServer on which .rref is a wrapped
                                 # StorageServer
         self.clients = []
         self.client_config_hooks = client_config_hooks
+        self._num_servers = num_servers
 
-        for i in range(num_servers):
+        self._ready = OneShotObserverList()
+        awaiting = []
+        for i in range(self._num_servers):
             ss = self.make_server(i)
-            self.add_server(i, ss)
+            # XXX this is actually async now...
+            d = self.add_server(i, ss)
+            awaiting.append(d)
         self.rebuild_serverlist()
+
+        def built_servers(ign):
+            self._ready.fire(None)
+            self.rebuild_serverlist()
+        defer.DeferredList(awaiting).addCallback(built_servers)
+
 
         for i in range(num_clients):
             c = self.make_client(i)
             self.clients.append(c)
+
+    def when_ready(self):
+        return self._ready.when_fired()
 
     def make_client(self, i, write_config=True):
         clientid = hashutil.tagged_hash("clientid", str(i))[:20]
@@ -305,10 +322,19 @@ class NoNetworkGrid(service.MultiService):
         ss.setServiceParent(middleman)
         serverid = ss.my_nodeid
         self.servers_by_number[i] = ss
-        wrapper = wrap_storage_server(ss)
-        self.wrappers_by_id[serverid] = wrapper
-        self.proxies_by_id[serverid] = NoNetworkServer(serverid, wrapper)
-        self.rebuild_serverlist()
+        d = create_accountant(ss, "dbfile_{}".format(i), "statefile_{}".format(i))
+
+        def got_accountant(accountant):
+            print("DING", accountant, dir(accountant))
+            #accountant.setServiceParent(middleman)
+            aa = accountant.get_anonymous_account()
+            wrapper = wrap_storage_server(aa)
+            self.server_accountant[ss] = accountant
+            self.wrappers_by_id[serverid] = wrapper
+            self.proxies_by_id[serverid] = NoNetworkServer(serverid, wrapper)
+            self.rebuild_serverlist()
+        d.addCallback(got_accountant)
+        return d
 
     def get_all_serverids(self):
         return self.proxies_by_id.keys()
@@ -357,6 +383,31 @@ class NoNetworkGrid(service.MultiService):
                     fileutil.rm_dir(os.path.join(server.sharedir, prefixdir))
 
 
+def grid_ready(*outer_args, **outer_kw):
+    """
+    This is a decorator to use instead of calling "self.set_up_grid()"
+    when you're using GridTestMixin.
+
+    thanks exarkun!
+    """
+
+    basedir = outer_kw.pop('basedir', None)
+    # this decorator takes args, which are the args we want to pass on to set_up_grid
+    def inner_decorator(orig_fn):
+        def func(self, *args, **kw):
+            # "self" must be a GridTestMixin
+            if basedir:
+                self.basedir = basedir
+            else:
+                self.basedir = os.path.dirname(self.mktemp())
+            self.set_up_grid(*outer_args, **outer_kw)
+            d = self.g.when_ready()
+            d.addCallback(lambda _: defer.maybeDeferred(orig_fn, self, *args, **kw))
+            return d
+        return func
+    return inner_decorator
+
+
 class GridTestMixin:
     def setUp(self):
         self.s = service.MultiService()
@@ -379,6 +430,7 @@ class GridTestMixin:
             c.encoding_params["happy"] = 1
             c.encoding_params["n"] = 1
         self._record_webports_and_baseurls()
+        return self.g.when_ready()
 
     def _record_webports_and_baseurls(self):
         self.client_webports = [c.getServiceNamed("webish").getPortnum()

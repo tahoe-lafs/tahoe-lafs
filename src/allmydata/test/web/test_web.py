@@ -30,6 +30,9 @@ from .. import common_util as testutil
 from ..common_web import HTTPClientGETFactory, HTTPClientHEADFactory
 from allmydata.client import Client, SecretHolder
 from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
+from allmydata.storage.expiration import ExpirationPolicy
+
+
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
@@ -189,14 +192,14 @@ class FakeBucketCounter(object):
                 "cycle-in-progress": False,
                 "remaining-wait-time": 0}
 
-class FakeLeaseChecker(object):
+class FakeAccountingCrawler(object):
     def __init__(self):
         self.expiration_enabled = False
         self.mode = "age"
         self.override_lease_duration = None
         self.sharetypes_to_expire = {}
     def get_state(self):
-        return {"history": None}
+        return defer.succeed({"history": None})
     def get_progress(self):
         return {"estimated-time-per-cycle": 0,
                 "cycle-in-progress": False,
@@ -209,11 +212,41 @@ class FakeStorageServer(service.MultiService):
         self.my_nodeid = nodeid
         self.nickname = nickname
         self.bucket_counter = FakeBucketCounter()
-        self.lease_checker = FakeLeaseChecker()
+        self.accounting_crawler = FakeAccountingCrawler()
+        self.accountant = FakeAccountant()
+        self.expiration_policy = ExpirationPolicy(enabled=False)
     def get_stats(self):
         return {"storage_server.accepting_immutable_shares": False}
     def on_status_changed(self, cb):
         cb(self)
+    def get_nodeid(self):
+        return self.my_nodeid
+    def get_bucket_counter(self):
+        return self.bucket_counter
+    def get_accounting_crawler(self):
+        return self.accounting_crawler
+    def get_expiration_policy(self):
+        return self.expiration_policy
+
+class FakeAccount:
+    def add_share(self, storage_index, shnum, used_space, sharetype, commit=True):
+        pass
+    def add_or_renew_default_lease(self, storage_index, shnum, commit=True):
+        pass
+    def mark_share_as_stable(self, storage_index, shnum, used_space, commit=True):
+        pass
+    def get_expiration_policy(self):
+        return ExpirationPolicy()
+
+class FakeAccountant:
+    def get_all_accounts(self):
+        return []
+
+    def get_anonymous_account(self):
+        return FakeAccount()
+
+    def get_accounting_crawler(self):
+        return FakeAccountingCrawler()
 
 class FakeClient(Client):
     def __init__(self):
@@ -251,7 +284,9 @@ class FakeClient(Client):
                                        None, None, None)
         self.nodemaker.all_contents = self.all_contents
         self.mutable_file_default = SDMF_VERSION
-        self.addService(FakeStorageServer(self.nodeid, self.nickname))
+        server = FakeStorageServer(self.nodeid, self.nickname)
+        self.accountant = server.accountant
+        self.addService(server)
 
     def get_long_nodeid(self):
         return "v0-nodeid"

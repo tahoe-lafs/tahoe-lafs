@@ -397,9 +397,8 @@ class Roundtrip(GridTestMixin, unittest.TestCase):
         # returns a FileNode
         return d
 
+    @grid_ready()
     def do_test_size(self, size):
-        self.basedir = self.mktemp()
-        self.set_up_grid()
         self.c0 = self.g.clients[0]
         DATA = "p"*size
         d = self.upload(DATA)

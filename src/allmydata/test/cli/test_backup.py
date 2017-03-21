@@ -5,6 +5,7 @@ import re
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
+from twisted.internet import defer
 
 import __builtin__
 from allmydata.util import fileutil
@@ -13,7 +14,7 @@ from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
 from allmydata.util.namespace import Namespace
 from allmydata.scripts import cli, backupdb
 from ..common_util import StallMixin
-from ..no_network import GridTestMixin
+from ..no_network import GridTestMixin, grid_ready
 from .common import CLITestMixin, parse_options
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
@@ -36,10 +37,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         mo = re.search(r"(\d)+ files checked, (\d+) directories checked", out)
         return [int(s) for s in mo.groups()]
 
+    @grid_ready(oneshare=True)
     def test_backup(self):
-        self.basedir = "cli/Backup/backup"
-        self.set_up_grid(oneshare=True)
-
         # is the backupdb available? If so, we test that a second backup does
         # not create new directories.
         hush = StringIO()
@@ -231,7 +230,6 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(out, "foo")
         d.addCallback(_check8)
-
         return d
 
     # on our old dapper buildslave, this test takes a long time (usually
@@ -351,12 +349,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
         self.failUnless(ns.called)
 
+    @grid_ready(oneshare=True)
     def test_ignore_symlinks(self):
         if not hasattr(os, 'symlink'):
             raise unittest.SkipTest("Symlinks are not supported by Python on this platform.")
-
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
 
         source = os.path.join(self.basedir, "home")
         self.writeto("foo.txt", "foo")
@@ -385,10 +381,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    @grid_ready(oneshare=True)
     def test_ignore_unreadable_file(self):
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
-
         source = os.path.join(self.basedir, "home")
         self.writeto("foo.txt", "foo")
         os.chmod(os.path.join(source, "foo.txt"), 0000)
@@ -419,10 +413,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         return d
 
+    @grid_ready(oneshare=True)
     def test_ignore_unreadable_directory(self):
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
-
         source = os.path.join(self.basedir, "home")
         os.mkdir(source)
         os.mkdir(os.path.join(source, "test"))
@@ -453,11 +445,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addErrback(_cleanup)
         return d
 
+    @grid_ready(oneshare=True)
     def test_backup_without_alias(self):
         # 'tahoe backup' should output a sensible error message when invoked
         # without an alias instead of a stack trace.
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli('backup', source, source)
         def _check((rc, out, err)):
@@ -467,11 +458,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    @grid_ready(oneshare=True)
     def test_backup_with_nonexistent_alias(self):
         # 'tahoe backup' should output a sensible error message when invoked
         # with a nonexistent alias.
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid(oneshare=True)
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli("backup", source, "nonexistent:" + source)
         def _check((rc, out, err)):

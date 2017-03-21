@@ -10,7 +10,9 @@ from twisted.python.filepath import FilePath
 from pycryptopp.publickey import rsa
 
 import allmydata
+from allmydata.storage.accountant import create_accountant
 from allmydata.storage.server import StorageServer
+from allmydata.storage.expiration import ExpirationPolicy
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
@@ -23,6 +25,7 @@ from allmydata.util.encodingutil import (get_filesystem_encoding,
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
+from allmydata.util.observer import OneShotObserverList
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
@@ -182,6 +185,8 @@ class Client(node.Node, pollmixin.PollMixin):
         # that's what does tub.setLocation()
         configutil.validate_config(self.config_fname, self.config,
                                    _valid_config_sections())
+
+        self._storage_done = OneShotObserverList()
         self._magic_folder = None
         self.started_timestamp = time.time()
         self.logSource="Client"
@@ -224,6 +229,11 @@ class Client(node.Node, pollmixin.PollMixin):
         webport = self.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
+
+    # XXX hacking around the fact that there's no good create_client()
+    # factory-function yet
+    def when_ready(self):
+        return self._storage_done.when_fired()
 
     def _sequencer(self):
         seqnum_s = self.get_config_from_file("announcement-seqnum")
@@ -333,6 +343,7 @@ class Client(node.Node, pollmixin.PollMixin):
         return seed.strip()
 
     def init_storage(self):
+        self.accountant = None
         # should we run a storage server (and publish it for others to use)?
         if not self.get_config("storage", "enabled", True, boolean=True):
             return
@@ -352,8 +363,8 @@ class Client(node.Node, pollmixin.PollMixin):
             raise
         if reserved is None:
             reserved = 0
-        discard = self.get_config("storage", "debug_discard", False,
-                                  boolean=True)
+        if self.get_config("storage", "debug_discard", False, boolean=True):
+            raise OldConfigOptionError("[storage]debug_discard = True is no longer supported.")
 
         expire = self.get_config("storage", "expire.enabled", False, boolean=True)
         if expire:
@@ -370,32 +381,51 @@ class Client(node.Node, pollmixin.PollMixin):
             cutoff_date = self.get_config("storage", "expire.cutoff_date")
             cutoff_date = parse_date(cutoff_date)
 
-        sharetypes = []
-        if self.get_config("storage", "expire.immutable", True, boolean=True):
-            sharetypes.append("immutable")
-        if self.get_config("storage", "expire.mutable", True, boolean=True):
-            sharetypes.append("mutable")
-        expiration_sharetypes = tuple(sharetypes)
+        if not self.get_config("storage", "expire.immutable", True, boolean=True):
+            raise OldConfigOptionError("[storage]expire.immutable = False is no longer supported.")
+        if not self.get_config("storage", "expire.mutable", True, boolean=True):
+            raise OldConfigOptionError("[storage]expire.mutable = False is no longer supported.")
+
+        expiration_policy = ExpirationPolicy(enabled=expire, mode=mode, override_lease_duration=o_l_d,
+                                             cutoff_date=cutoff_date)
 
         ss = StorageServer(storedir, self.nodeid,
                            reserved_space=reserved,
-                           discard_storage=discard,
                            readonly_storage=readonly,
-                           stats_provider=self.stats_provider,
-                           expiration_enabled=expire,
-                           expiration_mode=mode,
-                           expiration_override_lease_duration=o_l_d,
-                           expiration_cutoff_date=cutoff_date,
-                           expiration_sharetypes=expiration_sharetypes)
+                           stats_provider=self.stats_provider)
+        self.storage_server = ss
         self.add_service(ss)
 
-        furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
-        furl = self.tub.registerReference(ss, furlFile=furl_file)
-        ann = {"anonymous-storage-FURL": furl,
-               "permutation-seed-base32": self._init_permutation_seed(ss),
-               }
-        for ic in self.introducer_clients:
-            ic.publish("storage", ann, self._node_key)
+        dbfile = os.path.join(storedir, "leasedb.sqlite")
+        statefile = os.path.join(storedir, "leasedb_crawler.state")
+
+        d = create_accountant(ss, dbfile, statefile)
+        def got_accountant(accountant):
+            self.accountant = accountant
+            self.accountant.set_expiration_policy(expiration_policy)  # pass to create_accountant?
+            self.accountant.setServiceParent(ss)
+
+            # accountant_window = self.accountant.get_accountant_window(self.tub)
+            # accountant_furlfile = os.path.join(self.basedir, "private", "accountant.furl").encode(get_filesystem_encoding())
+            # accountant_furl = self.tub.registerReference(accountant_window,
+            #                                              furlFile=accountant_furlfile)
+
+            anonymous_account = self.accountant.get_anonymous_account()
+            anonymous_account_furlfile = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
+            anonymous_account_furl = self.tub.registerReference(anonymous_account, furlFile=anonymous_account_furlfile)
+            ann = {
+                "anonymous-storage-FURL": anonymous_account_furl,
+                "permutation-seed-base32": self._init_permutation_seed(ss),
+                # "accountant-FURL": accountant_furl,
+            }
+            for ic in self.introducer_clients:
+                ic.publish("storage", ann, self._node_key)
+            self._storage_done.fire(None)
+        d.addCallback(got_accountant)
+        return d
+
+    def get_accountant(self):
+        return self.accountant
 
     def init_client(self):
         helper_furl = self.get_config("client", "helper.furl", None)
