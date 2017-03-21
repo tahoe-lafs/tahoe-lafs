@@ -2675,11 +2675,12 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
         # Now finish publishing
         d = sdmfr.finish_publishing()
+
+        @defer.inlineCallbacks
         def _then(ignored):
             self.failUnlessEqual(self.rref.write_count, 1)
-            read = self.aa.remote_slot_readv
-            self.failUnlessEqual(read("si1", [0], [(0, len(data))]),
-                                 {0: [data]})
+            read_data = yield self.aa.remote_slot_readv("si1", [0], [(0, len(data))])
+            self.failUnlessEqual(read_data, {0: [data]})
         d.addCallback(_then)
         return d
 
@@ -2731,13 +2732,15 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(checkstring, self._expected_checkstring))
         d.addCallback(lambda ignored:
             sdmfw.finish_publishing())
+
+        @defer.inlineCallbacks
         def _then_again(results):
             self.failUnless(results[0])
             read = self.aa.remote_slot_readv
-            self.failUnlessEqual(read("si1", [0], [(1, 8)]),
-                                 {0: [struct.pack(">Q", 1)]})
-            self.failUnlessEqual(read("si1", [0], [(9, len(data) - 9)]),
-                                 {0: [data[9:]]})
+            read_data = yield self.aa.remote_slot_readv("si1", [0], [(1, 8)])
+            self.failUnlessEqual(read_data, {0: [struct.pack(">Q", 1)]})
+            read_data = yield self.aa.remote_slot_readv("si1", [0], [(9, len(data) - 9)])
+            self.failUnlessEqual(read_data, {0: [data[9:]]})
         d.addCallback(_then_again)
         return d
 
