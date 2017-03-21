@@ -1200,7 +1200,7 @@ class Publish(object):
             self.log("Publish failed with UncoordinatedWriteError")
             e = UncoordinatedWriteError()
         f = failure.Failure(e)
-        eventually(self.done_deferred.callback, f)
+        eventually(self.done_deferred.errback, f)
 
 
 class MutableFileHandle:

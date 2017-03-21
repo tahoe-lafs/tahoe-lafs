@@ -325,7 +325,8 @@ class NoNetworkGrid(service.MultiService):
         d = create_accountant(ss, "dbfile_{}".format(i), "statefile_{}".format(i))
 
         def got_accountant(accountant):
-            accountant.setServiceParent(middleman)
+            print("DING", accountant, dir(accountant))
+            #accountant.setServiceParent(middleman)
             aa = accountant.get_anonymous_account()
             wrapper = wrap_storage_server(aa)
             self.server_accountant[ss] = accountant
