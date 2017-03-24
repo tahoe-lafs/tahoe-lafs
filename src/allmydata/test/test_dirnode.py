@@ -407,11 +407,13 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             def _start(res):
                 self._start_timestamp = time.time()
             d.addCallback(_start)
-            # json-1.7.1 (as shipped on Ubuntu 'gutsy') rounds all
-            # floats to hundredeths (it uses str(num) instead of repr(num)).
-            # json-1.7.3 does not have this bug. To prevent this bug
-            # from causing the test to fail, stall for more than a few
-            # hundrededths of a second.
+            # a long time ago, we used simplejson-1.7.1 (as shipped on Ubuntu
+            # 'gutsy'), which had a bug/misbehavior in which it would round
+            # all floats to hundredeths (it used str(num) instead of
+            # repr(num)). To prevent this bug from causing the test to fail,
+            # we stall for more than a few hundrededths of a second here.
+            # simplejson-1.7.3 does not have this bug, and anyways we've
+            # moved on to stdlib "json" which doesn't have it either.
             d.addCallback(self.stall, 0.1)
             d.addCallback(lambda res: n.add_file(u"timestamps",
                                                  upload.Data("stamp me", convergence="some convergence string")))

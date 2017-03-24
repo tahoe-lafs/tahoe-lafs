@@ -556,7 +556,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             raise
         cs = {}
         for name, (file_or_dir, mddict) in children.iteritems():
-            name = unicode(name) # json-2.0.1 returns str *or* unicode
+            name = unicode(name) # json returns str *or* unicode
             writecap = mddict.get('rw_uri')
             if writecap is not None:
                 writecap = str(writecap)
