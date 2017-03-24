@@ -1,7 +1,7 @@
 
 from types import NoneType
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.application import service, strports
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
@@ -15,16 +15,16 @@ from allmydata.immutable.upload import FileHandle
 from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.util.assertutil import precondition
 
-class ReadFile:
-    implements(ftp.IReadFile)
+@implementer(ftp.IReadFile)
+class ReadFile(object):
     def __init__(self, node):
         self.node = node
     def send(self, consumer):
         d = self.node.read(consumer)
         return d # when consumed
 
-class FileWriter:
-    implements(IConsumer)
+@implementer(IConsumer)
+class FileWriter(object):
 
     def registerProducer(self, producer, streaming):
         if not streaming:
@@ -41,8 +41,8 @@ class FileWriter:
     def write(self, data):
         self.f.write(data)
 
-class WriteFile:
-    implements(ftp.IWriteFile)
+@implementer(ftp.IWriteFile)
+class WriteFile(object):
 
     def __init__(self, parent, childname, convergence):
         self.parent = parent
@@ -73,8 +73,8 @@ class IntishPermissions(filepath.Permissions):
     def __and__(self, other):
         return self._tahoe_statModeInt & other
 
-class Handler:
-    implements(ftp.IFTPShell)
+@implementer(ftp.IFTPShell)
+class Handler(object):
     def __init__(self, client, rootnode, username, convergence):
         self.client = client
         self.root = rootnode
@@ -292,8 +292,8 @@ class Handler:
 from allmydata.frontends.auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
 
 
-class Dispatcher:
-    implements(portal.IRealm)
+@implementer(portal.IRealm)
+class Dispatcher(object):
     def __init__(self, client):
         self.client = client
 

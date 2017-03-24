@@ -1,5 +1,5 @@
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from allmydata.interfaces import IFilesystemNode, MustNotBeUnknownRWError, \
     MustBeDeepImmutableError
@@ -26,8 +26,8 @@ def strip_prefix_for_ro(ro_uri, deep_immutable):
     else:
         return ro_uri
 
-class UnknownNode:
-    implements(IFilesystemNode)
+@implementer(IFilesystemNode)
+class UnknownNode(object):
 
     def __init__(self, given_rw_uri, given_ro_uri, deep_immutable=False,
                  name=u"<unknown name>"):

@@ -3,7 +3,7 @@
 import os, time
 from StringIO import StringIO
 from itertools import count
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from twisted.python import failure
 from allmydata.interfaces import IPublishStatus, SDMF_VERSION, MDMF_VERSION, \
@@ -30,8 +30,8 @@ PUSHING_BLOCKS_STATE = 0
 PUSHING_EVERYTHING_ELSE_STATE = 1
 DONE_STATE = 2
 
-class PublishStatus:
-    implements(IPublishStatus)
+@implementer(IPublishStatus)
+class PublishStatus(object):
     statusid_counter = count(0)
     def __init__(self):
         self.timings = {}
@@ -1199,12 +1199,12 @@ class Publish:
         eventually(self.done_deferred.callback, f)
 
 
-class MutableFileHandle:
+@implementer(IMutableUploadable)
+class MutableFileHandle(object):
     """
     I am a mutable uploadable built around a filehandle-like object,
     usually either a StringIO instance or a handle to an actual file.
     """
-    implements(IMutableUploadable)
 
     def __init__(self, filehandle):
         # The filehandle is defined as a generally file-like object that
@@ -1283,13 +1283,13 @@ class MutableData(MutableFileHandle):
         MutableFileHandle.__init__(self, StringIO(s))
 
 
-class TransformingUploadable:
+@implementer(IMutableUploadable)
+class TransformingUploadable(object):
     """
     I am an IMutableUploadable that wraps another IMutableUploadable,
     and some segments that are already on the grid. When I am called to
     read, I handle merging of boundary segments.
     """
-    implements(IMutableUploadable)
 
 
     def __init__(self, data, offset, segment_size, start, end):

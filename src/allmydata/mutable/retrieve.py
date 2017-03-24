@@ -1,7 +1,7 @@
 
 import time
 from itertools import count
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from twisted.python import failure
 from twisted.internet.interfaces import IPushProducer, IConsumer
@@ -22,8 +22,8 @@ from allmydata.mutable.common import CorruptShareError, BadShareError, \
      UncoordinatedWriteError
 from allmydata.mutable.layout import MDMFSlotReadProxy
 
-class RetrieveStatus:
-    implements(IRetrieveStatus)
+@implementer(IRetrieveStatus)
+class RetrieveStatus(object):
     statusid_counter = count(0)
     def __init__(self):
         self.timings = {}
@@ -92,13 +92,13 @@ class RetrieveStatus:
 class Marker:
     pass
 
-class Retrieve:
+@implementer(IPushProducer)
+class Retrieve(object):
     # this class is currently single-use. Eventually (in MDMF) we will make
     # it multi-use, in which case you can call download(range) multiple
     # times, and each will have a separate response chain. However the
     # Retrieve object will remain tied to a specific version of the file, and
     # will use a single ServerMap instance.
-    implements(IPushProducer)
 
     def __init__(self, filenode, storage_broker, servermap, verinfo,
                  fetch_privkey=False, verify=False):

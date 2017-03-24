@@ -1,7 +1,7 @@
 
 import re
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.python.components import registerAdapter
 
 from allmydata.storage.server import si_a2b, si_b2a
@@ -30,7 +30,7 @@ BASE32STR_256bits = '(%s{51}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_1bits)
 NUMBER='([0-9]+)'
 
 
-class _BaseURI:
+class _BaseURI(object):
     def __hash__(self):
         return self.to_string().__hash__()
 
@@ -50,8 +50,8 @@ class _BaseURI:
         return self.storage_index
 
 
+@implementer(IURI, IImmutableFileURI)
 class CHKFileURI(_BaseURI):
-    implements(IURI, IImmutableFileURI)
 
     BASE_STRING='URI:CHK:'
     STRING_RE=re.compile('^URI:CHK:'+BASE32STR_128bits+':'+
@@ -109,8 +109,8 @@ class CHKFileURI(_BaseURI):
                                   size=self.size)
 
 
+@implementer(IVerifierURI)
 class CHKFileVerifierURI(_BaseURI):
-    implements(IVerifierURI)
 
     BASE_STRING='URI:CHK-Verifier:'
     STRING_RE=re.compile('^URI:CHK-Verifier:'+BASE32STR_128bits+':'+
@@ -158,8 +158,8 @@ class CHKFileVerifierURI(_BaseURI):
         return self
 
 
+@implementer(IURI, IImmutableFileURI)
 class LiteralFileURI(_BaseURI):
-    implements(IURI, IImmutableFileURI)
 
     BASE_STRING='URI:LIT:'
     STRING_RE=re.compile('^URI:LIT:'+base32.BASE32STR_anybytes+'$')
@@ -199,8 +199,8 @@ class LiteralFileURI(_BaseURI):
         return len(self.data)
 
 
+@implementer(IURI, IMutableFileURI)
 class WriteableSSKFileURI(_BaseURI):
-    implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:SSK:'
     STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+
@@ -248,8 +248,8 @@ class WriteableSSKFileURI(_BaseURI):
         return SSKVerifierURI(self.storage_index, self.fingerprint)
 
 
+@implementer(IURI, IMutableFileURI)
 class ReadonlySSKFileURI(_BaseURI):
-    implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:SSK-RO:'
     STRING_RE=re.compile('^URI:SSK-RO:'+BASE32STR_128bits+':'+BASE32STR_256bits+'$')
@@ -295,8 +295,8 @@ class ReadonlySSKFileURI(_BaseURI):
         return SSKVerifierURI(self.storage_index, self.fingerprint)
 
 
+@implementer(IVerifierURI)
 class SSKVerifierURI(_BaseURI):
-    implements(IVerifierURI)
 
     BASE_STRING='URI:SSK-Verifier:'
     STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'$')
@@ -332,8 +332,8 @@ class SSKVerifierURI(_BaseURI):
         return self
 
 
+@implementer(IURI, IMutableFileURI)
 class WriteableMDMFFileURI(_BaseURI):
-    implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:MDMF:'
     STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
@@ -381,8 +381,8 @@ class WriteableMDMFFileURI(_BaseURI):
         return MDMFVerifierURI(self.storage_index, self.fingerprint)
 
 
+@implementer(IURI, IMutableFileURI)
 class ReadonlyMDMFFileURI(_BaseURI):
-    implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:MDMF-RO:'
     STRING_RE=re.compile('^' +BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
@@ -430,8 +430,8 @@ class ReadonlyMDMFFileURI(_BaseURI):
         return MDMFVerifierURI(self.storage_index, self.fingerprint)
 
 
+@implementer(IVerifierURI)
 class MDMFVerifierURI(_BaseURI):
-    implements(IVerifierURI)
 
     BASE_STRING='URI:MDMF-Verifier:'
     STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
@@ -468,8 +468,8 @@ class MDMFVerifierURI(_BaseURI):
         return self
 
 
+@implementer(IURI, IDirnodeURI)
 class _DirectoryBaseURI(_BaseURI):
-    implements(IURI, IDirnodeURI)
     def __init__(self, filenode_uri=None):
         self._filenode_uri = filenode_uri
 
@@ -515,8 +515,8 @@ class _DirectoryBaseURI(_BaseURI):
         return self._filenode_uri.get_storage_index()
 
 
+@implementer(IDirectoryURI)
 class DirectoryURI(_DirectoryBaseURI):
-    implements(IDirectoryURI)
 
     BASE_STRING='URI:DIR2:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
@@ -534,8 +534,8 @@ class DirectoryURI(_DirectoryBaseURI):
         return ReadonlyDirectoryURI(self._filenode_uri.get_readonly())
 
 
+@implementer(IReadonlyDirectoryURI)
 class ReadonlyDirectoryURI(_DirectoryBaseURI):
-    implements(IReadonlyDirectoryURI)
 
     BASE_STRING='URI:DIR2-RO:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
@@ -590,8 +590,8 @@ class LiteralDirectoryURI(_ImmutableDirectoryBaseURI):
         return None
 
 
+@implementer(IDirectoryURI)
 class MDMFDirectoryURI(_DirectoryBaseURI):
-    implements(IDirectoryURI)
 
     BASE_STRING='URI:DIR2-MDMF:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
@@ -612,8 +612,8 @@ class MDMFDirectoryURI(_DirectoryBaseURI):
         return MDMFDirectoryURIVerifier(self._filenode_uri.get_verify_cap())
 
 
+@implementer(IReadonlyDirectoryURI)
 class ReadonlyMDMFDirectoryURI(_DirectoryBaseURI):
-    implements(IReadonlyDirectoryURI)
 
     BASE_STRING='URI:DIR2-MDMF-RO:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
@@ -650,8 +650,8 @@ def wrap_dirnode_cap(filecap):
     raise AssertionError("cannot interpret as a directory cap: %s" % filecap.__class__)
 
 
+@implementer(IVerifierURI)
 class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
-    implements(IVerifierURI)
 
     BASE_STRING='URI:DIR2-MDMF-Verifier:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
@@ -675,8 +675,8 @@ class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
         return self
 
 
+@implementer(IVerifierURI)
 class DirectoryURIVerifier(_DirectoryBaseURI):
-    implements(IVerifierURI)
 
     BASE_STRING='URI:DIR2-Verifier:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
@@ -700,8 +700,8 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
         return self
 
 
+@implementer(IVerifierURI)
 class ImmutableDirectoryURIVerifier(DirectoryURIVerifier):
-    implements(IVerifierURI)
     BASE_STRING='URI:DIR2-CHK-Verifier:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
     INNER_URI_CLASS=CHKFileVerifierURI

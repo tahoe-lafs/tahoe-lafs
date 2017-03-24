@@ -7,7 +7,7 @@ from allmydata.interfaces import HASH_SIZE, SALT_SIZE, SDMF_VERSION, \
 from allmydata.util import mathutil
 from twisted.python import failure
 from twisted.internet import defer
-from zope.interface import implements
+from zope.interface import implementer
 
 
 # These strings describe the format of the packed structs they help process.
@@ -218,8 +218,8 @@ def pack_prefix(seqnum, root_hash, IV,
     return prefix
 
 
-class SDMFSlotWriteProxy:
-    implements(IMutableSlotWriter)
+@implementer(IMutableSlotWriter)
+class SDMFSlotWriteProxy(object):
     """
     I represent a remote write slot for an SDMF mutable file. I build a
     share in memory, and then write it in one piece to the remote
@@ -566,8 +566,8 @@ VERIFICATION_KEY_SIZE = 292
 # bound. Each node requires 2 bytes of node-number plus 32 bytes of hash.
 SHARE_HASH_CHAIN_SIZE = (2+HASH_SIZE)*mathutil.log_ceil(256, 2)
 
-class MDMFSlotWriteProxy:
-    implements(IMutableSlotWriter)
+@implementer(IMutableSlotWriter)
+class MDMFSlotWriteProxy(object):
 
     """
     I represent a remote write slot for an MDMF mutable file.

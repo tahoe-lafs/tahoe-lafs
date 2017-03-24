@@ -4,7 +4,7 @@ from types import NoneType
 from stat import S_IFREG, S_IFDIR
 from time import time, strftime, localtime
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.python import components
 from twisted.application import service, strports
 from twisted.conch.ssh import factory, keys, session
@@ -294,8 +294,8 @@ def _direntry_for(filenode_or_parent, childname, filenode=None):
     return None
 
 
+@implementer(IConsumer)
 class OverwriteableFileConsumer(PrefixingLogMixin):
-    implements(IConsumer)
     """I act both as a consumer for the download of the original file contents, and as a
     wrapper for a temporary file that records the downloaded data and any overwrites.
     I use a priority queue to keep track of which regions of the file have been overwritten
@@ -566,8 +566,8 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
 SIZE_THRESHOLD = 1000
 
 
+@implementer(ISFTPFile)
 class ShortReadOnlySFTPFile(PrefixingLogMixin):
-    implements(ISFTPFile)
     """I represent a file handle to a particular file on an SFTP connection.
     I am used only for short immutable files opened in read-only mode.
     When I am created, the file contents start to be downloaded to memory.
@@ -644,8 +644,8 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
         return defer.execute(_denied)
 
 
+@implementer(ISFTPFile)
 class GeneralSFTPFile(PrefixingLogMixin):
-    implements(ISFTPFile)
     """I represent a file handle to a particular file on an SFTP connection.
     I wrap an instance of OverwriteableFileConsumer, which is responsible for
     storing the file contents. In order to allow write requests to be satisfied
@@ -993,8 +993,8 @@ def _reload():
     global all_heisenfiles
     all_heisenfiles = {}
 
+@implementer(ISFTPServer)
 class SFTPUserHandler(ConchUser, PrefixingLogMixin):
-    implements(ISFTPServer)
     def __init__(self, client, rootnode, username):
         ConchUser.__init__(self)
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp", prefix=username)
@@ -1894,8 +1894,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         return d
 
 
-class FakeTransport:
-    implements(ITransport)
+@implementer(ITransport)
+class FakeTransport(object):
     def write(self, data):
         logmsg("FakeTransport.write(<data of length %r>)" % (len(data),), level=NOISY)
 
@@ -1908,8 +1908,8 @@ class FakeTransport:
     # getPeer and getHost can just raise errors, since we don't know what to return
 
 
+@implementer(ISession)
 class ShellSession(PrefixingLogMixin):
-    implements(ISession)
     def __init__(self, userHandler):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
         if noisy: self.log(".__init__(%r)" % (userHandler), level=NOISY)
@@ -1965,8 +1965,8 @@ components.registerAdapter(ShellSession, SFTPUserHandler, ISession)
 
 from allmydata.frontends.auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
 
-class Dispatcher:
-    implements(portal.IRealm)
+@implementer(portal.IRealm)
+class Dispatcher(object):
     def __init__(self, client):
         self._client = client
 

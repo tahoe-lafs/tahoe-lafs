@@ -2,7 +2,7 @@
 import binascii
 from time import time as now
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 
 from allmydata import uri
@@ -182,12 +182,12 @@ class CiphertextFileNode:
                     monitor=monitor)
         return v.start()
 
-class DecryptingConsumer:
+@implementer(IConsumer, IDownloadStatusHandlingConsumer)
+class DecryptingConsumer(object):
     """I sit between a CiphertextDownloader (which acts as a Producer) and
     the real Consumer, decrypting everything that passes by. The real
     Consumer sees the real Producer, but the Producer sees us instead of the
     real consumer."""
-    implements(IConsumer, IDownloadStatusHandlingConsumer)
 
     def __init__(self, consumer, readkey, offset):
         self._consumer = consumer
@@ -227,8 +227,8 @@ class DecryptingConsumer:
             self._download_status.add_misc_event("AES", started, now())
         self._consumer.write(plaintext)
 
-class ImmutableFileNode:
-    implements(IImmutableFileNode)
+@implementer(IImmutableFileNode)
+class ImmutableFileNode(object):
 
     # I wrap a CiphertextFileNode with a decryption key
     def __init__(self, filecap, storage_broker, secret_holder, terminator,

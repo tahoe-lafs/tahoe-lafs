@@ -1,5 +1,5 @@
 import weakref
-from zope.interface import implements
+from zope.interface import implementer
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import INodeMaker
 from allmydata.immutable.literal import LiteralFileNode
@@ -13,8 +13,8 @@ from allmydata.blacklist import ProhibitedNode
 from allmydata import uri
 
 
-class NodeMaker:
-    implements(INodeMaker)
+@implementer(INodeMaker)
+class NodeMaker(object):
 
     def __init__(self, storage_broker, secret_holder, history,
                  uploader, terminator,

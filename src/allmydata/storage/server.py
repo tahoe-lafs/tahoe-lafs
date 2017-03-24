@@ -3,7 +3,7 @@ import os, re, weakref, struct, time
 from foolscap.api import Referenceable
 from twisted.application import service
 
-from zope.interface import implements
+from zope.interface import implementer
 from allmydata.interfaces import RIStorageServer, IStatsProducer
 from allmydata.util import fileutil, idlib, log, time_format
 import allmydata # for __full_version__
@@ -33,8 +33,8 @@ NUM_RE=re.compile("^[0-9]+$")
 
 
 
+@implementer(RIStorageServer, IStatsProducer)
 class StorageServer(service.MultiService, Referenceable):
-    implements(RIStorageServer, IStatsProducer)
     name = 'storage'
     LeaseCheckerClass = LeaseCheckingCrawler
 

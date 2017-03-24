@@ -1,7 +1,7 @@
 """Directory Node implementation."""
 import time, unicodedata
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from foolscap.api import fireEventually
 import json
@@ -256,8 +256,8 @@ def _pack_normalized_children(children, writekey, deep_immutable=False):
         entries.append(netstring(entry))
     return "".join(entries)
 
-class DirectoryNode:
-    implements(IDirectoryNode, ICheckable, IDeepCheckable)
+@implementer(IDirectoryNode, ICheckable, IDeepCheckable)
+class DirectoryNode(object):
     filenode_class = MutableFileNode
 
     def __init__(self, filenode, nodemaker, uploader):

@@ -30,7 +30,7 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 
 
 import re, time, hashlib
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from twisted.application import service
 
@@ -59,8 +59,8 @@ from allmydata.util.hashutil import permute_server_hash
 #  don't pass signatures: only pass validated blessed-objects
 
 
+@implementer(IStorageBroker)
 class StorageFarmBroker(service.MultiService):
-    implements(IStorageBroker)
     """I live on the client, and know about storage servers. For each server
     that is participating in a grid, I either maintain a connection to it or
     remember enough information to establish a connection to it on demand.
@@ -235,8 +235,8 @@ class StorageFarmBroker(service.MultiService):
                     return s
         return StubServer(serverid)
 
-class StubServer:
-    implements(IDisplayableServer)
+@implementer(IDisplayableServer)
+class StubServer(object):
     def __init__(self, serverid):
         self.serverid = serverid # binary tubid
     def get_serverid(self):
@@ -248,6 +248,7 @@ class StubServer:
     def get_nickname(self):
         return "?"
 
+@implementer(IServer)
 class NativeStorageServer(service.MultiService):
     """I hold information about a storage server that we want to connect to.
     If we are connected, I hold the RemoteReference, their host address, and
@@ -263,7 +264,6 @@ class NativeStorageServer(service.MultiService):
     @ivar rref: the RemoteReference, if connected, otherwise None
     @ivar remote_host: the IAddress, if connected, otherwise None
     """
-    implements(IServer)
 
     VERSION_DEFAULTS = {
         "http://allmydata.org/tahoe/protocols/storage/v1" :

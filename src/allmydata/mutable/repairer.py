@@ -1,13 +1,13 @@
 
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.internet import defer
 from allmydata.interfaces import IRepairResults, ICheckResults
 from allmydata.mutable.publish import MutableData
 from allmydata.mutable.common import MODE_REPAIR
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 
-class RepairResults:
-    implements(IRepairResults)
+@implementer(IRepairResults)
+class RepairResults(object):
 
     def __init__(self, smap):
         self.servermap = smap

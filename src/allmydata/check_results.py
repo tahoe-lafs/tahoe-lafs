@@ -1,11 +1,11 @@
 
-from zope.interface import implements
+from zope.interface import implementer
 from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
      IDeepCheckResults, IDeepCheckAndRepairResults, IURI, IDisplayableServer
 from allmydata.util import base32
 
-class CheckResults:
-    implements(ICheckResults)
+@implementer(ICheckResults)
+class CheckResults(object):
 
     def __init__(self, uri, storage_index,
                  healthy, recoverable, count_happiness,
@@ -146,8 +146,8 @@ class CheckResults:
     def get_servermap(self):
         return self._servermap
 
-class CheckAndRepairResults:
-    implements(ICheckAndRepairResults)
+@implementer(ICheckAndRepairResults)
+class CheckAndRepairResults(object):
 
     def __init__(self, storage_index):
         self.storage_index = storage_index
@@ -206,8 +206,8 @@ class DeepResultsBase:
         return self.stats
 
 
+@implementer(IDeepCheckResults)
 class DeepCheckResults(DeepResultsBase):
-    implements(IDeepCheckResults)
 
     def add_check(self, r, path):
         if not r:
@@ -234,8 +234,8 @@ class DeepCheckResults(DeepResultsBase):
                 }
 
 
+@implementer(IDeepCheckAndRepairResults)
 class DeepCheckAndRepairResults(DeepResultsBase):
-    implements(IDeepCheckAndRepairResults)
 
     def __init__(self, root_storage_index):
         DeepResultsBase.__init__(self, root_storage_index)

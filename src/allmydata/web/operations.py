@@ -1,6 +1,6 @@
 
 import time
-from zope.interface import implements
+from zope.interface import implementer
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
 from twisted.python.failure import Failure
@@ -18,8 +18,8 @@ DAY = 24*HOUR
 
 (MONITOR, RENDERER, WHEN_ADDED) = range(3)
 
+@implementer(IOpHandleTable)
 class OphandleTable(rend.Page, service.Service):
-    implements(IOpHandleTable)
 
     UNCOLLECTED_HANDLE_LIFETIME = 4*DAY
     COLLECTED_HANDLE_LIFETIME = 1*DAY

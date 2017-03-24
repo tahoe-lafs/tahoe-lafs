@@ -2,14 +2,14 @@ import hotshot.stats, os, random, sys
 
 from pyutil import benchutil, randutil # http://tahoe-lafs.org/trac/pyutil
 
-from zope.interface import implements
+from zope.interface import implementer
 from allmydata import dirnode, uri
 from allmydata.interfaces import IFileNode
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.immutable.filenode import ImmutableFileNode
 
-class ContainerNode:
-    implements(IFileNode)
+@implementer(IFileNode)
+class ContainerNode(object):
     # dirnodes sit on top of a "container" filenode, from which it extracts a
     # writekey
     def __init__(self):
