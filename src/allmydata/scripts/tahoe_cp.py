@@ -1,7 +1,7 @@
 
 import os.path
 import urllib
-import simplejson
+import json
 from collections import defaultdict
 from cStringIO import StringIO
 from twisted.python.failure import Failure
@@ -242,7 +242,7 @@ class TahoeDirectorySource:
         resp = do_http("GET", url + "?t=json")
         if resp.status != 200:
             raise HTTPError("Error examining source directory", resp)
-        parsed = simplejson.loads(resp.read())
+        parsed = json.loads(resp.read())
         nodetype, d = parsed
         assert nodetype == "dirnode"
         self.mutable = d.get("mutable", False) # older nodes don't provide it
@@ -339,7 +339,7 @@ class TahoeDirectoryTarget:
         resp = do_http("GET", url + "?t=json")
         if resp.status != 200:
             raise HTTPError("Error examining target directory", resp)
-        parsed = simplejson.loads(resp.read())
+        parsed = json.loads(resp.read())
         nodetype, d = parsed
         assert nodetype == "dirnode"
         self.mutable = d.get("mutable", False) # older nodes don't provide it
@@ -449,7 +449,7 @@ class TahoeDirectoryTarget:
             # TODO: think about how this affects forward-compatibility for
             # unknown caps
             set_data[name] = ["filenode", {"rw_uri": filecap}]
-        body = simplejson.dumps(set_data)
+        body = json.dumps(set_data)
         POST(url, body)
 
 FileSources = (LocalFileSource, TahoeFileSource)
@@ -611,7 +611,7 @@ class Copier:
                 # doesn't exist yet
                 t = TahoeMissingTarget(url)
             elif resp.status == 200:
-                parsed = simplejson.loads(resp.read())
+                parsed = json.loads(resp.read())
                 nodetype, d = parsed
                 if nodetype == "dirnode":
                     t = TahoeDirectoryTarget(self.nodeurl, self.cache,
@@ -672,7 +672,7 @@ class Copier:
             elif resp.status != 200:
                 raise HTTPError("Error examining source %s" % quote_output(source_spec),
                                 resp)
-            parsed = simplejson.loads(resp.read())
+            parsed = json.loads(resp.read())
             nodetype, d = parsed
             if nodetype == "dirnode":
                 t = TahoeDirectorySource(self.nodeurl, self.cache,

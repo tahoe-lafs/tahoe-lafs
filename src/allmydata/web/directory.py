@@ -1,5 +1,5 @@
 
-import simplejson
+import json
 import urllib
 
 from zope.interface import implements
@@ -549,14 +549,14 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         req.content.seek(0)
         body = req.content.read()
         try:
-            children = simplejson.loads(body)
+            children = json.loads(body)
         except ValueError, le:
             le.args = tuple(le.args + (body,))
             # TODO test handling of bad JSON
             raise
         cs = {}
         for name, (file_or_dir, mddict) in children.iteritems():
-            name = unicode(name) # simplejson-2.0.1 returns str *or* unicode
+            name = unicode(name) # json returns str *or* unicode
             writecap = mddict.get('rw_uri')
             if writecap is not None:
                 writecap = str(writecap)
@@ -907,8 +907,7 @@ def DirectoryJSONMetadata(ctx, dirnode):
             contents['verify_uri'] = verifycap.to_string()
         contents['mutable'] = dirnode.is_mutable()
         data = ("dirnode", contents)
-        json = simplejson.dumps(data, indent=1) + "\n"
-        return json
+        return json.dumps(data, indent=1) + "\n"
     d.addCallback(_got)
     d.addCallback(text_plain, ctx)
 
@@ -916,7 +915,7 @@ def DirectoryJSONMetadata(ctx, dirnode):
         message, code = humanize_failure(f)
         req = IRequest(ctx)
         req.setResponseCode(code)
-        return simplejson.dumps({
+        return json.dumps({
             "error": message,
         })
     d.addErrback(error)
@@ -1014,7 +1013,7 @@ class ManifestResults(rend.Page, ReloadMixin):
             # generator that walks the set rather than list(setofthing) to
             # save a small amount of memory (4B*len) and a moderate amount of
             # CPU.
-        return simplejson.dumps(status, indent=1)
+        return json.dumps(status, indent=1)
 
     def _si_abbrev(self):
         si = self.monitor.origin_si
@@ -1073,7 +1072,7 @@ class DeepSizeResults(rend.Page):
         status = {"finished": self.monitor.is_finished(),
                   "size": self.monitor.get_status(),
                   }
-        return simplejson.dumps(status)
+        return json.dumps(status)
 
 class DeepStatsResults(rend.Page):
     def __init__(self, client, monitor):
@@ -1085,7 +1084,7 @@ class DeepStatsResults(rend.Page):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         s = self.monitor.get_status().copy()
         s["finished"] = self.monitor.is_finished()
-        return simplejson.dumps(s, indent=1)
+        return json.dumps(s, indent=1)
 
 class ManifestStreamer(dirnode.DeepStats):
     implements(IPushProducer)
@@ -1130,7 +1129,7 @@ class ManifestStreamer(dirnode.DeepStats):
             si = base32.b2a(si)
         d["storage-index"] = si or ""
 
-        j = simplejson.dumps(d, ensure_ascii=True)
+        j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
         self.req.write(j+"\n")
 
@@ -1139,7 +1138,7 @@ class ManifestStreamer(dirnode.DeepStats):
         d = {"type": "stats",
              "stats": stats,
              }
-        j = simplejson.dumps(d, ensure_ascii=True)
+        j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
         self.req.write(j+"\n")
         return ""
@@ -1208,7 +1207,7 @@ class DeepCheckStreamer(dirnode.DeepStats):
         return data
 
     def write_line(self, data):
-        j = simplejson.dumps(data, ensure_ascii=True)
+        j = json.dumps(data, ensure_ascii=True)
         assert "\n" not in j
         self.req.write(j+"\n")
 
@@ -1217,7 +1216,7 @@ class DeepCheckStreamer(dirnode.DeepStats):
         d = {"type": "stats",
              "stats": stats,
              }
-        j = simplejson.dumps(d, ensure_ascii=True)
+        j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
         self.req.write(j+"\n")
         return ""
@@ -1263,4 +1262,4 @@ def UnknownJSONMetadata(ctx, node, edge_metadata, is_parent_known_immutable):
 
     if edge_metadata is not None:
         data[1]['metadata'] = edge_metadata
-    return text_plain(simplejson.dumps(data, indent=1) + "\n", ctx)
+    return text_plain(json.dumps(data, indent=1) + "\n", ctx)

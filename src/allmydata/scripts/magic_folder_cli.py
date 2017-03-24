@@ -5,8 +5,8 @@ from sys import stderr
 from types import NoneType
 from cStringIO import StringIO
 from datetime import datetime
+import json
 
-import simplejson
 
 from twisted.python import usage
 
@@ -265,7 +265,7 @@ def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
         )
 
     data = resp.read()
-    parsed = simplejson.loads(data)
+    parsed = json.loads(data)
     if parsed is None:
         raise RuntimeError("No data from '%s'" % (nodeurl,))
     return parsed

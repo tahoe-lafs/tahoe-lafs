@@ -2,7 +2,7 @@
 
 import os, sys
 import urllib
-import simplejson
+import json
 
 configinfo = """\
 graph_title Tahoe Introducer Stats
@@ -24,7 +24,7 @@ if len(sys.argv) > 1:
 
 url = os.environ["url"]
 
-data = simplejson.loads(urllib.urlopen(url).read())
+data = json.loads(urllib.urlopen(url).read())
 print "storage_server.value %d" % data["announcement_summary"]["storage"]
 print "storage_hosts.value %d" % data["announcement_distinct_hosts"]["storage"]
 print "storage_client.value %d" % data["subscription_summary"]["storage"]

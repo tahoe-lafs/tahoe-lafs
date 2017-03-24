@@ -6,7 +6,7 @@
 # used. The plugin should be configured with env_url= pointing at the
 # diskwatcher.tac webport.
 
-import os, sys, urllib, simplejson
+import os, sys, urllib, json
 
 if len(sys.argv) > 1 and sys.argv[1] == "config":
     print """\
@@ -21,6 +21,6 @@ disk_used.draw LINE1"""
     sys.exit(0)
 
 url = os.environ["url"]
-data = simplejson.load(urllib.urlopen(url))
+data = json.load(urllib.urlopen(url))
 print "disk_total.value", data["total"]
 print "disk_used.value", data["used"]

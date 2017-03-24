@@ -27,7 +27,7 @@
 # This plugin should be configured with env_diskwatcher_url= pointing at the
 # diskwatcher.tac webport, and env_deepsize_url= pointing at the PHP script.
 
-import os, sys, urllib, simplejson
+import os, sys, urllib, json
 
 if len(sys.argv) > 1 and sys.argv[1] == "config":
     print """\
@@ -44,9 +44,9 @@ effective_expansion.graph no"""
     sys.exit(0)
 
 diskwatcher_url = os.environ["diskwatcher_url"]
-total = simplejson.load(urllib.urlopen(diskwatcher_url))["used"]
+total = json.load(urllib.urlopen(diskwatcher_url))["used"]
 deepsize_url = os.environ["deepsize_url"]
-deepsize = simplejson.load(urllib.urlopen(deepsize_url))
+deepsize = json.load(urllib.urlopen(deepsize_url))
 k = 3; N = 10
 expansion = float(N) / k
 

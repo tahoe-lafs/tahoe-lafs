@@ -6,7 +6,7 @@ from allmydata.scripts.common_http import do_http, format_http_error
 from allmydata.util import base32
 from allmydata.util.encodingutil import quote_output, is_printable_ascii
 import urllib
-import simplejson
+import json
 
 class SlowOperationRunner:
 
@@ -69,7 +69,7 @@ class SlowOperationRunner:
             print >>stderr, format_http_error("ERROR", resp)
             return True
         jdata = resp.read()
-        data = simplejson.loads(jdata)
+        data = json.loads(jdata)
         if not data["finished"]:
             return False
         if self.options.get("raw"):

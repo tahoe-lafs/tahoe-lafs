@@ -23,7 +23,6 @@
 # python: 2.7.5 (/usr/bin/python)
 # platform: Darwin-13.4.0-x86_64-i386-64bit (None)
 # pyOpenSSL: 0.13 (/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python)
-# simplejson: 3.6.4 (/Applications/tahoe.app/support/lib/python2.7/site-packages/simplejson-3.6.4-py2.7-macosx-10.9-intel.egg)
 # pycrypto: 2.6.1 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pycrypto-2.6.1-py2.7-macosx-10.9-intel.egg)
 # pyasn1: 0.1.7 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pyasn1-0.1.7-py2.7.egg)
 # mock: 1.0.1 (/Applications/tahoe.app/support/lib/python2.7/site-packages)

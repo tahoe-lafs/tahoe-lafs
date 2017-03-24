@@ -44,7 +44,7 @@
 
 import os, sys
 import urllib
-import simplejson
+import json
 
 node_urls = []
 for k,v in os.environ.items():
@@ -82,7 +82,7 @@ if len(sys.argv) > 1:
         sys.exit(0)
 
 for nodename, url in node_urls:
-    data = simplejson.loads(urllib.urlopen(url).read())
+    data = json.loads(urllib.urlopen(url).read())
     if percentile == "mean":
         p_key = "mean"
     else:

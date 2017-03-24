@@ -1,5 +1,5 @@
 
-import simplejson
+import json
 import os.path, shutil
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -69,8 +69,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                               html)
         d.addCallback(_check_return_to)
         d.addCallback(lambda ignored: self.render_json(lcr))
-        def _check_json(json):
-            j = simplejson.loads(json)
+        def _check_json(js):
+            j = json.loads(js)
             self.failUnlessEqual(j["storage-index"], "")
             self.failUnlessEqual(j["results"]["healthy"], True)
         d.addCallback(_check_json)
@@ -152,7 +152,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
         d = self.render_json(w)
         def _check_json(jdata):
-            j = simplejson.loads(jdata)
+            j = json.loads(jdata)
             self.failUnlessEqual(j["summary"], "rather dead")
             self.failUnlessEqual(j["storage-index"],
                                  "2k6avpjga3dho3zsjo6nnkt7n4")
@@ -292,7 +292,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
         d = self.render_json(w)
         def _got_json(data):
-            j = simplejson.loads(data)
+            j = json.loads(data)
             self.failUnlessEqual(j["repair-attempted"], True)
             self.failUnlessEqual(j["storage-index"],
                                  "2k6avpjga3dho3zsjo6nnkt7n4")
@@ -303,7 +303,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         w2 = web_check_results.CheckAndRepairResultsRenderer(c, None)
         d.addCallback(lambda ignored: self.render_json(w2))
         def _got_lit_results(data):
-            j = simplejson.loads(data)
+            j = json.loads(data)
             self.failUnlessEqual(j["repair-attempted"], False)
             self.failUnlessEqual(j["storage-index"], "")
         d.addCallback(_got_lit_results)

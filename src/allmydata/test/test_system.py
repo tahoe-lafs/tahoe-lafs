@@ -1,5 +1,5 @@
 
-import os, re, sys, time, simplejson
+import os, re, sys, time, json
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -1366,7 +1366,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                       getPage(self.introweb_url + "?t=json",
                               method="GET", followRedirect=True))
         def _check_json(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             try:
                 self.failUnlessEqual(data["subscription_summary"],
                                      {"storage": 5})
@@ -1814,7 +1814,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.GET("helper_status?t=json", followRedirect=True))
         def _got_helper_status_json(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnlessEqual(data["chk_upload_helper.upload_need_upload"],
                                  1)
             self.failUnlessEqual(data["chk_upload_helper.incoming_count"], 1)
@@ -1838,7 +1838,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       getPage(self.helper_webish_url + "helper_status?t=json"))
         def _got_non_helper_status_json(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnlessEqual(data, {})
         d.addCallback(_got_non_helper_status_json)
 
@@ -1850,7 +1850,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_got_stats)
         d.addCallback(lambda res: self.GET("statistics?t=json"))
         def _got_stats_json(res):
-            data = simplejson.loads(res)
+            data = json.loads(res)
             self.failUnlessEqual(data["counters"]["uploader.files_uploaded"], 5)
             self.failUnlessEqual(data["stats"]["chk_upload_helper.upload_need_upload"], 1)
         d.addCallback(_got_stats_json)

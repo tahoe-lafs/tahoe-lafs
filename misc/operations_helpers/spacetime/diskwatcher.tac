@@ -31,7 +31,7 @@ from twisted.application import internet, service, strports
 from twisted.web import server, resource, http, client
 from twisted.internet import defer
 from twisted.python import log
-import simplejson
+import json
 from axiom.attributes import AND
 from axiom.store import Store
 from epsilon import extime
@@ -151,7 +151,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
         log.msg("fetched %d of %d" % (fetched, attempts))
 
     def got_response(self, data_json, when, url):
-        data = simplejson.loads(data_json)
+        data = json.loads(data_json)
         total = data[u"stats"][u"storage_server.disk_total"]
         used = data[u"stats"][u"storage_server.disk_used"]
         avail = data[u"stats"][u"storage_server.disk_avail"]
@@ -374,7 +374,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
                        "used": self.find_total_used_space(),
                        "available": self.find_total_available_space(),
                        }
-            data = simplejson.dumps(current, indent=True)
+            data = json.dumps(current, indent=True)
         else:
             req.setResponseCode(http.BAD_REQUEST)
             data = "Unknown t= %s\n" % t
