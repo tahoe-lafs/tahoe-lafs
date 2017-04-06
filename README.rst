@@ -38,6 +38,7 @@ pre-release code), you should create a virtualenv and install into that:
 * ``git clone https://github.com/tahoe-lafs/tahoe-lafs.git``
 * ``cd tahoe-lafs``
 * ``virtualenv venv``
+* ``venv/bin/pip install appdirs packaging six``
 * ``venv/bin/pip install --editable .``
 * ``venv/bin/tahoe --version``
 
