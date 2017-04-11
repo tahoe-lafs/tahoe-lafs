@@ -276,8 +276,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "tox",
               "foolscap[tor] >= 0.12.5",
               "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
-              "foolscap[i2p]",
-              "txi2p >= 0.3.1", # in case pip's resolver doesn't work
+              "foolscap[i2p] >= 0.12.6",
+              "txi2p >= 0.3.2", # in case pip's resolver doesn't work
               "pytest",
               "pytest-twisted",
           ],
@@ -286,8 +286,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
           ],
           "i2p": [
-              "foolscap[i2p]",
-              "txi2p >= 0.3.1", # in case pip's resolver doesn't work
+              "foolscap[i2p] >= 0.12.6",
+              "txi2p >= 0.3.2", # in case pip's resolver doesn't work
           ],
       },
       package_data={"allmydata.web": ["*.xhtml",

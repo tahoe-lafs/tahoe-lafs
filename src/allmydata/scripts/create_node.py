@@ -350,11 +350,12 @@ def create_node(config):
         write_client_config(c, config)
 
     print >>out, "Node created in %s" % quote_local_unicode_path(basedir)
+    tahoe_cfg = quote_local_unicode_path(os.path.join(basedir, "tahoe.cfg"))
     if not config.get("introducer", ""):
-        print >>out, " Please set [client]introducer.furl= in tahoe.cfg!"
+        print >>out, " Please set [client]introducer.furl= in %s!" % tahoe_cfg
         print >>out, " The node cannot connect to a grid without it."
     if not config.get("nickname", ""):
-        print >>out, " Please set [node]nickname= in tahoe.cfg"
+        print >>out, " Please set [node]nickname= in %s" % tahoe_cfg
     defer.returnValue(0)
 
 def create_client(config):

@@ -108,7 +108,7 @@ class MagicFolder(service.MultiService):
         return self.uploader.start_monitoring()
 
     def stopService(self):
-        return self.finish()
+        return defer.gatherResults([service.MultiService.stopService(self), self.finish()])
 
     def ready(self):
         """ready is used to signal us to start

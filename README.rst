@@ -39,6 +39,7 @@ pre-release code), you should create a virtualenv and install into that:
 * ``cd tahoe-lafs``
 * ``virtualenv venv``
 * ``venv/bin/pip install appdirs packaging six``
+* ``virtualenv --python=python2.7 venv``
 * ``venv/bin/pip install --editable .``
 * ``venv/bin/tahoe --version``
 
