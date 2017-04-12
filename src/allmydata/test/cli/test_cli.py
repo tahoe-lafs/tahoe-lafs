@@ -20,12 +20,14 @@ import allmydata.scripts.common_http
 from pycryptopp.publickey import ed25519
 
 # Test that the scripts can be imported.
-from allmydata.scripts import create_node, debug, startstop_node, \
+from allmydata.scripts import create_node, debug, tahoe_start, tahoe_restart, \
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls, \
-    tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen
-_hush_pyflakes = [create_node, debug, startstop_node,
+    tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen, \
+    tahoe_stop, tahoe_daemonize, tahoe_run
+_hush_pyflakes = [create_node, debug, tahoe_start, tahoe_restart, tahoe_stop,
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls,
-    tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen]
+    tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen,
+    tahoe_daemonize, tahoe_run]
 
 from allmydata.scripts import common
 from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
@@ -630,19 +632,19 @@ class Help(unittest.TestCase):
         self.failUnlessIn("[options]", help)
 
     def test_start(self):
-        help = str(startstop_node.StartOptions())
+        help = str(tahoe_start.StartOptions())
         self.failUnlessIn("[options] [NODEDIR [twistd-options]]", help)
 
     def test_stop(self):
-        help = str(startstop_node.StopOptions())
+        help = str(tahoe_stop.StopOptions())
         self.failUnlessIn("[options] [NODEDIR]", help)
 
     def test_restart(self):
-        help = str(startstop_node.RestartOptions())
+        help = str(tahoe_restart.RestartOptions())
         self.failUnlessIn("[options] [NODEDIR [twistd-options]]", help)
 
     def test_run(self):
-        help = str(startstop_node.RunOptions())
+        help = str(tahoe_run.RunOptions())
         self.failUnlessIn("[options] [NODEDIR [twistd-options]]", help)
 
     def test_create_client(self):
@@ -1303,11 +1305,11 @@ class Stop(unittest.TestCase):
         basedir.makedirs()
         basedir.child(u"twistd.pid").setContent(b"foo")
 
-        config = startstop_node.StopOptions()
+        config = tahoe_stop.StopOptions()
         config.stdout = StringIO()
         config.stderr = StringIO()
         config['basedir'] = basedir.path
 
-        result_code = startstop_node.stop(config)
+        result_code = tahoe_stop.stop(config)
         self.assertEqual(2, result_code)
         self.assertIn("contains non-numeric value", config.stderr.getvalue())
