@@ -22,6 +22,9 @@ install_requires = [
     # packages), so there's no point in requiring less.
     "setuptools >= 11.3",
 
+    # python-2.7.[4567] stdlib/subprocess has bugs. #2023, python#18851
+    "subprocess32 >= 3.2.6",
+
     "zfec >= 1.1.0",
 
     # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
