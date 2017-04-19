@@ -7,7 +7,7 @@ from twisted.internet import defer
 
 from allmydata import uri
 from twisted.internet.interfaces import IConsumer
-from allmydata.interfaces import IImmutableFileNode, IUploadResults
+from allmydata.interfaces import IFileNode, IImmutableFileNode, IUploadResults
 from allmydata.util import consumer
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.util.dictutil import DictOfSets
@@ -22,6 +22,8 @@ from allmydata.immutable.downloader.node import DownloadNode, \
 from allmydata.immutable.downloader.status import DownloadStatus
 
 class CiphertextFileNode:
+    implements(IFileNode)
+
     def __init__(self, verifycap, storage_broker, secret_holder,
                  terminator, history):
         assert isinstance(verifycap, uri.CHKFileVerifierURI)
@@ -83,6 +85,24 @@ class CiphertextFileNode:
         return self._verifycap
     def get_size(self):
         return self._verifycap.size
+
+    def get_current_size(self):
+        # Our size is fixed.
+        return defer.succeed(self._verifycap.size)
+
+    def get_write_uri(self):
+        # We are not writeable.
+        return None
+
+    def get_readonly_uri(self):
+        # We are not readable, either.
+        return None
+
+    def get_uri(self):
+        return self._verifycap.to_string()
+
+    def is_alleged_immutable(self):
+        return True
 
     def raise_error(self):
         pass
