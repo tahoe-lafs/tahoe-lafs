@@ -559,6 +559,14 @@ on port 7656. This is the default SAM port for the ``i2p`` daemon.
     empty, the first executable program named ``i2p`` found on ``$PATH`` will
     be used.
 
+``i2cp.options = (string, optional, defaults to empty)``
+
+    This is a comma-separated list of I2CP options as key:value pairs, that are
+    passed through to the I2P router. Commas and colons within the options
+    must be escaped (ie. ``\,`` and ``\:``).
+
+    Example usage: ``i2cp.options = keyOne:valueOne,keyTwo:valueTwo``
+
 
 .. _Client Configuration:
 

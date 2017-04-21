@@ -158,7 +158,16 @@ class I2P(unittest.TestCase):
         with mock.patch("foolscap.connections.i2p.default",
                         return_value=h1) as f:
             h = n._make_i2p_handler()
-            self.assertEqual(f.mock_calls, [mock.call(reactor, keyfile=None)])
+            self.assertEqual(f.mock_calls, [mock.call(reactor, keyfile=None, options=None)])
+            self.assertIdentical(h, h1)
+
+    def test_default_with_options(self):
+        n = FakeNode(BASECONFIG+"[i2p]\ni2cp.options = foo:bar,spam:eggs\n")
+        h1 = mock.Mock()
+        with mock.patch("foolscap.connections.i2p.default",
+                        return_value=h1) as f:
+            h = n._make_i2p_handler()
+            self.assertEqual(f.mock_calls, [mock.call(reactor, keyfile=None, options={'foo': 'bar', 'spam': 'eggs'})])
             self.assertIdentical(h, h1)
 
     def test_samport(self):
