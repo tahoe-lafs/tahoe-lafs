@@ -31,7 +31,6 @@ def read_version_py(infname):
 if 2 != sys.version_info.major:
     raise RuntimeError("Python version 2 is required")
 
-# source all the other data
 VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
