@@ -145,6 +145,14 @@ import sys
 if not hasattr(sys, 'frozen'):
     package_imports.append(('setuptools', 'setuptools'))
 
+if sys.platform == "win32":
+    install_requires.append('pypiwin32')
+    package_imports.append(('pypiwin32', 'win32api'))
+
+if sys.platform != "win32" and not sys.platform.startswith("linux"):
+    install_requires.append('watchdog')
+    package_imports.append(('watchdog', 'watchdog'))
+
 setup_requires = []
 
 
