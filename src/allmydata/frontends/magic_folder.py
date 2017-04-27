@@ -371,8 +371,12 @@ class Uploader(QueueMixin):
                     | self._inotify.IN_ONLYDIR
                     | IN_EXCL_UNLINK
                     )
-        self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
-                             recursive=False)#True)
+        if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
+            self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
+                                 recursive=False)
+        else:
+            self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
+                                 recursive=True)
 
     def start_monitoring(self):
         self._log("start_monitoring")
@@ -484,6 +488,10 @@ class Uploader(QueueMixin):
             self._log("not queueing %r because it is already pending" % (relpath_u,))
             return
         if magicpath.should_ignore_file(relpath_u):
+            fp = self._get_filepath(relpath_u)
+            pathinfo = get_pathinfo(unicode_from_filepath(fp))
+            if pathinfo.isdir:
+                self._notifier.ignore(fp)
             self._log("ignoring event for %r (ignorable path)" % (relpath_u,))
             return
 
