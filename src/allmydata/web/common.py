@@ -387,6 +387,16 @@ class RenderMixin:
             raise server.UnsupportedMethod(getattr(self, 'allowedMethods', ()))
         return m(ctx)
 
+    def render_OPTIONS(self, ctx):
+        from allmydata import __version__
+        req = IRequest(ctx)
+        req.setHeader("server", "Tahoe-LAFS gateway v" + __version__)
+        methods = ', '.join([m[7:] for m in dir(self) if m.startswith('render_')])
+        req.setHeader("allow", methods)
+        req.setHeader("public", methods)
+        req.setHeader("compliance", "rfc=2068, rfc=2616")
+        req.setHeader("content-length", 0)
+        return ""
 
 
 class MultiFormatPage(Page):
