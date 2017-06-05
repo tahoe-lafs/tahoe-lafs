@@ -122,7 +122,7 @@ class Encoder(object):
         assert not self._codec
         k, happy, n, segsize = params
         self.required_shares = k
-        self.servers_of_happiness = happy
+        self.min_happiness = happy
         self.num_shares = n
         self.segment_size = segsize
         self.log("got encoding parameters: %d/%d/%d %d" % (k,happy,n, segsize))
@@ -180,7 +180,7 @@ class Encoder(object):
         if name == "storage_index":
             return self._storage_index
         elif name == "share_counts":
-            return (self.required_shares, self.servers_of_happiness,
+            return (self.required_shares, self.min_happiness,
                     self.num_shares)
         elif name == "num_segments":
             return self.num_segments
@@ -503,17 +503,17 @@ class Encoder(object):
             self.log("they weren't in our list of landlords", parent=ln,
                      level=log.WEIRD, umid="TQGFRw")
         happiness = happinessutil.servers_of_happiness(self.servermap)
-        if happiness < self.servers_of_happiness:
+        if happiness < self.min_happiness:
             peerids = set(happinessutil.shares_by_server(self.servermap).keys())
             msg = happinessutil.failure_message(len(peerids),
                                                 self.required_shares,
-                                                self.servers_of_happiness,
+                                                self.min_happiness,
                                                 happiness)
             msg = "%s: %s" % (msg, why)
             raise UploadUnhappinessError(msg)
         self.log("but we can still continue with %s shares, we'll be happy "
                  "with at least %s" % (happiness,
-                                       self.servers_of_happiness),
+                                       self.min_happiness),
                  parent=ln)
 
     def _gather_responses(self, dl):

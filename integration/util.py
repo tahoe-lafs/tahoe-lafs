@@ -132,7 +132,12 @@ def _run_node(reactor, node_dir, request, magic_text):
     return protocol.magic_seen
 
 
-def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, name, web_port, storage=True, magic_text=None):
+def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, name, web_port,
+                 storage=True,
+                 magic_text=None,
+                 needed=2,
+                 happy=3,
+                 total=4):
     """
     Helper to create a single node, run it and return the instance
     spawnProcess returned (ITransport)
@@ -161,10 +166,11 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             sys.executable,
             args,
         )
-        pytest.blockon(done_proto.done)
+        created_d = done_proto.done
 
-        with open(join(node_dir, 'tahoe.cfg'), 'w') as f:
-            f.write('''
+        def created(_):
+            with open(join(node_dir, 'tahoe.cfg'), 'w') as f:
+                f.write('''
 [node]
 nickname = %(name)s
 web.port = %(web_port)s
@@ -174,18 +180,28 @@ log_gatherer.furl = %(log_furl)s
 [client]
 # Which services should this client connect to?
 introducer.furl = %(furl)s
-shares.needed = 2
-shares.happy = 3
-shares.total = 4
+shares.needed = %(needed)d
+shares.happy = %(happy)d
+shares.total = %(total)d
 
 ''' % {
     'name': name,
     'furl': introducer_furl,
     'web_port': web_port,
     'log_furl': flog_gatherer,
+    'needed': needed,
+    'happy': happy,
+    'total': total,
 })
+        created_d.addCallback(created)
+    else:
+        created_d = defer.succeed(None)
 
-    return _run_node(reactor, node_dir, request, magic_text)
+    d = Deferred()
+    d.callback(None)
+    d.addCallback(lambda _: created_d)
+    d.addCallback(lambda _: _run_node(reactor, node_dir, request, magic_text))
+    return d
 
 
 def await_file_contents(path, contents, timeout=15):

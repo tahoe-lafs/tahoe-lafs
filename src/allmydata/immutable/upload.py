@@ -9,23 +9,24 @@ from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
      storage_index_hash, plaintext_segment_hasher, convergence_hasher
+from allmydata.util.deferredutil import timeout_call
 from allmydata import hashtree, uri
 from allmydata.storage.server import si_b2a
 from allmydata.immutable import encode
 from allmydata.util import base32, dictutil, idlib, log, mathutil
 from allmydata.util.happinessutil import servers_of_happiness, \
-                                         shares_by_server, merge_servers, \
-                                         failure_message
+    merge_servers, failure_message
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
      NoServersError, InsufficientVersionError, UploadUnhappinessError, \
-     DEFAULT_MAX_SEGMENT_SIZE, IProgress
+     DEFAULT_MAX_SEGMENT_SIZE, IProgress, IPeerSelector
 from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
+from happiness_upload import share_placement, calculate_happiness
 
 
 # this wants to live in storage, not here
@@ -117,7 +118,7 @@ EXTENSION_SIZE = 1000
 def pretty_print_shnum_to_servers(s):
     return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in s.iteritems() ])
 
-class ServerTracker:
+class ServerTracker(object):
     def __init__(self, server,
                  sharesize, blocksize, num_segments, num_share_hashes,
                  storage_index,
@@ -160,14 +161,14 @@ class ServerTracker:
                             sharenums,
                             self.allocated_size,
                             canary=Referenceable())
-        d.addCallback(self._got_reply)
+        d.addCallback(self._buckets_allocated)
         return d
 
     def ask_about_existing_shares(self):
         rref = self._server.get_rref()
         return rref.callRemote("get_buckets", self.storage_index)
 
-    def _got_reply(self, (alreadygot, buckets)):
+    def _buckets_allocated(self, (alreadygot, buckets)):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
         b = {}
         for sharenum, rref in buckets.iteritems():
@@ -201,27 +202,143 @@ class ServerTracker:
 def str_shareloc(shnum, bucketwriter):
     return "%s: %s" % (shnum, bucketwriter.get_servername(),)
 
+
+@implementer(IPeerSelector)
+class PeerSelector(object):
+
+    def __init__(self, num_segments, total_shares, needed_shares, min_happiness):
+        self.num_segments = num_segments
+        self.total_shares = total_shares
+        self.needed_shares = needed_shares
+        self.min_happiness = min_happiness
+
+        self.existing_shares = {}
+        self.peers = set()
+        self.readonly_peers = set()
+        self.bad_peers = set()
+
+    def add_peer_with_share(self, peerid, shnum):
+        try:
+            self.existing_shares[peerid].add(shnum)
+        except KeyError:
+            self.existing_shares[peerid] = set([shnum])
+
+    def add_peer(self, peerid):
+        self.peers.add(peerid)
+
+    def mark_readonly_peer(self, peerid):
+        self.readonly_peers.add(peerid)
+        self.peers.remove(peerid)
+
+    def mark_bad_peer(self, peerid):
+        if peerid in self.peers:
+            self.peers.remove(peerid)
+            self.bad_peers.add(peerid)
+        elif peerid in self.readonly_peers:
+            self.readonly_peers.remove(peerid)
+            self.bad_peers.add(peerid)
+
+    def get_sharemap_of_preexisting_shares(self):
+        preexisting = dictutil.DictOfSets()
+        for server, shares in self.existing_shares.iteritems():
+            for share in shares:
+                preexisting.add(share, server)
+        return preexisting
+
+    def get_share_placements(self):
+        shares = set(range(self.total_shares))
+        self.happiness_mappings = share_placement(self.peers, self.readonly_peers, shares, self.existing_shares)
+        self.happiness = calculate_happiness(self.happiness_mappings)
+        return self.happiness_mappings
+
+
+class _QueryStatistics(object):
+
+    def __init__(self):
+        self.total = 0
+        self.good = 0
+        self.bad = 0
+        self.full = 0
+        self.error = 0
+        self.contacted = 0
+
+    def __str__(self):
+        return "QueryStatistics(total={} good={} bad={} full={} " \
+            "error={} contacted={})".format(
+                self.total,
+                self.good,
+                self.bad,
+                self.full,
+                self.error,
+                self.contacted,
+            )
+
+
 class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
-    def __init__(self, upload_id, logparent=None, upload_status=None):
+    def __init__(self, upload_id, logparent=None, upload_status=None, reactor=None):
         self.upload_id = upload_id
-        self.query_count, self.good_query_count, self.bad_query_count = 0,0,0
-        # Servers that are working normally, but full.
-        self.full_count = 0
-        self.error_count = 0
-        self.num_servers_contacted = 0
+        self._query_stats = _QueryStatistics()
         self.last_failure_msg = None
         self._status = IUploadStatus(upload_status)
         log.PrefixingLogMixin.__init__(self, 'tahoe.immutable.upload', logparent, prefix=upload_id)
         self.log("starting", level=log.OPERATIONAL)
+        if reactor is None:
+            from twisted.internet import reactor
+        self._reactor = reactor
 
     def __repr__(self):
         return "<Tahoe2ServerSelector for upload %s>" % self.upload_id
 
+    def _create_trackers(self, candidate_servers, allocated_size,
+                         file_renewal_secret, file_cancel_secret, create_server_tracker):
+
+        # filter the list of servers according to which ones can accomodate
+        # this request. This excludes older servers (which used a 4-byte size
+        # field) from getting large shares (for files larger than about
+        # 12GiB). See #439 for details.
+        def _get_maxsize(server):
+            v0 = server.get_rref().version
+            v1 = v0["http://allmydata.org/tahoe/protocols/storage/v1"]
+            return v1["maximum-immutable-share-size"]
+
+        for server in candidate_servers:
+            self.peer_selector.add_peer(server.get_serverid())
+        writeable_servers = [
+            server for server in candidate_servers
+            if _get_maxsize(server) >= allocated_size
+        ]
+        readonly_servers = set(candidate_servers) - set(writeable_servers)
+
+        for server in readonly_servers:
+            self.peer_selector.mark_readonly_peer(server.get_serverid())
+
+        def _make_trackers(servers):
+            trackers = []
+            for s in servers:
+                seed = s.get_lease_seed()
+                renew = bucket_renewal_secret_hash(file_renewal_secret, seed)
+                cancel = bucket_cancel_secret_hash(file_cancel_secret, seed)
+                st = create_server_tracker(s, renew, cancel)
+                trackers.append(st)
+            return trackers
+
+        write_trackers = _make_trackers(writeable_servers)
+
+        # We don't try to allocate shares to these servers, since they've
+        # said that they're incapable of storing shares of the size that we'd
+        # want to store. We ask them about existing shares for this storage
+        # index, which we want to know about for accurate
+        # servers_of_happiness accounting, then we forget about them.
+        readonly_trackers = _make_trackers(readonly_servers)
+
+        return readonly_trackers, write_trackers
+
+    @defer.inlineCallbacks
     def get_shareholders(self, storage_broker, secret_holder,
                          storage_index, share_size, block_size,
                          num_segments, total_shares, needed_shares,
-                         servers_of_happiness):
+                         min_happiness):
         """
         @return: (upload_trackers, already_serverids), where upload_trackers
                  is a set of ServerTracker instances that have agreed to hold
@@ -231,11 +348,17 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                  already have the share.
         """
 
+        # re-initialize statistics
+        self._query_status = _QueryStatistics()
+
         if self._status:
             self._status.set_status("Contacting Servers..")
 
+        self.peer_selector = PeerSelector(num_segments, total_shares,
+                                          needed_shares, min_happiness)
+
         self.total_shares = total_shares
-        self.servers_of_happiness = servers_of_happiness
+        self.min_happiness = min_happiness
         self.needed_shares = needed_shares
 
         self.homeless_shares = set(range(total_shares))
@@ -259,100 +382,217 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                                              share_size, 0, num_segments,
                                              num_share_hashes, EXTENSION_SIZE)
         allocated_size = wbp.get_allocated_size()
+
+        # decide upon the renewal/cancel secrets, to include them in the
+        # allocate_buckets query.
+        file_renewal_secret = file_renewal_secret_hash(
+            secret_holder.get_renewal_secret(),
+            storage_index,
+        )
+        file_cancel_secret = file_cancel_secret_hash(
+            secret_holder.get_cancel_secret(),
+            storage_index,
+        )
+
+        # see docs/specifications/servers-of-happiness.rst
+        # 0. Start with an ordered list of servers. Maybe *2N* of them.
+        #
+
         all_servers = storage_broker.get_servers_for_psi(storage_index)
         if not all_servers:
             raise NoServersError("client gave us zero servers")
 
-        # filter the list of servers according to which ones can accomodate
-        # this request. This excludes older servers (which used a 4-byte size
-        # field) from getting large shares (for files larger than about
-        # 12GiB). See #439 for details.
-        def _get_maxsize(server):
-            v0 = server.get_rref().version
-            v1 = v0["http://allmydata.org/tahoe/protocols/storage/v1"]
-            return v1["maximum-immutable-share-size"]
-        writeable_servers = [server for server in all_servers
-                            if _get_maxsize(server) >= allocated_size]
-        readonly_servers = set(all_servers[:2*total_shares]) - set(writeable_servers)
+        def _create_server_tracker(server, renew, cancel):
+            return ServerTracker(
+                server, share_size, block_size, num_segments, num_share_hashes,
+                storage_index, renew, cancel,
+            )
 
-        # decide upon the renewal/cancel secrets, to include them in the
-        # allocate_buckets query.
-        client_renewal_secret = secret_holder.get_renewal_secret()
-        client_cancel_secret = secret_holder.get_cancel_secret()
+        readonly_trackers, write_trackers = self._create_trackers(
+            all_servers[:(2 * total_shares)],
+            allocated_size,
+            file_renewal_secret,
+            file_cancel_secret,
+            _create_server_tracker,
+        )
 
-        file_renewal_secret = file_renewal_secret_hash(client_renewal_secret,
-                                                       storage_index)
-        file_cancel_secret = file_cancel_secret_hash(client_cancel_secret,
-                                                     storage_index)
-        def _make_trackers(servers):
-            trackers = []
-            for s in servers:
-                seed = s.get_lease_seed()
-                renew = bucket_renewal_secret_hash(file_renewal_secret, seed)
-                cancel = bucket_cancel_secret_hash(file_cancel_secret, seed)
-                st = ServerTracker(s,
-                                   share_size, block_size,
-                                   num_segments, num_share_hashes,
-                                   storage_index,
-                                   renew, cancel)
-                trackers.append(st)
-            return trackers
+        # see docs/specifications/servers-of-happiness.rst
+        # 1. Query all servers for existing shares.
+        #
+        # The spec doesn't say what to do for timeouts/errors. This
+        # adds a timeout to each request, and rejects any that reply
+        # with error (i.e. just removed from the list)
 
-        # We assign each servers/trackers into one three lists. They all
-        # start in the "first pass" list. During the first pass, as we ask
-        # each one to hold a share, we move their tracker to the "second
-        # pass" list, until the first-pass list is empty. Then during the
-        # second pass, as we ask each to hold more shares, we move their
-        # tracker to the "next pass" list, until the second-pass list is
-        # empty. Then we move everybody from the next-pass list back to the
-        # second-pass list and repeat the "second" pass (really the third,
-        # fourth, etc pass), until all shares are assigned, or we've run out
-        # of potential servers.
-        self.first_pass_trackers = _make_trackers(writeable_servers)
-        self.second_pass_trackers = [] # servers worth asking again
-        self.next_pass_trackers = [] # servers that we have asked again
-        self._started_second_pass = False
-
-        # We don't try to allocate shares to these servers, since they've
-        # said that they're incapable of storing shares of the size that we'd
-        # want to store. We ask them about existing shares for this storage
-        # index, which we want to know about for accurate
-        # servers_of_happiness accounting, then we forget about them.
-        readonly_trackers = _make_trackers(readonly_servers)
-
-        # We now ask servers that can't hold any new shares about existing
-        # shares that they might have for our SI. Once this is done, we
-        # start placing the shares that we haven't already accounted
-        # for.
         ds = []
         if self._status and readonly_trackers:
-            self._status.set_status("Contacting readonly servers to find "
-                                    "any existing shares")
+            self._status.set_status(
+                "Contacting readonly servers to find any existing shares"
+            )
+
+        # in the "pre servers-of-happiness" code, it was a little
+        # ambigious whether "merely asking" counted as a "query" or
+        # not, because "allocate_buckets" with nothing to allocate was
+        # used to "ask" a write-able server what it held. Now we count
+        # "actual allocation queries" only, because those are the only
+        # things that actually affect what the server does.
+
         for tracker in readonly_trackers:
             assert isinstance(tracker, ServerTracker)
-            d = tracker.ask_about_existing_shares()
+            d = timeout_call(self._reactor, tracker.ask_about_existing_shares(), 15)
             d.addBoth(self._handle_existing_response, tracker)
             ds.append(d)
-            self.num_servers_contacted += 1
-            self.query_count += 1
             self.log("asking server %s for any existing shares" %
                      (tracker.get_name(),), level=log.NOISY)
-        dl = defer.DeferredList(ds)
-        dl.addCallback(lambda ign: self._loop())
-        return dl
 
+        for tracker in write_trackers:
+            assert isinstance(tracker, ServerTracker)
+            d = timeout_call(self._reactor, tracker.ask_about_existing_shares(), 15)
+
+            def timed_out(f, tracker):
+                # print("TIMEOUT {}: {}".format(tracker, f))
+                write_trackers.remove(tracker)
+                readonly_trackers.append(tracker)
+                return f
+            d.addErrback(timed_out, tracker)
+            d.addBoth(self._handle_existing_write_response, tracker, set())
+            ds.append(d)
+            self.log("asking server %s for any existing shares" %
+                     (tracker.get_name(),), level=log.NOISY)
+
+        trackers = set(write_trackers) | set(readonly_trackers)
+
+        # these will always be (True, None) because errors are handled
+        # in the _handle_existing_write_response etc callbacks
+        yield defer.DeferredList(ds)
+
+        # okay, we've queried the 2N servers, time to get the share
+        # placements and attempt to actually place the shares (or
+        # renew them on read-only servers). We want to run the loop
+        # below *at least once* because even read-only servers won't
+        # renew their shares until "allocate_buckets" is called (via
+        # tracker.query())
+
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/778#comment:48
+        # min_happiness will be 0 for the repairer, so we set current
+        # effective_happiness to less than zero so this loop runs at
+        # least once for the repairer...
+
+        def _bad_server(fail, tracker):
+            self.last_failure_msg = fail
+            return False  # will mark it readonly
+
+        def _make_readonly(tracker):
+            # print("making {} read-only".format(tracker.get_serverid()))
+            try:
+                write_trackers.remove(tracker)
+            except ValueError:
+                pass
+            # XXX can we just use a set() or does order matter?
+            if tracker not in readonly_trackers:
+                readonly_trackers.append(tracker)
+            return None
+
+        # so we *always* want to run this loop at least once, even if
+        # we only have read-only servers -- because asking them to
+        # allocate buckets renews those shares they already have. For
+        # subsequent loops, we give up if we've achieved happiness OR
+        # if we have zero writable servers left
+
+        last_happiness = None
+        effective_happiness = -1
+        while effective_happiness < min_happiness and \
+              (last_happiness is None or len(write_trackers)):
+            errors_before = self._query_stats.bad
+            self._share_placements = self.peer_selector.get_share_placements()
+
+            placements = []
+            for tracker in trackers:
+                shares_to_ask = self._allocation_for(tracker)
+
+                # if we already tried to upload share X to this very
+                # same server in a previous iteration, we should *not*
+                # ask again. If we *do* ask, there's no real harm, but
+                # the server will respond with an empty dict and that
+                # confuses our statistics. However, if the server is a
+                # readonly sever, we *do* want to ask so it refreshes
+                # the share.
+                if shares_to_ask != set(tracker.buckets.keys()) or tracker in readonly_trackers:
+                    self._query_stats.total += 1
+                    self._query_stats.contacted += 1
+                    d = timeout_call(self._reactor, tracker.query(shares_to_ask), 15)
+                    d.addBoth(self._buckets_allocated, tracker, shares_to_ask)
+                    d.addErrback(lambda f, tr: _bad_server(f, tr), tracker)
+                    d.addCallback(lambda x, tr: _make_readonly(tr) if not x else x, tracker)
+                    placements.append(d)
+
+            yield defer.DeferredList(placements)
+            merged = merge_servers(self.peer_selector.get_sharemap_of_preexisting_shares(), self.use_trackers)
+            effective_happiness = servers_of_happiness(merged)
+            if effective_happiness == last_happiness:
+                # print("effective happiness still {}".format(last_happiness))
+                # we haven't improved over the last iteration; give up
+                break;
+            if errors_before == self._query_stats.bad:
+                if False: print("no more errors; break")
+                break;
+            last_happiness = effective_happiness
+            # print("write trackers left: {}".format(len(write_trackers)))
+
+        # note: peer_selector.get_allocations() only maps "things we
+        # uploaded in the above loop" and specificaly does *not*
+        # include any pre-existing shares on read-only servers .. but
+        # we *do* want to count those shares towards total happiness.
+
+        # no more servers. If we haven't placed enough shares, we fail.
+        # XXX note sometimes we're not running the loop at least once,
+        # and so 'merged' must be (re-)computed here.
+        merged = merge_servers(self.peer_selector.get_sharemap_of_preexisting_shares(), self.use_trackers)
+        effective_happiness = servers_of_happiness(merged)
+
+        # print("placements completed {} vs {}".format(effective_happiness, min_happiness))
+        # for k, v in merged.items():
+        #     print("  {} -> {}".format(k, v))
+
+        if effective_happiness < min_happiness:
+            msg = failure_message(
+                peer_count=len(self.serverids_with_shares),
+                k=self.needed_shares,
+                happy=min_happiness,
+                effective_happy=effective_happiness,
+            )
+            msg = ("server selection failed for %s: %s (%s), merged=%s" %
+                   (self, msg, self._get_progress_message(),
+                    pretty_print_shnum_to_servers(merged)))
+            if self.last_failure_msg:
+                msg += " (%s)" % (self.last_failure_msg,)
+            self.log(msg, level=log.UNUSUAL)
+            self._failed(msg)  # raises UploadUnhappinessError
+            return
+
+        # we placed (or already had) enough to be happy, so we're done
+        if self._status:
+            self._status.set_status("Placed all shares")
+        msg = ("server selection successful for %s: %s: pretty_print_merged: %s, "
+               "self.use_trackers: %s, self.preexisting_shares: %s") \
+               % (self, self._get_progress_message(),
+                  pretty_print_shnum_to_servers(merged),
+                  [', '.join([str_shareloc(k,v)
+                              for k,v in st.buckets.iteritems()])
+                   for st in self.use_trackers],
+                  pretty_print_shnum_to_servers(self.preexisting_shares))
+        self.log(msg, level=log.OPERATIONAL)
+        defer.returnValue((self.use_trackers, self.peer_selector.get_sharemap_of_preexisting_shares()))
 
     def _handle_existing_response(self, res, tracker):
         """
         I handle responses to the queries sent by
-        Tahoe2ServerSelector._existing_shares.
+        Tahoe2ServerSelector.get_shareholders.
         """
         serverid = tracker.get_serverid()
         if isinstance(res, failure.Failure):
             self.log("%s got error during existing shares check: %s"
                     % (tracker.get_name(), res), level=log.UNUSUAL)
-            self.error_count += 1
-            self.bad_query_count += 1
+            self.peer_selector.mark_bad_peer(serverid)
         else:
             buckets = res
             if buckets:
@@ -361,11 +601,25 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                     % (tracker.get_name(), tuple(sorted(buckets))),
                     level=log.NOISY)
             for bucket in buckets:
+                self.peer_selector.add_peer_with_share(serverid, bucket)
                 self.preexisting_shares.setdefault(bucket, set()).add(serverid)
                 self.homeless_shares.discard(bucket)
-            self.full_count += 1
-            self.bad_query_count += 1
 
+    def _handle_existing_write_response(self, res, tracker, shares_to_ask):
+        """
+        Function handles the response from the write servers
+        when inquiring about what shares each server already has.
+        """
+        if isinstance(res, failure.Failure):
+            self.peer_selector.mark_bad_peer(tracker.get_serverid())
+            self.log("%s got error during server selection: %s" % (tracker, res),
+                    level=log.UNUSUAL)
+            self.homeless_shares |= shares_to_ask
+            msg = ("last failure (from %s) was: %s" % (tracker, res))
+            self.last_failure_msg = msg
+        else:
+            for share in res.keys():
+                self.peer_selector.add_peer_with_share(tracker.get_serverid(), share)
 
     def _get_progress_message(self):
         if not self.homeless_shares:
@@ -375,176 +629,68 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                    (self.total_shares - len(self.homeless_shares),
                     self.total_shares,
                     len(self.homeless_shares)))
-        return (msg + "want to place shares on at least %d servers such that "
-                      "any %d of them have enough shares to recover the file, "
-                      "sent %d queries to %d servers, "
-                      "%d queries placed some shares, %d placed none "
-                      "(of which %d placed none due to the server being"
-                      " full and %d placed none due to an error)" %
-                        (self.servers_of_happiness, self.needed_shares,
-                         self.query_count, self.num_servers_contacted,
-                         self.good_query_count, self.bad_query_count,
-                         self.full_count, self.error_count))
+        assert self._query_stats.bad == (self._query_stats.full + self._query_stats.error)
+        return (
+            msg + "want to place shares on at least {happy} servers such that "
+            "any {needed} of them have enough shares to recover the file, "
+            "sent {queries} queries to {servers} servers, "
+            "{good} queries placed some shares, {bad} placed none "
+            "(of which {full} placed none due to the server being"
+            " full and {error} placed none due to an error)".format(
+                happy=self.min_happiness,
+                needed=self.needed_shares,
+                queries=self._query_stats.total,
+                servers=self._query_stats.contacted,
+                good=self._query_stats.good,
+                bad=self._query_stats.bad,
+                full=self._query_stats.full,
+                error=self._query_stats.error
+            )
+        )
 
+    def _allocation_for(self, tracker):
+        """
+        Given a ServerTracker, return a list of shares that we should
+        store on that server.
+        """
+        assert isinstance(tracker, ServerTracker)
 
-    def _loop(self):
-        if not self.homeless_shares:
-            merged = merge_servers(self.preexisting_shares, self.use_trackers)
-            effective_happiness = servers_of_happiness(merged)
-            if self.servers_of_happiness <= effective_happiness:
-                msg = ("server selection successful for %s: %s: pretty_print_merged: %s, "
-                       "self.use_trackers: %s, self.preexisting_shares: %s") \
-                       % (self, self._get_progress_message(),
-                          pretty_print_shnum_to_servers(merged),
-                          [', '.join([str_shareloc(k,v)
-                                      for k,v in st.buckets.iteritems()])
-                           for st in self.use_trackers],
-                          pretty_print_shnum_to_servers(self.preexisting_shares))
-                self.log(msg, level=log.OPERATIONAL)
-                return (self.use_trackers, self.preexisting_shares)
-            else:
-                # We're not okay right now, but maybe we can fix it by
-                # redistributing some shares. In cases where one or two
-                # servers has, before the upload, all or most of the
-                # shares for a given SI, this can work by allowing _loop
-                # a chance to spread those out over the other servers,
-                delta = self.servers_of_happiness - effective_happiness
-                shares = shares_by_server(self.preexisting_shares)
-                # Each server in shares maps to a set of shares stored on it.
-                # Since we want to keep at least one share on each server
-                # that has one (otherwise we'd only be making
-                # the situation worse by removing distinct servers),
-                # each server has len(its shares) - 1 to spread around.
-                shares_to_spread = sum([len(list(sharelist)) - 1
-                                        for (server, sharelist)
-                                        in shares.items()])
-                if delta <= len(self.first_pass_trackers) and \
-                   shares_to_spread >= delta:
-                    items = shares.items()
-                    while len(self.homeless_shares) < delta:
-                        # Loop through the allocated shares, removing
-                        # one from each server that has more than one
-                        # and putting it back into self.homeless_shares
-                        # until we've done this delta times.
-                        server, sharelist = items.pop()
-                        if len(sharelist) > 1:
-                            share = sharelist.pop()
-                            self.homeless_shares.add(share)
-                            self.preexisting_shares[share].remove(server)
-                            if not self.preexisting_shares[share]:
-                                del self.preexisting_shares[share]
-                            items.append((server, sharelist))
-                        for writer in self.use_trackers:
-                            writer.abort_some_buckets(self.homeless_shares)
-                    return self._loop()
-                else:
-                    # Redistribution won't help us; fail.
-                    server_count = len(self.serverids_with_shares)
-                    failmsg = failure_message(server_count,
-                                              self.needed_shares,
-                                              self.servers_of_happiness,
-                                              effective_happiness)
-                    servmsgtempl = "server selection unsuccessful for %r: %s (%s), merged=%s"
-                    servmsg = servmsgtempl % (
-                        self,
-                        failmsg,
-                        self._get_progress_message(),
-                        pretty_print_shnum_to_servers(merged)
-                        )
-                    self.log(servmsg, level=log.INFREQUENT)
-                    return self._failed("%s (%s)" % (failmsg, self._get_progress_message()))
+        shares_to_ask = set()
+        servermap = self._share_placements
+        for shnum, tracker_id in servermap.items():
+            if tracker_id == None:
+                continue
+            if tracker.get_serverid() == tracker_id:
+                shares_to_ask.add(shnum)
+                if shnum in self.homeless_shares:
+                    self.homeless_shares.remove(shnum)
 
-        if self.first_pass_trackers:
-            tracker = self.first_pass_trackers.pop(0)
-            # TODO: don't pre-convert all serverids to ServerTrackers
-            assert isinstance(tracker, ServerTracker)
+        if self._status:
+            self._status.set_status("Contacting Servers [%s] (first query),"
+                                    " %d shares left.."
+                                    % (tracker.get_name(),
+                                       len(self.homeless_shares)))
+        return shares_to_ask
 
-            shares_to_ask = set(sorted(self.homeless_shares)[:1])
-            self.homeless_shares -= shares_to_ask
-            self.query_count += 1
-            self.num_servers_contacted += 1
-            if self._status:
-                self._status.set_status("Contacting Servers [%s] (first query),"
-                                        " %d shares left.."
-                                        % (tracker.get_name(),
-                                           len(self.homeless_shares)))
-            d = tracker.query(shares_to_ask)
-            d.addBoth(self._got_response, tracker, shares_to_ask,
-                      self.second_pass_trackers)
-            return d
-        elif self.second_pass_trackers:
-            # ask a server that we've already asked.
-            if not self._started_second_pass:
-                self.log("starting second pass",
-                        level=log.NOISY)
-                self._started_second_pass = True
-            num_shares = mathutil.div_ceil(len(self.homeless_shares),
-                                           len(self.second_pass_trackers))
-            tracker = self.second_pass_trackers.pop(0)
-            shares_to_ask = set(sorted(self.homeless_shares)[:num_shares])
-            self.homeless_shares -= shares_to_ask
-            self.query_count += 1
-            if self._status:
-                self._status.set_status("Contacting Servers [%s] (second query),"
-                                        " %d shares left.."
-                                        % (tracker.get_name(),
-                                           len(self.homeless_shares)))
-            d = tracker.query(shares_to_ask)
-            d.addBoth(self._got_response, tracker, shares_to_ask,
-                      self.next_pass_trackers)
-            return d
-        elif self.next_pass_trackers:
-            # we've finished the second-or-later pass. Move all the remaining
-            # servers back into self.second_pass_trackers for the next pass.
-            self.second_pass_trackers.extend(self.next_pass_trackers)
-            self.next_pass_trackers[:] = []
-            return self._loop()
-        else:
-            # no more servers. If we haven't placed enough shares, we fail.
-            merged = merge_servers(self.preexisting_shares, self.use_trackers)
-            effective_happiness = servers_of_happiness(merged)
-            if effective_happiness < self.servers_of_happiness:
-                msg = failure_message(len(self.serverids_with_shares),
-                                      self.needed_shares,
-                                      self.servers_of_happiness,
-                                      effective_happiness)
-                msg = ("server selection failed for %s: %s (%s)" %
-                       (self, msg, self._get_progress_message()))
-                if self.last_failure_msg:
-                    msg += " (%s)" % (self.last_failure_msg,)
-                self.log(msg, level=log.UNUSUAL)
-                return self._failed(msg)
-            else:
-                # we placed enough to be happy, so we're done
-                if self._status:
-                    self._status.set_status("Placed all shares")
-                msg = ("server selection successful (no more servers) for %s: %s: %s" % (self,
-                            self._get_progress_message(), pretty_print_shnum_to_servers(merged)))
-                self.log(msg, level=log.OPERATIONAL)
-                return (self.use_trackers, self.preexisting_shares)
-
-    def _got_response(self, res, tracker, shares_to_ask, put_tracker_here):
+    def _buckets_allocated(self, res, tracker, shares_to_ask):
+        """
+        Internal helper. If this returns an error or False, the server
+        will be considered read-only for any future iterations.
+        """
         if isinstance(res, failure.Failure):
             # This is unusual, and probably indicates a bug or a network
             # problem.
             self.log("%s got error during server selection: %s" % (tracker, res),
                     level=log.UNUSUAL)
-            self.error_count += 1
-            self.bad_query_count += 1
+            self._query_stats.error += 1
+            self._query_stats.bad += 1
             self.homeless_shares |= shares_to_ask
-            if (self.first_pass_trackers
-                or self.second_pass_trackers
-                or self.next_pass_trackers):
-                # there is still hope, so just loop
+            try:
+                self.peer_selector.mark_readonly_peer(tracker.get_serverid())
+            except KeyError:
                 pass
-            else:
-                # No more servers, so this upload might fail (it depends upon
-                # whether we've hit servers_of_happiness or not). Log the last
-                # failure we got: if a coding error causes all servers to fail
-                # in the same way, this allows the common failure to be seen
-                # by the uploader and should help with debugging
-                msg = ("last failure (from %s) was: %s" % (tracker, res))
-                self.last_failure_msg = msg
+            return res
+
         else:
             (alreadygot, allocated) = res
             self.log("response to allocate_buckets() from server %s: alreadygot=%s, allocated=%s"
@@ -572,16 +718,6 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             not_yet_present = set(shares_to_ask) - set(alreadygot)
             still_homeless = not_yet_present - set(allocated)
 
-            if progress:
-                # They accepted at least one of the shares that we asked
-                # them to accept, or they had a share that we didn't ask
-                # them to accept but that we hadn't placed yet, so this
-                # was a productive query
-                self.good_query_count += 1
-            else:
-                self.bad_query_count += 1
-                self.full_count += 1
-
             if still_homeless:
                 # In networks with lots of space, this is very unusual and
                 # probably indicates an error. In networks with servers that
@@ -595,14 +731,20 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                 self.homeless_shares |= still_homeless
                 # Since they were unable to accept all of our requests, so it
                 # is safe to assume that asking them again won't help.
+
+            if progress:
+                # They accepted at least one of the shares that we asked
+                # them to accept, or they had a share that we didn't ask
+                # them to accept but that we hadn't placed yet, so this
+                # was a productive query
+                self._query_stats.good += 1
             else:
-                # if they *were* able to accept everything, they might be
-                # willing to accept even more.
-                put_tracker_here.append(tracker)
-
-        # now loop
-        return self._loop()
-
+                # if we asked for some allocations, but the server
+                # didn't return any at all (i.e. empty dict) it must
+                # be full
+                self._query_stats.full += 1
+                self._query_stats.bad += 1
+            return progress
 
     def _failed(self, msg):
         """
@@ -894,10 +1036,9 @@ class UploadStatus(object):
     def set_results(self, value):
         self.results = value
 
-class CHKUploader:
-    server_selector_class = Tahoe2ServerSelector
+class CHKUploader(object):
 
-    def __init__(self, storage_broker, secret_holder, progress=None):
+    def __init__(self, storage_broker, secret_holder, progress=None, reactor=None):
         # server_selector needs storage_broker and secret_holder
         self._storage_broker = storage_broker
         self._secret_holder = secret_holder
@@ -908,6 +1049,7 @@ class CHKUploader:
         self._upload_status.set_helper(False)
         self._upload_status.set_active(True)
         self._progress = progress
+        self._reactor = reactor
 
         # locate_all_shareholders() will create the following attribute:
         # self._server_trackers = {} # k: shnum, v: instance of ServerTracker
@@ -946,22 +1088,28 @@ class CHKUploader:
             return defer.succeed(None)
         return self._encoder.abort()
 
+    @defer.inlineCallbacks
     def start_encrypted(self, encrypted):
-        """ Returns a Deferred that will fire with the UploadResults instance. """
+        """
+        Returns a Deferred that will fire with the UploadResults instance.
+        """
         eu = IEncryptedUploadable(encrypted)
 
         started = time.time()
-        self._encoder = e = encode.Encoder(
+        # would be Really Nice to make Encoder just a local; only
+        # abort() really needs self._encoder ...
+        self._encoder = encode.Encoder(
             self._log_number,
             self._upload_status,
             progress=self._progress,
         )
-        d = e.set_encrypted_uploadable(eu)
-        d.addCallback(self.locate_all_shareholders, started)
-        d.addCallback(self.set_shareholders, e)
-        d.addCallback(lambda res: e.start())
-        d.addCallback(self._encrypted_done)
-        return d
+        # this just returns itself
+        yield self._encoder.set_encrypted_uploadable(eu)
+        (upload_trackers, already_serverids) = yield self.locate_all_shareholders(self._encoder, started)
+        yield self.set_shareholders(upload_trackers, already_serverids, self._encoder)
+        verifycap = yield self._encoder.start()
+        results = yield self._encrypted_done(verifycap)
+        defer.returnValue(results)
 
     def locate_all_shareholders(self, encoder, started):
         server_selection_started = now = time.time()
@@ -972,14 +1120,17 @@ class CHKUploader:
         self._storage_index = storage_index
         upload_id = si_b2a(storage_index)[:5]
         self.log("using storage index %s" % upload_id)
-        server_selector = self.server_selector_class(upload_id,
-                                                     self._log_number,
-                                                     self._upload_status)
+        server_selector = Tahoe2ServerSelector(
+            upload_id,
+            self._log_number,
+            self._upload_status,
+            reactor=self._reactor,
+        )
 
         share_size = encoder.get_param("share_size")
         block_size = encoder.get_param("block_size")
         num_segments = encoder.get_param("num_segments")
-        k,desired,n = encoder.get_param("share_counts")
+        k, desired, n = encoder.get_param("share_counts")
 
         self._server_selection_started = time.time()
         d = server_selector.get_shareholders(storage_broker, secret_holder,
@@ -992,13 +1143,13 @@ class CHKUploader:
         d.addCallback(_done)
         return d
 
-    def set_shareholders(self, (upload_trackers, already_serverids), encoder):
+    def set_shareholders(self, upload_trackers, already_serverids, encoder):
         """
-        @param upload_trackers: a sequence of ServerTracker objects that
+        :param upload_trackers: a sequence of ServerTracker objects that
                                 have agreed to hold some shares for us (the
                                 shareids are stashed inside the ServerTracker)
 
-        @paran already_serverids: a dict mapping sharenum to a set of
+        :param already_serverids: a dict mapping sharenum to a set of
                                   serverids for servers that claim to already
                                   have this share
         """
@@ -1558,7 +1709,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
         return (self._helper_furl, bool(self._helper))
 
 
-    def upload(self, uploadable, progress=None):
+    def upload(self, uploadable, progress=None, reactor=None):
         """
         Returns a Deferred that will fire with the UploadResults instance.
         """
@@ -1594,7 +1745,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
                 else:
                     storage_broker = self.parent.get_storage_broker()
                     secret_holder = self.parent._secret_holder
-                    uploader = CHKUploader(storage_broker, secret_holder, progress=progress)
+                    uploader = CHKUploader(storage_broker, secret_holder, progress=progress, reactor=reactor)
                     d2.addCallback(lambda x: uploader.start(eu))
 
                 self._all_uploads[uploader] = None

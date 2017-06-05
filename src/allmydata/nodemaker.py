@@ -142,6 +142,7 @@ class NodeMaker(object):
             convergence = self.secret_holder.get_convergence_secret()
         packed = pack_children(children, None, deep_immutable=True)
         uploadable = Data(packed, convergence)
+        # XXX should pass reactor arg
         d = self.uploader.upload(uploadable)
         d.addCallback(lambda results:
                       self.create_from_cap(None, results.get_uri()))

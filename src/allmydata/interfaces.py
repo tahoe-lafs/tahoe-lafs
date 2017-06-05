@@ -730,6 +730,59 @@ class IReadable(Interface):
         download-to-memory consumer.
         """
 
+class IPeerSelector(Interface):
+    """
+    I select peers for an upload, maximizing some measure of health.
+
+    I keep track of the state of a grid relative to a file. This means
+    that I know about all of the peers that parts of that file could be
+    placed on, and about shares that have been placed on those peers.
+    Given this, I assign shares to peers in a way that maximizes the
+    file's health according to whichever definition of health I am
+    programmed with. I tell the uploader whether or not my assignment is
+    healthy. I keep track of failures during the process and update my
+    conclusions appropriately.
+    """
+    def add_peer_with_share(peerid, shnum):
+        """
+        Update my internal state to reflect the fact that peer peerid
+        holds share shnum. Called for shares that are detected before
+        peer selection begins.
+        """
+
+    def confirm_share_allocation(peerid, shnum):
+        """
+        Confirm that an allocated peer=>share pairing has been
+        successfully established.
+        """
+
+    def add_peers(peerids=set):
+        """
+        Update my internal state to include the peers in peerids as
+        potential candidates for storing a file.
+        """
+
+    def mark_readonly_peer(peerid):
+        """
+        Mark the peer peerid as full. This means that any
+        peer-with-share relationships I know about for peerid remain
+        valid, but that peerid will not be assigned any new shares.
+        """
+
+    def mark_bad_peer(peerid):
+        """
+        Mark the peer peerid as bad. This is typically called when an
+        error is encountered when communicating with a peer. I will
+        disregard any existing peer => share relationships associated
+        with peerid, and will not attempt to assign it any more shares.
+        """
+
+    def get_share_placements():
+        """
+        Return the share-placement map (a dict) which maps shares to
+        server-ids
+        """
+
 
 class IWriteable(Interface):
     """

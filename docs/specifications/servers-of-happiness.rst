@@ -90,3 +90,89 @@ issues.
 
 We don't use servers-of-happiness for mutable files yet; this fix will
 likely come in Tahoe-LAFS version 1.13.
+
+
+============================
+Upload Strategy of Happiness
+============================
+
+As mentioned above, the uploader is good at detecting instances which
+do not pass the servers-of-happiness test, but the share distribution algorithm
+is not always successful in instances where happiness can be achieved. A new
+placement algorithm designed to pass the servers-of-happiness test,  titled
+'Upload Strategy of Happiness', is meant to fix these instances where the uploader
+is unable to achieve happiness.
+
+Calculating Share Placements
+============================
+
+We calculate share placement like so:
+
+0. Start with an ordered list of servers. Maybe *2N* of them.
+
+1. Query all servers for existing shares.
+
+1a. Query remaining space from all servers. Every server that has
+    enough free space is considered "readwrite" and every server with too
+    little space is "readonly".
+
+2. Construct a bipartite graph G1 of *readonly* servers to pre-existing
+   shares, where an edge exists between an arbitrary readonly server S and an
+   arbitrary share T if and only if S currently holds T.
+
+3. Calculate a maximum matching graph of G1 (a set of S->T edges that has or
+   is-tied-for the highest "happiness score"). There is a clever efficient
+   algorithm for this, named "Ford-Fulkerson". There may be more than one
+   maximum matching for this graph; we choose one of them arbitrarily, but
+   prefer earlier servers. Call this particular placement M1. The placement
+   maps shares to servers, where each share appears at most once, and each
+   server appears at most once.
+
+4. Construct a bipartite graph G2 of readwrite servers to pre-existing
+   shares. Then remove any edge (from G2) that uses a server or a share found
+   in M1. Let an edge exist between server S and share T if and only if S
+   already holds T.
+
+5. Calculate a maximum matching graph of G2, call this M2, again preferring
+   earlier servers.
+
+6. Construct a bipartite graph G3 of (only readwrite) servers to
+   shares (some shares may already exist on a server). Then remove
+   (from G3) any servers and shares used in M1 or M2 (note that we
+   retain servers/shares that were in G1/G2 but *not* in the M1/M2
+   subsets)
+
+7. Calculate a maximum matching graph of G3, call this M3, preferring earlier
+   servers. The final placement table is the union of M1+M2+M3.
+
+8. Renew the shares on their respective servers from M1 and M2.
+
+9. Upload share T to server S if an edge exists between S and T in M3.
+
+10. If any placements from step 9 fail, mark the server as read-only. Go back
+    to step 2 (since we may discover a server is/has-become read-only, or has
+    failed, during step 9).
+
+Rationale (Step 4): when we see pre-existing shares on read-only servers, we
+prefer to rely upon those (rather than the ones on read-write servers), so we
+can maybe use the read-write servers for new shares. If we picked the
+read-write server's share, then we couldn't re-use that server for new ones
+(we only rely upon each server for one share, more or less).
+
+Properties of Upload Strategy of Happiness
+==========================================
+
+The size of the maximum bipartite matching is bounded by the size of the smaller
+set of vertices. Therefore in a situation where the set of servers is smaller
+than the set of shares, placement is not generated for a subset of shares. In
+this case the remaining shares are distributed as evenly as possible across the
+set of writable servers.
+
+If the servers-of-happiness criteria can be met, the upload strategy of
+happiness guarantees that H shares will be placed on the network. During file
+repair, if the set of servers is larger than N, the algorithm will only attempt
+to spread shares over N distinct servers. For both initial file upload and file
+repair, N should be viewed as the maximum number of distinct servers shares
+can be placed on, and H as the minimum amount. The uploader will fail if
+the number of distinct servers is less than H, and it will never attempt to
+exceed N.
