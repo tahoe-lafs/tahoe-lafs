@@ -13,8 +13,8 @@ Welcome to `the Tahoe-LAFS project`_, a secure, decentralized, fault-tolerant
 storage system. See :doc:`about` for an overview of the architecture and
 security properties of the system.
 
-This procedure should work on Windows, Mac, OpenSolaris, and too many flavors
-of Linux and of BSD to list.
+This procedure should work on Windows, Mac, illumos (previously OpenSolaris),
+and too many flavors of Linux and of BSD to list.
 
 .. _the Tahoe-LAFS project: https://tahoe-lafs.org
 
