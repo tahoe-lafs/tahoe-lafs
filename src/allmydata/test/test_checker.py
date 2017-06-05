@@ -391,7 +391,6 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
             return self.imm.check_and_repair(Monitor())
         def _check_counts(crr, shares_good, good_share_hosts):
             prr = crr.get_post_repair_results()
-            #print self._pretty_shares_chart(self.uri)
             self.failUnlessEqual(prr.get_share_counter_good(), shares_good)
             self.failUnlessEqual(prr.get_host_counter_good_shares(),
                                  good_share_hosts)
@@ -401,16 +400,26 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
             0:[A] 1:[A] 2:[A] 3:[A,B,C,D,E]
           4 good shares, but 5 good hosts
         After deleting all instances of share #3 and repairing:
-            0:[A,B], 1:[A,C], 2:[A,D], 3:[E]
-          Still 4 good shares and 5 good hosts
+            0:[A], 1:[A,B], 2:[C,A], 3:[E]
+# actually: {0: ['E', 'A'], 1: ['C', 'A'], 2: ['A', 'B'], 3: ['D']}
+          Still 4 good shares but now 4 good hosts
             """
         d.addCallback(_check_and_repair)
         d.addCallback(_check_counts, 4, 5)
         d.addCallback(lambda _: self.delete_shares_numbered(self.uri, [3]))
         d.addCallback(_check_and_repair)
-        d.addCallback(_check_counts, 4, 5)
-        d.addCallback(lambda _: [self.g.break_server(sid)
-                                 for sid in self.g.get_all_serverids()])
+
+        # it can happen that our uploader will choose, e.g., to upload
+        # to servers B, C, D, E .. which will mean that all 5 serves
+        # now contain our shares (and thus "respond").
+
+        def _check_happy(crr):
+            prr = crr.get_post_repair_results()
+            self.assertTrue(prr.get_host_counter_good_shares() >= 4)
+            return crr
+        d.addCallback(_check_happy)
+        d.addCallback(lambda _: all([self.g.break_server(sid)
+                                     for sid in self.g.get_all_serverids()]))
         d.addCallback(_check_and_repair)
         d.addCallback(_check_counts, 0, 0)
         return d

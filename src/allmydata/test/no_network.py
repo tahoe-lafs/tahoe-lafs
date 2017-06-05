@@ -473,9 +473,11 @@ class GridTestMixin:
 
     def corrupt_all_shares(self, uri, corruptor, debug=False):
         for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
-            sharedata = open(i_sharefile, "rb").read()
+            with open(i_sharefile, "rb") as f:
+                sharedata = f.read()
             corruptdata = corruptor(sharedata, debug=debug)
-            open(i_sharefile, "wb").write(corruptdata)
+            with open(i_sharefile, "wb") as f:
+                f.write(corruptdata)
 
     def GET(self, urlpath, followRedirect=False, return_response=False,
             method="GET", clientnum=0, **kwargs):
