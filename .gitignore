@@ -37,3 +37,4 @@ zope.interface-*.egg
 /docs/_build/
 /coverage.xml
 /smoke_magicfolder/
+/.hypothesis/
