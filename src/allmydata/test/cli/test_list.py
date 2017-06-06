@@ -188,6 +188,20 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    @defer.inlineCallbacks
+    def test_list_readonly(self):
+        self.basedir = "cli/List/list_readonly"
+        yield self.set_up_grid(oneshare=True)
+        c0 = self.g.clients[0]
+
+        root = yield c0.create_dirnode()
+        rooturi = root.get_uri()
+        rc, out, err = yield self.do_cli("add-alias", "tahoe", rooturi)
+        self.assertEqual(0, rc)
+        rc, out, err = yield self.do_cli("list-aliases", "--readonly-uri")
+        self.assertTrue('URI:DIR2-RO' in out)
+
+
     def _create_directory_structure(self):
         # Create a simple directory structure that we can use for MDMF,
         # SDMF, and immutable testing.
