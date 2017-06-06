@@ -10,7 +10,7 @@ The Tahoe-LAFS CLI commands
     1.  `Unicode Support`_
 
 3.  `Node Management`_
-4.  `Filesystem Manipulation`_
+4.  `File Store Manipulation`_
 
     1.  `Starting Directories`_
     2.  `Command Syntax Summary`_
@@ -24,7 +24,7 @@ Overview
 ========
 
 Tahoe-LAFS provides a single executable named "``tahoe``", which can be used
-to create and manage client/server nodes, manipulate the filesystem, and
+to create and manage client/server nodes, manipulate the file store, and
 perform several debugging/maintenance tasks. This executable is installed
 into your virtualenv when you run ``pip install tahoe-lafs``.
 
@@ -35,7 +35,7 @@ CLI Command Overview
 The "``tahoe``" tool provides access to three categories of commands.
 
 * node management: create a client/server node, start/stop/restart it
-* filesystem manipulation: list files, upload, download, unlink, rename
+* file store manipulation: list files, upload, download, unlink, rename
 * debugging: unpack cap-strings, examine share files
 
 To get a list of all commands, just run "``tahoe``" with no additional
@@ -120,15 +120,15 @@ is most often used by developers who have just modified the code and want to
 start using their changes.
 
 
-Filesystem Manipulation
+File Store Manipulation
 =======================
 
-These commands let you exmaine a Tahoe-LAFS filesystem, providing basic
+These commands let you exmaine a Tahoe-LAFS file store, providing basic
 list/upload/download/unlink/rename/mkdir functionality. They can be used as
 primitives by other scripts. Most of these commands are fairly thin wrappers
 around web-API calls, which are described in :doc:`webapi`.
 
-By default, all filesystem-manipulation commands look in ``~/.tahoe/`` to
+By default, all file store manipulation commands look in ``~/.tahoe/`` to
 figure out which Tahoe-LAFS node they should use. When the CLI command makes
 web-API calls, it will use ``~/.tahoe/node.url`` for this purpose: a running
 Tahoe-LAFS node that provides a web-API port will write its URL into this
@@ -142,7 +142,7 @@ they ought to use a starting point. This is explained in more detail below.
 Starting Directories
 --------------------
 
-As described in :doc:`../architecture`, the Tahoe-LAFS distributed filesystem
+As described in :doc:`../architecture`, the Tahoe-LAFS distributed file store
 consists of a collection of directories and files, each of which has a
 "read-cap" or a "write-cap" (also known as a URI). Each directory is simply a
 table that maps a name to a child file or directory, and this table is turned
@@ -179,12 +179,14 @@ and later will use it if necessary. However, once you've set a ``tahoe:``
 alias with "``tahoe set-alias``", that will override anything in the old
 ``root_dir.cap`` file.
 
-The Tahoe-LAFS CLI commands use the same path syntax as ``scp`` and
+The Tahoe-LAFS CLI commands use a similar path syntax to ``scp`` and
 ``rsync`` -- an optional ``ALIAS:`` prefix, followed by the pathname or
 filename. Some commands (like "``tahoe cp``") use the lack of an alias to
 mean that you want to refer to a local file, instead of something from the
-Tahoe-LAFS filesystem. Another way to indicate this is to start the
-pathname with "./", "~/", "~username/", or "/".
+Tahoe-LAFS file store. Another way to indicate this is to start the
+pathname with "./", "~/", "~username/", or "/". On Windows, aliases
+cannot be a single character, so that it is possible to distinguish a
+path relative to an alias from a path starting with a local drive specifier.
 
 When you're dealing a single starting directory, the ``tahoe:`` alias is
 all you need. But when you want to refer to something that isn't yet
@@ -333,7 +335,7 @@ Command Examples
 
 ``tahoe ls subdir``
 
- This lists a subdirectory of your filesystem.
+ This lists a subdirectory of your file store.
 
 ``tahoe webopen``
 
