@@ -61,7 +61,7 @@ need a C compiler, the Python development headers, and some libraries
 On a modern Debian/Ubuntu-derived distribution, this command will get you
 everything you need::
 
-    apt-get install build-essential python-dev libffi-dev libssl-dev python-virtualenv
+    apt-get install build-essential python-dev libffi-dev libssl-dev libyaml-dev python-virtualenv
 
 On OS-X, install pip and virtualenv as described below. If you want to
 compile the dependencies yourself (instead of using ``--find-links`` to take
