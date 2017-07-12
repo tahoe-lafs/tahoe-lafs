@@ -3,8 +3,8 @@
 # Script to install Tor
 
 set -ex
-echo "deb http://deb.torproject.org/torproject.org precise main" | sudo tee -a /etc/apt/sources.list
-echo "deb-src http://deb.torproject.org/torproject.org precise main" | sudo tee -a /etc/apt/sources.list
+echo "deb http://deb.torproject.org/torproject.org trusty main" | sudo tee -a /etc/apt/sources.list
+echo "deb-src http://deb.torproject.org/torproject.org trusty main" | sudo tee -a /etc/apt/sources.list
 
 # Install Tor repo signing key
 sudo apt-key add - <<EOF
