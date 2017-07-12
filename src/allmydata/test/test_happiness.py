@@ -222,8 +222,8 @@ class Happiness(unittest.TestCase):
 class PlacementTests(unittest.TestCase):
 
     @given(
-        sets(elements=text(min_size=1), min_size=4, max_size=4),
-        sets(elements=text(min_size=1), min_size=4),
+        sets(elements=text(min_size=1, max_size=30), min_size=4, max_size=4),
+        sets(elements=text(min_size=1, max_size=30), min_size=4),
     )
     @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_hypothesis_unhappy(self, peers, shares):
@@ -241,9 +241,9 @@ class PlacementTests(unittest.TestCase):
         assert happiness == 4
 
     @given(
-        sets(elements=text(min_size=1), min_size=1, max_size=10),
-        # can we make a readonly_peers that's a subset of ^
-        sets(elements=text(min_size=1), min_size=1, max_size=20),
+        sets(elements=text(min_size=1, max_size=30), min_size=1, max_size=10),
+        # can we make a readonly_peers that's a subset of           ^
+        sets(elements=text(min_size=1, max_size=30), min_size=1, max_size=20),
     )
     @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_more_hypothesis(self, peers, shares):
