@@ -93,6 +93,12 @@ def create_dest(reactor, cli_config):
         (privkeyfile, external_port, escaped_sam_port)
     i2p_location = "i2p:%s:%d" % (dest.host, external_port)
 
+    i2cp_options = cli_config["i2p-i2cp-options"]
+    if i2cp_options:
+        tahoe_config_i2p["i2cp.options"] = i2cp_options
+        escaped_options = i2cp_options.replace(':', '\:')
+        i2p_port = "%s:options=%s" % (i2p_port, escaped_options)
+
     # in addition to the "how to launch/connect-to i2p" keys above, we also
     # record information about the I2P service into tahoe.cfg.
     # * "port" is the random "public Destination port" (integer), which
@@ -148,13 +154,25 @@ class Provider(service.MultiService):
         launch = self._get_i2p_config("launch", False, boolean=True)
         configdir = self._get_i2p_config("i2p.configdir", None)
         keyfile = self._get_i2p_config("dest.private_key_file", None)
+        options = self._get_i2p_config("i2cp.options", None)
+
+        if options:
+            def transform_escapes(val):
+                return val.replace('\,', '\ESCAPED-COMMA').replace('\:', '\ESCAPED-COLON')
+
+            def unescape(val):
+                return val.replace('\ESCAPED-COMMA', ',').replace('\ESCAPED-COLON', ':')
+
+            options = transform_escapes(options)
+            options = dict([option.split(':') for option in options.split(',')])
+            options = {unescape(k): unescape(v) for k, v in options.items()}
 
         if sam_port:
             if launch:
                 raise ValueError("tahoe.cfg [i2p] must not set both "
                                  "sam.port and launch")
             ep = clientFromString(self._reactor, sam_port)
-            return self._i2p.sam_endpoint(ep, keyfile=keyfile)
+            return self._i2p.sam_endpoint(ep, keyfile=keyfile, options=options)
 
         if launch:
             executable = self._get_i2p_config("i2p.executable", None)
@@ -163,7 +181,7 @@ class Provider(service.MultiService):
         if configdir:
             return self._i2p.local_i2p(configdir)
 
-        return self._i2p.default(self._reactor, keyfile=keyfile)
+        return self._i2p.default(self._reactor, keyfile=keyfile, options=options)
 
     def check_dest_config(self):
         if self._get_i2p_config("dest", False, boolean=True):

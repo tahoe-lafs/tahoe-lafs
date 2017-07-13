@@ -46,6 +46,8 @@ I2P_OPTS = [
      "I2P's SAM API port endpoint descriptor string (e.g. tcp:127.0.0.1:7656)"),
     ("i2p-executable", None, None,
      "(future) The 'i2prouter' executable to run (default is to search $PATH)."),
+    ("i2p-i2cp-options", None, None,
+     "Comma-separated list of key:value I2CP options (e.g. keyOne:valueOne,keyTwo:valueTwo)"),
 ]
 
 I2P_FLAGS = [

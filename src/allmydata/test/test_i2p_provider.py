@@ -151,7 +151,7 @@ class CreateDest(unittest.TestCase):
         os.mkdir(private_dir)
         privkeyfile = os.path.abspath(os.path.join(private_dir, "i2p_dest.privkey"))
         reactor = object()
-        cli_config = make_cli_config(basedir, "--listen=i2p")
+        cli_config = make_cli_config(basedir, "--listen=i2p", "--i2p-i2cp-options=foo:bar,spam:eggs")
         connect_to_i2p = mock.Mock(return_value=defer.succeed("goodport"))
         txi2p = mock.Mock()
         ep = object()
@@ -176,9 +176,10 @@ class CreateDest(unittest.TestCase):
                     "dest.port": "3457",
                     "dest.private_key_file": os.path.join("private",
                                                           "i2p_dest.privkey"),
+                    "i2cp.options": "foo:bar,spam:eggs",
                     }
         self.assertEqual(tahoe_config_i2p, expected)
-        self.assertEqual(i2p_port, "i2p:%s:3457:api=SAM:apiEndpoint=goodport" % privkeyfile)
+        self.assertEqual(i2p_port, "i2p:%s:3457:api=SAM:apiEndpoint=goodport:options=foo\:bar,spam\:eggs" % privkeyfile)
         self.assertEqual(i2p_location, "i2p:FOOBAR.b32.i2p:3457")
 
 _None = object()
@@ -221,7 +222,7 @@ class Provider(unittest.TestCase):
                 h = p.get_i2p_handler()
         cfs.assert_called_with(reactor, "ep_desc")
         self.assertIs(h, handler)
-        i2p.sam_endpoint.assert_called_with(ep, keyfile=None)
+        i2p.sam_endpoint.assert_called_with(ep, keyfile=None, options=None)
 
     def test_handler_launch(self):
         i2p = mock.Mock()
@@ -292,7 +293,26 @@ class Provider(unittest.TestCase):
             p = i2p_provider.Provider("basedir", FakeConfig(), reactor)
         h = p.get_i2p_handler()
         self.assertIs(h, handler)
-        i2p.default.assert_called_with(reactor, keyfile=None)
+        i2p.default.assert_called_with(reactor, keyfile=None, options=None)
+
+    def test_handler_default_with_options(self):
+        i2p = mock.Mock()
+        handler = object()
+        i2p.default = mock.Mock(return_value=handler)
+        reactor = object()
+        options_str = 'foo:bar\,baz,spam:eggs\:bacon'
+        options = {
+            'foo': 'bar,baz',
+            'spam': 'eggs:bacon',
+        }
+
+        with mock_i2p(i2p):
+            p = i2p_provider.Provider("basedir",
+                                      FakeConfig(**{"i2cp.options": options_str}),
+                                      reactor)
+        h = p.get_i2p_handler()
+        self.assertIs(h, handler)
+        i2p.default.assert_called_with(reactor, keyfile=None, options=options)
 
 class Provider_CheckI2PConfig(unittest.TestCase):
     def test_default(self):
