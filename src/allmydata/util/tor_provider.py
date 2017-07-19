@@ -216,6 +216,11 @@ class Provider(service.MultiService):
     def _get_tor_config(self, *args, **kwargs):
         return self._node_for_config.get_config("tor", *args, **kwargs)
 
+    def get_listener(self):
+        local_port = self._get_tor_config("onion.local_port")
+        tor_port = "tcp:%s:interface=127.0.0.1" % local_port
+        return tor_port
+
     def get_tor_handler(self):
         enabled = self._get_tor_config("enabled", True, boolean=True)
         if not enabled:

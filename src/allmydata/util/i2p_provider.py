@@ -88,9 +88,7 @@ def create_config(reactor, cli_config):
     print("allocating .i2p address...", file=stdout)
     dest = yield txi2p.generateDestination(reactor, privkeyfile, 'SAM', sam_endpoint)
     print(".i2p address allocated", file=stdout)
-    escaped_sam_port = sam_port.replace(':', '\:')
-    i2p_port = "i2p:%s:%d:api=SAM:apiEndpoint=%s" % \
-        (privkeyfile, external_port, escaped_sam_port)
+    i2p_port = "listen:i2p" # means "see [i2p]", calls Provider.get_listener()
     i2p_location = "i2p:%s:%d" % (dest.host, external_port)
 
     # in addition to the "how to launch/connect-to i2p" keys above, we also
@@ -136,6 +134,20 @@ class Provider(service.MultiService):
 
     def _get_i2p_config(self, *args, **kwargs):
         return self._node_for_config.get_config("i2p", *args, **kwargs)
+
+    def get_listener(self):
+        # this is relative to BASEDIR, and our cwd should be BASEDIR
+        privkeyfile = self._get_i2p_config("dest.private_key_file")
+        external_port = self._get_i2p_config("dest.port")
+        sam_port = self._get_i2p_config("sam.port")
+        escaped_sam_port = sam_port.replace(':', '\:')
+        # for now, this returns a string, which then gets passed to
+        # endpoints.serverFromString . But it can also return an Endpoint
+        # directly, which means we don't need to encode all these options
+        # into a string
+        i2p_port = "i2p:%s:%s:api=SAM:apiEndpoint=%s" % \
+                   (privkeyfile, external_port, escaped_sam_port)
+        return i2p_port
 
     def get_i2p_handler(self):
         enabled = self._get_i2p_config("enabled", True, boolean=True)

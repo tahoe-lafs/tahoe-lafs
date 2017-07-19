@@ -393,6 +393,20 @@ class Provider(unittest.TestCase):
         self.assertIs(h, handler)
         tor.default_socks.assert_called_with()
 
+class Provider_Listener(unittest.TestCase):
+    def test_listener(self):
+        tor = mock.Mock()
+        handler = object()
+        tor.socks_endpoint = mock.Mock(return_value=handler)
+        reactor = object()
+
+        with mock_tor(tor):
+            p = tor_provider.Provider("basedir",
+                                      FakeConfig(**{"onion.local_port": "321"}),
+                                      reactor)
+            endpoint_or_description = p.get_listener()
+        self.assertEqual(endpoint_or_description, "tcp:321:interface=127.0.0.1")
+
 class Provider_CheckOnionConfig(unittest.TestCase):
     def test_default(self):
         # default config doesn't start an onion service, so it should be
