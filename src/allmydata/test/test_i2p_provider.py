@@ -124,7 +124,7 @@ class CreateDest(unittest.TestCase):
     def test_no_txi2p(self):
         with mock.patch("allmydata.util.i2p_provider._import_txi2p",
                         return_value=None):
-            d = i2p_provider.create_dest("reactor", "cli_config")
+            d = i2p_provider.create_config("reactor", "cli_config")
             f = self.failureResultOf(d)
             self.assertIsInstance(f.value, ValueError)
             self.assertEqual(str(f.value),
@@ -164,7 +164,7 @@ class CreateDest(unittest.TestCase):
                             connect_to_i2p):
                 with mock.patch("allmydata.util.i2p_provider.clientFromString",
                                 return_value=ep) as cfs:
-                    d = i2p_provider.create_dest(reactor, cli_config)
+                    d = i2p_provider.create_config(reactor, cli_config)
         tahoe_config_i2p, i2p_port, i2p_location = self.successResultOf(d)
 
         connect_to_i2p.assert_called_with(reactor, cli_config, txi2p)

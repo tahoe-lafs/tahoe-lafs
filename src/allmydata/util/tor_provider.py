@@ -124,7 +124,7 @@ def _connect_to_tor(reactor, cli_config, txtorcon):
         raise ValueError("unable to reach any default Tor control port")
 
 @inlineCallbacks
-def create_onion(reactor, cli_config):
+def create_config(reactor, cli_config):
     txtorcon = _import_txtorcon()
     if not txtorcon:
         raise ValueError("Cannot create onion without txtorcon. "

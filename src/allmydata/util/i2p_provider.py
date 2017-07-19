@@ -65,7 +65,7 @@ def _connect_to_i2p(reactor, cli_config, txi2p):
         raise ValueError("unable to reach any default I2P SAM port")
 
 @inlineCallbacks
-def create_dest(reactor, cli_config):
+def create_config(reactor, cli_config):
     txi2p = _import_txi2p()
     if not txi2p:
         raise ValueError("Cannot create I2P Destination without txi2p. "

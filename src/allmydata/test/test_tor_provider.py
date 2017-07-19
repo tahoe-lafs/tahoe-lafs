@@ -152,7 +152,7 @@ class CreateOnion(unittest.TestCase):
     def test_no_txtorcon(self):
         with mock.patch("allmydata.util.tor_provider._import_txtorcon",
                         return_value=None):
-            d = tor_provider.create_onion("reactor", "cli_config")
+            d = tor_provider.create_config("reactor", "cli_config")
             f = self.failureResultOf(d)
             self.assertIsInstance(f.value, ValueError)
             self.assertEqual(str(f.value),
@@ -184,7 +184,7 @@ class CreateOnion(unittest.TestCase):
                             launch_tor):
                 with mock.patch("allmydata.util.tor_provider.allocate_tcp_port",
                                 return_value=999999):
-                    d = tor_provider.create_onion(reactor, cli_config)
+                    d = tor_provider.create_config(reactor, cli_config)
         tahoe_config_tor, tor_port, tor_location = self.successResultOf(d)
 
         launch_tor.assert_called_with(reactor, executable,
@@ -238,7 +238,7 @@ class CreateOnion(unittest.TestCase):
                             connect_to_tor):
                 with mock.patch("allmydata.util.tor_provider.allocate_tcp_port",
                                 return_value=999999):
-                    d = tor_provider.create_onion(reactor, cli_config)
+                    d = tor_provider.create_config(reactor, cli_config)
         tahoe_config_tor, tor_port, tor_location = self.successResultOf(d)
 
         connect_to_tor.assert_called_with(reactor, cli_config, txtorcon)

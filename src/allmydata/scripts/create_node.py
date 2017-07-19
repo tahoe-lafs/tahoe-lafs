@@ -251,12 +251,12 @@ def write_node_config(c, config):
     else:
         if "tor" in listeners:
             (tor_config, tor_port, tor_location) = \
-                         yield tor_provider.create_onion(reactor, config)
+                         yield tor_provider.create_config(reactor, config)
             tub_ports.append(tor_port)
             tub_locations.append(tor_location)
         if "i2p" in listeners:
             (i2p_config, i2p_port, i2p_location) = \
-                         yield i2p_provider.create_dest(reactor, config)
+                         yield i2p_provider.create_config(reactor, config)
             tub_ports.append(i2p_port)
             tub_locations.append(i2p_location)
         if "tcp" in listeners:
