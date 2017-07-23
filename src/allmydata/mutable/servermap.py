@@ -2,6 +2,7 @@
 import sys, time, copy
 from zope.interface import implementer
 from itertools import count
+from collections import defaultdict
 from twisted.internet import defer
 from twisted.python import failure
 from foolscap.api import DeadReferenceError, RemoteException, eventually, \
@@ -21,7 +22,7 @@ class UpdateStatus(object):
     statusid_counter = count(0)
     def __init__(self):
         self.timings = {}
-        self.timings["per_server"] = {}
+        self.timings["per_server"] = defaultdict(list)
         self.timings["cumulative_verify"] = 0.0
         self.privkey_from = None
         self.problems = {}
@@ -36,8 +37,6 @@ class UpdateStatus(object):
 
     def add_per_server_time(self, server, op, sent, elapsed):
         assert op in ("query", "late", "privkey")
-        if server not in self.timings["per_server"]:
-            self.timings["per_server"][server] = []
         self.timings["per_server"][server].append((op,sent,elapsed))
 
     def get_started(self):
