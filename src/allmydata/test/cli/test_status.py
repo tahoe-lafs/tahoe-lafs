@@ -8,7 +8,6 @@ from UserDict import UserDict
 
 from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.web.client import getPage
 
 from allmydata.mutable.publish import MutableData
 from allmydata.scripts.common_http import BadResponse
@@ -18,6 +17,7 @@ from allmydata.scripts.tahoe_status import pretty_progress
 from allmydata.scripts.tahoe_status import do_status
 
 from ..no_network import GridTestMixin
+from ..common_web import do_http
 from .common import CLITestMixin
 
 
@@ -83,7 +83,7 @@ class Integration(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.uri = filenode.get_uri()
 
         # make sure our web-port is actually answering
-        yield getPage('http://127.0.0.1:{}/status?t=json'.format(self.client_webports[0]))
+        yield do_http("get", 'http://127.0.0.1:{}/status?t=json'.format(self.client_webports[0]))
 
     def test_simple(self):
         d = self.do_cli('status')# '--verbose')
