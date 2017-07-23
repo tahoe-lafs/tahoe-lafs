@@ -1,9 +1,11 @@
 import os.path, re, urllib, time, cgi
 import json
+import treq
 
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
@@ -27,7 +29,7 @@ from ..common import FakeCHKFileNode, FakeMutableFileNode, \
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
-from ..common_web import HTTPClientGETFactory, HTTPClientHEADFactory
+from ..common_web import HTTPClientGETFactory, do_http, Error
 from allmydata.client import Client, SecretHolder
 from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
@@ -489,25 +491,25 @@ class WebMixin(testutil.TimezoneMixin):
             d.addCallback(_got_data)
         return factory.deferred
 
-    def HEAD(self, urlpath, return_response=False, **kwargs):
-        # this requires some surgery, because twisted.web.client doesn't want
-        # to give us back the response headers.
-        factory = HTTPClientHEADFactory(urlpath, method="HEAD", **kwargs)
-        reactor.connectTCP("localhost", self.webish_port, factory)
-        d = factory.deferred
-        def _got_data(data):
-            return (data, factory.status, factory.response_headers)
-        if return_response:
-            d.addCallback(_got_data)
-        return factory.deferred
-
-    def PUT(self, urlpath, data, **kwargs):
+    @inlineCallbacks
+    def HEAD(self, urlpath, return_response=False, headers={}):
         url = self.webish_url + urlpath
-        return client.getPage(url, method="PUT", postdata=data, **kwargs)
+        response = yield treq.request("head", url, persistent=False,
+                                      headers=headers)
+        if 400 <= response.code < 600:
+            raise Error(response.code, response="")
+        resp_headers = {}
+        for (key, values) in response.headers.getAllRawHeaders():
+            resp_headers[key.lower()] = values
+        returnValue( ("", response.code, resp_headers) )
+
+    def PUT(self, urlpath, data, headers={}):
+        url = self.webish_url + urlpath
+        return do_http("put", url, data=data, headers=headers)
 
     def DELETE(self, urlpath):
         url = self.webish_url + urlpath
-        return client.getPage(url, method="DELETE")
+        return do_http("delete", url)
 
     def POST(self, urlpath, followRedirect=False, **fields):
         sepbase = "boogabooga"

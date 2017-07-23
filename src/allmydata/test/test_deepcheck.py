@@ -2,6 +2,7 @@
 import os, json, urllib
 from twisted.trial import unittest
 from twisted.internet import defer
+from twisted.internet.defer import inlineCallbacks, returnValue
 from allmydata.immutable import upload
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.mutable.publish import MutableData
@@ -11,11 +12,11 @@ from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
      IDeepCheckResults, IDeepCheckAndRepairResults
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata.uri import LiteralFileURI
-from twisted.web.client import getPage
 
 from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data, \
      ShouldFailMixin
 from .common_util import StallMixin, run_cli
+from .common_web import do_http
 from allmydata.test.no_network import GridTestMixin
 from .cli.common import CLITestMixin
 
@@ -148,54 +149,47 @@ class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
                 le.args = tuple(le.args + (unit,))
                 raise
 
+    @inlineCallbacks
     def web(self, n, method="GET", **kwargs):
         # returns (data, url)
         url = (self.client_baseurls[0] + "uri/%s" % urllib.quote(n.get_uri())
                + "?" + "&".join(["%s=%s" % (k,v) for (k,v) in kwargs.items()]))
-        d = getPage(url, method=method)
-        d.addCallback(lambda data: (data,url))
-        return d
+        data = yield do_http(method, url, browser_like_redirects=True)
+        returnValue((data,url))
 
-    def wait_for_operation(self, ignored, ophandle):
+    @inlineCallbacks
+    def wait_for_operation(self, ophandle):
         url = self.client_baseurls[0] + "operations/" + ophandle
         url += "?t=status&output=JSON"
-        d = getPage(url)
-        def _got(res):
-            try:
-                data = json.loads(res)
-            except ValueError:
-                self.fail("%s: not JSON: '%s'" % (url, res))
-            if not data["finished"]:
-                d = self.stall(delay=1.0)
-                d.addCallback(self.wait_for_operation, ophandle)
-                return d
-            return data
-        d.addCallback(_got)
-        return d
+        while True:
+            body = yield do_http("get", url)
+            data = json.loads(body)
+            if data["finished"]:
+                break
+            yield self.stall(delay=0.1)
+        returnValue(data)
 
-    def get_operation_results(self, ignored, ophandle, output=None):
+    @inlineCallbacks
+    def get_operation_results(self, ophandle, output=None):
         url = self.client_baseurls[0] + "operations/" + ophandle
         url += "?t=status"
         if output:
             url += "&output=" + output
-        d = getPage(url)
-        def _got(res):
-            if output and output.lower() == "json":
-                try:
-                    return json.loads(res)
-                except ValueError:
-                    self.fail("%s: not JSON: '%s'" % (url, res))
-            return res
-        d.addCallback(_got)
-        return d
+        body = yield do_http("get", url)
+        if output and output.lower() == "json":
+            data = json.loads(body)
+        else:
+            data = body
+        returnValue(data)
 
+    @inlineCallbacks
     def slow_web(self, n, output=None, **kwargs):
         # use ophandle=
         handle = base32.b2a(os.urandom(4))
-        d = self.web(n, "POST", ophandle=handle, **kwargs)
-        d.addCallback(self.wait_for_operation, handle)
-        d.addCallback(self.get_operation_results, handle, output=output)
-        return d
+        yield self.web(n, "POST", ophandle=handle, **kwargs)
+        yield self.wait_for_operation(handle)
+        data = yield self.get_operation_results(handle, output=output)
+        returnValue(data)
 
 
 class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
