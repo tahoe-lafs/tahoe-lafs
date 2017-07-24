@@ -2501,20 +2501,19 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addBoth(done)
         return d
 
+    @inlineCallbacks
     def test_POST_upload_no_link_whendone_results(self):
         def check(statuscode, target):
             self.failUnlessReallyEqual(statuscode, str(http.FOUND))
             self.failUnless(target.startswith(self.webish_url), target)
             return client.getPage(target, method="GET")
         # We encode "uri" as "%75ri" to exercise a case affected by ticket #1860.
-        d = self.shouldRedirect2("test_POST_upload_no_link_whendone_results",
-                                 check,
-                                 self.POST, "/uri", t="upload",
-                                 when_done="/%75ri/%(uri)s",
-                                 file=("new.txt", self.NEWFILE_CONTENTS))
-        d.addCallback(lambda res:
-                      self.failUnlessReallyEqual(res, self.NEWFILE_CONTENTS))
-        return d
+        res = yield self.shouldRedirect2("test_POST_upload_no_link_whendone_results",
+                                         check,
+                                         self.POST, "/uri", t="upload",
+                                         when_done="/%75ri/%(uri)s",
+                                         file=("new.txt", self.NEWFILE_CONTENTS))
+        self.failUnlessReallyEqual(res, self.NEWFILE_CONTENTS)
 
     def test_POST_upload_no_link_mutable(self):
         d = self.POST("/uri", t="upload", mutable="true",
@@ -2861,123 +2860,95 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                                   u"sub"]))
         return d
 
+    @inlineCallbacks
     def test_POST_FILEURL_check(self):
         bar_url = self.public_url + "/foo/bar.txt"
-        d = self.POST(bar_url, t="check")
-        def _check(res):
-            self.failUnlessIn("Healthy :", res)
-        d.addCallback(_check)
+        res = yield self.POST(bar_url, t="check")
+        self.failUnlessIn("Healthy :", res)
+
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
             self.failUnlessReallyEqual(statuscode, str(http.FOUND))
             self.failUnlessReallyEqual(target, redir_url)
-        d.addCallback(lambda res:
-                      self.shouldRedirect2("test_POST_FILEURL_check",
-                                           _check2,
-                                           self.POST, bar_url,
-                                           t="check",
-                                           when_done=redir_url))
-        d.addCallback(lambda res:
-                      self.POST(bar_url, t="check", return_to=redir_url))
-        def _check3(res):
-            self.failUnlessIn("Healthy :", res)
-            self.failUnlessIn("Return to file", res)
-            self.failUnlessIn(redir_url, res)
-        d.addCallback(_check3)
+        yield self.shouldRedirect2("test_POST_FILEURL_check",
+                                   _check2,
+                                   self.POST, bar_url,
+                                   t="check",
+                                   when_done=redir_url)
+        res = yield self.POST(bar_url, t="check", return_to=redir_url)
+        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn("Return to file", res)
+        self.failUnlessIn(redir_url, res)
 
-        d.addCallback(lambda res:
-                      self.POST(bar_url, t="check", output="JSON"))
-        def _check_json(res):
-            data = json.loads(res)
-            self.failUnlessIn("storage-index", data)
-            self.failUnless(data["results"]["healthy"])
-        d.addCallback(_check_json)
+        res = yield self.POST(bar_url, t="check", output="JSON")
+        data = json.loads(res)
+        self.failUnlessIn("storage-index", data)
+        self.failUnless(data["results"]["healthy"])
 
-        return d
-
+    @inlineCallbacks
     def test_POST_FILEURL_check_and_repair(self):
         bar_url = self.public_url + "/foo/bar.txt"
-        d = self.POST(bar_url, t="check", repair="true")
-        def _check(res):
-            self.failUnlessIn("Healthy :", res)
-        d.addCallback(_check)
+        res = yield self.POST(bar_url, t="check", repair="true")
+        self.failUnlessIn("Healthy :", res)
+
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
             self.failUnlessReallyEqual(statuscode, str(http.FOUND))
             self.failUnlessReallyEqual(target, redir_url)
-        d.addCallback(lambda res:
-                      self.shouldRedirect2("test_POST_FILEURL_check_and_repair",
-                                           _check2,
-                                           self.POST, bar_url,
-                                           t="check", repair="true",
-                                           when_done=redir_url))
-        d.addCallback(lambda res:
-                      self.POST(bar_url, t="check", return_to=redir_url))
-        def _check3(res):
-            self.failUnlessIn("Healthy :", res)
-            self.failUnlessIn("Return to file", res)
-            self.failUnlessIn(redir_url, res)
-        d.addCallback(_check3)
-        return d
+        yield self.shouldRedirect2("test_POST_FILEURL_check_and_repair",
+                                   _check2,
+                                   self.POST, bar_url,
+                                   t="check", repair="true",
+                                   when_done=redir_url)
+        res = yield self.POST(bar_url, t="check", return_to=redir_url)
+        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn("Return to file", res)
+        self.failUnlessIn(redir_url, res)
 
+    @inlineCallbacks
     def test_POST_DIRURL_check(self):
         foo_url = self.public_url + "/foo/"
-        d = self.POST(foo_url, t="check")
-        def _check(res):
-            self.failUnlessIn("Healthy :", res)
-        d.addCallback(_check)
+        res = yield self.POST(foo_url, t="check")
+        self.failUnlessIn("Healthy :", res)
+
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
             self.failUnlessReallyEqual(statuscode, str(http.FOUND))
             self.failUnlessReallyEqual(target, redir_url)
-        d.addCallback(lambda res:
-                      self.shouldRedirect2("test_POST_DIRURL_check",
-                                           _check2,
-                                           self.POST, foo_url,
-                                           t="check",
-                                           when_done=redir_url))
-        d.addCallback(lambda res:
-                      self.POST(foo_url, t="check", return_to=redir_url))
-        def _check3(res):
-            self.failUnlessIn("Healthy :", res)
-            self.failUnlessIn("Return to file/directory", res)
-            self.failUnlessIn(redir_url, res)
-        d.addCallback(_check3)
+        yield self.shouldRedirect2("test_POST_DIRURL_check",
+                                   _check2,
+                                   self.POST, foo_url,
+                                   t="check",
+                                   when_done=redir_url)
+        res = yield self.POST(foo_url, t="check", return_to=redir_url)
+        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn("Return to file/directory", res)
+        self.failUnlessIn(redir_url, res)
 
-        d.addCallback(lambda res:
-                      self.POST(foo_url, t="check", output="JSON"))
-        def _check_json(res):
-            data = json.loads(res)
-            self.failUnlessIn("storage-index", data)
-            self.failUnless(data["results"]["healthy"])
-        d.addCallback(_check_json)
+        res = yield self.POST(foo_url, t="check", output="JSON")
+        data = json.loads(res)
+        self.failUnlessIn("storage-index", data)
+        self.failUnless(data["results"]["healthy"])
 
-        return d
-
+    @inlineCallbacks
     def test_POST_DIRURL_check_and_repair(self):
         foo_url = self.public_url + "/foo/"
-        d = self.POST(foo_url, t="check", repair="true")
-        def _check(res):
-            self.failUnlessIn("Healthy :", res)
-        d.addCallback(_check)
+        res = yield self.POST(foo_url, t="check", repair="true")
+        self.failUnlessIn("Healthy :", res)
+
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
             self.failUnlessReallyEqual(statuscode, str(http.FOUND))
             self.failUnlessReallyEqual(target, redir_url)
-        d.addCallback(lambda res:
-                      self.shouldRedirect2("test_POST_DIRURL_check_and_repair",
-                                           _check2,
-                                           self.POST, foo_url,
-                                           t="check", repair="true",
-                                           when_done=redir_url))
-        d.addCallback(lambda res:
-                      self.POST(foo_url, t="check", return_to=redir_url))
-        def _check3(res):
-            self.failUnlessIn("Healthy :", res)
-            self.failUnlessIn("Return to file/directory", res)
-            self.failUnlessIn(redir_url, res)
-        d.addCallback(_check3)
-        return d
+        yield self.shouldRedirect2("test_POST_DIRURL_check_and_repair",
+                                   _check2,
+                                   self.POST, foo_url,
+                                   t="check", repair="true",
+                                   when_done=redir_url)
+        res = yield self.POST(foo_url, t="check", return_to=redir_url)
+        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn("Return to file/directory", res)
+        self.failUnlessIn(redir_url, res)
 
     def test_POST_FILEURL_mdmf_check(self):
         quux_url = "/uri/%s" % urllib.quote(self._quux_txt_uri)
@@ -3038,45 +3009,40 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              self.POST, self.public_url, t="start-deep-check")
         return d
 
+    @inlineCallbacks
     def test_POST_DIRURL_deepcheck(self):
         def _check_redirect(statuscode, target):
             self.failUnlessReallyEqual(statuscode, str(http.FOUND))
             self.failUnless(target.endswith("/operations/123"))
-        d = self.shouldRedirect2("test_POST_DIRURL_deepcheck", _check_redirect,
-                                 self.POST, self.public_url,
-                                 t="start-deep-check", ophandle="123")
-        d.addCallback(self.wait_for_operation, "123")
-        def _check_json(data):
-            self.failUnlessReallyEqual(data["finished"], True)
-            self.failUnlessReallyEqual(data["count-objects-checked"], 11)
-            self.failUnlessReallyEqual(data["count-objects-healthy"], 11)
-        d.addCallback(_check_json)
-        d.addCallback(self.get_operation_results, "123", "html")
-        def _check_html(res):
-            self.failUnlessIn("Objects Checked: <span>11</span>", res)
-            self.failUnlessIn("Objects Healthy: <span>11</span>", res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
-        d.addCallback(_check_html)
+        yield self.shouldRedirect2("test_POST_DIRURL_deepcheck", _check_redirect,
+                                   self.POST, self.public_url,
+                                   t="start-deep-check", ophandle="123")
+        data = yield self.wait_for_operation(None, "123")
+        self.failUnlessReallyEqual(data["finished"], True)
+        self.failUnlessReallyEqual(data["count-objects-checked"], 11)
+        self.failUnlessReallyEqual(data["count-objects-healthy"], 11)
 
-        d.addCallback(lambda res:
-                      self.GET("/operations/123/"))
-        d.addCallback(_check_html) # should be the same as without the slash
+        res = yield self.get_operation_results(None, "123", "html")
+        self.failUnlessIn("Objects Checked: <span>11</span>", res)
+        self.failUnlessIn("Objects Healthy: <span>11</span>", res)
+        self.failUnlessIn(FAVICON_MARKUP, res)
 
-        d.addCallback(lambda res:
-                      self.shouldFail2(error.Error, "one", "404 Not Found",
-                                       "No detailed results for SI bogus",
-                                       self.GET, "/operations/123/bogus"))
+        res = yield self.GET("/operations/123/")
+        # should be the same as without the slash
+        self.failUnlessIn("Objects Checked: <span>11</span>", res)
+        self.failUnlessIn("Objects Healthy: <span>11</span>", res)
+        self.failUnlessIn(FAVICON_MARKUP, res)
+
+        yield self.shouldFail2(error.Error, "one", "404 Not Found",
+                               "No detailed results for SI bogus",
+                               self.GET, "/operations/123/bogus")
 
         foo_si = self._foo_node.get_storage_index()
         foo_si_s = base32.b2a(foo_si)
-        d.addCallback(lambda res:
-                      self.GET("/operations/123/%s?output=JSON" % foo_si_s))
-        def _check_foo_json(res):
-            data = json.loads(res)
-            self.failUnlessEqual(data["storage-index"], foo_si_s)
-            self.failUnless(data["results"]["healthy"])
-        d.addCallback(_check_foo_json)
-        return d
+        res = yield self.GET("/operations/123/%s?output=JSON" % foo_si_s)
+        data = json.loads(res)
+        self.failUnlessEqual(data["storage-index"], foo_si_s)
+        self.failUnless(data["results"]["healthy"])
 
     def test_POST_DIRURL_deepcheck_and_repair(self):
         d = self.POST(self.public_url, t="start-deep-check", repair="true",
