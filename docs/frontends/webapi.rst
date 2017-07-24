@@ -1874,7 +1874,7 @@ of the introducer(s) and storage server(s), here's an example::
 The above json ``introducers`` section includes a list of
 introducer connectivity status messages.
 
-The above json ``servers`` section above is a map
+The above json ``servers`` section is a map
 where the key is a storage server node ID and the value
 is a map of properties with the following usage for each key:
 
