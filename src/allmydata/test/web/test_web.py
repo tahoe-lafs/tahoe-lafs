@@ -574,8 +574,8 @@ class WebMixin(testutil.TimezoneMixin):
 
     def POST2(self, urlpath, body="", headers={}, followRedirect=False):
         url = self.webish_url + urlpath
-        return client.getPage(url, method="POST", postdata=body,
-                              headers=headers, followRedirect=followRedirect)
+        return do_http("POST", url, allow_redirects=followRedirect,
+                       headers=headers, data=body)
 
     def shouldFail(self, res, expected_failure, which,
                    substring=None, response_substring=None):
@@ -3529,7 +3529,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         url = self.webish_url + self.public_url + "/foo" + "?t=" + command_name
 
-        d = client.getPage(url, method="POST", postdata=reqbody)
+        d = do_http("post", url, data=reqbody)
         def _then(res):
             self.failUnlessURIMatchesROChild(newuri9, self._foo_node, u"atomic_added_1")
             self.failUnlessURIMatchesROChild(newuri10, self._foo_node, u"atomic_added_2")
@@ -4391,19 +4391,18 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                    "I don't know how to treat a BOGUS request.",
                                    method="BOGUS")
 
+    @inlineCallbacks
     def test_short_url(self):
         url = self.webish_url + "/uri"
-        d = self.shouldHTTPError("short_url", 501, "Not Implemented",
-                                 "I don't know how to treat a DELETE request.",
-                                 client.getPage, url, method="DELETE")
-        return d
+        yield self.assertHTTPError(url, 501,
+                                   "I don't know how to treat a DELETE request.",
+                                   method="DELETE")
 
+    @inlineCallbacks
     def test_ophandle_bad(self):
         url = self.webish_url + "/operations/bogus?t=status"
-        d = self.shouldHTTPError("ophandle_bad", 404, "404 Not Found",
-                                 "unknown/expired handle 'bogus'",
-                                 client.getPage, url)
-        return d
+        yield self.assertHTTPError(url, 404,
+                                   "unknown/expired handle 'bogus'")
 
     def test_ophandle_cancel(self):
         url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=128"
