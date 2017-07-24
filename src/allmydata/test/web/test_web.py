@@ -536,7 +536,7 @@ class WebMixin(testutil.TimezoneMixin):
         url = self.webish_url + urlpath
         return do_http("delete", url)
 
-    def POST(self, urlpath, followRedirect=False, **fields):
+    def build_form(self, **fields):
         sepbase = "boogabooga"
         sep = "--" + sepbase
         form = []
@@ -566,6 +566,10 @@ class WebMixin(testutil.TimezoneMixin):
         if fields:
             body = "\r\n".join(form) + "\r\n"
             headers["content-type"] = "multipart/form-data; boundary=%s" % sepbase
+        return (body, headers)
+
+    def POST(self, urlpath, followRedirect=False, **fields):
+        body, headers = self.build_form(**fields)
         return self.POST2(urlpath, body, headers, followRedirect)
 
     def POST2(self, urlpath, body="", headers={}, followRedirect=False):
