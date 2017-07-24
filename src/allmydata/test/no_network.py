@@ -16,10 +16,12 @@
 import os
 from zope.interface import implementer
 from twisted.application import service
-from twisted.internet import defer, reactor
+from twisted.internet import defer
 from twisted.python.failure import Failure
+from twisted.web.error import Error
 from foolscap.api import Referenceable, fireEventually, RemoteException
 from base64 import b32encode
+import treq
 
 from allmydata.util.assertutil import _assert
 
@@ -28,7 +30,6 @@ from allmydata.client import Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
-from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker, IServer
 from .common import TEST_RSA_KEY_SIZE
 
@@ -479,21 +480,28 @@ class GridTestMixin:
             with open(i_sharefile, "wb") as f:
                 f.write(corruptdata)
 
+    @defer.inlineCallbacks
     def GET(self, urlpath, followRedirect=False, return_response=False,
             method="GET", clientnum=0, **kwargs):
         # if return_response=True, this fires with (data, statuscode,
         # respheaders) instead of just data.
         assert not isinstance(urlpath, unicode)
         url = self.client_baseurls[clientnum] + urlpath
-        factory = HTTPClientGETFactory(url, method=method,
-                                       followRedirect=followRedirect, **kwargs)
-        reactor.connectTCP("localhost", self.client_webports[clientnum],factory)
-        d = factory.deferred
-        def _got_data(data):
-            return (data, factory.status, factory.response_headers)
+
+        response = yield treq.request(method, url, persistent=False,
+                                      allow_redirects=followRedirect,
+                                      **kwargs)
+        data = yield response.content()
         if return_response:
-            d.addCallback(_got_data)
-        return factory.deferred
+            # we emulate the old HTTPClientGetFactory-based response, which
+            # wanted a tuple of (bytestring of data, bytestring of response
+            # code like "200" or "404", and a
+            # twisted.web.http_headers.Headers instance). Fortunately treq's
+            # response.headers has one.
+            defer.returnValue( (data, str(response.code), response.headers) )
+        if 400 <= response.code < 600:
+            raise Error(response.code, response=data)
+        defer.returnValue(data)
 
     def PUT(self, urlpath, **kwargs):
         return self.GET(urlpath, method="PUT", **kwargs)
