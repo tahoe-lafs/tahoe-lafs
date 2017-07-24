@@ -4437,13 +4437,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
 
+    @inlineCallbacks
     def test_bad_method(self):
         url = self.webish_url + self.public_url + "/foo/bar.txt"
-        d = self.shouldHTTPError("bad_method",
-                                 501, "Not Implemented",
-                                 "I don't know how to treat a BOGUS request.",
-                                 client.getPage, url, method="BOGUS")
-        return d
+        yield self.assertHTTPError(url, 501,
+                                   "I don't know how to treat a BOGUS request.",
+                                   method="BOGUS")
 
     def test_short_url(self):
         url = self.webish_url + "/uri"

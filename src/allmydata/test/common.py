@@ -1,6 +1,8 @@
 import os, random, struct
+import treq
 from zope.interface import implementer
 from twisted.internet import defer
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.interfaces import IPullProducer
 from twisted.python import failure
 from twisted.application import service
@@ -508,6 +510,18 @@ class WebErrorMixin:
         d = defer.maybeDeferred(callable, *args, **kwargs)
         d.addBoth(self._shouldHTTPError, which, _validate)
         return d
+
+    @inlineCallbacks
+    def assertHTTPError(self, url, code, response_substring,
+                        method="get", persistent=False,
+                        **args):
+        response = yield treq.request(method, url, persistent=persistent,
+                                      **args)
+        body = yield response.content()
+        self.assertEquals(response.code, code)
+        if response_substring is not None:
+            self.assertIn(response_substring, body)
+        returnValue(body)
 
 class ErrorMixin(WebErrorMixin):
     def explain_error(self, f):
