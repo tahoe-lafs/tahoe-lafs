@@ -1871,7 +1871,7 @@ of the introducer(s) and storage server(s), here's an example::
   }
 
 
-The abos json ``introducers`` section includes a list of
+The above json ``introducers`` section includes a list of
 introducer connectivity status messages.
 
 The above json ``servers`` section above is a map
