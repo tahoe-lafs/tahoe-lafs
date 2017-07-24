@@ -2488,31 +2488,18 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addBoth(self.shouldRedirect, "/")
         return d
 
-    def shouldRedirect2(self, which, checker, callable, *args, **kwargs):
-        d = defer.maybeDeferred(callable, *args, **kwargs)
-        def done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(error.PageRedirect)
-                statuscode = res.value.status
-                target = res.value.location
-                return checker(statuscode, target)
-            self.fail("%s: callable was supposed to redirect, not return '%s'"
-                      % (which, res))
-        d.addBoth(done)
-        return d
-
     @inlineCallbacks
     def test_POST_upload_no_link_whendone_results(self):
-        def check(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnless(target.startswith(self.webish_url), target)
-            return client.getPage(target, method="GET")
-        # We encode "uri" as "%75ri" to exercise a case affected by ticket #1860.
-        res = yield self.shouldRedirect2("test_POST_upload_no_link_whendone_results",
-                                         check,
-                                         self.POST, "/uri", t="upload",
-                                         when_done="/%75ri/%(uri)s",
-                                         file=("new.txt", self.NEWFILE_CONTENTS))
+        # We encode "uri" as "%75ri" to exercise a case affected by ticket #1860
+        body, headers = self.build_form(t="upload",
+                                        when_done="/%75ri/%(uri)s",
+                                        file=("new.txt", self.NEWFILE_CONTENTS),
+                                        )
+        redir_url = yield self.shouldRedirectTo(self.webish_url + "/uri", None,
+                                                method="post",
+                                                data=body, headers=headers,
+                                                code=http.FOUND)
+        res = yield do_http("get", redir_url)
         self.failUnlessReallyEqual(res, self.NEWFILE_CONTENTS)
 
     def test_POST_upload_no_link_mutable(self):
@@ -2867,14 +2854,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.failUnlessIn("Healthy :", res)
 
         redir_url = "http://allmydata.org/TARGET"
-        def _check2(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnlessReallyEqual(target, redir_url)
-        yield self.shouldRedirect2("test_POST_FILEURL_check",
-                                   _check2,
-                                   self.POST, bar_url,
-                                   t="check",
-                                   when_done=redir_url)
+        body, headers = self.build_form(t="check", when_done=redir_url)
+        yield self.shouldRedirectTo(self.webish_url + bar_url, redir_url,
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
+
         res = yield self.POST(bar_url, t="check", return_to=redir_url)
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file", res)
@@ -2892,14 +2876,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.failUnlessIn("Healthy :", res)
 
         redir_url = "http://allmydata.org/TARGET"
-        def _check2(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnlessReallyEqual(target, redir_url)
-        yield self.shouldRedirect2("test_POST_FILEURL_check_and_repair",
-                                   _check2,
-                                   self.POST, bar_url,
-                                   t="check", repair="true",
-                                   when_done=redir_url)
+        body, headers = self.build_form(t="check", repair="true",
+                                        when_done=redir_url)
+        yield self.shouldRedirectTo(self.webish_url + bar_url, redir_url,
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
+
         res = yield self.POST(bar_url, t="check", return_to=redir_url)
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file", res)
@@ -2912,14 +2894,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.failUnlessIn("Healthy :", res)
 
         redir_url = "http://allmydata.org/TARGET"
-        def _check2(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnlessReallyEqual(target, redir_url)
-        yield self.shouldRedirect2("test_POST_DIRURL_check",
-                                   _check2,
-                                   self.POST, foo_url,
-                                   t="check",
-                                   when_done=redir_url)
+        body, headers = self.build_form(t="check", when_done=redir_url)
+        yield self.shouldRedirectTo(self.webish_url + foo_url, redir_url,
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
+
         res = yield self.POST(foo_url, t="check", return_to=redir_url)
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file/directory", res)
@@ -2937,14 +2916,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.failUnlessIn("Healthy :", res)
 
         redir_url = "http://allmydata.org/TARGET"
-        def _check2(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnlessReallyEqual(target, redir_url)
-        yield self.shouldRedirect2("test_POST_DIRURL_check_and_repair",
-                                   _check2,
-                                   self.POST, foo_url,
-                                   t="check", repair="true",
-                                   when_done=redir_url)
+        body, headers = self.build_form(t="check", repair="true",
+                                        when_done=redir_url)
+        yield self.shouldRedirectTo(self.webish_url + foo_url, redir_url,
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
         res = yield self.POST(foo_url, t="check", return_to=redir_url)
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file/directory", res)
@@ -3011,12 +2987,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_POST_DIRURL_deepcheck(self):
-        def _check_redirect(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnless(target.endswith("/operations/123"))
-        yield self.shouldRedirect2("test_POST_DIRURL_deepcheck", _check_redirect,
-                                   self.POST, self.public_url,
-                                   t="start-deep-check", ophandle="123")
+        body, headers = self.build_form(t="start-deep-check", ophandle="123")
+        yield self.shouldRedirectTo(self.webish_url + self.public_url,
+                                    self.webish_url + "/operations/123",
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
+
         data = yield self.wait_for_operation(None, "123")
         self.failUnlessReallyEqual(data["finished"], True)
         self.failUnlessReallyEqual(data["count-objects-checked"], 11)
@@ -4021,14 +3997,19 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return res.value.location
 
     @inlineCallbacks
-    def shouldRedirectTo(self, url, target_location):
-        response = yield treq.request("get", url, persistent=False,
-                                      allow_redirects=False)
-        self.assertIn(response.code, [http.MOVED_PERMANENTLY,
-                                      http.FOUND,
-                                      http.TEMPORARY_REDIRECT])
+    def shouldRedirectTo(self, url, target_location, method="get",
+                         code=None, **args):
+        response = yield treq.request(method, url, persistent=False,
+                                      allow_redirects=False, **args)
+        codes = [http.MOVED_PERMANENTLY,
+                 http.FOUND,
+                 http.TEMPORARY_REDIRECT,
+                 ] if code is None else [code]
+        self.assertIn(response.code, codes)
         location = response.headers.getRawHeaders(b"location")[0]
-        self.assertEquals(location, target_location)
+        if target_location is not None:
+            self.assertEquals(location, target_location)
+        returnValue(location)
 
     @inlineCallbacks
     def test_GET_URI_form(self):
