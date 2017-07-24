@@ -568,9 +568,9 @@ class WebMixin(testutil.TimezoneMixin):
             headers["content-type"] = "multipart/form-data; boundary=%s" % sepbase
         return (body, headers)
 
-    def POST(self, urlpath, followRedirect=False, **fields):
+    def POST(self, urlpath, **fields):
         body, headers = self.build_form(**fields)
-        return self.POST2(urlpath, body, headers, followRedirect)
+        return self.POST2(urlpath, body, headers)
 
     def POST2(self, urlpath, body="", headers={}, followRedirect=False):
         url = self.webish_url + urlpath
@@ -3150,7 +3150,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         (newkids, caps) = self._create_initial_children()
         return self.shouldHTTPError("POST_mkdir_initial_children_bad_format",
                                     400, "Bad Request", "Unknown format: foo",
-                                    self.POST, self.public_url + \
+                                    self.POST2, self.public_url + \
                                     "/foo?t=mkdir-with-children&name=newdir&format=foo",
                                     json.dumps(newkids))
 
@@ -3187,7 +3187,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_mkdir_2(self):
-        d = self.POST(self.public_url + "/foo/newdir?t=mkdir", "")
+        d = self.POST2(self.public_url + "/foo/newdir?t=mkdir", "")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -3195,7 +3195,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_mkdirs_2(self):
-        d = self.POST(self.public_url + "/foo/bardir/newdir?t=mkdir", "")
+        d = self.POST2(self.public_url + "/foo/bardir/newdir?t=mkdir", "")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"bardir"))
         d.addCallback(lambda res: self._foo_node.get(u"bardir"))
@@ -3916,7 +3916,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_relink_file_multi_level(self):
-        d = self.POST(self.public_url + "/foo/sub/level2?t=mkdir", "")
+        d = self.POST2(self.public_url + "/foo/sub/level2?t=mkdir", "")
         d.addCallback(lambda res: self.POST(self.public_url + "/foo", t="relink",
                       from_name="bar.txt", to_dir=self.public_root.get_uri() + "/foo/sub/level2"))
         d.addCallback(lambda res: self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
