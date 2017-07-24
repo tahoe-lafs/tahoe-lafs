@@ -3410,30 +3410,30 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              json.dumps(newkids))
         return d
 
+    @inlineCallbacks
     def test_welcome_page_mkdir_button(self):
         # Fetch the welcome page.
-        d = self.GET("/")
-        def _after_get_welcome_page(res):
-            MKDIR_BUTTON_RE = re.compile(
-                '<form(?: action="([^"]*)"| method="post"| enctype="multipart/form-data"){3}>.*'
-                '<input (?:type="hidden" |name="t" |value="([^"]*?)" ){3}/>[ ]*'
-                '<input (?:type="hidden" |name="([^"]*)" |value="([^"]*)" ){3}/>[ ]*'
-                '<input (type="submit" |class="btn" |value="Create a directory[^"]*" ){3}/>')
-            html = res.replace('\n', ' ')
-            mo = MKDIR_BUTTON_RE.search(html)
-            self.failUnless(mo, html)
-            formaction = mo.group(1)
-            formt = mo.group(2)
-            formaname = mo.group(3)
-            formavalue = mo.group(4)
-            return (formaction, formt, formaname, formavalue)
-        d.addCallback(_after_get_welcome_page)
-        def _after_parse_form(res):
-            (formaction, formt, formaname, formavalue) = res
-            return self.POST("/%s?t=%s&%s=%s" % (formaction, formt, formaname, formavalue))
-        d.addCallback(_after_parse_form)
-        d.addBoth(self.shouldRedirect, None, statuscode='303')
-        return d
+        res = yield self.GET("/")
+        MKDIR_BUTTON_RE = re.compile(
+            '<form(?: action="([^"]*)"| method="post"| enctype="multipart/form-data"){3}>.*'
+            '<input (?:type="hidden" |name="t" |value="([^"]*?)" ){3}/>[ ]*'
+            '<input (?:type="hidden" |name="([^"]*)" |value="([^"]*)" ){3}/>[ ]*'
+            '<input (type="submit" |class="btn" |value="Create a directory[^"]*" ){3}/>')
+        html = res.replace('\n', ' ')
+        mo = MKDIR_BUTTON_RE.search(html)
+        self.failUnless(mo, html)
+        formaction = mo.group(1)
+        formt = mo.group(2)
+        formaname = mo.group(3)
+        formavalue = mo.group(4)
+
+        url = self.webish_url + "/%s?t=%s&%s=%s" % (formaction, formt,
+                                                    formaname, formavalue)
+        target = yield self.shouldRedirectTo(url, None,
+                                             method="post",
+                                             code=http.SEE_OTHER)
+        target = urllib.unquote(target)
+        self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     def test_POST_mkdir_replace(self): # return value?
         d = self.POST(self.public_url + "/foo", t="mkdir", name="sub")
@@ -3463,21 +3463,26 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessNodeKeysAre, [u"baz.txt"])
         return d
 
+    @inlineCallbacks
     def test_POST_mkdir_whendone_field(self):
-        d = self.POST(self.public_url + "/foo",
-                      t="mkdir", name="newdir", when_done="/THERE")
-        d.addBoth(self.shouldRedirect, "/THERE")
-        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessNodeKeysAre, [])
-        return d
+        body, headers = self.build_form(t="mkdir", name="newdir",
+                                        when_done="/THERE")
+        yield self.shouldRedirectTo(self.webish_url + self.public_url + "/foo",
+                                    self.webish_url + "/THERE",
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
+        res = yield self._foo_node.get(u"newdir")
+        self.failUnlessNodeKeysAre(res, [])
 
+    @inlineCallbacks
     def test_POST_mkdir_whendone_queryarg(self):
-        d = self.POST(self.public_url + "/foo?when_done=/THERE",
-                      t="mkdir", name="newdir")
-        d.addBoth(self.shouldRedirect, "/THERE")
-        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessNodeKeysAre, [])
-        return d
+        body, headers = self.build_form(t="mkdir", name="newdir")
+        url = self.webish_url + self.public_url + "/foo?when_done=/THERE"
+        yield self.shouldRedirectTo(url, self.webish_url + "/THERE",
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
+        res = yield self._foo_node.get(u"newdir")
+        self.failUnlessNodeKeysAre(res, [])
 
     def test_POST_bad_t(self):
         d = self.shouldFail2(error.Error, "POST_bad_t",
@@ -3979,26 +3984,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                       self.GET(self.public_url + "/foo/sub/empty/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
-
-    def shouldRedirect(self, res, target=None, statuscode=None, which=""):
-        """ If target is not None then the redirection has to go to target.  If
-        statuscode is not None then the redirection has to be accomplished with
-        that HTTP status code."""
-        if not isinstance(res, failure.Failure):
-            to_where = (target is None) and "somewhere" or ("to " + target)
-            self.fail("%s: we were expecting to get redirected %s, not get an"
-                      " actual page: %s" % (which, to_where, res))
-        res.trap(error.PageRedirect)
-        if statuscode is not None:
-            self.failUnlessReallyEqual(res.value.status, statuscode,
-                                       "%s: not a redirect" % which)
-        if target is not None:
-            # the PageRedirect does not seem to capture the uri= query arg
-            # properly, so we can't check for it.
-            realtarget = self.webish_url + target
-            self.failUnlessReallyEqual(res.value.location, realtarget,
-                                       "%s: wrong target" % which)
-        return res.value.location
 
     @inlineCallbacks
     def shouldRedirectTo(self, url, target_location, method="get",
