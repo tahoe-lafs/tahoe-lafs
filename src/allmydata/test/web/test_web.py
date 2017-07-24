@@ -2482,11 +2482,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessCHKURIHasContents, self.NEWFILE_CONTENTS)
         return d
 
+    @inlineCallbacks
     def test_POST_upload_no_link_whendone(self):
-        d = self.POST("/uri", t="upload", when_done="/",
-                      file=("new.txt", self.NEWFILE_CONTENTS))
-        d.addBoth(self.shouldRedirect, "/")
-        return d
+        body, headers = self.build_form(t="upload", when_done="/",
+                                        file=("new.txt", self.NEWFILE_CONTENTS))
+        yield self.shouldRedirectTo(self.webish_url + "/uri",
+                                    self.webish_url + "/",
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
 
     @inlineCallbacks
     def test_POST_upload_no_link_whendone_results(self):
@@ -2810,15 +2813,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
+    @inlineCallbacks
     def test_POST_upload_whendone(self):
-        d = self.POST(self.public_url + "/foo", t="upload", when_done="/THERE",
-                      file=("new.txt", self.NEWFILE_CONTENTS))
-        d.addBoth(self.shouldRedirect, "/THERE")
+        body, headers = self.build_form(t="upload", when_done="/THERE",
+                                        file=("new.txt", self.NEWFILE_CONTENTS))
+        yield self.shouldRedirectTo(self.webish_url + self.public_url + "/foo",
+                                    self.webish_url + "/THERE",
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
         fn = self._foo_node
-        d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, u"new.txt",
-                                                      self.NEWFILE_CONTENTS))
-        return d
+        yield self.failUnlessChildContentsAre(fn, u"new.txt",
+                                              self.NEWFILE_CONTENTS)
 
     def test_POST_upload_named(self):
         fn = self._foo_node
@@ -3230,24 +3235,23 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addErrback(self.explain_web_error)
         return d
 
+    @inlineCallbacks
     def test_POST_mkdir_no_parentdir_redirect(self):
-        d = self.POST("/uri?t=mkdir&redirect_to_result=true")
-        d.addBoth(self.shouldRedirect, None, statuscode='303')
-        def _check_target(target):
-            target = urllib.unquote(target)
-            self.failUnless(target.startswith("uri/URI:DIR2:"), target)
-        d.addCallback(_check_target)
-        return d
+        url = self.webish_url + "/uri?t=mkdir&redirect_to_result=true"
+        target = yield self.shouldRedirectTo(url, None, method="post",
+                                             code=http.SEE_OTHER)
+        target = urllib.unquote(target)
+        self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
+    @inlineCallbacks
     def test_POST_mkdir_no_parentdir_redirect2(self):
-        d = self.POST("/uri", t="mkdir", redirect_to_result="true")
-        d.addBoth(self.shouldRedirect, None, statuscode='303')
-        def _check_target(target):
-            target = urllib.unquote(target)
-            self.failUnless(target.startswith("uri/URI:DIR2:"), target)
-        d.addCallback(_check_target)
-        d.addErrback(self.explain_web_error)
-        return d
+        body, headers = self.build_form(t="mkdir", redirect_to_result="true")
+        target = yield self.shouldRedirectTo(self.webish_url + "/uri", None,
+                                             method="post",
+                                             data=body, headers=headers,
+                                             code=http.SEE_OTHER)
+        target = urllib.unquote(target)
+        self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     def _make_readonly(self, u):
         ro_uri = uri.from_string(u).get_readonly()
