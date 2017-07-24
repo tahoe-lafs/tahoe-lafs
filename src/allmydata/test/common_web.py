@@ -2,7 +2,6 @@
 import re
 import treq
 from twisted.internet import defer
-from twisted.web import client
 from twisted.web.error import Error
 from nevow.testutil import FakeRequest
 from nevow import inevow, context
@@ -60,14 +59,6 @@ class WebRenderingMixin:
         s = re.sub(r'<[^>]*>', ' ', s)
         s = re.sub(r'\s+', ' ', s)
         return s
-
-
-class MyGetter(client.HTTPPageGetter):
-    handleStatus_206 = lambda self: self.handleStatus_200() # PARTIAL_CONTENT
-    handleStatus_304 = lambda self: self.handleStatus_200() # NOT_MODIFIED
-
-class HTTPClientGETFactory(client.HTTPClientFactory):
-    protocol = MyGetter
 
 @defer.inlineCallbacks
 def do_http(method, url, **kwargs):

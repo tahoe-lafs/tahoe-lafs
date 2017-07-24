@@ -4,7 +4,7 @@ import treq
 
 from twisted.application import service
 from twisted.trial import unittest
-from twisted.internet import defer, reactor
+from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
@@ -43,7 +43,6 @@ from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
 from ..common_web import (
-    HTTPClientGETFactory,
     do_http,
     Error,
 )
@@ -497,21 +496,28 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["ro_uri"]),
                                    self._quux_txt_readonly_uri)
 
+    @inlineCallbacks
     def GET(self, urlpath, followRedirect=False, return_response=False,
             **kwargs):
         # if return_response=True, this fires with (data, statuscode,
         # respheaders) instead of just data.
-        assert not isinstance(urlpath, unicode)
+
+        # treq can accept unicode URLs, unlike the old client.getPage
         url = self.webish_url + urlpath
-        factory = HTTPClientGETFactory(url, method="GET",
-                                       followRedirect=followRedirect, **kwargs)
-        reactor.connectTCP("localhost", self.webish_port, factory)
-        d = factory.deferred
-        def _got_data(data):
-            return (data, factory.status, factory.response_headers)
+        response = yield treq.request("get", url, persistent=False,
+                                      allow_redirects=followRedirect,
+                                      **kwargs)
+        data = yield response.content()
         if return_response:
-            d.addCallback(_got_data)
-        return factory.deferred
+            # we emulate the old HTTPClientGetFactory-based response, which
+            # wanted a tuple of (bytestring of data, bytestring of response
+            # code like "200" or "404", and a
+            # twisted.web.http_headers.Headers instance). Fortunately treq's
+            # response.headers has one.
+            returnValue( (data, str(response.code), response.headers) )
+        if 400 <= response.code < 600:
+            raise Error(response.code, response=data)
+        returnValue(data)
 
     @inlineCallbacks
     def HEAD(self, urlpath, return_response=False, headers={}):
@@ -520,10 +526,7 @@ class WebMixin(testutil.TimezoneMixin):
                                       headers=headers)
         if 400 <= response.code < 600:
             raise Error(response.code, response="")
-        resp_headers = {}
-        for (key, values) in response.headers.getAllRawHeaders():
-            resp_headers[key.lower()] = values
-        returnValue( ("", response.code, resp_headers) )
+        returnValue( ("", response.code, response.headers) )
 
     def PUT(self, urlpath, data, headers={}):
         url = self.webish_url + urlpath
@@ -1036,8 +1039,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes 1-10/%d" % len(self.BAR_CONTENTS))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS[1:11])
         d.addCallback(_got)
@@ -1050,8 +1053,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes 5-%d/%d" % (length-1, length))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS[5:])
         d.addCallback(_got)
@@ -1064,8 +1067,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes %d-%d/%d" % (length-5, length-1, length))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS[-5:])
         d.addCallback(_got)
@@ -1087,8 +1090,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(res, "")
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes 1-10/%d" % len(self.BAR_CONTENTS))
         d.addCallback(_got)
         return d
@@ -1100,8 +1103,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes 5-%d/%d" % (length-1, length))
         d.addCallback(_got)
         return d
@@ -1113,8 +1116,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes %d-%d/%d" % (length-5, length-1, length))
         d.addCallback(_got)
         return d
@@ -1134,7 +1137,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 200)
-            self.failUnless(not headers.has_key("content-range"))
+            self.failUnless(not headers.hasHeader("content-range"))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS)
         d.addCallback(_got)
         return d
@@ -1143,9 +1146,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.HEAD(self.public_url + "/foo/bar.txt", return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(res, "")
-            self.failUnlessReallyEqual(headers["content-length"][0],
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-length")[0],
                                        str(len(self.BAR_CONTENTS)))
-            self.failUnlessReallyEqual(headers["content-type"], ["text/plain"])
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-type"),
+                                       ["text/plain"])
         d.addCallback(_got)
         return d
 
@@ -1325,7 +1329,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             d = self.GET(targetbase, return_response=True, followRedirect=True)
             def _just_the_etag(result):
                 data, response, headers = result
-                etag = headers['etag'][0]
+                etag = headers.getRawHeaders('etag')[0]
                 if uri.startswith('URI:DIR'):
                     self.failUnless(etag.startswith('DIR:'), etag)
                 return etag
@@ -1350,7 +1354,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             d = self.GET(uri, return_response=True)
             # extract the ETag
             d.addCallback(lambda (data, code, headers):
-                          headers['etag'][0])
+                          headers.getRawHeaders('etag')[0])
             # do a GET that's supposed to match the ETag
             d.addCallback(lambda etag:
                           self.GET(uri, return_response=True,
@@ -1365,13 +1369,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             target = "/uri/%s?t=%s" % (uri, t)
             d = self.GET(target, return_response=True, followRedirect=True)
             d.addCallback(lambda (data, code, headers):
-                          self.failIf("etag" in headers, target))
+                          self.failIf(headers.hasHeader("etag"), target))
             return d
         def _yes_etag(uri, t):
             target = "/uri/%s?t=%s" % (uri, t)
             d = self.GET(target, return_response=True, followRedirect=True)
             d.addCallback(lambda (data, code, headers):
-                          self.failUnless("etag" in headers, target))
+                          self.failUnless(headers.hasHeader("etag"), target))
             return d
 
         d.addCallback(lambda ign: _yes_etag(self._bar_txt_uri, ""))
@@ -1394,7 +1398,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET(self.public_url + "/foo/bar.txt?filename=bar.txt&save=true",
                      return_response=True)
         def _got((res, statuscode, headers)):
-            content_disposition = headers["content-disposition"][0]
+            content_disposition = headers.getRawHeaders("content-disposition")[0]
             self.failUnless(content_disposition == 'attachment; filename="bar.txt"', content_disposition)
             self.failUnlessIsBarDotTxt(res)
         d.addCallback(_got)
@@ -2433,7 +2437,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, filename,
                                                       self.NEWFILE_CONTENTS))
-        target_url = self.public_url + "/foo/" + filename.encode("utf-8")
+        target_url = self.public_url + u"/foo/" + filename
         d.addCallback(lambda res: self.GET(target_url))
         d.addCallback(lambda contents: self.failUnlessReallyEqual(contents,
                                                                   self.NEWFILE_CONTENTS,
@@ -2450,7 +2454,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, filename,
                                                       self.NEWFILE_CONTENTS))
-        target_url = self.public_url + "/foo/" + filename.encode("utf-8")
+        target_url = self.public_url + u"/foo/" + filename
         d.addCallback(lambda res: self.GET(target_url))
         d.addCallback(lambda contents: self.failUnlessReallyEqual(contents,
                                                                   self.NEWFILE_CONTENTS,
@@ -2736,9 +2740,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                 return_response=True))
         def _got_headers((res, status, headers)):
             self.failUnlessReallyEqual(res, "")
-            self.failUnlessReallyEqual(headers["content-length"][0],
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-length")[0],
                                        str(len(NEW2_CONTENTS)))
-            self.failUnlessReallyEqual(headers["content-type"], ["text/plain"])
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-type"),
+                                       ["text/plain"])
         d.addCallback(_got_headers)
 
         # make sure that outdated size limits aren't enforced anymore.
@@ -4045,26 +4050,36 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                        "%s: wrong target" % which)
         return res.value.location
 
-    def test_GET_URI_form(self):
-        base = "/uri?uri=%s" % self._bar_txt_uri
-        # this is supposed to give us a redirect to /uri/$URI, plus arguments
-        targetbase = "/uri/%s" % urllib.quote(self._bar_txt_uri)
-        d = self.GET(base)
-        d.addBoth(self.shouldRedirect, targetbase)
-        d.addCallback(lambda res: self.GET(base+"&filename=bar.txt"))
-        d.addBoth(self.shouldRedirect, targetbase+"?filename=bar.txt")
-        d.addCallback(lambda res: self.GET(base+"&t=json"))
-        d.addBoth(self.shouldRedirect, targetbase+"?t=json")
-        d.addCallback(self.log, "about to get file by uri")
-        d.addCallback(lambda res: self.GET(base, followRedirect=True))
-        d.addCallback(self.failUnlessIsBarDotTxt)
-        d.addCallback(self.log, "got file by uri, about to get dir by uri")
-        d.addCallback(lambda res: self.GET("/uri?uri=%s&t=json" % self._foo_uri,
-                                           followRedirect=True))
-        d.addCallback(self.failUnlessIsFooJSON)
-        d.addCallback(self.log, "got dir by uri")
+    @inlineCallbacks
+    def shouldRedirectTo(self, url, target_location):
+        response = yield treq.request("get", url, persistent=False,
+                                      allow_redirects=False)
+        self.assertIn(response.code, [http.MOVED_PERMANENTLY,
+                                      http.FOUND,
+                                      http.TEMPORARY_REDIRECT])
+        location = response.headers.getRawHeaders(b"location")[0]
+        self.assertEquals(location, target_location)
 
-        return d
+    @inlineCallbacks
+    def test_GET_URI_form(self):
+        relbase = "/uri?uri=%s" % self._bar_txt_uri
+        base = self.webish_url + relbase
+        # this is supposed to give us a redirect to /uri/$URI, plus arguments
+        targetbase = self.webish_url + "/uri/%s" % urllib.quote(self._bar_txt_uri)
+        yield self.shouldRedirectTo(base, targetbase)
+        yield self.shouldRedirectTo(base+"&filename=bar.txt",
+                                    targetbase+"?filename=bar.txt")
+        yield self.shouldRedirectTo(base+"&t=json",
+                                    targetbase+"?t=json")
+
+        self.log(None, "about to get file by uri")
+        data = yield self.GET(relbase, followRedirect=True)
+        self.failUnlessIsBarDotTxt(data)
+        self.log(None, "got file by uri, about to get dir by uri")
+        data = yield self.GET("/uri?uri=%s&t=json" % self._foo_uri,
+                              followRedirect=True)
+        self.failUnlessIsFooJSON(data)
+        self.log(None, "got dir by uri")
 
     def test_GET_URI_form_bad(self):
         d = self.shouldFail2(error.Error, "test_GET_URI_form_bad",
