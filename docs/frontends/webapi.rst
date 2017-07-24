@@ -1878,11 +1878,11 @@ The above json ``servers`` section is a map
 where the key is a storage server node ID and the value
 is a map of properties with the following usage for each key:
 
-1. available_space - the available space in bytes expressed as an integer
-2. nickname - the storage server nickname
-3. version - the storage server Tahoe-LAFS version
-4. connection_status - connectivity status
-5. last_received_data - the time when data was last received,
+1. ``available_space`` - the available space in bytes expressed as an integer
+2. ``nickname`` - the storage server nickname
+3. ``version`` - the storage server Tahoe-LAFS version
+4. ``connection_status`` - connectivity status
+5. ``last_received_data`` - the time when data was last received,
    expressed in seconds since epoch
 
 ``GET /status/``
