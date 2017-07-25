@@ -743,9 +743,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET("/?t=json")
         def _check(res):
             decoded = simplejson.loads(res)
-            self.failUnless("other_nodeid" in decoded['servers'])
-            self.failUnless("introducers" in decoded.keys())
-            self.failUnless("servers" in decoded.keys())
+            self.assertIn("other_nodeid", decoded['servers'])
+            self.assertIn("introducers", decoded)
+            self.assertIn("servers", decoded)
         d.addCallback(_check)
         return d
 
