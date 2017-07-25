@@ -26,7 +26,8 @@ from allmydata.web.common import text_plain, WebError, \
      boolean_of_arg, get_arg, get_root, parse_replace_arg, \
      should_create_intermediate_directories, \
      getxmlfile, RenderMixin, humanize_failure, convert_children_json, \
-     get_format, get_mutable_type, get_filenode_metadata, render_time
+     get_format, get_mutable_type, get_filenode_metadata, render_time, \
+     MultiFormatPage
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.check_results import CheckResultsRenderer, \
@@ -954,28 +955,26 @@ class RenameForm(rend.Page):
         ctx.tag.attributes['value'] = name
         return ctx.tag
 
-class ManifestResults(rend.Page, ReloadMixin):
+class ManifestResults(MultiFormatPage, ReloadMixin):
     docFactory = getxmlfile("manifest.xhtml")
+
+    # Control MultiFormatPage
+    formatArgument = "output"
+    formatDefault = "html"
 
     def __init__(self, client, monitor):
         self.client = client
         self.monitor = monitor
 
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        output = get_arg(req, "output", "html").lower()
-        if output == "text":
-            return self.text(req)
-        if output == "json":
-            return self.json(req)
-        return rend.Page.renderHTTP(self, ctx)
+    # The default format is HTML but the HTML renderer is just renderHTTP.
+    render_HTML = None
 
     def slashify_path(self, path):
         if not path:
             return ""
         return "/".join([p.encode("utf-8") for p in path])
 
-    def text(self, req):
+    def render_TEXT(self, req):
         req.setHeader("content-type", "text/plain")
         lines = []
         is_finished = self.monitor.is_finished()
@@ -984,7 +983,7 @@ class ManifestResults(rend.Page, ReloadMixin):
             lines.append(self.slashify_path(path) + " " + cap)
         return "\n".join(lines) + "\n"
 
-    def json(self, req):
+    def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
         m = self.monitor
         s = m.get_status()
@@ -1046,18 +1045,16 @@ class ManifestResults(rend.Page, ReloadMixin):
             ctx.fillSlots("cap", "")
         return ctx.tag
 
-class DeepSizeResults(rend.Page):
+class DeepSizeResults(MultiFormatPage):
+    # Control MultiFormatPage
+    formatArgument = "output"
+    formatDefault = "html"
+
     def __init__(self, client, monitor):
         self.client = client
         self.monitor = monitor
 
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        output = get_arg(req, "output", "html").lower()
-        req.setHeader("content-type", "text/plain")
-        if output == "json":
-            return self.json(req)
-        # plain text
+    def render_HTML(self, req):
         is_finished = self.monitor.is_finished()
         output = "finished: " + {True: "yes", False: "no"}[is_finished] + "\n"
         if is_finished:
@@ -1067,8 +1064,10 @@ class DeepSizeResults(rend.Page):
                      + stats.get("size-directories", 0))
             output += "size: %d\n" % total
         return output
+    render_TEXT = render_HTML
 
-    def json(self, req):
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
         status = {"finished": self.monitor.is_finished(),
                   "size": self.monitor.get_status(),
                   }
