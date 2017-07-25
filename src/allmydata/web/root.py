@@ -1,5 +1,4 @@
-import time, os
-import simplejson
+import time, os, json
 
 from twisted.web import http
 from nevow import rend, inevow, url, tags as T
@@ -219,7 +218,7 @@ class Root(rend.Page):
                 },
                 "servers": servers
             }
-        return simplejson.dumps(data, indent=1) + "\n"
+        return json.dumps(data, indent=1) + "\n"
 
     def render_magic_folder(self, ctx, data):
         if self.client._magic_folder is None:

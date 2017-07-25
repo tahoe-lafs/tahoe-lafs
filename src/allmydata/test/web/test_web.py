@@ -746,7 +746,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         """
         d = self.GET("/?t=json")
         def _check(res):
-            decoded = simplejson.loads(res)
+            decoded = json.loads(res)
             expected = {
                 'introducers': {'statuses': []},
                 'servers': {
