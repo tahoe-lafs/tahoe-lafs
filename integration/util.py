@@ -184,6 +184,8 @@ shares.needed = %(needed)d
 shares.happy = %(happy)d
 shares.total = %(total)d
 
+[storage]
+enabled = %(storage)s
 ''' % {
     'name': name,
     'furl': introducer_furl,
@@ -192,6 +194,7 @@ shares.total = %(total)d
     'needed': needed,
     'happy': happy,
     'total': total,
+    'storage': {True: "true", False: "false"}[storage],
 })
         created_d.addCallback(created)
     else:
