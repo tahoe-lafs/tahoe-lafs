@@ -1,7 +1,11 @@
 
 import time, json
-from nevow import rend, tags as T, inevow
-from allmydata.web.common import getxmlfile, abbreviate_time, get_arg
+from nevow import rend, tags as T
+from allmydata.web.common import (
+    getxmlfile,
+    abbreviate_time,
+    MultiFormatPage,
+)
 from allmydata.util.abbreviate import abbreviate_space
 from allmydata.util import time_format, idlib
 
@@ -10,7 +14,7 @@ def remove_prefix(s, prefix):
         return None
     return s[len(prefix):]
 
-class StorageStatus(rend.Page):
+class StorageStatus(MultiFormatPage):
     docFactory = getxmlfile("storage_status.xhtml")
     # the default 'data' argument is the StorageServer instance
 
@@ -18,13 +22,6 @@ class StorageStatus(rend.Page):
         rend.Page.__init__(self, storage)
         self.storage = storage
         self.nickname = nickname
-
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        t = get_arg(req, "t")
-        if t == "json":
-            return self.render_JSON(req)
-        return rend.Page.renderHTTP(self, ctx)
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
@@ -266,4 +263,3 @@ class StorageStatus(rend.Page):
                              ]]])
 
         return ctx.tag[p]
-
