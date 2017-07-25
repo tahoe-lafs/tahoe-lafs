@@ -1,3 +1,4 @@
+from re import search
 import sys
 import time
 import shutil
@@ -6,6 +7,8 @@ from os.path import join, exists
 
 from twisted.internet import defer, reactor, task
 from twisted.internet.error import ProcessTerminated
+
+import treq
 
 import util
 
@@ -28,8 +31,15 @@ def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, sto
 
     node_dir = join(temp_dir, 'edna')
 
-    print("waiting 5 seconds unil we're maybe ready")
-    yield task.deferLater(reactor, 5, lambda: None)
+    print("scraping introducer html")
+    while True:
+        resp = yield treq.get("http://localhost:9983/")
+        content = yield treq.text_content(resp)
+        match = search(r"Connected to <span>(\d+)</span>", content)
+        if match is not None and int(match.group(1)) > 0:
+            break
+        print("apparently not connected to a storage server")
+        yield task.deferLater(reactor, 1, lambda: None)
 
     # upload a file, which should fail because we have don't have 7
     # storage servers (but happiness is set to 7)
