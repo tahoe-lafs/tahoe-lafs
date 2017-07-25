@@ -7,6 +7,7 @@ from twisted.python import log
 from twisted.python.failure import Failure
 from zope.interface import Interface
 from nevow import loaders, appserver
+from nevow.rend import Page
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata import blacklist
@@ -385,6 +386,64 @@ class RenderMixin:
         if not m:
             raise server.UnsupportedMethod(getattr(self, 'allowedMethods', ()))
         return m(ctx)
+
+
+
+class MultiFormatPage(Page):
+    """
+    ```MultiFormatPage`` is a ``rend.Page`` that can be rendered in a number
+    of different formats.
+
+    Rendered format is controlled by a query argument (given by
+    ``self.formatArgument``).  Different resources may support different
+    formats but ``json`` is a pretty common one.
+    """
+    formatArgument = "t"
+    formatDefault = None
+
+    def renderHTTP(self, ctx):
+        """
+        Dispatch to a renderer for a particular format, as selected by a query
+        argument.
+
+        A renderer for the format given by the query argument matching
+        ``formatArgument`` will be selected and invoked.  The default ``Page``
+        rendering behavior will be used if no format is selected (either by
+        query arguments or by ``formatDefault``).
+
+        :return: The result of the selected renderer.
+        """
+        req = IRequest(ctx)
+        t = get_arg(req, self.formatArgument, self.formatDefault)
+        renderer = self._get_renderer(t)
+        result = renderer(ctx)
+        return result
+
+
+    def _get_renderer(self, fmt):
+        """
+        Get the renderer for the indicated format.
+
+        :param bytes fmt: The format.  If a method with a prefix of
+            ``render_`` and a suffix of this format (upper-cased) is found, it
+            will be used.
+
+        :return: A callable which takes a Nevow context and renders a
+            response.
+        """
+        if fmt is None:
+            return super(MultiFormatPage, self).renderHTTP
+        try:
+            renderer = getattr(self, "render_{}".format(fmt.upper()))
+        except AttributeError:
+            raise WebError(
+                "Unknown {} value: {!r}".format(self.formatArgument, fmt),
+            )
+        else:
+            if renderer is None:
+                return super(MultiFormatPage, self).renderHTTP
+            return lambda ctx: renderer(IRequest(ctx))
+
 
 
 class TokenOnlyWebApi(resource.Resource):
