@@ -740,12 +740,26 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         pass
 
     def test_welcome_json(self):
+        """
+        There is a JSON version of the welcome page which can be selected with the
+        ``t`` query argument.
+        """
         d = self.GET("/?t=json")
         def _check(res):
             decoded = simplejson.loads(res)
-            self.assertIn("other_nodeid", decoded['servers'])
-            self.assertIn("introducers", decoded)
-            self.assertIn("servers", decoded)
+            expected = {
+                'introducers': {'statuses': []},
+                'servers': {
+                    'other_nodeid': {
+                        'available_space': 123456,
+                        'connection_status': 'summary',
+                        'last_received_data': u'',
+                        'nickname': u'other_nickname \u263b',
+                        'version': '1.0',
+                    },
+                },
+            }
+            self.assertEqual(expected, decoded)
         d.addCallback(_check)
         return d
 
