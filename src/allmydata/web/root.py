@@ -197,32 +197,50 @@ class Root(MultiFormatPage):
     def data_my_nickname(self, ctx, data):
         return self.client.nickname
 
+
     def render_JSON(self, req):
         req.setHeader("content-type", "application/json; charset=utf-8")
         intro_summaries = [s.summary for s in self.client.introducer_connection_statuses()]
         sb = self.client.get_storage_broker()
-        servers = {}
-        for server in sb.get_known_servers():
-            server_id = server.get_serverid()
-            servers[server_id] = {}
-            servers[server_id]["connection_status"] = server.get_connection_status().summary
-            servers[server_id]["available_space"] = server.get_available_space()
-            servers[server_id]["nickname"] = server.get_nickname()
-            if server.get_version() is not None:
-                servers[server_id]["version"] = server.get_version()["application-version"]
-            else:
-                servers[server_id]["version"] = ""
-            if server.rref is not None:
-                servers[server_id]["last_received_data"] = server.rref.getDataLastReceivedAt()
-            else:
-                servers[server_id]["last_received_data"] = ""
-            data = {
-                "introducers": {
-                    "statuses": intro_summaries,
-                },
-                "servers": servers
+        servers = self._describe_known_servers(sb)
+        result = {
+            "introducers": {
+                "statuses": intro_summaries,
+            },
+            "servers": servers
+        }
+        return json.dumps(result, indent=1) + "\n"
+
+
+    def _describe_known_servers(self, broker):
+        return sorted(list(
+            {
+                u"nodeid": server.get_serverid(),
+                u"description": self._describe_server(server),
             }
-        return json.dumps(data, indent=1) + "\n"
+            for server
+            in broker.get_known_servers()
+        ))
+
+
+    def _describe_server(self, server):
+        description = {
+            u"connection_status": server.get_connection_status().summary,
+            u"available_space": server.get_available_space(),
+            u"nickname": server.get_nickname(),
+            u"version": None,
+            u"last_received_data": None,
+        }
+        version = server.get_version()
+        if version is not None:
+            description[u"version"] = version["application-version"]
+
+        rref = server.rref
+        if rref is not None:
+            description[u"last_received_data"] = rref.getDataLastReceivedAt()
+
+        return description
+
 
     def render_magic_folder(self, ctx, data):
         if self.client._magic_folder is None:

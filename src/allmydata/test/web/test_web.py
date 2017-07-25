@@ -262,7 +262,7 @@ class FakeClient(Client):
                 last_connect_time = 10, last_loss_time = 20, last_rx_time = 30))
         self.storage_broker.test_add_server("disconnected_nodeid",
             FakeDisplayableServer(
-                serverid="other_nodeid", nickname=u"disconnected_nickname \u263B", connected = False,
+                serverid="disconnected_nodeid", nickname=u"disconnected_nickname \u263B", connected = False,
                 last_connect_time = None, last_loss_time = 25, last_rx_time = 35))
         self.introducer_client = None
         self.history = FakeHistory()
@@ -739,6 +739,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_create(self):
         pass
 
+    maxDiff = None
     def test_welcome_json(self):
         """
         There is a JSON version of the welcome page which can be selected with the
@@ -748,16 +749,29 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check(res):
             decoded = json.loads(res)
             expected = {
-                'introducers': {'statuses': []},
-                'servers': {
-                    'other_nodeid': {
-                        'available_space': 123456,
-                        'connection_status': 'summary',
-                        'last_received_data': u'',
-                        'nickname': u'other_nickname \u263b',
-                        'version': '1.0',
-                    },
+                u'introducers': {
+                    u'statuses': [],
                 },
+                u'servers': sorted([
+                    {u"nodeid": u'other_nodeid',
+                     u"description": {
+                         u'available_space': 123456,
+                         u'connection_status': u'summary',
+                         u'last_received_data': None,
+                         u'nickname': u'other_nickname \u263b',
+                         u'version': u'1.0',
+                     },
+                    },
+                    {u"nodeid": u'disconnected_nodeid',
+                     u"description": {
+                         u'available_space': 123456,
+                         u'connection_status': u'summary',
+                         u'last_received_data': None,
+                         u'nickname': u'disconnected_nickname \u263b',
+                         u'version': u'1.0',
+                     },
+                    },
+                ]),
             }
             self.assertEqual(expected, decoded)
         d.addCallback(_check)
