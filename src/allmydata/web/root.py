@@ -1,7 +1,7 @@
 import time, os, json
 
 from twisted.web import http
-from nevow import rend, inevow, url, tags as T
+from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
@@ -12,8 +12,19 @@ from allmydata.util import log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage, magic_folder
-from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
-     get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
+from allmydata.web.common import (
+    abbreviate_size,
+    getxmlfile,
+    WebError,
+    get_arg,
+    MultiFormatPage,
+    RenderMixin,
+    get_format,
+    get_mutable_type,
+    render_time_delta,
+    render_time,
+    render_time_attr,
+)
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -126,7 +137,7 @@ class IncidentReporter(RenderMixin, rend.Page):
 
 SPACE = u"\u00A0"*2
 
-class Root(rend.Page):
+class Root(MultiFormatPage):
 
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
@@ -186,15 +197,8 @@ class Root(rend.Page):
     def data_my_nickname(self, ctx, data):
         return self.client.nickname
 
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        t = get_arg(req, "t")
-        if t == "json":
-            return self.json_welcome(ctx)
-        return rend.Page.renderHTTP(self, ctx)
-
-    def json_welcome(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "application/json; charset=utf-8")
+    def render_JSON(self, req):
+        req.setHeader("content-type", "application/json; charset=utf-8")
         intro_summaries = [s.summary for s in self.client.introducer_connection_statuses()]
         sb = self.client.get_storage_broker()
         servers = {}
