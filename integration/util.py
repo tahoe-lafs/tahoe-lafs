@@ -145,7 +145,9 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     node_dir = join(temp_dir, name)
     if web_port is None:
         web_port = ''
-    if not exists(node_dir):
+    if exists(node_dir):
+        created_d = defer.succeed(None)
+    else:
         print("creating", node_dir)
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
@@ -197,8 +199,6 @@ enabled = %(storage)s
     'storage': {True: "true", False: "false"}[storage],
 })
         created_d.addCallback(created)
-    else:
-        created_d = defer.succeed(None)
 
     d = Deferred()
     d.callback(None)
