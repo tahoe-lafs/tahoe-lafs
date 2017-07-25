@@ -1,16 +1,20 @@
 
 import time, os
-from nevow import rend, inevow
+from nevow import rend
 from nevow.static import File as nevow_File
 from nevow.util import resource_filename
 import allmydata
 import json
 from allmydata import get_package_versions_string
 from allmydata.util import idlib
-from allmydata.web.common import getxmlfile, get_arg, render_time
+from allmydata.web.common import (
+    getxmlfile,
+    render_time,
+    MultiFormatPage,
+)
 
 
-class IntroducerRoot(rend.Page):
+class IntroducerRoot(MultiFormatPage):
 
     addSlash = True
     docFactory = getxmlfile("introducer.xhtml")
@@ -25,13 +29,7 @@ class IntroducerRoot(rend.Page):
         for filen in os.listdir(static_dir):
             self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
 
-    def renderHTTP(self, ctx):
-        t = get_arg(inevow.IRequest(ctx), "t")
-        if t == "json":
-            return self.render_JSON(ctx)
-        return rend.Page.renderHTTP(self, ctx)
-
-    def render_JSON(self, ctx):
+    def render_JSON(self, req):
         res = {}
 
         counts = {}
@@ -110,4 +108,3 @@ class IntroducerRoot(rend.Page):
         ctx.fillSlots("version", s.version)
         ctx.fillSlots("service_name", s.service_name)
         return ctx.tag
-
