@@ -46,6 +46,11 @@ To run the unit test suite:
 
 * ``tox``
 
+You can pass arguments to ``trial`` with an environment variable.  For
+example, you can run the test suite on multiple cores to speed it up:
+
+* ``TAHOE_LAFS_TRIAL_ARGS="-j4" tox``
+
 For more detailed instructions, read `<docs/INSTALL.rst>`_ .
 
 Once ``tahoe --version`` works, see `<docs/running.rst>`_ to learn how to set
