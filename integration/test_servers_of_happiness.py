@@ -1,10 +1,7 @@
 import sys
-import time
-import shutil
-from os import mkdir, unlink, listdir
-from os.path import join, exists
+from os.path import join
 
-from twisted.internet import defer, reactor, task
+from twisted.internet import task
 from twisted.internet.error import ProcessTerminated
 
 import util
@@ -15,8 +12,7 @@ import pytest
 @pytest.inlineCallbacks
 def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
 
-    # hmm, for some reason this still gets storage enabled ...
-    process = yield util._create_node(
+    yield util._create_node(
         reactor, request, temp_dir, introducer_furl, flog_gatherer, "edna",
         web_port="tcp:9983:interface=localhost",
         storage=False,
@@ -34,7 +30,7 @@ def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, sto
     # upload a file, which should fail because we have don't have 7
     # storage servers (but happiness is set to 7)
     proto = util._CollectOutputProtocol()
-    transport = reactor.spawnProcess(
+    reactor.spawnProcess(
         proto,
         sys.executable,
         [
