@@ -17,7 +17,7 @@ def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, sto
         web_port="tcp:9983:interface=localhost",
         storage=False,
         needed=3,
-        happy=10,
+        happy=7,
         total=10,
     )
 
