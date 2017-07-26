@@ -4,7 +4,7 @@ from os import mkdir
 from os.path import exists, join
 from StringIO import StringIO
 
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
 
@@ -151,7 +151,9 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     node_dir = join(temp_dir, name)
     if web_port is None:
         web_port = ''
-    if not exists(node_dir):
+    if exists(node_dir):
+        created_d = succeed(None)
+    else:
         print("creating", node_dir)
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
@@ -184,8 +186,6 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             set_config(config, 'node', 'log_gatherer.furl', flog_gatherer)
             write_config(config_path, config)
         created_d.addCallback(created)
-    else:
-        created_d = defer.succeed(None)
 
     d = Deferred()
     d.callback(None)
