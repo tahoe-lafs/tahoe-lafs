@@ -4,8 +4,16 @@ import json
 from twisted.internet import defer
 from nevow import rend, inevow, tags as T
 from allmydata.util import base32, idlib
-from allmydata.web.common import getxmlfile, get_arg, \
-     abbreviate_time, abbreviate_rate, abbreviate_size, plural, compute_rate, render_time
+from allmydata.web.common import (
+    getxmlfile,
+    abbreviate_time,
+    abbreviate_rate,
+    abbreviate_size,
+    plural,
+    compute_rate,
+    render_time,
+    MultiFormatPage,
+)
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus, IServermapUpdaterStatus
 
@@ -950,7 +958,8 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         return T.li["Per-Server Response Times: ", l]
 
 
-class Status(rend.Page):
+
+class Status(MultiFormatPage):
     docFactory = getxmlfile("status.xhtml")
     addSlash = True
 
@@ -958,14 +967,7 @@ class Status(rend.Page):
         rend.Page.__init__(self, history)
         self.history = history
 
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        t = get_arg(req, "t")
-        if t == "json":
-            return self.json(req)
-        return rend.Page.renderHTTP(self, ctx)
-
-    def json(self, req):
+    def render_JSON(self, req):
         # modern browsers now render this instead of forcing downloads
         req.setHeader("content-type", "application/json")
         data = {}
@@ -1128,19 +1130,12 @@ class Status(rend.Page):
                     return RetrieveStatusPage(s)
 
 
-class HelperStatus(rend.Page):
+class HelperStatus(MultiFormatPage):
     docFactory = getxmlfile("helper.xhtml")
 
     def __init__(self, helper):
         rend.Page.__init__(self, helper)
         self.helper = helper
-
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        t = get_arg(req, "t")
-        if t == "json":
-            return self.render_JSON(req)
-        return rend.Page.renderHTTP(self, ctx)
 
     def data_helper_stats(self, ctx, data):
         return self.helper.get_stats()
@@ -1179,21 +1174,17 @@ class HelperStatus(rend.Page):
         return str(data["chk_upload_helper.encoded_bytes"])
 
 
-class Statistics(rend.Page):
+class Statistics(MultiFormatPage):
     docFactory = getxmlfile("statistics.xhtml")
 
     def __init__(self, provider):
         rend.Page.__init__(self, provider)
         self.provider = provider
 
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        t = get_arg(req, "t")
-        if t == "json":
-            stats = self.provider.get_stats()
-            req.setHeader("content-type", "text/plain")
-            return json.dumps(stats, indent=1) + "\n"
-        return rend.Page.renderHTTP(self, ctx)
+    def render_JSON(self, req):
+        stats = self.provider.get_stats()
+        req.setHeader("content-type", "text/plain")
+        return json.dumps(stats, indent=1) + "\n"
 
     def data_get_stats(self, ctx, data):
         return self.provider.get_stats()

@@ -5,12 +5,24 @@ import treq
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
 
+from nevow.context import WebContext
+from nevow.inevow import (
+    ICanHandleException,
+    IRequest,
+    IData,
+)
 from nevow.util import escapeToXML
+from nevow.loaders import stan
+from nevow.testutil import FakeRequest
+from nevow.appserver import (
+    processingFailed,
+    DefaultExceptionHandler,
+)
 
 from allmydata import interfaces, uri, webish
 from allmydata.storage_client import StorageFarmBroker, StubServer
@@ -19,6 +31,7 @@ from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
 from allmydata.web import status
+from allmydata.web.common import WebError, MultiFormatPage
 from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
 from allmydata.util.encodingutil import to_str
@@ -29,7 +42,11 @@ from ..common import FakeCHKFileNode, FakeMutableFileNode, \
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
-from ..common_web import HTTPClientGETFactory, do_http, Error
+from ..common_web import (
+    HTTPClientGETFactory,
+    do_http,
+    Error,
+)
 from allmydata.client import Client, SecretHolder
 from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
@@ -601,6 +618,117 @@ class WebMixin(testutil.TimezoneMixin):
         else:
             self.fail("%s was supposed to Error(302), not get '%s'" %
                       (which, res))
+
+
+
+class MultiFormatPageTests(unittest.TestCase):
+    """
+    Tests for ``MultiFormatPage``.
+    """
+    def resource(self):
+        """
+        Create and return an instance of a ``MultiFormatPage`` subclass with two
+        formats: ``a`` and ``b``.
+        """
+        class Content(MultiFormatPage):
+            docFactory = stan("doc factory")
+
+            def render_A(self, req):
+                return "a"
+
+            def render_B(self, req):
+                return "b"
+        return Content()
+
+
+    def render(self, resource, **query_args):
+        """
+        Render a Nevow ``Page`` against a request with the given query arguments.
+
+        :param resource: The Nevow resource to render.
+
+        :param query_args: The query arguments to put into the request being
+            rendered.  A mapping from ``bytes`` to ``list`` of ``bytes``.
+
+        :return: The rendered response body as ``bytes``.
+        """
+        ctx = WebContext(tag=resource)
+        req = FakeRequest(args=query_args)
+        ctx.remember(DefaultExceptionHandler(), ICanHandleException)
+        ctx.remember(req, IRequest)
+        ctx.remember(None, IData)
+
+        d = maybeDeferred(resource.renderHTTP, ctx)
+        d.addErrback(processingFailed, req, ctx)
+        res = self.successResultOf(d)
+        if isinstance(res, bytes):
+            return req.v + res
+        return req.v
+
+
+    def test_select_format(self):
+        """
+        The ``formatArgument`` attribute of a ``MultiFormatPage`` subclass
+        identifies the query argument which selects the result format.
+        """
+        resource = self.resource()
+        resource.formatArgument = "foo"
+        self.assertEqual("a", self.render(resource, foo=["a"]))
+
+
+    def test_default_format_argument(self):
+        """
+        If a ``MultiFormatPage`` subclass does not set ``formatArgument`` then the
+        ``t`` argument is used.
+        """
+        resource = self.resource()
+        self.assertEqual("a", self.render(resource, t=["a"]))
+
+
+    def test_no_format(self):
+        """
+        If no value is given for the format argument and no default format has
+        been defined, the base Nevow rendering behavior is used
+        (``renderHTTP``).
+        """
+        resource = self.resource()
+        self.assertEqual("doc factory", self.render(resource))
+
+
+    def test_default_format(self):
+        """
+        If no value is given for the format argument and the ``MultiFormatPage``
+        subclass defines a ``formatDefault``, that value is used as the format
+        to render.
+        """
+        resource = self.resource()
+        resource.formatDefault = "b"
+        self.assertEqual("b", self.render(resource))
+
+
+    def test_explicit_none_format_renderer(self):
+        """
+        If a format is selected which has a renderer set to ``None``, the base
+        Nevow rendering behavior is used (``renderHTTP``).
+        """
+        resource = self.resource()
+        resource.render_FOO = None
+        self.assertEqual("doc factory", self.render(resource, t=["foo"]))
+
+
+    def test_unknown_format(self):
+        """
+        If a format is selected for which there is no renderer, an error is
+        returned.
+        """
+        resource = self.resource()
+        self.assertIn(
+            "<title>Exception</title>",
+            self.render(resource, t=["foo"]),
+        )
+        self.flushLoggedErrors(WebError)
+
+
 
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, unittest.TestCase):
     def test_create(self):
