@@ -28,9 +28,10 @@ from allmydata.mutable.publish import MutableData
 
 from foolscap.api import DeadReferenceError, fireEventually, flushEventualQueue
 from twisted.python.failure import Failure
+from twisted.web.client import getPage
+from twisted.web.error import Error
 
 from .common import TEST_RSA_KEY_SIZE
-from .common_web import do_http, Error
 
 # TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
@@ -1325,7 +1326,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return d
 
     def _test_introweb(self, res):
-        d = do_http("get", self.introweb_url)
+        d = getPage(self.introweb_url, method="GET", followRedirect=True)
         def _check(res):
             try:
                 self.failUnless("%s: %s" % (allmydata.__appname__, allmydata.__version__) in res)
@@ -1359,8 +1360,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 raise
         d.addCallback(_check)
         # make sure it serves the CSS too
-        d.addCallback(lambda res: do_http("get", self.introweb_url+"tahoe.css"))
-        d.addCallback(lambda res: do_http("get", self.introweb_url + "?t=json"))
+        d.addCallback(lambda res:
+                      getPage(self.introweb_url+"tahoe.css", method="GET"))
+        d.addCallback(lambda res:
+                      getPage(self.introweb_url + "?t=json",
+                              method="GET", followRedirect=True))
         def _check_json(res):
             data = json.loads(res)
             try:
@@ -1603,12 +1607,14 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return d
 
     def PUT(self, urlpath, data):
-        return do_http("put", self.webish_url + urlpath, data=data)
+        url = self.webish_url + urlpath
+        return getPage(url, method="PUT", postdata=data)
 
-    def GET(self, urlpath):
-        return do_http("get", self.webish_url + urlpath)
+    def GET(self, urlpath, followRedirect=False):
+        url = self.webish_url + urlpath
+        return getPage(url, method="GET", followRedirect=followRedirect)
 
-    def POST(self, urlpath, use_helper=False, **fields):
+    def POST(self, urlpath, followRedirect=False, use_helper=False, **fields):
         sepbase = "boogabooga"
         sep = "--" + sepbase
         form = []
@@ -1633,18 +1639,21 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         if fields:
             body = "\r\n".join(form) + "\r\n"
             headers["content-type"] = "multipart/form-data; boundary=%s" % sepbase
-        return self.POST2(urlpath, body, headers, use_helper)
+        return self.POST2(urlpath, body, headers, followRedirect, use_helper)
 
-    def POST2(self, urlpath, body="", headers={}, use_helper=False):
+    def POST2(self, urlpath, body="", headers={}, followRedirect=False,
+              use_helper=False):
         if use_helper:
             url = self.helper_webish_url + urlpath
         else:
             url = self.webish_url + urlpath
-        return do_http("post", url, data=body, headers=headers)
+        return getPage(url, method="POST", postdata=body, headers=headers,
+                       followRedirect=followRedirect)
 
     def _test_web(self, res):
+        base = self.webish_url
         public = "uri/" + self._root_directory_uri
-        d = self.GET("")
+        d = getPage(base)
         def _got_welcome(page):
             html = page.replace('\n', ' ')
             connected_re = r'Connected to <span>%d</span>\s*of <span>%d</span> known storage servers' % (self.numclients, self.numclients)
@@ -1660,22 +1669,23 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(self.log, "done with _got_welcome")
 
         # get the welcome page from the node that uses the helper too
-        d.addCallback(lambda res: do_http("get", self.helper_webish_url))
+        d.addCallback(lambda res: getPage(self.helper_webish_url))
         def _got_welcome_helper(page):
             html = page.replace('\n', ' ')
             self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/>', html), page)
             self.failUnlessIn("Not running helper", page)
         d.addCallback(_got_welcome_helper)
 
-        d.addCallback(lambda res: self.GET(public))
-        d.addCallback(lambda res: self.GET(public + "/subdir1"))
+        d.addCallback(lambda res: getPage(base + public))
+        d.addCallback(lambda res: getPage(base + public + "/subdir1"))
         def _got_subdir1(page):
             # there ought to be an href for our file
             self.failUnlessIn('<td align="right">%d</td>' % len(self.data), page)
             self.failUnless(">mydata567</a>" in page)
         d.addCallback(_got_subdir1)
         d.addCallback(self.log, "done with _got_subdir1")
-        d.addCallback(lambda res: self.GET(public + "/subdir1/mydata567"))
+        d.addCallback(lambda res:
+                      getPage(base + public + "/subdir1/mydata567"))
         def _got_data(page):
             self.failUnlessEqual(page, self.data)
         d.addCallback(_got_data)
@@ -1683,7 +1693,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # download from a URI embedded in a URL
         d.addCallback(self.log, "_get_from_uri")
         def _get_from_uri(res):
-            return self.GET("uri/%s?filename=%s" % (self.uri, "mydata567"))
+            return getPage(base + "uri/%s?filename=%s"
+                           % (self.uri, "mydata567"))
         d.addCallback(_get_from_uri)
         def _got_from_uri(page):
             self.failUnlessEqual(page, self.data)
@@ -1692,18 +1703,18 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # download from a URI embedded in a URL, second form
         d.addCallback(self.log, "_get_from_uri2")
         def _get_from_uri2(res):
-            return self.GET("uri?uri=%s" % (self.uri,))
+            return getPage(base + "uri?uri=%s" % (self.uri,))
         d.addCallback(_get_from_uri2)
         d.addCallback(_got_from_uri)
 
         # download from a bogus URI, make sure we get a reasonable error
         d.addCallback(self.log, "_get_from_bogus_uri", level=log.UNUSUAL)
-        @defer.inlineCallbacks
         def _get_from_bogus_uri(res):
-            d1 = self.GET("uri/%s?filename=%s"
-                          % (self.mangle_uri(self.uri), "mydata567"))
-            e = yield self.assertFailure(d1, Error)
-            self.assertEquals(e.status, "410")
+            d1 = getPage(base + "uri/%s?filename=%s"
+                         % (self.mangle_uri(self.uri), "mydata567"))
+            d1.addBoth(self.shouldFail, Error, "downloading bogus URI",
+                       "410")
+            return d1
         d.addCallback(_get_from_bogus_uri)
         d.addCallback(self.log, "_got_from_bogus_uri", level=log.UNUSUAL)
 
@@ -1740,7 +1751,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                                             file=("foo.txt", "data2" * 10000)))
 
         # check that the status page exists
-        d.addCallback(lambda res: self.GET("status"))
+        d.addCallback(lambda res: self.GET("status", followRedirect=True))
         def _got_status(res):
             # find an interesting upload and download to look at. LIT files
             # are not interesting.
@@ -1779,7 +1790,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_got_retrieve)
 
         # check that the helper status page exists
-        d.addCallback(lambda res: self.GET("helper_status"))
+        d.addCallback(lambda res:
+                      self.GET("helper_status", followRedirect=True))
         def _got_helper_status(res):
             self.failUnless("Bytes Fetched:" in res)
             # touch a couple of files in the helper's working directory to
@@ -1799,7 +1811,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             os.utime(encfile, (now, then))
         d.addCallback(_got_helper_status)
         # and that the json form exists
-        d.addCallback(lambda res: self.GET("helper_status?t=json"))
+        d.addCallback(lambda res:
+                      self.GET("helper_status?t=json", followRedirect=True))
         def _got_helper_status_json(res):
             data = json.loads(res)
             self.failUnlessEqual(data["chk_upload_helper.upload_need_upload"],
@@ -1816,16 +1829,14 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         # and check that client[3] (which uses a helper but does not run one
         # itself) doesn't explode when you ask for its status
-        d.addCallback(lambda res: do_http("get",
-                                          self.helper_webish_url + "status/"))
+        d.addCallback(lambda res: getPage(self.helper_webish_url + "status/"))
         def _got_non_helper_status(res):
             self.failUnlessIn("Recent and Active Operations", res)
         d.addCallback(_got_non_helper_status)
 
         # or for helper status with t=json
         d.addCallback(lambda res:
-                      do_http("get",
-                              self.helper_webish_url + "helper_status?t=json"))
+                      getPage(self.helper_webish_url + "helper_status?t=json"))
         def _got_non_helper_status_json(res):
             data = json.loads(res)
             self.failUnlessEqual(data, {})
