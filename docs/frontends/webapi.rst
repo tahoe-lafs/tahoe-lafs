@@ -1859,15 +1859,16 @@ of the introducer(s) and storage server(s), here's an example::
    "introducers": {
     "statuses": []
    },
-   "servers": {
-    "other_nodeid": {
-     "available_space": 123456,
-     "nickname": "George \u263b",
-     "version": "1.0",
-     "connection_status": "summary",
-     "last_received_data": 1487811257,
-    }
-   }
+   "servers": [{
+     "nodeid": "other_nodeid",
+     "description": {
+      "available_space": 123456,
+      "nickname": "George \u263b",
+      "version": "1.0",
+      "connection_status": "summary",
+      "last_received_data": 1487811257
+     }
+    }]
   }
 
 
