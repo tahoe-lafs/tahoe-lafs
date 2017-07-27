@@ -1,7 +1,8 @@
 import time, os
+import simplejson
 
 from twisted.web import http
-from nevow import rend, url, tags as T
+from nevow import rend, inevow, url, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
@@ -182,8 +183,43 @@ class Root(rend.Page):
     def render_my_nodeid(self, ctx, data):
         tubid_s = "TubID: "+self.client.get_long_tubid()
         return T.td(title=tubid_s)[self.client.get_long_nodeid()]
+
     def data_my_nickname(self, ctx, data):
         return self.client.nickname
+
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        t = get_arg(req, "t")
+        if t == "json":
+            return self.json_welcome(ctx)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def json_welcome(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "application/json; charset=utf-8")
+        intro_summaries = [s.summary for s in self.client.introducer_connection_statuses()]
+        sb = self.client.get_storage_broker()
+        servers = {}
+        for server in sb.get_known_servers():
+            server_id = server.get_serverid()
+            servers[server_id] = {}
+            servers[server_id]["connection_status"] = server.get_connection_status().summary
+            servers[server_id]["available_space"] = server.get_available_space()
+            servers[server_id]["nickname"] = server.get_nickname()
+            if server.get_version() is not None:
+                servers[server_id]["version"] = server.get_version()["application-version"]
+            else:
+                servers[server_id]["version"] = ""
+            if server.rref is not None:
+                servers[server_id]["last_received_data"] = server.rref.getDataLastReceivedAt()
+            else:
+                servers[server_id]["last_received_data"] = ""
+            data = {
+                "introducers": {
+                    "statuses": intro_summaries,
+                },
+                "servers": servers
+            }
+        return simplejson.dumps(data, indent=1) + "\n"
 
     def render_magic_folder(self, ctx, data):
         if self.client._magic_folder is None:
