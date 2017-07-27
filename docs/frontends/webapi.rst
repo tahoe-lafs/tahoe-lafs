@@ -1861,13 +1861,11 @@ of the introducer(s) and storage server(s), here's an example::
    },
    "servers": [{
      "nodeid": "other_nodeid",
-     "description": {
-      "available_space": 123456,
-      "nickname": "George \u263b",
-      "version": "1.0",
-      "connection_status": "summary",
-      "last_received_data": 1487811257
-     }
+     "available_space": 123456,
+     "nickname": "George \u263b",
+     "version": "1.0",
+     "connection_status": "summary",
+     "last_received_data": 1487811257
     }]
   }
 
@@ -1875,15 +1873,15 @@ of the introducer(s) and storage server(s), here's an example::
 The above json ``introducers`` section includes a list of
 introducer connectivity status messages.
 
-The above json ``servers`` section is a map
-where the key is a storage server node ID and the value
-is a map of properties with the following usage for each key:
+The above json ``servers`` section is an array with map elements.  Each map
+has the following properties:
 
-1. ``available_space`` - the available space in bytes expressed as an integer
-2. ``nickname`` - the storage server nickname
-3. ``version`` - the storage server Tahoe-LAFS version
-4. ``connection_status`` - connectivity status
-5. ``last_received_data`` - the time when data was last received,
+1. ``nodeid`` - an identifier derived from the node's public key
+2. ``available_space`` - the available space in bytes expressed as an integer
+3. ``nickname`` - the storage server nickname
+4. ``version`` - the storage server Tahoe-LAFS version
+5. ``connection_status`` - connectivity status
+6. ``last_received_data`` - the time when data was last received,
    expressed in seconds since epoch
 
 ``GET /status/``

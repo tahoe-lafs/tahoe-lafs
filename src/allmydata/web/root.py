@@ -214,10 +214,7 @@ class Root(MultiFormatPage):
 
     def _describe_known_servers(self, broker):
         return sorted(list(
-            {
-                u"nodeid": server.get_serverid(),
-                u"description": self._describe_server(server),
-            }
+            self._describe_server(server)
             for server
             in broker.get_known_servers()
         ))
@@ -225,6 +222,7 @@ class Root(MultiFormatPage):
 
     def _describe_server(self, server):
         description = {
+            u"nodeid": server.get_serverid(),
             u"connection_status": server.get_connection_status().summary,
             u"available_space": server.get_available_space(),
             u"nickname": server.get_nickname(),
