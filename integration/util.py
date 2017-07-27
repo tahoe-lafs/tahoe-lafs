@@ -4,9 +4,15 @@ from os import mkdir
 from os.path import exists, join
 from StringIO import StringIO
 
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
+
+from allmydata.util.configutil import (
+    get_config,
+    set_config,
+    write_config,
+)
 
 import pytest
 
@@ -145,7 +151,9 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     node_dir = join(temp_dir, name)
     if web_port is None:
         web_port = ''
-    if not exists(node_dir):
+    if exists(node_dir):
+        created_d = succeed(None)
+    else:
         print("creating", node_dir)
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
@@ -156,6 +164,10 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             '--introducer', introducer_furl,
             '--hostname', 'localhost',
             '--listen', 'tcp',
+            '--webport', web_port,
+            '--shares-needed', unicode(needed),
+            '--shares-happy', unicode(happy),
+            '--shares-total', unicode(total),
         ]
         if not storage:
             args.append('--no-storage')
@@ -169,33 +181,11 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
         created_d = done_proto.done
 
         def created(_):
-            with open(join(node_dir, 'tahoe.cfg'), 'w') as f:
-                f.write('''
-[node]
-nickname = %(name)s
-web.port = %(web_port)s
-web.static = public_html
-log_gatherer.furl = %(log_furl)s
-
-[client]
-# Which services should this client connect to?
-introducer.furl = %(furl)s
-shares.needed = %(needed)d
-shares.happy = %(happy)d
-shares.total = %(total)d
-
-''' % {
-    'name': name,
-    'furl': introducer_furl,
-    'web_port': web_port,
-    'log_furl': flog_gatherer,
-    'needed': needed,
-    'happy': happy,
-    'total': total,
-})
+            config_path = join(node_dir, 'tahoe.cfg')
+            config = get_config(config_path)
+            set_config(config, 'node', 'log_gatherer.furl', flog_gatherer)
+            write_config(config_path, config)
         created_d.addCallback(created)
-    else:
-        created_d = defer.succeed(None)
 
     d = Deferred()
     d.callback(None)
@@ -234,5 +224,3 @@ def await_file_vanishes(path, timeout=10):
             return
         time.sleep(1)
     raise Exception("'{}' still exists after {}s".format(path, timeout))
-
-
