@@ -184,10 +184,15 @@ class FakeDisplayableServer(StubServer):
         self.last_loss_time = last_loss_time
         self.last_rx_time = last_rx_time
         self.last_connect_time = last_connect_time
+
     def on_status_changed(self, cb): # TODO: try to remove me
         cb(self)
     def is_connected(self): # TODO: remove me
         return self.connected
+    def get_version(self):
+        return {
+            "application-version": "1.0"
+        }
     def get_permutation_seed(self):
         return ""
     def get_announcement(self):
@@ -257,7 +262,7 @@ class FakeClient(Client):
                 last_connect_time = 10, last_loss_time = 20, last_rx_time = 30))
         self.storage_broker.test_add_server("disconnected_nodeid",
             FakeDisplayableServer(
-                serverid="other_nodeid", nickname=u"disconnected_nickname \u263B", connected = False,
+                serverid="disconnected_nodeid", nickname=u"disconnected_nickname \u263B", connected = False,
                 last_connect_time = None, last_loss_time = 25, last_rx_time = 35))
         self.introducer_client = None
         self.history = FakeHistory()
@@ -733,6 +738,40 @@ class MultiFormatPageTests(unittest.TestCase):
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, unittest.TestCase):
     def test_create(self):
         pass
+
+    maxDiff = None
+    def test_welcome_json(self):
+        """
+        There is a JSON version of the welcome page which can be selected with the
+        ``t`` query argument.
+        """
+        d = self.GET("/?t=json")
+        def _check(res):
+            decoded = json.loads(res)
+            expected = {
+                u'introducers': {
+                    u'statuses': [],
+                },
+                u'servers': sorted([
+                    {u"nodeid": u'other_nodeid',
+                     u'available_space': 123456,
+                     u'connection_status': u'summary',
+                     u'last_received_data': 30,
+                     u'nickname': u'other_nickname \u263b',
+                     u'version': u'1.0',
+                    },
+                    {u"nodeid": u'disconnected_nodeid',
+                     u'available_space': 123456,
+                     u'connection_status': u'summary',
+                     u'last_received_data': 35,
+                     u'nickname': u'disconnected_nickname \u263b',
+                     u'version': u'1.0',
+                    },
+                ]),
+            }
+            self.assertEqual(expected, decoded)
+        d.addCallback(_check)
+        return d
 
     def test_welcome(self):
         d = self.GET("/")

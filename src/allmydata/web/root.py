@@ -1,4 +1,4 @@
-import time, os
+import time, os, json
 
 from twisted.web import http
 from nevow import rend, url, tags as T
@@ -12,8 +12,19 @@ from allmydata.util import log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage, magic_folder
-from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
-     get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
+from allmydata.web.common import (
+    abbreviate_size,
+    getxmlfile,
+    WebError,
+    get_arg,
+    MultiFormatPage,
+    RenderMixin,
+    get_format,
+    get_mutable_type,
+    render_time_delta,
+    render_time,
+    render_time_attr,
+)
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -126,7 +137,7 @@ class IncidentReporter(RenderMixin, rend.Page):
 
 SPACE = u"\u00A0"*2
 
-class Root(rend.Page):
+class Root(MultiFormatPage):
 
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
@@ -182,8 +193,49 @@ class Root(rend.Page):
     def render_my_nodeid(self, ctx, data):
         tubid_s = "TubID: "+self.client.get_long_tubid()
         return T.td(title=tubid_s)[self.client.get_long_nodeid()]
+
     def data_my_nickname(self, ctx, data):
         return self.client.nickname
+
+
+    def render_JSON(self, req):
+        req.setHeader("content-type", "application/json; charset=utf-8")
+        intro_summaries = [s.summary for s in self.client.introducer_connection_statuses()]
+        sb = self.client.get_storage_broker()
+        servers = self._describe_known_servers(sb)
+        result = {
+            "introducers": {
+                "statuses": intro_summaries,
+            },
+            "servers": servers
+        }
+        return json.dumps(result, indent=1) + "\n"
+
+
+    def _describe_known_servers(self, broker):
+        return sorted(list(
+            self._describe_server(server)
+            for server
+            in broker.get_known_servers()
+        ))
+
+
+    def _describe_server(self, server):
+        status = server.get_connection_status()
+        description = {
+            u"nodeid": server.get_serverid(),
+            u"connection_status": status.summary,
+            u"available_space": server.get_available_space(),
+            u"nickname": server.get_nickname(),
+            u"version": None,
+            u"last_received_data": status.last_received_time,
+        }
+        version = server.get_version()
+        if version is not None:
+            description[u"version"] = version["application-version"]
+
+        return description
+
 
     def render_magic_folder(self, ctx, data):
         if self.client._magic_folder is None:

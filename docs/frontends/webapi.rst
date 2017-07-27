@@ -1850,6 +1850,40 @@ This is the "Welcome Page", and contains a few distinct sections::
  Grid status: introducer information, helper information, connected storage
               servers.
 
+``GET /?t=json``   (the json welcome page)
+
+This is the "json Welcome Page", and contains connectivity status
+of the introducer(s) and storage server(s), here's an example::
+
+  {
+   "introducers": {
+    "statuses": []
+   },
+   "servers": [{
+     "nodeid": "other_nodeid",
+     "available_space": 123456,
+     "nickname": "George \u263b",
+     "version": "1.0",
+     "connection_status": "summary",
+     "last_received_data": 1487811257
+    }]
+  }
+
+
+The above json ``introducers`` section includes a list of
+introducer connectivity status messages.
+
+The above json ``servers`` section is an array with map elements.  Each map
+has the following properties:
+
+1. ``nodeid`` - an identifier derived from the node's public key
+2. ``available_space`` - the available space in bytes expressed as an integer
+3. ``nickname`` - the storage server nickname
+4. ``version`` - the storage server Tahoe-LAFS version
+5. ``connection_status`` - connectivity status
+6. ``last_received_data`` - the time when data was last received,
+   expressed in seconds since epoch
+
 ``GET /status/``
 
  This page lists all active uploads and downloads, and contains a short list
