@@ -184,7 +184,7 @@ class FakeDisplayableServer(StubServer):
         self.last_loss_time = last_loss_time
         self.last_rx_time = last_rx_time
         self.last_connect_time = last_connect_time
-        self.rref = None
+
     def on_status_changed(self, cb): # TODO: try to remove me
         cb(self)
     def is_connected(self): # TODO: remove me
@@ -756,14 +756,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                     {u"nodeid": u'other_nodeid',
                      u'available_space': 123456,
                      u'connection_status': u'summary',
-                     u'last_received_data': None,
+                     u'last_received_data': 30,
                      u'nickname': u'other_nickname \u263b',
                      u'version': u'1.0',
                     },
                     {u"nodeid": u'disconnected_nodeid',
                      u'available_space': 123456,
                      u'connection_status': u'summary',
-                     u'last_received_data': None,
+                     u'last_received_data': 35,
                      u'nickname': u'disconnected_nickname \u263b',
                      u'version': u'1.0',
                     },

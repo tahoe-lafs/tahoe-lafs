@@ -221,21 +221,18 @@ class Root(MultiFormatPage):
 
 
     def _describe_server(self, server):
+        status = server.get_connection_status()
         description = {
             u"nodeid": server.get_serverid(),
-            u"connection_status": server.get_connection_status().summary,
+            u"connection_status": status.summary,
             u"available_space": server.get_available_space(),
             u"nickname": server.get_nickname(),
             u"version": None,
-            u"last_received_data": None,
+            u"last_received_data": status.last_received_time,
         }
         version = server.get_version()
         if version is not None:
             description[u"version"] = version["application-version"]
-
-        rref = server.rref
-        if rref is not None:
-            description[u"last_received_data"] = rref.getDataLastReceivedAt()
 
         return description
 
