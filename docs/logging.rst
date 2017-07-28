@@ -243,10 +243,10 @@ If a test is failing and you aren't sure why, start by enabling
   make test FLOGTOTWISTED=1
 
 With ``FLOGTOTWISTED=1``, sufficiently-important log events will be written
-into ``_trial_temp/test.log``, which may give you more ideas about why the
+into ``_trial_temp/*/test.log``, which may give you more ideas about why the
 test is failing.
 
-By default, ``_trial_temp/test.log`` will not receive messages below the
+By default, ``_trial_temp/*/test.log`` will not receive messages below the
 ``level=OPERATIONAL`` threshold. You can change the threshold via the ``FLOGLEVEL``
 variable, e.g.::
 
