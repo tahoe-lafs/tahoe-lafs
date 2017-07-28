@@ -2,7 +2,6 @@
 import re
 import treq
 from twisted.internet import defer
-from twisted.web import client
 from twisted.web.error import Error
 from nevow.testutil import FakeRequest
 from nevow import inevow, context
@@ -60,29 +59,6 @@ class WebRenderingMixin:
         s = re.sub(r'<[^>]*>', ' ', s)
         s = re.sub(r'\s+', ' ', s)
         return s
-
-
-class MyGetter(client.HTTPPageGetter):
-    handleStatus_206 = lambda self: self.handleStatus_200() # PARTIAL_CONTENT
-    handleStatus_304 = lambda self: self.handleStatus_200() # NOT_MODIFIED
-
-class HTTPClientHEADFactory(client.HTTPClientFactory):
-    protocol = MyGetter
-
-    def noPage(self, reason):
-        # Twisted-2.5.0 and earlier had a bug, in which they would raise an
-        # exception when the response to a HEAD request had no body (when in
-        # fact they are defined to never have a body). This was fixed in
-        # Twisted-8.0 . To work around this, we catch the
-        # PartialDownloadError and make it disappear.
-        if (reason.check(client.PartialDownloadError)
-            and self.method.upper() == "HEAD"):
-            self.page("")
-            return
-        return client.HTTPClientFactory.noPage(self, reason)
-
-class HTTPClientGETFactory(client.HTTPClientFactory):
-    protocol = MyGetter
 
 @defer.inlineCallbacks
 def do_http(method, url, **kwargs):

@@ -4,7 +4,7 @@ import treq
 
 from twisted.application import service
 from twisted.trial import unittest
-from twisted.internet import defer, reactor
+from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
@@ -43,7 +43,6 @@ from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
 from ..common_web import (
-    HTTPClientGETFactory,
     do_http,
     Error,
 )
@@ -497,21 +496,28 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["ro_uri"]),
                                    self._quux_txt_readonly_uri)
 
+    @inlineCallbacks
     def GET(self, urlpath, followRedirect=False, return_response=False,
             **kwargs):
         # if return_response=True, this fires with (data, statuscode,
         # respheaders) instead of just data.
-        assert not isinstance(urlpath, unicode)
+
+        # treq can accept unicode URLs, unlike the old client.getPage
         url = self.webish_url + urlpath
-        factory = HTTPClientGETFactory(url, method="GET",
-                                       followRedirect=followRedirect, **kwargs)
-        reactor.connectTCP("localhost", self.webish_port, factory)
-        d = factory.deferred
-        def _got_data(data):
-            return (data, factory.status, factory.response_headers)
+        response = yield treq.request("get", url, persistent=False,
+                                      allow_redirects=followRedirect,
+                                      **kwargs)
+        data = yield response.content()
         if return_response:
-            d.addCallback(_got_data)
-        return factory.deferred
+            # we emulate the old HTTPClientGetFactory-based response, which
+            # wanted a tuple of (bytestring of data, bytestring of response
+            # code like "200" or "404", and a
+            # twisted.web.http_headers.Headers instance). Fortunately treq's
+            # response.headers has one.
+            returnValue( (data, str(response.code), response.headers) )
+        if 400 <= response.code < 600:
+            raise Error(response.code, response=data)
+        returnValue(data)
 
     @inlineCallbacks
     def HEAD(self, urlpath, return_response=False, headers={}):
@@ -520,10 +526,7 @@ class WebMixin(testutil.TimezoneMixin):
                                       headers=headers)
         if 400 <= response.code < 600:
             raise Error(response.code, response="")
-        resp_headers = {}
-        for (key, values) in response.headers.getAllRawHeaders():
-            resp_headers[key.lower()] = values
-        returnValue( ("", response.code, resp_headers) )
+        returnValue( ("", response.code, response.headers) )
 
     def PUT(self, urlpath, data, headers={}):
         url = self.webish_url + urlpath
@@ -533,7 +536,7 @@ class WebMixin(testutil.TimezoneMixin):
         url = self.webish_url + urlpath
         return do_http("delete", url)
 
-    def POST(self, urlpath, followRedirect=False, **fields):
+    def build_form(self, **fields):
         sepbase = "boogabooga"
         sep = "--" + sepbase
         form = []
@@ -563,12 +566,16 @@ class WebMixin(testutil.TimezoneMixin):
         if fields:
             body = "\r\n".join(form) + "\r\n"
             headers["content-type"] = "multipart/form-data; boundary=%s" % sepbase
-        return self.POST2(urlpath, body, headers, followRedirect)
+        return (body, headers)
+
+    def POST(self, urlpath, **fields):
+        body, headers = self.build_form(**fields)
+        return self.POST2(urlpath, body, headers)
 
     def POST2(self, urlpath, body="", headers={}, followRedirect=False):
         url = self.webish_url + urlpath
-        return client.getPage(url, method="POST", postdata=body,
-                              headers=headers, followRedirect=followRedirect)
+        return do_http("POST", url, allow_redirects=followRedirect,
+                       headers=headers, data=body)
 
     def shouldFail(self, res, expected_failure, which,
                    substring=None, response_substring=None):
@@ -1036,8 +1043,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes 1-10/%d" % len(self.BAR_CONTENTS))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS[1:11])
         d.addCallback(_got)
@@ -1050,8 +1057,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes 5-%d/%d" % (length-1, length))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS[5:])
         d.addCallback(_got)
@@ -1064,8 +1071,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes %d-%d/%d" % (length-5, length-1, length))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS[-5:])
         d.addCallback(_got)
@@ -1087,8 +1094,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(res, "")
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes 1-10/%d" % len(self.BAR_CONTENTS))
         d.addCallback(_got)
         return d
@@ -1100,8 +1107,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes 5-%d/%d" % (length-1, length))
         d.addCallback(_got)
         return d
@@ -1113,8 +1120,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
-            self.failUnlessReallyEqual(headers["content-range"][0],
+            self.failUnless(headers.hasHeader("content-range"))
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
                                        "bytes %d-%d/%d" % (length-5, length-1, length))
         d.addCallback(_got)
         return d
@@ -1134,7 +1141,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(int(status), 200)
-            self.failUnless(not headers.has_key("content-range"))
+            self.failUnless(not headers.hasHeader("content-range"))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS)
         d.addCallback(_got)
         return d
@@ -1143,9 +1150,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.HEAD(self.public_url + "/foo/bar.txt", return_response=True)
         def _got((res, status, headers)):
             self.failUnlessReallyEqual(res, "")
-            self.failUnlessReallyEqual(headers["content-length"][0],
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-length")[0],
                                        str(len(self.BAR_CONTENTS)))
-            self.failUnlessReallyEqual(headers["content-type"], ["text/plain"])
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-type"),
+                                       ["text/plain"])
         d.addCallback(_got)
         return d
 
@@ -1325,7 +1333,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             d = self.GET(targetbase, return_response=True, followRedirect=True)
             def _just_the_etag(result):
                 data, response, headers = result
-                etag = headers['etag'][0]
+                etag = headers.getRawHeaders('etag')[0]
                 if uri.startswith('URI:DIR'):
                     self.failUnless(etag.startswith('DIR:'), etag)
                 return etag
@@ -1350,7 +1358,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             d = self.GET(uri, return_response=True)
             # extract the ETag
             d.addCallback(lambda (data, code, headers):
-                          headers['etag'][0])
+                          headers.getRawHeaders('etag')[0])
             # do a GET that's supposed to match the ETag
             d.addCallback(lambda etag:
                           self.GET(uri, return_response=True,
@@ -1365,13 +1373,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             target = "/uri/%s?t=%s" % (uri, t)
             d = self.GET(target, return_response=True, followRedirect=True)
             d.addCallback(lambda (data, code, headers):
-                          self.failIf("etag" in headers, target))
+                          self.failIf(headers.hasHeader("etag"), target))
             return d
         def _yes_etag(uri, t):
             target = "/uri/%s?t=%s" % (uri, t)
             d = self.GET(target, return_response=True, followRedirect=True)
             d.addCallback(lambda (data, code, headers):
-                          self.failUnless("etag" in headers, target))
+                          self.failUnless(headers.hasHeader("etag"), target))
             return d
 
         d.addCallback(lambda ign: _yes_etag(self._bar_txt_uri, ""))
@@ -1394,7 +1402,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET(self.public_url + "/foo/bar.txt?filename=bar.txt&save=true",
                      return_response=True)
         def _got((res, statuscode, headers)):
-            content_disposition = headers["content-disposition"][0]
+            content_disposition = headers.getRawHeaders("content-disposition")[0]
             self.failUnless(content_disposition == 'attachment; filename="bar.txt"', content_disposition)
             self.failUnlessIsBarDotTxt(res)
         d.addCallback(_got)
@@ -1503,12 +1511,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda json: self.failUnlessIn("SDMF", json))
         return d
 
+    @inlineCallbacks
     def test_PUT_NEWFILEURL_unlinked_bad_format(self):
         contents = self.NEWFILE_CONTENTS * 300000
-        return self.shouldHTTPError("PUT_NEWFILEURL_unlinked_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.PUT, "/uri?format=foo",
-                                    contents)
+        yield self.assertHTTPError(self.webish_url + "/uri?format=foo", 400,
+                                   "Unknown format: foo",
+                                   method="put", data=contents)
 
     def test_PUT_NEWFILEURL_range_bad(self):
         headers = {"content-range": "bytes 1-10/%d" % len(self.NEWFILE_CONTENTS)}
@@ -1687,12 +1695,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check2)
         return d
 
+    @inlineCallbacks
     def test_GET_FILEURL_badtype(self):
-        d = self.shouldHTTPError("GET t=bogus", 400, "Bad Request",
-                                 "bad t=bogus",
-                                 self.GET,
-                                 self.public_url + "/foo/bar.txt?t=bogus")
-        return d
+        url = self.webish_url + self.public_url + "/foo/bar.txt?t=bogus"
+        yield self.assertHTTPError(url, 400, "bad t=bogus")
 
     def test_CSS_FILE(self):
         d = self.GET("/tahoe.css", followRedirect=True)
@@ -1836,13 +1842,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check5)
         return d
 
+    @inlineCallbacks
     def test_GET_DIRURL_badtype(self):
-        d = self.shouldHTTPError("test_GET_DIRURL_badtype",
-                                 400, "Bad Request",
-                                 "bad t=bogus",
-                                 self.GET,
-                                 self.public_url + "/foo?t=bogus")
-        return d
+        url = self.webish_url + self.public_url + "/foo?t=bogus"
+        yield self.assertHTTPError(url, 400, "bad t=bogus")
 
     def test_GET_DIRURL_json(self):
         d = self.GET(self.public_url + "/foo?t=json")
@@ -1890,8 +1893,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_DIRURL_manifest(self):
         d = defer.succeed(None)
         def getman(ignored, output):
-            d = self.POST(self.public_url + "/foo/?t=start-manifest&ophandle=125",
-                          followRedirect=True)
+            url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=125"
+            d = do_http("post", url, allow_redirects=True,
+                        browser_like_redirects=True)
             d.addCallback(self.wait_for_operation, "125")
             d.addCallback(self.get_operation_results, "125", output)
             return d
@@ -1940,8 +1944,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_DIRURL_deepsize(self):
-        d = self.POST(self.public_url + "/foo/?t=start-deep-size&ophandle=126",
-                      followRedirect=True)
+        url = self.webish_url + self.public_url + "/foo/?t=start-deep-size&ophandle=126"
+        d = do_http("post", url, allow_redirects=True,
+                    browser_like_redirects=True)
         d.addCallback(self.wait_for_operation, "126")
         d.addCallback(self.get_operation_results, "126", "json")
         def _got_json(data):
@@ -1968,8 +1973,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_DIRURL_deepstats(self):
-        d = self.POST(self.public_url + "/foo/?t=start-deep-stats&ophandle=127",
-                      followRedirect=True)
+        url = self.webish_url + self.public_url + "/foo/?t=start-deep-stats&ophandle=127"
+        d = do_http("post", url,
+                    allow_redirects=True, browser_like_redirects=True)
         d.addCallback(self.wait_for_operation, "127")
         d.addCallback(self.get_operation_results, "127", "json")
         def _got_json(stats):
@@ -2057,11 +2063,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(node._node.get_version(), SDMF_VERSION))
         return d
 
+    @inlineCallbacks
     def test_PUT_NEWDIRURL_bad_format(self):
-        return self.shouldHTTPError("PUT_NEWDIRURL_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.PUT, self.public_url +
-                                    "/foo/newdir=?t=mkdir&format=foo", "")
+        url = (self.webish_url + self.public_url +
+               "/foo/newdir=?t=mkdir&format=foo")
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+                                   method="put", data="")
 
     def test_POST_NEWDIRURL(self):
         d = self.POST2(self.public_url + "/foo/newdir?t=mkdir", "")
@@ -2089,11 +2096,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(node._node.get_version(), SDMF_VERSION))
         return d
 
+    @inlineCallbacks
     def test_POST_NEWDIRURL_bad_format(self):
-        return self.shouldHTTPError("POST_NEWDIRURL_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.POST2, self.public_url + \
-                                    "/foo/newdir?t=mkdir&format=foo", "")
+        url = (self.webish_url + self.public_url +
+               "/foo/newdir?t=mkdir&format=foo")
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+                                   method="post", data="")
 
     def test_POST_NEWDIRURL_emptyname(self):
         # an empty pathname component (i.e. a double-slash) is disallowed
@@ -2164,13 +2172,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_NEWDIRURL_initial_children_sdmf(self):
         return self._do_POST_NEWDIRURL_initial_children_test(SDMF_VERSION)
 
+    @inlineCallbacks
     def test_POST_NEWDIRURL_initial_children_bad_format(self):
         (newkids, caps) = self._create_initial_children()
-        return self.shouldHTTPError("POST_NEWDIRURL_initial_children_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.POST2, self.public_url + \
-                                    "/foo/newdir?t=mkdir-with-children&format=foo",
-                                    json.dumps(newkids))
+        url = (self.webish_url + self.public_url +
+               "/foo/newdir?t=mkdir-with-children&format=foo")
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+                                   method="post", data=json.dumps(newkids))
 
     def test_POST_NEWDIRURL_immutable(self):
         (newkids, caps) = self._create_immutable_children()
@@ -2289,12 +2297,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(newdir._node.get_version(), SDMF_VERSION))
         return d
 
+    @inlineCallbacks
     def test_PUT_NEWDIRURL_mkdirs_bad_format(self):
-        return self.shouldHTTPError("PUT_NEWDIRURL_mkdirs_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.PUT, self.public_url + \
-                                    "/foo/subdir/newdir?t=mkdir&format=foo",
-                                    "")
+        url = (self.webish_url + self.public_url +
+               "/foo/subdir/newdir?t=mkdir&format=foo")
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+                                   method="put", data="")
 
     def test_DELETE_DIRURL(self):
         d = self.DELETE(self.public_url + "/foo")
@@ -2433,7 +2441,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, filename,
                                                       self.NEWFILE_CONTENTS))
-        target_url = self.public_url + "/foo/" + filename.encode("utf-8")
+        target_url = self.public_url + u"/foo/" + filename
         d.addCallback(lambda res: self.GET(target_url))
         d.addCallback(lambda contents: self.failUnlessReallyEqual(contents,
                                                                   self.NEWFILE_CONTENTS,
@@ -2450,7 +2458,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, filename,
                                                       self.NEWFILE_CONTENTS))
-        target_url = self.public_url + "/foo/" + filename.encode("utf-8")
+        target_url = self.public_url + u"/foo/" + filename
         d.addCallback(lambda res: self.GET(target_url))
         d.addCallback(lambda contents: self.failUnlessReallyEqual(contents,
                                                                   self.NEWFILE_CONTENTS,
@@ -2474,39 +2482,28 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessCHKURIHasContents, self.NEWFILE_CONTENTS)
         return d
 
+    @inlineCallbacks
     def test_POST_upload_no_link_whendone(self):
-        d = self.POST("/uri", t="upload", when_done="/",
-                      file=("new.txt", self.NEWFILE_CONTENTS))
-        d.addBoth(self.shouldRedirect, "/")
-        return d
+        body, headers = self.build_form(t="upload", when_done="/",
+                                        file=("new.txt", self.NEWFILE_CONTENTS))
+        yield self.shouldRedirectTo(self.webish_url + "/uri",
+                                    self.webish_url + "/",
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
 
-    def shouldRedirect2(self, which, checker, callable, *args, **kwargs):
-        d = defer.maybeDeferred(callable, *args, **kwargs)
-        def done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(error.PageRedirect)
-                statuscode = res.value.status
-                target = res.value.location
-                return checker(statuscode, target)
-            self.fail("%s: callable was supposed to redirect, not return '%s'"
-                      % (which, res))
-        d.addBoth(done)
-        return d
-
+    @inlineCallbacks
     def test_POST_upload_no_link_whendone_results(self):
-        def check(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnless(target.startswith(self.webish_url), target)
-            return client.getPage(target, method="GET")
-        # We encode "uri" as "%75ri" to exercise a case affected by ticket #1860.
-        d = self.shouldRedirect2("test_POST_upload_no_link_whendone_results",
-                                 check,
-                                 self.POST, "/uri", t="upload",
-                                 when_done="/%75ri/%(uri)s",
-                                 file=("new.txt", self.NEWFILE_CONTENTS))
-        d.addCallback(lambda res:
-                      self.failUnlessReallyEqual(res, self.NEWFILE_CONTENTS))
-        return d
+        # We encode "uri" as "%75ri" to exercise a case affected by ticket #1860
+        body, headers = self.build_form(t="upload",
+                                        when_done="/%75ri/%(uri)s",
+                                        file=("new.txt", self.NEWFILE_CONTENTS),
+                                        )
+        redir_url = yield self.shouldRedirectTo(self.webish_url + "/uri", None,
+                                                method="post",
+                                                data=body, headers=headers,
+                                                code=http.FOUND)
+        res = yield do_http("get", redir_url)
+        self.failUnlessReallyEqual(res, self.NEWFILE_CONTENTS)
 
     def test_POST_upload_no_link_mutable(self):
         d = self.POST("/uri", t="upload", mutable="true",
@@ -2575,12 +2572,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check_upload_unlinked, "mdmf", "URI:MDMF")
         return d
 
+    @inlineCallbacks
     def test_POST_upload_bad_format_unlinked(self):
-        return self.shouldHTTPError("POST_upload_bad_format_unlinked",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.POST,
-                                    "/uri?t=upload&format=foo",
-                                    file=("foo.txt", self.NEWFILE_CONTENTS * 300000))
+        url = self.webish_url + "/uri?t=upload&format=foo"
+        body, headers = self.build_form(file=("foo.txt", self.NEWFILE_CONTENTS * 300000))
+        yield self.assertHTTPError(url, 400,
+                                   "Unknown format: foo",
+                                   method="post", data=body, headers=headers)
 
     def test_POST_upload_format(self):
         def _check_upload(ign, format, uri_prefix, fn=None):
@@ -2610,12 +2608,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check_upload, "MDMF", "URI:MDMF")
         return d
 
+    @inlineCallbacks
     def test_POST_upload_bad_format(self):
-        return self.shouldHTTPError("POST_upload_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.POST, self.public_url + \
-                                    "/foo?t=upload&format=foo",
-                                    file=("foo.txt", self.NEWFILE_CONTENTS * 300000))
+        url = self.webish_url + self.public_url + "/foo?t=upload&format=foo"
+        body, headers = self.build_form(file=("foo.txt", self.NEWFILE_CONTENTS * 300000))
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+                                   method="post", data=body, headers=headers)
 
     def test_POST_upload_mutable(self):
         # this creates a mutable file
@@ -2736,9 +2734,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                 return_response=True))
         def _got_headers((res, status, headers)):
             self.failUnlessReallyEqual(res, "")
-            self.failUnlessReallyEqual(headers["content-length"][0],
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-length")[0],
                                        str(len(NEW2_CONTENTS)))
-            self.failUnlessReallyEqual(headers["content-type"], ["text/plain"])
+            self.failUnlessReallyEqual(headers.getRawHeaders("content-type"),
+                                       ["text/plain"])
         d.addCallback(_got_headers)
 
         # make sure that outdated size limits aren't enforced anymore.
@@ -2815,15 +2814,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
+    @inlineCallbacks
     def test_POST_upload_whendone(self):
-        d = self.POST(self.public_url + "/foo", t="upload", when_done="/THERE",
-                      file=("new.txt", self.NEWFILE_CONTENTS))
-        d.addBoth(self.shouldRedirect, "/THERE")
+        body, headers = self.build_form(t="upload", when_done="/THERE",
+                                        file=("new.txt", self.NEWFILE_CONTENTS))
+        yield self.shouldRedirectTo(self.webish_url + self.public_url + "/foo",
+                                    self.webish_url + "/THERE",
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
         fn = self._foo_node
-        d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, u"new.txt",
-                                                      self.NEWFILE_CONTENTS))
-        return d
+        yield self.failUnlessChildContentsAre(fn, u"new.txt",
+                                              self.NEWFILE_CONTENTS)
 
     def test_POST_upload_named(self):
         fn = self._foo_node
@@ -2852,123 +2853,84 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                                   u"sub"]))
         return d
 
+    @inlineCallbacks
     def test_POST_FILEURL_check(self):
         bar_url = self.public_url + "/foo/bar.txt"
-        d = self.POST(bar_url, t="check")
-        def _check(res):
-            self.failUnlessIn("Healthy :", res)
-        d.addCallback(_check)
+        res = yield self.POST(bar_url, t="check")
+        self.failUnlessIn("Healthy :", res)
+
         redir_url = "http://allmydata.org/TARGET"
-        def _check2(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnlessReallyEqual(target, redir_url)
-        d.addCallback(lambda res:
-                      self.shouldRedirect2("test_POST_FILEURL_check",
-                                           _check2,
-                                           self.POST, bar_url,
-                                           t="check",
-                                           when_done=redir_url))
-        d.addCallback(lambda res:
-                      self.POST(bar_url, t="check", return_to=redir_url))
-        def _check3(res):
-            self.failUnlessIn("Healthy :", res)
-            self.failUnlessIn("Return to file", res)
-            self.failUnlessIn(redir_url, res)
-        d.addCallback(_check3)
+        body, headers = self.build_form(t="check", when_done=redir_url)
+        yield self.shouldRedirectTo(self.webish_url + bar_url, redir_url,
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
 
-        d.addCallback(lambda res:
-                      self.POST(bar_url, t="check", output="JSON"))
-        def _check_json(res):
-            data = json.loads(res)
-            self.failUnlessIn("storage-index", data)
-            self.failUnless(data["results"]["healthy"])
-        d.addCallback(_check_json)
+        res = yield self.POST(bar_url, t="check", return_to=redir_url)
+        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn("Return to file", res)
+        self.failUnlessIn(redir_url, res)
 
-        return d
+        res = yield self.POST(bar_url, t="check", output="JSON")
+        data = json.loads(res)
+        self.failUnlessIn("storage-index", data)
+        self.failUnless(data["results"]["healthy"])
 
+    @inlineCallbacks
     def test_POST_FILEURL_check_and_repair(self):
         bar_url = self.public_url + "/foo/bar.txt"
-        d = self.POST(bar_url, t="check", repair="true")
-        def _check(res):
-            self.failUnlessIn("Healthy :", res)
-        d.addCallback(_check)
-        redir_url = "http://allmydata.org/TARGET"
-        def _check2(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnlessReallyEqual(target, redir_url)
-        d.addCallback(lambda res:
-                      self.shouldRedirect2("test_POST_FILEURL_check_and_repair",
-                                           _check2,
-                                           self.POST, bar_url,
-                                           t="check", repair="true",
-                                           when_done=redir_url))
-        d.addCallback(lambda res:
-                      self.POST(bar_url, t="check", return_to=redir_url))
-        def _check3(res):
-            self.failUnlessIn("Healthy :", res)
-            self.failUnlessIn("Return to file", res)
-            self.failUnlessIn(redir_url, res)
-        d.addCallback(_check3)
-        return d
+        res = yield self.POST(bar_url, t="check", repair="true")
+        self.failUnlessIn("Healthy :", res)
 
+        redir_url = "http://allmydata.org/TARGET"
+        body, headers = self.build_form(t="check", repair="true",
+                                        when_done=redir_url)
+        yield self.shouldRedirectTo(self.webish_url + bar_url, redir_url,
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
+
+        res = yield self.POST(bar_url, t="check", return_to=redir_url)
+        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn("Return to file", res)
+        self.failUnlessIn(redir_url, res)
+
+    @inlineCallbacks
     def test_POST_DIRURL_check(self):
         foo_url = self.public_url + "/foo/"
-        d = self.POST(foo_url, t="check")
-        def _check(res):
-            self.failUnlessIn("Healthy :", res)
-        d.addCallback(_check)
+        res = yield self.POST(foo_url, t="check")
+        self.failUnlessIn("Healthy :", res)
+
         redir_url = "http://allmydata.org/TARGET"
-        def _check2(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnlessReallyEqual(target, redir_url)
-        d.addCallback(lambda res:
-                      self.shouldRedirect2("test_POST_DIRURL_check",
-                                           _check2,
-                                           self.POST, foo_url,
-                                           t="check",
-                                           when_done=redir_url))
-        d.addCallback(lambda res:
-                      self.POST(foo_url, t="check", return_to=redir_url))
-        def _check3(res):
-            self.failUnlessIn("Healthy :", res)
-            self.failUnlessIn("Return to file/directory", res)
-            self.failUnlessIn(redir_url, res)
-        d.addCallback(_check3)
+        body, headers = self.build_form(t="check", when_done=redir_url)
+        yield self.shouldRedirectTo(self.webish_url + foo_url, redir_url,
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
 
-        d.addCallback(lambda res:
-                      self.POST(foo_url, t="check", output="JSON"))
-        def _check_json(res):
-            data = json.loads(res)
-            self.failUnlessIn("storage-index", data)
-            self.failUnless(data["results"]["healthy"])
-        d.addCallback(_check_json)
+        res = yield self.POST(foo_url, t="check", return_to=redir_url)
+        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn("Return to file/directory", res)
+        self.failUnlessIn(redir_url, res)
 
-        return d
+        res = yield self.POST(foo_url, t="check", output="JSON")
+        data = json.loads(res)
+        self.failUnlessIn("storage-index", data)
+        self.failUnless(data["results"]["healthy"])
 
+    @inlineCallbacks
     def test_POST_DIRURL_check_and_repair(self):
         foo_url = self.public_url + "/foo/"
-        d = self.POST(foo_url, t="check", repair="true")
-        def _check(res):
-            self.failUnlessIn("Healthy :", res)
-        d.addCallback(_check)
+        res = yield self.POST(foo_url, t="check", repair="true")
+        self.failUnlessIn("Healthy :", res)
+
         redir_url = "http://allmydata.org/TARGET"
-        def _check2(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnlessReallyEqual(target, redir_url)
-        d.addCallback(lambda res:
-                      self.shouldRedirect2("test_POST_DIRURL_check_and_repair",
-                                           _check2,
-                                           self.POST, foo_url,
-                                           t="check", repair="true",
-                                           when_done=redir_url))
-        d.addCallback(lambda res:
-                      self.POST(foo_url, t="check", return_to=redir_url))
-        def _check3(res):
-            self.failUnlessIn("Healthy :", res)
-            self.failUnlessIn("Return to file/directory", res)
-            self.failUnlessIn(redir_url, res)
-        d.addCallback(_check3)
-        return d
+        body, headers = self.build_form(t="check", repair="true",
+                                        when_done=redir_url)
+        yield self.shouldRedirectTo(self.webish_url + foo_url, redir_url,
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
+        res = yield self.POST(foo_url, t="check", return_to=redir_url)
+        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn("Return to file/directory", res)
+        self.failUnlessIn(redir_url, res)
 
     def test_POST_FILEURL_mdmf_check(self):
         quux_url = "/uri/%s" % urllib.quote(self._quux_txt_uri)
@@ -3029,49 +2991,48 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              self.POST, self.public_url, t="start-deep-check")
         return d
 
+    @inlineCallbacks
     def test_POST_DIRURL_deepcheck(self):
-        def _check_redirect(statuscode, target):
-            self.failUnlessReallyEqual(statuscode, str(http.FOUND))
-            self.failUnless(target.endswith("/operations/123"))
-        d = self.shouldRedirect2("test_POST_DIRURL_deepcheck", _check_redirect,
-                                 self.POST, self.public_url,
-                                 t="start-deep-check", ophandle="123")
-        d.addCallback(self.wait_for_operation, "123")
-        def _check_json(data):
-            self.failUnlessReallyEqual(data["finished"], True)
-            self.failUnlessReallyEqual(data["count-objects-checked"], 11)
-            self.failUnlessReallyEqual(data["count-objects-healthy"], 11)
-        d.addCallback(_check_json)
-        d.addCallback(self.get_operation_results, "123", "html")
-        def _check_html(res):
-            self.failUnlessIn("Objects Checked: <span>11</span>", res)
-            self.failUnlessIn("Objects Healthy: <span>11</span>", res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
-        d.addCallback(_check_html)
+        body, headers = self.build_form(t="start-deep-check", ophandle="123")
+        yield self.shouldRedirectTo(self.webish_url + self.public_url,
+                                    self.webish_url + "/operations/123",
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
 
-        d.addCallback(lambda res:
-                      self.GET("/operations/123/"))
-        d.addCallback(_check_html) # should be the same as without the slash
+        data = yield self.wait_for_operation(None, "123")
+        self.failUnlessReallyEqual(data["finished"], True)
+        self.failUnlessReallyEqual(data["count-objects-checked"], 11)
+        self.failUnlessReallyEqual(data["count-objects-healthy"], 11)
 
-        d.addCallback(lambda res:
-                      self.shouldFail2(error.Error, "one", "404 Not Found",
-                                       "No detailed results for SI bogus",
-                                       self.GET, "/operations/123/bogus"))
+        res = yield self.get_operation_results(None, "123", "html")
+        self.failUnlessIn("Objects Checked: <span>11</span>", res)
+        self.failUnlessIn("Objects Healthy: <span>11</span>", res)
+        self.failUnlessIn(FAVICON_MARKUP, res)
+
+        res = yield self.GET("/operations/123/")
+        # should be the same as without the slash
+        self.failUnlessIn("Objects Checked: <span>11</span>", res)
+        self.failUnlessIn("Objects Healthy: <span>11</span>", res)
+        self.failUnlessIn(FAVICON_MARKUP, res)
+
+        yield self.shouldFail2(error.Error, "one", "404 Not Found",
+                               "No detailed results for SI bogus",
+                               self.GET, "/operations/123/bogus")
 
         foo_si = self._foo_node.get_storage_index()
         foo_si_s = base32.b2a(foo_si)
-        d.addCallback(lambda res:
-                      self.GET("/operations/123/%s?output=JSON" % foo_si_s))
-        def _check_foo_json(res):
-            data = json.loads(res)
-            self.failUnlessEqual(data["storage-index"], foo_si_s)
-            self.failUnless(data["results"]["healthy"])
-        d.addCallback(_check_foo_json)
-        return d
+        res = yield self.GET("/operations/123/%s?output=JSON" % foo_si_s)
+        data = json.loads(res)
+        self.failUnlessEqual(data["storage-index"], foo_si_s)
+        self.failUnless(data["results"]["healthy"])
 
     def test_POST_DIRURL_deepcheck_and_repair(self):
-        d = self.POST(self.public_url, t="start-deep-check", repair="true",
-                      ophandle="124", output="json", followRedirect=True)
+        url = self.webish_url + self.public_url
+        body, headers = self.build_form(t="start-deep-check", repair="true",
+                                        ophandle="124", output="json")
+        d = do_http("post", url, data=body, headers=headers,
+                    allow_redirects=True,
+                    browser_like_redirects=True)
         d.addCallback(self.wait_for_operation, "124")
         def _check_json(data):
             self.failUnlessReallyEqual(data["finished"], True)
@@ -3133,11 +3094,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(node._node.get_version(), SDMF_VERSION))
         return d
 
+    @inlineCallbacks
     def test_POST_mkdir_bad_format(self):
-        return self.shouldHTTPError("POST_mkdir_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.POST, self.public_url +
-                                    "/foo?t=mkdir&name=newdir&format=foo")
+        url = (self.webish_url + self.public_url +
+               "/foo?t=mkdir&name=newdir&format=foo")
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+                                   method="post")
 
     def test_POST_mkdir_initial_children(self):
         (newkids, caps) = self._create_initial_children()
@@ -3183,13 +3145,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                        caps['filecap1'])
         return d
 
+    @inlineCallbacks
     def test_POST_mkdir_initial_children_bad_format(self):
         (newkids, caps) = self._create_initial_children()
-        return self.shouldHTTPError("POST_mkdir_initial_children_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.POST, self.public_url + \
-                                    "/foo?t=mkdir-with-children&name=newdir&format=foo",
-                                    json.dumps(newkids))
+        url = (self.webish_url + self.public_url +
+               "/foo?t=mkdir-with-children&name=newdir&format=foo")
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+                                   method="post", data=json.dumps(newkids))
 
     def test_POST_mkdir_immutable(self):
         (newkids, caps) = self._create_immutable_children()
@@ -3224,7 +3186,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_mkdir_2(self):
-        d = self.POST(self.public_url + "/foo/newdir?t=mkdir", "")
+        d = self.POST2(self.public_url + "/foo/newdir?t=mkdir", "")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -3232,7 +3194,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_mkdirs_2(self):
-        d = self.POST(self.public_url + "/foo/bardir/newdir?t=mkdir", "")
+        d = self.POST2(self.public_url + "/foo/bardir/newdir?t=mkdir", "")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"bardir"))
         d.addCallback(lambda res: self._foo_node.get(u"bardir"))
@@ -3264,11 +3226,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_after_mkdir)
         return d
 
+    @inlineCallbacks
     def test_POST_mkdir_no_parentdir_noredirect_bad_format(self):
-        return self.shouldHTTPError("POST_mkdir_no_parentdir_noredirect_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.POST, self.public_url +
-                                    "/uri?t=mkdir&format=foo")
+        url = self.webish_url + self.public_url + "/uri?t=mkdir&format=foo"
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+                                   method="post")
 
     def test_POST_mkdir_no_parentdir_noredirect2(self):
         # make sure form-based arguments (as on the welcome page) still work
@@ -3279,24 +3241,23 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addErrback(self.explain_web_error)
         return d
 
+    @inlineCallbacks
     def test_POST_mkdir_no_parentdir_redirect(self):
-        d = self.POST("/uri?t=mkdir&redirect_to_result=true")
-        d.addBoth(self.shouldRedirect, None, statuscode='303')
-        def _check_target(target):
-            target = urllib.unquote(target)
-            self.failUnless(target.startswith("uri/URI:DIR2:"), target)
-        d.addCallback(_check_target)
-        return d
+        url = self.webish_url + "/uri?t=mkdir&redirect_to_result=true"
+        target = yield self.shouldRedirectTo(url, None, method="post",
+                                             code=http.SEE_OTHER)
+        target = urllib.unquote(target)
+        self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
+    @inlineCallbacks
     def test_POST_mkdir_no_parentdir_redirect2(self):
-        d = self.POST("/uri", t="mkdir", redirect_to_result="true")
-        d.addBoth(self.shouldRedirect, None, statuscode='303')
-        def _check_target(target):
-            target = urllib.unquote(target)
-            self.failUnless(target.startswith("uri/URI:DIR2:"), target)
-        d.addCallback(_check_target)
-        d.addErrback(self.explain_web_error)
-        return d
+        body, headers = self.build_form(t="mkdir", redirect_to_result="true")
+        target = yield self.shouldRedirectTo(self.webish_url + "/uri", None,
+                                             method="post",
+                                             data=body, headers=headers,
+                                             code=http.SEE_OTHER)
+        target = urllib.unquote(target)
+        self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     def _make_readonly(self, u):
         ro_uri = uri.from_string(u).get_readonly()
@@ -3398,25 +3359,24 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_after_mkdir)
         return d
 
+    @inlineCallbacks
     def test_POST_mkdir_no_parentdir_unexpected_children(self):
         # the regular /uri?t=mkdir operation is specified to ignore its body.
         # Only t=mkdir-with-children pays attention to it.
         (newkids, caps) = self._create_initial_children()
-        d = self.shouldHTTPError("POST_mkdir_no_parentdir_unexpected_children",
-                                 400, "Bad Request",
-                                 "t=mkdir does not accept children=, "
-                                 "try t=mkdir-with-children instead",
-                                 self.POST2, "/uri?t=mkdir", # without children
-                                 json.dumps(newkids))
-        return d
+        url = self.webish_url + "/uri?t=mkdir" # without children
+        yield self.assertHTTPError(url, 400,
+                                   "t=mkdir does not accept children=, "
+                                   "try t=mkdir-with-children instead",
+                                   method="post", data=json.dumps(newkids))
 
+    @inlineCallbacks
     def test_POST_noparent_bad(self):
-        d = self.shouldHTTPError("POST_noparent_bad",
-                                 400, "Bad Request",
-                                 "/uri accepts only PUT, PUT?t=mkdir, "
-                                 "POST?t=upload, and POST?t=mkdir",
-                                 self.POST, "/uri?t=bogus")
-        return d
+        url = self.webish_url + "/uri?t=bogus"
+        yield self.assertHTTPError(url, 400,
+                                   "/uri accepts only PUT, PUT?t=mkdir, "
+                                   "POST?t=upload, and POST?t=mkdir",
+                                   method="post")
 
     def test_POST_mkdir_no_parentdir_immutable(self):
         (newkids, caps) = self._create_immutable_children()
@@ -3455,30 +3415,30 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              json.dumps(newkids))
         return d
 
+    @inlineCallbacks
     def test_welcome_page_mkdir_button(self):
         # Fetch the welcome page.
-        d = self.GET("/")
-        def _after_get_welcome_page(res):
-            MKDIR_BUTTON_RE = re.compile(
-                '<form(?: action="([^"]*)"| method="post"| enctype="multipart/form-data"){3}>.*'
-                '<input (?:type="hidden" |name="t" |value="([^"]*?)" ){3}/>[ ]*'
-                '<input (?:type="hidden" |name="([^"]*)" |value="([^"]*)" ){3}/>[ ]*'
-                '<input (type="submit" |class="btn" |value="Create a directory[^"]*" ){3}/>')
-            html = res.replace('\n', ' ')
-            mo = MKDIR_BUTTON_RE.search(html)
-            self.failUnless(mo, html)
-            formaction = mo.group(1)
-            formt = mo.group(2)
-            formaname = mo.group(3)
-            formavalue = mo.group(4)
-            return (formaction, formt, formaname, formavalue)
-        d.addCallback(_after_get_welcome_page)
-        def _after_parse_form(res):
-            (formaction, formt, formaname, formavalue) = res
-            return self.POST("/%s?t=%s&%s=%s" % (formaction, formt, formaname, formavalue))
-        d.addCallback(_after_parse_form)
-        d.addBoth(self.shouldRedirect, None, statuscode='303')
-        return d
+        res = yield self.GET("/")
+        MKDIR_BUTTON_RE = re.compile(
+            '<form(?: action="([^"]*)"| method="post"| enctype="multipart/form-data"){3}>.*'
+            '<input (?:type="hidden" |name="t" |value="([^"]*?)" ){3}/>[ ]*'
+            '<input (?:type="hidden" |name="([^"]*)" |value="([^"]*)" ){3}/>[ ]*'
+            '<input (type="submit" |class="btn" |value="Create a directory[^"]*" ){3}/>')
+        html = res.replace('\n', ' ')
+        mo = MKDIR_BUTTON_RE.search(html)
+        self.failUnless(mo, html)
+        formaction = mo.group(1)
+        formt = mo.group(2)
+        formaname = mo.group(3)
+        formavalue = mo.group(4)
+
+        url = self.webish_url + "/%s?t=%s&%s=%s" % (formaction, formt,
+                                                    formaname, formavalue)
+        target = yield self.shouldRedirectTo(url, None,
+                                             method="post",
+                                             code=http.SEE_OTHER)
+        target = urllib.unquote(target)
+        self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     def test_POST_mkdir_replace(self): # return value?
         d = self.POST(self.public_url + "/foo", t="mkdir", name="sub")
@@ -3508,21 +3468,26 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessNodeKeysAre, [u"baz.txt"])
         return d
 
+    @inlineCallbacks
     def test_POST_mkdir_whendone_field(self):
-        d = self.POST(self.public_url + "/foo",
-                      t="mkdir", name="newdir", when_done="/THERE")
-        d.addBoth(self.shouldRedirect, "/THERE")
-        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessNodeKeysAre, [])
-        return d
+        body, headers = self.build_form(t="mkdir", name="newdir",
+                                        when_done="/THERE")
+        yield self.shouldRedirectTo(self.webish_url + self.public_url + "/foo",
+                                    self.webish_url + "/THERE",
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
+        res = yield self._foo_node.get(u"newdir")
+        self.failUnlessNodeKeysAre(res, [])
 
+    @inlineCallbacks
     def test_POST_mkdir_whendone_queryarg(self):
-        d = self.POST(self.public_url + "/foo?when_done=/THERE",
-                      t="mkdir", name="newdir")
-        d.addBoth(self.shouldRedirect, "/THERE")
-        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessNodeKeysAre, [])
-        return d
+        body, headers = self.build_form(t="mkdir", name="newdir")
+        url = self.webish_url + self.public_url + "/foo?when_done=/THERE"
+        yield self.shouldRedirectTo(url, self.webish_url + "/THERE",
+                                    method="post", data=body, headers=headers,
+                                    code=http.FOUND)
+        res = yield self._foo_node.get(u"newdir")
+        self.failUnlessNodeKeysAre(res, [])
 
     def test_POST_bad_t(self):
         d = self.shouldFail2(error.Error, "POST_bad_t",
@@ -3562,7 +3527,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         url = self.webish_url + self.public_url + "/foo" + "?t=" + command_name
 
-        d = client.getPage(url, method="POST", postdata=reqbody)
+        d = do_http("post", url, data=reqbody)
         def _then(res):
             self.failUnlessURIMatchesROChild(newuri9, self._foo_node, u"atomic_added_1")
             self.failUnlessURIMatchesROChild(newuri10, self._foo_node, u"atomic_added_2")
@@ -3949,7 +3914,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_relink_file_multi_level(self):
-        d = self.POST(self.public_url + "/foo/sub/level2?t=mkdir", "")
+        d = self.POST2(self.public_url + "/foo/sub/level2?t=mkdir", "")
         d.addCallback(lambda res: self.POST(self.public_url + "/foo", t="relink",
                       from_name="bar.txt", to_dir=self.public_root.get_uri() + "/foo/sub/level2"))
         d.addCallback(lambda res: self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
@@ -4025,46 +3990,41 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
-    def shouldRedirect(self, res, target=None, statuscode=None, which=""):
-        """ If target is not None then the redirection has to go to target.  If
-        statuscode is not None then the redirection has to be accomplished with
-        that HTTP status code."""
-        if not isinstance(res, failure.Failure):
-            to_where = (target is None) and "somewhere" or ("to " + target)
-            self.fail("%s: we were expecting to get redirected %s, not get an"
-                      " actual page: %s" % (which, to_where, res))
-        res.trap(error.PageRedirect)
-        if statuscode is not None:
-            self.failUnlessReallyEqual(res.value.status, statuscode,
-                                       "%s: not a redirect" % which)
-        if target is not None:
-            # the PageRedirect does not seem to capture the uri= query arg
-            # properly, so we can't check for it.
-            realtarget = self.webish_url + target
-            self.failUnlessReallyEqual(res.value.location, realtarget,
-                                       "%s: wrong target" % which)
-        return res.value.location
+    @inlineCallbacks
+    def shouldRedirectTo(self, url, target_location, method="get",
+                         code=None, **args):
+        response = yield treq.request(method, url, persistent=False,
+                                      allow_redirects=False, **args)
+        codes = [http.MOVED_PERMANENTLY,
+                 http.FOUND,
+                 http.TEMPORARY_REDIRECT,
+                 ] if code is None else [code]
+        self.assertIn(response.code, codes)
+        location = response.headers.getRawHeaders(b"location")[0]
+        if target_location is not None:
+            self.assertEquals(location, target_location)
+        returnValue(location)
 
+    @inlineCallbacks
     def test_GET_URI_form(self):
-        base = "/uri?uri=%s" % self._bar_txt_uri
+        relbase = "/uri?uri=%s" % self._bar_txt_uri
+        base = self.webish_url + relbase
         # this is supposed to give us a redirect to /uri/$URI, plus arguments
-        targetbase = "/uri/%s" % urllib.quote(self._bar_txt_uri)
-        d = self.GET(base)
-        d.addBoth(self.shouldRedirect, targetbase)
-        d.addCallback(lambda res: self.GET(base+"&filename=bar.txt"))
-        d.addBoth(self.shouldRedirect, targetbase+"?filename=bar.txt")
-        d.addCallback(lambda res: self.GET(base+"&t=json"))
-        d.addBoth(self.shouldRedirect, targetbase+"?t=json")
-        d.addCallback(self.log, "about to get file by uri")
-        d.addCallback(lambda res: self.GET(base, followRedirect=True))
-        d.addCallback(self.failUnlessIsBarDotTxt)
-        d.addCallback(self.log, "got file by uri, about to get dir by uri")
-        d.addCallback(lambda res: self.GET("/uri?uri=%s&t=json" % self._foo_uri,
-                                           followRedirect=True))
-        d.addCallback(self.failUnlessIsFooJSON)
-        d.addCallback(self.log, "got dir by uri")
+        targetbase = self.webish_url + "/uri/%s" % urllib.quote(self._bar_txt_uri)
+        yield self.shouldRedirectTo(base, targetbase)
+        yield self.shouldRedirectTo(base+"&filename=bar.txt",
+                                    targetbase+"?filename=bar.txt")
+        yield self.shouldRedirectTo(base+"&t=json",
+                                    targetbase+"?t=json")
 
-        return d
+        self.log(None, "about to get file by uri")
+        data = yield self.GET(relbase, followRedirect=True)
+        self.failUnlessIsBarDotTxt(data)
+        self.log(None, "got file by uri, about to get dir by uri")
+        data = yield self.GET("/uri?uri=%s&t=json" % self._foo_uri,
+                              followRedirect=True)
+        self.failUnlessIsFooJSON(data)
+        self.log(None, "got dir by uri")
 
     def test_GET_URI_form_bad(self):
         d = self.shouldFail2(error.Error, "test_GET_URI_form_bad",
@@ -4103,16 +4063,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
+    @inlineCallbacks
     def test_GET_URI_URL_missing(self):
         base = "/uri/%s" % self._bad_file_uri
-        d = self.shouldHTTPError("test_GET_URI_URL_missing",
-                                 http.GONE, None, "NotEnoughSharesError",
-                                 self.GET, base)
+        url = self.webish_url + base
+        yield self.assertHTTPError(url, http.GONE, "NotEnoughSharesError")
         # TODO: how can we exercise both sides of WebDownloadTarget.fail
         # here? we must arrange for a download to fail after target.open()
         # has been called, and then inspect the response to see that it is
         # shorter than we expected.
-        return d
 
     def test_PUT_DIRURL_uri(self):
         d = self.s.create_dirnode()
@@ -4200,13 +4159,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_got_json)
         return d
 
+    @inlineCallbacks
     def test_PUT_NEWFILEURL_bad_format(self):
         new_contents = self.NEWFILE_CONTENTS * 300000
-        return self.shouldHTTPError("PUT_NEWFILEURL_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.PUT, self.public_url + \
-                                    "/foo/foo.txt?format=foo",
-                                    new_contents)
+        url = self.webish_url + self.public_url + "/foo/foo.txt?format=foo"
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+                                   method="put", data=new_contents)
 
     def test_PUT_NEWFILEURL_uri_replace(self):
         contents, n, new_uri = self.makefile(8)
@@ -4335,11 +4293,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_got)
         return d
 
+    @inlineCallbacks
     def test_PUT_mkdir_bad_format(self):
-        return self.shouldHTTPError("PUT_mkdir_bad_format",
-                                    400, "Bad Request", "Unknown format: foo",
-                                    self.PUT, "/uri?t=mkdir&format=foo",
-                                    "")
+        url = self.webish_url + "/uri?t=mkdir&format=foo"
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+                                   method="put", data="")
 
     def test_POST_check(self):
         d = self.POST(self.public_url + "/foo", t="check", name="bar.txt")
@@ -4390,196 +4348,149 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(results, "begin"+self.new_data[len("begin"):]+("puppies"*100)))
         return d
 
+    @inlineCallbacks
     def test_PUT_update_at_invalid_offset(self):
         file_contents = "test file" * 100000 # about 900 KiB
-        d = self.PUT("/uri?mutable=true", file_contents)
-        def _then(filecap):
-            self.filecap = filecap
-        d.addCallback(_then)
+        filecap = yield self.PUT("/uri?mutable=true", file_contents)
         # Negative offsets should cause an error.
-        d.addCallback(lambda ignored:
-            self.shouldHTTPError("PUT_update_at_invalid_offset",
-                                 400, "Bad Request",
-                                 "Invalid offset",
-                                 self.PUT,
-                                 "/uri/%s?offset=-1" % self.filecap,
-                                 "foo"))
-        return d
+        url = self.webish_url + "/uri/%s?offset=-1" % filecap
+        yield self.assertHTTPError(url, 400, "Invalid offset",
+                                   method="put", data="foo")
 
+    @inlineCallbacks
     def test_PUT_update_at_offset_immutable(self):
         file_contents = "Test file" * 100000
-        d = self.PUT("/uri", file_contents)
-        def _then(filecap):
-            self.filecap = filecap
-        d.addCallback(_then)
-        d.addCallback(lambda ignored:
-            self.shouldHTTPError("PUT_update_at_offset_immutable",
-                                 400, "Bad Request",
-                                 "immutable",
-                                 self.PUT,
-                                 "/uri/%s?offset=50" % self.filecap,
-                                 "foo"))
-        return d
+        filecap = yield self.PUT("/uri", file_contents)
+        url = self.webish_url + "/uri/%s?offset=50" % filecap
+        yield self.assertHTTPError(url, 400, "immutable",
+                                   method="put", data="foo")
 
-
+    @inlineCallbacks
     def test_bad_method(self):
         url = self.webish_url + self.public_url + "/foo/bar.txt"
-        d = self.shouldHTTPError("bad_method",
-                                 501, "Not Implemented",
-                                 "I don't know how to treat a BOGUS request.",
-                                 client.getPage, url, method="BOGUS")
-        return d
+        yield self.assertHTTPError(url, 501,
+                                   "I don't know how to treat a BOGUS request.",
+                                   method="BOGUS")
 
+    @inlineCallbacks
     def test_short_url(self):
         url = self.webish_url + "/uri"
-        d = self.shouldHTTPError("short_url", 501, "Not Implemented",
-                                 "I don't know how to treat a DELETE request.",
-                                 client.getPage, url, method="DELETE")
-        return d
+        yield self.assertHTTPError(url, 501,
+                                   "I don't know how to treat a DELETE request.",
+                                   method="DELETE")
 
+    @inlineCallbacks
     def test_ophandle_bad(self):
         url = self.webish_url + "/operations/bogus?t=status"
-        d = self.shouldHTTPError("ophandle_bad", 404, "404 Not Found",
-                                 "unknown/expired handle 'bogus'",
-                                 client.getPage, url)
-        return d
+        yield self.assertHTTPError(url, 404,
+                                   "unknown/expired handle 'bogus'")
 
+    @inlineCallbacks
     def test_ophandle_cancel(self):
-        d = self.POST(self.public_url + "/foo/?t=start-manifest&ophandle=128",
-                      followRedirect=True)
-        d.addCallback(lambda ignored:
-                      self.GET("/operations/128?t=status&output=JSON"))
-        def _check1(res):
-            data = json.loads(res)
-            self.failUnless("finished" in data, res)
-            monitor = self.ws.root.child_operations.handles["128"][0]
-            d = self.POST("/operations/128?t=cancel&output=JSON")
-            def _check2(res):
-                data = json.loads(res)
-                self.failUnless("finished" in data, res)
-                # t=cancel causes the handle to be forgotten
-                self.failUnless(monitor.is_cancelled())
-            d.addCallback(_check2)
-            return d
-        d.addCallback(_check1)
-        d.addCallback(lambda ignored:
-                      self.shouldHTTPError("ophandle_cancel",
-                                           404, "404 Not Found",
-                                           "unknown/expired handle '128'",
-                                           self.GET,
-                                           "/operations/128?t=status&output=JSON"))
-        return d
+        url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=128"
+        yield do_http("post", url,
+                      allow_redirects=True, browser_like_redirects=True)
+        res = yield self.GET("/operations/128?t=status&output=JSON")
+        data = json.loads(res)
+        self.failUnless("finished" in data, res)
+        monitor = self.ws.root.child_operations.handles["128"][0]
 
+        res = yield self.POST("/operations/128?t=cancel&output=JSON")
+        data = json.loads(res)
+        self.failUnless("finished" in data, res)
+        # t=cancel causes the handle to be forgotten
+        self.failUnless(monitor.is_cancelled())
+
+        url = self.webish_url + "/operations/128?t=status&output=JSON"
+        yield self.assertHTTPError(url, 404, "unknown/expired handle '128'")
+
+    @inlineCallbacks
     def test_ophandle_retainfor(self):
-        d = self.POST(self.public_url + "/foo/?t=start-manifest&ophandle=129&retain-for=60",
-                      followRedirect=True)
-        d.addCallback(lambda ignored:
-                      self.GET("/operations/129?t=status&output=JSON&retain-for=0"))
-        def _check1(res):
-            data = json.loads(res)
-            self.failUnless("finished" in data, res)
-        d.addCallback(_check1)
+        url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=129&retain-for=60"
+        yield do_http("post", url,
+                      allow_redirects=True, browser_like_redirects=True)
+        res = yield self.GET("/operations/129?t=status&output=JSON&retain-for=0")
+        data = json.loads(res)
+        self.failUnless("finished" in data, res)
+
         # the retain-for=0 will cause the handle to be expired very soon
-        d.addCallback(lambda ign:
-            self.clock.advance(2.0))
-        d.addCallback(lambda ignored:
-                      self.shouldHTTPError("ophandle_retainfor",
-                                           404, "404 Not Found",
-                                           "unknown/expired handle '129'",
-                                           self.GET,
-                                           "/operations/129?t=status&output=JSON"))
-        return d
+        yield self.clock.advance(2.0)
+        url = self.webish_url + "/operations/129?t=status&output=JSON"
+        yield self.assertHTTPError(url, 404, "unknown/expired handle '129'")
 
+    @inlineCallbacks
     def test_ophandle_release_after_complete(self):
-        d = self.POST(self.public_url + "/foo/?t=start-manifest&ophandle=130",
-                      followRedirect=True)
-        d.addCallback(self.wait_for_operation, "130")
-        d.addCallback(lambda ignored:
-                      self.GET("/operations/130?t=status&output=JSON&release-after-complete=true"))
+        url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=130"
+        yield do_http("post", url,
+                      allow_redirects=True, browser_like_redirects=True)
+        yield self.wait_for_operation(None, "130")
+        yield self.GET("/operations/130?t=status&output=JSON&release-after-complete=true")
         # the release-after-complete=true will cause the handle to be expired
-        d.addCallback(lambda ignored:
-                      self.shouldHTTPError("ophandle_release_after_complete",
-                                           404, "404 Not Found",
-                                           "unknown/expired handle '130'",
-                                           self.GET,
-                                           "/operations/130?t=status&output=JSON"))
-        return d
+        op_url = self.webish_url + "/operations/130?t=status&output=JSON"
+        yield self.assertHTTPError(op_url, 404, "unknown/expired handle '130'")
 
+    @inlineCallbacks
     def test_uncollected_ophandle_expiration(self):
         # uncollected ophandles should expire after 4 days
         def _make_uncollected_ophandle(ophandle):
-            d = self.POST(self.public_url +
-                          "/foo/?t=start-manifest&ophandle=%d" % ophandle,
-                          followRedirect=False)
-            # When we start the operation, the webapi server will want
-            # to redirect us to the page for the ophandle, so we get
-            # confirmation that the operation has started. If the
-            # manifest operation has finished by the time we get there,
-            # following that redirect (by setting followRedirect=True
-            # above) has the side effect of collecting the ophandle that
-            # we've just created, which means that we can't use the
-            # ophandle to test the uncollected timeout anymore. So,
-            # instead, catch the 302 here and don't follow it.
-            d.addBoth(self.should302, "uncollected_ophandle_creation")
+            url = (self.webish_url + self.public_url +
+                   "/foo/?t=start-manifest&ophandle=%d" % ophandle)
+            # When we start the operation, the webapi server will want to
+            # redirect us to the page for the ophandle, so we get
+            # confirmation that the operation has started. If the manifest
+            # operation has finished by the time we get there, following that
+            # redirect would have the side effect of collecting the ophandle
+            # that we've just created, which means that we can't use the
+            # ophandle to test the uncollected timeout anymore. So, instead,
+            # catch+ignore any 302 here and don't follow it.
+            d = treq.request("post", url, persistent=False)
+            def _ignore_redirect(f):
+                f.trap(client.ResponseFailed)
+                e = f.value
+                reasons = e.reasons
+                r0 = reasons[0]
+                r0.trap(error.PageRedirect)
+            d.addErrback(_ignore_redirect)
             return d
         # Create an ophandle, don't collect it, then advance the clock by
         # 4 days - 1 second and make sure that the ophandle is still there.
-        d = _make_uncollected_ophandle(131)
-        d.addCallback(lambda ign:
-            self.clock.advance((96*60*60) - 1)) # 96 hours = 4 days
-        d.addCallback(lambda ign:
-            self.GET("/operations/131?t=status&output=JSON"))
-        def _check1(res):
-            data = json.loads(res)
-            self.failUnless("finished" in data, res)
-        d.addCallback(_check1)
+        yield _make_uncollected_ophandle(131)
+        yield self.clock.advance((96*60*60) - 1) # 96 hours = 4 days
+        res = yield self.GET("/operations/131?t=status&output=JSON")
+        data = json.loads(res)
+        self.failUnless("finished" in data, res)
+
         # Create an ophandle, don't collect it, then try to collect it
         # after 4 days. It should be gone.
-        d.addCallback(lambda ign:
-            _make_uncollected_ophandle(132))
-        d.addCallback(lambda ign:
-            self.clock.advance(96*60*60))
-        d.addCallback(lambda ign:
-            self.shouldHTTPError("uncollected_ophandle_expired_after_100_hours",
-                                 404, "404 Not Found",
-                                 "unknown/expired handle '132'",
-                                 self.GET,
-                                 "/operations/132?t=status&output=JSON"))
-        return d
+        yield _make_uncollected_ophandle(132)
+        yield self.clock.advance(96*60*60)
+        op_url = self.webish_url + "/operations/132?t=status&output=JSON"
+        yield self.assertHTTPError(op_url, 404, "unknown/expired handle '132'")
 
+    @inlineCallbacks
     def test_collected_ophandle_expiration(self):
         # collected ophandles should expire after 1 day
         def _make_collected_ophandle(ophandle):
-            d = self.POST(self.public_url +
-                          "/foo/?t=start-manifest&ophandle=%d" % ophandle,
-                          followRedirect=True)
+            url = (self.webish_url + self.public_url +
+                   "/foo/?t=start-manifest&ophandle=%d" % ophandle)
             # By following the initial redirect, we collect the ophandle
             # we've just created.
-            return d
+            return do_http("post", url,
+                           allow_redirects=True, browser_like_redirects=True)
         # Create a collected ophandle, then collect it after 23 hours
         # and 59 seconds to make sure that it is still there.
-        d = _make_collected_ophandle(133)
-        d.addCallback(lambda ign:
-            self.clock.advance((24*60*60) - 1))
-        d.addCallback(lambda ign:
-            self.GET("/operations/133?t=status&output=JSON"))
-        def _check1(res):
-            data = json.loads(res)
-            self.failUnless("finished" in data, res)
-        d.addCallback(_check1)
+        yield _make_collected_ophandle(133)
+        yield self.clock.advance((24*60*60) - 1)
+        res = yield self.GET("/operations/133?t=status&output=JSON")
+        data = json.loads(res)
+        self.failUnless("finished" in data, res)
+
         # Create another uncollected ophandle, then try to collect it
         # after 24 hours to make sure that it is gone.
-        d.addCallback(lambda ign:
-            _make_collected_ophandle(134))
-        d.addCallback(lambda ign:
-            self.clock.advance(24*60*60))
-        d.addCallback(lambda ign:
-            self.shouldHTTPError("collected_ophandle_expired_after_1_day",
-                                 404, "404 Not Found",
-                                 "unknown/expired handle '134'",
-                                 self.GET,
-                                 "/operations/134?t=status&output=JSON"))
-        return d
+        yield _make_collected_ophandle(134)
+        yield self.clock.advance(24*60*60)
+        op_url = self.webish_url + "/operations/134?t=status&output=JSON"
+        yield self.assertHTTPError(op_url, 404, "unknown/expired handle '134'")
 
     def test_incident(self):
         d = self.POST("/report_incident", details="eek")
