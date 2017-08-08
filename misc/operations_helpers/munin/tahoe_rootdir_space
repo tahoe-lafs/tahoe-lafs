@@ -2,7 +2,6 @@
 
 import os, sys
 import urllib
-import json
 
 configinfo = """\
 graph_title Tahoe Root Directory Size
@@ -22,6 +21,3 @@ url = os.environ["url"]
 
 data = int(urllib.urlopen(url).read().strip())
 print "space.value %d" % data
-
-
-

@@ -39,7 +39,6 @@ def predict_future(past_s):
         # ((start, end, step), (name1, name2, ...), [(data1, data2, ..), ...])
         (start_time, end_time ,step) = d[0]
         #print format_time(start_time), " - ", format_time(end_time), step
-        names = d[1]
         #for points in d[2]:
         #    point = points[0]
         #    print point
@@ -105,4 +104,3 @@ if remaining_2wk is not None:
     print "days_2wk.value", remaining_2wk
     samples["remaining_2wk"] = remaining_2wk
 write_to_file(samples)
-
