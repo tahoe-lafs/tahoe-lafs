@@ -51,7 +51,7 @@ if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
     del sys.argv[1]
     install_requires += ["fakedependency >= 1.0.0"]
 
-from setuptools import setup
+from setuptools import find_packages, setup
 from setuptools import Command
 from setuptools.command import install
 
@@ -253,22 +253,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
                 "test": PleaseUseTox,
                 },
       package_dir = {'':'src'},
-      packages=['allmydata',
-                'allmydata.frontends',
-                'allmydata.immutable',
-                'allmydata.immutable.downloader',
-                'allmydata.introducer',
-                'allmydata.mutable',
-                'allmydata.scripts',
-                'allmydata.storage',
-                'allmydata.test',
-                'allmydata.test.cli',
-                'allmydata.test.mutable',
-                'allmydata.test.web',
-                'allmydata.util',
-                'allmydata.web',
-                'allmydata.windows',
-                ],
+      packages=find_packages('src'),
       classifiers=trove_classifiers,
       install_requires=install_requires,
       extras_require={
