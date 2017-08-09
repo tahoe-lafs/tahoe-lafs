@@ -91,6 +91,9 @@ install_requires = [
     "PyYAML >= 3.11",
 
     "six >= 1.10.0",
+
+    # for 'tahoe invite' and 'tahoe join'
+    "magic-wormhole >= 0.10.2",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.

@@ -26,6 +26,39 @@ grid`_ as you only need to create a client node. When you want to create your
 own grid you'll need to create the introducer and several initial storage
 nodes (see the note about small grids below).
 
+
+Being Introduced to a Grid
+--------------------------
+
+A collection of Tahoe servers is called a Grid and usually has 1
+Introducer (but sometimes more, and it's possible to run with zero). The
+Introducer announces which storage servers constitute the Grid and how to
+contact them. There is a secret "fURL" you need to know to talk to the
+Introducer.
+
+One way to get this secret is using traditional tools such as encrypted
+email, encrypted instant-messaging, etcetera. It is important to transmit
+this fURL secretly as knowing it gives you access to the Grid.
+
+An additional way to share the fURL securely is via `magic
+wormhole`_. This uses a weak one-time password and a server on the
+internet (at `wormhole.tahoe-lafs.org`) to open a secure channel between
+two computers. In Tahoe-LAFS this functions via the commands `tahoe
+invite` and `tahoe create-client --join`. A person who already has access
+to a Grid can use `tahoe invite` to create one end of the `magic
+wormhole`_ and then transmits some JSON (including the Introducer's
+secret fURL) to the other end. `tahoe invite` will print a one-time
+secret code; you must then communicate this code to the person who will
+join the Grid.
+
+The other end of the `magic wormhole`_ in this case is `tahoe
+create-client --join <one-time code>`, where the person being invited
+types in the code they were given. Ideally, this code would be
+transmitted securely. It is, however, only useful exactly once. Also, it
+is much easier to transcribe by a human. Codes look like
+`7-surrender-tunnel` (a short number and two words).
+
+
 Running a Client
 ----------------
 
@@ -38,6 +71,11 @@ To construct a client node, run “``tahoe create-client``”, which will create
 it will do is connect to the introducer and get itself connected to all other
 nodes on the grid.
 
+Some Grids use "magic wormhole" one-time codes to configure the basic
+options. In such a case you use ``tahoe create-client --join
+<one-time-code>`` and do not have to do any of the ``tahoe.cfg`` editing
+mentioned above.
+
 By default, “``tahoe create-client``” creates a client-only node, that
 does not offer its disk space to other nodes. To configure other behavior,
 use “``tahoe create-node``” or see :doc:`configuration`.
@@ -46,6 +84,7 @@ The “``tahoe run``” command above will run the node in the foreground.
 On Unix, you can run it in the background instead by using the
 “``tahoe start``” command. To stop a node started in this way, use
 “``tahoe stop``”. ``tahoe --help`` gives a summary of all commands.
+
 
 Running a Server or Introducer
 ------------------------------
@@ -67,6 +106,13 @@ URL the other nodes must use in order to connect to this introducer.
 (Note that “``tahoe run .``” doesn't work for introducers, this is a
 known issue: `#937`_.)
 
+You can distribute your Introducer fURL securely to new clients by using
+the ``tahoe invite`` command. This will prepare some JSON to send to the
+other side, request a `magic wormhole`_ code from
+``wormhole.tahoe-lafs.org`` and print it out to the terminal. This
+one-time code should be transmitted to the user of the client, who can
+then run ``tahoe create-client --join <one-time-code>``.
+
 Storage servers are created the same way: ``tahoe create-node
 --hostname=HOSTNAME .`` from a new directory. You'll need to provide the
 introducer FURL (either as a ``--introducer=`` argument, or by editing
@@ -79,6 +125,7 @@ Tahoe-LAFS.
 .. _public test grid: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid
 .. _TestGrid page: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid
 .. _#937:  https://tahoe-lafs.org/trac/tahoe-lafs/ticket/937
+.. _magic wormhole: https://magic-wormhole.io/
 
 
 A note about small grids

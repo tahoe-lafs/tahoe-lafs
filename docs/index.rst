@@ -13,6 +13,7 @@ Contents:
    about
    INSTALL
    running
+   magic-wormhole-invites
    configuration
    architecture
 
