@@ -49,7 +49,9 @@ class BackupDB(unittest.TestCase):
         self.failUnlessEqual(bdb, None)
         stderr = stderr_f.getvalue()
         self.failUnlessIn("backupdb file is unusable", stderr)
-        self.failUnlessIn("file is encrypted or is not a database", stderr)
+        # sqlite-3.19.3 says "file is encrypted or is not a database"
+        # sqlite-3.20.0 says "file is not a database"
+        self.failUnlessIn("is not a database", stderr)
 
         # put a directory in the way, to exercise a different error path
         where = os.path.join(basedir, "roadblock-dir")
