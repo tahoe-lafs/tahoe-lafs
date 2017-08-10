@@ -1,7 +1,8 @@
 
 def foo(): pass # keep the line number constant
 
-import os, time, sys, yaml
+import os, time, sys, itertools, random
+import yaml
 from StringIO import StringIO
 from datetime import timedelta
 from twisted.trial import unittest
@@ -1464,10 +1465,10 @@ class DictUtil(unittest.TestCase):
         d3 = dictutil.subtract(d1, d2)
         self.failUnlessEqual(d3, {1: "a"})
 
-        d1 = {1: "a", 2: "b"}
-        d2 = {2: "c"}
+        d1 = {1: "a", 2: "b", 3: "c"}
+        d2 = {2: "c", 4: "d"}
         d3 = dictutil.subtract(d1, d2)
-        self.failUnlessEqual(d3, {1: "a"})
+        self.failUnlessEqual(d3, {1: "a", 3: "c"})
 
     def test_utildict(self):
         d = dictutil.UtilDict({1: "a", 2: "b"})
@@ -1556,6 +1557,35 @@ class DictUtil(unittest.TestCase):
                              [("c", -1), ("a", 1), ("d", 4), ("b", 6)])
         self.failUnlessEqual(d.item_with_largest_value(), ("b", 6))
 
+        # to get full coverage of item_with_largest_value(), we need to
+        # exercise two situations: the first value (in iteritems() order) is
+        # larger than the second, and vice versa. Since iteration is not
+        # deterministic, we need to try a bunch of random dictionaries to
+        # exercise this
+        r = random.Random(0) # consistent seed
+        count = itertools.count()
+        found = set()
+        while count.next() < 1000:
+            a = r.randrange(100)
+            b = r.randrange(100)
+            larger = ("a",a) if a > b else ("b",b)
+            if a == b:
+                continue
+            d0 = dictutil.NumDict()
+            d0.add_num("a", a)
+            d0.add_num("b", b)
+            self.failUnlessEqual(d0, {"a": a, "b": b})
+            items = list(d0.d.iteritems())
+            if items[0][1] > items[1][1]:
+                found.add("first-larger")
+            else:
+                found.add("first-smaller")
+            self.failUnlessEqual(d0.item_with_largest_value(), larger)
+            if found == set(["first-larger", "first-smaller"]):
+                break
+        else:
+            self.fail("unable to exercise all cases of item_with_largest_value")
+
         d = dictutil.NumDict({"a": 1, "b": 2})
         self.failUnlessIn(repr(d), ("{'a': 1, 'b': 2}",
                                     "{'b': 2, 'a': 1}"))
@@ -1627,6 +1657,15 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(d.values(), [1, 2, 3])
         self.failUnlessEqual(d.keys(), ["c", "b", "a"])
         self.failUnlessEqual(repr(d), "<ValueOrderedDict {c: 1, b: 2, a: 3}>")
+        self.failUnlessEqual(str(d), "<ValueOrderedDict {c: 1, b: 2, a: 3}>")
+        # str() is supposed to only show the first 16 entries
+        large_d = dictutil.ValueOrderedDict()
+        for i in range(20):
+            large_d["k%d" % i] = i
+        large_d_repr = ("<ValueOrderedDict {%s, ...}>" %
+                        ", ".join(["k%d: %d" % (i, i) for i in range(16)]))
+        self.failUnlessEqual(str(large_d), large_d_repr)
+
         def eq(a, b):
             return a == b
         self.failIf(d == {"a": 4})

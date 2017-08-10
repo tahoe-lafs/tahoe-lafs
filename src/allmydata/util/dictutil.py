@@ -436,8 +436,12 @@ class ValueOrderedDict:
             s.append(str(x[0])); s.append(": "); s.append(str(x[1]))
             i = 1
             while (n is None) or (i < n):
+                i += 1
                 x = iter.next()
-                s.append(", "); s.append(str(x[0])); s.append(": "); s.append(str(x[1]))
+                s.append(", ");
+                s.append(str(x[0])); s.append(": "); s.append(str(x[1]))
+            # if we get here, we're truncating the repr, so make that clear
+            s.append(", ...")
         except StopIteration:
             pass
         s.append("}")
