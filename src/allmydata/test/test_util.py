@@ -1,7 +1,7 @@
 
 def foo(): pass # keep the line number constant
 
-import os, time, sys, itertools, random
+import os, time, sys
 import yaml
 from StringIO import StringIO
 from datetime import timedelta
@@ -1409,13 +1409,10 @@ class DictUtil(unittest.TestCase):
 
     def test_all(self):
         self._help_test_eq_but_notis(dictutil.UtilDict)
-        self._help_test_eq_but_notis(dictutil.NumDict)
         self._help_test_eq_but_notis(dictutil.ValueOrderedDict)
         self._help_test_nonempty_dict(dictutil.UtilDict)
-        self._help_test_nonempty_dict(dictutil.NumDict)
         self._help_test_nonempty_dict(dictutil.ValueOrderedDict)
         self._help_test_eq_but_notis(dictutil.UtilDict)
-        self._help_test_eq_but_notis(dictutil.NumDict)
         self._help_test_eq_but_notis(dictutil.ValueOrderedDict)
 
     def test_dict_of_sets(self):
@@ -1525,120 +1522,6 @@ class DictUtil(unittest.TestCase):
         x = d.popitem()
         self.failUnless(x in [(1, "b"), (2, "a")])
         self.failUnlessRaises(KeyError, d.popitem)
-
-    def test_numdict(self):
-        d = dictutil.NumDict({"a": 1, "b": 2})
-
-        d.add_num("a", 10, 5)
-        d.add_num("c", 20, 5)
-        d.add_num("d", 30)
-        self.failUnlessEqual(d, {"a": 11, "b": 2, "c": 25, "d": 30})
-
-        d.subtract_num("a", 10)
-        d.subtract_num("e", 10)
-        d.subtract_num("f", 10, 15)
-        self.failUnlessEqual(d, {"a": 1, "b": 2, "c": 25, "d": 30,
-                                 "e": -10, "f": 5})
-
-        self.failUnlessEqual(d.sum(), sum([1, 2, 25, 30, -10, 5]))
-
-        d = dictutil.NumDict()
-        d.inc("a")
-        d.inc("a")
-        d.inc("b", 5)
-        self.failUnlessEqual(d, {"a": 2, "b": 6})
-        d.dec("a")
-        d.dec("c")
-        d.dec("d", 5)
-        self.failUnlessEqual(d, {"a": 1, "b": 6, "c": -1, "d": 4})
-        self.failUnlessEqual(d.items_sorted_by_key(),
-                             [("a", 1), ("b", 6), ("c", -1), ("d", 4)])
-        self.failUnlessEqual(d.items_sorted_by_value(),
-                             [("c", -1), ("a", 1), ("d", 4), ("b", 6)])
-        self.failUnlessEqual(d.item_with_largest_value(), ("b", 6))
-
-        # to get full coverage of item_with_largest_value(), we need to
-        # exercise two situations: the first value (in iteritems() order) is
-        # larger than the second, and vice versa. Since iteration is not
-        # deterministic, we need to try a bunch of random dictionaries to
-        # exercise this
-        r = random.Random(0) # consistent seed
-        count = itertools.count()
-        found = set()
-        while count.next() < 1000:
-            a = r.randrange(100)
-            b = r.randrange(100)
-            larger = ("a",a) if a > b else ("b",b)
-            if a == b:
-                continue
-            d0 = dictutil.NumDict()
-            d0.add_num("a", a)
-            d0.add_num("b", b)
-            self.failUnlessEqual(d0, {"a": a, "b": b})
-            items = list(d0.d.iteritems())
-            if items[0][1] > items[1][1]:
-                found.add("first-larger")
-            else:
-                found.add("first-smaller")
-            self.failUnlessEqual(d0.item_with_largest_value(), larger)
-            if found == set(["first-larger", "first-smaller"]):
-                break
-        else:
-            self.fail("unable to exercise all cases of item_with_largest_value")
-
-        d = dictutil.NumDict({"a": 1, "b": 2})
-        self.failUnlessIn(repr(d), ("{'a': 1, 'b': 2}",
-                                    "{'b': 2, 'a': 1}"))
-        self.failUnless("a" in d)
-
-        d2 = dictutil.NumDict({"c": 3, "d": 4})
-        self.failUnless(d != d2)
-        self.failUnless(d2 > d)
-        self.failUnless(d2 >= d)
-        self.failUnless(d <= d2)
-        self.failUnless(d < d2)
-        self.failUnlessEqual(d["a"], 1)
-        self.failUnlessEqual(sorted(list([k for k in d])), ["a","b"])
-        def eq(a, b):
-            return a == b
-        self.failUnlessRaises(TypeError, eq, d, "not a dict")
-
-        d3 = d.copy()
-        self.failUnlessEqual(d, d3)
-        self.failUnless(isinstance(d3, dictutil.NumDict))
-
-        d4 = d.fromkeys(["a","b"], 5)
-        self.failUnlessEqual(d4, {"a": 5, "b": 5})
-
-        self.failUnlessEqual(d.get("a"), 1)
-        self.failUnlessEqual(d.get("c"), 0)
-        self.failUnlessEqual(d.get("c", 5), 5)
-        self.failUnlessEqual(sorted(list(d.items())),
-                             [("a", 1), ("b", 2)])
-        self.failUnlessEqual(sorted(list(d.iteritems())),
-                             [("a", 1), ("b", 2)])
-        self.failUnlessEqual(sorted(d.keys()), ["a", "b"])
-        self.failUnlessEqual(sorted(d.values()), [1, 2])
-        self.failUnless(d.has_key("a"))
-        self.failIf(d.has_key("c"))
-
-        x = d.setdefault("c", 3)
-        self.failUnlessEqual(x, 3)
-        self.failUnlessEqual(d["c"], 3)
-        x = d.setdefault("c", 5)
-        self.failUnlessEqual(x, 3)
-        self.failUnlessEqual(d["c"], 3)
-        del d["c"]
-
-        x = d.popitem()
-        self.failUnless(x in [("a", 1), ("b", 2)])
-        x = d.popitem()
-        self.failUnless(x in [("a", 1), ("b", 2)])
-        self.failUnlessRaises(KeyError, d.popitem)
-
-        d.update({"c": 3})
-        d.update({"c": 4, "d": 5})
-        self.failUnlessEqual(d, {"c": 4, "d": 5})
 
     def test_del_if_present(self):
         d = {1: "a", 2: "b"}
