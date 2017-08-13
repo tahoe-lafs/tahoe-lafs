@@ -1408,11 +1408,8 @@ class DictUtil(unittest.TestCase):
         d[fake3] = 8
 
     def test_all(self):
-        self._help_test_eq_but_notis(dictutil.UtilDict)
         self._help_test_eq_but_notis(dictutil.ValueOrderedDict)
-        self._help_test_nonempty_dict(dictutil.UtilDict)
         self._help_test_nonempty_dict(dictutil.ValueOrderedDict)
-        self._help_test_eq_but_notis(dictutil.UtilDict)
         self._help_test_eq_but_notis(dictutil.ValueOrderedDict)
 
     def test_dict_of_sets(self):
@@ -1466,62 +1463,6 @@ class DictUtil(unittest.TestCase):
         d2 = {2: "c", 4: "d"}
         d3 = dictutil.subtract(d1, d2)
         self.failUnlessEqual(d3, {1: "a", 3: "c"})
-
-    def test_utildict(self):
-        d = dictutil.UtilDict({1: "a", 2: "b"})
-        d.del_if_present(1)
-        d.del_if_present(3)
-        self.failUnlessEqual(d, {2: "b"})
-        def eq(a, b):
-            return a == b
-        self.failUnlessRaises(TypeError, eq, d, "not a dict")
-
-        d = dictutil.UtilDict({1: "b", 2: "a"})
-        self.failUnlessEqual(d.items_sorted_by_value(),
-                             [(2, "a"), (1, "b")])
-        self.failUnlessEqual(d.items_sorted_by_key(),
-                             [(1, "b"), (2, "a")])
-        self.failUnlessEqual(repr(d), "{1: 'b', 2: 'a'}")
-        self.failUnless(1 in d)
-
-        d2 = dictutil.UtilDict({3: "c", 4: "d"})
-        self.failUnless(d != d2)
-        self.failUnless(d2 > d)
-        self.failUnless(d2 >= d)
-        self.failUnless(d <= d2)
-        self.failUnless(d < d2)
-        self.failUnlessEqual(d[1], "b")
-        self.failUnlessEqual(sorted(list([k for k in d])), [1,2])
-
-        d3 = d.copy()
-        self.failUnlessEqual(d, d3)
-        self.failUnless(isinstance(d3, dictutil.UtilDict))
-
-        d4 = d.fromkeys([3,4], "e")
-        self.failUnlessEqual(d4, {3: "e", 4: "e"})
-
-        self.failUnlessEqual(d.get(1), "b")
-        self.failUnlessEqual(d.get(3), None)
-        self.failUnlessEqual(d.get(3, "default"), "default")
-        self.failUnlessEqual(sorted(list(d.items())),
-                             [(1, "b"), (2, "a")])
-        self.failUnlessEqual(sorted(list(d.iteritems())),
-                             [(1, "b"), (2, "a")])
-        self.failUnlessEqual(sorted(d.keys()), [1, 2])
-        self.failUnlessEqual(sorted(d.values()), ["a", "b"])
-        x = d.setdefault(1, "new")
-        self.failUnlessEqual(x, "b")
-        self.failUnlessEqual(d[1], "b")
-        x = d.setdefault(3, "new")
-        self.failUnlessEqual(x, "new")
-        self.failUnlessEqual(d[3], "new")
-        del d[3]
-
-        x = d.popitem()
-        self.failUnless(x in [(1, "b"), (2, "a")])
-        x = d.popitem()
-        self.failUnless(x in [(1, "b"), (2, "a")])
-        self.failUnlessRaises(KeyError, d.popitem)
 
     def test_del_if_present(self):
         d = {1: "a", 2: "b"}
