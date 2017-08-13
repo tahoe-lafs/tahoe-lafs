@@ -2,32 +2,6 @@
 Tools to mess with dicts.
 """
 
-def move(k, d1, d2, strict=False):
-    """
-    Move item with key k from d1 to d2.
-    """
-    if strict and not d1.has_key(k):
-        raise KeyError, k
-
-    d2[k] = d1[k]
-    del d1[k]
-
-def subtract(d1, d2):
-    """
-    Remove all items from d1 whose key occurs in d2.
-
-    @returns d1
-    """
-    if len(d1) > len(d2):
-        for k in d2.keys():
-            if d1.has_key(k):
-                del d1[k]
-    else:
-        for k in d1.keys():
-            if d2.has_key(k):
-                del d1[k]
-    return d1
-
 class DictOfSets(dict):
     def add(self, key, value):
         if key in self:
@@ -48,10 +22,6 @@ class DictOfSets(dict):
         self[key].discard(value)
         if not self[key]:
             del self[key]
-
-def del_if_present(d, k):
-    if d.has_key(k):
-        del d[k]
 
 class AuxValueDict(dict):
     """I behave like a regular dict, but each key is associated with two

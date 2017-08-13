@@ -1431,40 +1431,6 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(ds[3], set(["f", "g"]))
         self.failUnlessEqual(ds[4], set(["h"]))
 
-    def test_move(self):
-        d1 = {1: "a", 2: "b"}
-        d2 = {2: "c", 3: "d"}
-        dictutil.move(1, d1, d2)
-        self.failUnlessEqual(d1, {2: "b"})
-        self.failUnlessEqual(d2, {1: "a", 2: "c", 3: "d"})
-
-        d1 = {1: "a", 2: "b"}
-        d2 = {2: "c", 3: "d"}
-        dictutil.move(2, d1, d2)
-        self.failUnlessEqual(d1, {1: "a"})
-        self.failUnlessEqual(d2, {2: "b", 3: "d"})
-
-        d1 = {1: "a", 2: "b"}
-        d2 = {2: "c", 3: "d"}
-        self.failUnlessRaises(KeyError, dictutil.move, 5, d1, d2, strict=True)
-
-    def test_subtract(self):
-        d1 = {1: "a", 2: "b"}
-        d2 = {2: "c", 3: "d"}
-        d3 = dictutil.subtract(d1, d2)
-        self.failUnlessEqual(d3, {1: "a"})
-
-        d1 = {1: "a", 2: "b", 3: "c"}
-        d2 = {2: "c", 4: "d"}
-        d3 = dictutil.subtract(d1, d2)
-        self.failUnlessEqual(d3, {1: "a", 3: "c"})
-
-    def test_del_if_present(self):
-        d = {1: "a", 2: "b"}
-        dictutil.del_if_present(d, 1)
-        dictutil.del_if_present(d, 3)
-        self.failUnlessEqual(d, {2: "b"})
-
     def test_auxdict(self):
         d = dictutil.AuxValueDict()
         # we put the serialized form in the auxdata
