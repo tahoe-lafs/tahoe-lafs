@@ -1407,11 +1407,6 @@ class DictUtil(unittest.TestCase):
         self.failUnless(filter(lambda x: x is 3,  d.iterkeys()))
         d[fake3] = 8
 
-    def test_all(self):
-        self._help_test_eq_but_notis(dictutil.ValueOrderedDict)
-        self._help_test_nonempty_dict(dictutil.ValueOrderedDict)
-        self._help_test_eq_but_notis(dictutil.ValueOrderedDict)
-
     def test_dict_of_sets(self):
         ds = dictutil.DictOfSets()
         ds.add(1, "a")
@@ -1469,68 +1464,6 @@ class DictUtil(unittest.TestCase):
         dictutil.del_if_present(d, 1)
         dictutil.del_if_present(d, 3)
         self.failUnlessEqual(d, {2: "b"})
-
-    def test_valueordereddict(self):
-        d = dictutil.ValueOrderedDict()
-        d["a"] = 3
-        d["b"] = 2
-        d["c"] = 1
-
-        self.failUnlessEqual(d, {"a": 3, "b": 2, "c": 1})
-        self.failUnlessEqual(d.items(), [("c", 1), ("b", 2), ("a", 3)])
-        self.failUnlessEqual(d.values(), [1, 2, 3])
-        self.failUnlessEqual(d.keys(), ["c", "b", "a"])
-        self.failUnlessEqual(repr(d), "<ValueOrderedDict {c: 1, b: 2, a: 3}>")
-        self.failUnlessEqual(str(d), "<ValueOrderedDict {c: 1, b: 2, a: 3}>")
-        # str() is supposed to only show the first 16 entries
-        large_d = dictutil.ValueOrderedDict()
-        for i in range(20):
-            large_d["k%d" % i] = i
-        large_d_repr = ("<ValueOrderedDict {%s, ...}>" %
-                        ", ".join(["k%d: %d" % (i, i) for i in range(16)]))
-        self.failUnlessEqual(str(large_d), large_d_repr)
-
-        def eq(a, b):
-            return a == b
-        self.failIf(d == {"a": 4})
-        self.failUnless(d != {"a": 4})
-
-        x = d.setdefault("d", 0)
-        self.failUnlessEqual(x, 0)
-        self.failUnlessEqual(d["d"], 0)
-        x = d.setdefault("d", -1)
-        self.failUnlessEqual(x, 0)
-        self.failUnlessEqual(d["d"], 0)
-
-        x = d.remove("e", "default", False)
-        self.failUnlessEqual(x, "default")
-        self.failUnlessRaises(KeyError, d.remove, "e", "default", True)
-        x = d.remove("d", 5)
-        self.failUnlessEqual(x, 0)
-
-        x = d.__getitem__("c")
-        self.failUnlessEqual(x, 1)
-        x = d.__getitem__("e", "default", False)
-        self.failUnlessEqual(x, "default")
-        self.failUnlessRaises(KeyError, d.__getitem__, "e", "default", True)
-
-        self.failUnlessEqual(d.popitem(), ("c", 1))
-        self.failUnlessEqual(d.popitem(), ("b", 2))
-        self.failUnlessEqual(d.popitem(), ("a", 3))
-        self.failUnlessRaises(KeyError, d.popitem)
-
-        d = dictutil.ValueOrderedDict({"a": 3, "b": 2, "c": 1})
-        x = d.pop("d", "default", False)
-        self.failUnlessEqual(x, "default")
-        self.failUnlessRaises(KeyError, d.pop, "d", "default", True)
-        x = d.pop("b")
-        self.failUnlessEqual(x, 2)
-        self.failUnlessEqual(d.items(), [("c", 1), ("a", 3)])
-
-        d = dictutil.ValueOrderedDict({"a": 3, "b": 2, "c": 1})
-        x = d.pop_from_list(1) # pop the second item, b/2
-        self.failUnlessEqual(x, "b")
-        self.failUnlessEqual(d.items(), [("c", 1), ("a", 3)])
 
     def test_auxdict(self):
         d = dictutil.AuxValueDict()
