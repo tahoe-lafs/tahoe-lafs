@@ -1,4 +1,6 @@
-from allmydata.util import dictutil
+import collections, itertools
+
+objnums = collections.defaultdict(itertools.count)
 
 class NummedObj(object):
     """
@@ -10,7 +12,6 @@ class NummedObj(object):
     to diff outputs from separate runs to see what changed, without having to ignore a difference
     on every line due to different memory addresses of objects.
     """
-    objnums = dictutil.NumDict() # key: class names, value: highest used object number
 
     def __init__(self, klass=None):
         """
@@ -20,8 +21,7 @@ class NummedObj(object):
             klass = self.__class__
         self._classname = klass.__name__
 
-        NummedObj.objnums.inc(self._classname)
-        self._objid = NummedObj.objnums[self._classname]
+        self._objid = objnums[self._classname].next()
 
     def __repr__(self):
         return "<%s #%d>" % (self._classname, self._objid,)
