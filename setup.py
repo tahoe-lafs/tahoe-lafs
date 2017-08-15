@@ -27,9 +27,10 @@ def read_version_py(infname):
         if mo:
             return mo.group(1)
 
-# make sure we have a proper version of python
-if 2 != sys.version_info.major:
-    raise RuntimeError("Python version 2 is required")
+if len(sys.argv) > 1 and sys.argv[1] in ("install", "egg_info"):
+    # make sure we have a proper version of python
+    if 2 != sys.version_info.major:
+        raise RuntimeError("Python version 2 is required")
 
 VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
