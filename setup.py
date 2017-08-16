@@ -27,10 +27,6 @@ def read_version_py(infname):
         if mo:
             return mo.group(1)
 
-# make sure we have a proper version of python
-if 2 != sys.version_info.major:
-    raise RuntimeError("Python version 2 is required")
-
 VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
@@ -255,6 +251,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src'),
       classifiers=trove_classifiers,
+      python_requires="<3.0",
       install_requires=install_requires,
       extras_require={
           ':sys_platform=="win32"': ["pypiwin32"],
