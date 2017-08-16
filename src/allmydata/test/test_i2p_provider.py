@@ -294,8 +294,13 @@ class Provider(unittest.TestCase):
         self.assertIs(h, handler)
         i2p.default.assert_called_with(reactor, keyfile=None)
 
-class Provider_Listener(unittest.TestCase):
+class ProviderListener(unittest.TestCase):
     def test_listener(self):
+        """Does the I2P Provider object's get_listener() method correctly
+        convert the [i2p] section of tahoe.cfg into an
+        endpoint/descriptor?
+        """
+
         i2p = mock.Mock()
         handler = object()
         i2p.local_i2p = mock.Mock(return_value=handler)

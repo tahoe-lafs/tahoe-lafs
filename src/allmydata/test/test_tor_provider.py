@@ -393,8 +393,12 @@ class Provider(unittest.TestCase):
         self.assertIs(h, handler)
         tor.default_socks.assert_called_with()
 
-class Provider_Listener(unittest.TestCase):
+class ProviderListener(unittest.TestCase):
     def test_listener(self):
+        """Does the Tor Provider object's get_listener() method correctly
+        convert the [tor] section of tahoe.cfg into an
+        endpoint/descriptor?
+        """
         tor = mock.Mock()
         handler = object()
         tor.socks_endpoint = mock.Mock(return_value=handler)
