@@ -408,8 +408,13 @@ class ProviderListener(unittest.TestCase):
             p = tor_provider.Provider("basedir",
                                       FakeConfig(**{"onion.local_port": "321"}),
                                       reactor)
+        fake_ep = object()
+        with mock.patch("allmydata.util.tor_provider.TCP4ServerEndpoint",
+                        return_value=fake_ep) as e:
             endpoint_or_description = p.get_listener()
-        self.assertEqual(endpoint_or_description, "tcp:321:interface=127.0.0.1")
+        self.assertIs(endpoint_or_description, fake_ep)
+        self.assertEqual(e.mock_calls, [mock.call(reactor, 321,
+                                                  interface="127.0.0.1")])
 
 class Provider_CheckOnionConfig(unittest.TestCase):
     def test_default(self):

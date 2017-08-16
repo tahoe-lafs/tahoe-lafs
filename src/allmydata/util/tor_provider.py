@@ -3,7 +3,7 @@ from __future__ import absolute_import, print_function, with_statement
 import os
 
 from twisted.internet.defer import inlineCallbacks, returnValue
-from twisted.internet.endpoints import clientFromString
+from twisted.internet.endpoints import clientFromString, TCP4ServerEndpoint
 from twisted.internet.error import ConnectionRefusedError, ConnectError
 from twisted.application import service
 
@@ -217,9 +217,9 @@ class Provider(service.MultiService):
         return self._node_for_config.get_config("tor", *args, **kwargs)
 
     def get_listener(self):
-        local_port = self._get_tor_config("onion.local_port")
-        tor_port = "tcp:%s:interface=127.0.0.1" % local_port
-        return tor_port
+        local_port = int(self._get_tor_config("onion.local_port"))
+        ep = TCP4ServerEndpoint(self._reactor, local_port, interface="127.0.0.1")
+        return ep
 
     def get_tor_handler(self):
         enabled = self._get_tor_config("enabled", True, boolean=True)
