@@ -311,7 +311,7 @@ class ProviderListener(unittest.TestCase):
             p = i2p_provider.Provider("basedir",
                                       FakeConfig(**{
                                           "i2p.configdir": "configdir",
-                                          "sam.port": "goodport",
+                                          "sam.port": "good:port",
                                           "dest": "true",
                                           "dest.port": "3457",
                                           "dest.private_key_file": privkeyfile,
@@ -319,7 +319,7 @@ class ProviderListener(unittest.TestCase):
                                       reactor)
             endpoint_or_description = p.get_listener()
         self.assertEqual(endpoint_or_description,
-                         "i2p:%s:3457:api=SAM:apiEndpoint=goodport" % privkeyfile)
+                         "i2p:%s:3457:api=SAM:apiEndpoint=good\\:port" % privkeyfile)
 
 class Provider_CheckI2PConfig(unittest.TestCase):
     def test_default(self):
