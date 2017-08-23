@@ -185,7 +185,16 @@ def stop(config):
         return 2
     with open(pidfile, "r") as f:
         pid = f.read()
-    pid = int(pid)
+
+    try:
+        pid = int(pid)
+    except ValueError:
+        # The error message below mimics a Twisted error message, which is
+        # displayed when starting a node with an invalid pidfile.
+        print >>err, "Pidfile %s contains non-numeric value" % pidfile
+        # we define rc=2 to mean "nothing is running, but it wasn't me who
+        # stopped it"
+        return 2
 
     # kill it hard (SIGKILL), delete the twistd.pid file, then wait for the
     # process itself to go away. If it hasn't gone away after 20 seconds, warn
