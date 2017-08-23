@@ -1,6 +1,7 @@
 
 import os, sys, time
 import shutil, json
+from os.path import join, exists
 
 from twisted.trial import unittest
 from twisted.internet import defer, task, reactor
@@ -8,7 +9,7 @@ from twisted.internet import defer, task, reactor
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util.assertutil import precondition
 
-from allmydata.util import fake_inotify, fileutil
+from allmydata.util import fake_inotify, fileutil, configutil, yamlutil
 from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
@@ -24,6 +25,259 @@ from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import Data
 
 _debug = False
+
+
+class NewConfigUtilTests(unittest.TestCase):
+
+    def setUp(self):
+        self.basedir = abspath_expanduser_unicode(unicode(self.mktemp()))
+        os.mkdir(self.basedir)
+        self.local_dir = abspath_expanduser_unicode(unicode(self.mktemp()))
+        os.mkdir(self.local_dir)
+        privdir = join(self.basedir, "private")
+        os.mkdir(privdir)
+
+        self.poll_interval = 60
+        self.collective_dircap = u"a" * 32
+        self.magic_folder_dircap = u"b" * 32
+
+        self.folders = {
+            u"default": {
+                u"directory": self.local_dir,
+                u"upload_dircap": self.magic_folder_dircap,
+                u"collective_dircap": self.collective_dircap,
+                u"poll_interval": self.poll_interval,
+            }
+        }
+
+        # we need a bit of tahoe.cfg
+        with open(join(self.basedir, u"tahoe.cfg"), "w") as f:
+            f.write(
+                u"[magic_folder]\n"
+                u"enabled = True\n"
+            )
+        # ..and the yaml
+        yaml_fname = join(self.basedir, u"private", u"magic_folders.yaml")
+        with open(yaml_fname, "w") as f:
+            f.write(yamlutil.safe_dump({u"magic-folders": self.folders}))
+
+    def test_load(self):
+        folders = magic_folder.load_magic_folders(self.basedir)
+        self.assertEqual(['default'], list(folders.keys()))
+
+    def test_both_styles_of_config(self):
+        os.unlink(join(self.basedir, u"private", u"magic_folders.yaml"))
+        with self.assertRaises(Exception) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "[magic_folder] is enabled but has no YAML file and no 'local.directory' option",
+            str(ctx.exception)
+        )
+
+    def test_wrong_obj(self):
+        yaml_fname = join(self.basedir, u"private", u"magic_folders.yaml")
+        with open(yaml_fname, "w") as f:
+            f.write('----\n')
+
+        with self.assertRaises(Exception) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "should contain a dict",
+            str(ctx.exception)
+        )
+
+    def test_no_magic_folders(self):
+        yaml_fname = join(self.basedir, u"private", u"magic_folders.yaml")
+        with open(yaml_fname, "w") as f:
+            f.write('')
+
+        with self.assertRaises(Exception) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "should contain a dict",
+            str(ctx.exception)
+        )
+
+    def test_magic_folders_not_dict(self):
+        yaml_fname = join(self.basedir, u"private", u"magic_folders.yaml")
+        with open(yaml_fname, "w") as f:
+            f.write('magic-folders: "foo"\n')
+
+        with self.assertRaises(Exception) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "should be a dict",
+            str(ctx.exception)
+        )
+        self.assertIn(
+            "'magic-folders'",
+            str(ctx.exception)
+        )
+
+    def test_wrong_sub_obj(self):
+        yaml_fname = join(self.basedir, u"private", u"magic_folders.yaml")
+        with open(yaml_fname, "w") as f:
+            f.write("magic-folders:\n  default:   foo\n")
+
+        with self.assertRaises(Exception) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "must itself be a dict",
+            str(ctx.exception)
+        )
+
+    def test_missing_interval(self):
+        del self.folders[u"default"]["poll_interval"]
+        yaml_fname = join(self.basedir, u"private", u"magic_folders.yaml")
+        with open(yaml_fname, "w") as f:
+            f.write(yamlutil.safe_dump({u"magic-folders": self.folders}))
+
+        with self.assertRaises(Exception) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "missing 'poll_interval'",
+            str(ctx.exception)
+        )
+
+
+class LegacyConfigUtilTests(unittest.TestCase):
+
+    def setUp(self):
+        # create a valid 'old style' magic-folder configuration
+        self.basedir = abspath_expanduser_unicode(unicode(self.mktemp()))
+        os.mkdir(self.basedir)
+        self.local_dir = abspath_expanduser_unicode(unicode(self.mktemp()))
+        os.mkdir(self.local_dir)
+        privdir = join(self.basedir, "private")
+        os.mkdir(privdir)
+
+        # state tests might need to know
+        self.poll_interval = 60
+        self.collective_dircap = u"a" * 32
+        self.magic_folder_dircap = u"b" * 32
+
+        # write fake config structure
+        with open(join(self.basedir, u"tahoe.cfg"), "w") as f:
+            f.write(
+                u"[magic_folder]\n"
+                u"enabled = True\n"
+                u"local.directory = {}\n"
+                u"poll_interval = {}\n".format(
+                    self.local_dir,
+                    self.poll_interval,
+                )
+            )
+        with open(join(privdir, "collective_dircap"), "w") as f:
+            f.write("{}\n".format(self.collective_dircap))
+        with open(join(privdir, "magic_folder_dircap"), "w") as f:
+            f.write("{}\n".format(self.magic_folder_dircap))
+        with open(join(privdir, "magicfolderdb.sqlite"), "w") as f:
+            pass
+
+    def test_load_legacy_no_dir(self):
+        with open(join(self.basedir, u"tahoe.cfg"), "w") as f:
+            f.write(
+                u"[magic_folder]\n"
+                u"enabled = True\n"
+                u"local.directory = {}\n"
+                u"poll_interval = {}\n".format(
+                    self.local_dir + 'foo',
+                    self.poll_interval,
+                )
+            )
+
+        with self.assertRaises(Exception) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "there is no directory at that location",
+            str(ctx.exception)
+        )
+
+    def test_load_legacy_not_a_dir(self):
+        with open(join(self.basedir, u"tahoe.cfg"), "w") as f:
+            f.write(
+                u"[magic_folder]\n"
+                u"enabled = True\n"
+                u"local.directory = {}\n"
+                u"poll_interval = {}\n".format(
+                    self.local_dir + "foo",
+                    self.poll_interval,
+                )
+            )
+        with open(self.local_dir + "foo", "w") as f:
+            f.write("not a directory")
+
+        with self.assertRaises(Exception) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "location is not a directory",
+            str(ctx.exception)
+        )
+
+    def test_load_legacy_and_new(self):
+        with open(join(self.basedir, u"private", u"magic_folders.yaml"), "w") as f:
+            f.write("---")
+
+        with self.assertRaises(Exception) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "both old-style configuration and new-style",
+            str(ctx.exception)
+        )
+
+    def test_upgrade(self):
+        # test data is created in setUp; upgrade config
+        magic_folder._upgrade_magic_folder_config(self.basedir)
+
+        # ensure old stuff is gone
+        self.assertFalse(
+            exists(join(self.basedir, "private", "collective_dircap"))
+        )
+        self.assertFalse(
+            exists(join(self.basedir, "private", "magic_folder_dircap"))
+        )
+        self.assertFalse(
+            exists(join(self.basedir, "private", "magicfolderdb.sqlite"))
+        )
+
+        # ensure we've got the new stuff
+        self.assertTrue(
+            exists(join(self.basedir, "private", "magicfolder_default.sqlite"))
+        )
+        # what about config?
+        config = configutil.get_config(join(self.basedir, u"tahoe.cfg"))
+        self.assertFalse(config.has_option("magic_folder", "local.directory"))
+
+    def test_load_legacy(self):
+        folders = magic_folder.load_magic_folders(self.basedir)
+
+        self.assertEqual(['default'], list(folders.keys()))
+        self.assertTrue(
+            exists(join(self.basedir, "private", "collective_dircap"))
+        )
+        self.assertTrue(
+            exists(join(self.basedir, "private", "magic_folder_dircap"))
+        )
+        self.assertTrue(
+            exists(join(self.basedir, "private", "magicfolderdb.sqlite"))
+        )
+
+    def test_load_legacy_upgrade(self):
+        magic_folder.maybe_upgrade_magic_folders(self.basedir)
+        folders = magic_folder.load_magic_folders(self.basedir)
+
+        self.assertEqual(['default'], list(folders.keys()))
+        # 'legacy' files should be gone
+        self.assertFalse(
+            exists(join(self.basedir, "private", "collective_dircap"))
+        )
+        self.assertFalse(
+            exists(join(self.basedir, "private", "magic_folder_dircap"))
+        )
+        self.assertFalse(
+            exists(join(self.basedir, "private", "magicfolderdb.sqlite"))
+        )
+
 
 
 class MagicFolderDbTests(unittest.TestCase):
@@ -1034,10 +1288,11 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
             return res
         d.addBoth(_disable_debugging)
         d.addCallback(self.cleanup)
+        shutil.rmtree(self.basedir, ignore_errors=True)
         return d
 
     def _createdb(self):
-        dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.basedir)
+        dbfile = abspath_expanduser_unicode(u"magicfolder_default.sqlite", base=self.basedir)
         mdb = magicfolderdb.get_magicfolderdb(dbfile, create_version=(magicfolderdb.SCHEMA_v1, 1))
         self.failUnless(mdb, "unable to create magicfolderdb from %r" % (dbfile,))
         self.failUnlessEqual(mdb.VERSION, 1)
@@ -1051,7 +1306,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     def _wait_until_started(self, ign):
         #print "_wait_until_started"
-        self.magicfolder = self.get_client().getServiceNamed('magic-folder')
+        self.magicfolder = self.get_client().getServiceNamed('magic-folder-default')
         self.fileops = FileOperationsHelper(self.magicfolder.uploader, self.inject_inotify)
         self.up_clock = task.Clock()
         self.down_clock = task.Clock()
@@ -1348,24 +1603,24 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
             upload_dircap = n.get_uri()
             readonly_dircap = n.get_readonly_uri()
 
-            self.shouldFail(AssertionError, 'nonexistent local.directory', 'there is no directory',
-                            MagicFolder, client, upload_dircap, '', doesnotexist, magicfolderdb, 0077)
-            self.shouldFail(AssertionError, 'non-directory local.directory', 'is not a directory',
-                            MagicFolder, client, upload_dircap, '', not_a_dir, magicfolderdb, 0077)
+            self.shouldFail(ValueError, 'does not exist', 'does not exist',
+                            MagicFolder, client, upload_dircap, '', doesnotexist, magicfolderdb, 0077, 'default')
+            self.shouldFail(ValueError, 'is not a directory', 'is not a directory',
+                            MagicFolder, client, upload_dircap, '', not_a_dir, magicfolderdb, 0077, 'default')
             self.shouldFail(AssertionError, 'bad upload.dircap', 'does not refer to a directory',
-                            MagicFolder, client, 'bad', '', errors_dir, magicfolderdb, 0077)
+                            MagicFolder, client, 'bad', '', errors_dir, magicfolderdb, 0077, 'default')
             self.shouldFail(AssertionError, 'non-directory upload.dircap', 'does not refer to a directory',
-                            MagicFolder, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb, 0077)
+                            MagicFolder, client, 'URI:LIT:foo', '', errors_dir, magicfolderdb, 0077, 'default')
             self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
-                            MagicFolder, client, readonly_dircap, '', errors_dir, magicfolderdb, 0077)
+                            MagicFolder, client, readonly_dircap, '', errors_dir, magicfolderdb, 0077, 'default')
             self.shouldFail(AssertionError, 'collective dircap', 'is not a readonly cap to a directory',
-                            MagicFolder, client, upload_dircap, upload_dircap, errors_dir, magicfolderdb, 0077)
+                            MagicFolder, client, upload_dircap, upload_dircap, errors_dir, magicfolderdb, 0077, 'default')
 
             def _not_implemented():
                 raise NotImplementedError("blah")
             self.patch(magic_folder, 'get_inotify_module', _not_implemented)
             self.shouldFail(NotImplementedError, 'unsupported', 'blah',
-                            MagicFolder, client, upload_dircap, '', errors_dir, magicfolderdb, 0077)
+                            MagicFolder, client, upload_dircap, '', errors_dir, magicfolderdb, 0077, 'default')
         d.addCallback(_check_errors)
         return d
 

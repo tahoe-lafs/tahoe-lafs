@@ -237,12 +237,13 @@ class Root(MultiFormatPage):
         return description
 
 
-    def render_magic_folder(self, ctx, data):
-        if self.client._magic_folder is None:
-            return T.p()
+    def data_magic_folders(self, ctx, data):
+        return self.client._magic_folders.keys()
 
-        (ok, messages) = self.client._magic_folder.get_public_status()
-
+    def render_magic_folder_row(self, ctx, data):
+        magic_folder = self.client._magic_folders[data]
+        (ok, messages) = magic_folder.get_public_status()
+        ctx.fillSlots("magic_folder_name", data)
         if ok:
             ctx.fillSlots("magic_folder_status", "yes")
             ctx.fillSlots("magic_folder_status_alt", "working")
@@ -250,11 +251,15 @@ class Root(MultiFormatPage):
             ctx.fillSlots("magic_folder_status", "no")
             ctx.fillSlots("magic_folder_status_alt", "not working")
 
-        status = T.ul()
+        status = T.ul(class_="magic-folder-status")
         for msg in messages:
             status[T.li[str(msg)]]
-
         return ctx.tag[status]
+
+    def render_magic_folder(self, ctx, data):
+        if not self.client._magic_folders:
+            return T.p()
+        return ctx.tag
 
     def render_services(self, ctx, data):
         ul = T.ul()

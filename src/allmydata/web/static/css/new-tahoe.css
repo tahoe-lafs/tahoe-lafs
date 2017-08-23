@@ -53,6 +53,11 @@ body {
 .connection-status {
 }
 
+.magic-folder-status {
+    clear: left;
+    margin-left: 40px;  /* width of status-indicator + margins */
+}
+
 .furl {
     font-size: 0.8em;
     word-wrap: break-word;

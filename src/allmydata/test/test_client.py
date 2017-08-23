@@ -7,7 +7,7 @@ import allmydata
 import allmydata.frontends.magic_folder
 import allmydata.util.log
 
-from allmydata.node import OldConfigError, OldConfigOptionError, MissingConfigEntry, UnescapedHashError, _Config, read_config
+from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, read_config
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
@@ -322,8 +322,8 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         class MockMagicFolder(service.MultiService):
             name = 'magic-folder'
 
-            def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask, inotify=None,
-                         uploader_delay=1.0, clock=None, downloader_delay=3):
+            def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask, name,
+                         inotify=None, uploader_delay=1.0, clock=None, downloader_delay=3):
                 service.MultiService.__init__(self)
                 self.client = client
                 self._umask = umask
@@ -349,15 +349,20 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         basedir1 = "test_client.Basic.test_create_magic_folder_service1"
         os.mkdir(basedir1)
+        os.mkdir(local_dir_u)
 
+        # which config-entry should be missing?
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
                        config + "local.directory = " + local_dir_utf8 + "\n")
-        self.failUnlessRaises(MissingConfigEntry, client.create_client, basedir1)
+        self.failUnlessRaises(IOError, client.create_client, basedir1)
 
+        # local.directory entry missing .. but that won't be an error
+        # now, it'll just assume there are not magic folders
+        # .. hrm...should we make that an error (if enabled=true but
+        # there's not yaml AND no local.directory?)
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"), config)
         fileutil.write(os.path.join(basedir1, "private", "magic_folder_dircap"), "URI:DIR2:blah")
         fileutil.write(os.path.join(basedir1, "private", "collective_dircap"), "URI:DIR2:meow")
-        self.failUnlessRaises(MissingConfigEntry, client.create_client, basedir1)
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
                        config.replace("[magic_folder]\n", "[drop_upload]\n"))
@@ -376,7 +381,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         class Boom(Exception):
             pass
-        def BoomMagicFolder(client, upload_dircap, collective_dircap, local_path_u, dbfile,
+        def BoomMagicFolder(client, upload_dircap, collective_dircap, local_path_u, dbfile, name,
                             umask, inotify=None, uploader_delay=1.0, clock=None, downloader_delay=3):
             raise Boom()
         self.patch(allmydata.frontends.magic_folder, 'MagicFolder', BoomMagicFolder)

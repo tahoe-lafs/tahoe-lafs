@@ -109,6 +109,44 @@ class FakeUploader(service.Service):
         return (self.helper_furl, self.helper_connected)
 
 
+class FakeStatus(object):
+    def __init__(self):
+        self.status = []
+
+    def setServiceParent(self, p):
+        pass
+
+    def get_status(self):
+        return self.status
+
+
+class FakeStatusItem(object):
+    def __init__(self, p, history):
+        self.relpath_u = p
+        self.history = history
+        import mock
+        self.progress = mock.Mock()
+        self.progress.progress = 100.0
+
+    def status_history(self):
+        return self.history
+
+
+
+class FakeMagicFolder(object):
+    def __init__(self):
+        self.uploader = FakeStatus()
+        self.downloader = FakeStatus()
+
+    def get_public_status(self):
+        return (
+            True,
+            [
+                'a magic-folder status message'
+            ],
+        )
+
+
 def build_one_ds():
     ds = DownloadStatus("storage_index", 1234)
     now = time.time()
@@ -243,7 +281,7 @@ class FakeClient(_Client):
         # don't upcall to Client.__init__, since we only want to initialize a
         # minimal subset
         service.MultiService.__init__(self)
-        self._magic_folder = None
+        self._magic_folders = dict()
         self.all_contents = {}
         self.nodeid = "fake_nodeid"
         self.nickname = u"fake_nickname \u263A"
@@ -280,6 +318,9 @@ class FakeClient(_Client):
         return "v0-nodeid"
     def get_long_tubid(self):
         return "tubid"
+
+    def get_auth_token(self):
+        return 'a fake debug auth token'
 
     def startService(self):
         return service.MultiService.startService(self)
@@ -935,6 +976,61 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn(u'<li>Server Nickname: <span class="nickname mine">fake_nickname \u263A</span></li>', res_u)
         d.addCallback(_check)
         return d
+
+    @defer.inlineCallbacks
+    def test_magicfolder_status_bad_token(self):
+        with self.assertRaises(Error):
+            yield self.POST(
+                '/magic_folder?t=json',
+                t='json',
+                name='default',
+                token='not the token you are looking for',
+            )
+
+    @defer.inlineCallbacks
+    def test_magicfolder_status_wrong_folder(self):
+        with self.assertRaises(Exception) as ctx:
+            yield self.POST(
+                '/magic_folder?t=json',
+                t='json',
+                name='a non-existent magic-folder',
+                token=self.s.get_auth_token(),
+            )
+        self.assertIn(
+            "Not Found",
+            str(ctx.exception)
+        )
+
+    @defer.inlineCallbacks
+    def test_magicfolder_status_success(self):
+        self.s._magic_folders['default'] = mf = FakeMagicFolder()
+        mf.uploader.status = [
+            FakeStatusItem(u"rel/path", [('done', 12345)])
+        ]
+        data = yield self.POST(
+            '/magic_folder?t=json',
+            t='json',
+            name='default',
+            token=self.s.get_auth_token(),
+        )
+        data = json.loads(data)
+        self.assertEqual(
+            data,
+            [
+                {"status": "done", "path": "rel/path", "kind": "upload", "percent_done": 100.0, "done_at": 12345},
+            ]
+        )
+
+    @defer.inlineCallbacks
+    def test_magicfolder_root_success(self):
+        self.s._magic_folders['default'] = mf = FakeMagicFolder()
+        mf.uploader.status = [
+            FakeStatusItem(u"rel/path", [('done', 12345)])
+        ]
+        data = yield self.GET(
+            '/',
+        )
+        print(data)
 
     def test_status(self):
         h = self.s.get_history()

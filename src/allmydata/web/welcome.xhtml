@@ -160,10 +160,10 @@
           </div>
 
           <div n:render="magic_folder" class="row-fluid">
-            <h2>
-	      <div class="status-indicator"><img><n:attr name="src">img/connected-<n:slot name="magic_folder_status" />.png</n:attr><n:attr name="alt"><n:slot name="magic_folder_status_alt" /></n:attr></img></div>
-	      Magic Folder
-	    </h2>
+            <h2>Magic Folders</h2>
+            <div n:render="sequence" n:data="magic_folders">
+	      <div n:pattern="item" n:render="magic_folder_row"><div class="status-indicator"><img><n:attr name="src">img/connected-<n:slot name="magic_folder_status" />.png</n:attr><n:attr name="alt"><n:slot name="magic_folder_status_alt" /></n:attr></img></div><h3><n:slot name="magic_folder_name" /></h3></div>
+            </div>
           </div><!--/row-->
 
           <div class="row-fluid">

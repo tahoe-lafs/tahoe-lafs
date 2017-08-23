@@ -1,4 +1,7 @@
+import json
+import shutil
 import os.path
+import mock
 import re
 
 from twisted.trial import unittest
@@ -27,10 +30,12 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         self.bob_nickname = self.unicode_or_fallback(u"Bob\u00F8", u"Bob", io_as_well=True)
 
     def do_create_magic_folder(self, client_num):
-        d = self.do_cli("magic-folder", "create", "magic:", client_num=client_num)
+        d = self.do_cli("magic-folder", "--debug", "create", "magic:", client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnlessEqual(rc, 0, stdout + stderr)
             self.failUnlessIn("Alias 'magic' created", stdout)
+#            self.failUnlessIn("joined new magic-folder", stdout)
+#            self.failUnlessIn("Successfully created magic-folder", stdout)
             self.failUnlessEqual(stderr, "")
             aliases = get_aliases(self.get_clientdir(i=client_num))
             self.failUnlessIn("magic", aliases)
@@ -43,6 +48,26 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         d = self.do_cli("magic-folder", "invite", "magic:", nickname_arg, client_num=client_num)
         def _done((rc, stdout, stderr)):
             self.failUnlessEqual(rc, 0)
+            return (rc, stdout, stderr)
+        d.addCallback(_done)
+        return d
+
+    def do_list(self, client_num, json=False):
+        args = ("magic-folder", "list",)
+        if json:
+            args = args + ("--json",)
+        d = self.do_cli(*args, client_num=client_num)
+        def _done((rc, stdout, stderr)):
+            return (rc, stdout, stderr)
+        d.addCallback(_done)
+        return d
+
+    def do_status(self, client_num, name=None):
+        args = ("magic-folder", "status",)
+        if name is not None:
+            args = args + ("--name", name)
+        d = self.do_cli(*args, client_num=client_num)
+        def _done((rc, stdout, stderr)):
             return (rc, stdout, stderr)
         d.addCallback(_done)
         return d
@@ -73,8 +98,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         """Tests that our collective directory has the readonly cap of
         our upload directory.
         """
-        collective_readonly_cap = fileutil.read(os.path.join(self.get_clientdir(i=client_num),
-                                                             u"private", u"collective_dircap"))
+        collective_readonly_cap = self.get_caps_from_files(client_num)[0]
         d = self.do_cli("ls", "--json", collective_readonly_cap, client_num=client_num)
         def _done((rc, stdout, stderr)):
             self.failUnlessEqual(rc, 0)
@@ -89,23 +113,24 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         return d
 
     def get_caps_from_files(self, client_num):
-        collective_dircap = fileutil.read(os.path.join(self.get_clientdir(i=client_num),
-                                                       u"private", u"collective_dircap"))
-        upload_dircap = fileutil.read(os.path.join(self.get_clientdir(i=client_num),
-                                                   u"private", u"magic_folder_dircap"))
-        self.failIf(collective_dircap is None or upload_dircap is None)
-        return collective_dircap, upload_dircap
+        from allmydata.frontends.magic_folder import load_magic_folders
+        folders = load_magic_folders(self.get_clientdir(i=client_num))
+        mf = folders["default"]
+        return mf['collective_dircap'], mf['upload_dircap']
 
     def check_config(self, client_num, local_dir):
         client_config = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "tahoe.cfg"))
+        mf_yaml = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "private", "magic_folders.yaml"))
         local_dir_utf8 = local_dir.encode('utf-8')
-        magic_folder_config = "[magic_folder]\nenabled = True\nlocal.directory = %s" % (local_dir_utf8,)
+        magic_folder_config = "[magic_folder]\nenabled = True"
         self.failUnlessIn(magic_folder_config, client_config)
+        self.failUnlessIn(local_dir_utf8, mf_yaml)
 
     def create_invite_join_magic_folder(self, nickname, local_dir):
         nickname_arg = unicode_to_argv(nickname)
         local_dir_arg = unicode_to_argv(local_dir)
-        d = self.do_cli("magic-folder", "create", "magic:", nickname_arg, local_dir_arg)
+        # the --debug means we get real exceptions on failures
+        d = self.do_cli("magic-folder", "--debug", "create", "magic:", nickname_arg, local_dir_arg)
         def _done((rc, stdout, stderr)):
             self.failUnlessEqual(rc, 0, stdout + stderr)
 
@@ -132,7 +157,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         return d
 
     def init_magicfolder(self, client_num, upload_dircap, collective_dircap, local_magic_dir, clock):
-        dbfile = abspath_expanduser_unicode(u"magicfolderdb.sqlite", base=self.get_clientdir(i=client_num))
+        dbfile = abspath_expanduser_unicode(u"magicfolder_default.sqlite", base=self.get_clientdir(i=client_num))
         magicfolder = MagicFolder(
             client=self.get_client(client_num),
             upload_dircap=upload_dircap,
@@ -140,6 +165,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
             local_path_u=local_magic_dir,
             dbfile=dbfile,
             umask=0o077,
+            name='default',
             clock=clock,
             uploader_delay=0.2,
             downloader_delay=0,
@@ -199,11 +225,207 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         return d
 
 
+class ListMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
+
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield super(ListMagicFolder, self).setUp()
+        self.basedir="mf_list"
+        self.set_up_grid(oneshare=True)
+        self.local_dir = os.path.join(self.basedir, "magic")
+        os.mkdir(self.local_dir)
+        self.abs_local_dir_u = abspath_expanduser_unicode(unicode(self.local_dir), long_path=False)
+
+        yield self.do_create_magic_folder(0)
+        (rc, stdout, stderr) = yield self.do_invite(0, self.alice_nickname)
+        invite_code = stdout.strip()
+        yield self.do_join(0, unicode(self.local_dir), invite_code)
+
+    @defer.inlineCallbacks
+    def tearDown(self):
+        yield super(ListMagicFolder, self).tearDown()
+        shutil.rmtree(self.basedir)
+
+    @defer.inlineCallbacks
+    def test_list(self):
+        rc, stdout, stderr = yield self.do_list(0)
+        self.failUnlessEqual(rc, 0)
+        self.assertIn("default:", stdout)
+
+    @defer.inlineCallbacks
+    def test_list_none(self):
+        yield self.do_leave(0)
+        rc, stdout, stderr = yield self.do_list(0)
+        self.failUnlessEqual(rc, 0)
+        self.assertIn("No magic-folders", stdout)
+
+    @defer.inlineCallbacks
+    def test_list_json(self):
+        rc, stdout, stderr = yield self.do_list(0, json=True)
+        self.failUnlessEqual(rc, 0)
+        res = json.loads(stdout)
+        self.assertEqual(
+            dict(default=dict(directory=self.abs_local_dir_u)),
+            res,
+        )
+
+
+class StatusMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
+
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield super(StatusMagicFolder, self).setUp()
+        self.basedir="mf_list"
+        self.set_up_grid(oneshare=True)
+        self.local_dir = os.path.join(self.basedir, "magic")
+        os.mkdir(self.local_dir)
+        self.abs_local_dir_u = abspath_expanduser_unicode(unicode(self.local_dir), long_path=False)
+
+        yield self.do_create_magic_folder(0)
+        (rc, stdout, stderr) = yield self.do_invite(0, self.alice_nickname)
+        invite_code = stdout.strip()
+        yield self.do_join(0, unicode(self.local_dir), invite_code)
+
+    @defer.inlineCallbacks
+    def tearDown(self):
+        yield super(StatusMagicFolder, self).tearDown()
+        shutil.rmtree(self.basedir)
+
+    @defer.inlineCallbacks
+    def test_status(self):
+        def json_for_cap(options, cap):
+            if cap.startswith('URI:DIR2:'):
+                return (
+                    'dirnode',
+                    {
+                        "children": {
+                            "foo": ('filenode', {
+                                "size": 1234,
+                                "metadata": {
+                                    "tahoe": {
+                                        "linkcrtime": 0.0,
+                                    },
+                                    "version": 1,
+                                },
+                                "ro_uri": "read-only URI",
+                            })
+                        }
+                    }
+                )
+            else:
+                return ('dirnode', {"children": {}})
+        jc = mock.patch(
+            "allmydata.scripts.magic_folder_cli._get_json_for_cap",
+            side_effect=json_for_cap,
+        )
+
+        def json_for_frag(options, fragment, method='GET', post_args=None):
+            return {}
+        jf = mock.patch(
+            "allmydata.scripts.magic_folder_cli._get_json_for_fragment",
+            side_effect=json_for_frag,
+        )
+
+        with jc, jf:
+            rc, stdout, stderr = yield self.do_status(0)
+            self.failUnlessEqual(rc, 0)
+            self.assertIn("default", stdout)
+
+        self.assertIn(
+            "foo (1.23 kB): good, version=1, created 47 years ago",
+            stdout,
+        )
+
+    @defer.inlineCallbacks
+    def test_status_child_not_dirnode(self):
+        def json_for_cap(options, cap):
+            if cap.startswith('URI:DIR2'):
+                return (
+                    'dirnode',
+                    {
+                        "children": {
+                            "foo": ('filenode', {
+                                "size": 1234,
+                                "metadata": {
+                                    "tahoe": {
+                                        "linkcrtime": 0.0,
+                                    },
+                                    "version": 1,
+                                },
+                                "ro_uri": "read-only URI",
+                            })
+                        }
+                    }
+                )
+            elif cap == "read-only URI":
+                return {
+                    "error": "bad stuff",
+                }
+            else:
+                return ('dirnode', {"children": {}})
+        jc = mock.patch(
+            "allmydata.scripts.magic_folder_cli._get_json_for_cap",
+            side_effect=json_for_cap,
+        )
+
+        def json_for_frag(options, fragment, method='GET', post_args=None):
+            return {}
+        jf = mock.patch(
+            "allmydata.scripts.magic_folder_cli._get_json_for_fragment",
+            side_effect=json_for_frag,
+        )
+
+        with jc, jf:
+            rc, stdout, stderr = yield self.do_status(0)
+            self.failUnlessEqual(rc, 0)
+
+        self.assertIn(
+            "expected a dirnode",
+            stdout + stderr,
+        )
+
+    @defer.inlineCallbacks
+    def test_status_error_not_dircap(self):
+        def json_for_cap(options, cap):
+            if cap.startswith('URI:DIR2:'):
+                return (
+                    'filenode',
+                    {}
+                )
+            else:
+                return ('dirnode', {"children": {}})
+        jc = mock.patch(
+            "allmydata.scripts.magic_folder_cli._get_json_for_cap",
+            side_effect=json_for_cap,
+        )
+
+        def json_for_frag(options, fragment, method='GET', post_args=None):
+            return {}
+        jf = mock.patch(
+            "allmydata.scripts.magic_folder_cli._get_json_for_fragment",
+            side_effect=json_for_frag,
+        )
+
+        with jc, jf:
+            rc, stdout, stderr = yield self.do_status(0)
+            self.failUnlessEqual(rc, 2)
+        self.assertIn(
+            "magic_folder_dircap isn't a directory capability",
+            stdout + stderr,
+        )
+
+    @defer.inlineCallbacks
+    def test_status_nothing(self):
+        rc, stdout, stderr = yield self.do_status(0, name="blam")
+        self.assertIn("No such magic-folder 'blam'", stderr)
+
+
 class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
     def test_create_and_then_invite_join(self):
         self.basedir = "cli/MagicFolder/create-and-then-invite-join"
         self.set_up_grid(oneshare=True)
         local_dir = os.path.join(self.basedir, "magic")
+        os.mkdir(local_dir)
         abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
 
         d = self.do_create_magic_folder(0)
@@ -229,6 +451,94 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
             self.failUnlessIn("Alias names cannot contain spaces.", stderr)
         d.addCallback(_done)
         return d
+
+    @defer.inlineCallbacks
+    def test_create_duplicate_name(self):
+        self.basedir = "cli/MagicFolder/create-dup"
+        self.set_up_grid(oneshare=True)
+
+        rc, stdout, stderr = yield self.do_cli(
+            "magic-folder", "create", "magic:", "--name", "foo",
+            client_num=0,
+        )
+        self.assertEqual(rc, 0)
+
+        rc, stdout, stderr = yield self.do_cli(
+            "magic-folder", "create", "magic:", "--name", "foo",
+            client_num=0,
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn(
+            "Already have a magic-folder named 'default'",
+            stderr
+        )
+
+    @defer.inlineCallbacks
+    def test_leave_wrong_folder(self):
+        self.basedir = "cli/MagicFolder/leave_wrong_folders"
+        yield self.set_up_grid(oneshare=True)
+        magic_dir = os.path.join(self.basedir, 'magic')
+        os.mkdir(magic_dir)
+
+        rc, stdout, stderr = yield self.do_cli(
+            "magic-folder", "create", "--name", "foo", "magic:", "my_name", magic_dir,
+            client_num=0,
+        )
+        self.assertEqual(rc, 0)
+
+        rc, stdout, stderr = yield self.do_cli(
+            "magic-folder", "leave", "--name", "bar",
+            client_num=0,
+        )
+        self.assertNotEqual(rc, 0)
+        self.assertIn(
+            "No such magic-folder 'bar'",
+            stdout + stderr,
+        )
+
+    @defer.inlineCallbacks
+    def test_leave_no_folder(self):
+        self.basedir = "cli/MagicFolder/leave_no_folders"
+        yield self.set_up_grid(oneshare=True)
+        magic_dir = os.path.join(self.basedir, 'magic')
+        os.mkdir(magic_dir)
+
+        rc, stdout, stderr = yield self.do_cli(
+            "magic-folder", "create", "--name", "foo", "magic:", "my_name", magic_dir,
+            client_num=0,
+        )
+        self.assertEqual(rc, 0)
+
+        rc, stdout, stderr = yield self.do_cli(
+            "magic-folder", "leave", "--name", "foo",
+            client_num=0,
+        )
+        self.assertEqual(rc, 0)
+
+        rc, stdout, stderr = yield self.do_cli(
+            "magic-folder", "leave", "--name", "foo",
+            client_num=0,
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn(
+            "No magic-folders at all",
+            stderr,
+        )
+
+    @defer.inlineCallbacks
+    def test_leave_no_folders_at_all(self):
+        self.basedir = "cli/MagicFolder/leave_no_folders_at_all"
+        yield self.set_up_grid(oneshare=True)
+
+        rc, stdout, stderr = yield self.do_cli(
+            "magic-folder", "leave",
+            client_num=0,
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn(
+            "No magic-folders at all",
+            stderr,
+        )
 
     def test_create_invite_join(self):
         self.basedir = "cli/MagicFolder/create-invite-join"
@@ -297,8 +607,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         def get_results(result):
             (rc, out, err) = result
             self.failUnlessEqual(out, "")
-            self.failUnlessIn("This client has already joined a magic folder.", err)
-            self.failUnlessIn("Use the 'tahoe magic-folder leave' command first.", err)
+            self.failUnlessIn("This client already has a magic-folder", err)
             self.failIfEqual(rc, 0)
         d.addCallback(get_results)
         return d
@@ -339,6 +648,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         os.makedirs(self.basedir)
         self.set_up_grid(oneshare=True)
         local_dir = os.path.join(self.basedir, "magic")
+        os.mkdir(local_dir)
         abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
 
         self.invite_code = None
@@ -357,7 +667,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
         def check_success(result):
             (rc, out, err) = result
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(rc, 0, out + err)
         def check_failure(result):
             (rc, out, err) = result
             self.failIfEqual(rc, 0)
@@ -367,9 +677,7 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         d.addCallback(leave)
         d.addCallback(check_success)
 
-        collective_dircap_file = os.path.join(self.get_clientdir(i=0), u"private", u"collective_dircap")
-        upload_dircap = os.path.join(self.get_clientdir(i=0), u"private", u"magic_folder_dircap")
-        magic_folder_db_file = os.path.join(self.get_clientdir(i=0), u"private", u"magicfolderdb.sqlite")
+        magic_folder_db_file = os.path.join(self.get_clientdir(i=0), u"private", u"magicfolder_default.sqlite")
 
         def check_join_if_file(my_file):
             fileutil.write(my_file, "my file data")
@@ -377,10 +685,11 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
             d2.addCallback(check_failure)
             return d2
 
-        for my_file in [collective_dircap_file, upload_dircap, magic_folder_db_file]:
+        for my_file in [magic_folder_db_file]:
             d.addCallback(lambda ign, my_file: check_join_if_file(my_file), my_file)
             d.addCallback(leave)
-            d.addCallback(check_success)
+            # we didn't successfully join, so leaving should be an error
+            d.addCallback(check_failure)
 
         return d
 

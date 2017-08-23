@@ -4,6 +4,7 @@ import os.path
 from collections import deque
 from datetime import datetime
 import time
+import ConfigParser
 
 from twisted.internet import defer, reactor, task
 from twisted.internet.error import AlreadyCancelled
@@ -14,7 +15,7 @@ from twisted.application import service
 
 from zope.interface import Interface, Attribute, implementer
 
-from allmydata.util import fileutil
+from allmydata.util import fileutil, configutil, yamlutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import precondition_abspath, get_pathinfo, ConflictError
@@ -59,12 +60,182 @@ def is_new_file(pathinfo, db_entry):
             (db_entry.size, db_entry.ctime_ns, db_entry.mtime_ns))
 
 
+def _upgrade_magic_folder_config(basedir):
+    """
+    Helper that upgrades from single-magic-folder-only configs to
+    multiple magic-folder configuration style (in YAML)
+    """
+    config_fname = os.path.join(basedir, "tahoe.cfg")
+    config = configutil.get_config(config_fname)
+
+    collective_fname = os.path.join(basedir, "private", "collective_dircap")
+    upload_fname = os.path.join(basedir, "private", "magic_folder_dircap")
+    magic_folders = {
+        u"default": {
+            u"directory": config.get("magic_folder", "local.directory").decode("utf-8"),
+            u"collective_dircap": fileutil.read(collective_fname),
+            u"upload_dircap": fileutil.read(upload_fname),
+            u"poll_interval": int(config.get("magic_folder", "poll_interval")),
+        },
+    }
+    fileutil.move_into_place(
+        source=os.path.join(basedir, "private", "magicfolderdb.sqlite"),
+        dest=os.path.join(basedir, "private", "magicfolder_default.sqlite"),
+    )
+    save_magic_folders(basedir, magic_folders)
+    config.remove_option("magic_folder", "local.directory")
+    config.remove_option("magic_folder", "poll_interval")
+    configutil.write_config(os.path.join(basedir, 'tahoe.cfg'), config)
+    fileutil.remove_if_possible(collective_fname)
+    fileutil.remove_if_possible(upload_fname)
+
+
+def maybe_upgrade_magic_folders(node_directory):
+    """
+    If the given node directory is not already using the new-style
+    magic-folder config it will be upgraded to do so. (This should
+    only be done if the user is running a command that needs to modify
+    the config)
+    """
+    yaml_fname = os.path.join(node_directory, u"private", u"magic_folders.yaml")
+    if os.path.exists(yaml_fname):
+        # we already have new-style magic folders
+        return
+
+    config_fname = os.path.join(node_directory, "tahoe.cfg")
+    config = configutil.get_config(config_fname)
+
+    # we have no YAML config; if we have config in tahoe.cfg then we
+    # can upgrade it to the YAML-based configuration
+    if config.has_option("magic_folder", "local.directory"):
+        _upgrade_magic_folder_config(node_directory)
+
+
+def load_magic_folders(node_directory):
+    """
+    Loads existing magic-folder configuration and returns it as a dict
+    mapping name -> dict of config. This will NOT upgrade from
+    old-style to new-style config (but WILL read old-style config and
+    return in the same way as if it was new-style).
+
+    :returns: dict mapping magic-folder-name to its config (also a dict)
+    """
+    yaml_fname = os.path.join(node_directory, u"private", u"magic_folders.yaml")
+    folders = dict()
+
+    config_fname = os.path.join(node_directory, "tahoe.cfg")
+    config = configutil.get_config(config_fname)
+
+    if not os.path.exists(yaml_fname):
+        # there will still be a magic_folder section in a "new"
+        # config, but it won't have local.directory nor poll_interval
+        # in it.
+        if config.has_option("magic_folder", "local.directory"):
+            up_fname = os.path.join(node_directory, "private", "magic_folder_dircap")
+            coll_fname = os.path.join(node_directory, "private", "collective_dircap")
+            directory = config.get("magic_folder", "local.directory").decode('utf8')
+            try:
+                interval = int(config.get("magic_folder", "poll_interval"))
+            except ConfigParser.NoOptionError:
+                interval = 60
+            dir_fp = to_filepath(directory)
+
+            if not dir_fp.exists():
+                raise Exception(
+                    "The '[magic_folder] local.directory' parameter is {} "
+                    "but there is no directory at that location.".format(
+                        quote_local_unicode_path(directory),
+                    )
+                )
+            if not dir_fp.isdir():
+                raise Exception(
+                    "The '[magic_folder] local.directory' parameter is {} "
+                    "but the thing at that location is not a directory.".format(
+                        quote_local_unicode_path(directory)
+                    )
+                )
+
+            folders[u"default"] = {
+                u"directory": directory,
+                u"upload_dircap": fileutil.read(up_fname),
+                u"collective_dircap": fileutil.read(coll_fname),
+                u"poll_interval": interval,
+            }
+        else:
+            # without any YAML file AND no local.directory option it's
+            # an error if magic-folder is "enabled" because we don't
+            # actually have enough config for any magic-folders at all
+            if config.has_section("magic_folder") \
+               and config.getboolean("magic_folder", "enabled") \
+               and not folders:
+                raise Exception(
+                    "[magic_folder] is enabled but has no YAML file and no "
+                    "'local.directory' option."
+                )
+
+    elif os.path.exists(yaml_fname):  # yaml config-file exists
+        if config.has_option("magic_folder", "local.directory"):
+            raise Exception(
+                "magic-folder config has both old-style configuration"
+                " and new-style configuration; please remove the "
+                "'local.directory' key from tahoe.cfg or remove "
+                "'magic_folders.yaml' from {}".format(node_directory)
+            )
+        with open(yaml_fname, "r") as f:
+            magic_folders = yamlutil.safe_load(f.read())
+            if not isinstance(magic_folders, dict):
+                raise Exception(
+                    "'{}' should contain a dict".format(yaml_fname)
+                )
+
+            folders = magic_folders['magic-folders']
+            if not isinstance(folders, dict):
+                raise Exception(
+                    "'magic-folders' in '{}' should be a dict".format(yaml_fname)
+                )
+
+    # check configuration
+    for (name, mf_config) in folders.items():
+        if not isinstance(mf_config, dict):
+            raise Exception(
+                "Each item in '{}' must itself be a dict".format(yaml_fname)
+            )
+        for k in ['collective_dircap', 'upload_dircap', 'directory', 'poll_interval']:
+            if k not in mf_config:
+                raise Exception(
+                    "Config for magic folder '{}' is missing '{}'".format(
+                        name, k
+                    )
+                )
+        for k in ['collective_dircap', 'upload_dircap']:
+            if isinstance(mf_config[k], unicode):
+                mf_config[k] = mf_config[k].encode('ascii')
+
+    return folders
+
+
+def save_magic_folders(node_directory, folders):
+    fileutil.write_atomically(
+        os.path.join(node_directory, u"private", u"magic_folders.yaml"),
+        yamlutil.safe_dump({u"magic-folders": folders}),
+    )
+
+    config = configutil.get_config(os.path.join(node_directory, u"tahoe.cfg"))
+    configutil.set_config(config, "magic_folder", "enabled", "True")
+    configutil.write_config(os.path.join(node_directory, u"tahoe.cfg"), config)
+
+
 class MagicFolder(service.MultiService):
-    name = 'magic-folder'
 
     def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask,
-                 uploader_delay=1.0, clock=None, downloader_delay=60):
+                 name, uploader_delay=1.0, clock=None, downloader_delay=60):
         precondition_abspath(local_path_u)
+        if not os.path.exists(local_path_u):
+            raise ValueError("'{}' does not exist".format(local_path_u))
+        if not os.path.isdir(local_path_u):
+            raise ValueError("'{}' is not a directory".format(local_path_u))
+        # this is used by 'service' things and must be unique in this Service hierarchy
+        self.name = 'magic-folder-{}'.format(name)
 
         service.MultiService.__init__(self)
 
@@ -149,14 +320,10 @@ class QueueMixin(HookMixin):
         }
         self.started_d = self.set_hook('started')
 
-        if not self._local_filepath.exists():
-            raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
-                                 "but there is no directory at that location."
-                                 % quote_local_unicode_path(self._local_path_u))
-        if not self._local_filepath.isdir():
-            raise AssertionError("The '[magic_folder] local.directory' parameter was %s "
-                                 "but the thing at that location is not a directory."
-                                 % quote_local_unicode_path(self._local_path_u))
+        # we should have gotten nice errors already while loading the
+        # config, but just to be safe:
+        assert self._local_filepath.exists()
+        assert self._local_filepath.isdir()
 
         self._deque = deque()
         # do we also want to bound on "maximum age"?
@@ -343,11 +510,9 @@ class Uploader(QueueMixin):
         self.is_ready = False
 
         if not IDirectoryNode.providedBy(upload_dirnode):
-            raise AssertionError("The URI in '%s' does not refer to a directory."
-                                 % os.path.join('private', 'magic_folder_dircap'))
+            raise AssertionError("'upload_dircap' does not refer to a directory")
         if upload_dirnode.is_unknown() or upload_dirnode.is_readonly():
-            raise AssertionError("The URI in '%s' is not a writecap to a directory."
-                                 % os.path.join('private', 'magic_folder_dircap'))
+            raise AssertionError("'upload_dircap' is not a writecap to a directory")
 
         self._upload_dirnode = upload_dirnode
         self._inotify = get_inotify_module()
@@ -756,11 +921,9 @@ class Downloader(QueueMixin, WriteFileMixin):
         QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
-            raise AssertionError("The URI in '%s' does not refer to a directory."
-                                 % os.path.join('private', 'collective_dircap'))
+            raise AssertionError("'collective_dircap' does not refer to a directory")
         if collective_dirnode.is_unknown() or not collective_dirnode.is_readonly():
-            raise AssertionError("The URI in '%s' is not a readonly cap to a directory."
-                                 % os.path.join('private', 'collective_dircap'))
+            raise AssertionError("'collective_dircap' is not a readonly cap to a directory")
 
         self._collective_dirnode = collective_dirnode
         self._upload_readonly_dircap = upload_readonly_dircap
@@ -778,7 +941,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         while True:
             try:
                 data = yield self._scan_remote_collective(scan_self=True)
-                twlog.msg("Completed initial Magic Folder scan successfully")
+                twlog.msg("Completed initial Magic Folder scan successfully ({})".format(self))
                 x = yield self._begin_processing(data)
                 defer.returnValue(x)
                 break

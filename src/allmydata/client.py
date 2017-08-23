@@ -156,8 +156,7 @@ class Terminator(service.Service):
 #@defer.inlineCallbacks
 def create_client(basedir=u"."):
     from allmydata.node import read_config
-    config = read_config(basedir, u"client.port")
-    config.validate(_valid_config_sections())
+    config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
     #defer.returnValue(
     return _Client(
             config,
@@ -192,7 +191,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         node.Node.__init__(self, config, basedir=basedir)
         # All tub.registerReference must happen *after* we upcall, since
         # that's what does tub.setLocation()
-        self._magic_folder = None
+        self._magic_folders = dict()
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
@@ -576,35 +575,47 @@ class _Client(node.Node, pollmixin.PollMixin):
                                        "See docs/frontends/magic-folder.rst for more information.")
 
         if self.get_config("magic_folder", "enabled", False, boolean=True):
-            #print "magic folder enabled"
             from allmydata.frontends import magic_folder
 
-            db_filename = os.path.join(self.basedir, "private", "magicfolderdb.sqlite")
-            local_dir_config = self.get_config("magic_folder", "local.directory").decode("utf-8")
             try:
-                poll_interval = int(self.get_config("magic_folder", "poll_interval", 3))
-            except ValueError:
-                raise ValueError("[magic_folder] poll_interval must be an int")
-
-            s = magic_folder.MagicFolder(
-                client=self,
-                upload_dircap=self.get_private_config("magic_folder_dircap"),
-                collective_dircap=self.get_private_config("collective_dircap"),
-                local_path_u=abspath_expanduser_unicode(local_dir_config, base=self.basedir),
-                dbfile=abspath_expanduser_unicode(db_filename),
-                umask=self.get_config("magic_folder", "download.umask", 0077),
-                downloader_delay=poll_interval,
-            )
-            self._magic_folder = s
-            s.setServiceParent(self)
-            s.startService()
+                magic_folders = magic_folder.load_magic_folders(self.basedir)
+            except Exception as e:
+                log.msg("Error loading magic-folder config: {}".format(e))
+                raise
 
             # start processing the upload queue when we've connected to
             # enough servers
             threshold = min(self.encoding_params["k"],
                             self.encoding_params["happy"] + 1)
-            d = self.storage_broker.when_connected_enough(threshold)
-            d.addCallback(lambda ign: s.ready())
+
+            for (name, mf_config) in magic_folders.items():
+                self.log("Starting magic_folder '{}'".format(name))
+                db_filename = os.path.join(self.basedir, "private", "magicfolder_{}.sqlite".format(name))
+                local_dir_config = mf_config['directory']
+                try:
+                    poll_interval = int(mf_config["poll_interval"])
+                except ValueError:
+                    raise ValueError("'poll_interval' option must be an int")
+
+                s = magic_folder.MagicFolder(
+                    client=self,
+                    upload_dircap=mf_config["upload_dircap"].encode('ascii'),
+                    collective_dircap=mf_config["collective_dircap"].encode('ascii'),
+                    local_path_u=abspath_expanduser_unicode(local_dir_config, base=self.basedir),
+                    dbfile=abspath_expanduser_unicode(db_filename),
+                    umask=self.get_config("magic_folder", "download.umask", 0077),
+                    name=name,
+                    downloader_delay=poll_interval,
+                )
+                self._magic_folders[name] = s
+                s.setServiceParent(self)
+                s.startService()
+
+                connected_d = self.storage_broker.when_connected_enough(threshold)
+                def connected_enough(ign, mf):
+                    mf.ready()  # returns a Deferred we ignore
+                    return None
+                connected_d.addCallback(connected_enough, s)
 
     def _check_exit_trigger(self, exit_trigger_file):
         if os.path.exists(exit_trigger_file):

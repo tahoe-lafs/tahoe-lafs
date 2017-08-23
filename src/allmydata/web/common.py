@@ -488,9 +488,12 @@ class TokenOnlyWebApi(resource.Resource):
         if t == u'json':
             try:
                 return self.post_json(req)
-            except Exception:
+            except WebError as e:
+                req.setResponseCode(e.code)
+                return json.dumps({"error": e.text})
+            except Exception as e:
                 message, code = humanize_failure(Failure())
-                req.setResponseCode(code)
+                req.setResponseCode(500 if code is None else code)
                 return json.dumps({"error": message})
         else:
             raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)
