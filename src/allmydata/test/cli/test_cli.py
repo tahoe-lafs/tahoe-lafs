@@ -7,6 +7,7 @@ import re
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
 from twisted.internet import task
+from twisted.python.filepath import FilePath
 
 import allmydata
 from allmydata.util import fileutil, hashutil, base32, keyutil
@@ -1289,3 +1290,24 @@ class Options(ReallyEqualMixin, unittest.TestCase):
                               ["--node-directory=there", "start", "--nodaemon"])
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["start", "--basedir=here", "--nodaemon"])
+
+
+class Stop(unittest.TestCase):
+    def test_non_numeric_pid(self):
+        """
+        If the pidfile exists but does not contain a numeric value, a complaint to
+        this effect is written to stderr and the non-success result is
+        returned.
+        """
+        basedir = FilePath(self.mktemp().decode("ascii"))
+        basedir.makedirs()
+        basedir.child(u"twistd.pid").setContent(b"foo")
+
+        config = startstop_node.StopOptions()
+        config.stdout = StringIO()
+        config.stderr = StringIO()
+        config['basedir'] = basedir.path
+
+        result_code = startstop_node.stop(config)
+        self.assertEqual(2, result_code)
+        self.assertIn("contains non-numeric value", config.stderr.getvalue())
