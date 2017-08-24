@@ -1291,7 +1291,6 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["start", "--basedir=here", "--nodaemon"])
 
-
 class StartStop(unittest.TestCase):
 
     @staticmethod
