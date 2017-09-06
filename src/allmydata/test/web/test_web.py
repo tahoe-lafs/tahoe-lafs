@@ -46,7 +46,7 @@ from ..common_web import (
     do_http,
     Error,
 )
-from allmydata.client import Client, SecretHolder
+from allmydata.client import _Client, SecretHolder
 from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -238,7 +238,7 @@ class FakeStorageServer(service.MultiService):
     def on_status_changed(self, cb):
         cb(self)
 
-class FakeClient(Client):
+class FakeClient(_Client):
     def __init__(self):
         # don't upcall to Client.__init__, since we only want to initialize a
         # minimal subset

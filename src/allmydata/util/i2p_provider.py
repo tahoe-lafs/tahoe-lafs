@@ -124,16 +124,16 @@ def create_config(reactor, cli_config):
 # a nice error, and startService will throw an ugly error.
 
 class Provider(service.MultiService):
-    def __init__(self, basedir, node_for_config, reactor):
+    def __init__(self, basedir, config, reactor):
         service.MultiService.__init__(self)
         self._basedir = basedir
-        self._node_for_config = node_for_config
+        self._config = config
         self._i2p = _import_i2p()
         self._txi2p = _import_txi2p()
         self._reactor = reactor
 
     def _get_i2p_config(self, *args, **kwargs):
-        return self._node_for_config.get_config("i2p", *args, **kwargs)
+        return self._config.get_config("i2p", *args, **kwargs)
 
     def get_listener(self):
         # this is relative to BASEDIR, and our cwd should be BASEDIR

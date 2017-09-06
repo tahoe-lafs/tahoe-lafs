@@ -20,7 +20,7 @@ from allmydata.util.happinessutil import servers_of_happiness, \
     shares_by_server, merge_servers
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.server import storage_index_to_dir
-from allmydata.client import Client
+from allmydata.client import _Client
 
 MiB = 1024*1024
 
@@ -754,7 +754,7 @@ class ServerSelection(unittest.TestCase):
 class StorageIndex(unittest.TestCase):
     def test_params_must_matter(self):
         DATA = "I am some data"
-        PARAMS = Client.DEFAULT_ENCODING_PARAMETERS
+        PARAMS = _Client.DEFAULT_ENCODING_PARAMETERS
 
         u = upload.Data(DATA, convergence="")
         u.set_default_encoding_parameters(PARAMS)

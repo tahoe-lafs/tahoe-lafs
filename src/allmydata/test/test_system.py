@@ -7,7 +7,7 @@ from twisted.application import service
 
 import allmydata
 from allmydata import client, uri
-from allmydata.introducer.server import IntroducerNode
+from allmydata.introducer.server import create_introducer
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
@@ -423,7 +423,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
                 f.write(SYSTEM_TEST_CERTS[0])
                 f.close()
-        iv = IntroducerNode(basedir=iv_dir)
+        iv = create_introducer(basedir=iv_dir)
         self.introducer = self.add_service(iv)
         self._get_introducer_web()
         d = defer.succeed(None)
@@ -520,7 +520,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         # start clients[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
-        c = self.add_service(client.Client(basedir=basedirs[0]))
+        c = self.add_service(client.create_client(basedirs[0]))
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
@@ -537,7 +537,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         # this starts the rest of the clients
         for i in range(1, self.numclients):
-            c = self.add_service(client.Client(basedir=basedirs[i]))
+            c = self.add_service(client.create_client(basedirs[i]))
             self.clients.append(c)
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         log.msg("STARTING")
@@ -569,7 +569,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # better than blindly waiting for a second.
         d.addCallback(self.stall, 1.0)
         def _stopped(res):
-            new_c = client.Client(basedir=self.getdir("client%d" % num))
+            new_c = client.create_client(self.getdir("client%d" % num))
             self.clients[num] = new_c
             new_c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
             self.add_service(new_c)
@@ -596,7 +596,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             config += "helper.furl = %s\n" % helper_furl
         fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
 
-        c = client.Client(basedir=basedir)
+        c = client.create_client(basedir)
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         self.numclients += 1

@@ -1,20 +1,18 @@
 import os
 import mock
-from io import BytesIO
 from twisted.trial import unittest
 from twisted.internet import reactor, endpoints, defer
 from twisted.internet.interfaces import IStreamClientEndpoint
-from ConfigParser import SafeConfigParser
 from foolscap.connections import tcp
 from ..node import Node, PrivacyError
 from ..util import connection_status
 
 class FakeNode(Node):
     def __init__(self, config_str):
-        self.config = SafeConfigParser()
-        self.config.readfp(BytesIO(config_str))
-        self._reveal_ip = True
+        from allmydata.node import config_from_string
+        self.config = config_from_string(config_str, "fake.port")
         self.basedir = "BASEDIR"
+        self._reveal_ip = True
         self.services = []
         self.create_i2p_provider()
         self.create_tor_provider()

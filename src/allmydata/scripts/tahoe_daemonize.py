@@ -6,6 +6,7 @@ from twisted.python import usage
 from twisted.python.reflect import namedAny
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util import fileutil
+from allmydata.node import read_config
 from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 from twisted.application.service import Service
 
@@ -113,9 +114,9 @@ class DaemonizeTheRealService(Service):
 
         def start():
             node_to_instance = {
-                u"client": lambda: namedAny("allmydata.client.Client")(self.basedir),
-                u"introducer": lambda: namedAny("allmydata.introducer.server.IntroducerNode")(self.basedir),
-                u"stats-gatherer": lambda: namedAny("allmydata.stats.StatsGathererService")(self.basedir, verbose=True),
+                u"client": lambda: namedAny("allmydata.client.create_client")(self.basedir),
+                u"introducer": lambda: namedAny("allmydata.introducer.server.create_introducer")(self.basedir),
+                u"stats-gatherer": lambda: namedAny("allmydata.stats.StatsGathererService")(read_config(self.basedir, None), self.basedir, verbose=True),
                 u"key-generator": key_generator_removed,
             }
 

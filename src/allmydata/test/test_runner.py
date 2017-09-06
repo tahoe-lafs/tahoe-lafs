@@ -9,7 +9,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, \
     get_filesystem_encoding
-from allmydata.client import Client
+from allmydata.client import _Client
 from allmydata.test import common_util
 import allmydata
 from allmydata import __appname__
@@ -337,7 +337,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
+        exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
         twistd_pid_file = os.path.join(c1, "twistd.pid")
         introducer_furl_file = os.path.join(c1, "private", "introducer.furl")
         node_url_file = os.path.join(c1, "node.url")
@@ -457,7 +457,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         basedir = self.workdir("test_client_no_noise")
         c1 = os.path.join(basedir, "c1")
-        exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
+        exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
         twistd_pid_file = os.path.join(c1, "twistd.pid")
         node_url_file = os.path.join(c1, "node.url")
 
@@ -521,7 +521,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
+        exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
         twistd_pid_file = os.path.join(c1, "twistd.pid")
         node_url_file = os.path.join(c1, "node.url")
         storage_furl_file = os.path.join(c1, "private", "storage.furl")

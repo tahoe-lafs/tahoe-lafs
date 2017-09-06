@@ -9,9 +9,9 @@ from foolscap.api import flushEventualQueue
 import foolscap.logging.log
 
 from twisted.application import service
-from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry
-from allmydata.introducer.server import IntroducerNode
-from allmydata.client import Client
+from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry, read_config, config_from_string
+from allmydata.introducer.server import create_introducer
+from allmydata.client import create_client
 from allmydata.util import fileutil, iputil
 from allmydata.util.namespace import Namespace
 import allmydata.test.common_util as testutil
@@ -23,7 +23,11 @@ class LoggingMultiService(service.MultiService):
 
 class TestNode(Node):
     CERTFILE='DEFAULT_CERTFILE_BLANK'
-    PORTNUMFILE='DEFAULT_PORTNUMFILE_BLANK'
+
+    def __init__(self, basedir):
+        config = read_config(basedir, 'DEFAULT_PORTNUMFILE_BLANK')
+        Node.__init__(self, config, basedir)
+
 
 class TestCase(testutil.SignalMixin, unittest.TestCase):
 
@@ -198,7 +202,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
 class EmptyNode(Node):
     def __init__(self):
-        pass
+        config = config_from_string("", "no portfile")
+        Node.__init__(self, config, 'no basedir')
 
 EXPECTED = {
     # top-level key is tub.port category
@@ -252,7 +257,7 @@ class PortLocation(unittest.TestCase):
         n = EmptyNode()
         basedir = os.path.join("test_node/portlocation/%s/%s" % (tp, tl))
         fileutil.make_dirs(basedir)
-        n._portnumfile = os.path.join(basedir, "node.port")
+        config = n.config = read_config(basedir, "node.port")
         n._reveal_ip = True
 
         if exp in ("ERR1", "ERR2", "ERR3", "ERR4"):
@@ -281,7 +286,7 @@ class PortLocation(unittest.TestCase):
                     port, location = n.get_tub_portlocation(cfg_tubport,
                                                             cfg_location)
             try:
-                with open(n._portnumfile, "r") as f:
+                with open(config.portnum_fname, "r") as f:
                     saved_port = f.read().strip()
             except EnvironmentError:
                 saved_port = None
@@ -367,7 +372,7 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = %s\n" % location)
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        n.read_config()
+        n.config = read_config(n.basedir, "client.port")
         n.check_privacy()
         n.services = []
         n.create_i2p_provider()
@@ -393,7 +398,7 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = tcp:example.org:1234\n")
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        n.read_config()
+        n.config = read_config(n.basedir, "client.port")
         n.check_privacy()
         n.services = []
         i2p_ep = object()
@@ -420,7 +425,7 @@ class ClientNotListening(unittest.TestCase):
         f.write(NOLISTEN)
         f.write(DISABLE_STORAGE)
         f.close()
-        n = Client(basedir)
+        n = create_client(basedir)
         self.assertEqual(n.tub.getListeners(), [])
 
     def test_disabled_but_storage(self):
@@ -431,7 +436,7 @@ class ClientNotListening(unittest.TestCase):
         f.write(NOLISTEN)
         f.write(ENABLE_STORAGE)
         f.close()
-        e = self.assertRaises(ValueError, Client, basedir)
+        e = self.assertRaises(ValueError, create_client, basedir)
         self.assertIn("storage is enabled, but tub is not listening", str(e))
 
     def test_disabled_but_helper(self):
@@ -443,7 +448,7 @@ class ClientNotListening(unittest.TestCase):
         f.write(DISABLE_STORAGE)
         f.write(ENABLE_HELPER)
         f.close()
-        e = self.assertRaises(ValueError, Client, basedir)
+        e = self.assertRaises(ValueError, create_client, basedir)
         self.assertIn("helper is enabled, but tub is not listening", str(e))
 
 class IntroducerNotListening(unittest.TestCase):
@@ -455,5 +460,5 @@ class IntroducerNotListening(unittest.TestCase):
         f.write("tub.port = disabled\n")
         f.write("tub.location = disabled\n")
         f.close()
-        e = self.assertRaises(ValueError, IntroducerNode, basedir)
+        e = self.assertRaises(ValueError, create_introducer, basedir)
         self.assertIn("we are Introducer, but tub is not listening", str(e))

@@ -17,7 +17,7 @@ from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
-                            yamlutil, configutil)
+                            yamlutil)
 from allmydata.util.encodingutil import (get_filesystem_encoding,
                                          from_utf8_or_none)
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -153,10 +153,22 @@ class Terminator(service.Service):
         return service.Service.stopService(self)
 
 
-@implementer(IStatsProducer)
-class Client(node.Node, pollmixin.PollMixin):
+#@defer.inlineCallbacks
+def create_client(basedir=u"."):
+    from allmydata.node import read_config
+    config = read_config(basedir, u"client.port")
+    config.validate(_valid_config_sections())
+    #defer.returnValue(
+    return _Client(
+            config,
+            basedir=basedir
+        )
+    #)
 
-    PORTNUMFILE = "client.port"
+
+@implementer(IStatsProducer)
+class _Client(node.Node, pollmixin.PollMixin):
+
     STOREDIR = 'storage'
     NODETYPE = "client"
     EXIT_TRIGGER_FILE = "exit_trigger"
@@ -176,12 +188,10 @@ class Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": 128*KiB,
                                    }
 
-    def __init__(self, basedir="."):
-        node.Node.__init__(self, basedir)
+    def __init__(self, config, basedir=u"."):
+        node.Node.__init__(self, config, basedir=basedir)
         # All tub.registerReference must happen *after* we upcall, since
         # that's what does tub.setLocation()
-        configutil.validate_config(self.config_fname, self.config,
-                                   _valid_config_sections())
         self._magic_folder = None
         self.started_timestamp = time.time()
         self.logSource="Client"

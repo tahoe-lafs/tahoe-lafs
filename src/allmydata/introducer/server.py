@@ -5,7 +5,7 @@ from twisted.application import service
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
-from allmydata.util import log, rrefutil, configutil
+from allmydata.util import log, rrefutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService_v2
@@ -19,14 +19,24 @@ def _valid_config_sections():
 class FurlFileConflictError(Exception):
     pass
 
-class IntroducerNode(node.Node):
-    PORTNUMFILE = "introducer.port"
-    NODETYPE = "introducer"
-    GENERATED_FILES = ['introducer.furl']
+#@defer.inlineCallbacks
+def create_introducer(basedir=u"."):
+    from allmydata.node import read_config
+    config = read_config(basedir, u"client.port", generated_files=["introducer.furl"])
+    config.validate(_valid_config_sections())
+    #defer.returnValue(
+    return _IntroducerNode(
+            config,
+            basedir=basedir
+        )
+    #)
 
-    def __init__(self, basedir=u"."):
-        node.Node.__init__(self, basedir)
-        configutil.validate_config(self.config_fname, self.config, _valid_config_sections())
+
+class _IntroducerNode(node.Node):
+    NODETYPE = "introducer"
+
+    def __init__(self, config, basedir=u"."):
+        node.Node.__init__(self, config, basedir=basedir)
         self.init_introducer()
         webport = self.get_config("node", "web.port", None)
         if webport:

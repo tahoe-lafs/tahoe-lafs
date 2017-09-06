@@ -26,7 +26,7 @@ import treq
 from allmydata.util.assertutil import _assert
 
 from allmydata import uri as tahoe_uri
-from allmydata.client import Client
+from allmydata.client import _Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
@@ -183,7 +183,16 @@ class NoNetworkStorageBroker(object):
     def get_known_servers(self):
         return []  # FIXME?
 
-class NoNetworkClient(Client):
+
+def NoNetworkClient(basedir):
+    # XXX FIXME this is just to avoid massive search-replace for now;
+    # should be create_nonetwork_client() or something...
+    from allmydata.node import read_config
+    config = read_config(basedir, u'client.port')
+    return _NoNetworkClient(config, basedir=basedir)
+
+
+class _NoNetworkClient(_Client):
 
     def init_connections(self):
         pass

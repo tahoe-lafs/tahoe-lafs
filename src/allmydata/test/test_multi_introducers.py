@@ -4,7 +4,7 @@ import os
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
 from allmydata.util import yamlutil
-from allmydata.client import Client
+from allmydata.client import create_client
 from allmydata.scripts.create_node import write_node_config
 
 INTRODUCERS_CFG_FURLS=['furl1', 'furl2']
@@ -44,7 +44,7 @@ class MultiIntroTests(unittest.TestCase):
         }
         self.yaml_path.setContent(yamlutil.safe_dump(connections))
         # get a client and count of introducer_clients
-        myclient = Client(self.basedir)
+        myclient = create_client(self.basedir)
         ic_count = len(myclient.introducer_clients)
 
         # assertions
@@ -56,7 +56,7 @@ class MultiIntroTests(unittest.TestCase):
         commented."""
         self.yaml_path.setContent(INTRODUCERS_CFG_FURLS_COMMENTED)
         # get a client and count of introducer_clients
-        myclient = Client(self.basedir)
+        myclient = create_client(self.basedir)
         ic_count = len(myclient.introducer_clients)
 
         # assertions
@@ -78,7 +78,7 @@ class MultiIntroTests(unittest.TestCase):
         c.close()
 
         # get a client and first introducer_furl
-        myclient = Client(self.basedir)
+        myclient = create_client(self.basedir)
         tahoe_cfg_furl = myclient.introducer_furls[0]
 
         # assertions
@@ -89,7 +89,7 @@ class MultiIntroTests(unittest.TestCase):
             u'default': { 'furl': 'furl1' },
             }}
         self.yaml_path.setContent(yamlutil.safe_dump(connections))
-        e = self.assertRaises(ValueError, Client, self.basedir)
+        e = self.assertRaises(ValueError, create_client, self.basedir)
         self.assertEquals(str(e), "'default' introducer furl cannot be specified in introducers.yaml; please fix impossible configuration.")
 
 SIMPLE_YAML = """
@@ -129,25 +129,25 @@ class NoDefault(unittest.TestCase):
             u'one': { 'furl': 'furl1' },
             }}
         self.yaml_path.setContent(yamlutil.safe_dump(connections))
-        myclient = Client(self.basedir)
+        myclient = create_client(self.basedir)
         tahoe_cfg_furl = myclient.introducer_furls[0]
         self.assertEquals(tahoe_cfg_furl, 'furl1')
 
     def test_real_yaml(self):
         self.yaml_path.setContent(SIMPLE_YAML)
-        myclient = Client(self.basedir)
+        myclient = create_client(self.basedir)
         tahoe_cfg_furl = myclient.introducer_furls[0]
         self.assertEquals(tahoe_cfg_furl, 'furl1')
 
     def test_invalid_equals_yaml(self):
         self.yaml_path.setContent(EQUALS_YAML)
-        e = self.assertRaises(TypeError, Client, self.basedir)
+        e = self.assertRaises(TypeError, create_client, self.basedir)
         self.assertEquals(str(e), "string indices must be integers")
 
     def test_introducerless(self):
         connections = {'introducers': {} }
         self.yaml_path.setContent(yamlutil.safe_dump(connections))
-        myclient = Client(self.basedir)
+        myclient = create_client(self.basedir)
         self.assertEquals(len(myclient.introducer_furls), 0)
 
 if __name__ == "__main__":

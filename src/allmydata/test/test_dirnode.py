@@ -7,7 +7,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
 from allmydata import uri, dirnode
-from allmydata.client import Client
+from allmydata.client import _Client
 from allmydata.immutable import upload
 from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, MustNotBeUnknownRWError, \
@@ -1553,7 +1553,7 @@ class FakeNodeMaker(NodeMaker):
     def create_mutable_file(self, contents="", keysize=None, version=None):
         return defer.succeed(FakeMutableFile(contents))
 
-class FakeClient2(Client):
+class FakeClient2(_Client):
     def __init__(self):
         self.nodemaker = FakeNodeMaker(None, None, None,
                                        None, None,
