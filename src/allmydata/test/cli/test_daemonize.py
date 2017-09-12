@@ -94,7 +94,7 @@ class RunDaemonizeTests(unittest.TestCase):
 
     def setUp(self):
         # no test should change our working directory
-        self._working = os.path.abspath(os.path.curdir)
+        self._working = os.path.abspath('.')
         d = super(RunDaemonizeTests, self).setUp()
         self._reactor = patch('twisted.internet.reactor')
         self._twistd = patch('allmydata.scripts.tahoe_daemonize.twistd')
@@ -108,10 +108,12 @@ class RunDaemonizeTests(unittest.TestCase):
         d = super(RunDaemonizeTests, self).tearDown()
         for cm in [self._reactor, self._twistd]:
             cm.__exit__(None, None, None)
-        self.assertEqual(
-            self._working,
-            os.path.abspath(os.path.curdir),
-        )
+        # Note: if you raise an exception (e.g. via self.assertEqual
+        # or raise RuntimeError) it is apparently just ignored and the
+        # test passes anyway...
+        if self._working != os.path.abspath('.'):
+            print("WARNING: a test just changed the working dir; putting it back")
+            os.chdir(self._working)
         return d
 
     def _placeholder_nodetype(self, nodetype):

@@ -860,6 +860,20 @@ class FakeServerTracker:
 
 class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
     ShouldFailMixin):
+
+    def setUp(self):
+        d = super(EncodingParameters, self).setUp()
+        self._curdir = os.path.abspath(os.path.curdir)
+        return d
+
+    def tearDown(self):
+        d = super(EncodingParameters, self).tearDown()
+        self.assertEqual(
+            os.path.abspath(os.path.curdir),
+            self._curdir,
+        )
+        return d
+
     def find_all_shares(self, unused=None):
         """Locate shares on disk. Returns a dict that maps
         server to set of sharenums.
