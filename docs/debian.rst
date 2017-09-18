@@ -11,8 +11,7 @@ Debian and Ubuntu Support
 Overview
 ========
 
-Tahoe-LAFS is provided as a ``.deb`` package in current Debian (>= wheezy)
-and Ubuntu (>= lucid) releases. Before official packages were added, the Tahoe
+Tahoe-LAFS is provided as a ``.deb`` package in current Debian (>= `stretch <https://packages.debian.org/source/stretch/tahoe-lafs>`_) and Ubuntu (>= lucid) releases. Before official packages were added, the Tahoe
 source tree provided support for building unofficial packages for a variety
 of popular Debian/Ubuntu versions. The project also ran buildbots to create
 ``.debs`` of current trunk for ease of testing.
