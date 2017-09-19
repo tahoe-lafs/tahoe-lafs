@@ -6,8 +6,9 @@ from twisted.python import usage
 from twisted.internet import defer, task, threads
 
 from allmydata.scripts.common import get_default_nodedir
-from allmydata.scripts import debug, create_node, startstop_node, cli, \
-    stats_gatherer, admin, magic_folder_cli, tahoe_invite
+from allmydata.scripts import debug, create_node, cli, \
+    stats_gatherer, admin, magic_folder_cli, tahoe_daemonize, tahoe_start, \
+    tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 
 def GROUP(s):
@@ -29,6 +30,17 @@ NODEDIR_HELP = ("Specify which Tahoe node directory should be used. The "
 if _default_nodedir:
     NODEDIR_HELP += " [default for most commands: " + quote_local_unicode_path(_default_nodedir) + "]"
 
+
+# XXX all this 'dispatch' stuff needs to be unified + fixed up
+_control_node_dispatch = {
+    "daemonize": tahoe_daemonize.daemonize,
+    "start": tahoe_start.start,
+    "run": tahoe_run.run,
+    "stop": tahoe_stop.stop,
+    "restart": tahoe_restart.restart,
+}
+
+
 class Options(usage.Options):
     # unit tests can override these to point at StringIO instances
     stdin = sys.stdin
@@ -41,7 +53,13 @@ class Options(usage.Options):
                     +   stats_gatherer.subCommands
                     +   admin.subCommands
                     + GROUP("Controlling a node")
-                    +   startstop_node.subCommands
+                    + [
+                        ["daemonize", None, tahoe_daemonize.DaemonizeOptions, "run a node in the background"],
+                        ["start", None, tahoe_start.StartOptions, "start a node in the background and confirm it started"],
+                        ["run", None, tahoe_run.RunOptions, "run a node without daemonizing"],
+                        ["stop", None, tahoe_stop.StopOptions, "stop a node"],
+                        ["restart", None, tahoe_restart.RestartOptions, "restart a node"],
+                    ]
                     + GROUP("Debugging")
                     +   debug.subCommands
                     + GROUP("Using the file store")
@@ -104,7 +122,7 @@ def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
     config = Options()
     try:
         parse_options(argv, config=config)
-    except usage.error, e:
+    except usage.error as e:
         c = config
         while hasattr(c, 'subOptions'):
             c = c.subOptions
@@ -129,8 +147,8 @@ def dispatch(config,
 
     if command in create_dispatch:
         f = create_dispatch[command]
-    elif command in startstop_node.dispatch:
-        f = startstop_node.dispatch[command]
+    elif command in _control_node_dispatch:
+        f = _control_node_dispatch[command]
     elif command in debug.dispatch:
         f = debug.dispatch[command]
     elif command in admin.dispatch:
