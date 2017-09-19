@@ -1291,9 +1291,62 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["start", "--basedir=here", "--nodaemon"])
 
+class StartStop(unittest.TestCase):
 
-class Stop(unittest.TestCase):
-    def test_non_numeric_pid(self):
+    @staticmethod
+    def create_config(basedir):
+        """
+        Creates a node and returns it's create config.
+        Returns a minimal create config for ``basedir``.
+        """
+        config = create_node.CreateNodeOptions()
+        config.stdout = StringIO()
+        config.stderr = StringIO()
+        config['basedir'] = basedir.path
+        config['hostname'] = "testnode"
+        return config
+
+    @staticmethod
+    def start_config(basedir):
+        """
+        Returns a minimal start config for the node in ``basedir``.
+        """
+        config = startstop_node.StartOptions()
+        config.twistd_args = []
+        config.stdout = StringIO()
+        config.stderr = StringIO()
+        config['basedir'] = basedir.path
+        return config
+
+    @staticmethod
+    def stop_config(basedir):
+        """
+        Returns a minimal stop config for the node in ``basedir``.
+        """
+        config = startstop_node.StopOptions()
+        config.stdout = StringIO()
+        config.stderr = StringIO()
+        config['basedir'] = basedir.path
+        return config
+
+    def test_non_numeric_pid_start(self):
+        """
+        If the pidfile exists but does not contain an invalid value,
+        a complaint to this effect is written to stderr, the pid file
+        is removed and the command should exit successfully.
+        """
+        basedir = FilePath(self.mktemp().decode("ascii"))
+        basedir.makedirs()
+        create_node.create_node(self.create_config(basedir))
+        basedir.child(u"twistd.pid").setContent(b"foo")
+        start_config = self.start_config(basedir)
+        result_code = startstop_node.start(start_config)
+        self.assertEqual(0, result_code)
+        self.assertIn("found invalid PID file",
+                      start_config.stderr.getvalue())
+        startstop_node.stop(self.stop_config(basedir))
+
+    def test_non_numeric_pid_stop(self):
         """
         If the pidfile exists but does not contain a numeric value, a complaint to
         this effect is written to stderr and the non-success result is
@@ -1302,12 +1355,8 @@ class Stop(unittest.TestCase):
         basedir = FilePath(self.mktemp().decode("ascii"))
         basedir.makedirs()
         basedir.child(u"twistd.pid").setContent(b"foo")
-
-        config = startstop_node.StopOptions()
-        config.stdout = StringIO()
-        config.stderr = StringIO()
-        config['basedir'] = basedir.path
-
-        result_code = startstop_node.stop(config)
+        stop_config = self.stop_config(basedir)
+        result_code = startstop_node.stop(stop_config)
         self.assertEqual(2, result_code)
-        self.assertIn("contains non-numeric value", config.stderr.getvalue())
+        self.assertIn("contains an invalid PID file",
+                      stop_config.stderr.getvalue())

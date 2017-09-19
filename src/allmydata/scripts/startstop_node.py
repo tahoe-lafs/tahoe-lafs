@@ -86,6 +86,35 @@ class StartTahoeNodePlugin:
             return StatsGathererService(verbose=True)
         raise ValueError("unknown nodetype %s" % self.nodetype)
 
+def get_pidfile(basedir):
+    """
+    Returns the path to the PID file.
+    :param basedir: the node's base directory
+    :returns: the path to the PID file
+    """
+    return os.path.join(basedir, u"twistd.pid")
+
+def get_pid_from_pidfile(pidfile):
+    """
+    Tries to read and return the PID stored in the node's PID file
+    (twistd.pid).
+    :param pidfile: try to read this PID file
+    :returns: A numeric PID on success, ``None`` if PID file absent or
+              inaccessible, ``-1`` if PID file invalid.
+    """
+    try:
+        with open(pidfile, "r") as f:
+            pid = f.read()
+    except EnvironmentError:
+        return None
+
+    try:
+        pid = int(pid)
+    except ValueError:
+        return -1
+
+    return pid
+
 def identify_node_type(basedir):
     for fn in listdir_unicode(basedir):
         if fn.endswith(u".tac"):
@@ -135,6 +164,12 @@ def start(config):
         return 1
     twistd_config.loadedPlugins = {"StartTahoeNode": StartTahoeNodePlugin(nodetype, basedir)}
 
+    # handle invalid PID file (twistd might not start otherwise)
+    pidfile = get_pidfile(basedir)
+    if get_pid_from_pidfile(pidfile) == -1:
+        print >>err, "found invalid PID file in %s - deleting it" % basedir
+        os.remove(pidfile)
+
     # On Unix-like platforms:
     #   Unless --nodaemon was provided, the twistd.runApp() below spawns off a
     #   child process, and the parent calls os._exit(0), so there's no way for
@@ -177,21 +212,16 @@ def stop(config):
     basedir = config['basedir']
     quoted_basedir = quote_local_unicode_path(basedir)
     print >>out, "STOPPING", quoted_basedir
-    pidfile = os.path.join(basedir, u"twistd.pid")
-    if not os.path.exists(pidfile):
+
+    pidfile = get_pidfile(basedir)
+    pid = get_pid_from_pidfile(pidfile)
+    if pid is None:
         print >>err, "%s does not look like a running node directory (no twistd.pid)" % quoted_basedir
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
         return 2
-    with open(pidfile, "r") as f:
-        pid = f.read()
-
-    try:
-        pid = int(pid)
-    except ValueError:
-        # The error message below mimics a Twisted error message, which is
-        # displayed when starting a node with an invalid pidfile.
-        print >>err, "Pidfile %s contains non-numeric value" % pidfile
+    elif pid == -1:
+        print >>err, "%s contains an invalid PID file" % basedir
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
         return 2
