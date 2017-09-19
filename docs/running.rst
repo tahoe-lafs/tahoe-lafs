@@ -138,6 +138,19 @@ uploads will succeed. To fix this, see :doc:`configuration` to learn how
 to set ``shares.happy`` to a more suitable value for your grid.
 
 
+Development with Docker
+-----------------------
+
+If you want to stand up a small local test environment, you can install 
+`Docker`_ and `Docker Compose`_. Once you have cloned the repository, run 
+``docker-compose up`` from the project's root directory. This will start a 
+introducer, server, and a client configured to connect to them. After the 
+containers start, you can access the WUI by navigating to 
+``http://localhost:3456`` in your browser.
+
+.. _Docker: https://docs.docker.com/
+.. _Docker Compose: https://docs.docker.com/compose/
+
 Do Stuff With It
 ================
 

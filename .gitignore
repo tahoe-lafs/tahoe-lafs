@@ -1,3 +1,9 @@
+venv
+
+# vim swap files
+*.swp
+*.swo
+
 *.pyc
 *.pyo
 *~
