@@ -123,14 +123,25 @@ def start(config):
         f.seek(starting_offset)
 
         collected = u''
-        start = time.time()
-        while time.time() - start < 5:
-            collected += f.read()
-            if magic_string in collected:
-                if not config.parent['quiet']:
-                    print >>out, "Node has started successfully"
-                return 0
-            time.sleep(0.1)
+        overall_start = time.time()
+        while time.time() - overall_start < 60:
+            this_start = time.time()
+            while time.time() - this_start < 5:
+                collected += f.read()
+                if magic_string in collected:
+                    if not config.parent['quiet']:
+                        print >>out, "Node has started successfully"
+                    return 0
+                if 'Traceback ' in collected:
+                    print >>err, "Error starting node; see '{}' for more:\n\n{}".format(
+                        log_fname,
+                        collected,
+                    )
+                    return 1
+                time.sleep(0.1)
+            print >>out, "Still waiting up to {}s for node startup".format(
+                60 - int(time.time() - overall_start)
+            )
 
         print >>out, "Something has gone wrong starting the node."
         print >>out, "Logs are available in '{}'".format(log_fname)
