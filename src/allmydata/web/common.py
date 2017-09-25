@@ -391,6 +391,7 @@ class RenderMixin:
         """
         Handle HTTP OPTIONS request by adding appropriate headers.
 
+        :param ctx: client transaction from which request is extracted
         :returns: str (empty)
         """
         from allmydata import __version__
