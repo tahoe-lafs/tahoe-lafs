@@ -388,7 +388,11 @@ class RenderMixin:
         return m(ctx)
 
     def render_OPTIONS(self, ctx):
-        """Handle HTTP OPTIONS request"""
+        """
+        Handle HTTP OPTIONS request by adding appropriate headers.
+
+        :returns: str (empty)
+        """
         from allmydata import __version__
         req = IRequest(ctx)
         req.setHeader("server", "Tahoe-LAFS gateway v" + __version__)
