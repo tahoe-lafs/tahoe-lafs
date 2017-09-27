@@ -52,7 +52,7 @@ class _CollectOutputProtocol(ProcessProtocol):
         self.output.write(data)
 
     def errReceived(self, data):
-        print("ERR", data)
+        print("ERR: {}".format(data))
         self.output.write(data)
 
 
@@ -99,7 +99,7 @@ class _MagicTextProtocol(ProcessProtocol):
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
             print("Saw '{}' in the logs".format(self._magic_text))
-            self.magic_seen.callback(None)
+            self.magic_seen.callback(self)
 
     def errReceived(self, data):
         sys.stdout.write(data)
@@ -134,7 +134,12 @@ def _run_node(reactor, node_dir, request, magic_text):
 
     # we return the 'process' ITransport instance
     # XXX abusing the Deferred; should use .when_magic_seen() or something?
-    protocol.magic_seen.addCallback(lambda _: process)
+
+    def got_proto(proto):
+        process._protocol = proto
+        process._node_dir = node_dir
+        return process
+    protocol.magic_seen.addCallback(got_proto)
     return protocol.magic_seen
 
 

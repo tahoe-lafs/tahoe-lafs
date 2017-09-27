@@ -1,3 +1,4 @@
+import sys
 import time
 import shutil
 from os import mkdir, unlink, listdir
@@ -189,3 +190,110 @@ def test_bob_conflicts_with_alice_preexisting(magic_folder):
     util.await_file_contents(join(bob_dir, 'beta'), "this is bob's beta\n")
     util.await_file_contents(join(alice_dir, 'beta'), "this is bob's beta\n")
     util.await_file_contents(join(alice_dir, 'beta.backup'), "this is alice's beta\n")
+
+
+@pytest.inlineCallbacks
+def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_furl, flog_gatherer, storage_nodes):
+    """
+    ticket 2880: if a magic-folder client uploads something, then
+    re-starts a spurious .backup file should not appear
+    """
+
+    edmond_dir = join(temp_dir, 'edmond')
+    edmond = yield util._create_node(
+        reactor, request, temp_dir, introducer_furl, flog_gatherer,
+        "edmond", web_port="tcp:9985:interface=localhost",
+        storage=False,
+    )
+
+
+    magic_folder = join(temp_dir, 'magic-edmond')
+    mkdir(magic_folder)
+    created = False
+    # create a magic-folder
+    # (how can we know that the grid is ready?)
+    for _ in range(10):  # try 10 times
+        try:
+            proto = util._CollectOutputProtocol()
+            transport = reactor.spawnProcess(
+                proto,
+                sys.executable,
+                [
+                    sys.executable, '-m', 'allmydata.scripts.runner',
+                    'magic-folder', 'create',
+                    '--poll-interval', '2',
+                    '--basedir', edmond_dir,
+                    'magik:',
+                    'edmond_magic',
+                    magic_folder,
+                ]
+            )
+            yield proto.done
+            created = True
+            break
+        except Exception as e:
+            print("failed to create magic-folder: {}".format(e))
+            time.sleep(1)
+
+    assert created, "Didn't create a magic-folder"
+
+    # to actually-start the magic-folder we have to re-start
+    edmond.signalProcess('TERM')
+    yield edmond._protocol.exited
+    time.sleep(1)
+    edmond = yield util._run_node(reactor, edmond._node_dir, request, 'Completed initial Magic Folder scan successfully')
+
+    # add a thing to the magic-folder
+    with open(join(magic_folder, "its_a_file"), "w") as f:
+        f.write("edmond wrote this")
+
+    # fixme, do status-update attempts in a loop below
+    time.sleep(5)
+
+    # let it upload; poll the HTTP magic-folder status API until it is
+    # uploaded
+    from allmydata.scripts.magic_folder_cli import _get_json_for_fragment
+
+    with open(join(edmond_dir, u'private', u'api_auth_token'), 'rb') as f:
+        token = f.read()
+
+    uploaded = False
+    for _ in range(10):
+        options = {
+            "node-url": open(join(edmond_dir, u'node.url'), 'r').read().strip(),
+        }
+        try:
+            magic_data = _get_json_for_fragment(
+                options,
+                'magic_folder?t=json',
+                method='POST',
+                post_args=dict(
+                    t='json',
+                    name='default',
+                    token=token,
+                )
+            )
+            for mf in magic_data:
+                if mf['status'] == u'success' and mf['path'] == u'its_a_file':
+                    uploaded = True
+                    break
+        except Exception as e:
+            time.sleep(1)
+
+    assert uploaded, "expected to upload 'its_a_file'"
+
+    # re-starting edmond right now would "normally" trigger the 2880 bug
+
+    # kill edmond
+    edmond.signalProcess('TERM')
+    yield edmond._protocol.exited
+    time.sleep(1)
+    edmond = yield util._run_node(reactor, edmond._node_dir, request, 'Completed initial Magic Folder scan successfully')
+
+    # XXX how can we say for sure if we've waited long enough? look at
+    # tail of logs for magic-folder ... somethingsomething?
+    print("waiting 20 seconds to see if a .backup appears")
+    for _ in range(20):
+        assert exists(join(magic_folder, "its_a_file"))
+        assert not exists(join(magic_folder, "its_a_file.backup"))
+        time.sleep(1)
