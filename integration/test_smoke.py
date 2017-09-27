@@ -114,7 +114,7 @@ def test_bob_creates_alice_deletes_bob_restores(magic_folder):
     # .. she previously deleted it? does that really make sense)
 
     util.await_file_contents(
-        join(alice_dir, "boom.conflict"),
+        join(alice_dir, "boom"),
         "bob wrote this again, because reasons",
     )
 
