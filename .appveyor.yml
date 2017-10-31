@@ -39,6 +39,7 @@ after_test:
   # 64-bit Python 3.3/3.4. And you need to use %PYTHON% to get the correct
   # interpreter
   - |
+    rd /s /q _trial_temp
     %PYTHON%\python.exe setup.py bdist_wheel
     %PYTHON%\python.exe -m pip wheel -w dist .
 
