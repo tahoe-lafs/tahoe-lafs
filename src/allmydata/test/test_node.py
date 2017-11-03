@@ -349,7 +349,7 @@ class FakeTub:
     def setLocation(self, location): pass
     def setServiceParent(self, parent): pass
 
-class MultiplePorts(unittest.TestCase):
+class Listeners(unittest.TestCase):
     def test_multiple_ports(self):
         n = EmptyNode()
         n.basedir = self.mktemp()
@@ -380,6 +380,36 @@ class MultiplePorts(unittest.TestCase):
         self.assertEqual(t.listening_ports,
                          ["tcp:%d:interface=127.0.0.1" % port1,
                           "tcp:%d:interface=127.0.0.1" % port2])
+
+    def test_tor_i2p_listeners(self):
+        n = EmptyNode()
+        n.basedir = self.mktemp()
+        n.config_fname = os.path.join(n.basedir, "tahoe.cfg")
+        os.mkdir(n.basedir)
+        os.mkdir(os.path.join(n.basedir, "private"))
+        with open(n.config_fname, "w") as f:
+            f.write(BASE_CONFIG)
+            f.write("tub.port = listen:i2p,listen:tor\n")
+            f.write("tub.location = tcp:example.org:1234\n")
+        # we're doing a lot of calling-into-setup-methods here, it might be
+        # better to just create a real Node instance, I'm not sure.
+        n.read_config()
+        n.check_privacy()
+        n.services = []
+        i2p_ep = object()
+        tor_ep = object()
+        n._i2p_provider = mock.Mock()
+        n._i2p_provider.get_listener = mock.Mock(return_value=i2p_ep)
+        n._tor_provider = mock.Mock()
+        n._tor_provider.get_listener = mock.Mock(return_value=tor_ep)
+        n.init_connections()
+        n.set_tub_options()
+        t = FakeTub()
+        with mock.patch("allmydata.node.Tub", return_value=t):
+            n.create_main_tub()
+        self.assertEqual(n._i2p_provider.get_listener.mock_calls, [mock.call()])
+        self.assertEqual(n._tor_provider.get_listener.mock_calls, [mock.call()])
+        self.assertEqual(t.listening_ports, [i2p_ep, tor_ep])
 
 class ClientNotListening(unittest.TestCase):
     def test_disabled(self):

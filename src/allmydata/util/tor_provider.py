@@ -3,7 +3,7 @@ from __future__ import absolute_import, print_function, with_statement
 import os
 
 from twisted.internet.defer import inlineCallbacks, returnValue
-from twisted.internet.endpoints import clientFromString
+from twisted.internet.endpoints import clientFromString, TCP4ServerEndpoint
 from twisted.internet.error import ConnectionRefusedError, ConnectError
 from twisted.application import service
 
@@ -124,7 +124,7 @@ def _connect_to_tor(reactor, cli_config, txtorcon):
         raise ValueError("unable to reach any default Tor control port")
 
 @inlineCallbacks
-def create_onion(reactor, cli_config):
+def create_config(reactor, cli_config):
     txtorcon = _import_txtorcon()
     if not txtorcon:
         raise ValueError("Cannot create onion without txtorcon. "
@@ -215,6 +215,11 @@ class Provider(service.MultiService):
 
     def _get_tor_config(self, *args, **kwargs):
         return self._node_for_config.get_config("tor", *args, **kwargs)
+
+    def get_listener(self):
+        local_port = int(self._get_tor_config("onion.local_port"))
+        ep = TCP4ServerEndpoint(self._reactor, local_port, interface="127.0.0.1")
+        return ep
 
     def get_tor_handler(self):
         enabled = self._get_tor_config("enabled", True, boolean=True)

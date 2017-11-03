@@ -152,7 +152,7 @@ class CreateOnion(unittest.TestCase):
     def test_no_txtorcon(self):
         with mock.patch("allmydata.util.tor_provider._import_txtorcon",
                         return_value=None):
-            d = tor_provider.create_onion("reactor", "cli_config")
+            d = tor_provider.create_config("reactor", "cli_config")
             f = self.failureResultOf(d)
             self.assertIsInstance(f.value, ValueError)
             self.assertEqual(str(f.value),
@@ -184,7 +184,7 @@ class CreateOnion(unittest.TestCase):
                             launch_tor):
                 with mock.patch("allmydata.util.tor_provider.allocate_tcp_port",
                                 return_value=999999):
-                    d = tor_provider.create_onion(reactor, cli_config)
+                    d = tor_provider.create_config(reactor, cli_config)
         tahoe_config_tor, tor_port, tor_location = self.successResultOf(d)
 
         launch_tor.assert_called_with(reactor, executable,
@@ -238,7 +238,7 @@ class CreateOnion(unittest.TestCase):
                             connect_to_tor):
                 with mock.patch("allmydata.util.tor_provider.allocate_tcp_port",
                                 return_value=999999):
-                    d = tor_provider.create_onion(reactor, cli_config)
+                    d = tor_provider.create_config(reactor, cli_config)
         tahoe_config_tor, tor_port, tor_location = self.successResultOf(d)
 
         connect_to_tor.assert_called_with(reactor, cli_config, txtorcon)
@@ -392,6 +392,29 @@ class Provider(unittest.TestCase):
             h = p.get_tor_handler()
         self.assertIs(h, handler)
         tor.default_socks.assert_called_with()
+
+class ProviderListener(unittest.TestCase):
+    def test_listener(self):
+        """Does the Tor Provider object's get_listener() method correctly
+        convert the [tor] section of tahoe.cfg into an
+        endpoint/descriptor?
+        """
+        tor = mock.Mock()
+        handler = object()
+        tor.socks_endpoint = mock.Mock(return_value=handler)
+        reactor = object()
+
+        with mock_tor(tor):
+            p = tor_provider.Provider("basedir",
+                                      FakeConfig(**{"onion.local_port": "321"}),
+                                      reactor)
+        fake_ep = object()
+        with mock.patch("allmydata.util.tor_provider.TCP4ServerEndpoint",
+                        return_value=fake_ep) as e:
+            endpoint_or_description = p.get_listener()
+        self.assertIs(endpoint_or_description, fake_ep)
+        self.assertEqual(e.mock_calls, [mock.call(reactor, 321,
+                                                  interface="127.0.0.1")])
 
 class Provider_CheckOnionConfig(unittest.TestCase):
     def test_default(self):

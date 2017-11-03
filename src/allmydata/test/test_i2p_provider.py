@@ -124,7 +124,7 @@ class CreateDest(unittest.TestCase):
     def test_no_txi2p(self):
         with mock.patch("allmydata.util.i2p_provider._import_txi2p",
                         return_value=None):
-            d = i2p_provider.create_dest("reactor", "cli_config")
+            d = i2p_provider.create_config("reactor", "cli_config")
             f = self.failureResultOf(d)
             self.assertIsInstance(f.value, ValueError)
             self.assertEqual(str(f.value),
@@ -164,7 +164,7 @@ class CreateDest(unittest.TestCase):
                             connect_to_i2p):
                 with mock.patch("allmydata.util.i2p_provider.clientFromString",
                                 return_value=ep) as cfs:
-                    d = i2p_provider.create_dest(reactor, cli_config)
+                    d = i2p_provider.create_config(reactor, cli_config)
         tahoe_config_i2p, i2p_port, i2p_location = self.successResultOf(d)
 
         connect_to_i2p.assert_called_with(reactor, cli_config, txi2p)
@@ -178,7 +178,7 @@ class CreateDest(unittest.TestCase):
                                                           "i2p_dest.privkey"),
                     }
         self.assertEqual(tahoe_config_i2p, expected)
-        self.assertEqual(i2p_port, "i2p:%s:3457:api=SAM:apiEndpoint=goodport" % privkeyfile)
+        self.assertEqual(i2p_port, "listen:i2p")
         self.assertEqual(i2p_location, "i2p:FOOBAR.b32.i2p:3457")
 
 _None = object()
@@ -293,6 +293,33 @@ class Provider(unittest.TestCase):
         h = p.get_i2p_handler()
         self.assertIs(h, handler)
         i2p.default.assert_called_with(reactor, keyfile=None)
+
+class ProviderListener(unittest.TestCase):
+    def test_listener(self):
+        """Does the I2P Provider object's get_listener() method correctly
+        convert the [i2p] section of tahoe.cfg into an
+        endpoint/descriptor?
+        """
+
+        i2p = mock.Mock()
+        handler = object()
+        i2p.local_i2p = mock.Mock(return_value=handler)
+        reactor = object()
+
+        privkeyfile = os.path.join("private", "i2p_dest.privkey")
+        with mock_i2p(i2p):
+            p = i2p_provider.Provider("basedir",
+                                      FakeConfig(**{
+                                          "i2p.configdir": "configdir",
+                                          "sam.port": "good:port",
+                                          "dest": "true",
+                                          "dest.port": "3457",
+                                          "dest.private_key_file": privkeyfile,
+                                          }),
+                                      reactor)
+            endpoint_or_description = p.get_listener()
+        self.assertEqual(endpoint_or_description,
+                         "i2p:%s:3457:api=SAM:apiEndpoint=good\\:port" % privkeyfile)
 
 class Provider_CheckI2PConfig(unittest.TestCase):
     def test_default(self):

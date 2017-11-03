@@ -150,6 +150,14 @@ set the ``tub.location`` option described below.
     Lists of endpoint descriptor strings like the following ``tcp:12345,tcp6:12345``
     are known to not work because an ``Address already in use.`` error.
 
+    If any descriptor begins with ``listen:tor``, or ``listen:i2p``, the
+    corresponding tor/i2p Provider object will construct additional endpoints
+    for the Tub to listen on. This allows the ``[tor]`` or ``[i2p]`` sections
+    in ``tahoe.cfg`` to customize the endpoint; e.g. to add I2CP control
+    options. If you use ``listen:i2p``, you should not also have an
+    ``i2p:..`` endpoint in ``tub.port``, as that would result in multiple
+    I2P-based listeners.
+
     If ``tub.port`` is the string ``disabled``, the node will not listen at
     all, and thus cannot accept connections from other nodes. If ``[storage]
     enabled = true``, or ``[helper] enabled = true``, or the node is an

@@ -400,7 +400,18 @@ class Node(service.MultiService):
             for port in tubport.split(","):
                 if port in ("0", "tcp:0"):
                     raise ValueError("tub.port cannot be 0: you must choose")
-                self.tub.listenOn(port)
+                if port == "listen:i2p":
+                    # the I2P provider will read its section of tahoe.cfg and
+                    # return either a fully-formed Endpoint, or a descriptor
+                    # that will create one, so we don't have to stuff all the
+                    # options into the tub.port string (which would need a lot
+                    # of escaping)
+                    port_or_endpoint = self._i2p_provider.get_listener()
+                elif port == "listen:tor":
+                    port_or_endpoint = self._tor_provider.get_listener()
+                else:
+                    port_or_endpoint = port
+                self.tub.listenOn(port_or_endpoint)
             self.tub.setLocation(location)
             self._tub_is_listening = True
             self.log("Tub location set to %s" % (location,))

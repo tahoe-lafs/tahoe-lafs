@@ -261,7 +261,7 @@ class Config(unittest.TestCase):
     def test_node_slow_tor(self):
         basedir = self.mktemp()
         d = defer.Deferred()
-        with mock.patch("allmydata.util.tor_provider.create_onion",
+        with mock.patch("allmydata.util.tor_provider.create_config",
                         return_value=d):
             d2 = run_cli("create-node", "--listen=tor", basedir)
             d.callback(({}, "port", "location"))
@@ -274,7 +274,7 @@ class Config(unittest.TestCase):
     def test_node_slow_i2p(self):
         basedir = self.mktemp()
         d = defer.Deferred()
-        with mock.patch("allmydata.util.i2p_provider.create_dest",
+        with mock.patch("allmydata.util.i2p_provider.create_config",
                         return_value=d):
             d2 = run_cli("create-node", "--listen=i2p", basedir)
             d.callback(({}, "port", "location"))
@@ -325,9 +325,9 @@ class Tor(unittest.TestCase):
         tor_config = {"abc": "def"}
         tor_port = "ghi"
         tor_location = "jkl"
-        onion_d = defer.succeed( (tor_config, tor_port, tor_location) )
-        with mock.patch("allmydata.util.tor_provider.create_onion",
-                        return_value=onion_d) as co:
+        config_d = defer.succeed( (tor_config, tor_port, tor_location) )
+        with mock.patch("allmydata.util.tor_provider.create_config",
+                        return_value=config_d) as co:
             rc, out, err = self.successResultOf(
                 run_cli("create-node", "--listen=tor", basedir))
         self.assertEqual(len(co.mock_calls), 1)
@@ -345,9 +345,9 @@ class Tor(unittest.TestCase):
         tor_config = {"abc": "def"}
         tor_port = "ghi"
         tor_location = "jkl"
-        onion_d = defer.succeed( (tor_config, tor_port, tor_location) )
-        with mock.patch("allmydata.util.tor_provider.create_onion",
-                        return_value=onion_d) as co:
+        config_d = defer.succeed( (tor_config, tor_port, tor_location) )
+        with mock.patch("allmydata.util.tor_provider.create_config",
+                        return_value=config_d) as co:
             rc, out, err = self.successResultOf(
                 run_cli("create-node", "--listen=tor", "--tor-launch",
                         basedir))
@@ -361,9 +361,9 @@ class Tor(unittest.TestCase):
         tor_config = {"abc": "def"}
         tor_port = "ghi"
         tor_location = "jkl"
-        onion_d = defer.succeed( (tor_config, tor_port, tor_location) )
-        with mock.patch("allmydata.util.tor_provider.create_onion",
-                        return_value=onion_d) as co:
+        config_d = defer.succeed( (tor_config, tor_port, tor_location) )
+        with mock.patch("allmydata.util.tor_provider.create_config",
+                        return_value=config_d) as co:
             rc, out, err = self.successResultOf(
                 run_cli("create-node", "--listen=tor", "--tor-control-port=mno",
                         basedir))
@@ -400,7 +400,7 @@ class I2P(unittest.TestCase):
         i2p_port = "ghi"
         i2p_location = "jkl"
         dest_d = defer.succeed( (i2p_config, i2p_port, i2p_location) )
-        with mock.patch("allmydata.util.i2p_provider.create_dest",
+        with mock.patch("allmydata.util.i2p_provider.create_config",
                         return_value=dest_d) as co:
             rc, out, err = self.successResultOf(
                 run_cli("create-node", "--listen=i2p", basedir))
@@ -427,7 +427,7 @@ class I2P(unittest.TestCase):
         i2p_port = "ghi"
         i2p_location = "jkl"
         dest_d = defer.succeed( (i2p_config, i2p_port, i2p_location) )
-        with mock.patch("allmydata.util.i2p_provider.create_dest",
+        with mock.patch("allmydata.util.i2p_provider.create_config",
                         return_value=dest_d) as co:
             rc, out, err = self.successResultOf(
                 run_cli("create-node", "--listen=i2p", "--i2p-sam-port=mno",
