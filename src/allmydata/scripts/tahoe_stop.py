@@ -4,6 +4,7 @@ import signal
 
 from allmydata.scripts.common import BasedirOptions
 from allmydata.util.encodingutil import quote_local_unicode_path
+from .tahoe_daemonize import get_pidfile, get_pid_from_pidfile
 
 COULD_NOT_STOP = 2
 
@@ -23,21 +24,15 @@ def stop(config):
     basedir = config['basedir']
     quoted_basedir = quote_local_unicode_path(basedir)
     print >>out, "STOPPING", quoted_basedir
-    pidfile = os.path.join(basedir, u"twistd.pid")
-    if not os.path.exists(pidfile):
+    pidfile = get_pidfile(basedir)
+    pid = get_pid_from_pidfile(pidfile)
+    if pid is None:
         print >>err, "%s does not look like a running node directory (no twistd.pid)" % quoted_basedir
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
-        return COULD_NOT_STOP
-    with open(pidfile, "r") as f:
-        pid = f.read()
-
-    try:
-        pid = int(pid)
-    except ValueError:
-        # The error message below mimics a Twisted error message, which is
-        # displayed when starting a node with an invalid pidfile.
-        print >>err, "Pidfile %s contains non-numeric value" % pidfile
+        return 2
+    elif pid == -1:
+        print >>err, "%s contains an invalid PID file" % basedir
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
         return 2
