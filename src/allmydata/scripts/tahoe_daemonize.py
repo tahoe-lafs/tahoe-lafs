@@ -10,6 +10,35 @@ from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_pat
 from twisted.application.service import Service
 
 
+def get_pidfile(basedir):
+    """
+    Returns the path to the PID file.
+    :param basedir: the node's base directory
+    :returns: the path to the PID file
+    """
+    return os.path.join(basedir, u"twistd.pid")
+
+def get_pid_from_pidfile(pidfile):
+    """
+    Tries to read and return the PID stored in the node's PID file
+    (twistd.pid).
+    :param pidfile: try to read this PID file
+    :returns: A numeric PID on success, ``None`` if PID file absent or
+              inaccessible, ``-1`` if PID file invalid.
+    """
+    try:
+        with open(pidfile, "r") as f:
+            pid = f.read()
+    except EnvironmentError:
+        return None
+
+    try:
+        pid = int(pid)
+    except ValueError:
+        return -1
+
+    return pid
+
 def identify_node_type(basedir):
     """
     :return unicode: None or one of: 'client', 'introducer',
@@ -154,6 +183,12 @@ def daemonize(config):
         print >>err, "tahoe %s: usage error from twistd: %s\n" % (config.subcommand_name, ue)
         return 1
     twistd_config.loadedPlugins = {"DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir)}
+
+    # handle invalid PID file (twistd might not start otherwise)
+    pidfile = get_pidfile(basedir)
+    if get_pid_from_pidfile(pidfile) == -1:
+        print >>err, "found invalid PID file in %s - deleting it" % basedir
+        os.remove(pidfile)
 
     # On Unix-like platforms:
     #   Unless --nodaemon was provided, the twistd.runApp() below spawns off a

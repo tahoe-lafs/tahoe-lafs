@@ -3,6 +3,7 @@ import os.path
 from cStringIO import StringIO
 import urllib, sys
 import re
+from mock import patch
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
@@ -1312,4 +1313,31 @@ class Stop(unittest.TestCase):
 
         result_code = tahoe_stop.stop(config)
         self.assertEqual(2, result_code)
-        self.assertIn("contains non-numeric value", config.stderr.getvalue())
+        self.assertIn("invalid PID file", config.stderr.getvalue())
+
+
+class Start(unittest.TestCase):
+
+    @patch('allmydata.scripts.tahoe_daemonize.os.chdir')
+    @patch('allmydata.scripts.tahoe_daemonize.twistd')
+    def test_non_numeric_pid(self, mock_twistd, chdir):
+        """
+        If the pidfile exists but does not contain a numeric value, a complaint to
+        this effect is written to stderr.
+        """
+        basedir = FilePath(self.mktemp().decode("ascii"))
+        basedir.makedirs()
+        basedir.child(u"twistd.pid").setContent(b"foo")
+        basedir.child(u"tahoe-client.tac").setContent(b"")
+
+        config = tahoe_daemonize.DaemonizeOptions()
+        config.stdout = StringIO()
+        config.stderr = StringIO()
+        config['basedir'] = basedir.path
+        config.twistd_args = []
+
+        result_code = tahoe_daemonize.daemonize(config)
+        self.assertIn("invalid PID file", config.stderr.getvalue())
+        self.assertTrue(len(mock_twistd.mock_calls), 1)
+        self.assertEqual(mock_twistd.mock_calls[0][0], 'runApp')
+        self.assertEqual(0, result_code)
