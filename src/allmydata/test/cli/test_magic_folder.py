@@ -555,6 +555,14 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.check_config(0, abs_local_dir_u))
         return d
 
+    def test_help_synopsis(self):
+        self.basedir = "cli/MagicFolder/help_synopsis"
+        os.makedirs(self.basedir)
+
+        o = magic_folder_cli.CreateOptions()
+        o.parent = magic_folder_cli.MagicFolderCommand()
+        o.parent.getSynopsis()
+
     def test_create_invite_join_failure(self):
         self.basedir = "cli/MagicFolder/create-invite-join-failure"
         os.makedirs(self.basedir)

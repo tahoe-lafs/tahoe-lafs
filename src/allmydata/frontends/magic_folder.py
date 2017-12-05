@@ -29,6 +29,7 @@ from allmydata.util.time_format import format_time
 from allmydata.immutable.upload import FileName, Data
 from allmydata import magicfolderdb, magicpath
 
+
 IN_EXCL_UNLINK = 0x04000000L
 
 def get_inotify_module():
@@ -422,9 +423,9 @@ class QueueMixin(HookMixin):
                 self._log("  done: %r" % proc)
             except Exception as e:
                 log.err("processing '%r' failed: %s" % (item, e))
-                proc = None  # actually in old _lazy_tail way, proc would be Failure
-            # XXX can we just get rid of the hooks now?
-            yield self._call_hook(proc, 'processed')
+                proc = Failure()
+
+            self._call_hook(proc, 'processed')
 
     def _get_relpath(self, filepath):
         self._log("_get_relpath(%r)" % (filepath,))
@@ -720,7 +721,10 @@ class Uploader(QueueMixin):
 
                 def _add_db_entry(filenode):
                     filecap = filenode.get_uri()
-                    last_downloaded_uri = metadata.get('last_downloaded_uri', None)
+                    # if we're uploading a file, we want to set
+                    # last_downloaded_uri to the filecap so that we don't
+                    # immediately re-download it when we start up next
+                    last_downloaded_uri = metadata.get('last_downloaded_uri', filecap)
                     self._db.did_upload_version(relpath_u, new_version, filecap,
                                                 last_downloaded_uri, last_downloaded_timestamp,
                                                 pathinfo)
@@ -792,7 +796,10 @@ class Uploader(QueueMixin):
 
                 def _add_db_entry(filenode):
                     filecap = filenode.get_uri()
-                    last_downloaded_uri = metadata.get('last_downloaded_uri', None)
+                    # if we're uploading a file, we want to set
+                    # last_downloaded_uri to the filecap so that we don't
+                    # immediately re-download it when we start up next
+                    last_downloaded_uri = metadata.get('last_downloaded_uri', filecap)
                     self._db.did_upload_version(relpath_u, new_version, filecap,
                                                 last_downloaded_uri, last_downloaded_timestamp,
                                                 pathinfo)
@@ -903,6 +910,21 @@ class WriteFileMixin(object):
         return abspath_u
 
 
+def _is_empty_filecap(client, cap):
+    """
+    Internal helper.
+
+    :param cap: a capability URI
+
+    :returns: True if "cap" represents an empty file
+    """
+    node = client.create_node_from_uri(
+        None,
+        cap.encode('ascii'),
+    )
+    return (not node.get_size())
+
+
 class DownloadItem(QueuedItem):
     """
     Represents a single item in the _deque of the Downloader
@@ -982,7 +1004,9 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._log("version %r" % (db_entry.version,))
         if db_entry.version < remote_version:
             return True
-        if db_entry.last_downloaded_uri != remote_uri:
+        if db_entry.last_downloaded_uri is None and _is_empty_filecap(self._client, remote_uri):
+            pass
+        elif db_entry.last_downloaded_uri != remote_uri:
             return True
         return False
 
@@ -1144,7 +1168,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         def do_update_db(written_abspath_u):
             filecap = item.file_node.get_uri()
             last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
-            self._log("DOUPDATEDB %r" % written_abspath_u)
+            if not item.file_node.get_size():
+                filecap = None  # ^ is an empty file
             last_downloaded_uri = filecap
             last_downloaded_timestamp = now
             written_pathinfo = get_pathinfo(written_abspath_u)
@@ -1178,8 +1203,9 @@ class Downloader(QueueMixin, WriteFileMixin):
             if db_entry:
                 if dmd_last_downloaded_uri is not None and db_entry.last_downloaded_uri is not None:
                     if dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
-                        is_conflict = True
-                        self._count('objects_conflicted')
+                        if not _is_empty_filecap(self._client, dmd_last_downloaded_uri):
+                            is_conflict = True
+                            self._count('objects_conflicted')
                 elif dmd_last_uploaded_uri is not None and dmd_last_uploaded_uri != db_entry.last_uploaded_uri:
                     is_conflict = True
                     self._count('objects_conflicted')

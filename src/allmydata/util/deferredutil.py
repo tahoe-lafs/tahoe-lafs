@@ -83,7 +83,7 @@ def _with_log(op, res):
     """
     try:
         op(res)
-    except defer.AlreadyCalledError, e:
+    except defer.AlreadyCalledError as e:
         log.err(e, op=repr(op), level=log.WEIRD)
 
 def eventually_callback(d):
