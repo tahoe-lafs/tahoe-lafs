@@ -177,7 +177,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
 
 
     def test_serialize(self):
-        n = MutableFileNode(None, None, {"k": 3, "n": 10}, None)
+        n = MutableFileNode(None, None, {"k": 3, "happy": 7, "n": 10}, None)
         calls = []
         def _callback(*args, **kwargs):
             self.failUnlessEqual(args, (4,) )
