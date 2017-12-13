@@ -1057,7 +1057,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         NEWERDATA = "this is getting old"
         NEWERDATA_uploadable = MutableData(NEWERDATA)
 
-        d = self.set_up_nodes(NUMCLIENTS=8, use_key_generator=True)
+        d = self.set_up_nodes(NUMCLIENTS=8)##, use_key_generator=True)  #(what's this? came from mutable upload-happiness branch)
 
         def _create_mutable(res):
             c = self.clients[0]
