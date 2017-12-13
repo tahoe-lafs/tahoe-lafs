@@ -921,12 +921,12 @@ class Publish:
                           if server not in self.bad_servers ])
 
         for item in self.goal:
-            shnum = item[1]
-            server = item[0]
-            sharemap.add(shnum, server)
+            shnum0 = item[1]
+            server0 = item[0]
+            sharemap.add(shnum0, server0)
 
         # find the homeless shares:
-        homefull_shares = set([shnum for (server, shnum) in self.goal])
+        homefull_shares = set([shnum1 for (server1, shnum1) in self.goal])
         homeless_shares = set(range(self.total_shares)) - homefull_shares
         homeless_shares = sorted(list(homeless_shares))
         # place them somewhere. We prefer unused servers at the beginning of
