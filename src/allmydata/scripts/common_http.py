@@ -32,7 +32,7 @@ class BadResponse(object):
         self.status = -1
         self.reason = "Error trying to connect to %s: %s" % (url, err)
         self.error = err
-    def read(self):
+    def read(self, length=0):
         return ""
 
 

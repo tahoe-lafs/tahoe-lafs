@@ -36,10 +36,11 @@ class LogMixin(object):
     def log(self, msg, facility=None, parent=None, *args, **kwargs):
         if facility is None:
             facility = self._facility
+        pmsgid = None
         if parent is None:
             pmsgid = self._parentmsgid
-        if pmsgid is None:
-            pmsgid = self._grandparentmsgid
+            if pmsgid is None:
+                pmsgid = self._grandparentmsgid
         msgid = log.msg(msg, facility=facility, parent=pmsgid, *args, **kwargs)
         if self._parentmsgid is None:
             self._parentmsgid = msgid

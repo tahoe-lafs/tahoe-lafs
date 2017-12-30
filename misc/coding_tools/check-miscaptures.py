@@ -62,7 +62,7 @@ def check_loop(ast, results):
         # contains another 'for' loop.
         childnodes = funcnode.getChildNodes()[len(funcnode.defaults):]
         for child in childnodes:
-            check_ast(funcnode, results)
+            check_ast(child, results)
 
 def collect_assigned_and_nested(ast, assigned, nested):
     """
