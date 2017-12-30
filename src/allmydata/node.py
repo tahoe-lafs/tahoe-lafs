@@ -413,6 +413,7 @@ class Node(service.MultiService):
         if cfg_location is None:
             cfg_location = "AUTO"
 
+        local_portnum = None # needed to hush lgtm.com static analyzer
         # Replace the location "AUTO", if present, with the detected local
         # addresses. Don't probe for local addresses unless necessary.
         split_location = cfg_location.split(",")

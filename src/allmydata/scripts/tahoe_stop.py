@@ -79,5 +79,4 @@ def stop(config):
                       (pid, (time.time() - start))
                 wait = 10
         time.sleep(1)
-    # we define rc=1 to mean "I think something is still running, sorry"
-    return 1
+    # control never reaches here: no timeout

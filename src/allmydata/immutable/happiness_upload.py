@@ -329,10 +329,7 @@ def share_placement(peers, readonly_peers, shares, peers_to_shares):
     if not peers:
         return dict()
 
-    homeless_shares = set()
-
     # First calculate share placement for the readonly servers.
-    readonly_peers = readonly_peers
     readonly_shares = set()
     readonly_map = {}
     for peer in sorted(peers_to_shares.keys()):

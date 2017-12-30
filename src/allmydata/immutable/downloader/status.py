@@ -207,8 +207,6 @@ class DownloadStatus(object):
         return self.size
     def get_status(self):
         # mention all outstanding segment requests
-        outstanding = set()
-        errorful = set()
         outstanding = set([s_ev["segment_number"]
                            for s_ev in self.segment_events
                            if s_ev["finish_time"] is None])

@@ -250,16 +250,16 @@ class CheckResultsRenderer(CheckerBase, rend.Page, ResultsBase):
     def render_repair(self, ctx, data):
         if data.is_healthy():
             return ""
-        repair = T.form(action=".", method="post",
-                        enctype="multipart/form-data")[
-            T.fieldset[
-            T.input(type="hidden", name="t", value="check"),
-            T.input(type="hidden", name="repair", value="true"),
-            T.input(type="submit", value="Repair"),
-            ]]
+        #repair = T.form(action=".", method="post",
+        #                enctype="multipart/form-data")[
+        #    T.fieldset[
+        #    T.input(type="hidden", name="t", value="check"),
+        #    T.input(type="hidden", name="repair", value="true"),
+        #    T.input(type="submit", value="Repair"),
+        #    ]]
+        #return ctx.tag[repair]
         return "" # repair button disabled until we make it work correctly,
                   # see #622 for details
-        return ctx.tag[repair]
 
     def render_results(self, ctx, data):
         cr = self._render_results(ctx, data)

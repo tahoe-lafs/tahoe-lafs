@@ -331,7 +331,7 @@ def alice_invite(reactor, alice, temp_dir, request):
     # fairly consistently fail if we don't hack in this pause...)
     import time ; time.sleep(5)
     proto = _CollectOutputProtocol()
-    transport = reactor.spawnProcess(
+    reactor.spawnProcess(
         proto,
         sys.executable,
         [
@@ -345,7 +345,7 @@ def alice_invite(reactor, alice, temp_dir, request):
     pytest.blockon(proto.done)
 
     proto = _CollectOutputProtocol()
-    transport = reactor.spawnProcess(
+    reactor.spawnProcess(
         proto,
         sys.executable,
         [

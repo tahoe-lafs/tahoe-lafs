@@ -892,11 +892,10 @@ class WriteFileMixin(object):
         self._log("_rename_conflicted_file(%r, %r)" % (abspath_u, replacement_path_u))
 
         conflict_path_u = self._get_conflicted_filename(abspath_u)
-        if False:
-            if os.path.isfile(replacement_path_u):
-                print "%r exists" % (replacement_path_u,)
-            if os.path.isfile(conflict_path_u):
-                print "%r exists" % (conflict_path_u,)
+        #if os.path.isfile(replacement_path_u):
+        #    print "%r exists" % (replacement_path_u,)
+        #if os.path.isfile(conflict_path_u):
+        #    print "%r exists" % (conflict_path_u,)
 
         fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
         return conflict_path_u

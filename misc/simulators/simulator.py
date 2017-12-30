@@ -268,7 +268,6 @@ class Simulator:
             avg_tried = sum(self.published_files) / len(self.published_files)
         print time, etype, self.added_data, self.failed_files, self.lost_data_bytes, avg_tried, len(self.introducer.living_files), self.introducer.utilization
 
-global s
 s = None
 
 def main():

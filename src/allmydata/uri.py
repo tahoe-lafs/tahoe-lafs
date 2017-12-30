@@ -747,7 +747,6 @@ def from_string(u, deep_immutable=False, name=u"<unknown name>"):
         s = s[len(ALLEGED_READONLY_PREFIX):]
 
     error = None
-    kind = "cap"
     try:
         if s.startswith('URI:CHK:'):
             return CHKFileURI.init_from_string(s)

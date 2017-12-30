@@ -38,12 +38,12 @@ def abbreviate_space(s, SI=True):
 
 def make_up_a_file_size(seed):
     h = int(myhash(seed).hexdigest(),16)
-    max=2**31
     if 1: # exponential distribution
         e = 8 + (h % (31-8))
         return 2 ** e
     # uniform distribution
-    return h % max # avg 1GB
+    #max=2**31
+    #return h % max # avg 1GB
 
 sizes = [make_up_a_file_size(str(i)) for i in range(10000)]
 avg_filesize = sum(sizes)/len(sizes)

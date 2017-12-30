@@ -21,7 +21,6 @@ def add_version_to_remote_reference(rref, default):
 
 def trap_and_discard(f, *errorTypes):
     f.trap(*errorTypes)
-    pass
 
 def trap_deadref(f):
     return trap_and_discard(f, DeadReferenceError)

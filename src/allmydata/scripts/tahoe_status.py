@@ -137,7 +137,6 @@ def do_status(options):
         )
         print(u"\u255f\u2500{}\u2500\u256b\u2500{}\u2500\u256b\u2500{}\u2500\u256b\u2500{}".format(u'\u2500' * 5, u'\u2500' * 26, u'\u2500' * 22, u'\u2500' * 20), file=options.stdout)
         for op in status_data['active']:
-            op_type = 'UKN '
             if 'progress-hash' in op:
                 op_type = ' put '
                 total = (op['progress-hash'] + op['progress-ciphertext'] + op['progress-encode-push']) / 3.0

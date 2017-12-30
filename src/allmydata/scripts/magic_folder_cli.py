@@ -521,9 +521,9 @@ def status(options):
         downloads = [item for item in magic_data if item['kind'] == 'download']
         longest = max([len(item['path']) for item in magic_data])
 
-        if True: # maybe --show-completed option or something?
-            uploads = [item for item in uploads if item['status'] != 'success']
-            downloads = [item for item in downloads if item['status'] != 'success']
+        # maybe gate this with --show-completed option or something?
+        uploads = [item for item in uploads if item['status'] != 'success']
+        downloads = [item for item in downloads if item['status'] != 'success']
 
         if len(uploads):
             print

@@ -21,7 +21,6 @@ def print_platform():
         sys.stderr.write("\nGot exception using 'platform'. Exception follows\n")
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
-        pass
 
 def print_python_ver():
     print "python:", foldlines(sys.version)
@@ -50,7 +49,6 @@ def print_stdout(cmdlist, label=None, numlines=None):
         sys.stderr.write("\nGot exception invoking '%s'. Exception follows.\n" % (cmdlist[0],))
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
-        pass
 
 def print_as_ver():
     if os.path.exists('a.out'):
@@ -66,7 +64,6 @@ def print_as_ver():
         sys.stderr.write("\nGot exception invoking '%s'. Exception follows.\n" % ('as',))
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
-        pass
 
 def print_setuptools_ver():
     try:
@@ -77,10 +74,8 @@ def print_setuptools_ver():
         sys.stderr.write("\nGot exception using 'pkg_resources' to get the version of setuptools. Exception follows\n")
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
-        pass
     except pkg_resources.DistributionNotFound:
         print 'setuptools: DistributionNotFound'
-        pass
 
 def print_py_pkg_ver(pkgname, modulename=None):
     if modulename is None:
@@ -94,10 +89,8 @@ def print_py_pkg_ver(pkgname, modulename=None):
         sys.stderr.write("\nGot exception using 'pkg_resources' to get the version of %s. Exception follows.\n" % (pkgname,))
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
-        pass
     except pkg_resources.DistributionNotFound:
         print pkgname + ': DistributionNotFound'
-        pass
     try:
         __import__(modulename)
     except ImportError:

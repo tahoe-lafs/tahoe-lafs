@@ -31,6 +31,7 @@ def from_foolscap_reconnector(rc, last_received):
     connected = False
     last_connected = None
     others = set(ci.connectorStatuses.keys())
+    summary = None
 
     if state == "connected":
         connected = True

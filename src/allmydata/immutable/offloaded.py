@@ -76,7 +76,6 @@ class CHKCheckerAndUEBFetcher:
         if f.check(DeadReferenceError):
             return
         log.err(f, parent=self._logparent)
-        pass
 
     def _get_uri_extension(self, res):
         # assume that we can pull the UEB from any share. If we get an error,

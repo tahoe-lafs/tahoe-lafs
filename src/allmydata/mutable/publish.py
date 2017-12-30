@@ -1077,7 +1077,6 @@ class Publish:
                     # of highest-replaceable-seqnum or lower, we're allowed
                     # to replace it: send out a new writev (or rather add it
                     # to self.goal and loop).
-                    pass
 
                 surprised = True
 

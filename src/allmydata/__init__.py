@@ -44,7 +44,6 @@ _release_cmdline_re = re.compile("(?:Release:)\s*(.*)", re.I)
 _distributor_id_file_re = re.compile("(?:DISTRIB_ID\s*=)\s*(.*)", re.I)
 _release_file_re = re.compile("(?:DISTRIB_RELEASE\s*=)\s*(.*)", re.I)
 
-global _distname,_version
 _distname = None
 _version = None
 
@@ -203,7 +202,7 @@ def get_package_versions_and_locations():
                 pass
     finally:
         # Leave suppressions for UserWarnings and global_deprecation_messages active.
-        for ign in runtime_warning_messages + deprecation_messages:
+        for _ in runtime_warning_messages + deprecation_messages:
             warnings.filters.pop()
 
     packages = []

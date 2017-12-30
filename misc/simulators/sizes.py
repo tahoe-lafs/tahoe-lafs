@@ -166,7 +166,7 @@ def text():
     print "                    (bytes)      (%)"
     print "-------  -------    --------   --------  ---- --  --------"
     #sizes = [2 ** i for i in range(7, 41)]
-    radix = math.sqrt(10); expstep = 2
+    #radix = math.sqrt(10); expstep = 2
     radix = 2; expstep = 2
     #radix = 10; expstep = 1
     maxexp = int(math.ceil(math.log(1e12, radix)))+2
