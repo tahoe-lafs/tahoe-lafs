@@ -73,7 +73,9 @@ install_requires = [
     # * Twisted-16.1.0 fixes https://twistedmatrix.com/trac/ticket/8223,
     #   which otherwise causes test_system to fail (DirtyReactorError, due to
     #   leftover timers)
-    "Twisted[tls] >= 16.1.0",
+    # * Twisted-16.4.0 instroduces twisted.trial which is needed for coverage
+    #   testing
+    "Twisted[tls] >= 16.4.0",
 
     # We need Nevow >= 0.11.1 which can be installed using pip.
     "Nevow >= 0.11.1",
