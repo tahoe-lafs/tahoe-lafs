@@ -394,9 +394,8 @@ class RenderMixin:
         :param ctx: client transaction from which request is extracted
         :returns: str (empty)
         """
-        from allmydata import __version__
         req = IRequest(ctx)
-        req.setHeader("server", "Tahoe-LAFS gateway v" + __version__)
+        req.setHeader("server", "Tahoe-LAFS gateway")
         methods = ', '.join([m[7:] for m in dir(self) if m.startswith('render_')])
         req.setHeader("allow", methods)
         req.setHeader("public", methods)
