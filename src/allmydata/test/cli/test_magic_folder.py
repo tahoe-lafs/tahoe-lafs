@@ -3,6 +3,8 @@ import shutil
 import os.path
 import mock
 import re
+import time
+from datetime import datetime
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -293,6 +295,10 @@ class StatusMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_status(self):
+        now = datetime.now()
+        then = now.replace(year=now.year - 5)
+        five_year_interval = (now - then).total_seconds()
+
         def json_for_cap(options, cap):
             if cap.startswith('URI:DIR2:'):
                 return (
@@ -303,7 +309,7 @@ class StatusMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
                                 "size": 1234,
                                 "metadata": {
                                     "tahoe": {
-                                        "linkcrtime": 0.0,
+                                        "linkcrtime": (time.time() - five_year_interval),
                                     },
                                     "version": 1,
                                 },
@@ -332,7 +338,7 @@ class StatusMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
             self.assertIn("default", stdout)
 
         self.assertIn(
-            "foo (1.23 kB): good, version=1, created 47 years ago",
+            "foo (1.23 kB): good, version=1, created 5 years ago",
             stdout,
         )
 
