@@ -4,6 +4,7 @@ import os.path
 import mock
 import re
 import time
+from datetime import datetime
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -294,7 +295,9 @@ class StatusMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_status(self):
-        secs_per_year = 365 * 24 * 60 * 60.0
+        now = datetime.now()
+        then = now.replace(year=now.year - 5)
+        five_year_interval = (now - then).total_seconds()
 
         def json_for_cap(options, cap):
             if cap.startswith('URI:DIR2:'):
@@ -306,7 +309,7 @@ class StatusMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
                                 "size": 1234,
                                 "metadata": {
                                     "tahoe": {
-                                        "linkcrtime": (time.time() - (5 * secs_per_year)),
+                                        "linkcrtime": (time.time() - five_year_interval),
                                     },
                                     "version": 1,
                                 },
