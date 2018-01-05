@@ -387,6 +387,21 @@ class RenderMixin:
             raise server.UnsupportedMethod(getattr(self, 'allowedMethods', ()))
         return m(ctx)
 
+    def render_OPTIONS(self, ctx):
+        """
+        Handle HTTP OPTIONS request by adding appropriate headers.
+
+        :param ctx: client transaction from which request is extracted
+        :returns: str (empty)
+        """
+        req = IRequest(ctx)
+        req.setHeader("server", "Tahoe-LAFS gateway")
+        methods = ', '.join([m[7:] for m in dir(self) if m.startswith('render_')])
+        req.setHeader("allow", methods)
+        req.setHeader("public", methods)
+        req.setHeader("compliance", "rfc=2068, rfc=2616")
+        req.setHeader("content-length", 0)
+        return ""
 
 
 class MultiFormatPage(Page):
