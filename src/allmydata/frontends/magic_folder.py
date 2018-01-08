@@ -703,10 +703,13 @@ class Uploader(QueueMixin):
                     self._count('objects_not_uploaded')
                     return False
 
+                # look out! there's another place we set a "metadata"
+                # object like this (for new, not deleted files)
                 metadata = {
                     'version': new_version,
                     'deleted': True,
                     'last_downloaded_timestamp': last_downloaded_timestamp,
+                    'user_mtime': pathinfo.ctime_ns / 1000000000.0,  # why are we using ns in PathInfo??
                 }
                 if db_entry.last_downloaded_uri is not None:
                     metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
@@ -782,6 +785,7 @@ class Uploader(QueueMixin):
                 metadata = {
                     'version': new_version,
                     'last_downloaded_timestamp': last_downloaded_timestamp,
+                    'user_mtime': pathinfo.mtime_ns / 1000000000.0,  # why are we using ns in PathInfo??
                 }
                 if db_entry is not None and db_entry.last_downloaded_uri is not None:
                     metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
@@ -849,14 +853,23 @@ class WriteFileMixin(object):
     def _get_conflicted_filename(self, abspath_u):
         return abspath_u + u".conflict"
 
-    def _write_downloaded_file(self, local_path_u, abspath_u, file_contents, is_conflict=False, now=None):
-        self._log("_write_downloaded_file(%r, <%d bytes>, is_conflict=%r, now=%r)"
-                  % (abspath_u, len(file_contents), is_conflict, now))
+    def _write_downloaded_file(self, local_path_u, abspath_u, file_contents,
+                               is_conflict=False, now=None, mtime=None):
+        self._log(
+            ("_write_downloaded_file({abspath}, <{file_size} bytes>,"
+             " is_conflict={is_conflict}, now={now}, mtime={mtime})").format(
+                 abspath=abspath_u,
+                 file_size=len(file_contents),
+                 is_conflict=is_conflict,
+                 now=now,
+                 mtime=mtime,
+             )
+        )
 
         # 1. Write a temporary file, say .foo.tmp.
         # 2. is_conflict determines whether this is an overwrite or a conflict.
         # 3. Set the mtime of the replacement file to be T seconds before the
-        #    current local time.
+        #    current local time, or mtime whichever is oldest
         # 4. Perform a file replacement with backup filename foo.backup,
         #    replaced file foo, and replacement file .foo.tmp. If any step of
         #    this operation fails, reclassify as a conflict and stop.
@@ -874,11 +887,14 @@ class WriteFileMixin(object):
         fileutil.write(replacement_path_u, file_contents)
         os.chmod(replacement_path_u, (~ self._umask) & 0666)
 
-        # FUDGE_SECONDS is used to determine if another process
-        # has written to the same file concurrently. This is described
-        # in the Earth Dragon section of our design document:
+        # FUDGE_SECONDS is used to determine if another process has
+        # written to the same file concurrently. This is described in
+        # the Earth Dragon section of our design document ("T" is the
+        # spec is FUDGE_SECONDS here):
         # docs/proposed/magic-folder/remote-to-local-sync.rst
-        os.utime(replacement_path_u, (now, now - self.FUDGE_SECONDS))
+        fudge_time = now - self.FUDGE_SECONDS
+        modified_time = min(fudge_time, mtime) if mtime else fudge_time
+        os.utime(replacement_path_u, (now, modified_time))
         if is_conflict:
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
@@ -1224,8 +1240,13 @@ class Downloader(QueueMixin, WriteFileMixin):
                     d.addCallback(lambda ign: self._rename_deleted_file(abspath_u))
                 else:
                     d.addCallback(lambda ign: item.file_node.download_best_version(progress=item.progress))
-                    d.addCallback(lambda contents: self._write_downloaded_file(self._local_path_u, abspath_u, contents,
-                                                                               is_conflict=is_conflict))
+                    d.addCallback(
+                        lambda contents: self._write_downloaded_file(
+                            self._local_path_u, abspath_u, contents,
+                            is_conflict=is_conflict,
+                            mtime=item.metadata.get('user_mtime', item.metadata.get('tahoe', {}).get('linkmotime')),
+                        )
+                    )
 
         d.addCallbacks(do_update_db)
         d.addErrback(failed)

@@ -371,7 +371,7 @@ this procedure for an overwrite in response to a remote change:
    to obtain an initial classification as an overwrite or a
    conflict. (This takes as input the ``last_downloaded_uri``
    field from the directory entry of the changed ``foo``.)
-3. Set the ``mtime`` of the replacement file to be *T* seconds
+3. Set the ``mtime`` of the replacement file to be at least *T* seconds
    before the current local time. Stat the replacement file
    to obtain its ``mtime`` and ``ctime`` as stored in the local
    filesystem, and update the file's last-seen statinfo in
