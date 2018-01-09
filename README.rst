@@ -15,12 +15,20 @@ http://tahoe-lafs.readthedocs.io/en/latest/ .
 INSTALLING
 ==========
 
+There are three ways to install Tahoe-LAFS.
+
+using OS packages
+^^^^^^^^^^^^^^^^^
+
 Pre-packaged versions are available for several operating systems:
 
 * Debian and Ubuntu users can ``apt-get install tahoe-lafs``
 * NixOS, NetBSD (pkgsrc), ArchLinux, Slackware, and Gentoo have packages
   available, see `OSPackages`_ for details
 * `Mac`_ and Windows installers are in development.
+
+via pip
+^^^^^^^
 
 If you don't use an OS package, you'll need Python 2.7 and `pip`_. You may
 also need a C compiler, and the development headers for python, libffi, and
@@ -32,6 +40,8 @@ Then, to install the most recent release, just run:
 
 * ``pip install tahoe-lafs``
 
+from source
+^^^^^^^^^^^
 To install from source (either so you can hack on it, or just to run
 pre-release code), you should create a virtualenv and install into that:
 
