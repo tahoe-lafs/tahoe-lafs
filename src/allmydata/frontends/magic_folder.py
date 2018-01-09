@@ -627,13 +627,13 @@ class Uploader(QueueMixin):
 
         # TODO: what about IN_MOVE_SELF and IN_UNMOUNT?
         #
-        self.mask = ( self._inotify.IN_CREATE
-                    | self._inotify.IN_CLOSE_WRITE
-                    | self._inotify.IN_MOVED_TO
-                    | self._inotify.IN_MOVED_FROM
-                    | self._inotify.IN_DELETE
-                    | self._inotify.IN_ONLYDIR
-                    | IN_EXCL_UNLINK
+        self.mask = (self._inotify.IN_CREATE
+                     | self._inotify.IN_CLOSE_WRITE
+                     | self._inotify.IN_MOVED_TO
+                     | self._inotify.IN_MOVED_FROM
+                     | self._inotify.IN_DELETE
+                     | self._inotify.IN_ONLYDIR
+                     | IN_EXCL_UNLINK
                     )
         self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
                              recursive=False)#True)
@@ -752,7 +752,7 @@ class Uploader(QueueMixin):
         # It isn't possible to avoid watching for IN_CREATE at all, because
         # it is the only event notified for a directory creation.
 
-        if ((events_mask & self._inotify.IN_CREATE) != 0 and
+        if ((events_mask & self._inotify.IN_CREATE) != 0 and \
             (events_mask & self._inotify.IN_ISDIR) == 0):
             self._log("ignoring event for %r (creation of non-directory)\n" % (relpath_u,))
             return
@@ -1199,8 +1199,8 @@ class Downloader(QueueMixin, WriteFileMixin):
                 self._log("%r has local dbentry %r, remote version %r, remote uri %r"
                           % (relpath_u, local_dbentry, remote_version, remote_uri))
 
-                if (local_dbentry is None or remote_version is None or
-                    local_dbentry.version < remote_version or
+                if (local_dbentry is None or remote_version is None or \
+                    local_dbentry.version < remote_version or \
                     (local_dbentry.version == remote_version and local_dbentry.last_downloaded_uri != remote_uri)):
                     self._log("%r added to download queue" % (relpath_u,))
                     if scan_batch.has_key(relpath_u):
