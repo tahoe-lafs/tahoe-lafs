@@ -142,13 +142,19 @@ def load_magic_folders(node_directory):
                 interval = 60
             dir_fp = to_filepath(directory)
 
+            # make sure directory for magic folder exists
             if not dir_fp.exists():
-                raise Exception(
-                    "The '[magic_folder] local.directory' parameter is {} "
-                    "but there is no directory at that location.".format(
-                        quote_local_unicode_path(directory),
+                # there is something there, but it is not a directory,
+                # so we try to create one and cry if it fails
+                try:
+                    os.mkdir(quote_local_unicode_path(directory))
+                except OSError:
+                    raise Exception(
+                        "The '[magic_folder] local.directory' parameter is {} "
+                        "but no directory could be created at that location.".format(
+                            quote_local_unicode_path(directory)
+                        )
                     )
-                )
             if not dir_fp.isdir():
                 raise Exception(
                     "The '[magic_folder] local.directory' parameter is {} "
