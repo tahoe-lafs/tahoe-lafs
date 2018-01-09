@@ -1,8 +1,8 @@
 import sys
 import time
 import shutil
-from os import mkdir, unlink, listdir
-from os.path import join, exists
+from os import mkdir, unlink, listdir, utime
+from os.path import join, exists, getmtime
 
 import util
 
@@ -20,6 +20,22 @@ def test_alice_writes_bob_receives(magic_folder):
         f.write("alice wrote this")
 
     util.await_file_contents(join(bob_dir, "first_file"), "alice wrote this")
+    return
+
+
+def test_alice_writes_bob_receives_old_timestamp(magic_folder):
+    alice_dir, bob_dir = magic_folder
+    fname = join(alice_dir, "ts_file")
+    ts = time.time() - (60 * 60 * 36)  # 36 hours ago
+
+    with open(fname, "w") as f:
+        f.write("alice wrote this")
+    utime(fname, (time.time(), ts))
+
+    fname = join(bob_dir, "ts_file")
+    util.await_file_contents(fname, "alice wrote this")
+    # make sure the timestamp is correct
+    assert int(getmtime(fname)) == int(ts)
     return
 
 
