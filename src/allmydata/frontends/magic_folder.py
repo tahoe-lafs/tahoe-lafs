@@ -155,7 +155,8 @@ def load_magic_folders(node_directory):
                 # there is something there, but it is not a directory,
                 # so we try to create one and cry if it fails
                 try:
-                    os.mkdir(quote_local_unicode_path(directory))
+                    umask = config.get("magic_folder", "download.umask").decode('utf8')
+                    os.mkdir(quote_local_unicode_path(directory, 0777 & (~ umask)))
                 except OSError:
                     raise Exception(
                         "The '[magic_folder] local.directory' parameter is {} "

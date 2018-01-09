@@ -207,8 +207,8 @@ class LegacyConfigUtilTests(unittest.TestCase):
 
         with self.assertRaises(Exception) as ctx:
             magic_folder.load_magic_folders(self.basedir)
-        self.assertIn(
-            "there is no directory at that location",
+        self.assertNotIn(
+            "no directory could be created",
             str(ctx.exception)
         )
 
