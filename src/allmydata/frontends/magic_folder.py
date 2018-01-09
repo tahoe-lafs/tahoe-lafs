@@ -119,6 +119,7 @@ def load_magic_folders(node_directory):
     old-style to new-style config (but WILL read old-style config and
     return in the same way as if it was new-style).
 
+    :param node_directory: path where node data is stored
     :returns: dict mapping magic-folder-name to its config (also a dict)
     """
     yaml_fname = os.path.join(node_directory, u"private", u"magic_folders.yaml")
