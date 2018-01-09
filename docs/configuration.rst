@@ -28,9 +28,9 @@ This document contains a complete list of the config files that are examined
 by the client node, as well as the state files that you'll observe in its
 base directory.
 
-The main file is named "``tahoe.cfg``", and is an ".INI"-style configuration
-file (parsed by the Python stdlib 'ConfigParser' module: "``[name]``" section
-markers, lines with "``key.subkey: value``", rfc822-style
+The main file is named "``tahoe.cfg``", and is an "`.INI`_"-style configuration
+file (parsed by the Python stdlib `ConfigParser`_ module: "``[name]``" section
+markers, lines with "``key.subkey: value``", `RFC822-style`_
 continuations). There are also other files containing information that does
 not easily fit into this format. The "``tahoe create-node``" or "``tahoe
 create-client``" command will create an initial ``tahoe.cfg`` file for
@@ -65,6 +65,9 @@ The item descriptions below use the following types:
     a Foolscap endpoint identifier, like
     ``pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm``
 
+.. _.INI: https://en.wikipedia.org/wiki/INI_file
+.. _ConfigParser: https://docs.python.org/2/library/configparser.html
+.. _RFC822-style: https://www.ietf.org/rfc/rfc0822
 .. _the Twisted strports documentation: https://twistedmatrix.com/documents/current/api/twisted.application.strports.html
 .. _the Twisted Endpoints documentation: http://twistedmatrix.com/documents/current/core/howto/endpoints.html#endpoint-types-included-with-twisted
 
