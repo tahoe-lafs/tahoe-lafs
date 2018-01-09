@@ -1,13 +1,13 @@
 """Results of the manifest operation."""
 
 from nevow import rend, inevow, tags as T
-import simplejson
+import json
 import urllib
 
 from allmydata.util import base32
-from allmydata.web import operations
 from allmydata.web import common
 from allmydata.web.common import MultiFormatPage
+from allmydata.web.operations import ReloadMixin
 
 
 class ManifestResults(MultiFormatPage, ReloadMixin):
@@ -82,11 +82,11 @@ class ManifestResults(MultiFormatPage, ReloadMixin):
                            "verifycaps": [i for i in s["verifycaps"]],
                            "storage-index": [i for i in s["storage-index"]],
                            })
-            # simplejson doesn't know how to serialize a set. We use a
+            # json doesn't know how to serialize a set. We use a
             # generator that walks the set rather than list(setofthing) to
             # save a small amount of memory (4B*len) and a moderate amount of
             # CPU.
-        return simplejson.dumps(status, indent=1)
+        return json.dumps(status, indent=1)
 
     def _si_abbrev(self):
         si = self.monitor.origin_si
