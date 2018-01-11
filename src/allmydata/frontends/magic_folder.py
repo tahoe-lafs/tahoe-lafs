@@ -872,7 +872,7 @@ class WriteFileMixin(object):
         initial_path_u = os.path.dirname(abspath_u)
         fileutil.make_dirs_with_absolute_mode(local_path_u, initial_path_u, (~ self._umask) & 0777)
         fileutil.write(replacement_path_u, file_contents)
-        os.chmod(replacement_path_u, (~ self._umask) & 0777)
+        os.chmod(replacement_path_u, (~ self._umask) & 0666)
 
         # FUDGE_SECONDS is used to determine if another process
         # has written to the same file concurrently. This is described
