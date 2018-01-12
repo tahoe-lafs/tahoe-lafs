@@ -329,6 +329,7 @@ class QueueMixin(HookMixin):
         self._deque = deque()
         # do we also want to bound on "maximum age"?
         self._process_history = deque(maxlen=20)
+        self._in_progress = []
         self._stopped = False
 
         # a Deferred to wait for the _do_processing() loop to exit
@@ -345,6 +346,8 @@ class QueueMixin(HookMixin):
         Returns an iterable of instances that implement IQueuedItem
         """
         for item in self._deque:
+            yield item
+        for item in self._in_progress:
             yield item
         for item in self._process_history:
             yield item
@@ -414,9 +417,17 @@ class QueueMixin(HookMixin):
         self._deque.clear()
         self._count('objects_queued', -len(to_process))
 
+        # we want to include all these in the next status request, so
+        # we must put them 'somewhere' before the next yield (and it's
+        # not in _process_history because that gets trimmed and we
+        # don't want anything to disappear until after it is
+        # completed)
+        self._in_progress.extend(to_process)
+
         self._log("%d items to process" % len(to_process), )
         for item in to_process:
             self._process_history.appendleft(item)
+            self._in_progress.remove(item)
             try:
                 self._log("  processing '%r'" % (item,))
                 proc = yield self._process(item)
