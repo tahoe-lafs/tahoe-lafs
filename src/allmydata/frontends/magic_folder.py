@@ -889,7 +889,7 @@ class WriteFileMixin(object):
 
         # FUDGE_SECONDS is used to determine if another process has
         # written to the same file concurrently. This is described in
-        # the Earth Dragon section of our design document ("T" is the
+        # the Earth Dragon section of our design document ("T" in the
         # spec is FUDGE_SECONDS here):
         # docs/proposed/magic-folder/remote-to-local-sync.rst
         fudge_time = now - self.FUDGE_SECONDS

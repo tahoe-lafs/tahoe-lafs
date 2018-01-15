@@ -460,17 +460,17 @@ On Unix, for the case where the replaced file already exists, we have:
   ``foo.backup``, the other process' changes end up at ``foo``, and
   ours at ``foo.conflicted``. This avoids data loss.
 
-* Interleaving D: its rename happens after our link in step 4c,
-  and causes an ``IN_MOVED_TO`` event for ``foo``. Its rename also
-  changes the ``mtime`` for ``foo`` so that it is different from
-  the ``mtime`` calculated in step 3, and therefore different
-  from the metadata recorded for ``foo`` in the magic folder db.
-  (Assuming no system clock changes, its rename will set an ``mtime``
-  timestamp corresponding to a time after step 4c, which is not
-  equal to the timestamp *T* seconds before step 4a, provided that
-  *T* seconds is sufficiently greater than the timestamp granularity.)
-  Therefore, an upload will be triggered for ``foo`` after its
-  change, which is correct and avoids data loss.
+* Interleaving D: its rename happens after our link in step 4c, and
+  causes an ``IN_MOVED_TO`` event for ``foo``. Its rename also changes
+  the ``mtime`` for ``foo`` so that it is different from the ``mtime``
+  calculated in step 3, and therefore different from the metadata
+  recorded for ``foo`` in the magic folder db.  (Assuming no system
+  clock changes, its rename will set an ``mtime`` timestamp
+  corresponding to a time after step 4c, which is after the timestamp
+  *T* seconds before step 4a, provided that *T* seconds is
+  sufficiently greater than the timestamp granularity.)  Therefore, an
+  upload will be triggered for ``foo`` after its change, which is
+  correct and avoids data loss.
 
 If the replaced file did not already exist, an ``ENOENT`` error
 occurs at step 4b, and we continue with steps 4c and 4d. The other
@@ -560,15 +560,15 @@ we have:
   to rename ``foo.other`` to ``foo`` both happen after all internal
   operations of `ReplaceFileW`_ have completed. This causes deletion
   and rename events for ``foo`` (which will in practice be merged due
-  to the pending delay, although we don't rely on that for correctness).
-  The rename also changes the ``mtime`` for ``foo`` so that it is
-  different from the ``mtime`` calculated in step 3, and therefore
-  different from the metadata recorded for ``foo`` in the magic folder
-  db. (Assuming no system clock changes, its rename will set an
-  ``mtime`` timestamp corresponding to a time after the internal
-  operations of `ReplaceFileW`_ have completed, which is not equal to
-  the timestamp *T* seconds before `ReplaceFileW`_ is called, provided
-  that *T* seconds is sufficiently greater than the timestamp
+  to the pending delay, although we don't rely on that for
+  correctness).  The rename also changes the ``mtime`` for ``foo`` so
+  that it is different from the ``mtime`` calculated in step 3, and
+  therefore different from the metadata recorded for ``foo`` in the
+  magic folder db. (Assuming no system clock changes, its rename will
+  set an ``mtime`` timestamp corresponding to a time after the
+  internal operations of `ReplaceFileW`_ have completed, which is
+  after the timestamp *T* seconds before `ReplaceFileW`_ is called,
+  provided that *T* seconds is sufficiently greater than the timestamp
   granularity.) Therefore, an upload will be triggered for ``foo``
   after its change, which is correct and avoids data loss.
 
