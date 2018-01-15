@@ -273,7 +273,7 @@ class Node(service.MultiService):
         # tempfile.TemporaryFile) to put large request bodies in the given
         # directory. Without this, the default temp dir is usually /tmp/,
         # which is frequently too small.
-        test_name = tempfile.mktemp()
+        test_name = tempfile.mkstemp()
         _assert(os.path.dirname(test_name) == tempdir, test_name, tempdir)
 
     def check_privacy(self):
