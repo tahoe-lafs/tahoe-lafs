@@ -432,8 +432,11 @@ class QueueMixin(HookMixin):
                 self._log("  processing '%r'" % (item,))
                 proc = yield self._process(item)
                 self._log("  done: %r" % proc)
+                if not proc:
+                    self._process_history.remove(item)
             except Exception as e:
                 log.err("processing '%r' failed: %s" % (item, e))
+                item.set_status('failed', self._clock.seconds())
                 proc = Failure()
 
             self._call_hook(proc, 'processed')
@@ -668,6 +671,10 @@ class Uploader(QueueMixin):
         self._call_hook(path, 'inotify')
 
     def _process(self, item):
+        """
+        process a single QueuedItem. If this returns False, the item is
+        removed from _process_history
+        """
         # Uploader
         relpath_u = item.relpath_u
         self._log("_process(%r)" % (relpath_u,))
