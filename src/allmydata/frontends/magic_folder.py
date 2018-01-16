@@ -975,8 +975,8 @@ class DownloadItem(QueuedItem):
     """
     Represents a single item in the _deque of the Downloader
     """
-    def __init__(self, relpath_u, progress, filenode, metadata):
-        super(DownloadItem, self).__init__(relpath_u, progress, None)
+    def __init__(self, relpath_u, progress, filenode, metadata, size):
+        super(DownloadItem, self).__init__(relpath_u, progress, size)
         self.file_node = filenode
         self.metadata = metadata
 
@@ -1164,6 +1164,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                         PercentProgress(file_node.get_size()),
                         file_node,
                         metadata,
+                        file_node.get_size(),
                     )
                     to_dl.set_status('queued', self._clock.seconds())
                     self._deque.append(to_dl)
