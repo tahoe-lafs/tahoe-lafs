@@ -650,6 +650,14 @@ class Uploader(QueueMixin):
         return relpath_u in self._pending
 
     def _notify(self, opaque, path, events_mask):
+        # Twisted doesn't seem to do anything if our callback throws
+        # an error, so...
+        try:
+            return self._real_notify(opaque, path, events_mask)
+        except Exception as e:
+            self._log("error calling _real_notify: {}".format(e))
+
+    def _real_notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
         relpath_u = self._get_relpath(path)
 
