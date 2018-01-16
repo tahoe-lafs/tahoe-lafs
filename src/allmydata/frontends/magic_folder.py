@@ -484,10 +484,11 @@ class IQueuedItem(Interface):
 
 @implementer(IQueuedItem)
 class QueuedItem(object):
-    def __init__(self, relpath_u, progress):
+    def __init__(self, relpath_u, progress, size):
         self.relpath_u = relpath_u
         self.progress = progress
         self._status_history = dict()
+        self.size = size
 
     def set_status(self, status, current_time=None):
         if current_time is None:
@@ -615,8 +616,11 @@ class Uploader(QueueMixin):
             return
 
         self._pending.add(relpath_u)
+        fp = self._get_filepath(relpath_u)
+        pathinfo = get_pathinfo(unicode_from_filepath(fp))
         progress = PercentProgress()
-        item = UploadItem(relpath_u, progress)
+        self._log("add pending size: {}: {}".format(relpath_u, pathinfo.size))
+        item = UploadItem(relpath_u, progress, pathinfo.size)
         item.set_status('queued', self._clock.seconds())
         self._deque.append(item)
         self._count('objects_queued')
@@ -694,6 +698,7 @@ class Uploader(QueueMixin):
                 now = time.time()
             fp = self._get_filepath(relpath_u)
             pathinfo = get_pathinfo(unicode_from_filepath(fp))
+            item.size = pathinfo.size
 
             self._log("about to remove %r from pending set %r" %
                       (relpath_u, self._pending))
@@ -963,7 +968,7 @@ class DownloadItem(QueuedItem):
     Represents a single item in the _deque of the Downloader
     """
     def __init__(self, relpath_u, progress, filenode, metadata):
-        super(DownloadItem, self).__init__(relpath_u, progress)
+        super(DownloadItem, self).__init__(relpath_u, progress, None)
         self.file_node = filenode
         self.metadata = metadata
 
