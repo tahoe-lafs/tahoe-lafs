@@ -22,8 +22,6 @@ from util import _create_node
 from util import _run_node
 
 
-pytest_plugins = 'pytest_twisted'
-
 # pytest customization hooks
 
 def pytest_addoption(parser):
