@@ -619,7 +619,7 @@ class Uploader(QueueMixin):
         fp = self._get_filepath(relpath_u)
         pathinfo = get_pathinfo(unicode_from_filepath(fp))
         progress = PercentProgress()
-        self._log("add pending size: {}: {}".format(relpath_u, pathinfo.size))
+        self._log(u"add pending size: {}: {}".format(relpath_u, pathinfo.size))
         item = UploadItem(relpath_u, progress, pathinfo.size)
         item.set_status('queued', self._clock.seconds())
         self._deque.append(item)
@@ -655,7 +655,8 @@ class Uploader(QueueMixin):
         try:
             return self._real_notify(opaque, path, events_mask)
         except Exception as e:
-            self._log("error calling _real_notify: {}".format(e))
+            self._log(u"error calling _real_notify: {}".format(e))
+            return Failure()
 
     def _real_notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))

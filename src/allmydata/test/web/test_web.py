@@ -127,6 +127,7 @@ class FakeStatusItem(object):
         import mock
         self.progress = mock.Mock()
         self.progress.progress = 100.0
+        self.size = 1234
 
     def status_history(self):
         return self.history
@@ -1017,7 +1018,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.assertEqual(
             data,
             [
-                {"status": "done", "path": "rel/path", "kind": "upload", "percent_done": 100.0, "done_at": 12345},
+                {
+                    "status": "done",
+                    "path": "rel/path",
+                    "kind": "upload",
+                    "percent_done": 100.0,
+                    "done_at": 12345,
+                    "size": 1234,
+                },
             ]
         )
 
