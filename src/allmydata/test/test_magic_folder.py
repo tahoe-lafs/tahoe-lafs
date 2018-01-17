@@ -1428,6 +1428,10 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
             what_path = abspath_expanduser_unicode(u"what", base=small_tree_dir)
             fileutil.write(what_path, "say when")
             yield self.fileops.move(small_tree_dir, new_small_tree_dir)
+            upstatus = list(self.magicfolder.uploader.get_status())
+            downstatus = list(self.magicfolder.downloader.get_status())
+            self.assertEqual(2, len(upstatus))
+            self.assertEqual(0, len(downstatus))
             yield iterate(self.magicfolder)
             # when we add the dir, we queue a scan of it; so we want
             # the upload to "go" as well requiring 1 more iteration
