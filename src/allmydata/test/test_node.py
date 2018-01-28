@@ -447,6 +447,134 @@ class TestMissingPorts(unittest.TestCase):
             "tub.location is disabled, but not tub.port",
             str(ctx.exception)
         )
+=======
+        config = config_from_string('', '')
+        basedir = fileutil.abspath_expanduser_unicode(basedir)
+        Node(config, None, None, None, None, basedir, False)
+        self.failUnless(ns.called)
+
+
+class EmptyNode(Node):
+    def __init__(self):
+        config = config_from_string("", "no portfile")
+        Node.__init__(self, config, 'no basedir')
+
+EXPECTED = {
+    # top-level key is tub.port category
+    "missing": {
+        # 2nd-level key is tub.location category
+        "missing": "alloc/auto",
+        "empty": "ERR2",
+        "disabled": "ERR4",
+        "hintstring": "alloc/file",
+        },
+    "empty": {
+        "missing": "ERR1",
+        "empty": "ERR1",
+        "disabled": "ERR1",
+        "hintstring": "ERR1",
+        },
+    "disabled": {
+        "missing": "ERR3",
+        "empty": "ERR2",
+        "disabled": "no-listen",
+        "hintstring": "ERR3",
+        },
+    "endpoint": {
+        "missing": "auto",
+        "empty": "ERR2",
+        "disabled": "ERR4",
+        "hintstring": "manual",
+        },
+    }
+
+class PortLocation(unittest.TestCase):
+
+    def test_all(self):
+        for tp in EXPECTED.keys():
+            for tl in EXPECTED[tp].keys():
+                exp = EXPECTED[tp][tl]
+                self._try(tp, tl, exp)
+
+    def _try(self, tp, tl, exp):
+        log.msg("PortLocation._try:", tp, tl, exp)
+        cfg_tubport = {"missing": None,
+                       "empty": "",
+                       "disabled": "disabled",
+                       "endpoint": "tcp:777",
+                       }[tp]
+        cfg_location = {"missing": None,
+                        "empty": "",
+                        "disabled": "disabled",
+                        "hintstring": "tcp:HOST:888,AUTO",
+                        }[tl]
+
+        basedir = os.path.join("test_node/portlocation/%s/%s" % (tp, tl))
+        fileutil.make_dirs(basedir)
+        config = read_config(basedir, "node.port")
+        from allmydata.node import _tub_portlocation
+
+        if exp in ("ERR1", "ERR2", "ERR3", "ERR4"):
+            with self.assertRaises(ValueError) as ctx:
+                _tub_portlocation(config, cfg_tubport, cfg_location)
+
+            if exp == "ERR1":
+                self.assertEqual(
+                    "tub.port must not be empty",
+                    str(ctx.exception),
+                )
+            elif exp == "ERR2":
+                self.assertEqual(
+                    "tub.location must not be empty",
+                    str(ctx.exception),
+                )
+            elif exp == "ERR3":
+                self.assertEqual(
+                    "tub.port is disabled, but not tub.location",
+                    str(ctx.exception),
+                )
+            elif exp == "ERR4":
+                self.assertEqual(
+                    "tub.location is disabled, but not tub.port",
+                    str(ctx.exception),
+                )
+            else:
+                self.assert_(False)
+        elif exp == "no-listen":
+            from allmydata.node import _tub_portlocation
+            res = _tub_portlocation(config, cfg_tubport, cfg_location)
+            self.assertEqual(res, None)
+        elif exp in ("alloc/auto", "alloc/file", "auto", "manual"):
+            with mock.patch("allmydata.util.iputil.get_local_addresses_sync",
+                            return_value=["LOCAL"]):
+                with mock.patch("allmydata.util.iputil.allocate_tcp_port",
+                                return_value=999):
+                    port, location = _tub_portlocation(config, cfg_tubport, cfg_location)
+            try:
+                with open(config.portnum_fname, "r") as f:
+                    saved_port = f.read().strip()
+            except EnvironmentError:
+                saved_port = None
+            if exp == "alloc/auto":
+                self.assertEqual(port, "tcp:999")
+                self.assertEqual(location, "tcp:LOCAL:999")
+                self.assertEqual(saved_port, "tcp:999")
+            elif exp == "alloc/file":
+                self.assertEqual(port, "tcp:999")
+                self.assertEqual(location, "tcp:HOST:888,tcp:LOCAL:999")
+                self.assertEqual(saved_port, "tcp:999")
+            elif exp == "auto":
+                self.assertEqual(port, "tcp:777")
+                self.assertEqual(location, "tcp:LOCAL:777")
+                self.assertEqual(saved_port, None)
+            elif exp == "manual":
+                self.assertEqual(port, "tcp:777")
+                self.assertEqual(location, "tcp:HOST:888,tcp:LOCAL:777")
+                self.assertEqual(saved_port, None)
+            else:
+                self.assert_(False)
+        else:
+            self.assert_(False)
 
 BASE_CONFIG = """
 [client]
