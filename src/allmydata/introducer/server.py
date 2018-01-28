@@ -38,14 +38,20 @@ def create_introducer(basedir=u"."):
     config = read_config(basedir, u"client.port", generated_files=["introducer.furl"])
     config.validate(_valid_config_sections())
 
-    default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config)
+    # XXX fix up imports etc (also: reactor)
+    from twisted.internet import reactor
+    from allmydata.node import create_i2p_provider, create_tor_provider
+    i2p_provider = create_i2p_provider(reactor, basedir, config)
+    tor_provider = create_tor_provider(reactor, basedir, config)
+
+    default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config, i2p_provider, tor_provider)
     tub_options = create_tub_options(config)
 
     i2p_provider = None
     tor_provider = None
     main_tub, is_listening = create_main_tub(
         basedir, config, tub_options, default_connection_handlers,
-        foolscap_connection_handlers,
+        foolscap_connection_handlers, i2p_provider, tor_provider,
     )
     control_tub = create_control_tub()
 
