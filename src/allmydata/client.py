@@ -30,7 +30,7 @@ from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata.node import OldConfigOptionError, _common_config_sections
 from allmydata.node import read_config, create_connection_handlers, create_tub_options
-from allmydata.node import create_main_tub, create_control_tub, create_tub
+from allmydata.node import create_main_tub, create_control_tub, create_tub, PRIV_README
 
 
 KiB=1024
@@ -153,13 +153,6 @@ class Terminator(service.Service):
         for c in self._clients:
             c.stop()
         return service.Service.stopService(self)
-
-
-PRIV_README="""
-This directory contains files which contain private data for the Tahoe node,
-such as private keys.  On Unix-like systems, the permissions on this directory
-are set to disallow users other than its owner from reading the contents of
-the files.   See the 'configuration.rst' documentation file for details."""
 
 
 # @defer.inlineCallbacks

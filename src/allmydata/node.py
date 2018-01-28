@@ -62,7 +62,16 @@ for thing, things_version in get_package_versions().iteritems():
     app_versions.add_version(thing, str(things_version))
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
-ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
+ADDR_RE = re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
+
+# this is put into README in new node-directories (for client and introducers)
+PRIV_README = """
+This directory contains files which contain private data for the Tahoe node,
+such as private keys.  On Unix-like systems, the permissions on this directory
+are set to disallow users other than its owner from reading the contents of
+the files.   See the 'configuration.rst' documentation file for details.
+"""
+
 
 
 def formatTimeTahoeStyle(self, when):
