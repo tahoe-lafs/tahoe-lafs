@@ -241,8 +241,8 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": 128*KiB,
                                    }
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, basedir, tub_is_listening):
-        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, basedir, tub_is_listening)
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening):
+        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening)
         # All tub.registerReference must happen *after* we upcall, since
         # that's what does tub.setLocation()
         self._magic_folders = dict()

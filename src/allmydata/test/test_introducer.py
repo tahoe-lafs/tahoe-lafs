@@ -35,18 +35,20 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         from allmydata.introducer import IntroducerNode
         IntroducerNode  # pyflakes
 
+    @defer.inlineCallbacks
     def test_create(self):
         basedir = "introducer.IntroducerNode.test_create"
-        create_introducer(basedir)
+        yield create_introducer(basedir)
         self.assertTrue(os.path.exists(basedir))
 
+    @defer.inlineCallbacks
     def test_furl(self):
         basedir = "introducer.IntroducerNode.test_furl"
         create_node_dir(basedir, "testing")
         public_fn = os.path.join(basedir, "introducer.furl")
         private_fn = os.path.join(basedir, "private", "introducer.furl")
 
-        q1 = create_introducer(basedir)
+        q1 = yield create_introducer(basedir)
         del q1
         # new nodes create unguessable furls in private/introducer.furl
         ifurl = fileutil.read(private_fn)
@@ -59,20 +61,21 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(public_fn, guessable+"\n", mode="w") # text
 
         # if we see both files, throw an error
-        self.failUnlessRaises(FurlFileConflictError,
-                              create_introducer, basedir)
+        with self.assertRaises(FurlFileConflictError):
+            yield create_introducer(basedir)
 
         # when we see only the public one, move it to private/ and use
         # the existing furl instead of creating a new one
         os.unlink(private_fn)
 
-        q2 = create_introducer(basedir)
+        q2 = yield create_introducer(basedir)
         del q2
         self.failIf(os.path.exists(public_fn))
         ifurl2 = fileutil.read(private_fn)
         self.failUnless(ifurl2)
         self.failUnlessEqual(ifurl2.strip(), guessable)
 
+    @defer.inlineCallbacks
     def test_web_static(self):
         basedir = u"introducer.Node.test_web_static"
         create_node_dir(basedir, "testing")
@@ -80,7 +83,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
                        "[node]\n" +
                        "web.port = tcp:0:interface=127.0.0.1\n" +
                        "web.static = relative\n")
-        c = create_introducer(basedir)
+        c = yield create_introducer(basedir)
         w = c.getServiceNamed("webish")
         abs_basedir = fileutil.abspath_expanduser_unicode(basedir)
         expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
@@ -752,7 +755,7 @@ class Announcements(unittest.TestCase):
         f.write("enabled = false\n")
         f.close()
 
-        c = create_client(basedir)
+        c = yield create_client(basedir)
         ic = c.introducer_clients[0]
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -820,13 +823,15 @@ class Announcements(unittest.TestCase):
         self.failUnlessEqual(announcements[pub2]["anonymous-storage-FURL"],
                              furl3)
 
-        c2 = create_client(basedir)
+        c2 = yield create_client(basedir)
         c2.introducer_clients[0]._load_announcements()
         yield flushEventualQueue()
         self.assertEqual(c2.storage_broker.get_all_serverids(),
                          frozenset([pub1, pub2]))
 
 class ClientSeqnums(unittest.TestCase):
+
+    @defer.inlineCallbacks
     def test_client(self):
         basedir = "introducer/ClientSeqnums/test_client"
         fileutil.make_dirs(basedir)
@@ -841,7 +846,7 @@ class ClientSeqnums(unittest.TestCase):
         f.write("enabled = false\n")
         f.close()
 
-        c = create_client(basedir)
+        c = yield create_client(basedir)
         ic = c.introducer_clients[0]
         outbound = ic._outbound_announcements
         published = ic._published_announcements
