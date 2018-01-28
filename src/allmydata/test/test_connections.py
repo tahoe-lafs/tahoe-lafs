@@ -6,7 +6,7 @@ from twisted.internet.interfaces import IStreamClientEndpoint
 from foolscap.connections import tcp
 from ..node import Node, PrivacyError, config_from_string
 from ..node import create_connection_handlers, create_i2p_provider
-from ..node import create_main_tub
+from ..node import create_main_tub, _tub_portlocation
 from ..client import create_client_from_config
 from ..util import connection_status
 
@@ -24,10 +24,17 @@ BASECONFIG = ("[client]\n"
 
 
 class TCP(unittest.TestCase):
+
     def test_default(self):
-        n = FakeNode(BASECONFIG)
-        h = n._make_tcp_handler()
-        self.assertIsInstance(h, tcp.DefaultTCP)
+        config = config_from_string(
+            BASECONFIG,
+            "fake.port",
+        )
+        _, foolscap_handlers = create_connection_handlers(None, 'basedir', config)
+        self.assertIsInstance(
+            foolscap_handlers['tcp'],
+            tcp.DefaultTCP,
+        )
 
 class Tor(unittest.TestCase):
     def test_disabled(self):
@@ -383,20 +390,30 @@ class Privacy(unittest.TestCase):
         self.assertEqual(str(e), "tub.location uses AUTO")
 
     def test_tub_location_tcp(self):
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
-        n._portnumfile = "missing"
-        n.check_privacy()
-        e = self.assertRaises(PrivacyError, n.get_tub_portlocation,
-                              None, "tcp:hostname:1234")
-        self.assertEqual(str(e), "tub.location includes tcp: hint")
+        config = config_from_string(
+            BASECONFIG + "[node]\nreveal-IP-address = false\n",
+            "fake.port",
+        )
+        with self.assertRaises(PrivacyError) as ctx:
+            _tub_portlocation(config, None, "tcp:hostname:1234")
+        self.assertEqual(
+            str(ctx.exception),
+            "tub.location includes tcp: hint",
+        )
 
     def test_tub_location_legacy_tcp(self):
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
-        n._portnumfile = "missing"
-        n.check_privacy()
-        e = self.assertRaises(PrivacyError, n.get_tub_portlocation,
-                              None, "hostname:1234")
-        self.assertEqual(str(e), "tub.location includes tcp: hint")
+        config = config_from_string(
+            BASECONFIG + "[node]\nreveal-IP-address = false\n",
+            "fake.port",
+        )
+
+        with self.assertRaises(PrivacyError) as ctx:
+            _tub_portlocation(config, None, "hostname:1234")
+
+        self.assertEqual(
+            str(ctx.exception),
+            "tub.location includes tcp: hint",
+        )
 
 class Status(unittest.TestCase):
     def test_hint_statuses(self):
