@@ -31,6 +31,7 @@ from allmydata.client import create_client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IStorageBroker, IServer
 from .common import TEST_RSA_KEY_SIZE
 
