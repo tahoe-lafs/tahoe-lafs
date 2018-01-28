@@ -207,8 +207,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.failUnless(bits & 0001 == 0, bits)
 
     def test_logdir_is_str(self):
-        basedir = "test_node/test_logdir_is_str"
-        fileutil.make_dirs(basedir)
+        basedir = u"test_node/test_logdir_is_str"
+        fileutil.make_dirs(os.path.join(basedir, 'private'))
 
         ns = Namespace()
         ns.called = False
@@ -217,8 +217,11 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             self.failUnless(isinstance(logdir, str), logdir)
         self.patch(foolscap.logging.log, 'setLogDir', call_setLogDir)
 
-        TestNode(basedir)
+        config = config_from_string('', '')
+        basedir = fileutil.abspath_expanduser_unicode(basedir)
+        Node(config, None, None, None, None, basedir, False)
         self.failUnless(ns.called)
+
 
 class EmptyNode(Node):
     def __init__(self):
