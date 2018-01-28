@@ -5,7 +5,8 @@ from twisted.internet import reactor, endpoints, defer
 from twisted.internet.interfaces import IStreamClientEndpoint
 from foolscap.connections import tcp
 from ..node import Node, PrivacyError, config_from_string
-from ..node import create_connection_handlers, create_i2p_provider
+from ..node import create_connection_handlers
+from ..node import create_i2p_provider, create_tor_provider
 from ..node import create_main_tub, _tub_portlocation
 from ..client import create_client_from_config
 from ..util import connection_status
@@ -36,27 +37,36 @@ class TCP(unittest.TestCase):
             tcp.DefaultTCP,
         )
 
+
 class Tor(unittest.TestCase):
+
     def test_disabled(self):
-        n = FakeNode(BASECONFIG+"[tor]\nenabled = false\n")
-        h = n._make_tor_handler()
+        config = config_from_string(
+            BASECONFIG + "[tor]\nenabled = false\n",
+            "fake.port",
+        )
+        tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
+        h = tor_provider.get_tor_handler()
         self.assertEqual(h, None)
 
     def test_unimportable(self):
         with mock.patch("allmydata.util.tor_provider._import_tor",
                         return_value=None):
-            n = FakeNode(BASECONFIG)
-            h = n._make_tor_handler()
+            config = config_from_string(BASECONFIG, "fake.port")
+            tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
+            h = tor_provider.get_tor_handler()
         self.assertEqual(h, None)
 
     def test_default(self):
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.tor.default_socks",
                         return_value=h1) as f:
-            n = FakeNode(BASECONFIG)
-            h = n._make_tor_handler()
-            self.assertEqual(f.mock_calls, [mock.call()])
-            self.assertIdentical(h, h1)
+
+            config = config_from_string(BASECONFIG, "fake.port")
+            tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
+            h = tor_provider.get_tor_handler()
+        self.assertEqual(f.mock_calls, [mock.call()])
+        self.assertIdentical(h, h1)
 
     def _do_test_launch(self, executable):
         # the handler is created right away
@@ -66,16 +76,18 @@ class Tor(unittest.TestCase):
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.tor.control_endpoint_maker",
                         return_value=h1) as f:
-            n = FakeNode(config)
-            h = n._make_tor_handler()
-            private_dir = os.path.join(n.basedir, "private")
-            exp = mock.call(n._tor_provider._make_control_endpoint,
+
+            config = config_from_string(config, "fake.port")
+            tp = create_tor_provider("reactor", 'BASEDIR', config)
+            h = tp.get_tor_handler()
+
+            private_dir = os.path.join('BASEDIR', "private")
+            exp = mock.call(tp._make_control_endpoint,
                             takes_status=True)
             self.assertEqual(f.mock_calls, [exp])
             self.assertIdentical(h, h1)
 
         # later, when Foolscap first connects, Tor should be launched
-        tp = n._tor_provider
         reactor = "reactor"
         tcp = object()
         tcep = object()
@@ -101,45 +113,77 @@ class Tor(unittest.TestCase):
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.tor.socks_endpoint",
                         return_value=h1) as f:
-            n = FakeNode(BASECONFIG+"[tor]\nsocks.port = unix:/var/lib/fw-daemon/tor_socks.socket\n")
-            h = n._make_tor_handler()
-            self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
-            self.assertIdentical(h, h1)
+            config = config_from_string(
+                BASECONFIG + "[tor]\nsocks.port = unix:/var/lib/fw-daemon/tor_socks.socket\n",
+                "fake.port",
+            )
+            tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
+            h = tor_provider.get_tor_handler()
+        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
+        self.assertIdentical(h, h1)
 
     def test_socksport_endpoint(self):
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.tor.socks_endpoint",
                         return_value=h1) as f:
-            n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:127.0.0.1:1234\n")
-            h = n._make_tor_handler()
-            self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
-            self.assertIdentical(h, h1)
+            config = config_from_string(
+                BASECONFIG + "[tor]\nsocks.port = tcp:127.0.0.1:1234\n",
+                "fake.port",
+            )
+            tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
+            h = tor_provider.get_tor_handler()
+        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
+        self.assertIdentical(h, h1)
 
     def test_socksport_endpoint_otherhost(self):
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.tor.socks_endpoint",
                         return_value=h1) as f:
-            n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:otherhost:1234\n")
-            h = n._make_tor_handler()
-            self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
-            self.assertIdentical(h, h1)
+            config = config_from_string(
+                BASECONFIG + "[tor]\nsocks.port = tcp:otherhost:1234\n",
+                "fake.port",
+            )
+            tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
+            h = tor_provider.get_tor_handler()
+        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
+        self.assertIdentical(h, h1)
 
     def test_socksport_bad_endpoint(self):
-        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = meow:unsupported\n")
-        e = self.assertRaises(ValueError, n._make_tor_handler)
-        self.assertIn("Unknown endpoint type: 'meow'", str(e))
+        config = config_from_string(
+            BASECONFIG + "[tor]\nsocks.port = meow:unsupported\n",
+            "fake.port",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
+            h = tor_provider.get_tor_handler()
+        self.assertIn(
+            "Unknown endpoint type: 'meow'",
+            str(ctx.exception)
+        )
 
     def test_socksport_not_integer(self):
-        n = FakeNode(BASECONFIG+"[tor]\nsocks.port = tcp:localhost:kumquat\n")
-        e = self.assertRaises(ValueError, n._make_tor_handler)
-        self.assertIn("invalid literal for int() with base 10: 'kumquat'", str(e))
+        config = config_from_string(
+            BASECONFIG + "[tor]\nsocks.port = tcp:localhost:kumquat\n",
+            "fake.port",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
+            h = tor_provider.get_tor_handler()
+        self.assertIn(
+            "invalid literal for int() with base 10: 'kumquat'",
+            str(ctx.exception)
+        )
 
     def test_controlport(self):
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.tor.control_endpoint",
                         return_value=h1) as f:
-            n = FakeNode(BASECONFIG+"[tor]\ncontrol.port = tcp:localhost:1234\n")
-            h = n._make_tor_handler()
+            config = config_from_string(
+                BASECONFIG + "[tor]\ncontrol.port = tcp:localhost:1234\n",
+                "fake.port",
+            )
+            tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
+            h = tor_provider.get_tor_handler()
             self.assertEqual(len(f.mock_calls), 1)
             ep = f.mock_calls[0][1][0]
             self.assertIsInstance(ep, endpoints.TCP4ClientEndpoint)
