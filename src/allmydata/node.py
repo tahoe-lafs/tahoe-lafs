@@ -450,13 +450,11 @@ def _make_i2p_handler(i2p_provider):
     return i2p_provider.get_i2p_handler()
 
 
-def create_connection_handlers(reactor, config):
+def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
     """
     :returns: 2-tuple of default_connection_handlers, foolscap_connection_handlers
     """
     reveal_ip = config.get_config("node", "reveal-IP-address", True, boolean=True)
-    i2p_provider = create_i2p_provider(reactor, basedir, config)
-    tor_provider = create_tor_provider(reactor, basedir, config)
 
     # We store handlers for everything. None means we were unable to
     # create that handler, so hints which want it will be ignored.
@@ -616,8 +614,10 @@ def _tub_portlocation(config, cfg_tubport, cfg_location):
     return tubport, location
 
 
-def create_main_tub(basedir, config, tub_options, default_connection_handlers,
-                    foolscap_connection_handlers, handler_overrides={}):
+def create_main_tub(basedir, config, tub_options,
+                    default_connection_handlers, foolscap_connection_handlers,
+                    i2p_provider, tor_provider,
+                    handler_overrides={}, cert_filename="node.pem"):
     cfg_tubport = config.get_config("node", "tub.port", None)
     cfg_location = config.get_config("node", "tub.location", None)
     portlocation = _tub_portlocation(config, cfg_tubport, cfg_location)
@@ -637,9 +637,9 @@ def create_main_tub(basedir, config, tub_options, default_connection_handlers,
                 # that will create one, so we don't have to stuff all the
                 # options into the tub.port string (which would need a lot
                 # of escaping)
-                port_or_endpoint = self._i2p_provider.get_listener()
+                port_or_endpoint = i2p_provider.get_listener()
             elif port == "listen:tor":
-                port_or_endpoint = self._tor_provider.get_listener()
+                port_or_endpoint = tor_provider.get_listener()
             else:
                 port_or_endpoint = port
             tub.listenOn(port_or_endpoint)
@@ -699,7 +699,7 @@ class Node(service.MultiService):
         # need them? (note: look in client.py also!)
         # (client.py DOES use them in init_client_storage_broker, but
         # we'll want to pull that out as well...so FIXME later)
-        self._default_connection_handlers, self._foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config)
+##        self._default_connection_handlers, self._foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config)
 
         self.tub = main_tub
         if self.tub is not None:
