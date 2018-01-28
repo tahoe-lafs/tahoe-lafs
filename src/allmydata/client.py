@@ -29,6 +29,8 @@ from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata.node import OldConfigOptionError, _common_config_sections
+from allmydata.node import read_config, create_connection_handlers, create_tub_options
+from allmydata.node import create_main_tub, create_control_tub, create_tub
 
 
 KiB=1024
@@ -160,11 +162,8 @@ are set to disallow users other than its owner from reading the contents of
 the files.   See the 'configuration.rst' documentation file for details."""
 
 
-@defer.inlineCallbacks
+# @defer.inlineCallbacks
 def create_client(basedir=u"."):
-    from allmydata.node import read_config, create_connection_handlers, create_tub_options
-    from allmydata.node import create_main_tub, create_control_tub, create_tub
-
     # should we check for this directory existing first? (this used to
     # be in Node's constructor)
     basedir = abspath_expanduser_unicode(unicode(basedir))
@@ -174,10 +173,13 @@ def create_client(basedir=u"."):
 
     # pre-requisites
     config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
+    return create_client_from_config(basedir, config)
+
+# this can/should be async
+# @defer.inlineCallbacks
+def create_client_from_config(basedir, config):
     default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config)
     tub_options = create_tub_options(config)
-
-    yield
 
     i2p_provider = None
     tor_provider = None
@@ -187,7 +189,7 @@ def create_client(basedir=u"."):
         foolscap_connection_handlers, reveal_ip=reveal_ip,
     )
     control_tub = create_control_tub()
-    defer.returnValue(
+    return defer.succeed(
         _Client(
             config,
             main_tub,
