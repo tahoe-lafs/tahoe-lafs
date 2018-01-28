@@ -4,6 +4,7 @@ from mock import patch, Mock
 from StringIO import StringIO
 from sys import getfilesystemencoding
 from twisted.trial import unittest
+from twisted.internet import defer
 from allmydata.scripts import runner
 from allmydata.scripts.tahoe_daemonize import identify_node_type
 from allmydata.scripts.tahoe_daemonize import DaemonizeTahoeNodePlugin
@@ -44,22 +45,32 @@ class Util(unittest.TestCase):
 
         self.assertTrue(service is not None)
 
+#    @defer.inlineCallbacks
     def test_daemonize_no_keygen(self):
         tmpdir = self.mktemp()
         plug = DaemonizeTahoeNodePlugin('key-generator', tmpdir)
 
-        with patch('twisted.internet.reactor') as r:
+        if True:#with patch('twisted.internet.reactor') as r:
             def call(fn, *args, **kw):
                 fn()
-            r.callWhenRunning = call
+#            r.callWhenRunning = call
+#            r.stop = 'foo'
             service = plug.makeService(None)
             service.parent = Mock()
-            with self.assertRaises(ValueError) as ctx:
-                service.startService()
-            self.assertIn(
-                "key-generator support removed",
-                str(ctx.exception)
-            )
+            # we'll raise ValueError because there's no key-generator
+            # .. BUT we do this in an async function called via
+            # "callWhenRunning" .. hence using a hook
+            d = service.set_hook('running')
+            service.startService()
+            def done(f):
+                print("DONE {}".format(f))
+                self.assertIn(
+                    "key-generator support removed",
+                    str(str(f)),#ctx.exception)
+                )
+                return None
+            d.addErrback(done)
+            return d
 
     def test_daemonize_unknown_nodetype(self):
         tmpdir = self.mktemp()
