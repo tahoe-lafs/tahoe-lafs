@@ -4,12 +4,16 @@ from allmydata.scripts.common import BasedirOptions
 from twisted.scripts import twistd
 from twisted.python import usage
 from twisted.python.reflect import namedAny
+from twisted.internet.defer import maybeDeferred, fail
+from twisted.application.service import Service
+
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util import fileutil
 from allmydata.node import read_config
 from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 from allmydata.util.configutil import UnknownConfigError
 from twisted.application.service import Service
+from allmydata.util.deferredutil import HookMixin
 
 
 def get_pidfile(basedir):
@@ -102,22 +106,33 @@ class MyTwistdConfig(twistd.ServerOptions):
     subCommands = [("DaemonizeTahoeNode", None, usage.Options, "node")]
 
 
-class DaemonizeTheRealService(Service):
+class DaemonizeTheRealService(Service, HookMixin):
+    """
+    this HookMixin should really be a helper; our hooks:
+
+    - 'running': triggered when startup has completed; it triggers
+        with None of successful or a Failure otherwise.
+    """
 
     def __init__(self, nodetype, basedir, options):
+        super(DaemonizeTheRealService, self).__init__()
         self.nodetype = nodetype
         self.basedir = basedir
+        # setup for HookMixin
+        self._hooks = {
+            "running": None,
+        }
 
     def startService(self):
 
         def key_generator_removed():
-            raise ValueError("key-generator support removed, see #2783")
+            return fail(ValueError("key-generator support removed, see #2783"))
 
         def start():
             node_to_instance = {
-                u"client": lambda: namedAny("allmydata.client.create_client")(self.basedir),
-                u"introducer": lambda: namedAny("allmydata.introducer.server.create_introducer")(self.basedir),
-                u"stats-gatherer": lambda: namedAny("allmydata.stats.StatsGathererService")(read_config(self.basedir, None), self.basedir, verbose=True),
+                u"client": lambda: maybeDeferred(namedAny("allmydata.client.create_client"), self.basedir),
+                u"introducer": lambda: maybeDeferred(namedAny("allmydata.introducer.server.create_introducer"), self.basedir),
+                u"stats-gatherer": lambda: maybeDeferred(namedAny("allmydata.stats.StatsGathererService"), read_config(self.basedir, None), self.basedir, verbose=True),
                 u"key-generator": key_generator_removed,
             }
 
@@ -126,15 +141,27 @@ class DaemonizeTheRealService(Service):
             except KeyError:
                 raise ValueError("unknown nodetype %s" % self.nodetype)
 
-            try:
-                srv = service_factory()
-                srv.setServiceParent(self.parent)
-            except UnknownConfigError as e:
-                sys.stderr.write("\nConfiguration error:\n{}\n\n".format(e))
+            def handle_config_error(fail):
+                fail.trap(UnknownConfigError)
+                sys.stderr.write("\nConfiguration error:\n{}\n\n".format(fail.value))
                 reactor.stop()
+                return
+
+            d = service_factory()
+
+            def created(srv):
+                srv.setServiceParent(self.parent)
+            d.addCallback(created)
+            d.addErrback(handle_config_error)
+            d.addBoth(self._call_hook, 'running')
+            # we've handled error via hook now (otherwise Twisted will
+            # want to fail some things)
+            d.addErrback(lambda _: None)
+            return d
 
         from twisted.internet import reactor
-        reactor.callWhenRunning(start)
+        x = reactor.callWhenRunning(start)
+        print("DING {}".format(x))
 
 
 class DaemonizeTahoeNodePlugin(object):

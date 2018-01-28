@@ -1,8 +1,9 @@
 import os, sys
+import mock
 import twisted
 from twisted.trial import unittest
 from twisted.application import service
-import mock
+from twisted.internet import defer
 
 import allmydata
 import allmydata.frontends.magic_folder
@@ -34,8 +35,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
                            BASECONFIG)
-        client.create_client(basedir)
+        return client.create_client(basedir)
 
+    @defer.inlineCallbacks
     def test_comment(self):
         should_fail = [r"test#test", r"#testtest", r"test\\#test"]
         should_not_fail = [r"test\#test", r"test\\\#test", r"testtest"]
@@ -51,13 +53,14 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         for s in should_fail:
             self.failUnless(_Config._contains_unescaped_hash(s))
             write_config(s)
-            e = self.assertRaises(UnescapedHashError, client.create_client, basedir)
-            self.assertIn("[client]introducer.furl", str(e))
+            with self.assertRaises(UnescapedHashError) as ctx:
+                yield client.create_client(basedir)
+            self.assertIn("[client]introducer.furl", str(ctx.exception))
 
         for s in should_not_fail:
             self.failIf(_Config._contains_unescaped_hash(s))
             write_config(s)
-            client.create_client(basedir)
+            yield client.create_client(basedir)
 
     def test_unreadable_config(self):
         if sys.platform == "win32":
@@ -128,12 +131,13 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                        ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m) and oldfile in str(m)) ]
             self.failIf(logged, (oldfile, logged_messages))
 
+    @defer.inlineCallbacks
     def test_secrets(self):
         basedir = "test_client.Basic.test_secrets"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
                            BASECONFIG)
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         secret_fname = os.path.join(basedir, "private", "secret")
         self.failUnless(os.path.exists(secret_fname), secret_fname)
         renew_secret = c.get_renewal_secret()
@@ -141,22 +145,25 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         cancel_secret = c.get_cancel_secret()
         self.failUnless(base32.b2a(cancel_secret))
 
+    @defer.inlineCallbacks
     def test_nodekey_yes_storage(self):
         basedir = "test_client.Basic.test_nodekey_yes_storage"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                        BASECONFIG)
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         self.failUnless(c.get_long_nodeid().startswith("v0-"))
 
+    @defer.inlineCallbacks
     def test_nodekey_no_storage(self):
         basedir = "test_client.Basic.test_nodekey_no_storage"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                        BASECONFIG + "[storage]\n" + "enabled = false\n")
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         self.failUnless(c.get_long_nodeid().startswith("v0-"))
 
+    @defer.inlineCallbacks
     def test_reserved_1(self):
         basedir = "client.Basic.test_reserved_1"
         os.mkdir(basedir)
@@ -165,9 +172,10 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            "[storage]\n" + \
                            "enabled = true\n" + \
                            "reserved_space = 1000\n")
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 1000)
 
+    @defer.inlineCallbacks
     def test_reserved_2(self):
         basedir = "client.Basic.test_reserved_2"
         os.mkdir(basedir)
@@ -176,9 +184,10 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            "[storage]\n" + \
                            "enabled = true\n" + \
                            "reserved_space = 10K\n")
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 10*1000)
 
+    @defer.inlineCallbacks
     def test_reserved_3(self):
         basedir = "client.Basic.test_reserved_3"
         os.mkdir(basedir)
@@ -187,10 +196,11 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            "[storage]\n" + \
                            "enabled = true\n" + \
                            "reserved_space = 5mB\n")
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
                              5*1000*1000)
 
+    @defer.inlineCallbacks
     def test_reserved_4(self):
         basedir = "client.Basic.test_reserved_4"
         os.mkdir(basedir)
@@ -199,10 +209,11 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            "[storage]\n" + \
                            "enabled = true\n" + \
                            "reserved_space = 78Gb\n")
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
                              78*1000*1000*1000)
 
+    @defer.inlineCallbacks
     def test_reserved_bad(self):
         basedir = "client.Basic.test_reserved_bad"
         os.mkdir(basedir)
@@ -211,8 +222,10 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            "[storage]\n" + \
                            "enabled = true\n" + \
                            "reserved_space = bogus\n")
-        self.failUnlessRaises(ValueError, client.create_client, basedir)
+        with self.assertRaises(ValueError) as ctx:
+            yield client.create_client(basedir)
 
+    @defer.inlineCallbacks
     def test_web_apiauthtoken(self):
         """
         Client loads the proper API auth token from disk
@@ -220,7 +233,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         basedir = u"client.Basic.test_web_apiauthtoken"
         create_node_dir(basedir, "testing")
 
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         # this must come after we create the client, as it will create
         # a new, random authtoken itself
         with open(os.path.join(basedir, "private", "api_auth_token"), "w") as f:
@@ -229,6 +242,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         token = c.get_auth_token()
         self.assertEqual("deadbeef", token)
 
+    @defer.inlineCallbacks
     def test_web_staticdir(self):
         basedir = u"client.Basic.test_web_staticdir"
         os.mkdir(basedir)
@@ -237,7 +251,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                        "[node]\n" +
                        "web.port = tcp:0:interface=127.0.0.1\n" +
                        "web.static = relative\n")
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         w = c.getServiceNamed("webish")
         abs_basedir = fileutil.abspath_expanduser_unicode(basedir)
         expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
@@ -245,6 +259,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     # TODO: also test config options for SFTP.
 
+    @defer.inlineCallbacks
     def test_ftp_create(self):
         """
         configuration for sftpd results in it being started
@@ -260,9 +275,10 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                 'host_privkey_file = privkey\n'
             )
         with mock.patch('allmydata.frontends.sftpd.SFTPServer') as p:
-            client.create_client(basedir)
+            yield client.create_client(basedir)
         self.assertTrue(p.called)
 
+    @defer.inlineCallbacks
     def test_ftp_auth_keyfile(self):
         basedir = u"client.Basic.test_ftp_auth_keyfile"
         os.mkdir(basedir)
@@ -274,9 +290,10 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                         "accounts.file = private/accounts\n"))
         os.mkdir(os.path.join(basedir, "private"))
         fileutil.write(os.path.join(basedir, "private", "accounts"), "\n")
-        c = client.create_client(basedir) # just make sure it can be instantiated
+        c = yield client.create_client(basedir) # just make sure it can be instantiated
         del c
 
+    @defer.inlineCallbacks
     def test_ftp_auth_url(self):
         basedir = u"client.Basic.test_ftp_auth_url"
         os.mkdir(basedir)
@@ -286,7 +303,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                         "enabled = true\n"
                         "port = tcp:0:interface=127.0.0.1\n"
                         "accounts.url = http://0.0.0.0/\n"))
-        c = client.create_client(basedir) # just make sure it can be instantiated
+        c = yield client.create_client(basedir) # just make sure it can be instantiated
         del c
 
     def test_ftp_auth_no_accountfile_or_url(self):
@@ -297,7 +314,8 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                         "[ftpd]\n"
                         "enabled = true\n"
                         "port = tcp:0:interface=127.0.0.1\n"))
-        self.failUnlessRaises(NeedRootcapLookupScheme, client.create_client, basedir)
+        with self.assertRaises(NeedRootcapLookupScheme):
+            yield client.create_client(basedir)
 
     def _storage_dir_test(self, basedir, storage_path, expected_path):
         os.mkdir(basedir)
@@ -407,6 +425,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         sb.servers.clear()
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
+    @defer.inlineCallbacks
     def test_versions(self):
         basedir = "test_client.Basic.test_versions"
         os.mkdir(basedir)
@@ -414,7 +433,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            BASECONFIG + \
                            "[storage]\n" + \
                            "enabled = true\n")
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         ss = c.getServiceNamed("storage")
         verdict = ss.remote_get_version()
         self.failUnlessReallyEqual(verdict["application-version"],
@@ -429,24 +448,27 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnless("node.uptime" in stats)
         self.failUnless(isinstance(stats["node.uptime"], float))
 
+    @defer.inlineCallbacks
     def test_helper_furl(self):
         basedir = "test_client.Basic.test_helper_furl"
         os.mkdir(basedir)
 
+        @defer.inlineCallbacks
         def _check(config, expected_furl):
             fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                            BASECONFIG + config)
-            c = client.create_client(basedir)
+            c = yield client.create_client(basedir)
             uploader = c.getServiceNamed("uploader")
             furl, connected = uploader.get_helper_info()
             self.failUnlessEqual(furl, expected_furl)
 
-        _check("", None)
-        _check("helper.furl =\n", None)
-        _check("helper.furl = \n", None)
-        _check("helper.furl = None", None)
-        _check("helper.furl = pb://blah\n", "pb://blah")
+        yield _check("", None)
+        yield _check("helper.furl =\n", None)
+        yield _check("helper.furl = \n", None)
+        yield _check("helper.furl = None", None)
+        yield _check("helper.furl = pb://blah\n", "pb://blah")
 
+    @defer.inlineCallbacks
     def test_create_magic_folder_service(self):
         boom = False
         class Boom(Exception):
@@ -496,7 +518,8 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         # which config-entry should be missing?
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
                        config + "local.directory = " + local_dir_utf8 + "\n")
-        self.failUnlessRaises(IOError, client.create_client, basedir1)
+        with self.assertRaises(IOError):
+            yield client.create_client(basedir1)
 
         # local.directory entry missing .. but that won't be an error
         # now, it'll just assume there are not magic folders
@@ -508,11 +531,13 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
                        config.replace("[magic_folder]\n", "[drop_upload]\n"))
-        self.failUnlessRaises(OldConfigOptionError, client.create_client, basedir1)
+
+        with self.assertRaises(OldConfigOptionError):
+            yield client.create_client(basedir1)
 
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
                        config + "local.directory = " + local_dir_utf8 + "\n")
-        c1 = client.create_client(basedir1)
+        c1 = yield client.create_client(basedir1)
         magicfolder = c1.getServiceNamed('magic-folder')
         self.failUnless(isinstance(magicfolder, MockMagicFolder), magicfolder)
         self.failUnlessReallyEqual(magicfolder.client, c1)
@@ -534,7 +559,8 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                        "local.directory = " + local_dir_utf8 + "\n")
         fileutil.write(os.path.join(basedir2, "private", "magic_folder_dircap"), "URI:DIR2:blah")
         fileutil.write(os.path.join(basedir2, "private", "collective_dircap"), "URI:DIR2:meow")
-        self.failUnlessRaises(Boom, client.create_client, basedir2)
+        with self.assertRaises(Boom):
+            yield client.create_client(basedir2)
 
 
 def flush_but_dont_ignore(res):
@@ -554,53 +580,55 @@ class Run(unittest.TestCase, testutil.StallMixin):
         d.addBoth(flush_but_dont_ignore)
         return d
 
+    @defer.inlineCallbacks
     def test_loadable(self):
         basedir = "test_client.Run.test_loadable"
         os.mkdir(basedir)
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % dummy)
         fileutil.write(os.path.join(basedir, client._Client.EXIT_TRIGGER_FILE), "")
-        client.create_client(basedir)
+        yield client.create_client(basedir)
 
+    @defer.inlineCallbacks
     def test_reloadable(self):
         basedir = "test_client.Run.test_reloadable"
         os.mkdir(basedir)
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % dummy)
-        c1 = client.create_client(basedir)
+        c1 = yield client.create_client(basedir)
         c1.setServiceParent(self.sparent)
 
         # delay to let the service start up completely. I'm not entirely sure
         # this is necessary.
-        d = self.stall(delay=2.0)
-        d.addCallback(lambda res: c1.disownServiceParent())
+        yield self.stall(delay=2.0)
+        yield c1.disownServiceParent()
         # the cygwin buildslave seems to need more time to let the old
         # service completely shut down. When delay=0.1, I saw this test fail,
         # probably due to the logport trying to reclaim the old socket
         # number. This suggests that either we're dropping a Deferred
         # somewhere in the shutdown sequence, or that cygwin is just cranky.
-        d.addCallback(self.stall, delay=2.0)
-        def _restart(res):
-            # TODO: pause for slightly over one second, to let
-            # Client._check_exit_trigger poll the file once. That will exercise
-            # another few lines. Then add another test in which we don't
-            # update the file at all, and watch to see the node shutdown.
-            # (To do this, use a modified node which overrides Node.shutdown(),
-            # also change _check_exit_trigger to use it instead of a raw
-            # reactor.stop, also instrument the shutdown event in an
-            # attribute that we can check.)
-            c2 = client.create_client(basedir)
-            c2.setServiceParent(self.sparent)
-            return c2.disownServiceParent()
-        d.addCallback(_restart)
-        return d
+        yield self.stall(delay=2.0)
+
+        # TODO: pause for slightly over one second, to let
+        # Client._check_exit_trigger poll the file once. That will exercise
+        # another few lines. Then add another test in which we don't
+        # update the file at all, and watch to see the node shutdown.
+        # (To do this, use a modified node which overrides Node.shutdown(),
+        # also change _check_exit_trigger to use it instead of a raw
+        # reactor.stop, also instrument the shutdown event in an
+        # attribute that we can check.)
+        c2 = yield client.create_client(basedir)
+        c2.setServiceParent(self.sparent)
+        yield c2.disownServiceParent()
 
 class NodeMaker(testutil.ReallyEqualMixin, unittest.TestCase):
+
+    @defer.inlineCallbacks
     def test_maker(self):
         basedir = "client/NodeMaker/maker"
         fileutil.make_dirs(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG)
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
 
         n = c.create_node_from_uri("URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
         self.failUnless(IFilesystemNode.providedBy(n))
