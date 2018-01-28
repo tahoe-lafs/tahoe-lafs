@@ -288,6 +288,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         c = yield client.create_client(basedir) # just make sure it can be instantiated
         del c
 
+    @defer.inlineCallbacks
     def test_ftp_auth_no_accountfile_or_url(self):
         basedir = u"client.Basic.test_ftp_auth_no_accountfile_or_url"
         os.mkdir(basedir)

@@ -431,12 +431,12 @@ def _make_tcp_handler():
 
 # XXX shouldn't need this
 def _make_tor_handler(tor_provider):
-    tor_provider.get_tor_handler()
+    return tor_provider.get_tor_handler()
 
 
 # XXX shouldn't need this
 def _make_i2p_handler(i2p_provider):
-    i2p_provider.get_i2p_handler()
+    return i2p_provider.get_i2p_handler()
 
 
 def create_connection_handlers(reactor, basedir, config):
@@ -527,10 +527,11 @@ def _convert_tub_port(s):
     return s
 
 
-def _tub_portlocation(config, cfg_tubport, cfg_location, reveal_ip=True):
+def _tub_portlocation(config, cfg_tubport, cfg_location):
     # return None, or tuple of (port, location)
-
     tubport_disabled = False
+    reveal_ip = config.get_config("node", "reveal-IP-address", True, boolean=True)
+
     if cfg_tubport is not None:
         cfg_tubport = cfg_tubport.strip()
         if cfg_tubport == "":
@@ -605,14 +606,15 @@ def _tub_portlocation(config, cfg_tubport, cfg_location, reveal_ip=True):
 
 
 def create_main_tub(basedir, config, tub_options, default_connection_handlers,
-                    foolscap_connection_handlers, handler_overrides={}, reveal_ip=True):
+                    foolscap_connection_handlers, handler_overrides={}):
+    cfg_tubport = config.get_config("node", "tub.port", None)
+    cfg_location = config.get_config("node", "tub.location", None)
+    portlocation = _tub_portlocation(config, cfg_tubport, cfg_location)
+
     certfile = os.path.join(basedir, "private", "node.pem")  # FIXME "node.pem" was the CERTFILE option/thing
     tub = create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
                      handler_overrides=handler_overrides, certFile=certfile)
 
-    cfg_tubport = config.get_config("node", "tub.port", None)
-    cfg_location = config.get_config("node", "tub.location", None)
-    portlocation = _tub_portlocation(config, cfg_tubport, cfg_location, reveal_ip)
     if portlocation:
         tubport, location = portlocation
         for port in tubport.split(","):
