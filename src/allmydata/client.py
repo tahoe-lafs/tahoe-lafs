@@ -177,26 +177,7 @@ def read_config(basedir, portnumfile, generated_files=[]):
     )
 
 
-#@defer.inlineCallbacks
-def create_client(basedir=u"."
-    node.create_node_dir(basedir, CLIENT_README)
-    config = read_config(basedir, u"client.port")
-
-    if _client_factory is None:
-        _client_factory = _Client
-
-    #defer.returnValue(
-    return _client_factory(
-            config,
-=======
-PRIV_README="""
-This directory contains files which contain private data for the Tahoe node,
-such as private keys.  On Unix-like systems, the permissions on this directory
-are set to disallow users other than its owner from reading the contents of
-the files.   See the 'configuration.rst' documentation file for details."""
-
-
-@defer.inlineCallbacks
+# @defer.inlineCallbacks
 def create_client(basedir=u".", _client_factory=None):
     """
     Creates a new client instance (a subclass of Node).
@@ -221,10 +202,15 @@ def create_client(basedir=u".", _client_factory=None):
     if _client_factory is None:
         _client_factory = _Client
 
+    # pre-requisites
+    config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
+    return create_client_from_config(basedir, config)
+
+# this can/should be async
+# @defer.inlineCallbacks
+def create_client_from_config(basedir, config):
     default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config)
     tub_options = create_tub_options(config)
-
-    yield
 
     i2p_provider = None
     tor_provider = None
@@ -234,7 +220,7 @@ def create_client(basedir=u".", _client_factory=None):
         foolscap_connection_handlers, reveal_ip=reveal_ip,
     )
     control_tub = create_control_tub()
-    defer.returnValue(
+    return defer.succeed(
         _Client(
             config,
             main_tub,

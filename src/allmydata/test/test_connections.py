@@ -4,17 +4,18 @@ from twisted.trial import unittest
 from twisted.internet import reactor, endpoints, defer
 from twisted.internet.interfaces import IStreamClientEndpoint
 from foolscap.connections import tcp
-from ..node import Node, PrivacyError
+from ..node import Node, PrivacyError, config_from_string
+from ..node import create_connection_handlers, create_i2p_provider
+from ..node import create_main_tub
+from ..client import create_client_from_config
 from ..util import connection_status
+
 
 class FakeNode(Node):
     def __init__(self, config_str):
-        from allmydata.node import config_from_string
         self.config = config_from_string(config_str, "fake.port", "no-basedir")
         self._reveal_ip = True
         self.services = []
-        self.create_i2p_provider()
-        self.create_tor_provider()
 
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
@@ -138,180 +139,235 @@ class Tor(unittest.TestCase):
             self.assertIdentical(h, h1)
 
 class I2P(unittest.TestCase):
+
     def test_disabled(self):
-        n = FakeNode(BASECONFIG+"[i2p]\nenabled = false\n")
-        h = n._make_i2p_handler()
+        config = config_from_string(
+            BASECONFIG + "[i2p]\nenabled = false\n",
+            "fake.port",
+        )
+        i2p_provider = create_i2p_provider(None, 'BASEDIR', config)
+        h = i2p_provider.get_i2p_handler()
         self.assertEqual(h, None)
 
     def test_unimportable(self):
+        config = config_from_string(
+            BASECONFIG,
+            "fake.port",
+        )
         with mock.patch("allmydata.util.i2p_provider._import_i2p",
                         return_value=None):
-            n = FakeNode(BASECONFIG)
-            h = n._make_i2p_handler()
+            i2p_provider = create_i2p_provider(reactor, 'BASEDIR', config)
+            h = i2p_provider.get_i2p_handler()
         self.assertEqual(h, None)
 
     def test_default(self):
-        n = FakeNode(BASECONFIG)
+        config = config_from_string(BASECONFIG, "fake.port")
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.default",
                         return_value=h1) as f:
-            h = n._make_i2p_handler()
-            self.assertEqual(f.mock_calls, [mock.call(reactor, keyfile=None)])
-            self.assertIdentical(h, h1)
+            i2p_provider = create_i2p_provider(reactor, 'BASEDIR', config)
+            h = i2p_provider.get_i2p_handler()
+        self.assertEqual(f.mock_calls, [mock.call(reactor, keyfile=None)])
+        self.assertIdentical(h, h1)
 
     def test_samport(self):
-        n = FakeNode(BASECONFIG+"[i2p]\nsam.port = tcp:localhost:1234\n")
+        config = config_from_string(
+            BASECONFIG + "[i2p]\nsam.port = tcp:localhost:1234\n",
+            "fake.port",
+        )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.sam_endpoint",
                         return_value=h1) as f:
-            h = n._make_i2p_handler()
-            self.assertEqual(len(f.mock_calls), 1)
-            ep = f.mock_calls[0][1][0]
-            self.assertIsInstance(ep, endpoints.TCP4ClientEndpoint)
-            self.assertIdentical(h, h1)
+            i2p_provider = create_i2p_provider(reactor, 'BASEDIR', config)
+            h = i2p_provider.get_i2p_handler()
+
+        self.assertEqual(len(f.mock_calls), 1)
+        ep = f.mock_calls[0][1][0]
+        self.assertIsInstance(ep, endpoints.TCP4ClientEndpoint)
+        self.assertIdentical(h, h1)
 
     def test_samport_and_launch(self):
-        n = FakeNode(BASECONFIG+"[i2p]\n" +
-                     "sam.port = tcp:localhost:1234\n"
-                     +"launch = true\n")
-        e = self.assertRaises(ValueError, n._make_i2p_handler)
-        self.assertIn("must not set both sam.port and launch", str(e))
+        config = config_from_string(
+            BASECONFIG + "[i2p]\n" +
+            "sam.port = tcp:localhost:1234\n" + "launch = true\n",
+            "fake.port",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            i2p_provider = create_i2p_provider(reactor, 'BASEDIR', config)
+            h = i2p_provider.get_i2p_handler()
+        self.assertIn(
+            "must not set both sam.port and launch",
+            str(ctx.exception)
+        )
 
     def test_launch(self):
-        n = FakeNode(BASECONFIG+"[i2p]\nlaunch = true\n")
+        config = config_from_string(
+            BASECONFIG + "[i2p]\nlaunch = true\n",
+            "fake.port",
+        )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.launch",
                         return_value=h1) as f:
-            h = n._make_i2p_handler()
+            i2p_provider = create_i2p_provider(reactor, 'BASEDIR', config)
+            h = i2p_provider.get_i2p_handler()
             exp = mock.call(i2p_configdir=None, i2p_binary=None)
-            self.assertEqual(f.mock_calls, [exp])
-            self.assertIdentical(h, h1)
+        self.assertEqual(f.mock_calls, [exp])
+        self.assertIdentical(h, h1)
 
     def test_launch_executable(self):
-        n = FakeNode(BASECONFIG+"[i2p]\nlaunch = true\n" +
-                     "i2p.executable = i2p\n")
+        config = config_from_string(
+            BASECONFIG + "[i2p]\nlaunch = true\n" + "i2p.executable = i2p\n",
+            "fake.port",
+        )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.launch",
                         return_value=h1) as f:
-            h = n._make_i2p_handler()
+            i2p_provider = create_i2p_provider(reactor, 'BASEDIR', config)
+            h = i2p_provider.get_i2p_handler()
             exp = mock.call(i2p_configdir=None, i2p_binary="i2p")
-            self.assertEqual(f.mock_calls, [exp])
-            self.assertIdentical(h, h1)
+        self.assertEqual(f.mock_calls, [exp])
+        self.assertIdentical(h, h1)
 
     def test_launch_configdir(self):
-        n = FakeNode(BASECONFIG+"[i2p]\nlaunch = true\n" +
-                     "i2p.configdir = cfg\n")
+        config = config_from_string(
+            BASECONFIG + "[i2p]\nlaunch = true\n" + "i2p.configdir = cfg\n",
+            "fake.port",
+        )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.launch",
                         return_value=h1) as f:
-            h = n._make_i2p_handler()
+            i2p_provider = create_i2p_provider(reactor, 'BASEDIR', config)
+            h = i2p_provider.get_i2p_handler()
             exp = mock.call(i2p_configdir="cfg", i2p_binary=None)
-            self.assertEqual(f.mock_calls, [exp])
-            self.assertIdentical(h, h1)
+        self.assertEqual(f.mock_calls, [exp])
+        self.assertIdentical(h, h1)
 
     def test_launch_configdir_and_executable(self):
-        n = FakeNode(BASECONFIG+"[i2p]\nlaunch = true\n" +
-                     "i2p.executable = i2p\n" +
-                     "i2p.configdir = cfg\n")
+        config = config_from_string(
+            BASECONFIG + "[i2p]\nlaunch = true\n" +
+            "i2p.executable = i2p\n" + "i2p.configdir = cfg\n",
+            "fake.port",
+        )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.launch",
                         return_value=h1) as f:
-            h = n._make_i2p_handler()
+            i2p_provider = create_i2p_provider(reactor, 'BASEDIR', config)
+            h = i2p_provider.get_i2p_handler()
             exp = mock.call(i2p_configdir="cfg", i2p_binary="i2p")
-            self.assertEqual(f.mock_calls, [exp])
-            self.assertIdentical(h, h1)
+        self.assertEqual(f.mock_calls, [exp])
+        self.assertIdentical(h, h1)
 
     def test_configdir(self):
-        n = FakeNode(BASECONFIG+"[i2p]\ni2p.configdir = cfg\n")
+        config = config_from_string(
+            BASECONFIG + "[i2p]\ni2p.configdir = cfg\n",
+            "fake.port",
+        )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.local_i2p",
                         return_value=h1) as f:
-            h = n._make_i2p_handler()
-            self.assertEqual(f.mock_calls, [mock.call("cfg")])
-            self.assertIdentical(h, h1)
+            i2p_provider = create_i2p_provider(None, 'BASEDIR', config)
+            h = i2p_provider.get_i2p_handler()
+
+        self.assertEqual(f.mock_calls, [mock.call("cfg")])
+        self.assertIdentical(h, h1)
 
 class Connections(unittest.TestCase):
+
+    def setUp(self):
+        self.basedir = 'BASEDIR'
+        self.config = config_from_string(BASECONFIG, "fake.port")
+
     def test_default(self):
-        n = FakeNode(BASECONFIG)
-        n.init_connections()
-        self.assertEqual(n._default_connection_handlers["tcp"], "tcp")
-        self.assertEqual(n._default_connection_handlers["tor"], "tor")
-        self.assertEqual(n._default_connection_handlers["i2p"], "i2p")
-        n.set_tub_options()
-        n._create_tub()
+        default_connection_handlers, _ = create_connection_handlers(None, self.basedir, self.config)
+        self.assertEqual(default_connection_handlers["tcp"], "tcp")
+        self.assertEqual(default_connection_handlers["tor"], "tor")
+        self.assertEqual(default_connection_handlers["i2p"], "i2p")
 
     def test_tor(self):
-        n = FakeNode(BASECONFIG+"[connections]\ntcp = tor\n")
-        n.init_connections()
-        self.assertEqual(n._default_connection_handlers["tcp"], "tor")
-        self.assertEqual(n._default_connection_handlers["tor"], "tor")
-        self.assertEqual(n._default_connection_handlers["i2p"], "i2p")
+        config = config_from_string(
+            BASECONFIG + "[connections]\ntcp = tor\n",
+            "fake.port",
+        )
+        default_connection_handlers, _ = create_connection_handlers(None, self.basedir, config)
+
+        self.assertEqual(default_connection_handlers["tcp"], "tor")
+        self.assertEqual(default_connection_handlers["tor"], "tor")
+        self.assertEqual(default_connection_handlers["i2p"], "i2p")
 
     def test_tor_unimportable(self):
         with mock.patch("allmydata.util.tor_provider._import_tor",
                         return_value=None):
-            n = FakeNode(BASECONFIG+"[connections]\ntcp = tor\n")
-        e = self.assertRaises(ValueError, n.init_connections)
-        self.assertEqual(str(e),
-                         "'tahoe.cfg [connections] tcp='"
-                         " uses unavailable/unimportable handler type 'tor'."
-                         " Please pip install tahoe-lafs[tor] to fix.")
+            self.config = config_from_string(
+                BASECONFIG + "[connections]\ntcp = tor\n",
+                "fake.port",
+            )
+            with self.assertRaises(ValueError) as ctx:
+                default_connection_handlers, _ = create_connection_handlers(None, self.basedir, self.config)
+        self.assertEqual(
+            str(ctx.exception),
+            "'tahoe.cfg [connections] tcp='"
+            " uses unavailable/unimportable handler type 'tor'."
+            " Please pip install tahoe-lafs[tor] to fix.",
+        )
 
     def test_unknown(self):
-        n = FakeNode(BASECONFIG+"[connections]\ntcp = unknown\n")
-        e = self.assertRaises(ValueError, n.init_connections)
-        self.assertIn("'tahoe.cfg [connections] tcp='", str(e))
-        self.assertIn("uses unknown handler type 'unknown'", str(e))
+        config = config_from_string(
+            BASECONFIG + "[connections]\ntcp = unknown\n",
+            "fake.port",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            create_connection_handlers(None, self.basedir, config)
+        self.assertIn("'tahoe.cfg [connections] tcp='", str(ctx.exception))
+        self.assertIn("uses unknown handler type 'unknown'", str(ctx.exception))
 
     def test_tcp_disabled(self):
-        n = FakeNode(BASECONFIG+"[connections]\ntcp = disabled\n")
-        n.init_connections()
-        self.assertEqual(n._default_connection_handlers["tcp"], None)
-        self.assertEqual(n._default_connection_handlers["tor"], "tor")
-        self.assertEqual(n._default_connection_handlers["i2p"], "i2p")
-        n.set_tub_options()
-        n._create_tub()
+        config = config_from_string(
+            BASECONFIG + "[connections]\ntcp = disabled\n",
+            "fake.port",
+        )
+        default_connection_handlers, _ = create_connection_handlers(None, self.basedir, config)
+        self.assertEqual(default_connection_handlers["tcp"], None)
+        self.assertEqual(default_connection_handlers["tor"], "tor")
+        self.assertEqual(default_connection_handlers["i2p"], "i2p")
 
 class Privacy(unittest.TestCase):
-    def test_flag(self):
-        n = FakeNode(BASECONFIG)
-        n.check_privacy()
-        self.assertTrue(n._reveal_ip)
-
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = true\n")
-        n.check_privacy()
-        self.assertTrue(n._reveal_ip)
-
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
-        n.check_privacy()
-        self.assertFalse(n._reveal_ip)
-
-        n = FakeNode(BASECONFIG+"[node]\nreveal-ip-address = false\n")
-        n.check_privacy()
-        self.assertFalse(n._reveal_ip)
 
     def test_connections(self):
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
-        n.check_privacy()
-        e = self.assertRaises(PrivacyError, n.init_connections)
-        self.assertEqual(str(e),
-                         "tcp = tcp, must be set to 'tor' or 'disabled'")
+        config = config_from_string(
+            BASECONFIG + "[node]\nreveal-IP-address = false\n",
+            "fake.port",
+        )
+
+        with self.assertRaises(PrivacyError) as ctx:
+            create_connection_handlers(None, 'BASEDIR', config)
+
+        self.assertEqual(
+            str(ctx.exception),
+            "tcp = tcp, must be set to 'tor' or 'disabled'",
+        )
 
     def test_connections_tcp_disabled(self):
-        n = FakeNode(BASECONFIG+
-                     "[connections]\ntcp = disabled\n"+
-                     "[node]\nreveal-IP-address = false\n")
-        n.check_privacy()
-        n.init_connections() # passes privacy check
-        self.assertEqual(n._default_connection_handlers["tcp"], None)
+        config = config_from_string(
+            BASECONFIG + "[connections]\ntcp = disabled\n" +
+            "[node]\nreveal-IP-address = false\n",
+            "fake.port",
+        )
+        default_connection_handlers, _ = create_connection_handlers(None, 'BASEDIR', config)
+        self.assertEqual(default_connection_handlers["tcp"], None)
 
     def test_tub_location_auto(self):
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
-        n._portnumfile = "missing"
-        n.check_privacy()
-        e = self.assertRaises(PrivacyError, n.get_tub_portlocation, None, None)
-        self.assertEqual(str(e), "tub.location uses AUTO")
+        config = config_from_string(
+            BASECONFIG + "[node]\nreveal-IP-address = false\n",
+            "fake.port",
+        )
 
+        with self.assertRaises(PrivacyError) as ctx:
+            create_main_tub('basedir', config, {}, {}, {})
+        self.assertEqual(
+            str(ctx.exception),
+            "tub.location uses AUTO",
+        )
+        return
         n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
         n._portnumfile = "missing"
         n.check_privacy()
