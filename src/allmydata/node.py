@@ -75,6 +75,14 @@ for thing, things_version in get_package_versions().iteritems():
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE = re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
 
+# this is put into README in new node-directories (for client and introducers)
+PRIV_README = """
+This directory contains files which contain private data for the Tahoe node,
+such as private keys.  On Unix-like systems, the permissions on this directory
+are set to disallow users other than its owner from reading the contents of
+the files.   See the 'configuration.rst' documentation file for details.
+"""
+
 
 def formatTimeTahoeStyle(self, when):
     """
@@ -468,7 +476,7 @@ def _make_i2p_handler(i2p_provider):
     return i2p_provider.get_i2p_handler()
 
 
-def create_connection_handlers(reactor, basedir, config):
+def create_connection_handlers(reactor, config):
     """
     :returns: 2-tuple of default_connection_handlers, foolscap_connection_handlers
     """
@@ -695,7 +703,7 @@ class Node(service.MultiService):
     CERTFILE = "node.pem"
     GENERATED_FILES = []
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, basedir, tub_is_listening):
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening):
         """
         Initialize the node with the given configuration. Its base directory
         is the current directory by default.
