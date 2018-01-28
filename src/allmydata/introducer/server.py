@@ -2,6 +2,7 @@
 import time, os.path, textwrap
 from zope.interface import implementer
 from twisted.application import service
+from twisted.internet import defer
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
@@ -27,29 +28,55 @@ def _valid_config_sections():
 class FurlFileConflictError(Exception):
     pass
 
-#@defer.inlineCallbacks
+# this is/can-be async
+# @defer.inlineCallbacks
 def create_introducer(basedir=u"."):
-    from allmydata import node
-    if not os.path.exists(basedir):
-        node.create_node_dir(basedir, INTRODUCER_README)
+    # ideally we would pass in reactor
+    from twisted.internet import reactor
+    from allmydata.node import read_config, create_connection_handlers
+    from allmydata.node import create_control_tub
+    from allmydata.node import create_tub_options, create_main_tub, PRIV_README
+    from allmydata.node import create_node_dir
 
-    config = node.read_config(
+    if not os.path.exists(basedir):
+        create_node_dir(basedir, INTRODUCER_README)
+
+    config = read_config(
         basedir, u"client.port",
         generated_files=["introducer.furl"],
         _valid_config_sections=_valid_config_sections,
     )
-    #defer.returnValue(
-    return _IntroducerNode(
+
+    default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config)
+    tub_options = create_tub_options(config)
+
+    i2p_provider = None
+    tor_provider = None
+    main_tub, is_listening = create_main_tub(
+        basedir, config, tub_options, default_connection_handlers,
+        foolscap_connection_handlers,
+    )
+    control_tub = create_control_tub()
+
+
+    return defer.succeed(
+        _IntroducerNode(
             config,
+            main_tub,
+            control_tub,
+            i2p_provider,
+            tor_provider,
+            basedir,
+            tub_is_listening=is_listening,
         )
-    #)
+    )
 
 
 class _IntroducerNode(node.Node):
     NODETYPE = "introducer"
 
-    def __init__(self, config):
-        node.Node.__init__(self, config)
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening):
+        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening)
         self.init_introducer()
         webport = self.get_config("node", "web.port", None)
         if webport:
