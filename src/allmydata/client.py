@@ -202,10 +202,9 @@ def create_client_from_config(basedir, config):
 
     i2p_provider = None
     tor_provider = None
-    reveal_ip = True # XXX FIXME
     main_tub, is_listening = create_main_tub(
         basedir, config, tub_options, default_connection_handlers,
-        foolscap_connection_handlers, reveal_ip=reveal_ip,
+        foolscap_connection_handlers,
     )
     control_tub = create_control_tub()
     return defer.succeed(
