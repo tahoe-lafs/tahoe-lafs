@@ -30,6 +30,7 @@ from allmydata.client import _Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IStorageBroker, IServer
 from .common import TEST_RSA_KEY_SIZE
 
@@ -187,9 +188,24 @@ class NoNetworkStorageBroker(object):
 def NoNetworkClient(basedir):
     # XXX FIXME this is just to avoid massive search-replace for now;
     # should be create_nonetwork_client() or something...
+    basedir = abspath_expanduser_unicode(unicode(basedir))
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
+
     from allmydata.node import read_config
     config = read_config(basedir, u'client.port')
-    return _NoNetworkClient(config, basedir=basedir)
+    main_tub = None
+    control_tub = None
+    i2p_provider = None
+    tor_provider = None
+    return _NoNetworkClient(
+        config,
+        main_tub,
+        control_tub,
+        i2p_provider,
+        tor_provider,
+        basedir,
+        tub_is_listening=True,
+    )
 
 
 class _NoNetworkClient(_Client):

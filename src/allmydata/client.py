@@ -17,7 +17,7 @@ from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
-                            yamlutil)
+                            yamlutil, fileutil)
 from allmydata.util.encodingutil import (get_filesystem_encoding,
                                          from_utf8_or_none)
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -153,16 +153,51 @@ class Terminator(service.Service):
         return service.Service.stopService(self)
 
 
-#@defer.inlineCallbacks
+PRIV_README="""
+This directory contains files which contain private data for the Tahoe node,
+such as private keys.  On Unix-like systems, the permissions on this directory
+are set to disallow users other than its owner from reading the contents of
+the files.   See the 'configuration.rst' documentation file for details."""
+
+
+@defer.inlineCallbacks
 def create_client(basedir=u"."):
-    from allmydata.node import read_config
+    from allmydata.node import read_config, create_connection_handlers, create_tub_options
+    from allmydata.node import create_main_tub, create_control_tub, create_tub
+
+    # should we check for this directory existing first? (this used to
+    # be in Node's constructor)
+    basedir = abspath_expanduser_unicode(unicode(basedir))
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
+    with open(os.path.join(basedir, "private", "README"), "w") as f:
+        f.write(PRIV_README)
+
+    # pre-requisites
     config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
-    #defer.returnValue(
-    return _Client(
+    default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config)
+    tub_options = create_tub_options(config)
+
+    yield
+
+    i2p_provider = None
+    tor_provider = None
+    reveal_ip = True # XXX FIXME
+    main_tub, is_listening = create_main_tub(
+        basedir, config, tub_options, default_connection_handlers,
+        foolscap_connection_handlers, reveal_ip=reveal_ip,
+    )
+    control_tub = create_control_tub()
+    defer.returnValue(
+        _Client(
             config,
-            basedir=basedir
+            main_tub,
+            control_tub,
+            i2p_provider,
+            tor_provider,
+            basedir,
+            tub_is_listening=is_listening,
         )
-    #)
+    )
 
 
 @implementer(IStatsProducer)
@@ -187,8 +222,8 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": 128*KiB,
                                    }
 
-    def __init__(self, config, basedir=u"."):
-        node.Node.__init__(self, config, basedir=basedir)
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, basedir, tub_is_listening):
+        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, basedir, tub_is_listening)
         # All tub.registerReference must happen *after* we upcall, since
         # that's what does tub.setLocation()
         self._magic_folders = dict()
@@ -455,10 +490,24 @@ class _Client(node.Node, pollmixin.PollMixin):
         # (and everybody else who wants to use storage servers)
         ps = self.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
-        sb = storage_client.StorageFarmBroker(permute_peers=True,
-                                              tub_maker=self._create_tub,
-                                              preferred_peers=preferred_peers,
-                                              )
+
+        from allmydata.node import create_tub, create_tub_options
+
+        def tub_creator(handler_overrides={}, **kwargs):
+            tub_options = create_tub_options(self.config)
+            return create_tub(
+                tub_options,
+                self._default_connection_handlers,
+                self._foolscap_connection_handlers,
+                handler_overrides=handler_overrides,
+                **kwargs
+            )
+
+        sb = storage_client.StorageFarmBroker(
+            permute_peers=True,
+            tub_maker=tub_creator,
+            preferred_peers=preferred_peers,
+        )
         self.storage_broker = sb
         sb.setServiceParent(self)
         for ic in self.introducer_clients:
