@@ -1,7 +1,9 @@
+from os.path import join
 from twisted.trial import unittest
 from foolscap.api import fireEventually, flushEventualQueue
 from twisted.internet import defer
-from allmydata.introducer import IntroducerNode
+from allmydata.introducer import create_introducer
+from allmydata.util import fileutil
 from allmydata import node
 from .common import FAVICON_MARKUP
 from ..common_web import do_http
@@ -28,9 +30,7 @@ class IntroducerWeb(unittest.TestCase):
         node.create_node_dir(basedir, "testing")
 
         from allmydata.node import config_from_string
-        self.node = IntroducerNode(
-            config_from_string("no-basedir", "introducer.port", config,),
-        )
+        self.node = yield create_introducer(d)
         self.ws = self.node.getServiceNamed("webish")
 
         yield fireEventually(None)
