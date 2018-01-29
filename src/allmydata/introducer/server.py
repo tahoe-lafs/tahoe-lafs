@@ -39,7 +39,6 @@ def create_introducer(basedir=u"."):
     config.validate(_valid_config_sections())
 
     # XXX fix up imports etc (also: reactor)
-    from twisted.internet import reactor
     from allmydata.node import create_i2p_provider, create_tor_provider
     i2p_provider = create_i2p_provider(reactor, basedir, config)
     tor_provider = create_tor_provider(reactor, basedir, config)

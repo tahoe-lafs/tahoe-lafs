@@ -543,7 +543,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             self.clients.append(c)
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         log.msg("STARTING")
-        res = yield self.wait_for_connections()
+        yield self.wait_for_connections()
         # now find out where the web port was
         self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
         if self.numclients >=4:
@@ -605,7 +605,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             c.setServiceParent(self.sparent)
         else:
             c.startService()
-        res = yield self.wait_for_connections()
+        yield self.wait_for_connections()
         defer.returnValue(c)
 
     def _check_connections(self):

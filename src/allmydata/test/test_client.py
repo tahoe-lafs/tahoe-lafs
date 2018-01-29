@@ -208,7 +208,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            "[storage]\n" + \
                            "enabled = true\n" + \
                            "reserved_space = bogus\n")
-        with self.assertRaises(ValueError) as ctx:
+        with self.assertRaises(ValueError):
             yield client.create_client(basedir)
 
     @defer.inlineCallbacks

@@ -10,7 +10,6 @@ import foolscap.logging.log
 
 from twisted.application import service
 from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry, read_config, config_from_string
-from allmydata.node import create_tub
 from allmydata.node import create_tub_options
 from allmydata.node import create_main_tub
 from allmydata.node import create_connection_handlers
@@ -192,7 +191,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         basedir = u"test_node/test_secrets_dir"
         fileutil.make_dirs(basedir)
         basedir = fileutil.abspath_expanduser_unicode(basedir)
-        config = read_config(basedir, "")
+        read_config(basedir, "")
 
         self.failUnless(os.path.exists(os.path.join(basedir, "private")))
 
@@ -204,7 +203,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             raise unittest.SkipTest("We don't know how to set permissions on Windows.")
         basedir = "test_node/test_secrets_dir_protected"
         fileutil.make_dirs(basedir)
-        config = read_config(basedir, "")
+        read_config(basedir, "")
 
         privdir = os.path.join(basedir, "private")
         st = os.stat(privdir)
