@@ -14,6 +14,15 @@ from allmydata.introducer.interfaces import \
 from allmydata.introducer.common import unsign_from_foolscap, \
      SubscriberDescriptor, AnnouncementDescriptor
 
+# this is put into README in new node-directories
+INTRODUCER_README = """
+This directory contains files which contain private data for the Tahoe node,
+such as private keys.  On Unix-like systems, the permissions on this directory
+are set to disallow users other than its owner from reading the contents of
+the files.   See the 'configuration.rst' documentation file for details.
+"""
+
+
 def _valid_config_sections():
     return node._common_config_sections()
 
@@ -28,12 +37,12 @@ def create_introducer(basedir=u"."):
     from twisted.internet import reactor
     from allmydata.node import read_config, create_connection_handlers
     from allmydata.node import create_control_tub
-    from allmydata.node import create_tub_options, create_main_tub, PRIV_README
+    from allmydata.node import create_tub_options, create_main_tub
 
     basedir = abspath_expanduser_unicode(unicode(basedir))
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
     with open(os.path.join(basedir, "private", "README"), "w") as f:
-        f.write(PRIV_README)
+        f.write(INTRODUCER_README)
 
     config = read_config(basedir, u"client.port", generated_files=["introducer.furl"])
     config.validate(_valid_config_sections())

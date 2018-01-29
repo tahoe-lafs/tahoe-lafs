@@ -95,6 +95,15 @@ def _valid_config_sections():
     })
     return cfg
 
+# this is put into README in new node-directories
+CLIENT_README = """
+This directory contains files which contain private data for the Tahoe node,
+such as private keys.  On Unix-like systems, the permissions on this directory
+are set to disallow users other than its owner from reading the contents of
+the files.   See the 'configuration.rst' documentation file for details.
+"""
+
+
 
 def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
@@ -162,7 +171,7 @@ def create_client(basedir=u"."):
     basedir = abspath_expanduser_unicode(unicode(basedir))
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
     with open(os.path.join(basedir, "private", "README"), "w") as f:
-        f.write(PRIV_README)
+        f.write(CLIENT_README)
 
     # pre-requisites
     config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
