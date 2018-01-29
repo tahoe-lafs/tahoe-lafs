@@ -409,6 +409,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         s.setServiceParent(self.sparent)
         return s
 
+    @defer.inlineCallbacks
     def set_up_nodes(self, NUMCLIENTS=5, use_stats_gatherer=False):
         self.numclients = NUMCLIENTS
         iv_dir = self.getdir("introducer")
@@ -423,16 +424,15 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
                 f.write(SYSTEM_TEST_CERTS[0])
                 f.close()
-        iv = create_introducer(basedir=iv_dir)
+        iv = yield create_introducer(basedir=iv_dir)
+        print("introducer {}".format(iv))
         self.introducer = self.add_service(iv)
         self._get_introducer_web()
-        d = defer.succeed(None)
         if use_stats_gatherer:
-            d.addCallback(self._set_up_stats_gatherer)
-        d.addCallback(self._set_up_nodes_2)
+            yield self._set_up_stats_gatherer(None)
+        yield self._set_up_nodes_2(None)
         if use_stats_gatherer:
-            d.addCallback(self._grab_stats)
-        return d
+            yield self._grab_stats(None)
 
     def _get_introducer_web(self):
         f = open(os.path.join(self.getdir("introducer"), "node.url"), "r")
@@ -461,6 +461,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d.addCallback(get_furl)
         return d
 
+    @defer.inlineCallbacks
     def _set_up_nodes_2(self, res):
         q = self.introducer
         self.introducer_furl = q.introducer_url
@@ -520,7 +521,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         # start clients[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
-        c = self.add_service(client.create_client(basedirs[0]))
+        the_client = yield client.create_client(basedirs[0])
+        c = self.add_service(the_client)
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
@@ -537,20 +539,17 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         # this starts the rest of the clients
         for i in range(1, self.numclients):
-            c = self.add_service(client.create_client(basedirs[i]))
+            the_client = yield client.create_client(basedirs[i])
+            c = self.add_service(the_client)
             self.clients.append(c)
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         log.msg("STARTING")
-        d = self.wait_for_connections()
-        def _connected(res):
-            log.msg("CONNECTED")
-            # now find out where the web port was
-            self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
-            if self.numclients >=4:
-                # and the helper-using webport
-                self.helper_webish_url = self.clients[3].getServiceNamed("webish").getURL()
-        d.addCallback(_connected)
-        return d
+        res = yield self.wait_for_connections()
+        # now find out where the web port was
+        self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
+        if self.numclients >=4:
+            # and the helper-using webport
+            self.helper_webish_url = self.clients[3].getServiceNamed("webish").getURL()
 
     def _set_up_nodes_extra_config(self):
         # for overriding by subclasses
@@ -2370,6 +2369,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 
 class Connections(SystemTestMixin, unittest.TestCase):
+
     def test_rref(self):
         self.basedir = "system/Connections/rref"
         d = self.set_up_nodes(2)
