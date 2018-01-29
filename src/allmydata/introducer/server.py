@@ -11,6 +11,15 @@ from allmydata.introducer.interfaces import \
 from allmydata.introducer.common import unsign_from_foolscap, \
      SubscriberDescriptor, AnnouncementDescriptor
 
+# this is put into README in new node-directories
+INTRODUCER_README = """
+This directory contains files which contain private data for the Tahoe node,
+such as private keys.  On Unix-like systems, the permissions on this directory
+are set to disallow users other than its owner from reading the contents of
+the files.   See the 'configuration.rst' documentation file for details.
+"""
+
+
 def _valid_config_sections():
     return node._common_config_sections()
 
@@ -21,8 +30,13 @@ class FurlFileConflictError(Exception):
 #@defer.inlineCallbacks
 def create_introducer(basedir=u"."):
     from allmydata.node import read_config
-    config = read_config(basedir, u"client.port", generated_files=["introducer.furl"])
-    config.validate(_valid_config_sections())
+
+    config = read_config(
+        basedir, u"client.port",
+        generated_files=["introducer.furl"],
+        _valid_config_secionts=_valid_config_sections,
+    )
+    config.write_private_config("README", INTRODUCER_README)
     #defer.returnValue(
     return _IntroducerNode(
             config,
