@@ -65,17 +65,16 @@ def create_introducer(basedir=u"."):
     control_tub = create_control_tub()
 
 
-    return defer.succeed(
-        _IntroducerNode(
-            config,
-            main_tub,
-            control_tub,
-            i2p_provider,
-            tor_provider,
-            basedir,
-            tub_is_listening=is_listening,
-        )
+    node = _IntroducerNode(
+        config,
+        main_tub,
+        control_tub,
+        i2p_provider,
+        tor_provider,
+        basedir,
+        tub_is_listening=is_listening,
     )
+    return defer.succeed(node)
 
 
 class _IntroducerNode(node.Node):
