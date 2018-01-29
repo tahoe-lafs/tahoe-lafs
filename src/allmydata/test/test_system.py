@@ -557,18 +557,14 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
                 f.write(SYSTEM_TEST_CERTS[0])
                 f.close()
-        return create_introducer(basedir=iv_dir)
-# =======
-#         iv = yield create_introducer(basedir=iv_dir)
-#         print("introducer {}".format(iv))
-#         self.introducer = self.add_service(iv)
-#         self._get_introducer_web()
-#         if use_stats_gatherer:
-#             yield self._set_up_stats_gatherer(None)
-#         yield self._set_up_nodes_2(None)
-#         if use_stats_gatherer:
-#             yield self._grab_stats(None)
-# >>>>>>> more working test
+        iv = yield create_introducer(basedir=iv_dir)
+        self.introducer = self.add_service(iv)
+        self._get_introducer_web()
+        if use_stats_gatherer:
+            yield self._set_up_stats_gatherer(None)
+        yield self._set_up_nodes_2(None)
+        if use_stats_gatherer:
+            yield self._grab_stats(None)
 
     def _get_introducer_web(self):
         with open(os.path.join(self.getdir("introducer"), "node.url"), "r") as f:
@@ -749,8 +745,10 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # behavior, see if this is really the problem, see if we can do
         # better than blindly waiting for a second.
         d.addCallback(self.stall, 1.0)
+
+        @defer.inlineCallbacks
         def _stopped(res):
-            new_c = client.create_client(self.getdir("client%d" % num))
+            new_c = yield client.create_client(self.getdir("client%d" % num))
             self.clients[num] = new_c
             new_c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
             self.add_service(new_c)
@@ -763,6 +761,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d.addCallback(_maybe_get_webport)
         return d
 
+    @defer.inlineCallbacks
     def add_extra_node(self, client_num, helper_furl=None,
                        add_to_sparent=False):
         # usually this node is *not* parented to our self.sparent, so we can
@@ -777,7 +776,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             config += "helper.furl = %s\n" % helper_furl
         fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
 
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         self.numclients += 1
@@ -785,9 +784,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             c.setServiceParent(self.sparent)
         else:
             c.startService()
-        d = self.wait_for_connections()
-        d.addCallback(lambda res: c)
-        return d
+        res = yield self.wait_for_connections()
+        defer.returnValue(c)
 
     def _check_connections(self):
         for i, c in enumerate(self.clients):
