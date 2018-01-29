@@ -433,14 +433,12 @@ def create_tub_options(config):
 def create_i2p_provider(reactor, basedir, config):
     provider = i2p_provider.Provider(basedir, config, reactor)
     provider.check_dest_config()
-    #self._i2p_provider.setServiceParent(self)
     return provider
 
 
 def create_tor_provider(reactor, basedir, config):
     provider = tor_provider.Provider(basedir, config, reactor)
     provider.check_onion_config()
-    ##self._tor_provider.setServiceParent(self)
     return provider
 
 
@@ -691,7 +689,9 @@ class Node(service.MultiService):
 
         # this can go away once Client.init_client_storage_broker is moved into create_client()
         self._i2p_provider = i2p_provider
+        self._i2p_provider.setServiceParent(self)
         self._tor_provider = tor_provider
+        self._tor_provider.setServiceParent(self)
 
         self.init_tempdir()
 
