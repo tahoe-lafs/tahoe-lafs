@@ -35,7 +35,7 @@ def create_introducer(basedir=u"."):
     from twisted.internet import reactor
     from allmydata.node import read_config, create_connection_handlers
     from allmydata.node import create_control_tub
-    from allmydata.node import create_tub_options, create_main_tub, PRIV_README
+    from allmydata.node import create_tub_options, create_main_tub
     from allmydata.node import create_node_dir
 
     if not os.path.exists(basedir):
