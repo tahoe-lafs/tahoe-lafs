@@ -491,12 +491,18 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         from allmydata.node import create_tub, create_tub_options
 
+        # this is temporary; create_client() should create a
+        # storage-broker and pass it in -- that method already has
+        # all these objects created...
+        default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, self.basedir, self.config, self._i2p_provider, self._tor_provider)
+
+
         def tub_creator(handler_overrides={}, **kwargs):
             tub_options = create_tub_options(self.config)
             return create_tub(
                 tub_options,
-                self._default_connection_handlers,
-                self._foolscap_connection_handlers,
+                default_connection_handlers,
+                foolscap_connection_handlers,
                 handler_overrides=handler_overrides,
                 **kwargs
             )
