@@ -698,6 +698,10 @@ class Node(service.MultiService):
         self.get_config = config.get_config # XXX stopgap
         self.nickname = config.nickname # XXX stopgap
 
+        # this can go away once Client.init_client_storage_broker is moved into create_client()
+        self._i2p_provider = i2p_provider
+        self._tor_provider = tor_provider
+
         self.init_tempdir()
 
         self.create_log_tub()
