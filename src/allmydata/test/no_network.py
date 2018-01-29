@@ -27,6 +27,7 @@ from allmydata.util.assertutil import _assert
 
 from allmydata import uri as tahoe_uri
 from allmydata.client import _Client
+from allmydata.client import _valid_config_sections as client_valid_config_sections
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
@@ -192,7 +193,7 @@ def NoNetworkClient(basedir):
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
 
     from allmydata.node import read_config
-    config = read_config(basedir, u'client.port')
+    config = read_config(basedir, u'client.port', _valid_config_sections=client_valid_config_sections)
     main_tub = None
     control_tub = None
     i2p_provider = None
