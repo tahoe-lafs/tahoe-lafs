@@ -16,6 +16,7 @@ from allmydata.node import create_main_tub
 from allmydata.node import create_connection_handlers
 from allmydata.introducer.server import create_introducer
 from allmydata.client import create_client
+from allmydata.client import _valid_config_sections as client_valid_config_sections
 from allmydata.util import fileutil, iputil
 from allmydata.util.namespace import Namespace
 import allmydata.test.common_util as testutil
@@ -29,8 +30,8 @@ class LoggingMultiService(service.MultiService):
 def testing_tub(config_data=''):
     from twisted.internet import reactor
     from allmydata.node import create_i2p_provider, create_tor_provider
-    config = config_from_string(config_data, 'DEFAULT_PORTNUMFILE_BLANK')
     basedir = 'dummy_basedir'
+    config = config_from_string(config_data, 'DEFAULT_PORTNUMFILE_BLANK', basedir)
     fileutil.make_dirs(os.path.join(basedir, 'private'))
 
     i2p_provider = create_i2p_provider(reactor, basedir, config)
@@ -130,9 +131,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.write(u"nickname = \u2621\n".encode('utf-8'))
         f.close()
 
-        n = TestNode(basedir)
-        n.setServiceParent(self.parent)
-        self.failUnlessEqual(n.get_config("node", "nickname").decode('utf-8'),
+        config = read_config(basedir, "")
+        self.failUnlessEqual(config.get_config("node", "nickname").decode('utf-8'),
                              u"\u2621")
 
     def test_tahoe_cfg_hash_in_name(self):
@@ -143,18 +143,22 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.write("[node]\n")
         f.write("nickname = %s\n" % (nickname,))
         f.close()
-        n = TestNode(basedir)
-        self.failUnless(n.nickname == nickname)
+
+        config = read_config(basedir, "")
+        self.failUnless(config.nickname == nickname)
 
     def test_private_config(self):
-        basedir = "test_node/test_private_config"
+        basedir = u"test_node/test_private_config"
         privdir = os.path.join(basedir, "private")
         fileutil.make_dirs(privdir)
         f = open(os.path.join(privdir, 'already'), 'wt')
         f.write("secret")
         f.close()
 
-        n = TestNode(basedir)
+        basedir = fileutil.abspath_expanduser_unicode(basedir)
+        config = config_from_string("", "", basedir)
+        n = Node(config, None, None, None, None, basedir, False)
+
         self.failUnlessEqual(n.get_private_config("already"), "secret")
         self.failUnlessEqual(n.get_private_config("not", "default"), "default")
         self.failUnlessRaises(MissingConfigEntry, n.get_private_config, "not")
@@ -185,10 +189,11 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.failUnless("Z" in t2)
 
     def test_secrets_dir(self):
-        basedir = "test_node/test_secrets_dir"
+        basedir = u"test_node/test_secrets_dir"
         fileutil.make_dirs(basedir)
-        n = TestNode(basedir)
-        self.failUnless(isinstance(n, TestNode))
+        basedir = fileutil.abspath_expanduser_unicode(basedir)
+        config = read_config(basedir, "")
+
         self.failUnless(os.path.exists(os.path.join(basedir, "private")))
 
     def test_secrets_dir_protected(self):
@@ -199,8 +204,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             raise unittest.SkipTest("We don't know how to set permissions on Windows.")
         basedir = "test_node/test_secrets_dir_protected"
         fileutil.make_dirs(basedir)
-        n = TestNode(basedir)
-        self.failUnless(isinstance(n, TestNode))
+        config = read_config(basedir, "")
+
         privdir = os.path.join(basedir, "private")
         st = os.stat(privdir)
         bits = stat.S_IMODE(st[stat.ST_MODE])
@@ -217,15 +222,15 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             self.failUnless(isinstance(logdir, str), logdir)
         self.patch(foolscap.logging.log, 'setLogDir', call_setLogDir)
 
-        config = config_from_string('', '')
         basedir = fileutil.abspath_expanduser_unicode(basedir)
+        config = config_from_string('', '', basedir)
         Node(config, None, None, None, None, basedir, False)
         self.failUnless(ns.called)
 
 
 class EmptyNode(Node):
     def __init__(self):
-        config = config_from_string("", "no portfile")
+        config = config_from_string("", "no portfile", 'no basedir')
         Node.__init__(self, config, 'no basedir')
 
 EXPECTED = {
@@ -406,7 +411,7 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = %s\n" % location)
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        config = read_config(basedir, "client.port")
+        config = read_config(basedir, "client.port", _valid_config_sections=client_valid_config_sections)
 
         i2p_provider = mock.Mock()
         tor_provider = mock.Mock()
@@ -431,7 +436,7 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = tcp:example.org:1234\n")
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        config = read_config(basedir, "client.port")
+        config = read_config(basedir, "client.port", _valid_config_sections=client_valid_config_sections)
 
         i2p_ep = object()
         tor_ep = object()

@@ -130,14 +130,19 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
     except EnvironmentError:
         if os.path.exists(config_fname):
             raise
-        configutil.validate_config(config_fname, parser, _valid_config_sections())
-    return _Config(parser, portnumfile, config_fname)
+
+    # make sure we have a private configuration area
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
+
+    configutil.validate_config(config_fname, parser, _valid_config_sections())
+    return _Config(parser, portnumfile, basedir, config_fname)
 
 
-def config_from_string(config_str, portnumfile):
+def config_from_string(config_str, portnumfile, basedir):
+    # load configuration from in-memory string
     parser = ConfigParser.SafeConfigParser()
     parser.readfp(BytesIO(config_str))
-    return _Config(parser, portnumfile, '<in-memory>')
+    return _Config(parser, portnumfile, 'no-basedir', '<in-memory>')
 
 
 def _error_about_old_config_files(basedir, generated_files):
@@ -173,11 +178,11 @@ class _Config(object):
     as a helper instead.
     """
 
-    def __init__(self, configparser, portnum_fname, config_fname):
+    def __init__(self, configparser, portnum_fname, basedir, config_fname):
         # XXX I think this portnumfile thing is just legacy?
         self.portnum_fname = portnum_fname
-        self._config_fname = config_fname
-
+        self._basedir = abspath_expanduser_unicode(unicode(basedir))
+        self._config_fname = config_fname  # the actual fname "configparser" came from
         self.config = configparser
 
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
