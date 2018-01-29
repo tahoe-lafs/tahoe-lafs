@@ -36,8 +36,8 @@ class LoggingMultiService(service.MultiService):
 def testing_tub(config_data=''):
     from twisted.internet import reactor
     from allmydata.node import create_i2p_provider, create_tor_provider
-    config = config_from_string(config_data, 'DEFAULT_PORTNUMFILE_BLANK')
     basedir = 'dummy_basedir'
+    config = config_from_string(config_data, 'DEFAULT_PORTNUMFILE_BLANK', basedir)
     fileutil.make_dirs(os.path.join(basedir, 'private'))
 
     i2p_provider = create_i2p_provider(reactor, basedir, config)
@@ -203,13 +203,14 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             config.get_or_create_private_config("foo")
 
     def test_private_config(self):
-        basedir = "test_node/test_private_config"
+        basedir = u"test_node/test_private_config"
         privdir = os.path.join(basedir, "private")
         fileutil.make_dirs(privdir)
         f = open(os.path.join(privdir, 'already'), 'wt')
         f.write("secret")
         f.close()
 
+        basedir = fileutil.abspath_expanduser_unicode(basedir)
         config = config_from_string("", "", basedir)
 
         self.failUnlessEqual(config.get_private_config("already"), "secret")
@@ -447,16 +448,16 @@ class TestMissingPorts(unittest.TestCase):
             "tub.location is disabled, but not tub.port",
             str(ctx.exception)
         )
-=======
         config = config_from_string('', '')
         basedir = fileutil.abspath_expanduser_unicode(basedir)
+        config = config_from_string('', '', basedir)
         Node(config, None, None, None, None, basedir, False)
         self.failUnless(ns.called)
 
 
 class EmptyNode(Node):
     def __init__(self):
-        config = config_from_string("", "no portfile")
+        config = config_from_string("", "no portfile", 'no basedir')
         Node.__init__(self, config, 'no basedir')
 
 EXPECTED = {
@@ -639,7 +640,7 @@ class Listeners(unittest.TestCase):
 
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        config = read_config(basedir, "client.port")
+        config = read_config(basedir, "client.port", _valid_config_sections=client_valid_config_sections)
 
         i2p_provider = mock.Mock()
         tor_provider = mock.Mock()
