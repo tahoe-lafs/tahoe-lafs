@@ -30,7 +30,7 @@ class TCP(unittest.TestCase):
             BASECONFIG,
             "fake.port",
         )
-        _, foolscap_handlers = create_connection_handlers(None, 'basedir', config)
+        _, foolscap_handlers = create_connection_handlers(None, 'basedir', config, mock.Mock(), mock.Mock())
         self.assertIsInstance(
             foolscap_handlers['tcp'],
             tcp.DefaultTCP,
@@ -329,7 +329,7 @@ class Connections(unittest.TestCase):
         self.config = config_from_string(BASECONFIG, "fake.port")
 
     def test_default(self):
-        default_connection_handlers, _ = create_connection_handlers(None, self.basedir, self.config)
+        default_connection_handlers, _ = create_connection_handlers(None, self.basedir, self.config, mock.Mock(), mock.Mock())
         self.assertEqual(default_connection_handlers["tcp"], "tcp")
         self.assertEqual(default_connection_handlers["tor"], "tor")
         self.assertEqual(default_connection_handlers["i2p"], "i2p")
@@ -339,7 +339,7 @@ class Connections(unittest.TestCase):
             BASECONFIG + "[connections]\ntcp = tor\n",
             "fake.port",
         )
-        default_connection_handlers, _ = create_connection_handlers(None, self.basedir, config)
+        default_connection_handlers, _ = create_connection_handlers(None, self.basedir, config, mock.Mock(), mock.Mock())
 
         self.assertEqual(default_connection_handlers["tcp"], "tor")
         self.assertEqual(default_connection_handlers["tor"], "tor")
@@ -353,7 +353,8 @@ class Connections(unittest.TestCase):
                 "fake.port",
             )
             with self.assertRaises(ValueError) as ctx:
-                default_connection_handlers, _ = create_connection_handlers(None, self.basedir, self.config)
+                tor_provider = create_tor_provider(reactor, 'BASEDIR', self.config)
+                default_connection_handlers, _ = create_connection_handlers(None, self.basedir, self.config, mock.Mock(), tor_provider)
         self.assertEqual(
             str(ctx.exception),
             "'tahoe.cfg [connections] tcp='"
@@ -367,7 +368,7 @@ class Connections(unittest.TestCase):
             "fake.port",
         )
         with self.assertRaises(ValueError) as ctx:
-            create_connection_handlers(None, self.basedir, config)
+            create_connection_handlers(None, self.basedir, config, mock.Mock(), mock.Mock())
         self.assertIn("'tahoe.cfg [connections] tcp='", str(ctx.exception))
         self.assertIn("uses unknown handler type 'unknown'", str(ctx.exception))
 
@@ -376,7 +377,7 @@ class Connections(unittest.TestCase):
             BASECONFIG + "[connections]\ntcp = disabled\n",
             "fake.port",
         )
-        default_connection_handlers, _ = create_connection_handlers(None, self.basedir, config)
+        default_connection_handlers, _ = create_connection_handlers(None, self.basedir, config, mock.Mock(), mock.Mock())
         self.assertEqual(default_connection_handlers["tcp"], None)
         self.assertEqual(default_connection_handlers["tor"], "tor")
         self.assertEqual(default_connection_handlers["i2p"], "i2p")
@@ -390,7 +391,7 @@ class Privacy(unittest.TestCase):
         )
 
         with self.assertRaises(PrivacyError) as ctx:
-            create_connection_handlers(None, 'BASEDIR', config)
+            create_connection_handlers(None, 'BASEDIR', config, mock.Mock(), mock.Mock())
 
         self.assertEqual(
             str(ctx.exception),
@@ -403,7 +404,7 @@ class Privacy(unittest.TestCase):
             "[node]\nreveal-IP-address = false\n",
             "fake.port",
         )
-        default_connection_handlers, _ = create_connection_handlers(None, 'BASEDIR', config)
+        default_connection_handlers, _ = create_connection_handlers(None, 'BASEDIR', config, mock.Mock(), mock.Mock())
         self.assertEqual(default_connection_handlers["tcp"], None)
 
     def test_tub_location_auto(self):
@@ -413,7 +414,7 @@ class Privacy(unittest.TestCase):
         )
 
         with self.assertRaises(PrivacyError) as ctx:
-            create_main_tub('basedir', config, {}, {}, {})
+            create_main_tub('basedir', config, {}, {}, {}, mock.Mock(), mock.Mock())
         self.assertEqual(
             str(ctx.exception),
             "tub.location uses AUTO",
