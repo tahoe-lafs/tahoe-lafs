@@ -4,7 +4,6 @@ from mock import patch, Mock
 from StringIO import StringIO
 from sys import getfilesystemencoding
 from twisted.trial import unittest
-from twisted.internet import defer
 from allmydata.scripts import runner
 from allmydata.scripts.tahoe_daemonize import identify_node_type
 from allmydata.scripts.tahoe_daemonize import DaemonizeTahoeNodePlugin

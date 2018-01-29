@@ -516,8 +516,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         ps = self.config.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
 
-        from allmydata.node import create_tub, create_tub_options
-
         # this is temporary; create_client() should create a
         # storage-broker and pass it in -- that method already has
         # all these objects created...

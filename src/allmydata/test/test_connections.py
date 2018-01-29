@@ -8,7 +8,6 @@ from ..node import Node, PrivacyError, config_from_string
 from ..node import create_connection_handlers
 from ..node import create_i2p_provider, create_tor_provider
 from ..node import create_main_tub, _tub_portlocation
-from ..client import create_client_from_config
 from ..util import connection_status
 
 
@@ -161,7 +160,7 @@ class Tor(unittest.TestCase):
         )
         with self.assertRaises(ValueError) as ctx:
             tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
-            h = tor_provider.get_tor_handler()
+            tor_provider.get_tor_handler()
         self.assertIn(
             "Unknown endpoint type: 'meow'",
             str(ctx.exception)
@@ -175,7 +174,7 @@ class Tor(unittest.TestCase):
         )
         with self.assertRaises(ValueError) as ctx:
             tor_provider = create_tor_provider(reactor, 'BASEDIR', config)
-            h = tor_provider.get_tor_handler()
+            tor_provider.get_tor_handler()
         self.assertIn(
             "invalid literal for int() with base 10: 'kumquat'",
             str(ctx.exception)
@@ -257,7 +256,7 @@ class I2P(unittest.TestCase):
         )
         with self.assertRaises(ValueError) as ctx:
             i2p_provider = create_i2p_provider(reactor, 'BASEDIR', config)
-            h = i2p_provider.get_i2p_handler()
+            i2p_provider.get_i2p_handler()
         self.assertIn(
             "must not set both sam.port and launch",
             str(ctx.exception)
