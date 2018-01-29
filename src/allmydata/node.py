@@ -12,7 +12,6 @@ import tempfile
 from io import BytesIO
 from base64 import b32decode, b32encode
 
-from twisted.internet import reactor
 from twisted.python import log as twlog
 from twisted.application import service
 from twisted.python.failure import Failure

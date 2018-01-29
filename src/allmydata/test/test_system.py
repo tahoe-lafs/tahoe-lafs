@@ -784,7 +784,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             c.setServiceParent(self.sparent)
         else:
             c.startService()
-        res = yield self.wait_for_connections()
+        yield self.wait_for_connections()
         defer.returnValue(c)
 
     def _check_connections(self):
