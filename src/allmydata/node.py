@@ -450,16 +450,6 @@ def _make_tcp_handler():
     return default()
 
 
-# XXX shouldn't need this
-def _make_tor_handler(tor_provider):
-    return tor_provider.get_tor_handler()
-
-
-# XXX shouldn't need this
-def _make_i2p_handler(i2p_provider):
-    return i2p_provider.get_i2p_handler()
-
-
 def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
     """
     :returns: 2-tuple of default_connection_handlers, foolscap_connection_handlers
@@ -470,8 +460,8 @@ def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
     # create that handler, so hints which want it will be ignored.
     handlers = foolscap_connection_handlers = {
         "tcp": _make_tcp_handler(),
-        "tor": _make_tor_handler(tor_provider),
-        "i2p": _make_i2p_handler(i2p_provider),
+        "tor": tor_provider.get_tor_handler(),
+        "i2p": i2p_provider.get_i2p_handler(),
         }
     log.msg(
         format="built Foolscap connection handlers for: %(known_handlers)s",
