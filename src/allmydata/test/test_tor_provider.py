@@ -281,22 +281,20 @@ class EmptyContext(object):
 
 class Provider(unittest.TestCase):
     def test_build(self):
-        tor_provider.Provider("basedir", FakeConfig(), "reactor")
+        tor_provider.create("reactor", "basedir", FakeConfig())
 
     def test_handler_disabled(self):
-        p = tor_provider.Provider("basedir", FakeConfig(enabled=False),
-                                  "reactor")
+        p = tor_provider.create("reactor", "basedir", FakeConfig(enabled=False))
         self.assertEqual(p.get_tor_handler(), None)
 
     def test_handler_no_tor(self):
         with mock_tor(None):
-            p = tor_provider.Provider("basedir", FakeConfig(), "reactor")
+            p = tor_provider.create("reactor", "basedir", FakeConfig())
         self.assertEqual(p.get_tor_handler(), None)
 
     def test_handler_launch_no_txtorcon(self):
         with mock_txtorcon(None):
-            p = tor_provider.Provider("basedir", FakeConfig(launch=True),
-                                      "reactor")
+            p = tor_provider.create("reactor", "basedir", FakeConfig(launch=True))
         self.assertEqual(p.get_tor_handler(), None)
 
     @defer.inlineCallbacks
@@ -309,8 +307,7 @@ class Provider(unittest.TestCase):
         tor.add_context = mock.Mock(return_value=EmptyContext())
         with mock_tor(tor):
             with mock_txtorcon(txtorcon):
-                p = tor_provider.Provider("basedir", FakeConfig(launch=True),
-                                          reactor)
+                p = tor_provider.create(reactor, "basedir", FakeConfig(launch=True))
         h = p.get_tor_handler()
         self.assertIs(h, handler)
         tor.control_endpoint_maker.assert_called_with(p._make_control_endpoint,
@@ -355,9 +352,8 @@ class Provider(unittest.TestCase):
         reactor = object()
 
         with mock_tor(tor):
-            p = tor_provider.Provider("basedir",
-                                      FakeConfig(**{"socks.port": "ep_desc"}),
-                                      reactor)
+            p = tor_provider.create(reactor, "basedir",
+                                    FakeConfig(**{"socks.port": "ep_desc"}))
             with mock.patch("allmydata.util.tor_provider.clientFromString", cfs):
                 h = p.get_tor_handler()
         cfs.assert_called_with(reactor, "ep_desc")
@@ -373,9 +369,8 @@ class Provider(unittest.TestCase):
         reactor = object()
 
         with mock_tor(tor):
-            p = tor_provider.Provider("basedir",
-                                      FakeConfig(**{"control.port": "ep_desc"}),
-                                      reactor)
+            p = tor_provider.create(reactor, "basedir",
+                                    FakeConfig(**{"control.port": "ep_desc"}))
             with mock.patch("allmydata.util.tor_provider.clientFromString", cfs):
                 h = p.get_tor_handler()
         self.assertIs(h, handler)
@@ -388,7 +383,7 @@ class Provider(unittest.TestCase):
         tor.default_socks = mock.Mock(return_value=handler)
 
         with mock_tor(tor):
-            p = tor_provider.Provider("basedir", FakeConfig(), "reactor")
+            p = tor_provider.create("reactor", "basedir", FakeConfig())
             h = p.get_tor_handler()
         self.assertIs(h, handler)
         tor.default_socks.assert_called_with()
@@ -405,9 +400,8 @@ class ProviderListener(unittest.TestCase):
         reactor = object()
 
         with mock_tor(tor):
-            p = tor_provider.Provider("basedir",
-                                      FakeConfig(**{"onion.local_port": "321"}),
-                                      reactor)
+            p = tor_provider.create(reactor, "basedir",
+                                    FakeConfig(**{"onion.local_port": "321"}))
         fake_ep = object()
         with mock.patch("allmydata.util.tor_provider.TCP4ServerEndpoint",
                         return_value=fake_ep) as e:
@@ -421,65 +415,78 @@ class Provider_CheckOnionConfig(unittest.TestCase):
         # default config doesn't start an onion service, so it should be
         # happy both with and without txtorcon
 
-        p = tor_provider.Provider("basedir", FakeConfig(), "reactor")
+        p = tor_provider.create("reactor", "basedir", FakeConfig())
         p.check_onion_config()
 
         with mock_txtorcon(None):
-            p = tor_provider.Provider("basedir", FakeConfig(), "reactor")
+            p = tor_provider.create("reactor", "basedir", FakeConfig())
             p.check_onion_config()
 
     def test_no_txtorcon(self):
         with mock_txtorcon(None):
-            p = tor_provider.Provider("basedir", FakeConfig(onion=True),
-                                      "reactor")
-            e = self.assertRaises(ValueError, p.check_onion_config)
-            self.assertEqual(str(e), "Cannot create onion without txtorcon. "
-                             "Please 'pip install tahoe-lafs[tor]' to fix.")
+            with self.assertRaises(ValueError) as ctx:
+                tor_provider.create("reactor", "basedir", FakeConfig(onion=True))
+            self.assertEqual(
+                str(ctx.exception),
+                "Cannot create onion without txtorcon. "
+                "Please 'pip install tahoe-lafs[tor]' to fix."
+            )
 
     def test_no_launch_no_control(self):
-        p = tor_provider.Provider("basedir", FakeConfig(onion=True), "reactor")
-        e = self.assertRaises(ValueError, p.check_onion_config)
-        self.assertEqual(str(e), "[tor] onion = true, but we have neither "
-                         "launch=true nor control.port=")
+        with self.assertRaises(ValueError) as ctx:
+            tor_provider.create("reactor", "basedir", FakeConfig(onion=True))
+        self.assertEqual(
+            str(ctx.exception),
+            "[tor] onion = true, but we have neither "
+            "launch=true nor control.port="
+        )
 
-    def test_missing_keys(self):
-        p = tor_provider.Provider("basedir", FakeConfig(onion=True,
-                                                        launch=True), "reactor")
-        e = self.assertRaises(ValueError, p.check_onion_config)
-        self.assertEqual(str(e), "[tor] onion = true, "
-                         "but onion.local_port= is missing")
+    def test_missing_keys0(self):
+        with self.assertRaises(ValueError) as ctx:
+            tor_provider.create("reactor", "basedir", FakeConfig(onion=True, launch=True))
+        self.assertEqual(
+            str(ctx.exception),
+            "[tor] onion = true, "
+            "but onion.local_port= is missing"
+        )
 
-        p = tor_provider.Provider("basedir",
-                                  FakeConfig(onion=True, launch=True,
-                                             **{"onion.local_port": "x",
-                                                }), "reactor")
-        e = self.assertRaises(ValueError, p.check_onion_config)
-        self.assertEqual(str(e), "[tor] onion = true, "
-                         "but onion.external_port= is missing")
+    def test_missing_keys1(self):
+        with self.assertRaises(ValueError) as ctx:
+            tor_provider.create("reactor", "basedir",
+                                FakeConfig(onion=True, launch=True,
+                                           **{"onion.local_port": "x",
+                                           }))
+        self.assertEqual(
+            str(ctx.exception),
+            "[tor] onion = true, but onion.external_port= is missing"
+        )
 
-        p = tor_provider.Provider("basedir",
-                                  FakeConfig(onion=True, launch=True,
-                                             **{"onion.local_port": "x",
-                                                "onion.external_port": "y",
-                                                }), "reactor")
-        e = self.assertRaises(ValueError, p.check_onion_config)
-        self.assertEqual(str(e), "[tor] onion = true, "
-                         "but onion.private_key_file= is missing")
+    def test_missing_keys2(self):
+        with self.assertRaises(ValueError) as ctx:
+            tor_provider.create("reactor", "basedir",
+                                FakeConfig(onion=True, launch=True,
+                                           **{"onion.local_port": "x",
+                                              "onion.external_port": "y",
+                                           }))
+        self.assertEqual(
+            str(ctx.exception),
+            "[tor] onion = true, but onion.private_key_file= is missing"
+        )
 
     def test_ok(self):
-        p = tor_provider.Provider("basedir",
-                                  FakeConfig(onion=True, launch=True,
-                                             **{"onion.local_port": "x",
-                                                "onion.external_port": "y",
-                                                "onion.private_key_file": "z",
-                                                }), "reactor")
+        p = tor_provider.create("reactor", "basedir",
+                                FakeConfig(onion=True, launch=True,
+                                           **{"onion.local_port": "x",
+                                              "onion.external_port": "y",
+                                              "onion.private_key_file": "z",
+                                           }))
         p.check_onion_config()
 
 class Provider_Service(unittest.TestCase):
     def test_no_onion(self):
         reactor = object()
-        p = tor_provider.Provider("basedir", FakeConfig(onion=False), reactor)
-        with mock.patch("allmydata.util.tor_provider.Provider._start_onion") as s:
+        p = tor_provider.create(reactor, "basedir", FakeConfig(onion=False))
+        with mock.patch("allmydata.util.tor_provider._Provider._start_onion") as s:
             p.startService()
         self.assertEqual(s.mock_calls, [])
         self.assertEqual(p.running, True)
@@ -503,7 +510,7 @@ class Provider_Service(unittest.TestCase):
 
         txtorcon = mock.Mock()
         with mock_txtorcon(txtorcon):
-            p = tor_provider.Provider(basedir, cfg, reactor)
+            p = tor_provider.create(reactor, basedir, cfg)
         tor_state = mock.Mock()
         tor_state.protocol = object()
         ehs = mock.Mock()
@@ -544,7 +551,7 @@ class Provider_Service(unittest.TestCase):
 
         txtorcon = mock.Mock()
         with mock_txtorcon(txtorcon):
-            p = tor_provider.Provider(basedir, cfg, reactor)
+            p = tor_provider.create(reactor, basedir, cfg)
         tor_state = mock.Mock()
         tor_state.protocol = object()
         txtorcon.build_tor_connection = mock.Mock(return_value=tor_state)

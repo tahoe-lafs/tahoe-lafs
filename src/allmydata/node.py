@@ -13,7 +13,6 @@ from allmydata.util.assertutil import _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
-from allmydata.util import i2p_provider, tor_provider
 
 def _common_config_sections():
     return {
@@ -242,18 +241,6 @@ def create_tub_options(config):
         # N.B.: this is in seconds, so use "1800" to get 30min
         tub_options["disconnectTimeout"] = int(disconnect_timeout_s)
     return tub_options
-
-
-def create_i2p_provider(reactor, basedir, config):
-    provider = i2p_provider.Provider(basedir, config, reactor)
-    provider.check_dest_config()
-    return provider
-
-
-def create_tor_provider(reactor, basedir, config):
-    provider = tor_provider.Provider(basedir, config, reactor)
-    provider.check_onion_config()
-    return provider
 
 
 def _make_tcp_handler():
