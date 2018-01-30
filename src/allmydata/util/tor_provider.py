@@ -10,6 +10,22 @@ from twisted.application import service
 from .observer import OneShotObserverList
 from .iputil import allocate_tcp_port
 
+
+def create(reactor, basedir, config):
+    """
+    Create a new _Provider service (this is an IService so must be
+    hooked up to a parent or otherwise started).
+
+    If foolscap.connections.tor or txtorcon are not installed, then
+    Provider.get_tor_handler() will return None.  If tahoe.cfg wants
+    to start an onion service too, then this `create()` method will
+    throw a nice error (and startService will throw an ugly error).
+    """
+    provider = _Provider(basedir, config, reactor)
+    provider.check_onion_config()
+    return provider
+
+
 def _import_tor():
     # this exists to be overridden by unit tests
     try:
@@ -192,12 +208,8 @@ def create_config(reactor, cli_config):
 
     returnValue((tahoe_config_tor, tor_port, tor_location))
 
-# we can always create a Provider. If foolscap.connections.tor or txtorcon
-# are not installed, then get_tor_handler() will return None. If tahoe.cfg
-# wants to start an onion service too, then check_onion_config() will throw a
-# nice error, and startService will throw an ugly error.
 
-class Provider(service.MultiService):
+class _Provider(service.MultiService):
     def __init__(self, config, reactor):
         service.MultiService.__init__(self)
         self._config = config
