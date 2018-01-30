@@ -160,8 +160,7 @@ class DaemonizeTheRealService(Service, HookMixin):
             return d
 
         from twisted.internet import reactor
-        x = reactor.callWhenRunning(start)
-        print("DING {}".format(x))
+        reactor.callWhenRunning(start)
 
 
 class DaemonizeTahoeNodePlugin(object):
