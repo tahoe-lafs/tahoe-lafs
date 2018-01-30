@@ -678,9 +678,12 @@ class Node(service.MultiService):
 
         # this can go away once Client.init_client_storage_broker is moved into create_client()
         self._i2p_provider = i2p_provider
-        self._i2p_provider.setServiceParent(self)
         self._tor_provider = tor_provider
-        self._tor_provider.setServiceParent(self)
+        # tests can provide None
+        if i2p_provider:
+            self._i2p_provider.setServiceParent(self)
+        if tor_provider:
+            self._tor_provider.setServiceParent(self)
 
         self.init_tempdir()
 
