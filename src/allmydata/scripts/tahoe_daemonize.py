@@ -139,9 +139,7 @@ class DaemonizeTheRealService(Service, HookMixin):
             except KeyError:
                 raise ValueError("unknown nodetype %s" % self.nodetype)
 
-            print("service factory: {}".format(service_factory))
             d = service_factory()
-            print("D {}".format(d))
 
             def created(srv):
                 srv.setServiceParent(self.parent)
@@ -153,8 +151,7 @@ class DaemonizeTheRealService(Service, HookMixin):
             return d
 
         from twisted.internet import reactor
-        x = reactor.callWhenRunning(start)
-        print("DING {}".format(x))
+        reactor.callWhenRunning(start)
 
 
 class DaemonizeTahoeNodePlugin(object):
