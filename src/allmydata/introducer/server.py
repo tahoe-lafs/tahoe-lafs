@@ -15,6 +15,12 @@ from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService_v2
 from allmydata.introducer.common import unsign_from_foolscap, \
      SubscriberDescriptor, AnnouncementDescriptor
+from allmydata.node import read_config
+from allmydata.node import create_connection_handlers
+from allmydata.node import create_control_tub
+from allmydata.node import create_tub_options
+from allmydata.node import create_main_tub
+
 
 # this is put into README in new node-directories
 INTRODUCER_README = """
@@ -37,9 +43,6 @@ class FurlFileConflictError(Exception):
 def create_introducer(basedir=u"."):
     # ideally we would pass in reactor
     from twisted.internet import reactor
-    from allmydata.node import read_config, create_connection_handlers
-    from allmydata.node import create_control_tub
-    from allmydata.node import create_tub_options, create_main_tub
 
     basedir = abspath_expanduser_unicode(unicode(basedir))
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
@@ -49,7 +52,6 @@ def create_introducer(basedir=u"."):
     config = read_config(basedir, u"client.port", generated_files=["introducer.furl"])
     config.validate(_valid_config_sections())
 
-    # XXX fix up imports etc (also: reactor)
     i2p_provider = create_i2p_provider(reactor, basedir, config)
     tor_provider = create_tor_provider(reactor, basedir, config)
 
@@ -63,7 +65,6 @@ def create_introducer(basedir=u"."):
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
     control_tub = create_control_tub()
-
 
     node = _IntroducerNode(
         config,

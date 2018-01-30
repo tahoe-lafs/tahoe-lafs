@@ -31,8 +31,12 @@ from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata.node import OldConfigOptionError, _common_config_sections
-from allmydata.node import read_config, create_connection_handlers, create_tub_options
-from allmydata.node import create_main_tub, create_control_tub, create_tub
+from allmydata.node import read_config
+from allmydata.node import create_connection_handlers
+from allmydata.node import create_tub_options
+from allmydata.node import create_main_tub
+from allmydata.node import create_control_tub
+from allmydata.node import create_tub
 
 
 KiB=1024
