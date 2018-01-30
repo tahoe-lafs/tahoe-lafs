@@ -30,7 +30,7 @@ from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata.node import OldConfigOptionError, _common_config_sections
 from allmydata.node import read_config, create_connection_handlers, create_tub_options
-from allmydata.node import create_main_tub, create_control_tub, create_tub, PRIV_README
+from allmydata.node import create_main_tub, create_control_tub, create_tub
 
 
 KiB=1024
