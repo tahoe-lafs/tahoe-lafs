@@ -23,6 +23,8 @@ from allmydata.util.encodingutil import (get_filesystem_encoding,
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
+from allmydata.util.i2p_provider import create as create_i2p_provider
+from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
@@ -197,8 +199,6 @@ def create_client(basedir=u".", _client_factory=None):
 # this can/should be async
 # @defer.inlineCallbacks
 def create_client_from_config(basedir, config):
-    from twisted.internet import reactor
-    from allmydata.node import create_i2p_provider, create_tor_provider
     i2p_provider = create_i2p_provider(reactor, basedir, config)
     tor_provider = create_tor_provider(reactor, basedir, config)
     handlers = create_connection_handlers(reactor, basedir, config, i2p_provider, tor_provider)

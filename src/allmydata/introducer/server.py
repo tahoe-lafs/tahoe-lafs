@@ -7,6 +7,10 @@ from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
 from allmydata.util import log, rrefutil
+from allmydata.util import fileutil
+from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.i2p_provider import create as create_i2p_provider
+from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService_v2
 from allmydata.introducer.common import unsign_from_foolscap, \
@@ -48,7 +52,6 @@ def create_introducer(basedir=u"."):
     )
 
     # XXX fix up imports etc (also: reactor)
-    from allmydata.node import create_i2p_provider, create_tor_provider
     i2p_provider = create_i2p_provider(reactor, basedir, config)
     tor_provider = create_tor_provider(reactor, basedir, config)
 
