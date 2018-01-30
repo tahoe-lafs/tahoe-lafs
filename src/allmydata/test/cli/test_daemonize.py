@@ -63,7 +63,6 @@ class Util(unittest.TestCase):
             d = service.set_hook('running')
             service.startService()
             def done(f):
-                print("DONE {}".format(f))
                 self.assertIn(
                     "key-generator support removed",
                     str(str(f)),#ctx.exception)
