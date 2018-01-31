@@ -185,14 +185,6 @@ class _Config(object):
         # TODO: merge this with allmydata.get_package_versions
         return dict(app_versions.versions)
 
-    def read_config(self):
-
-        try:
-            self.config = configutil.get_config(self.config_fname)
-        except EnvironmentError:
-            if os.path.exists(self.config_fname):
-                raise
-
     def write_config_file(self, name, value, mode="w"):
         """
         writes the given 'value' into a file called 'name' in the config
