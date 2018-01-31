@@ -164,6 +164,8 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
         if os.path.exists(config_fname):
             raise
 
+    # make sure we have a private configuration area
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
     return _Config(parser, portnumfile, basedir, config_fname)
 
 
