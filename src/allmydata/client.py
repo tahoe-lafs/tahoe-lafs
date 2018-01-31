@@ -417,7 +417,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def init_stats_provider(self):
         gatherer_furl = self.config.get_config("client", "stats_gatherer.furl", None)
         self.stats_provider = StatsProvider(self, gatherer_furl)
-        self.add_service(self.stats_provider)
+        self.stats_provider.setServiceParent(self)
         self.stats_provider.register_producer(self)
 
     def get_stats(self):
@@ -529,7 +529,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                            expiration_override_lease_duration=o_l_d,
                            expiration_cutoff_date=cutoff_date,
                            expiration_sharetypes=expiration_sharetypes)
-        self.add_service(ss)
+        ss.setServiceParent(self)
 
         furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
         furl = self.tub.registerReference(ss, furlFile=furl_file)
@@ -555,8 +555,12 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.history = History(self.stats_provider)
         self.terminator = Terminator()
         self.terminator.setServiceParent(self)
-        self.add_service(Uploader(helper_furl, self.stats_provider,
-                                  self.history))
+        uploader = Uploader(
+            helper_furl,
+            self.stats_provider,
+            self.history,
+        )
+        uploader.setServiceParent(self)
         self.init_blacklist()
         self.init_nodemaker()
 
@@ -654,7 +658,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         staticdir_config = self.config.get_config("node", "web.static", "public_html").decode("utf-8")
         staticdir = self.config.get_config_path(staticdir_config)
         ws = WebishServer(self, webport, nodeurl_path, staticdir)
-        self.add_service(ws)
+        ws.setServiceParent(self)
 
     def init_ftp_server(self):
         if self.config.get_config("ftpd", "enabled", False, boolean=True):
