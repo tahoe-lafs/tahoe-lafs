@@ -250,12 +250,6 @@ class _Config(object):
     def validate(self, valid_config_sections):
         configutil.validate_config(self._config_fname, self.config, valid_config_sections)
 
-        try:
-            fileutil.write(fn, value, mode)
-        except EnvironmentError as e:
-            log.msg("Unable to write config file '{}'".format(fn))
-            log.err(e)
-
     def write_config_file(self, name, value, mode="w"):
         """
         writes the given 'value' into a file called 'name' in the config
