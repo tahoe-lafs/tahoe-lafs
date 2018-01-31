@@ -252,9 +252,10 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
             time.sleep(1)
 
     assert created, "Didn't create a magic-folder"
+    print("Created Edmond's magic-folder successfully")
 
     # to actually-start the magic-folder we have to re-start
-    edmond.signalProcess('TERM')
+    edmond.signalProcess('KILL')  # 'tahoe stop' does send a SIGKILL ...
     yield edmond._protocol.exited
     time.sleep(1)
     edmond = yield util._run_node(reactor, edmond._node_dir, request, 'Completed initial Magic Folder scan successfully')
@@ -294,6 +295,7 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
                     uploaded = True
                     break
         except Exception as e:
+            print("Error gettting status: {}".format(e))
             time.sleep(1)
 
     assert uploaded, "expected to upload 'its_a_file'"
