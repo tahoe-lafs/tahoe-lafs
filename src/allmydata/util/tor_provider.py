@@ -11,7 +11,7 @@ from .observer import OneShotObserverList
 from .iputil import allocate_tcp_port
 
 
-def create(reactor, basedir, config):
+def create(reactor, config):
     """
     Create a new _Provider service (this is an IService so must be
     hooked up to a parent or otherwise started).
@@ -21,7 +21,7 @@ def create(reactor, basedir, config):
     to start an onion service too, then this `create()` method will
     throw a nice error (and startService will throw an ugly error).
     """
-    provider = _Provider(basedir, config, reactor)
+    provider = _Provider(config, reactor)
     provider.check_onion_config()
     return provider
 
@@ -266,7 +266,11 @@ class _Provider(service.MultiService):
         # this fires with a tuple of (control_endpoint, tor_protocol)
         if not self._tor_launched:
             self._tor_launched = OneShotObserverList()
+<<<<<<< HEAD
             private_dir = self._config.get_config_path("private")
+=======
+            private_dir = os.path.join(self._config._basedir, "private")
+>>>>>>> pull 'basedir' entirely into _Config
             tor_binary = self._get_tor_config("tor.executable", None)
             d = _launch_tor(reactor, tor_binary, private_dir, self._txtorcon)
             d.addBoth(self._tor_launched.fire)

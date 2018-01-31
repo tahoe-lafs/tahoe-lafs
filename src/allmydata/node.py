@@ -281,6 +281,18 @@ class _Config(object):
                 "Unable to write config file '{}'".format(fn),
             )
 
+    def write_config_file(self, name, value, mode="w"):
+        """
+        writes the given 'value' into a file called 'name' in the config
+        directory
+        """
+        fn = os.path.join(self._basedir, name)
+        try:
+            fileutil.write(fn, value, mode)
+        except EnvironmentError as e:
+            log.msg("Unable to write config file '{}'".format(fn))
+            log.err(e)
+
     def get_config(self, section, option, default=_None, boolean=False):
         try:
             if boolean:
@@ -497,18 +509,6 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
     return tub
 
 
-def _write_config(basedir, name, value, mode="w"):
-    """
-    Write a string to a config file.
-    """
-    fn = os.path.join(basedir, name)
-    try:
-        fileutil.write(fn, value, mode)
-    except EnvironmentError, e:
-        log.msg("Unable to write config file '{}'".format(fn))
-        log.err(e)
-
-
 def _convert_tub_port(s):
     if re.search(r'^\d+$', s):
         return "tcp:{}".format(int(s))
@@ -593,7 +593,7 @@ def _tub_portlocation(config, cfg_tubport, cfg_location):
     return tubport, location
 
 
-def create_main_tub(basedir, config, tub_options,
+def create_main_tub(config, tub_options,
                     default_connection_handlers, foolscap_connection_handlers,
                     i2p_provider, tor_provider,
                     handler_overrides={}, cert_filename="node.pem"):
@@ -601,7 +601,7 @@ def create_main_tub(basedir, config, tub_options,
     cfg_location = config.get_config("node", "tub.location", None)
     portlocation = _tub_portlocation(config, cfg_tubport, cfg_location)
 
-    certfile = os.path.join(basedir, "private", "node.pem")  # FIXME "node.pem" was the CERTFILE option/thing
+    certfile = config.get_private_path("node.pem")  # FIXME? "node.pem" was the CERTFILE option/thing
     tub = create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
                      handler_overrides=handler_overrides, certFile=certfile)
 
@@ -679,17 +679,11 @@ class Node(service.MultiService):
         self.logSource = "Node"
         self.setup_logging()
 
-        # XXX do we need to save these? or does just "create_client"
-        # need them? (note: look in client.py also!)
-        # (client.py DOES use them in init_client_storage_broker, but
-        # we'll want to pull that out as well...so FIXME later)
-##        self._default_connection_handlers, self._foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config)
-
         self.tub = main_tub
         if self.tub is not None:
             self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
             self.short_nodeid = b32encode(self.nodeid).lower()[:8] # for printing
-            self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")
+            self.config.write_config_file("my_nodeid", b32encode(self.nodeid).lower() + "\n")
             self.tub.setServiceParent(self)  # is this okay in __init__?
         else:
             self.nodeid = self.short_nodeid = None
@@ -733,12 +727,6 @@ class Node(service.MultiService):
         self.log_tub.setLocation(location)
         self.log("Log Tub location set to %s" % (location,))
         self.log_tub.setServiceParent(self)
-
-    # XXX this should be deprecated; no reason for it to be a method;
-    # use _write_config() instead
-    def write_config(self, name, value, mode="w"):
-        """Write a string to a config file."""
-        _write_config(self.basedir, name, value, mode=mode)
 
     def startService(self):
         # Note: this class can be started and stopped at most once.
