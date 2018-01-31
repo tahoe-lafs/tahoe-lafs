@@ -8,7 +8,7 @@ from twisted.internet.error import ConnectionRefusedError, ConnectError
 from twisted.application import service
 
 
-def create(reactor, basedir, config):
+def create(reactor, config):
     """
     Create a new Provider service (this is an IService so must be
     hooked up to a parent or otherwise started).
@@ -18,7 +18,7 @@ def create(reactor, basedir, config):
     to start an I2P Destination too, then this `create()` method will
     throw a nice error (and startService will throw an ugly error).
     """
-    provider = _Provider(basedir, config, reactor)
+    provider = _Provider(config, reactor)
     provider.check_dest_config()
     return provider
 
