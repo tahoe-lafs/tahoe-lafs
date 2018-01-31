@@ -193,15 +193,15 @@ class FakeConfig(dict):
 
 class Provider(unittest.TestCase):
     def test_build(self):
-        i2p_provider.create("reactor", "basedir", FakeConfig())
+        i2p_provider.create("reactor", FakeConfig())
 
     def test_handler_disabled(self):
-        p = i2p_provider.create("reactor", "basedir", FakeConfig(enabled=False))
+        p = i2p_provider.create("reactor", FakeConfig(enabled=False))
         self.assertEqual(p.get_i2p_handler(), None)
 
     def test_handler_no_i2p(self):
         with mock_i2p(None):
-            p = i2p_provider.create("reactor", "basedir", FakeConfig())
+            p = i2p_provider.create("reactor", FakeConfig())
         self.assertEqual(p.get_i2p_handler(), None)
 
     def test_handler_sam_endpoint(self):
@@ -212,7 +212,7 @@ class Provider(unittest.TestCase):
         reactor = object()
 
         with mock_i2p(i2p):
-            p = i2p_provider.create(reactor, "basedir",
+            p = i2p_provider.create(reactor,
                                     FakeConfig(**{"sam.port": "ep_desc"}))
             with mock.patch("allmydata.util.i2p_provider.clientFromString",
                             return_value=ep) as cfs:
@@ -228,7 +228,7 @@ class Provider(unittest.TestCase):
         reactor = object()
 
         with mock_i2p(i2p):
-            p = i2p_provider.create(reactor, "basedir",
+            p = i2p_provider.create(reactor,
                                     FakeConfig(launch=True))
         h = p.get_i2p_handler()
         self.assertIs(h, handler)
@@ -241,7 +241,7 @@ class Provider(unittest.TestCase):
         reactor = object()
 
         with mock_i2p(i2p):
-            p = i2p_provider.create(reactor, "basedir",
+            p = i2p_provider.create(reactor,
                                     FakeConfig(launch=True,
                                                **{"i2p.configdir": "configdir"}))
         h = p.get_i2p_handler()
@@ -255,7 +255,7 @@ class Provider(unittest.TestCase):
         reactor = object()
 
         with mock_i2p(i2p):
-            p = i2p_provider.create(reactor, "basedir",
+            p = i2p_provider.create(reactor,
                                     FakeConfig(launch=True,
                                                **{"i2p.configdir": "configdir",
                                                   "i2p.executable": "myi2p",
@@ -271,7 +271,7 @@ class Provider(unittest.TestCase):
         reactor = object()
 
         with mock_i2p(i2p):
-            p = i2p_provider.create(reactor, "basedir",
+            p = i2p_provider.create(reactor,
                                     FakeConfig(**{"i2p.configdir": "configdir"}))
         h = p.get_i2p_handler()
         i2p.local_i2p.assert_called_with("configdir")
@@ -284,7 +284,7 @@ class Provider(unittest.TestCase):
         reactor = object()
 
         with mock_i2p(i2p):
-            p = i2p_provider.create(reactor, "basedir", FakeConfig())
+            p = i2p_provider.create(reactor, FakeConfig())
         h = p.get_i2p_handler()
         self.assertIs(h, handler)
         i2p.default.assert_called_with(reactor, keyfile=None)
@@ -303,7 +303,7 @@ class ProviderListener(unittest.TestCase):
 
         privkeyfile = os.path.join("private", "i2p_dest.privkey")
         with mock_i2p(i2p):
-            p = i2p_provider.create(reactor, "basedir",
+            p = i2p_provider.create(reactor,
                                     FakeConfig(**{
                                         "i2p.configdir": "configdir",
                                         "sam.port": "good:port",
@@ -320,17 +320,17 @@ class Provider_CheckI2PConfig(unittest.TestCase):
         # default config doesn't start an I2P service, so it should be
         # happy both with and without txi2p
 
-        p = i2p_provider.create("reactor", "basedir", FakeConfig())
+        p = i2p_provider.create("reactor", FakeConfig())
         p.check_dest_config()
 
         with mock_txi2p(None):
-            p = i2p_provider.create("reactor", "basedir", FakeConfig())
+            p = i2p_provider.create("reactor", FakeConfig())
             p.check_dest_config()
 
     def test_no_txi2p(self):
         with mock_txi2p(None):
             with self.assertRaises(ValueError) as ctx:
-                i2p_provider.create("reactor", "basedir", FakeConfig(dest=True))
+                i2p_provider.create("reactor", FakeConfig(dest=True))
             self.assertEqual(
                 str(ctx.exception),
                 "Cannot create I2P Destination without txi2p. "
@@ -339,7 +339,7 @@ class Provider_CheckI2PConfig(unittest.TestCase):
 
     def test_no_launch_no_control(self):
         with self.assertRaises(ValueError) as ctx:
-            i2p_provider.create("reactor", "basedir", FakeConfig(dest=True))
+            i2p_provider.create("reactor", FakeConfig(dest=True))
         self.assertEqual(
             str(ctx.exception),
             "[i2p] dest = true, but we have neither "
@@ -348,7 +348,7 @@ class Provider_CheckI2PConfig(unittest.TestCase):
 
     def test_missing_keys(self):
         with self.assertRaises(ValueError) as ctx:
-            i2p_provider.create("reactor", "basedir",
+            i2p_provider.create("reactor",
                                 FakeConfig(
                                     dest=True,
                                     **{"sam.port": "x",
@@ -358,7 +358,7 @@ class Provider_CheckI2PConfig(unittest.TestCase):
                          "but dest.port= is missing")
 
         with self.assertRaises(ValueError) as ctx:
-            i2p_provider.create("reactor", "basedir",
+            i2p_provider.create("reactor",
                                 FakeConfig(dest=True,
                                            **{"sam.port": "x",
                                               "dest.port": "y",
@@ -371,7 +371,7 @@ class Provider_CheckI2PConfig(unittest.TestCase):
 
     def test_launch_not_implemented(self):
         with self.assertRaises(NotImplementedError) as ctx:
-            i2p_provider.create("reactor", "basedir",
+            i2p_provider.create("reactor",
                                 FakeConfig(dest=True, launch=True,
                                            **{"dest.port": "x",
                                               "dest.private_key_file": "y",
@@ -383,7 +383,7 @@ class Provider_CheckI2PConfig(unittest.TestCase):
 
     def test_ok(self):
         i2p_provider.create(
-            "reactor", "basedir",
+            "reactor",
             FakeConfig(
                 dest=True, **{
                     "sam.port": "x",

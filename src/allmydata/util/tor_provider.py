@@ -214,9 +214,9 @@ def create_config(reactor, cli_config):
 
 
 class _Provider(service.MultiService):
-    def __init__(self, node_for_config, reactor):
+    def __init__(self, config, reactor):
         service.MultiService.__init__(self)
-        self._node_for_config = node_for_config
+        self._config = config
         self._tor_launched = None
         self._onion_ehs = None
         self._onion_tor_control_proto = None
@@ -225,7 +225,7 @@ class _Provider(service.MultiService):
         self._reactor = reactor
 
     def _get_tor_config(self, *args, **kwargs):
-        return self._node_for_config.get_config("tor", *args, **kwargs)
+        return self._config.get_config("tor", *args, **kwargs)
 
     def get_listener(self):
         local_port = int(self._get_tor_config("onion.local_port"))
