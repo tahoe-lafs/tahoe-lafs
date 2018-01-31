@@ -25,6 +25,8 @@ from allmydata.util import fileutil, iputil
 from allmydata.util import i2p_provider, tor_provider
 from allmydata.util.namespace import Namespace
 from allmydata.util.configutil import UnknownConfigError
+from allmydata.util.i2p_provider import create as create_i2p_provider
+from allmydata.util.tor_provider import create as create_tor_provider
 import allmydata.test.common_util as testutil
 
 
@@ -35,7 +37,6 @@ class LoggingMultiService(service.MultiService):
 
 def testing_tub(config_data=''):
     from twisted.internet import reactor
-    from allmydata.node import create_i2p_provider, create_tor_provider
     basedir = 'dummy_basedir'
     config = config_from_string(config_data, 'DEFAULT_PORTNUMFILE_BLANK', basedir)
     fileutil.make_dirs(os.path.join(basedir, 'private'))
