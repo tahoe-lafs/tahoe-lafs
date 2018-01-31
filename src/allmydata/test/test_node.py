@@ -135,6 +135,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         config = read_config(basedir, "")
         self.failUnless(config.nickname == nickname)
+### XXX <<<<<<< HEAD
 
     def test_config_required(self):
         basedir = u"test_node/test_config_required"
@@ -183,6 +184,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         with self.assertRaises(MissingConfigEntry):
             config.get_or_create_private_config("foo")
+### XXX =======
+### XXX >>>>>>> pull 'basedir' entirely into _Config
 
     def test_private_config(self):
         basedir = "test_node/test_private_config"
@@ -230,6 +233,10 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         errs = self.flushLoggedErrors(IOError)
         self.assertEqual(1, len(errs))
+        self.assertIn(
+            "IOError",
+            str(errs[0])
+        )
 
     def test_timestamp(self):
         # this modified logger doesn't seem to get used during the tests,
