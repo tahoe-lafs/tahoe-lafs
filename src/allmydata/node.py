@@ -274,14 +274,6 @@ class _Config(object):
     def validate(self, valid_config_sections):
         configutil.validate_config(self._config_fname, self.config, valid_config_sections)
 
-        try:
-            fileutil.write(fn, value, mode)
-        except EnvironmentError:
-            log.err(
-                Failure(),
-                "Unable to write config file '{}'".format(fn),
-            )
-
     def write_config_file(self, name, value, mode="w"):
         """
         writes the given 'value' into a file called 'name' in the config
@@ -290,9 +282,11 @@ class _Config(object):
         fn = os.path.join(self._basedir, name)
         try:
             fileutil.write(fn, value, mode)
-        except EnvironmentError as e:
-            log.msg("Unable to write config file '{}'".format(fn))
-            log.err(e)
+        except EnvironmentError:
+            log.err(
+                Failure(),
+                "Unable to write config file '{}'".format(fn),
+            )
 
     def get_config(self, section, option, default=_None, boolean=False):
         try:
