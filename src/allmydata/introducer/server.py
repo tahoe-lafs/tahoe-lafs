@@ -53,10 +53,10 @@ def create_introducer(basedir=u"."):
         _valid_config_sections=_valid_config_sections,
     )
 
-    i2p_provider = create_i2p_provider(reactor, basedir, config)
-    tor_provider = create_tor_provider(reactor, basedir, config)
+    i2p_provider = create_i2p_provider(reactor, config)
+    tor_provider = create_tor_provider(reactor, config)
 
-    default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config, i2p_provider, tor_provider)
+    default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
     tub_options = create_tub_options(config)
 
     # we don't remember these because the Introducer doesn't make
@@ -64,7 +64,7 @@ def create_introducer(basedir=u"."):
     i2p_provider = None
     tor_provider = None
     main_tub, is_listening = create_main_tub(
-        basedir, config, tub_options, default_connection_handlers,
+        config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
     control_tub = create_control_tub()
@@ -75,7 +75,6 @@ def create_introducer(basedir=u"."):
         control_tub,
         i2p_provider,
         tor_provider,
-        basedir,
         tub_is_listening=is_listening,
     )
     return defer.succeed(node)

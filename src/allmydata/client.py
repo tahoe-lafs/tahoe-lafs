@@ -173,18 +173,13 @@ def read_config(basedir, portnumfile, generated_files=[]):
     )
 
 
+# this method is async
 # @defer.inlineCallbacks
-def create_client(basedir=u".", _client_factory=None):
+def create_client(basedir=u"."):
     """
-    Creates a new client instance (a subclass of Node).
-
-    :param basedir: the node directory
-
-    :param _client_factory: for testing; the class to instantiate
+    Create a new _Client instance in the given directory (which may
+    not exist yet).
     """
-    from allmydata.node import read_config, create_connection_handlers, create_tub_options
-    from allmydata.node import create_main_tub, create_control_tub, create_tub
-
     # should we check for this directory existing first? (this used to
     # be in Node's constructor)
     node.create_node_dir(basedir, CLIENT_README)
@@ -193,14 +188,20 @@ def create_client(basedir=u".", _client_factory=None):
     if _client_factory is None:
         _client_factory = _Client
 
-    # pre-requisites
+    # read config file and create instance
     config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
-    return create_client_from_config(config)
+    return create_client_from_config(config)  # async
 
 
-# this can/should be async
+# this method is async
 # @defer.inlineCallbacks
 def create_client_from_config(config):
+    """
+    Create a new _Client instance given a _Config instance (basedir
+    must already exist and be writable).
+
+    Most code should probably use `create_client` instead.
+    """
     i2p_provider = create_i2p_provider(reactor, config)
     tor_provider = create_tor_provider(reactor, config)
     handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
@@ -208,12 +209,12 @@ def create_client_from_config(config):
     tub_options = create_tub_options(config)
 
     main_tub, is_listening = create_main_tub(
-        basedir, config, tub_options, default_connection_handlers,
+        config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
     control_tub = create_control_tub()
 
-    introducer_clients, introducer_furls = create_introducer_clients(basedir, config, main_tub)
+    introducer_clients, introducer_furls = create_introducer_clients(config, main_tub)
     storage_broker = create_storage_farm_broker(
         config, default_connection_handlers, foolscap_connection_handlers,
         tub_options, introducer_clients
@@ -228,7 +229,6 @@ def create_client_from_config(config):
         introducer_clients,
         introducer_furls,
         storage_broker,
-        basedir,
         tub_is_listening=is_listening,
     )
     i2p_provider.setServiceParent(client)
@@ -245,42 +245,58 @@ def _sequencer(config):
         seqnum_s = "0"
     seqnum = int(seqnum_s.strip())
     seqnum += 1  # increment
-    node._write_config(config.get_config_path(), "announcement-seqnum", "%d\n" % seqnum)
+    config.write_config_file("announcement-seqnum", "{}\n".format(seqnum))
     nonce = _make_secret().strip()
     return seqnum, nonce
 
 
-def create_introducer_clients(basedir, config, main_tub):
+def create_introducer_clients(config, main_tub):
+    """
+    returns a 2-tuple containing two lists: introducer_clients,
+    introducer_furls
+    """
+    # (probably makes sense to return a list of 2-tuples instead of a
+    # 2-tuple of lists, but keeping variable names etc from when this
+    # was self.init_introducer_clients in Node)
+
     # Returns both of these:
     introducer_clients = []
     introducer_furls = []
 
-    introducers_yaml_filename = os.path.join(basedir, "private", "introducers.yaml")
+    introducers_yaml_filename = config.get_private_path("introducers.yaml")
     introducers_filepath = FilePath(introducers_yaml_filename)
 
     try:
         with introducers_filepath.open() as f:
             introducers_yaml = yamlutil.safe_load(f)
             introducers = introducers_yaml.get("introducers", {})
-            log.msg("found %d introducers in private/introducers.yaml" %
-                    len(introducers))
+            log.msg(
+                "found {} introducers in private/introducers.yaml".format(
+                    len(introducers),
+                )
+            )
     except EnvironmentError:
         introducers = {}
 
     if "default" in introducers.keys():
-        raise ValueError("'default' introducer furl cannot be specified in introducers.yaml; please fix impossible configuration.")
+        raise ValueError(
+            "'default' introducer furl cannot be specified in introducers.yaml;"
+            " please fix impossible configuration."
+        )
 
     # read furl from tahoe.cfg
     tahoe_cfg_introducer_furl = config.get_config("client", "introducer.furl", None)
     if tahoe_cfg_introducer_furl == "None":
-        raise ValueError("tahoe.cfg has invalid 'introducer.furl = None':"
-                         " to disable it, use 'introducer.furl ='"
-                         " or omit the key entirely")
+        raise ValueError(
+            "tahoe.cfg has invalid 'introducer.furl = None':"
+            " to disable it, use 'introducer.furl ='"
+            " or omit the key entirely"
+        )
     if tahoe_cfg_introducer_furl:
         introducers[u'default'] = {'furl':tahoe_cfg_introducer_furl}
 
     for petname, introducer in introducers.items():
-        introducer_cache_filepath = FilePath(os.path.join(basedir, "private", "introducer_{}_cache.yaml".format(petname)))
+        introducer_cache_filepath = FilePath(config.get_private_path("introducer_{}_cache.yaml".format(petname)))
         ic = IntroducerClient(
             main_tub,
             introducer['furl'].encode("ascii"),
