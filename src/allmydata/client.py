@@ -1,6 +1,7 @@
 import os, stat, time, weakref
 from allmydata import node
 from base64 import urlsafe_b64encode
+from functools import partial
 
 from zope.interface import implementer
 from twisted.internet import reactor, defer
@@ -107,6 +108,7 @@ the files.   See the 'configuration.rst' documentation file for details.
 def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
 
+
 class SecretHolder:
     def __init__(self, lease_secret, convergence_secret):
         self._lease_secret = lease_secret
@@ -193,15 +195,15 @@ def create_client(basedir=u".", _client_factory=None):
 
     # pre-requisites
     config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
-    return create_client_from_config(basedir, config)
+    return create_client_from_config(config)
 
 
 # this can/should be async
 # @defer.inlineCallbacks
-def create_client_from_config(basedir, config):
-    i2p_provider = create_i2p_provider(reactor, basedir, config)
-    tor_provider = create_tor_provider(reactor, basedir, config)
-    handlers = create_connection_handlers(reactor, basedir, config, i2p_provider, tor_provider)
+def create_client_from_config(config):
+    i2p_provider = create_i2p_provider(reactor, config)
+    tor_provider = create_tor_provider(reactor, config)
+    handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
     default_connection_handlers, foolscap_connection_handlers = handlers
     tub_options = create_tub_options(config)
 
@@ -210,17 +212,112 @@ def create_client_from_config(basedir, config):
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
     control_tub = create_control_tub()
-    return defer.succeed(
-        _Client(
-            config,
-            main_tub,
-            control_tub,
-            i2p_provider,
-            tor_provider,
-            basedir,
-            tub_is_listening=is_listening,
-        )
+
+    introducer_clients, introducer_furls = create_introducer_clients(basedir, config, main_tub)
+    storage_broker = create_storage_farm_broker(
+        config, default_connection_handlers, foolscap_connection_handlers,
+        tub_options, introducer_clients
     )
+
+    client = _Client(
+        config,
+        main_tub,
+        control_tub,
+        i2p_provider,
+        tor_provider,
+        introducer_clients,
+        introducer_furls,
+        storage_broker,
+        basedir,
+        tub_is_listening=is_listening,
+    )
+    i2p_provider.setServiceParent(client)
+    tor_provider.setServiceParent(client)
+    return defer.succeed(client)
+
+
+def _sequencer(config):
+    seqnum_s = config.get_config_from_file("announcement-seqnum")
+    if not seqnum_s:
+        seqnum_s = "0"
+    seqnum = int(seqnum_s.strip())
+    seqnum += 1  # increment
+    node._write_config(config.get_config_path(), "announcement-seqnum", "%d\n" % seqnum)
+    nonce = _make_secret().strip()
+    return seqnum, nonce
+
+
+def create_introducer_clients(basedir, config, main_tub):
+    # Returns both of these:
+    introducer_clients = []
+    introducer_furls = []
+
+    introducers_yaml_filename = os.path.join(basedir, "private", "introducers.yaml")
+    introducers_filepath = FilePath(introducers_yaml_filename)
+
+    try:
+        with introducers_filepath.open() as f:
+            introducers_yaml = yamlutil.safe_load(f)
+            introducers = introducers_yaml.get("introducers", {})
+            log.msg("found %d introducers in private/introducers.yaml" %
+                    len(introducers))
+    except EnvironmentError:
+        introducers = {}
+
+    if "default" in introducers.keys():
+        raise ValueError("'default' introducer furl cannot be specified in introducers.yaml; please fix impossible configuration.")
+
+    # read furl from tahoe.cfg
+    tahoe_cfg_introducer_furl = config.get_config("client", "introducer.furl", None)
+    if tahoe_cfg_introducer_furl == "None":
+        raise ValueError("tahoe.cfg has invalid 'introducer.furl = None':"
+                         " to disable it, use 'introducer.furl ='"
+                         " or omit the key entirely")
+    if tahoe_cfg_introducer_furl:
+        introducers[u'default'] = {'furl':tahoe_cfg_introducer_furl}
+
+    for petname, introducer in introducers.items():
+        introducer_cache_filepath = FilePath(os.path.join(basedir, "private", "introducer_{}_cache.yaml".format(petname)))
+        ic = IntroducerClient(
+            main_tub,
+            introducer['furl'].encode("ascii"),
+            config.nickname,
+            str(allmydata.__full_version__),
+            str(_Client.OLDEST_SUPPORTED_VERSION),
+            config.get_app_versions(),
+            partial(_sequencer, config),
+            introducer_cache_filepath,
+        )
+        introducer_clients.append(ic)
+        introducer_furls.append(introducer['furl'])
+    return introducer_clients, introducer_furls
+
+
+def create_storage_farm_broker(config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients):
+    """
+    create a StorageFarmBroker object, for use by Uploader/Downloader
+    (and everybody else who wants to use storage servers)
+    """
+    ps = config.get_config("client", "peers.preferred", "").split(",")
+    preferred_peers = tuple([p.strip() for p in ps if p != ""])
+
+    def tub_creator(handler_overrides={}, **kwargs):
+        return create_tub(
+            tub_options,
+            default_connection_handlers,
+            foolscap_connection_handlers,
+            handler_overrides=handler_overrides,
+            **kwargs
+        )
+
+    sb = storage_client.StorageFarmBroker(
+        permute_peers=True,
+        tub_maker=tub_creator,
+        preferred_peers=preferred_peers,
+    )
+    for ic in introducer_clients:
+        sb.use_introducer(ic)
+    return sb
 
 
 @implementer(IStatsProducer)
@@ -245,15 +342,25 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": 128*KiB,
                                    }
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening):
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients, introducer_furls,
+                 storage_farm_broker, tub_is_listening):
+        """
+        Use create_client() to instantiate one of these.
+        """
         node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening)
-        # All tub.registerReference must happen *after* we upcall, since
-        # that's what does tub.setLocation()
+
         self._magic_folders = dict()
         self.started_timestamp = time.time()
-        self.logSource="Client"
+        self.logSource = "Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
-        self.init_introducer_clients()
+
+        self.introducer_clients = introducer_clients
+        self.introducer_furls = introducer_furls  # appears completely unused (but for tests?)
+        for ic in introducer_clients:
+            ic.setServiceParent(self)
+        self.storage_broker = storage_farm_broker
+        self.storage_broker.setServiceParent(self)
+
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
@@ -290,56 +397,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         webport = self.config.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
-
-    def _sequencer(self):
-        seqnum_s = self.config.get_config_from_file("announcement-seqnum")
-        if not seqnum_s:
-            seqnum_s = "0"
-        seqnum = int(seqnum_s.strip())
-        seqnum += 1 # increment
-        self.config.write_config_file("announcement-seqnum", "%d\n" % seqnum)
-        nonce = _make_secret().strip()
-        return seqnum, nonce
-
-    def init_introducer_clients(self):
-        self.introducer_clients = []
-        self.introducer_furls = []
-
-        introducers_yaml_filename = self.config.get_private_path("introducers.yaml")
-        introducers_filepath = FilePath(introducers_yaml_filename)
-
-        try:
-            with introducers_filepath.open() as f:
-                introducers_yaml = yamlutil.safe_load(f)
-                introducers = introducers_yaml.get("introducers", {})
-                log.msg("found %d introducers in private/introducers.yaml" %
-                        len(introducers))
-        except EnvironmentError:
-            introducers = {}
-
-        if "default" in introducers.keys():
-            raise ValueError("'default' introducer furl cannot be specified in introducers.yaml; please fix impossible configuration.")
-
-        # read furl from tahoe.cfg
-        tahoe_cfg_introducer_furl = self.config.get_config("client", "introducer.furl", None)
-        if tahoe_cfg_introducer_furl == "None":
-            raise ValueError("tahoe.cfg has invalid 'introducer.furl = None':"
-                             " to disable it, use 'introducer.furl ='"
-                             " or omit the key entirely")
-        if tahoe_cfg_introducer_furl:
-            introducers[u'default'] = {'furl':tahoe_cfg_introducer_furl}
-
-        for petname, introducer in introducers.items():
-            introducer_cache_filepath = FilePath(self.config.get_private_path("introducer_{}_cache.yaml".format(petname)))
-            ic = IntroducerClient(self.tub, introducer['furl'].encode("ascii"),
-                                  self.nickname,
-                                  str(allmydata.__full_version__),
-                                  str(self.OLDEST_SUPPORTED_VERSION),
-                                  node.get_app_versions(), self._sequencer,
-                                  introducer_cache_filepath)
-            self.introducer_clients.append(ic)
-            self.introducer_furls.append(introducer['furl'])
-            ic.setServiceParent(self)
 
     def init_stats_provider(self):
         gatherer_furl = self.config.get_config("client", "stats_gatherer.furl", None)
@@ -479,7 +536,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         # for the CLI to authenticate to local JSON endpoints
         self._create_auth_token()
 
-        self.init_client_storage_broker()
         self.history = History(self.stats_provider)
         self.terminator = Terminator()
         self.terminator.setServiceParent(self)
@@ -509,38 +565,6 @@ class _Client(node.Node, pollmixin.PollMixin):
             'api_auth_token',
             urlsafe_b64encode(os.urandom(32)) + '\n',
         )
-
-    def init_client_storage_broker(self):
-        # create a StorageFarmBroker object, for use by Uploader/Downloader
-        # (and everybody else who wants to use storage servers)
-        ps = self.config.get_config("client", "peers.preferred", "").split(",")
-        preferred_peers = tuple([p.strip() for p in ps if p != ""])
-
-        # this is temporary; create_client() should create a
-        # storage-broker and pass it in -- that method already has
-        # all these objects created...
-        default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, self.basedir, self.config, self._i2p_provider, self._tor_provider)
-
-
-        def tub_creator(handler_overrides={}, **kwargs):
-            tub_options = create_tub_options(self.config)
-            return create_tub(
-                tub_options,
-                default_connection_handlers,
-                foolscap_connection_handlers,
-                handler_overrides=handler_overrides,
-                **kwargs
-            )
-
-        sb = storage_client.StorageFarmBroker(
-            permute_peers=True,
-            tub_maker=tub_creator,
-            preferred_peers=preferred_peers,
-        )
-        self.storage_broker = sb
-        sb.setServiceParent(self)
-        for ic in self.introducer_clients:
-            sb.use_introducer(ic)
 
     def get_storage_broker(self):
         return self.storage_broker
