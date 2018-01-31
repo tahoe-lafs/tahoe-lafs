@@ -253,9 +253,10 @@ class _Config(object):
         :param config_fname: the pathname actually used to create the
             configparser (might be 'fake' if using in-memory data)
         """
+        # XXX I think this portnumfile thing is just legacy?
         self.portnum_fname = portnum_fname
         self._basedir = abspath_expanduser_unicode(unicode(basedir))
-        self._config_fname = config_fname
+        self._config_fname = config_fname  # the actual fname "configparser" came from
         self.config = configparser
 
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
@@ -278,6 +279,22 @@ class _Config(object):
                 Failure(),
                 "Unable to write config file '{}'".format(fn),
             )
+
+    def get_app_versions(self):
+        # TODO: merge this with allmydata.get_package_versions
+        return dict(app_versions.versions)
+
+    def write_config_file(self, name, value, mode="w"):
+        """
+        writes the given 'value' into a file called 'name' in the config
+        directory
+        """
+        fn = os.path.join(self._basedir, name)
+        try:
+            fileutil.write(fn, value, mode)
+        except EnvironmentError as e:
+            log.msg("Unable to write config file '{}'".format(fn))
+            log.err(e)
 
     def get_config(self, section, option, default=_None, boolean=False):
         try:
