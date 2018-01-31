@@ -163,15 +163,11 @@ class SystemFramework(pollmixin.PollMixin):
         d.addCallback(lambda res: passthrough)
         return d
 
-    def add_service(self, s):
-        s.setServiceParent(self.sparent)
-        return s
-
     def make_introducer(self):
         iv_basedir = os.path.join(self.testdir, "introducer")
         os.mkdir(iv_basedir)
-        iv = introducer.IntroducerNode(basedir=iv_basedir)
-        self.introducer = self.add_service(iv)
+        self.introducer = introducer.IntroducerNode(basedir=iv_basedir)
+        self.introducer.setServiceParent(self)
         self.introducer_furl = self.introducer.introducer_url
 
     def make_nodes(self):
@@ -201,7 +197,8 @@ class SystemFramework(pollmixin.PollMixin):
                 # so our internal nodes can refuse requests
                 f.write("readonly = true\n")
             f.close()
-            c = self.add_service(client.Client(basedir=nodedir))
+            c = client.Client(basedir=nodedir)
+            c.setServiceParent(self)
             self.nodes.append(c)
         # the peers will start running, eventually they will connect to each
         # other and the introducer
