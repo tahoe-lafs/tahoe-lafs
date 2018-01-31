@@ -467,7 +467,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         self.clients = []
         basedirs = []
         for i in range(self.numclients):
-            basedir = self.getdir("client%d" % i)
+            basedir = self.getdir("client{}".format(i))
             basedirs.append(basedir)
             fileutil.make_dirs(os.path.join(basedir, "private"))
             if len(SYSTEM_TEST_CERTS) > (i+1):
@@ -1931,7 +1931,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # exercise the remote-control-the-client foolscap interfaces in
         # allmydata.control (mostly used for performance tests)
         c0 = self.clients[0]
-        control_furl_file = os.path.join(c0.basedir, "private", "control.furl")
+        control_furl_file = c0.config.get_private_path("control.furl")
         control_furl = open(control_furl_file, "r").read().strip()
         # it doesn't really matter which Tub we use to connect to the client,
         # so let's just use our IntroducerNode's

@@ -6,7 +6,6 @@ from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
 from allmydata.util import log, rrefutil
-from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService_v2
 from allmydata.introducer.common import unsign_from_foolscap, \
@@ -27,7 +26,6 @@ def create_introducer(basedir=u"."):
     #defer.returnValue(
     return _IntroducerNode(
             config,
-            basedir=basedir
         )
     #)
 
@@ -35,8 +33,8 @@ def create_introducer(basedir=u"."):
 class _IntroducerNode(node.Node):
     NODETYPE = "introducer"
 
-    def __init__(self, config, basedir=u"."):
-        node.Node.__init__(self, config, basedir=basedir)
+    def __init__(self, config):
+        node.Node.__init__(self, config)
         self.init_introducer()
         webport = self.get_config("node", "web.port", None)
         if webport:
@@ -46,11 +44,11 @@ class _IntroducerNode(node.Node):
         if not self._tub_is_listening:
             raise ValueError("config error: we are Introducer, but tub "
                              "is not listening ('tub.port=' is empty)")
-        introducerservice = IntroducerService(self.basedir)
+        introducerservice = IntroducerService()
         self.add_service(introducerservice)
 
-        old_public_fn = os.path.join(self.basedir, u"introducer.furl")
-        private_fn = os.path.join(self.basedir, u"private", u"introducer.furl")
+        old_public_fn = self.config.get_config_path(u"introducer.furl")
+        private_fn = self.config.get_private_path(u"introducer.furl")
 
         if os.path.exists(old_public_fn):
             if os.path.exists(private_fn):
@@ -73,9 +71,9 @@ class _IntroducerNode(node.Node):
         self.log("init_web(webport=%s)", args=(webport,), umid="2bUygA")
 
         from allmydata.webish import IntroducerWebishServer
-        nodeurl_path = os.path.join(self.basedir, u"node.url")
+        nodeurl_path = self.config.get_config_path(u"node.url")
         config_staticdir = self.get_config("node", "web.static", "public_html").decode('utf-8')
-        staticdir = abspath_expanduser_unicode(config_staticdir, base=self.basedir)
+        staticdir = self.config.get_config_path(config_staticdir)
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         self.add_service(ws)
 
@@ -89,7 +87,7 @@ class IntroducerService(service.MultiService, Referenceable):
                 "application-version": str(allmydata.__full_version__),
                 }
 
-    def __init__(self, basedir="."):
+    def __init__(self):
         service.MultiService.__init__(self)
         self.introducer_url = None
         # 'index' is (service_name, key_s, tubid), where key_s or tubid is
