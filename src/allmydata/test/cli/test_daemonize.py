@@ -45,16 +45,16 @@ class Util(unittest.TestCase):
 
         self.assertTrue(service is not None)
 
-#    @defer.inlineCallbacks
     def test_daemonize_no_keygen(self):
         tmpdir = self.mktemp()
         plug = DaemonizeTahoeNodePlugin('key-generator', tmpdir)
 
-        if True:#with patch('twisted.internet.reactor') as r:
+        with patch('twisted.internet.reactor') as r:
             def call(fn, *args, **kw):
-                fn()
-#            r.callWhenRunning = call
-#            r.stop = 'foo'
+                d = fn()
+                d.addErrback(lambda _: None)  # ignore the error we'll trigger
+            r.callWhenRunning = call
+            r.stop = 'foo'
             service = plug.makeService(None)
             service.parent = Mock()
             # we'll raise ValueError because there's no key-generator
@@ -65,10 +65,10 @@ class Util(unittest.TestCase):
             def done(f):
                 self.assertIn(
                     "key-generator support removed",
-                    str(str(f)),#ctx.exception)
+                    str(f),
                 )
                 return None
-            d.addErrback(done)
+            d.addBoth(done)
             return d
 
     def test_daemonize_unknown_nodetype(self):
