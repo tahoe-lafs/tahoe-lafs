@@ -405,10 +405,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
     def getdir(self, subdir):
         return os.path.join(self.basedir, subdir)
 
-    def add_service(self, s):
-        s.setServiceParent(self.sparent)
-        return s
-
     @defer.inlineCallbacks
     def set_up_nodes(self, NUMCLIENTS=5, use_stats_gatherer=False):
         self.numclients = NUMCLIENTS
@@ -424,8 +420,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
                 f.write(SYSTEM_TEST_CERTS[0])
                 f.close()
-        iv = yield create_introducer(basedir=iv_dir)
-        self.introducer = self.add_service(iv)
+        self.introducer = yield create_introducer(basedir=iv_dir)
+        self.introducer.setServiceParent(self)
         self._get_introducer_web()
         if use_stats_gatherer:
             yield self._set_up_stats_gatherer(None)
@@ -448,7 +444,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         fileutil.write(os.path.join(statsdir, "port"), port)
         self.stats_gatherer_svc = StatsGathererService(statsdir)
         self.stats_gatherer = self.stats_gatherer_svc.stats_gatherer
-        self.add_service(self.stats_gatherer_svc)
+        self.stats_gatherer_svc.setServiceParent(self)
 
         d = fireEventually()
         sgf = os.path.join(statsdir, 'stats_gatherer.furl')
@@ -520,8 +516,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         # start clients[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
-        the_client = yield client.create_client(basedirs[0])
-        c = self.add_service(the_client)
+        c = yield client.create_client(basedirs[0])
+        c.setServiceParent(self)
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
@@ -538,8 +534,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         # this starts the rest of the clients
         for i in range(1, self.numclients):
-            the_client = yield client.create_client(basedirs[i])
-            c = self.add_service(the_client)
+            c = yield client.create_client(basedirs[i])
+            c.setServiceParent(self)
             self.clients.append(c)
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         log.msg("STARTING")
@@ -572,7 +568,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             new_c = yield client.create_client(self.getdir("client%d" % num))
             self.clients[num] = new_c
             new_c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
-            self.add_service(new_c)
+            new_c.setServiceParent(self)
         d.addCallback(_stopped)
         d.addCallback(lambda res: self.wait_for_connections())
         def _maybe_get_webport(res):

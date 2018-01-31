@@ -94,7 +94,7 @@ class _IntroducerNode(node.Node):
             raise ValueError("config error: we are Introducer, but tub "
                              "is not listening ('tub.port=' is empty)")
         introducerservice = IntroducerService()
-        self.add_service(introducerservice)
+        introducerservice.setServiceParent(self)
 
         old_public_fn = self.config.get_config_path(u"introducer.furl")
         private_fn = self.config.get_private_path(u"introducer.furl")
@@ -124,7 +124,7 @@ class _IntroducerNode(node.Node):
         config_staticdir = self.get_config("node", "web.static", "public_html").decode('utf-8')
         staticdir = self.config.get_config_path(config_staticdir)
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
-        self.add_service(ws)
+        ws.setServiceParent(self)
 
 @implementer(RIIntroducerPublisherAndSubscriberService_v2)
 class IntroducerService(service.MultiService, Referenceable):
