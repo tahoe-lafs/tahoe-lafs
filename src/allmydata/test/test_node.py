@@ -673,12 +673,12 @@ class Listeners(unittest.TestCase):
 
         i2p_provider = mock.Mock()
         tor_provider = mock.Mock()
-        dfh, fch = create_connection_handlers(None, basedir, config, i2p_provider, tor_provider)
+        dfh, fch = create_connection_handlers(None, config, i2p_provider, tor_provider)
         tub_options = create_tub_options(config)
         t = FakeTub()
 
         with mock.patch("allmydata.node.Tub", return_value=t):
-            create_main_tub(basedir, config, tub_options, dfh, fch, i2p_provider, tor_provider)
+            create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
         self.assertEqual(t.listening_ports,
                          ["tcp:%d:interface=127.0.0.1" % port1,
                           "tcp:%d:interface=127.0.0.1" % port2])
@@ -713,10 +713,10 @@ class Listeners(unittest.TestCase):
         tub_options = create_tub_options(config)
         t = FakeTub()
 
-        dfh, fch = create_connection_handlers(None, basedir, config, i2p_provider, tor_provider)
+        dfh, fch = create_connection_handlers(None, config, i2p_provider, tor_provider)
 
         with mock.patch("allmydata.node.Tub", return_value=t):
-            create_main_tub(basedir, config, tub_options, dfh, fch, i2p_provider, tor_provider)
+            create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
 
         self.assertEqual(i2p_provider.get_listener.mock_calls, [mock.call()])
         self.assertEqual(tor_provider.get_listener.mock_calls, [mock.call()])
