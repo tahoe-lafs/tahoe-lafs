@@ -25,7 +25,7 @@ class IntroducerWeb(unittest.TestCase):
         )
         from allmydata.node import config_from_string
         self.node = IntroducerNode(
-            config_from_string(config, portnumfile="introducer.port"),
+            config_from_string(config, "introducer.port", "no-basedir"),
         )
         self.ws = self.node.getServiceNamed("webish")
 

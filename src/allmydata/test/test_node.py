@@ -17,6 +17,7 @@ from twisted.application import service
 from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry, read_config, config_from_string
 from allmydata.introducer.server import create_introducer
 from allmydata.client import create_client
+from allmydata.client import _valid_config_sections as client_valid_config_sections
 from allmydata.util import fileutil, iputil
 from allmydata.util.namespace import Namespace
 import allmydata.test.common_util as testutil
@@ -31,7 +32,7 @@ class TestNode(Node):
 
     def __init__(self, basedir):
         config = read_config(basedir, 'DEFAULT_PORTNUMFILE_BLANK')
-        Node.__init__(self, config, basedir)
+        Node.__init__(self, config)
 
 
 class TestCase(testutil.SignalMixin, unittest.TestCase):
@@ -115,9 +116,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.write(u"nickname = \u2621\n".encode('utf-8'))
         f.close()
 
-        n = TestNode(basedir)
-        n.setServiceParent(self.parent)
-        self.failUnlessEqual(n.get_config("node", "nickname").decode('utf-8'),
+        config = read_config(basedir, "")
+        self.failUnlessEqual(config.get_config("node", "nickname").decode('utf-8'),
                              u"\u2621")
 
     def test_tahoe_cfg_hash_in_name(self):
@@ -128,8 +128,9 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.write("[node]\n")
         f.write("nickname = %s\n" % (nickname,))
         f.close()
-        n = TestNode(basedir)
-        self.failUnless(n.nickname == nickname)
+
+        config = read_config(basedir, "")
+        self.failUnless(config.nickname == nickname)
 
     def test_private_config(self):
         basedir = "test_node/test_private_config"
@@ -139,25 +140,43 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.write("secret")
         f.close()
 
-        n = TestNode(basedir)
-        self.failUnlessEqual(n.get_private_config("already"), "secret")
-        self.failUnlessEqual(n.get_private_config("not", "default"), "default")
-        self.failUnlessRaises(MissingConfigEntry, n.get_private_config, "not")
-        value = n.get_or_create_private_config("new", "start")
+        config = config_from_string("", "", basedir)
+
+        self.failUnlessEqual(config.get_private_config("already"), "secret")
+        self.failUnlessEqual(config.get_private_config("not", "default"), "default")
+        self.failUnlessRaises(MissingConfigEntry, config.get_private_config, "not")
+        value = config.get_or_create_private_config("new", "start")
         self.failUnlessEqual(value, "start")
-        self.failUnlessEqual(n.get_private_config("new"), "start")
+        self.failUnlessEqual(config.get_private_config("new"), "start")
         counter = []
         def make_newer():
             counter.append("called")
             return "newer"
-        value = n.get_or_create_private_config("newer", make_newer)
+        value = config.get_or_create_private_config("newer", make_newer)
         self.failUnlessEqual(len(counter), 1)
         self.failUnlessEqual(value, "newer")
-        self.failUnlessEqual(n.get_private_config("newer"), "newer")
+        self.failUnlessEqual(config.get_private_config("newer"), "newer")
 
-        value = n.get_or_create_private_config("newer", make_newer)
+        value = config.get_or_create_private_config("newer", make_newer)
         self.failUnlessEqual(len(counter), 1) # don't call unless necessary
         self.failUnlessEqual(value, "newer")
+
+    def test_write_config_unwritable_file(self):
+        basedir = "test_node/configdir"
+        fileutil.make_dirs(basedir)
+        config = config_from_string("", "", basedir)
+        with open(os.path.join(basedir, "bad"), "w") as f:
+            f.write("bad")
+        os.chmod(os.path.join(basedir, "bad"), 0o000)
+
+        config.write_config_file("bad", "some value")
+
+        errs = self.flushLoggedErrors()
+        self.assertEqual(1, len(errs))
+        self.assertIn(
+            "IOError",
+            str(errs[0])
+        )
 
     def test_timestamp(self):
         # this modified logger doesn't seem to get used during the tests,
@@ -172,8 +191,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
     def test_secrets_dir(self):
         basedir = "test_node/test_secrets_dir"
         fileutil.make_dirs(basedir)
-        n = TestNode(basedir)
-        self.failUnless(isinstance(n, TestNode))
+        read_config(basedir, "")
+
         self.failUnless(os.path.exists(os.path.join(basedir, "private")))
 
     def test_secrets_dir_protected(self):
@@ -184,8 +203,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             raise unittest.SkipTest("We don't know how to set permissions on Windows.")
         basedir = "test_node/test_secrets_dir_protected"
         fileutil.make_dirs(basedir)
-        n = TestNode(basedir)
-        self.failUnless(isinstance(n, TestNode))
+        read_config(basedir, "")
+
         privdir = os.path.join(basedir, "private")
         st = os.stat(privdir)
         bits = stat.S_IMODE(st[stat.ST_MODE])
@@ -207,8 +226,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
 class EmptyNode(Node):
     def __init__(self):
-        config = config_from_string("", "no portfile")
-        Node.__init__(self, config, 'no basedir')
+        config = config_from_string("", "no portfile", 'no basedir')
+        Node.__init__(self, config)
 
 EXPECTED = {
     # top-level key is tub.port category
@@ -377,7 +396,7 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = %s\n" % location)
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        n.config = read_config(n.basedir, "client.port")
+        n.config = read_config(n.basedir, "client.port", _valid_config_sections=client_valid_config_sections)
         n.check_privacy()
         n.services = []
         n.create_i2p_provider()
@@ -403,7 +422,7 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = tcp:example.org:1234\n")
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        n.config = read_config(n.basedir, "client.port")
+        n.config = read_config(n.basedir, "client.port", _valid_config_sections=client_valid_config_sections)
         n.check_privacy()
         n.services = []
         i2p_ep = object()
