@@ -29,7 +29,7 @@ class IntroducerWeb(unittest.TestCase):
 
         from allmydata.node import config_from_string
         self.node = IntroducerNode(
-            config_from_string(config, "introducer.port", basedir),
+            config_from_string("no-basedir", "introducer.port", config,),
         )
         self.ws = self.node.getServiceNamed("webish")
 
