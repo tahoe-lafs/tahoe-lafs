@@ -222,6 +222,9 @@ def create_client_from_config(basedir, config):
     )
     i2p_provider.setServiceParent(client)
     tor_provider.setServiceParent(client)
+    for ic in introducer_clients:
+        ic.setServiceParent(client)
+    storage_broker.setServiceParent(client)
     return defer.succeed(client)
 
 
@@ -346,10 +349,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         self.introducer_clients = introducer_clients
         self.introducer_furls = introducer_furls  # appears completely unused (but for tests?)
-        for ic in introducer_clients:
-            ic.setServiceParent(self)
         self.storage_broker = storage_farm_broker
-        self.storage_broker.setServiceParent(self)
 
         self.init_stats_provider()
         self.init_secrets()
