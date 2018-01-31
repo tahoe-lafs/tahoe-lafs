@@ -567,7 +567,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         Currently only the URI '/magic' for magic-folder status; other
         endpoints are invited to include this as well, as appropriate.
         """
-        return self.get_private_config('api_auth_token')
+        return self.config.get_private_config('api_auth_token')
 
     def _create_auth_token(self):
         """
