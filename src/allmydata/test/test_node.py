@@ -42,14 +42,14 @@ def testing_tub(config_data=''):
     config = config_from_string(config_data, 'DEFAULT_PORTNUMFILE_BLANK', basedir)
     fileutil.make_dirs(os.path.join(basedir, 'private'))
 
-    i2p_provider = create_i2p_provider(reactor, basedir, config)
-    tor_provider = create_tor_provider(reactor, basedir, config)
-    handlers = create_connection_handlers(reactor, basedir, config, i2p_provider, tor_provider)
+    i2p_provider = create_i2p_provider(reactor, config)
+    tor_provider = create_tor_provider(reactor, config)
+    handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
     default_connection_handlers, foolscap_connection_handlers = handlers
     tub_options = create_tub_options(config)
 
     main_tub, is_listening = create_main_tub(
-        basedir, config, tub_options, default_connection_handlers,
+        config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
         cert_filename='DEFAULT_CERTFILE_BLANK'
     )
@@ -489,11 +489,6 @@ class TestMissingPorts(unittest.TestCase):
         Node(config, None, None, None, None, basedir, False)
         self.failUnless(ns.called)
 
-
-class EmptyNode(Node):
-    def __init__(self):
-        config = config_from_string("", "no portfile", 'no basedir')
-        Node.__init__(self, config, 'no basedir')
 
 EXPECTED = {
     # top-level key is tub.port category
