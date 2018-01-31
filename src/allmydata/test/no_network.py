@@ -206,7 +206,6 @@ def NoNetworkClient(basedir):
         introducer_clients=[],
         introducer_furls=[],
         storage_farm_broker=storage_broker,
-        basedir=basedir,
         tub_is_listening=True,
     )
     storage_broker.client = client
@@ -422,10 +421,7 @@ class GridTestMixin:
                                 for c in self.g.clients]
 
     def get_clientdir(self, i=0):
-        return self.g.clients[i].basedir
-
-    def set_clientdir(self, basedir, i=0):
-        self.g.clients[i].basedir = basedir
+        return self.g.clients[i].config._basedir
 
     def get_client(self, i=0):
         return self.g.clients[i]

@@ -52,10 +52,10 @@ def create_introducer(basedir=u"."):
     config = read_config(basedir, u"client.port", generated_files=["introducer.furl"])
     config.validate(_valid_config_sections())
 
-    i2p_provider = create_i2p_provider(reactor, basedir, config)
-    tor_provider = create_tor_provider(reactor, basedir, config)
+    i2p_provider = create_i2p_provider(reactor, config)
+    tor_provider = create_tor_provider(reactor, config)
 
-    default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, basedir, config, i2p_provider, tor_provider)
+    default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
     tub_options = create_tub_options(config)
 
     # we don't remember these because the Introducer doesn't make
@@ -63,7 +63,7 @@ def create_introducer(basedir=u"."):
     i2p_provider = None
     tor_provider = None
     main_tub, is_listening = create_main_tub(
-        basedir, config, tub_options, default_connection_handlers,
+        config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
     control_tub = create_control_tub()
@@ -74,7 +74,6 @@ def create_introducer(basedir=u"."):
         control_tub,
         i2p_provider,
         tor_provider,
-        basedir,
         tub_is_listening=is_listening,
     )
     return defer.succeed(node)
@@ -83,9 +82,8 @@ def create_introducer(basedir=u"."):
 class _IntroducerNode(node.Node):
     NODETYPE = "introducer"
 
-    # basedir must exist
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, basedir, tub_is_listening):
-        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, basedir, tub_is_listening)
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening):
+        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening)
         self.init_introducer()
         webport = self.get_config("node", "web.port", None)
         if webport:
@@ -95,11 +93,11 @@ class _IntroducerNode(node.Node):
         if not self._tub_is_listening:
             raise ValueError("config error: we are Introducer, but tub "
                              "is not listening ('tub.port=' is empty)")
-        introducerservice = IntroducerService(self.basedir)
+        introducerservice = IntroducerService()
         self.add_service(introducerservice)
 
-        old_public_fn = os.path.join(self.basedir, u"introducer.furl")
-        private_fn = os.path.join(self.basedir, u"private", u"introducer.furl")
+        old_public_fn = self.config.get_config_path(u"introducer.furl")
+        private_fn = self.config.get_private_path(u"introducer.furl")
 
         if os.path.exists(old_public_fn):
             if os.path.exists(private_fn):
@@ -122,9 +120,9 @@ class _IntroducerNode(node.Node):
         self.log("init_web(webport=%s)", args=(webport,), umid="2bUygA")
 
         from allmydata.webish import IntroducerWebishServer
-        nodeurl_path = os.path.join(self.basedir, u"node.url")
+        nodeurl_path = self.config.get_config_path(u"node.url")
         config_staticdir = self.get_config("node", "web.static", "public_html").decode('utf-8')
-        staticdir = abspath_expanduser_unicode(config_staticdir, base=self.basedir)
+        staticdir = self.config.get_config_path(config_staticdir)
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         self.add_service(ws)
 
@@ -138,7 +136,7 @@ class IntroducerService(service.MultiService, Referenceable):
                 "application-version": str(allmydata.__full_version__),
                 }
 
-    def __init__(self, basedir="."):
+    def __init__(self):
         service.MultiService.__init__(self)
         self.introducer_url = None
         # 'index' is (service_name, key_s, tubid), where key_s or tubid is

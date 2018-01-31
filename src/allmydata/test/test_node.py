@@ -159,22 +159,22 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         config = config_from_string("", "", basedir)
         n = Node(config, None, None, None, None, basedir, False)
 
-        self.failUnlessEqual(n.get_private_config("already"), "secret")
-        self.failUnlessEqual(n.get_private_config("not", "default"), "default")
-        self.failUnlessRaises(MissingConfigEntry, n.get_private_config, "not")
-        value = n.get_or_create_private_config("new", "start")
+        self.failUnlessEqual(config.get_private_config("already"), "secret")
+        self.failUnlessEqual(config.get_private_config("not", "default"), "default")
+        self.failUnlessRaises(MissingConfigEntry, config.get_private_config, "not")
+        value = config.get_or_create_private_config("new", "start")
         self.failUnlessEqual(value, "start")
-        self.failUnlessEqual(n.get_private_config("new"), "start")
+        self.failUnlessEqual(config.get_private_config("new"), "start")
         counter = []
         def make_newer():
             counter.append("called")
             return "newer"
-        value = n.get_or_create_private_config("newer", make_newer)
+        value = config.get_or_create_private_config("newer", make_newer)
         self.failUnlessEqual(len(counter), 1)
         self.failUnlessEqual(value, "newer")
-        self.failUnlessEqual(n.get_private_config("newer"), "newer")
+        self.failUnlessEqual(config.get_private_config("newer"), "newer")
 
-        value = n.get_or_create_private_config("newer", make_newer)
+        value = config.get_or_create_private_config("newer", make_newer)
         self.failUnlessEqual(len(counter), 1) # don't call unless necessary
         self.failUnlessEqual(value, "newer")
 
