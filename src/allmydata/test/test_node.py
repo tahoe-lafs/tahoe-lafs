@@ -455,7 +455,7 @@ class TestMissingPorts(unittest.TestCase):
         config = config_from_string('', '')
         basedir = fileutil.abspath_expanduser_unicode(basedir)
         config = config_from_string('', '', basedir)
-        Node(config, None, None, None, None, basedir, False)
+        Node(config, None, None, None, None, False)
         self.failUnless(ns.called)
 
 
