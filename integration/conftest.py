@@ -35,6 +35,9 @@ def pytest_addoption(parser):
 # page". They're all session-scoped which has the "pro" that we only
 # set up the grid once, but the "con" that each test has to be a
 # little careful they're not stepping on toes etc :/
+# To avoid "bad things":
+#  - use your own capabilities and file-names
+#  - don't depend on "state of entire grid"
 
 
 @pytest.fixture(scope='session')
