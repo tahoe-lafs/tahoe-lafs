@@ -169,6 +169,8 @@ class NoNetworkServer(object):
 
 @implementer(IStorageBroker)
 class NoNetworkStorageBroker(object):
+    def setServiceParent(self, _):
+        pass
     def get_servers_for_psi(self, peer_selection_index):
         def _permuted(server):
             seed = server.get_permutation_seed()
@@ -194,19 +196,21 @@ def NoNetworkClient(basedir):
 
     from allmydata.node import read_config
     config = read_config(basedir, u'client.port', _valid_config_sections=client_valid_config_sections)
-    main_tub = None
-    control_tub = None
-    i2p_provider = None
-    tor_provider = None
-    return _NoNetworkClient(
+    storage_broker = NoNetworkStorageBroker()
+    client = _NoNetworkClient(
         config,
-        main_tub,
-        control_tub,
-        i2p_provider,
-        tor_provider,
-        basedir,
+        main_tub=None,
+        control_tub=None,
+        i2p_provider=None,
+        tor_provider=None,
+        introducer_clients=[],
+        introducer_furls=[],
+        storage_farm_broker=storage_broker,
+        basedir=basedir,
         tub_is_listening=True,
     )
+    storage_broker.client = client
+    return client
 
 
 class _NoNetworkClient(_Client):

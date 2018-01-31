@@ -181,6 +181,10 @@ class _Config(object):
     def validate(self, valid_config_sections):
         configutil.validate_config(self._config_fname, self.config, valid_config_sections)
 
+    def get_app_versions(self):
+        # TODO: merge this with allmydata.get_package_versions
+        return dict(app_versions.versions)
+
     def read_config(self):
 
         try:
@@ -209,6 +213,19 @@ class _Config(object):
                     )
                 )
             return default
+
+    def get_config_from_file(self, name, required=False):
+        """Get the (string) contents of a config file, or None if the file
+        did not exist. If required=True, raise an exception rather than
+        returning None. Any leading or trailing whitespace will be stripped
+        from the data."""
+        fn = os.path.join(self._basedir, name)
+        try:
+            return fileutil.read(fn).strip()
+        except EnvironmentError:
+            if not required:
+                return None
+            raise
 
     @staticmethod
     def _contains_unescaped_hash(item):
@@ -487,13 +504,9 @@ class Node(service.MultiService):
         self.nickname = config.nickname # XXX stopgap
 
         # this can go away once Client.init_client_storage_broker is moved into create_client()
+        # (tests sometimes have None here)
         self._i2p_provider = i2p_provider
         self._tor_provider = tor_provider
-        # tests can provide None
-        if i2p_provider:
-            self._i2p_provider.setServiceParent(self)
-        if tor_provider:
-            self._tor_provider.setServiceParent(self)
 
         self.init_tempdir()
 
@@ -551,23 +564,6 @@ class Node(service.MultiService):
         self.log_tub.setLocation(location)
         self.log("Log Tub location set to %s" % (location,))
         self.log_tub.setServiceParent(self)
-
-    def get_app_versions(self):
-        # TODO: merge this with allmydata.get_package_versions
-        return dict(app_versions.versions)
-
-    def get_config_from_file(self, name, required=False):
-        """Get the (string) contents of a config file, or None if the file
-        did not exist. If required=True, raise an exception rather than
-        returning None. Any leading or trailing whitespace will be stripped
-        from the data."""
-        fn = os.path.join(self.basedir, name)
-        try:
-            return fileutil.read(fn).strip()
-        except EnvironmentError:
-            if not required:
-                return None
-            raise
 
     def write_private_config(self, name, value):
         """Write the (string) contents of a private config file (which is a
