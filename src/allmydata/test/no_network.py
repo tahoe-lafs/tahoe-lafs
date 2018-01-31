@@ -169,6 +169,8 @@ class NoNetworkServer(object):
 
 @implementer(IStorageBroker)
 class NoNetworkStorageBroker(object):
+    def setServiceParent(self, _):
+        pass
     def get_servers_for_psi(self, peer_selection_index):
         def _permuted(server):
             seed = server.get_permutation_seed()
@@ -187,7 +189,12 @@ class NoNetworkStorageBroker(object):
 
 
 def create_no_network_client(basedir):
-    return create_client(basedir, _client_factory=_NoNetworkClient)
+    c = create_client(basedir, _client_factory=_NoNetworkClient)
+    # XXX we should probably make a way to pass this in instead of
+    # changing it later.. also, a reference-cycle (but, existed before :/)
+    c.storage_broker = NoNetworkStorageBroker()
+    storage_broker.client = c
+    return c
 
 
 class _NoNetworkClient(_Client):

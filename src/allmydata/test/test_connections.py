@@ -6,9 +6,10 @@ from twisted.internet.interfaces import IStreamClientEndpoint
 from foolscap.connections import tcp
 from ..node import Node, PrivacyError, config_from_string
 from ..node import create_connection_handlers
-from ..node import create_i2p_provider, create_tor_provider
 from ..node import create_main_tub, _tub_portlocation
 from ..util import connection_status
+from ..util.i2p_provider import create as create_i2p_provider
+from ..util.tor_provider import create as create_tor_provider
 
 
 class FakeNode(Node):
