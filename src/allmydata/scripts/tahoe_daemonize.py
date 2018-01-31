@@ -145,9 +145,6 @@ class DaemonizeTheRealService(Service, HookMixin):
                 srv.setServiceParent(self.parent)
             d.addCallback(created)
             d.addBoth(self._call_hook, 'running')
-            # we've handled error via hook now (otherwise Twisted will
-            # want to fail some things)
-            d.addErrback(lambda _: None)
             return d
 
         from twisted.internet import reactor
