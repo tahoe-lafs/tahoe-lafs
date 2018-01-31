@@ -10,8 +10,7 @@ from ..util import connection_status
 class FakeNode(Node):
     def __init__(self, config_str):
         from allmydata.node import config_from_string
-        self.config = config_from_string(config_str, "fake.port")
-        self.basedir = "BASEDIR"
+        self.config = config_from_string(config_str, "fake.port", "no-basedir")
         self._reveal_ip = True
         self.services = []
         self.create_i2p_provider()
@@ -60,7 +59,7 @@ class Tor(unittest.TestCase):
                         return_value=h1) as f:
             n = FakeNode(config)
             h = n._make_tor_handler()
-            private_dir = os.path.join(n.basedir, "private")
+            private_dir = n.config.get_config_path("private")
             exp = mock.call(n._tor_provider._make_control_endpoint,
                             takes_status=True)
             self.assertEqual(f.mock_calls, [exp])
@@ -78,7 +77,8 @@ class Tor(unittest.TestCase):
                 d = tp._make_control_endpoint(reactor,
                                               update_status=lambda status: None)
                 cep = self.successResultOf(d)
-        launch_tor.assert_called_with(reactor, executable, private_dir,
+        launch_tor.assert_called_with(reactor, executable,
+                                      os.path.abspath(private_dir),
                                       tp._txtorcon)
         cfs.assert_called_with(reactor, "ep_desc")
         self.assertIs(cep, tcep)
