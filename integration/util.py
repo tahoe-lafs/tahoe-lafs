@@ -1,6 +1,6 @@
 import sys
 import time
-from os import mkdir
+from os import mkdir, environ
 from os.path import exists, join
 from StringIO import StringIO
 
@@ -121,6 +121,7 @@ def _run_node(reactor, node_dir, request, magic_text):
             'run',
             node_dir,
         ),
+        env=environ,  # passing along environment so 'coverage' works
     )
     process.exited = protocol.exited
 
@@ -182,6 +183,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             done_proto,
             sys.executable,
             args,
+            env=environ,  # passing along environment so 'coverage' works
         )
         created_d = done_proto.done
 

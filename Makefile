@@ -40,11 +40,14 @@ upload-osx-pkg:
 	  echo not uploading tahoe-lafs-osx-pkg because this is not trunk but is branch \"${BB_BRANCH}\" ; \
 	fi
 
-.PHONY: smoketest
-smoketest:
-	-python ./src/allmydata/test/check_magicfolder_smoke.py kill
-	-rm -rf smoke_magicfolder/
-	python ./src/allmydata/test/check_magicfolder_smoke.py
+.PHONY: integration
+integration:
+	py.test -v integration/
+
+.PHONY: integration-coverage
+integration-coverage:
+	-rm .coverage
+	COVERAGE_PROCESS_START=.coveragerc py.test --cov allmydata --cov-report term-missing -v integration
 
 # code coverage-based testing is disabled temporarily, as we switch to tox.
 # This will eventually be added to a tox environment. The following comments
