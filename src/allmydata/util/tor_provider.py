@@ -270,7 +270,7 @@ class _Provider(service.MultiService):
         # this fires with a tuple of (control_endpoint, tor_protocol)
         if not self._tor_launched:
             self._tor_launched = OneShotObserverList()
-            private_dir = os.path.join(self._config._basedir, "private")
+            private_dir = self._config.get_config_path("private")
             tor_binary = self._get_tor_config("tor.executable", None)
             d = _launch_tor(reactor, tor_binary, private_dir, self._txtorcon)
             d.addBoth(self._tor_launched.fire)
@@ -313,7 +313,7 @@ class _Provider(service.MultiService):
         external_port = int(self._get_tor_config("onion.external_port"))
 
         fn = self._get_tor_config("onion.private_key_file")
-        privkeyfile = os.path.join(self._basedir, fn)
+        privkeyfile = self.config.get_config_path(fn)
         with open(privkeyfile, "rb") as f:
             privkey = f.read()
         ehs = self._txtorcon.EphemeralHiddenService(
