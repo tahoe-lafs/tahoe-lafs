@@ -421,7 +421,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 f.write(SYSTEM_TEST_CERTS[0])
                 f.close()
         self.introducer = yield create_introducer(basedir=iv_dir)
-        self.introducer.setServiceParent(self)
+        self.introducer.setServiceParent(self.sparent)
         self._get_introducer_web()
         if use_stats_gatherer:
             yield self._set_up_stats_gatherer(None)
@@ -444,7 +444,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         fileutil.write(os.path.join(statsdir, "port"), port)
         self.stats_gatherer_svc = StatsGathererService(statsdir)
         self.stats_gatherer = self.stats_gatherer_svc.stats_gatherer
-        self.stats_gatherer_svc.setServiceParent(self)
+        self.stats_gatherer_svc.setServiceParent(self.sparent)
 
         d = fireEventually()
         sgf = os.path.join(statsdir, 'stats_gatherer.furl')
@@ -517,7 +517,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # start clients[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
         c = yield client.create_client(basedirs[0])
-        c.setServiceParent(self)
+        c.setServiceParent(self.sparent)
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
@@ -535,7 +535,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # this starts the rest of the clients
         for i in range(1, self.numclients):
             c = yield client.create_client(basedirs[i])
-            c.setServiceParent(self)
+            c.setServiceParent(self.sparent)
             self.clients.append(c)
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         log.msg("STARTING")
@@ -568,7 +568,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             new_c = yield client.create_client(self.getdir("client%d" % num))
             self.clients[num] = new_c
             new_c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
-            new_c.setServiceParent(self)
+            new_c.setServiceParent(self.sparent)
         d.addCallback(_stopped)
         d.addCallback(lambda res: self.wait_for_connections())
         def _maybe_get_webport(res):
