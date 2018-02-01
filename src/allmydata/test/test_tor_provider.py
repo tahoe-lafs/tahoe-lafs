@@ -515,7 +515,7 @@ class Provider_Service(unittest.TestCase):
 
         txtorcon = mock.Mock()
         with mock_txtorcon(txtorcon):
-            p = tor_provider.create(reactor, basedir, cfg)
+            p = tor_provider.create(reactor, cfg)
         tor_state = mock.Mock()
         tor_state.protocol = object()
         ehs = mock.Mock()
@@ -556,7 +556,7 @@ class Provider_Service(unittest.TestCase):
 
         txtorcon = mock.Mock()
         with mock_txtorcon(txtorcon):
-            p = tor_provider.create(reactor, basedir, cfg)
+            p = tor_provider.create(reactor, cfg)
         tor_state = mock.Mock()
         tor_state.protocol = object()
         txtorcon.build_tor_connection = mock.Mock(return_value=tor_state)
