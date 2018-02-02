@@ -10,6 +10,7 @@ import allmydata.frontends.magic_folder
 import allmydata.util.log
 
 from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, read_config, create_node_dir
+from allmydata.node import config_from_string
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
@@ -570,6 +571,24 @@ def flush_but_dont_ignore(res):
         return res
     d.addCallback(_done)
     return d
+
+
+class IntroducerClients(unittest.TestCase):
+
+    def test_invalid_introducer_furl(self):
+        cfg = (
+            "[client]\n"
+            "introducer.furl = None\n"
+        )
+        config = config_from_string(cfg, "client.port", "basedir")
+
+        with self.assertRaises(ValueError) as ctx:
+            client.create_introducer_clients(config, main_tub=None)
+        self.assertIn(
+            "invalid 'introducer.furl = None'",
+            str(ctx.exception)
+        )
+
 
 class Run(unittest.TestCase, testutil.StallMixin):
 
