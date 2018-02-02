@@ -193,7 +193,7 @@ class _Config(object):
         fn = os.path.join(self._basedir, name)
         try:
             fileutil.write(fn, value, mode)
-        except EnvironmentError, e:
+        except EnvironmentError as e:
             log.msg("Unable to write config file '{}'".format(fn))
             log.err(e)
 

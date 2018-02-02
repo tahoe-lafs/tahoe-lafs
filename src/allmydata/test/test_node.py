@@ -178,6 +178,23 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.failUnlessEqual(len(counter), 1) # don't call unless necessary
         self.failUnlessEqual(value, "newer")
 
+    def test_write_config_unwritable_file(self):
+        basedir = "test_node/configdir"
+        fileutil.make_dirs(basedir)
+        config = config_from_string("", "", basedir)
+        with open(os.path.join(basedir, "bad"), "w") as f:
+            f.write("bad")
+        os.chmod(os.path.join(basedir, "bad"), 0o000)
+
+        config.write_config_file("bad", "some value")
+
+        errs = self.flushLoggedErrors()
+        self.assertEqual(1, len(errs))
+        self.assertIn(
+            "IOError",
+            str(errs[0])
+        )
+
     def test_timestamp(self):
         # this modified logger doesn't seem to get used during the tests,
         # probably because we don't modify the LogObserver that trial

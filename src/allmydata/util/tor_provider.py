@@ -313,7 +313,7 @@ class _Provider(service.MultiService):
         external_port = int(self._get_tor_config("onion.external_port"))
 
         fn = self._get_tor_config("onion.private_key_file")
-        privkeyfile = self.config.get_config_path(fn)
+        privkeyfile = self._config.get_config_path(fn)
         with open(privkeyfile, "rb") as f:
             privkey = f.read()
         ehs = self._txtorcon.EphemeralHiddenService(
