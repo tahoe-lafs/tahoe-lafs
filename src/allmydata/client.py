@@ -580,8 +580,6 @@ class _Client(node.Node, pollmixin.PollMixin):
             urlsafe_b64encode(os.urandom(32)) + '\n',
         )
 
-##    def init_client_storage_broker(self):
-
     def get_storage_broker(self):
         return self.storage_broker
 
@@ -640,7 +638,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         # to use the helper. I like having the filename be the same, since
         # that makes 'cp' work smoothly, but the difference between config
         # inputs and generated outputs is hard to see.
-        helper_furlfile = self.config.get_config_path("helper.furl").encode(get_filesystem_encoding())
+        helper_furlfile = self.config.get_private_path("helper.furl").encode(get_filesystem_encoding())
         self.tub.registerReference(self.helper, furlFile=helper_furlfile)
 
     def set_default_mutable_keysize(self, keysize):
