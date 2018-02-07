@@ -157,7 +157,6 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         basedir = fileutil.abspath_expanduser_unicode(basedir)
         config = config_from_string("", "", basedir)
-        n = Node(config, None, None, None, None, False)
 
         self.failUnlessEqual(config.get_private_config("already"), "secret")
         self.failUnlessEqual(config.get_private_config("not", "default"), "default")
