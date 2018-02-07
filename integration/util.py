@@ -1,12 +1,13 @@
 import sys
 import time
-from os import mkdir
+from os import mkdir, environ
 from os.path import exists, join
 from StringIO import StringIO
 
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
+from twisted.internet.utils import getProcessOutput
 
 from allmydata.util.configutil import (
     get_config,
@@ -121,6 +122,7 @@ def _run_node(reactor, node_dir, request, magic_text):
             'run',
             node_dir,
         ),
+        env=environ,  # passing along environment so 'coverage' works
     )
     process.exited = protocol.exited
 
@@ -182,6 +184,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             done_proto,
             sys.executable,
             args,
+            env=environ,  # passing along environment so 'coverage' works
         )
         created_d = done_proto.done
 
@@ -229,3 +232,22 @@ def await_file_vanishes(path, timeout=10):
             return
         time.sleep(1)
     raise Exception("'{}' still exists after {}s".format(path, timeout))
+
+
+def run_tahoe(reactor, process, sub_command, *more_args):
+    """
+    Given a subprocess (like, e.g. the 'alice' or 'bob' fixtures
+    return) and a sub_command to run, this returns all the output of
+    running the command like "tahoe <sub_command> [more_args]"
+    """
+    return getProcessOutput(
+        sys.executable,
+        args=(
+            '-m', 'allmydata.scripts.runner',
+            '-d', process._node_dir,
+            sub_command,
+        ) + tuple(more_args),
+        env=environ,
+        reactor=reactor,
+        errortoo=True,
+    )

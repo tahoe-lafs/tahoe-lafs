@@ -3,7 +3,7 @@ from __future__ import print_function
 import sys
 import shutil
 from sys import stdout as _stdout
-from os import mkdir, listdir, unlink
+from os import mkdir, listdir, unlink, environ
 from os.path import join, abspath, curdir, exists
 from tempfile import mkdtemp, mktemp
 
@@ -35,6 +35,9 @@ def pytest_addoption(parser):
 # page". They're all session-scoped which has the "pro" that we only
 # set up the grid once, but the "con" that each test has to be a
 # little careful they're not stepping on toes etc :/
+# To avoid "bad things":
+#  - use your own capabilities and file-names
+#  - don't depend on "state of entire grid"
 
 
 @pytest.fixture(scope='session')
@@ -156,6 +159,7 @@ log_gatherer.furl = {log_furl}
                 '--hostname=localhost',
                 intro_dir,
             ),
+            env=environ,  # passing along environment so 'coverage' works
         )
         pytest.blockon(done_proto.done)
 
@@ -175,6 +179,7 @@ log_gatherer.furl = {log_furl}
             'run',
             intro_dir,
         ),
+        env=environ,  # passing along environment so 'coverage' works
     )
 
     def cleanup():
@@ -224,6 +229,7 @@ log_gatherer.furl = {log_furl}
                 '--listen=tor',
                 intro_dir,
             ),
+            env=environ,  # passing along environment so 'coverage' works
         )
         pytest.blockon(done_proto.done)
 
@@ -243,6 +249,7 @@ log_gatherer.furl = {log_furl}
             'run',
             intro_dir,
         ),
+        env=environ,  # passing along environment so 'coverage' works
     )
 
     def cleanup():
@@ -338,7 +345,8 @@ def alice_invite(reactor, alice, temp_dir, request):
             '--poll-interval', '2',
             '--basedir', node_dir, 'magik:', 'alice',
             join(temp_dir, 'magic-alice'),
-        ]
+        ],
+        env=environ,  # passing along environment so 'coverage' works
     )
     pytest.blockon(proto.done)
 
@@ -350,7 +358,8 @@ def alice_invite(reactor, alice, temp_dir, request):
             sys.executable, '-m', 'allmydata.scripts.runner',
             'magic-folder', 'invite',
             '--basedir', node_dir, 'magik:', 'bob',
-        ]
+        ],
+        env=environ,  # passing along environment so 'coverage' works
     )
     pytest.blockon(proto.done)
     invite = proto.output.getvalue()
@@ -383,7 +392,8 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
             '--basedir', bob_dir,
             alice_invite,
             join(temp_dir, 'magic-bob'),
-        ]
+        ],
+        env=environ,  # passing along environment so 'coverage' works
     )
     pytest.blockon(proto.done)
 
