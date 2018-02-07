@@ -1,4 +1,9 @@
-import datetime, os.path, re, types, ConfigParser, tempfile
+import datetime
+import os.path
+import re
+import types
+import ConfigParser
+import tempfile
 from io import BytesIO
 from base64 import b32decode, b32encode
 

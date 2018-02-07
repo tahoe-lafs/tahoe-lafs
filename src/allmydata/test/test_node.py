@@ -1,5 +1,10 @@
+import base64
+import os
+import stat
+import sys
+import time
+import mock
 
-import os, stat, sys, time, mock, base64
 
 from twisted.trial import unittest
 from twisted.internet import defer
