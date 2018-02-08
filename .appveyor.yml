@@ -47,7 +47,7 @@ artifacts:
   # bdist_wheel puts your built wheel in the dist directory
   # "pip wheel -w dist ." puts all the dependency wheels there too
   # this gives us a zipfile with everything
-  - path: dist
+  - path: 'dist/*'
 
 #on_success:
 #  You can use this step to upload your artifacts to a public website.
