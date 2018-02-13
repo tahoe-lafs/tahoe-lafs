@@ -10,6 +10,22 @@ from twisted.application import service
 from .observer import OneShotObserverList
 from .iputil import allocate_tcp_port
 
+
+def create(reactor, config):
+    """
+    Create a new _Provider service (this is an IService so must be
+    hooked up to a parent or otherwise started).
+
+    If foolscap.connections.tor or txtorcon are not installed, then
+    Provider.get_tor_handler() will return None.  If tahoe.cfg wants
+    to start an onion service too, then this `create()` method will
+    throw a nice error (and startService will throw an ugly error).
+    """
+    provider = _Provider(config, reactor)
+    provider.check_onion_config()
+    return provider
+
+
 def _import_tor():
     # this exists to be overridden by unit tests
     try:
@@ -196,16 +212,11 @@ def create_config(reactor, cli_config):
 
     returnValue((tahoe_config_tor, tor_port, tor_location))
 
-# we can always create a Provider. If foolscap.connections.tor or txtorcon
-# are not installed, then get_tor_handler() will return None. If tahoe.cfg
-# wants to start an onion service too, then check_onion_config() will throw a
-# nice error, and startService will throw an ugly error.
 
-class Provider(service.MultiService):
-    def __init__(self, basedir, node_for_config, reactor):
+class _Provider(service.MultiService):
+    def __init__(self, config, reactor):
         service.MultiService.__init__(self)
-        self._basedir = basedir
-        self._node_for_config = node_for_config
+        self._config = config
         self._tor_launched = None
         self._onion_ehs = None
         self._onion_tor_control_proto = None
@@ -214,7 +225,7 @@ class Provider(service.MultiService):
         self._reactor = reactor
 
     def _get_tor_config(self, *args, **kwargs):
-        return self._node_for_config.get_config("tor", *args, **kwargs)
+        return self._config.get_config("tor", *args, **kwargs)
 
     def get_listener(self):
         local_port = int(self._get_tor_config("onion.local_port"))
@@ -259,7 +270,7 @@ class Provider(service.MultiService):
         # this fires with a tuple of (control_endpoint, tor_protocol)
         if not self._tor_launched:
             self._tor_launched = OneShotObserverList()
-            private_dir = os.path.join(self._basedir, "private")
+            private_dir = self._config.get_config_path("private")
             tor_binary = self._get_tor_config("tor.executable", None)
             d = _launch_tor(reactor, tor_binary, private_dir, self._txtorcon)
             d.addBoth(self._tor_launched.fire)
@@ -302,7 +313,7 @@ class Provider(service.MultiService):
         external_port = int(self._get_tor_config("onion.external_port"))
 
         fn = self._get_tor_config("onion.private_key_file")
-        privkeyfile = os.path.join(self._basedir, fn)
+        privkeyfile = self._config.get_config_path(fn)
         with open(privkeyfile, "rb") as f:
             privkey = f.read()
         ehs = self._txtorcon.EphemeralHiddenService(

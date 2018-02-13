@@ -2,15 +2,34 @@
 import time, os.path, textwrap
 from zope.interface import implementer
 from twisted.application import service
+from twisted.internet import defer
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
 from allmydata.util import log, rrefutil
+from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.i2p_provider import create as create_i2p_provider
+from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService_v2
 from allmydata.introducer.common import unsign_from_foolscap, \
      SubscriberDescriptor, AnnouncementDescriptor
+from allmydata.node import read_config
+from allmydata.node import create_connection_handlers
+from allmydata.node import create_control_tub
+from allmydata.node import create_tub_options
+from allmydata.node import create_main_tub
+
+
+# this is put into README in new node-directories
+INTRODUCER_README = """
+This directory contains files which contain private data for the Tahoe node,
+such as private keys.  On Unix-like systems, the permissions on this directory
+are set to disallow users other than its owner from reading the contents of
+the files.   See the 'configuration.rst' documentation file for details.
+"""
+
 
 def _valid_config_sections():
     return node._common_config_sections()
@@ -19,24 +38,52 @@ def _valid_config_sections():
 class FurlFileConflictError(Exception):
     pass
 
-#@defer.inlineCallbacks
+# this is/can-be async
+# @defer.inlineCallbacks
 def create_introducer(basedir=u"."):
-    from allmydata.node import read_config
+    # ideally we would pass in reactor
+    from twisted.internet import reactor
+
+    basedir = abspath_expanduser_unicode(unicode(basedir))
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
+    with open(os.path.join(basedir, "private", "README"), "w") as f:
+        f.write(INTRODUCER_README)
+
     config = read_config(basedir, u"client.port", generated_files=["introducer.furl"])
     config.validate(_valid_config_sections())
-    #defer.returnValue(
-    return _IntroducerNode(
-            config,
-            basedir=basedir
-        )
-    #)
+
+    i2p_provider = create_i2p_provider(reactor, config)
+    tor_provider = create_tor_provider(reactor, config)
+
+    default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+    tub_options = create_tub_options(config)
+
+    # we don't remember these because the Introducer doesn't make
+    # outbound connections.
+    i2p_provider = None
+    tor_provider = None
+    main_tub, is_listening = create_main_tub(
+        config, tub_options, default_connection_handlers,
+        foolscap_connection_handlers, i2p_provider, tor_provider,
+    )
+    control_tub = create_control_tub()
+
+    node = _IntroducerNode(
+        config,
+        main_tub,
+        control_tub,
+        i2p_provider,
+        tor_provider,
+        tub_is_listening=is_listening,
+    )
+    return defer.succeed(node)
 
 
 class _IntroducerNode(node.Node):
     NODETYPE = "introducer"
 
-    def __init__(self, config, basedir=u"."):
-        node.Node.__init__(self, config, basedir=basedir)
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening):
+        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening)
         self.init_introducer()
         webport = self.get_config("node", "web.port", None)
         if webport:
@@ -46,11 +93,11 @@ class _IntroducerNode(node.Node):
         if not self._tub_is_listening:
             raise ValueError("config error: we are Introducer, but tub "
                              "is not listening ('tub.port=' is empty)")
-        introducerservice = IntroducerService(self.basedir)
-        self.add_service(introducerservice)
+        introducerservice = IntroducerService()
+        introducerservice.setServiceParent(self)
 
-        old_public_fn = os.path.join(self.basedir, u"introducer.furl")
-        private_fn = os.path.join(self.basedir, u"private", u"introducer.furl")
+        old_public_fn = self.config.get_config_path(u"introducer.furl")
+        private_fn = self.config.get_private_path(u"introducer.furl")
 
         if os.path.exists(old_public_fn):
             if os.path.exists(private_fn):
@@ -73,11 +120,11 @@ class _IntroducerNode(node.Node):
         self.log("init_web(webport=%s)", args=(webport,), umid="2bUygA")
 
         from allmydata.webish import IntroducerWebishServer
-        nodeurl_path = os.path.join(self.basedir, u"node.url")
+        nodeurl_path = self.config.get_config_path(u"node.url")
         config_staticdir = self.get_config("node", "web.static", "public_html").decode('utf-8')
-        staticdir = abspath_expanduser_unicode(config_staticdir, base=self.basedir)
+        staticdir = self.config.get_config_path(config_staticdir)
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
-        self.add_service(ws)
+        ws.setServiceParent(self)
 
 @implementer(RIIntroducerPublisherAndSubscriberService_v2)
 class IntroducerService(service.MultiService, Referenceable):
@@ -89,7 +136,7 @@ class IntroducerService(service.MultiService, Referenceable):
                 "application-version": str(allmydata.__full_version__),
                 }
 
-    def __init__(self, basedir="."):
+    def __init__(self):
         service.MultiService.__init__(self)
         self.introducer_url = None
         # 'index' is (service_name, key_s, tubid), where key_s or tubid is
