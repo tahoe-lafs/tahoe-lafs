@@ -161,6 +161,11 @@ def config_from_string(config_str, portnumfile, basedir):
     return _Config(parser, portnumfile, basedir, '<in-memory>')
 
 
+def get_app_versions():
+    # TODO: merge this with allmydata.get_package_versions
+    return dict(app_versions.versions)
+
+
 def _error_about_old_config_files(basedir, generated_files):
     """
     If any old configuration files are detected, raise
@@ -215,10 +220,6 @@ class _Config(object):
         except EnvironmentError:
             if os.path.exists(self.config_fname):
                 raise
-
-    def get_app_versions(self):
-        # TODO: merge this with allmydata.get_package_versions
-        return dict(app_versions.versions)
 
     def write_config_file(self, name, value, mode="w"):
         """

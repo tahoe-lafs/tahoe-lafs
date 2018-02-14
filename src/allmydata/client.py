@@ -30,6 +30,7 @@ from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata.node import OldConfigOptionError, _common_config_sections
 from allmydata.node import read_config
+from allmydata.node import get_app_versions
 
 
 KiB=1024
@@ -277,7 +278,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                                   self.nickname,
                                   str(allmydata.__full_version__),
                                   str(self.OLDEST_SUPPORTED_VERSION),
-                                  self.config.get_app_versions(), self._sequencer,
+                                  get_app_versions(), self._sequencer,
                                   introducer_cache_filepath)
             self.introducer_clients.append(ic)
             self.introducer_furls.append(introducer['furl'])
