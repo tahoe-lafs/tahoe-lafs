@@ -303,6 +303,23 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(HookMixin):
+    """
+    A parent class for Uploader and Downloader that handles putting
+    IQueuedItem instances into a work queue and processing
+    them. Tracks some history of recent items processed (for the
+    "status" API).
+
+    Subclasses implment _scan_delay, _perform_scan and _process
+
+    :ivar _deque: IQueuedItem instances to process
+
+    :ivar _process_history: the last 20 items we processed
+
+    :ivar _in_progress: current batch of items which are currently
+        being processed; chunks of work are removed from _deque and
+        worked on. As each finishes, it is added to _process_history
+        (with oldest items falling off the end).
+    """
 
     def __init__(self, client, local_path_u, db, name, clock):
         self._client = client
