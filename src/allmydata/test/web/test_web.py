@@ -1,6 +1,7 @@
 import os.path, re, urllib, time, cgi
 import json
 import treq
+import mock
 
 from twisted.application import service
 from twisted.trial import unittest
@@ -30,6 +31,7 @@ from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
+from allmydata.frontends.magic_folder import QueuedItem
 from allmydata.web import status
 from allmydata.web.common import WebError, MultiFormatPage
 from allmydata.util import fileutil, base32, hashutil
@@ -120,18 +122,13 @@ class FakeStatus(object):
         return self.status
 
 
-class FakeStatusItem(object):
-    def __init__(self, p, history):
-        self.relpath_u = p
-        self.history = history
-        import mock
-        self.progress = mock.Mock()
-        self.progress.progress = 100.0
-        self.size = 1234
-
-    def status_history(self):
-        return self.history
-
+def create_test_queued_item(relpath_u, history=[]):
+    progress = mock.Mock()
+    progress.progress = 100.0
+    item = QueuedItem(relpath_u, progress, 1234)
+    for status, ts in history:
+        item.set_status(status, current_time=ts)
+    return item
 
 
 class FakeMagicFolder(object):
@@ -1006,7 +1003,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_magicfolder_status_success(self):
         self.s._magic_folders['default'] = mf = FakeMagicFolder()
         mf.uploader.status = [
-            FakeStatusItem(u"rel/path", [('done', 12345)])
+            create_test_queued_item(u"rel/path", [('done', 12345)])
         ]
         data = yield self.POST(
             '/magic_folder?t=json',
@@ -1033,7 +1030,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_magicfolder_root_success(self):
         self.s._magic_folders['default'] = mf = FakeMagicFolder()
         mf.uploader.status = [
-            FakeStatusItem(u"rel/path", [('done', 12345)])
+            create_test_queued_item(u"rel/path", [('done', 12345)])
         ]
         data = yield self.GET(
             '/',
