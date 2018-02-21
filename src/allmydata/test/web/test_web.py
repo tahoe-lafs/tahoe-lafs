@@ -1003,7 +1003,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_magicfolder_status_success(self):
         self.s._magic_folders['default'] = mf = FakeMagicFolder()
         mf.uploader.status = [
-            create_test_queued_item(u"rel/path", [('done', 12345)])
+            create_test_queued_item(u"rel/uppath", [('done', 12345)])
+        ]
+        mf.downloader.status = [
+            create_test_queued_item(u"rel/downpath", [('done', 23456)])
         ]
         data = yield self.POST(
             '/magic_folder?t=json',
@@ -1017,10 +1020,18 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             [
                 {
                     "status": "done",
-                    "path": "rel/path",
+                    "path": "rel/uppath",
                     "kind": "upload",
                     "percent_done": 100.0,
                     "done_at": 12345,
+                    "size": 1234,
+                },
+                {
+                    "status": "done",
+                    "path": "rel/downpath",
+                    "kind": "download",
+                    "percent_done": 100.0,
+                    "done_at": 23456,
                     "size": 1234,
                 },
             ]
