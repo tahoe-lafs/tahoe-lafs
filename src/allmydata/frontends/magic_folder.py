@@ -335,6 +335,7 @@ class QueueMixin(HookMixin):
             'started': None,
             'iteration': None,
             'inotify': None,
+            'item_processed': None,
         }
         self.started_d = self.set_hook('started')
 
@@ -451,6 +452,7 @@ class QueueMixin(HookMixin):
                 self._log("  done: %r" % proc)
                 if not proc:
                     self._process_history.remove(item)
+                self._call_hook(item, 'item_processed')
             except Exception as e:
                 log.err("processing '%r' failed: %s" % (item, e))
                 item.set_status('failed', self._clock.seconds())
@@ -526,6 +528,12 @@ class QueuedItem(object):
         hist = self._status_history.items()
         hist.sort(lambda a, b: cmp(a[1], b[1]))
         return hist
+
+    def __eq__(self, other):
+        return (
+            other.relpath_u == self.relpath_u,
+            other.status_history() == self.status_history(),
+        )
 
 
 class UploadItem(QueuedItem):
