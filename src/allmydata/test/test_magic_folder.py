@@ -1,6 +1,7 @@
 
 import os, sys, time
 import shutil, json
+import mock
 from os.path import join, exists
 
 from twisted.trial import unittest
@@ -1552,6 +1553,35 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.assertEqual(len(upstatus0), len(upstatus1))
         for item0, item1 in zip(upstatus0, upstatus1):
             self.assertEqual(item0, item1)
+
+    @defer.inlineCallbacks
+    def test_real_notify_failure(self):
+
+        def bad_stuff(*args, **kw):
+            # the function we replaced would trigger this hook, so we
+            # have to or things will stall
+            self.magicfolder.uploader._call_hook(u"foo", "inotify")
+            raise RuntimeError("the bad stuff")
+
+        patch_notify = mock.patch.object(
+            self.magicfolder.uploader,
+            '_real_notify',
+            mock.Mock(side_effect=bad_stuff),
+        )
+        with patch_notify:
+            path0 = os.path.join(self.local_dir, u'foo')
+            yield self.fileops.write(path0, 'foo\n')
+
+        # do a reactor turn; this is necessary because our "bad_stuff"
+        # method calls the hook (so the above 'yield' resumes) right
+        # *before* it raises the exception; thus, we ensure all the
+        # pending callbacks including the exception are processed
+        # before we flush the errors.
+        yield task.deferLater(reactor, 0, lambda: None)
+        errors = self.flushLoggedErrors()
+
+        self.assertEqual(1, len(errors))
+        self.assertIn("the bad stuff", str(errors[0]))
 
     @defer.inlineCallbacks
     def test_delete_and_restore(self):
