@@ -724,7 +724,6 @@ class Uploader(QueueMixin):
                 now = time.time()
             fp = self._get_filepath(relpath_u)
             pathinfo = get_pathinfo(unicode_from_filepath(fp))
-            item.size = pathinfo.size
 
             self._log("about to remove %r from pending set %r" %
                       (relpath_u, self._pending))
