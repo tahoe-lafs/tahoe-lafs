@@ -344,7 +344,12 @@ class _Config(object):
         returns an absolute path inside the config directory with any
         extra args join()-ed
         """
-        return os.path.join(self._basedir, *args)
+        # note: we re-expand here (_basedir already went through this
+        # expanduser function) in case the path we're being asked for
+        # has embedded ".."'s in it
+        return abspath_expanduser_unicode(
+            os.path.join(self._basedir, *args)
+        )
 
     @staticmethod
     def _contains_unescaped_hash(item):
