@@ -166,13 +166,23 @@ class Terminator(service.Service):
 
 
 #@defer.inlineCallbacks
-def create_client(basedir=u"."):
+def create_client(basedir=u".", _client_factory=None):
+    """
+    Creates a new client instance (a subclass of Node).
+
+    :param basedir: the node directory
+
+    :param _client_factory: for testing; the class to instantiate
+    """
     # load configuration
     config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
     config.write_private_config("README", CLIENT_README)
 
+    if _client_factory is None:
+        _client_factory = _Client
+
     #defer.returnValue(
-    return _Client(
+    return _client_factory(
             config,
         )
     #)

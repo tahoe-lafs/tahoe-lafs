@@ -313,6 +313,7 @@ class _Config(object):
         config file that resides within the subdirectory named 'private'), and
         return it.
         """
+        fileutil.make_dirs(os.path.join(self._basedir, "private"), 0700)
         privname = os.path.join(self._basedir, "private", name)
         with open(privname, "w") as f:
             f.write(value)
