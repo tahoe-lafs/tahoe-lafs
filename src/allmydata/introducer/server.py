@@ -34,7 +34,7 @@ def create_introducer(basedir=u"."):
     config = read_config(
         basedir, u"client.port",
         generated_files=["introducer.furl"],
-        _valid_config_secionts=_valid_config_sections,
+        _valid_config_sections=_valid_config_sections,
     )
     config.write_private_config("README", INTRODUCER_README)
     #defer.returnValue(
