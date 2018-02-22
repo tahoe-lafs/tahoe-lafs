@@ -375,8 +375,6 @@ class Node(service.MultiService):
         is the current directory by default.
         """
         service.MultiService.__init__(self)
-        # XXX don't write files in ctor!
-        fileutil.make_dirs(os.path.join(config._basedir, "private"), 0700)
         with open(os.path.join(config._basedir, "private", "README"), "w") as f:
             f.write(PRIV_README)
 
