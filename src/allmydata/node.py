@@ -193,17 +193,30 @@ def _error_about_old_config_files(basedir, generated_files):
 
 class _Config(object):
     """
-    FIXME better name
+    Manages configuration of a Tahoe 'node directory'.
 
-    pulling out all the 'config' stuff from Node, so we can pass it in
-    as a helper instead.
+    Note: all this code and functionality was formerly in the Node
+    class; names and funtionality have been kept the same while moving
+    the code. It probably makes sense for several of these APIs to
+    have better names.
     """
 
     def __init__(self, configparser, portnum_fname, basedir, config_fname):
-        # XXX I think this portnumfile thing is just legacy?
+        """
+        :param configparser: a ConfigParser instance
+
+        :param portnum_fname: filename to use for the port-number file
+           (a relative path inside basedir)
+
+        :param basedir: path to our "node directory", inside which all
+           configuration is managed
+
+        :param config_fname: the pathname actually used to create the
+            configparser (might be 'fake' if using in-memory data)
+        """
         self.portnum_fname = portnum_fname
         self._basedir = abspath_expanduser_unicode(unicode(basedir))
-        self._config_fname = config_fname  # the actual fname "configparser" came from
+        self._config_fname = config_fname
         self.config = configparser
 
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
