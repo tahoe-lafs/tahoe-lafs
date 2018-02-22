@@ -126,8 +126,8 @@ def create_test_queued_item(relpath_u, history=[]):
     progress = mock.Mock()
     progress.progress = 100.0
     item = QueuedItem(relpath_u, progress, 1234)
-    for status, ts in history:
-        item.set_status(status, current_time=ts)
+    for st, ts in history:
+        item.set_status(st, current_time=ts)
     return item
 
 
