@@ -224,14 +224,6 @@ class _Config(object):
     def validate(self, valid_config_sections):
         configutil.validate_config(self._config_fname, self.config, valid_config_sections)
 
-    def read_config(self):
-
-        try:
-            self.config = configutil.get_config(self.config_fname)
-        except EnvironmentError:
-            if os.path.exists(self.config_fname):
-                raise
-
     def write_config_file(self, name, value, mode="w"):
         """
         writes the given 'value' into a file called 'name' in the config
