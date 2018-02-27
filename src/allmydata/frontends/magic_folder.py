@@ -1058,7 +1058,7 @@ def _is_empty_filecap(client, cap):
         None,
         cap.encode('ascii'),
     )
-    return (not node.get_size())
+    return not node.get_size()
 
 
 class DownloadItem(QueuedItem):
