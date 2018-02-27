@@ -29,14 +29,15 @@ class FurlFileConflictError(Exception):
 
 #@defer.inlineCallbacks
 def create_introducer(basedir=u"."):
-    from allmydata.node import read_config
+    from allmydata import node
+    if not os.path.exists(basedir):
+        node.create_node_dir(basedir, INTRODUCER_README)
 
-    config = read_config(
+    config = node.read_config(
         basedir, u"client.port",
         generated_files=["introducer.furl"],
         _valid_config_sections=_valid_config_sections,
     )
-    config.write_private_config("README", INTRODUCER_README)
     #defer.returnValue(
     return _IntroducerNode(
             config,
