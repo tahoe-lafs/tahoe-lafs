@@ -19,6 +19,7 @@ from allmydata.introducer.server import create_introducer
 from allmydata.client import create_client
 from allmydata.client import _valid_config_sections as client_valid_config_sections
 from allmydata.util import fileutil, iputil
+from allmydata.util import i2p_provider, tor_provider
 from allmydata.util.namespace import Namespace
 from allmydata.util.configutil import UnknownConfigError
 import allmydata.test.common_util as testutil
@@ -168,8 +169,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
     def test_write_config_unwritable_file(self):
         """
         Existing behavior merely logs any errors upon writing
-        configuration; this should probably be fixed to do something
-        better (like fail entirely). See #2905
+        configuration files; this bad behavior should probably be
+        fixed to do something better (like fail entirely). See #2905
         """
         basedir = "test_node/configdir"
         fileutil.make_dirs(basedir)
@@ -180,12 +181,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         config.write_config_file("bad", "some value")
 
-        errs = self.flushLoggedErrors()
+        errs = self.flushLoggedErrors(IOError)
         self.assertEqual(1, len(errs))
-        self.assertIn(
-            "IOError",
-            str(errs[0])
-        )
 
     def test_timestamp(self):
         # this modified logger doesn't seem to get used during the tests,
