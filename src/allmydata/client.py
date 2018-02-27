@@ -191,7 +191,9 @@ def create_client(basedir=u".", _client_factory=None):
         `_client_factory` returns)
     """
     node.create_node_dir(basedir, CLIENT_README)
-    config = read_config(basedir, u"client.port")
+
+    # load configuration
+    config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
 
     if _client_factory is None:
         _client_factory = _Client
