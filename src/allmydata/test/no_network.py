@@ -397,8 +397,8 @@ class GridTestMixin:
         self.client_baseurls = [c.getServiceNamed("webish").getURL()
                                 for c in self.g.clients]
 
-    def get_clientdir(self, i=0):
-        return self.g.clients[i].config._basedir
+    def get_client_config(self, i=0):
+        return self.g.clients[i].config
 
     def get_client(self, i=0):
         return self.g.clients[i]
