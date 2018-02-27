@@ -174,9 +174,10 @@ def create_client(basedir=u".", _client_factory=None):
 
     :param _client_factory: for testing; the class to instantiate
     """
+    node.create_node_dir(basedir, CLIENT_README)
+
     # load configuration
     config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
-    config.write_private_config("README", CLIENT_README)
 
     if _client_factory is None:
         _client_factory = _Client

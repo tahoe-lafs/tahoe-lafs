@@ -20,6 +20,7 @@ from allmydata.introducer.server import IntroducerService, FurlFileConflictError
 from allmydata.introducer.common import get_tubid_string_from_ann, \
      get_tubid_string, sign_to_foolscap, unsign_from_foolscap, \
      UnknownKeyError
+from allmydata.node import create_node_dir
 # the "new way" to create introducer node instance
 from allmydata.introducer.server import create_introducer
 from allmydata.web import introweb
@@ -42,7 +43,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
 
     def test_furl(self):
         basedir = "introducer.IntroducerNode.test_furl"
-        os.mkdir(basedir)
+        create_node_dir(basedir, "testing")
         public_fn = os.path.join(basedir, "introducer.furl")
         private_fn = os.path.join(basedir, "private", "introducer.furl")
 
@@ -75,7 +76,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
 
     def test_web_static(self):
         basedir = u"introducer.Node.test_web_static"
-        os.mkdir(basedir)
+        create_node_dir(basedir, "testing")
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                        "[node]\n" +
                        "web.port = tcp:0:interface=127.0.0.1\n" +

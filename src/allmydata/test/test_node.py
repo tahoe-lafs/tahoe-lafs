@@ -14,7 +14,7 @@ from foolscap.api import flushEventualQueue
 import foolscap.logging.log
 
 from twisted.application import service
-from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry, read_config, config_from_string
+from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry, read_config, config_from_string, create_node_dir
 from allmydata.introducer.server import create_introducer
 from allmydata.client import create_client
 from allmydata.client import _valid_config_sections as client_valid_config_sections
@@ -58,14 +58,13 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         return d
 
     def _test_location(self, basedir, expected_addresses, tub_port=None, tub_location=None, local_addresses=None):
-        fileutil.make_dirs(basedir)
-        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
-        f.write("[node]\n")
-        if tub_port:
-            f.write("tub.port = %d\n" % (tub_port,))
-        if tub_location is not None:
-            f.write("tub.location = %s\n" % (tub_location,))
-        f.close()
+        create_node_dir(basedir, "testing")
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
+            f.write("[node]\n")
+            if tub_port:
+                f.write("tub.port = %d\n" % (tub_port,))
+            if tub_location is not None:
+                f.write("tub.location = %s\n" % (tub_location,))
 
         if local_addresses:
             self.patch(iputil, 'get_local_addresses_sync',
@@ -200,9 +199,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
     def test_secrets_dir(self):
         basedir = "test_node/test_secrets_dir"
-        fileutil.make_dirs(basedir)
-        read_config(basedir, "")
-
+        create_node_dir(basedir, "testing")
         self.failUnless(os.path.exists(os.path.join(basedir, "private")))
 
     def test_secrets_dir_protected(self):
@@ -212,9 +209,9 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             # that unprivileged users can't read this thing.)
             raise unittest.SkipTest("We don't know how to set permissions on Windows.")
         basedir = "test_node/test_secrets_dir_protected"
-        fileutil.make_dirs(basedir)
-        read_config(basedir, "")
+        create_node_dir(basedir, "nothing to see here")
 
+        # make sure private dir was created with correct modes
         privdir = os.path.join(basedir, "private")
         st = os.stat(privdir)
         bits = stat.S_IMODE(st[stat.ST_MODE])
@@ -222,7 +219,6 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
     def test_logdir_is_str(self):
         basedir = "test_node/test_logdir_is_str"
-        fileutil.make_dirs(basedir)
 
         ns = Namespace()
         ns.called = False
@@ -231,13 +227,17 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             self.failUnless(isinstance(logdir, str), logdir)
         self.patch(foolscap.logging.log, 'setLogDir', call_setLogDir)
 
+        create_node_dir(basedir, "nothing to see here")
         TestNode(basedir)
         self.failUnless(ns.called)
 
+
 class EmptyNode(Node):
-    def __init__(self):
-        config = config_from_string("", "no portfile", 'no basedir')
+    def __init__(self, config=None):
+        if config is None:
+            config = config_from_string("", "no portfile", 'no basedir')
         Node.__init__(self, config)
+
 
 EXPECTED = {
     # top-level key is tub.port category
@@ -288,14 +288,14 @@ class PortLocation(unittest.TestCase):
                         "hintstring": "tcp:HOST:888,AUTO",
                         }[tl]
 
-        n = EmptyNode()
         basedir = os.path.join("test_node/portlocation/%s/%s" % (tp, tl))
-        fileutil.make_dirs(basedir)
-        config = n.config = read_config(
+        create_node_dir(basedir, "testing")
+        config = read_config(
             basedir,
             "node.port",
-            _valid_config_sections=_valid_config_sections,
+            _valid_config_sections=client_valid_config_sections,
         )
+        n = EmptyNode(config)
         n._reveal_ip = True
 
         if exp in ("ERR1", "ERR2", "ERR3", "ERR4"):
@@ -394,27 +394,27 @@ class FakeTub:
 
 class Listeners(unittest.TestCase):
     def test_multiple_ports(self):
-        n = EmptyNode()
-        n.basedir = self.mktemp()
-        n.config_fname = os.path.join(n.basedir, "tahoe.cfg")
-        os.mkdir(n.basedir)
-        os.mkdir(os.path.join(n.basedir, "private"))
+        basedir = self.mktemp()
+        create_node_dir(basedir, "testing")
+
         port1 = iputil.allocate_tcp_port()
         port2 = iputil.allocate_tcp_port()
         port = ("tcp:%d:interface=127.0.0.1,tcp:%d:interface=127.0.0.1" %
                 (port1, port2))
         location = "tcp:localhost:%d,tcp:localhost:%d" % (port1, port2)
-        with open(n.config_fname, "w") as f:
+        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
             f.write(BASE_CONFIG)
             f.write("tub.port = %s\n" % port)
             f.write("tub.location = %s\n" % location)
+
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        n.config = read_config(
-            n.basedir,
+        config = read_config(
+            basedir,
             "client.port",
             _valid_config_sections=client_valid_config_sections,
         )
+        n = EmptyNode(config)
         n.check_privacy()
         n.services = []
         n.create_i2p_provider()
@@ -429,43 +429,49 @@ class Listeners(unittest.TestCase):
                           "tcp:%d:interface=127.0.0.1" % port2])
 
     def test_tor_i2p_listeners(self):
-        n = EmptyNode()
-        n.basedir = self.mktemp()
-        n.config_fname = os.path.join(n.basedir, "tahoe.cfg")
-        os.mkdir(n.basedir)
-        os.mkdir(os.path.join(n.basedir, "private"))
-        with open(n.config_fname, "w") as f:
+        basedir = self.mktemp()
+        config_fname = os.path.join(basedir, "tahoe.cfg")
+        os.mkdir(basedir)
+        os.mkdir(os.path.join(basedir, "private"))
+        with open(config_fname, "w") as f:
             f.write(BASE_CONFIG)
             f.write("tub.port = listen:i2p,listen:tor\n")
             f.write("tub.location = tcp:example.org:1234\n")
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        n.config = read_config(
+        config = read_config(
             n.basedir,
             "client.port",
             _valid_config_sections=client_valid_config_sections,
         )
-        n.check_privacy()
-        n.services = []
+
         i2p_ep = object()
+        i2p_prov = i2p_provider.Provider(config, mock.Mock())
+        i2p_prov.get_listener = mock.Mock(return_value=i2p_ep)
+        i2p_x = mock.Mock()
+        i2p_x.Provider = lambda c, r: i2p_prov
+        i2p_mock = mock.patch('allmydata.node.i2p_provider', new=i2p_x)
+
         tor_ep = object()
-        n._i2p_provider = mock.Mock()
-        n._i2p_provider.get_listener = mock.Mock(return_value=i2p_ep)
-        n._tor_provider = mock.Mock()
-        n._tor_provider.get_listener = mock.Mock(return_value=tor_ep)
-        n.init_connections()
-        n.set_tub_options()
-        t = FakeTub()
-        with mock.patch("allmydata.node.Tub", return_value=t):
-            n.create_main_tub()
+        tor_prov = tor_provider.Provider(config, mock.Mock())
+        tor_prov.get_listener = mock.Mock(return_value=tor_ep)
+        tor_x = mock.Mock()
+        tor_x.Provider = lambda c, r: tor_prov
+        tor_mock = mock.patch('allmydata.node.tor_provider', new=tor_x)
+
+        tub_mock = mock.patch("allmydata.node.Tub", return_value=FakeTub())
+        with i2p_mock, tor_mock, tub_mock:
+            n = EmptyNode(config)
+
         self.assertEqual(n._i2p_provider.get_listener.mock_calls, [mock.call()])
         self.assertEqual(n._tor_provider.get_listener.mock_calls, [mock.call()])
-        self.assertEqual(t.listening_ports, [i2p_ep, tor_ep])
+        self.assertIn(i2p_ep, n.tub.listening_ports)
+        self.assertIn(tor_ep, n.tub.listening_ports)
 
 class ClientNotListening(unittest.TestCase):
     def test_disabled(self):
         basedir = "test_node/test_disabled"
-        fileutil.make_dirs(basedir)
+        create_node_dir(basedir, "testing")
         f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
         f.write(BASE_CONFIG)
         f.write(NOLISTEN)
@@ -476,7 +482,7 @@ class ClientNotListening(unittest.TestCase):
 
     def test_disabled_but_storage(self):
         basedir = "test_node/test_disabled_but_storage"
-        fileutil.make_dirs(basedir)
+        create_node_dir(basedir, "testing")
         f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
         f.write(BASE_CONFIG)
         f.write(NOLISTEN)
@@ -487,7 +493,7 @@ class ClientNotListening(unittest.TestCase):
 
     def test_disabled_but_helper(self):
         basedir = "test_node/test_disabled_but_helper"
-        fileutil.make_dirs(basedir)
+        create_node_dir(basedir, "testing")
         f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
         f.write(BASE_CONFIG)
         f.write(NOLISTEN)
@@ -500,12 +506,11 @@ class ClientNotListening(unittest.TestCase):
 class IntroducerNotListening(unittest.TestCase):
     def test_port_none_introducer(self):
         basedir = "test_node/test_port_none_introducer"
-        fileutil.make_dirs(basedir)
-        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
-        f.write("[node]\n")
-        f.write("tub.port = disabled\n")
-        f.write("tub.location = disabled\n")
-        f.close()
+        create_node_dir(basedir, "testing")
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
+            f.write("[node]\n")
+            f.write("tub.port = disabled\n")
+            f.write("tub.location = disabled\n")
         e = self.assertRaises(ValueError, create_introducer, basedir)
         self.assertIn("we are Introducer, but tub is not listening", str(e))
 
