@@ -167,6 +167,11 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.failUnlessEqual(value, "newer")
 
     def test_write_config_unwritable_file(self):
+        """
+        Existing behavior merely logs any errors upon writing
+        configuration; this should probably be fixed to do something
+        better (like fail entirely). See #2905
+        """
         basedir = "test_node/configdir"
         fileutil.make_dirs(basedir)
         config = config_from_string("", "", basedir)
