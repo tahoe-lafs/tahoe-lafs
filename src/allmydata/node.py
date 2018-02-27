@@ -127,6 +127,23 @@ class PrivacyError(Exception):
     that the IP address could be revealed"""
 
 
+def create_node_dir(basedir, readme_text):
+    """
+    Create new new 'node directory' at 'basedir'. This includes a
+    'private' subdirectory. If basedir (and privdir) already exists,
+    nothing is done.
+
+    :param readme_text: text to put in <basedir>/private/README
+    """
+    if not os.path.exists(basedir):
+        fileutil.make_dirs(basedir)
+    privdir = os.path.join(basedir, "private")
+    if not os.path.exists(privdir):
+        fileutil.make_dirs(privdir, 0700)
+        with open(os.path.join(privdir, 'README'), 'w') as f:
+            f.write(readme_text)
+
+
 def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections=None):
     basedir = abspath_expanduser_unicode(unicode(basedir))
     if _valid_config_sections is None:
@@ -147,8 +164,6 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
         if os.path.exists(config_fname):
             raise
 
-    # make sure we have a private configuration area
-    fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
     return _Config(parser, portnumfile, basedir, config_fname)
 
 
@@ -303,7 +318,6 @@ class _Config(object):
         config file that resides within the subdirectory named 'private'), and
         return it.
         """
-        fileutil.make_dirs(os.path.join(self._basedir, "private"), 0700)
         privname = os.path.join(self._basedir, "private", name)
         with open(privname, "w") as f:
             f.write(value)

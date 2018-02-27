@@ -2,6 +2,7 @@ from twisted.trial import unittest
 from foolscap.api import fireEventually, flushEventualQueue
 from twisted.internet import defer
 from allmydata.introducer import IntroducerNode
+from allmydata import node
 from .common import FAVICON_MARKUP
 from ..common_web import do_http
 
@@ -23,9 +24,12 @@ class IntroducerWeb(unittest.TestCase):
             "tub.location = 127.0.0.1:1\n"
             "web.port = tcp:0\n"
         )
+        basedir = self.mktemp()
+        node.create_node_dir(basedir, "testing")
+
         from allmydata.node import config_from_string
         self.node = IntroducerNode(
-            config_from_string(config, "introducer.port", "no-basedir"),
+            config_from_string(config, "introducer.port", basedir),
         )
         self.ws = self.node.getServiceNamed("webish")
 
