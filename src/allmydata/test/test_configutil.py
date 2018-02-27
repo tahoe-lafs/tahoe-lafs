@@ -13,10 +13,9 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
     def test_config_utils(self):
         self.basedir = "cli/ConfigUtilTests/test-config-utils"
         self.set_up_grid(oneshare=True)
-        tahoe_cfg = os.path.join(self.get_clientdir(i=0), "tahoe.cfg")
 
         # test that at least one option was read correctly
-        config = configutil.get_config(tahoe_cfg)
+        config = self.get_client_config(i=0)
         self.failUnlessEqual(config.get("node", "nickname"), "client-0")
 
         # test that set_config can mutate an existing option
