@@ -260,82 +260,160 @@ EXPECTED = {
         },
     }
 
-class PortLocation(unittest.TestCase):
-    def test_all(self):
-        for tp in EXPECTED.keys():
-            for tl in EXPECTED[tp].keys():
-                exp = EXPECTED[tp][tl]
-                self._try(tp, tl, exp)
 
-    def _try(self, tp, tl, exp):
-        log.msg("PortLocation._try:", tp, tl, exp)
-        cfg_tubport = {"missing": None,
-                       "empty": "",
-                       "disabled": "disabled",
-                       "endpoint": "tcp:777",
-                       }[tp]
-        cfg_location = {"missing": None,
-                        "empty": "",
-                        "disabled": "disabled",
-                        "hintstring": "tcp:HOST:888,AUTO",
-                        }[tl]
+class TestMissingPorts(unittest.TestCase):
+    """
+    Test certain error-cases for ports setup
+    """
 
-        basedir = os.path.join("test_node/portlocation/%s/%s" % (tp, tl))
-        create_node_dir(basedir, "testing")
-        config = read_config(basedir, "node.port")
-        n = EmptyNode(config)
-        n._reveal_ip = True
+    def setUp(self):
+        self.basedir = self.mktemp()
+        create_node_dir(self.basedir, "testing")
 
-        if exp in ("ERR1", "ERR2", "ERR3", "ERR4"):
-            e = self.assertRaises(ValueError, n.get_tub_portlocation,
-                                  cfg_tubport, cfg_location)
-            if exp == "ERR1":
-                self.assertEqual("tub.port must not be empty", str(e))
-            elif exp == "ERR2":
-                self.assertEqual("tub.location must not be empty", str(e))
-            elif exp == "ERR3":
-                self.assertEqual("tub.port is disabled, but not tub.location",
-                                 str(e))
-            elif exp == "ERR4":
-                self.assertEqual("tub.location is disabled, but not tub.port",
-                                 str(e))
-            else:
-                self.assert_(False)
-        elif exp == "no-listen":
+    def test_0(self):
+        get_addr = mock.patch(
+            "allmydata.util.iputil.get_local_addresses_sync",
+            return_value=["LOCAL"],
+        )
+        alloc_port = mock.patch(
+            "allmydata.util.iputil.allocate_tcp_port",
+            return_value=999,
+        )
+        config = read_config(self.basedir, "portnum")
+
+        with get_addr, alloc_port:
+            n = Node(config)
+            # could probably refactor this get_tub_portlocation into a
+            # bare helper instead of method.
+            cfg_tubport = "tcp:777"
+            cfg_location = "AUTO"
+            tubport, tublocation = n.get_tub_portlocation(cfg_tubport, cfg_location)
+        self.assertEqual(tubport, "tcp:777")
+        self.assertEqual(tublocation, "tcp:LOCAL:777")
+
+    def test_1(self):
+        get_addr = mock.patch(
+            "allmydata.util.iputil.get_local_addresses_sync",
+            return_value=["LOCAL"],
+        )
+        alloc_port = mock.patch(
+            "allmydata.util.iputil.allocate_tcp_port",
+            return_value=999,
+        )
+        config = read_config(self.basedir, "portnum")
+
+        with get_addr, alloc_port:
+            n = Node(config)
+            # could probably refactor this get_tub_portlocation into a
+            # bare helper instead of method.
+            cfg_tubport = None
+            cfg_location = None
+            tubport, tublocation = n.get_tub_portlocation(cfg_tubport, cfg_location)
+        self.assertEqual(tubport, "tcp:999")
+        self.assertEqual(tublocation, "tcp:LOCAL:999")
+
+    def test_2(self):
+        get_addr = mock.patch(
+            "allmydata.util.iputil.get_local_addresses_sync",
+            return_value=["LOCAL"],
+        )
+        alloc_port = mock.patch(
+            "allmydata.util.iputil.allocate_tcp_port",
+            return_value=999,
+        )
+        config = read_config(self.basedir, "portnum")
+
+        with get_addr, alloc_port:
+            n = Node(config)
+            # could probably refactor this get_tub_portlocation into a
+            # bare helper instead of method.
+            cfg_tubport = None
+            cfg_location = "tcp:HOST:888,AUTO"
+            tubport, tublocation = n.get_tub_portlocation(cfg_tubport, cfg_location)
+        self.assertEqual(tubport, "tcp:999")
+        self.assertEqual(tublocation, "tcp:HOST:888,tcp:LOCAL:999")
+
+    def test_3(self):
+        get_addr = mock.patch(
+            "allmydata.util.iputil.get_local_addresses_sync",
+            return_value=["LOCAL"],
+        )
+        alloc_port = mock.patch(
+            "allmydata.util.iputil.allocate_tcp_port",
+            return_value=999,
+        )
+        config = read_config(self.basedir, "portnum")
+
+        with get_addr, alloc_port:
+            n = Node(config)
+            # could probably refactor this get_tub_portlocation into a
+            # bare helper instead of method.
+            cfg_tubport = "disabled"
+            cfg_location = "disabled"
             res = n.get_tub_portlocation(cfg_tubport, cfg_location)
-            self.assertEqual(res, None)
-        elif exp in ("alloc/auto", "alloc/file", "auto", "manual"):
-            with mock.patch("allmydata.util.iputil.get_local_addresses_sync",
-                            return_value=["LOCAL"]):
-                with mock.patch("allmydata.util.iputil.allocate_tcp_port",
-                                return_value=999):
-                    port, location = n.get_tub_portlocation(cfg_tubport,
-                                                            cfg_location)
-            try:
-                with open(config.portnum_fname, "r") as f:
-                    saved_port = f.read().strip()
-            except EnvironmentError:
-                saved_port = None
-            if exp == "alloc/auto":
-                self.assertEqual(port, "tcp:999")
-                self.assertEqual(location, "tcp:LOCAL:999")
-                self.assertEqual(saved_port, "tcp:999")
-            elif exp == "alloc/file":
-                self.assertEqual(port, "tcp:999")
-                self.assertEqual(location, "tcp:HOST:888,tcp:LOCAL:999")
-                self.assertEqual(saved_port, "tcp:999")
-            elif exp == "auto":
-                self.assertEqual(port, "tcp:777")
-                self.assertEqual(location, "tcp:LOCAL:777")
-                self.assertEqual(saved_port, None)
-            elif exp == "manual":
-                self.assertEqual(port, "tcp:777")
-                self.assertEqual(location, "tcp:HOST:888,tcp:LOCAL:777")
-                self.assertEqual(saved_port, None)
-            else:
-                self.assert_(False)
-        else:
-            self.assert_(False)
+        self.assertTrue(res is None)
+
+    def test_empty_tub_port(self):
+        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
+            f.write(
+                "[node]\n"
+                "tub.port = \n"
+            )
+        config = read_config(self.basedir, "portnum")
+
+        with self.assertRaises(ValueError) as ctx:
+            Node(config)
+        self.assertIn(
+            "tub.port must not be empty",
+            str(ctx.exception)
+        )
+
+    def test_empty_tub_location(self):
+        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
+            f.write(
+                "[node]\n"
+                "tub.location = \n"
+            )
+        config = read_config(self.basedir, "portnum")
+
+        with self.assertRaises(ValueError) as ctx:
+            Node(config)
+        self.assertIn(
+            "tub.location must not be empty",
+            str(ctx.exception)
+        )
+
+    def test_disabled_port_not_tub(self):
+        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
+            f.write(
+                "[node]\n"
+                "tub.port = disabled\n"
+                "tub.location = not_disabled\n"
+            )
+        config = read_config(self.basedir, "portnum")
+
+        with self.assertRaises(ValueError) as ctx:
+            Node(config)
+        self.assertIn(
+            "tub.port is disabled, but not tub.location",
+            str(ctx.exception)
+        )
+
+    def test_disabled_tub_not_port(self):
+        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
+            f.write(
+                "[node]\n"
+                "tub.port = not_disabled\n"
+                "tub.location = disabled\n"
+            )
+        config = read_config(self.basedir, "portnum")
+
+        with self.assertRaises(ValueError) as ctx:
+            Node(config)
+        self.assertIn(
+            "tub.location is disabled, but not tub.port",
+            str(ctx.exception)
+        )
 
 BASE_CONFIG = """
 [client]
