@@ -244,10 +244,6 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         errs = self.flushLoggedErrors(IOError)
         self.assertEqual(1, len(errs))
-        self.assertIn(
-            "IOError",
-            str(errs[0])
-        )
 
     def test_timestamp(self):
         # this modified logger doesn't seem to get used during the tests,
