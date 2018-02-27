@@ -161,9 +161,9 @@ class Happiness(unittest.TestCase):
         # we can achieve more happiness by moving "2" or "3" to server "d"
 
         places = happiness_upload.share_placement(peers, readonly_peers, shares, peers_to_shares)
-        #print "places %s" % places
+        #print("places %s" % places)
         #places = happiness_upload.slow_share_placement(peers, readonly_peers, shares, peers_to_shares)
-        #print "places %s" % places
+        #print("places %s" % places)
 
         happiness = happiness_upload.calculate_happiness(places)
         self.assertEqual(4, happiness)

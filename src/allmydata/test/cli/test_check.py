@@ -347,7 +347,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         #              self.do_cli("deep-check", "--repair", self.rooturi))
         #def _deep_check_repair_failed((rc, out, err)):
         #    self.failIfEqual(rc, 0)
-        #    print err
+        #    print(err)
         #    self.failUnlessIn("ERROR: UnrecoverableFileError", err)
         #    self.failIf("done:" in out, out)
         #d.addCallback(_deep_check_repair_failed)

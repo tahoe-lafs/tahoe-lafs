@@ -3,13 +3,13 @@
 import sys, os.path
 
 if len(sys.argv) > 1 and sys.argv[1] == "config":
-    print """\
+    print("""\
 graph_title Tahoe File Estimate
 graph_vlabel files
 graph_category tahoe
 graph_info This graph shows the estimated number of files and directories present in the grid
 files.label files
-files.draw LINE2"""
+files.draw LINE2""")
     sys.exit(0)
 
 # Edit this to point at some subset of storage directories.
@@ -43,7 +43,7 @@ no_chance = (1-chance) ** len(node_dirs)
 # if a file has a 25% chance of not appearing in our sample, then we need to
 # raise our estimate by (1.25/1)
 correction = 1+no_chance
-#print "correction", correction
+#print("correction", correction)
 
 files = unique_strings * (32*32/len(sections)) * correction
-print "files.value %d" % int(files)
+print("files.value %d" % int(files))

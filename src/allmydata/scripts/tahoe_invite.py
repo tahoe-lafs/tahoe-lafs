@@ -1,3 +1,4 @@
+from __future__ import print_function
 import json
 from os.path import join
 
@@ -34,19 +35,19 @@ def _send_config_via_wormhole(options, config):
     out = options.stdout
     err = options.stderr
     relay_url = options.parent['wormhole-server']
-    print >>out, "Connecting to '{}'...".format(relay_url)
+    print("Connecting to '{}'...".format(relay_url), file=out)
     wh = wormhole.create(
         appid=options.parent['wormhole-invite-appid'],
         relay_url=relay_url,
         reactor=reactor,
     )
     yield wh.get_welcome()
-    print >>out, "Connected to wormhole server"
+    print("Connected to wormhole server", file=out)
 
     # must call allocate_code before get_code will ever succeed
     wh.allocate_code()
     code = yield wh.get_code()
-    print >>out, "Invite Code for client: {}".format(code)
+    print("Invite Code for client: {}".format(code), file=out)
 
     wh.send_message(json.dumps({
         u"abilities": {
@@ -55,16 +56,16 @@ def _send_config_via_wormhole(options, config):
     }))
 
     client_intro = yield wh.get_message()
-    print >>out, "  received client introduction"
+    print("  received client introduction", file=out)
     client_intro = json.loads(client_intro)
     if not u'abilities' in client_intro:
-        print >>err, "No 'abilities' from client"
+        print("No 'abilities' from client", file=err)
         defer.returnValue(1)
     if not u'client-v1' in client_intro[u'abilities']:
-        print >>err, "No 'client-v1' in abilities from client"
+        print("No 'client-v1' in abilities from client", file=err)
         defer.returnValue(1)
 
-    print >>out, "  transmitting configuration"
+    print("  transmitting configuration", file=out)
     wh.send_message(json.dumps(config))
     yield wh.close()
 
@@ -82,7 +83,7 @@ def invite(options):
     try:
         introducer_furl = get_introducer_furl(basedir, config)
     except Exception as e:
-        print >>err, "Can't find introducer FURL for node '{}': {}".format(basedir, str(e))
+        print("Can't find introducer FURL for node '{}': {}".format(basedir, str(e)), file=err)
         raise SystemExit(1)
 
     nick = options['nick']
@@ -96,7 +97,7 @@ def invite(options):
     }
 
     yield _send_config_via_wormhole(options, remote_config)
-    print >>out, "Completed successfully"
+    print("Completed successfully", file=out)
 
 
 subCommands = [

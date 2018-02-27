@@ -45,23 +45,23 @@ sdmf_multiple_versions = [(si,lines)
 sdmf_multiple_versions.sort()
 
 if chk_multiple_encodings:
-    print
-    print "CHK multiple encodings:"
+    print()
+    print("CHK multiple encodings:")
     for (si,lines) in chk_multiple_encodings:
-        print " " + si
+        print(" " + si)
         for line in sorted(lines):
-            print "  " + line
+            print("  " + line)
 if sdmf_multiple_encodings:
-    print
-    print "SDMF multiple encodings:"
+    print()
+    print("SDMF multiple encodings:")
     for (si,lines) in sdmf_multiple_encodings:
-        print " " + si
+        print(" " + si)
         for line in sorted(lines):
-            print "  " + line
+            print("  " + line)
 if sdmf_multiple_versions:
-    print
-    print "SDMF multiple versions:"
+    print()
+    print("SDMF multiple versions:")
     for (si,lines) in sdmf_multiple_versions:
-        print " " + si
+        print(" " + si)
         for line in sorted(lines):
-            print "  " + line
+            print("  " + line)

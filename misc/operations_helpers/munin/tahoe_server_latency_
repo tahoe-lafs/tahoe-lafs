@@ -78,7 +78,7 @@ for nodename, url in node_urls:
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "config":
-        print configinfo.rstrip()
+        print(configinfo.rstrip())
         sys.exit(0)
 
 for nodename, url in node_urls:
@@ -89,5 +89,5 @@ for nodename, url in node_urls:
         p_key = percentile + "_percentile"
     key = "storage_server.latencies.%s.%s" % (operation, p_key)
     value = data["stats"][key]
-    print "%s.value %s" % (nodename, value)
+    print("%s.value %s" % (nodename, value))
 

@@ -460,11 +460,11 @@ def main(argv):
             value = nodestats['stats'][category].get(statid)
             if value is not None:
                 args = { 'name': name, 'value': value }
-                print plugin_conf[output_section] % args
+                print(plugin_conf[output_section] % args)
 
     if len(argv) > 1:
         if sys.argv[1] == 'config':
-            print plugin_conf['configheader']
+            print(plugin_conf['configheader'])
             output_nodes('graph_config', False)
             sys.exit(0)
 

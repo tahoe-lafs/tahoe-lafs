@@ -13,27 +13,27 @@ def print_platform():
     try:
         import platform
         out = platform.platform()
-        print "platform:", foldlines(out)
-        print "machine: ", platform.machine()
+        print("platform:", foldlines(out))
+        print("machine: ", platform.machine())
         if hasattr(platform, 'linux_distribution'):
-            print "linux_distribution:", repr(platform.linux_distribution())
+            print("linux_distribution:", repr(platform.linux_distribution()))
     except EnvironmentError:
         sys.stderr.write("\nGot exception using 'platform'. Exception follows\n")
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
 
 def print_python_ver():
-    print "python:", foldlines(sys.version)
-    print 'maxunicode: ' + str(sys.maxunicode)
+    print("python:", foldlines(sys.version))
+    print('maxunicode: ' + str(sys.maxunicode))
 
 def print_python_encoding_settings():
-    print 'filesystem.encoding: ' + str(sys.getfilesystemencoding())
-    print 'locale.getpreferredencoding: ' + str(locale.getpreferredencoding())
+    print('filesystem.encoding: ' + str(sys.getfilesystemencoding()))
+    print('locale.getpreferredencoding: ' + str(locale.getpreferredencoding()))
     try:
-        print 'locale.defaultlocale: ' + str(locale.getdefaultlocale())
+        print('locale.defaultlocale: ' + str(locale.getdefaultlocale()))
     except ValueError, e:
-        print 'got exception from locale.getdefaultlocale(): ', e
-    print 'locale.locale: ' + str(locale.getlocale())
+        print('got exception from locale.getdefaultlocale(): ', e)
+    print('locale.locale: ' + str(locale.getlocale()))
 
 def print_stdout(cmdlist, label=None, numlines=None):
     try:
@@ -41,10 +41,10 @@ def print_stdout(cmdlist, label=None, numlines=None):
             label = cmdlist[0]
         res = subprocess.Popen(cmdlist, stdin=open(os.devnull),
                                stdout=subprocess.PIPE).communicate()[0]
-        print label + ': ' + foldlines(res, numlines)
+        print(label + ': ' + foldlines(res, numlines))
     except EnvironmentError, e:
         if isinstance(e, OSError) and e.errno == 2:
-            print label + ': no such file or directory'
+            print(label + ': no such file or directory')
             return
         sys.stderr.write("\nGot exception invoking '%s'. Exception follows.\n" % (cmdlist[0],))
         traceback.print_exc(file=sys.stderr)
@@ -52,12 +52,12 @@ def print_stdout(cmdlist, label=None, numlines=None):
 
 def print_as_ver():
     if os.path.exists('a.out'):
-        print "WARNING: a file named a.out exists, and getting the version of the 'as' assembler writes to that filename, so I'm not attempting to get the version of 'as'."
+        print("WARNING: a file named a.out exists, and getting the version of the 'as' assembler writes to that filename, so I'm not attempting to get the version of 'as'.")
         return
     try:
         res = subprocess.Popen(['as', '-version'], stdin=open(os.devnull),
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-        print 'as: ' + foldlines(res[0]+' '+res[1])
+        print('as: ' + foldlines(res[0]+' '+res[1]))
         if os.path.exists('a.out'):
             os.remove('a.out')
     except EnvironmentError:
@@ -69,13 +69,13 @@ def print_setuptools_ver():
     try:
         import pkg_resources
         out = str(pkg_resources.require("setuptools"))
-        print "setuptools:", foldlines(out)
+        print("setuptools:", foldlines(out))
     except (ImportError, EnvironmentError):
         sys.stderr.write("\nGot exception using 'pkg_resources' to get the version of setuptools. Exception follows\n")
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
     except pkg_resources.DistributionNotFound:
-        print 'setuptools: DistributionNotFound'
+        print('setuptools: DistributionNotFound')
 
 def print_py_pkg_ver(pkgname, modulename=None):
     if modulename is None:
@@ -84,34 +84,34 @@ def print_py_pkg_ver(pkgname, modulename=None):
     try:
         import pkg_resources
         out = str(pkg_resources.require(pkgname))
-        print pkgname + ': ' + foldlines(out)
+        print(pkgname + ': ' + foldlines(out))
     except (ImportError, EnvironmentError):
         sys.stderr.write("\nGot exception using 'pkg_resources' to get the version of %s. Exception follows.\n" % (pkgname,))
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
     except pkg_resources.DistributionNotFound:
-        print pkgname + ': DistributionNotFound'
+        print(pkgname + ': DistributionNotFound')
     try:
         __import__(modulename)
     except ImportError:
         pass
     else:
         modobj = sys.modules.get(modulename)
-        print pkgname + ' module: ' + str(modobj)
+        print(pkgname + ' module: ' + str(modobj))
         try:
-            print pkgname + ' __version__: ' + str(modobj.__version__)
+            print(pkgname + ' __version__: ' + str(modobj.__version__))
         except AttributeError:
             pass
 
 print_platform()
-print
+print()
 print_python_ver()
 print_stdout(['virtualenv', '--version'])
 print_stdout(['tox', '--version'])
-print
+print()
 print_stdout(['locale'])
 print_python_encoding_settings()
-print
+print()
 print_stdout(['buildbot', '--version'])
 print_stdout(['buildslave', '--version'])
 if 'windows' in platform.system().lower():

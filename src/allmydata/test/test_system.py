@@ -965,7 +965,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d = self.clients[1].tub.getReference(sp_furl)
             d.addCallback(lambda sp_rref: sp_rref.callRemote("get_stats"))
             def _got_stats(stats):
-                #print "STATS"
+                #print("STATS")
                 #from pprint import pprint
                 #pprint(stats)
                 s = stats["stats"]
@@ -1106,9 +1106,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                             base32.b2a(storage_index))
                 self.failUnless(expected in output)
             except unittest.FailTest:
-                print
-                print "dump-share output was:"
-                print output
+                print()
+                print("dump-share output was:")
+                print(output)
                 raise
         d.addCallback(_test_debug)
 
@@ -1353,9 +1353,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnless("Subscription Summary: storage: 5" in res)
                 self.failUnless("tahoe.css" in res)
             except unittest.FailTest:
-                print
-                print "GET %s output was:" % self.introweb_url
-                print res
+                print()
+                print("GET %s output was:" % self.introweb_url)
+                print(res)
                 raise
         d.addCallback(_check)
         # make sure it serves the CSS too
@@ -1369,9 +1369,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnlessEqual(data["announcement_summary"],
                                      {"storage": 5})
             except unittest.FailTest:
-                print
-                print "GET %s?t=json output was:" % self.introweb_url
-                print res
+                print()
+                print("GET %s?t=json output was:" % self.introweb_url)
+                print(res)
                 raise
         d.addCallback(_check_json)
         return d
@@ -1404,7 +1404,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return d
 
     def log(self, res, *args, **kwargs):
-        # print "MSG: %s  RES: %s" % (msg, args)
+        # print("MSG: %s  RES: %s" % (msg, args))
         log.msg(*args, **kwargs)
         return res
 
@@ -2279,8 +2279,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 ##             return self._run_cli(argv)
 ##         d.addCallback(_ls_missing)
 ##         def _check_ls_missing((out,err)):
-##             print "OUT", out
-##             print "ERR", err
+##             print("OUT", out)
+##             print("ERR", err)
 ##             self.failUnlessEqual(err, "")
 ##         d.addCallback(_check_ls_missing)
 

@@ -182,12 +182,12 @@ def simple_test():
 
     hDirectory = _open_directory(path_u)
     fni = FileNotifyInformation()
-    print "Waiting..."
+    print("Waiting...")
     while True:
         fni.read_changes(hDirectory, recursive, filter)
-        print repr(fni.data)
+        print(repr(fni.data))
         for info in fni:
-            print info
+            print(info)
 
 
 NOT_STARTED = "NOT_STARTED"
@@ -272,10 +272,10 @@ class INotify(PollMixin):
                 if self._check_stop():
                     return
                 for info in fni:
-                    # print info
+                    # print(info)
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
                     if info.action == FILE_ACTION_MODIFIED and path.isdir():
-                        # print "Filtering out %r" % (info,)
+                        # print("Filtering out %r" % (info,))
                         continue
                     #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 

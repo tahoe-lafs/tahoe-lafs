@@ -31,7 +31,7 @@ class CPUWatcherSubscriber(service.MultiService, Referenceable):
         tub.connectTo(furl, self.connected)
 
     def connected(self, rref):
-        print "subscribing"
+        print("subscribing")
         d = rref.callRemote("get_averages")
         d.addCallback(self.remote_averages)
         d.addErrback(log.err)
@@ -46,4 +46,3 @@ class CPUWatcherSubscriber(service.MultiService, Referenceable):
 c = CPUWatcherSubscriber(sys.argv[1])
 c.startService()
 reactor.run()
-

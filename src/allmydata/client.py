@@ -572,7 +572,7 @@ class _Client(node.Node, pollmixin.PollMixin):
             s.setServiceParent(self)
 
     def init_magic_folder(self):
-        #print "init_magic_folder"
+        #print("init_magic_folder")
         if self.get_config("drop_upload", "enabled", False, boolean=True):
             raise OldConfigOptionError("The [drop_upload] section must be renamed to [magic_folder].\n"
                                        "See docs/frontends/magic-folder.rst for more information.")

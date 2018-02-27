@@ -8,7 +8,7 @@
 import os, sys, urllib, json
 
 if len(sys.argv) > 1 and sys.argv[1] == "config":
-    print """\
+    print("""\
 graph_title Tahoe Disk Usage Measurement
 graph_vlabel bytes per second
 graph_category tahoe
@@ -21,7 +21,7 @@ rate_1day.draw LINE1
 rate_2wk.label (two week sample)
 rate_2wk.draw LINE2
 rate_4wk.label (four week sample)
-rate_4wk.draw LINE2"""
+rate_4wk.draw LINE2""")
     sys.exit(0)
 
 url = os.environ["url"]
@@ -31,10 +31,10 @@ data = dict([(name, growth)
              for (name, timespan, growth, timeleft) in timespans])
 # growth is in bytes per second
 if "1hr" in data:
-    print "rate_1hr.value", data["1hr"]
+    print("rate_1hr.value", data["1hr"])
 if "1day" in data:
-    print "rate_1day.value", data["1day"]
+    print("rate_1day.value", data["1day"])
 if "2wk" in data:
-    print "rate_2wk.value", data["2wk"]
+    print("rate_2wk.value", data["2wk"])
 if "4wk" in data:
-    print "rate_4wk.value", data["4wk"]
+    print("rate_4wk.value", data["4wk"])

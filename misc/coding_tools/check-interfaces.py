@@ -3,6 +3,7 @@
 # the root directory of that distribution as
 #
 #   bin/tahoe @misc/coding_tools/check-interfaces.py
+from __future__ import print_function
 
 import os, sys, re, platform
 
@@ -45,9 +46,9 @@ def strictly_implements(*interfaces):
                     try:
                         verifyClass(interface, cls)
                     except Exception, e:
-                        print >>_err, ("%s.%s does not correctly implement %s.%s:\n%s"
-                                       % (cls.__module__, cls.__name__,
-                                          interface.__module__, interface.__name__, e))
+                        print("%s.%s does not correctly implement %s.%s:\n%s"
+                              % (cls.__module__, cls.__name__,
+                                 interface.__module__, interface.__name__, e), file=_err)
         else:
             _other_modules_with_violations.add(cls.__module__)
         return cls
@@ -62,7 +63,7 @@ def check():
 
     if len(sys.argv) >= 2:
         if sys.argv[1] == '--help' or len(sys.argv) > 2:
-            print >>_err, "Usage: check-miscaptures.py [SOURCEDIR]"
+            print("Usage: check-miscaptures.py [SOURCEDIR]", file=_err)
             return
         srcdir = sys.argv[1]
     else:
@@ -79,8 +80,8 @@ def check():
         for fn in filenames:
             (basename, ext) = os.path.splitext(fn)
             if ext in ('.pyc', '.pyo') and not os.path.exists(os.path.join(dirpath, basename+'.py')):
-                print >>_err, ("Warning: no .py source file for %r.\n"
-                               % (os.path.join(dirpath, fn),))
+                print(("Warning: no .py source file for %r.\n"
+                       % (os.path.join(dirpath, fn),)), file=_err)
 
             if ext == '.py' and not excluded_file_basenames.match(basename):
                 relpath = os.path.join(dirpath[len(srcdir)+1:], basename)
@@ -89,16 +90,16 @@ def check():
                     __import__(module)
                 except ImportError, e:
                     if not is_windows and (' _win' in str(e) or 'win32' in str(e)):
-                        print >>_err, ("Warning: %r imports a Windows-specific module, so we cannot check it (%s).\n"
-                                       % (module, str(e)))
+                        print("Warning: %r imports a Windows-specific module, so we cannot check it (%s).\n"
+                              % (module, str(e)), file=_err)
                     else:
                         import traceback
                         traceback.print_exc(file=_err)
-                        print >>_err
+                        print("", file=_err)
 
     others = list(_other_modules_with_violations)
     others.sort()
-    print >>_err, "There were also interface violations in:\n", ", ".join(others), "\n"
+    print("There were also interface violations in:\n", ", ".join(others), "\n", file=_err)
 
 
 # Forked from

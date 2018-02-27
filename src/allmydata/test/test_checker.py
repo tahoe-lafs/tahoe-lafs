@@ -383,7 +383,7 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         def add_three(_, i):
             # Add a new server with just share 3
             self.add_server_with_share(i, self.uri, 3)
-            #print self._pretty_shares_chart(self.uri)
+            #print(self._pretty_shares_chart(self.uri))
         for i in range(1,5):
             d.addCallback(add_three, i)
 

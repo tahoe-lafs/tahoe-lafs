@@ -184,7 +184,7 @@ def _distribute_homeless_shares(mappings, homeless_shares, peers_to_shares):
     available peers. If possible a share will be placed on the server it was
     originally on, signifying the lease should be renewed instead.
     """
-    #print "mappings, homeless_shares, peers_to_shares %s %s %s" % (mappings, homeless_shares, peers_to_shares)
+    #print("mappings, homeless_shares, peers_to_shares %s %s %s" % (mappings, homeless_shares, peers_to_shares))
     servermap_peerids = set([key for key in peers_to_shares])
     servermap_shareids = set()
     for key in sorted(peers_to_shares.keys()):
@@ -258,8 +258,8 @@ def _servermap_flow_graph(peers, shares, servermap):
     indexedShares = []
     sink_num = len(peers) + len(shares) + 1
     graph.append([peer_to_index[peer] for peer in peers])
-    #print "share_to_index %s" % share_to_index
-    #print "servermap %s" % servermap
+    #print("share_to_index %s" % share_to_index)
+    #print("servermap %s" % servermap)
     for peer in peers:
         if servermap.has_key(peer):
             for s in servermap[peer]:
@@ -372,8 +372,8 @@ def share_placement(peers, readonly_peers, shares, peers_to_shares):
 
     new_shares = new_shares - existing_shares - used_shares
     new_mappings = _calculate_mappings(new_peers, new_shares)
-    #print "new_peers %s" % new_peers
-    #print "new_mappings %s" % new_mappings
+    #print("new_peers %s" % new_peers)
+    #print("new_mappings %s" % new_mappings)
     mappings = dict(readonly_mappings.items() + existing_mappings.items() + new_mappings.items())
     homeless_shares = set()
     for share in mappings:

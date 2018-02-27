@@ -19,24 +19,24 @@ if __name__ == "__main__":
     import platform
 
     if len(sys.argv) != 2:
-        print "Usage: %s lumi<e-grave>re" % sys.argv[0]
+        print("Usage: %s lumi<e-grave>re" % sys.argv[0])
         sys.exit(1)
 
     if sys.platform == "win32":
         try:
             from allmydata.windows.fixups import initialize
         except ImportError:
-            print "set PYTHONPATH to the src directory"
+            print("set PYTHONPATH to the src directory")
             sys.exit(1)
         initialize()
 
-    print
-    print "class MyWeirdOS(EncodingUtil, unittest.TestCase):"
-    print "    uname = '%s'" % ' '.join(platform.uname())
-    print "    argv = %s" % repr(sys.argv[1])
-    print "    platform = '%s'" % sys.platform
-    print "    filesystem_encoding = '%s'" % sys.getfilesystemencoding()
-    print "    io_encoding = '%s'" % sys.stdout.encoding
+    print()
+    print("class MyWeirdOS(EncodingUtil, unittest.TestCase):")
+    print("    uname = '%s'" % ' '.join(platform.uname()))
+    print("    argv = %s" % repr(sys.argv[1]))
+    print("    platform = '%s'" % sys.platform)
+    print("    filesystem_encoding = '%s'" % sys.getfilesystemencoding())
+    print("    io_encoding = '%s'" % sys.stdout.encoding)
     try:
         tmpdir = tempfile.mkdtemp()
         for fname in TEST_FILENAMES:
@@ -48,10 +48,10 @@ if __name__ == "__main__":
         else:
             dirlist = os.listdir(tmpdir)
 
-        print "    dirlist = %s" % repr(dirlist)
+        print("    dirlist = %s" % repr(dirlist))
     except:
-        print "    # Oops, I cannot write filenames containing non-ascii characters"
-    print
+        print("    # Oops, I cannot write filenames containing non-ascii characters")
+    print()
 
     shutil.rmtree(tmpdir)
     sys.exit(0)

@@ -72,11 +72,11 @@ class ReliabilityModel:
 
         repair = self.build_repair_matrix(k, N, R)
 
-        #print "DECAY:", decay
-        #print "OLD-POST-REPAIR:", old_post_repair
-        #print "NEW-POST-REPAIR:", decay * repair
-        #print "REPAIR:", repair
-        #print "DIFF:", (old_post_repair - decay * repair)
+        #print("DECAY:", decay)
+        #print("OLD-POST-REPAIR:", old_post_repair)
+        #print("NEW-POST-REPAIR:", decay * repair)
+        #print("REPAIR:", repair)
+        #print("DIFF:", (old_post_repair - decay * repair))
 
         START = array([0]*N + [1])
         DEAD = array([1]*k + [0]*(1+N-k))
@@ -85,9 +85,9 @@ class ReliabilityModel:
                                  [N-i for i in range(k, R)] +
                                  [0]*(1+N-R))
         assert REPAIR_newshares.shape[0] == N+1
-        #print "START", START
-        #print "REPAIRp", REPAIRp
-        #print "REPAIR_newshares", REPAIR_newshares
+        #print("START", START)
+        #print("REPAIRp", REPAIRp)
+        #print("REPAIR_newshares", REPAIR_newshares)
 
         unmaintained_state = START
         maintained_state = START
@@ -141,15 +141,15 @@ class ReliabilityModel:
         #    return "%dy.%dm" % (int(seconds/YEAR), int( (seconds%YEAR)/MONTH))
         #needed_repairs_total = sum(needed_repairs)
         #needed_new_shares_total = sum(needed_new_shares)
-        #print "at 2y:"
-        #print " unmaintained", unmaintained_state
-        #print " maintained", maintained_state
-        #print " number of repairs", needed_repairs_total
-        #print " new shares generated", needed_new_shares_total
+        #print("at 2y:")
+        #print(" unmaintained", unmaintained_state)
+        #print(" maintained", maintained_state)
+        #print(" number of repairs", needed_repairs_total)
+        #print(" new shares generated", needed_new_shares_total)
         #repair_rate_inv = report_span / needed_repairs_total
-        #print "  avg repair rate: once every %s" % yandm(repair_rate_inv)
-        #print "  avg repair download: one share every %s" % yandm(repair_rate_inv/k)
-        #print "  avg repair upload: one share every %s" % yandm(report_span / needed_new_shares_total)
+        #print("  avg repair rate: once every %s" % yandm(repair_rate_inv))
+        #print("  avg repair download: one share every %s" % yandm(repair_rate_inv/k))
+        #print("  avg repair upload: one share every %s" % yandm(report_span / needed_new_shares_total))
 
         return report
 

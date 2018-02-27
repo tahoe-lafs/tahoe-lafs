@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os.path, re, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
@@ -512,8 +513,8 @@ def get(options):
             # enough to have picked an empty file
             pass
         else:
-            print >>options.stderr, "%s retrieved and written to %s" % \
-                  (options.from_file, options.to_file)
+            print("%s retrieved and written to %s" % \
+                  (options.from_file, options.to_file), file=options.stderr)
     return rc
 
 def put(options):

@@ -56,9 +56,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda ign: self.mdmf_node.download_best_version())
             def _check(results):
                 if results != expected:
-                    print
-                    print "got: %s ... %s" % (results[:20], results[-20:])
-                    print "exp: %s ... %s" % (expected[:20], expected[-20:])
+                    print()
+                    print("got: %s ... %s" % (results[:20], results[-20:]))
+                    print("exp: %s ... %s" % (expected[:20], expected[-20:]))
                     self.fail("results != expected")
             d.addCallback(_check)
             return d
@@ -108,24 +108,24 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                     for (start,end) in gotmods]
         expspans = ["%d:%d=%s" % (start,end,expected[start:end])
                     for (start,end) in expmods]
-        #print "expecting: %s" % expspans
+        #print("expecting: %s" % expspans)
 
         if got != expected:
-            print "differences:"
+            print("differences:")
             for segnum in range(len(expected)//SEGSIZE):
                 start = segnum * SEGSIZE
                 end = (segnum+1) * SEGSIZE
                 got_ends = "%s .. %s" % (got[start:start+20], got[end-20:end])
                 exp_ends = "%s .. %s" % (expected[start:start+20], expected[end-20:end])
                 if got_ends != exp_ends:
-                    print "expected[%d]: %s" % (start, exp_ends)
-                    print "got     [%d]: %s" % (start, got_ends)
+                    print("expected[%d]: %s" % (start, exp_ends))
+                    print("got     [%d]: %s" % (start, got_ends))
             if expspans != gotspans:
-                print "expected: %s" % expspans
-                print "got     : %s" % gotspans
+                print("expected: %s" % expspans)
+                print("got     : %s" % gotspans)
             open("EXPECTED","wb").write(expected)
             open("GOT","wb").write(got)
-            print "wrote data to EXPECTED and GOT"
+            print("wrote data to EXPECTED and GOT")
             self.fail("didn't get expected data")
 
 

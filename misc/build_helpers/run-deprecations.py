@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import sys, os, io
 from twisted.internet import reactor, protocol, task, defer
 from twisted.python.procutils import which
@@ -51,7 +53,7 @@ def run_command(main):
     pw = os.environ.get("PYTHONWARNINGS")
     DDW = "default::DeprecationWarning"
     if pw != DDW:
-        print "note: $PYTHONWARNINGS is '%s', not the expected %s" % (pw, DDW)
+        print("note: $PYTHONWARNINGS is '%s', not the expected %s" % (pw, DDW))
         sys.stdout.flush()
 
     pp = RunPP()
@@ -84,11 +86,11 @@ def run_command(main):
     if warnings:
         if config["warnings"]:
             with open(config["warnings"], "wb") as f:
-                print >>f, "".join(warnings)
-        print "ERROR: %d deprecation warnings found" % len(warnings)
+                print("".join(warnings), file=f)
+        print("ERROR: %d deprecation warnings found" % len(warnings))
         sys.exit(1)
 
-    print "no deprecation warnings"
+    print("no deprecation warnings")
     if signal:
         sys.exit(signal)
     sys.exit(rc)

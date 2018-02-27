@@ -24,6 +24,6 @@ for (name, avg1, avg5, avg15) in current:
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "config":
-        print configinfo.rstrip()
+        print(configinfo.rstrip())
         sys.exit(0)
-print data.rstrip()
+print(data.rstrip())

@@ -194,7 +194,7 @@ IDirnodeURI) which are implemented by these classes, and string-to-URI-class
 conversion routines have been registered as adapters, so that code which
 wants to extract e.g. the size of a CHK or LIT uri can do::
 
- print IFileURI(uri).get_size()
+ print(IFileURI(uri).get_size())
 
 If the URI does not represent a CHK or LIT uri (for example, if it was for a
 directory instead), the adaptation will fail, raising a TypeError inside the

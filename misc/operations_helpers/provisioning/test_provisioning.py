@@ -99,7 +99,7 @@ class Reliability(unittest.TestCase):
         self.failUnlessEqual(len(r.samples), 20)
 
         last_row = r.samples[-1]
-        #print last_row
+        #print(last_row)
         (when, unmaintained_shareprobs, maintained_shareprobs,
          P_repaired_last_check_period,
          cumulative_number_of_repairs,

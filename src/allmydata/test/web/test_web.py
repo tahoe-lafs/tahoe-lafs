@@ -2441,10 +2441,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def dump_root(self):
-        print "NODEWALK"
+        print("NODEWALK")
         w = webish.DirnodeWalkerMixin()
         def visitor(childpath, childnode, metadata):
-            print childpath
+            print(childpath)
         d = w.walk(self.public_root, visitor)
         return d
 
@@ -2886,9 +2886,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # will be rather terse and unhelpful. addErrback this method to the
         # end of your chain to get more information out of these errors.
         if f.check(error.Error):
-            print "web.error.Error:"
-            print f
-            print f.value.response
+            print("web.error.Error:")
+            print(f)
+            print(f.value.response)
         return f
 
     def test_POST_upload_replace(self):
@@ -4161,7 +4161,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def log(self, res, msg):
-        #print "MSG: %s  RES: %s" % (msg, res)
+        #print("MSG: %s  RES: %s" % (msg, res))
         log.msg(msg)
         return res
 

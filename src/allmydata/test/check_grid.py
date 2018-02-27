@@ -95,13 +95,13 @@ class GridTester:
         rc = p.returncode
         if expected_rc != None and rc != expected_rc:
             if stderr:
-                print "STDERR:"
-                print stderr
+                print("STDERR:")
+                print(stderr)
             raise CommandFailed("command '%s' failed: rc=%d" % (cmd, rc))
         return stdout, stderr
 
     def cli(self, cmd, *args, **kwargs):
-        print "tahoe", cmd, " ".join(args)
+        print("tahoe", cmd, " ".join(args))
         stdout, stderr = self.command(self.tahoe, cmd, "-d", self.nodedir,
                                       *args, **kwargs)
         if not kwargs.get("ignore_stderr", False) and stderr != "":
@@ -110,16 +110,16 @@ class GridTester:
         return stdout
 
     def stop_old_node(self):
-        print "tahoe stop", self.nodedir, "(force)"
+        print("tahoe stop", self.nodedir, "(force)")
         self.command(self.tahoe, "stop", self.nodedir, expected_rc=None)
 
     def start_node(self):
-        print "tahoe start", self.nodedir
+        print("tahoe start", self.nodedir)
         self.command(self.tahoe, "start", self.nodedir)
         time.sleep(5)
 
     def stop_node(self):
-        print "tahoe stop", self.nodedir
+        print("tahoe stop", self.nodedir)
         self.command(self.tahoe, "stop", self.nodedir)
 
     def read_and_check(self, f):
@@ -146,7 +146,7 @@ class GridTester:
     def listdir(self, dirname):
         out = self.cli("ls", "testgrid:"+dirname).strip().split("\n")
         files = [f.strip() for f in out]
-        print " ", files
+        print(" ", files)
         return files
 
     def do_test(self):

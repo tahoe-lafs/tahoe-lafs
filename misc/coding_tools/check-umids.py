@@ -20,13 +20,13 @@ for starting_point in sys.argv[1:]:
                     umid = mo.group(1)
                     if umid in umids:
                         oldfn, oldlineno = umids[umid]
-                        print "%s:%d: duplicate umid '%s'" % (fn, lineno, umid)
-                        print "%s:%d: first used here" % (oldfn, oldlineno)
+                        print("%s:%d: duplicate umid '%s'" % (fn, lineno, umid))
+                        print("%s:%d: first used here" % (oldfn, oldlineno))
                         ok = False
                     umids[umid] = (fn,lineno)
 
 if ok:
-    print "all umids are unique"
+    print("all umids are unique")
 else:
-    print "some umids were duplicates"
+    print("some umids were duplicates")
     sys.exit(1)

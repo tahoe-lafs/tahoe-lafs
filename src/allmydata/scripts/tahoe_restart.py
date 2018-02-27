@@ -1,3 +1,4 @@
+from __future__ import print_function
 from .tahoe_start import StartOptions, start
 from .tahoe_stop import stop, COULD_NOT_STOP
 
@@ -10,9 +11,9 @@ def restart(config):
     stderr = config.stderr
     rc = stop(config)
     if rc == COULD_NOT_STOP:
-        print >>stderr, "ignoring couldn't-stop"
+        print("ignoring couldn't-stop", file=stderr)
         rc = 0
     if rc:
-        print >>stderr, "not restarting"
+        print("not restarting", file=stderr)
         return rc
     return start(config)

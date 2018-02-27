@@ -47,7 +47,7 @@ graph_info This graph shows the memory used by specific processes
                 if f == "VmData":
                     configinfo += "%s_%s.graph no\n" % (nodename, f)
 
-        print configinfo
+        print(configinfo)
         sys.exit(0)
 
 nodestats = {}
@@ -67,4 +67,4 @@ for node,stats in nodestats.items():
     for f,value in stats.items():
         # TODO: not sure if /proc/%d/status means 1000 or 1024 when it says
         # 'kB'
-        print "%s_%s.value %d" % (node, f, 1024*value)
+        print("%s_%s.value %d" % (node, f, 1024*value))

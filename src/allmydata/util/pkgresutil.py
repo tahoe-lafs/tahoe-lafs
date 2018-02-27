@@ -23,20 +23,20 @@ def install():
             pkg_resources.ZipProvider.__init__(self, module)
 
         def get_resource_filename(self, manager, resource_name):
-            #print 'get_resource_filename(%s, %s)' % (manager, resource_name)
+            #print('get_resource_filename(%s, %s)' % (manager, resource_name))
             path = [exedir, libdir] + self._module_name.split('.') + [resource_name]
             localfile = os.path.join(*path)
-            #print '             checking(%s)' % (localfile,)
+            #print('             checking(%s)' % (localfile,))
             if os.path.exists(localfile):
-                #print 'found locally'
+                #print('found locally')
                 return localfile
             else:
                 try:
                     ret = pkg_resources.ZipProvider.get_resource_filename(self, manager, resource_name)
-                    #print 'returning %s' % (ret,)
+                    #print('returning %s' % (ret,))
                     return ret
                 except NotImplementedError:
-                    #print 'get_resource_filename(%s,%s): not found' % (self._module_name, resource_name)
+                    #print('get_resource_filename(%s,%s): not found' % (self._module_name, resource_name))
                     #import traceback
                     #traceback.print_exc()
                     return ''

@@ -236,9 +236,9 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             def _explain_error(f):
-                print f
+                print(f)
                 if f.check(NotEnoughServersError):
-                    print "first_error:", f.value.first_error
+                    print("first_error:", f.value.first_error)
                 return f
             d.addErrback(_explain_error)
             return d

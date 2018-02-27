@@ -8,15 +8,15 @@
 import os, sys, urllib, json
 
 if len(sys.argv) > 1 and sys.argv[1] == "config":
-    print """\
+    print("""\
 graph_title Tahoe Remaining Disk Space
 graph_vlabel bytes remaining
 graph_category tahoe
 graph_info This graph shows the total amount of disk space left available in the grid
 disk_left.label disk left
-disk_left.draw LINE1"""
+disk_left.draw LINE1""")
     sys.exit(0)
 
 url = os.environ["url"]
 data = json.load(urllib.urlopen(url))["available"]
-print "disk_left.value", data
+print("disk_left.value", data)

@@ -1065,9 +1065,9 @@ class Corruption(_Base, unittest.TestCase):
         d.addCallback(_uploaded)
         def _show_results(ign):
             share_len = len(self.shares.values()[0])
-            print
-            print ("of [0:%d], corruption ignored in %s" %
-                   (share_len, undetected.dump()))
+            print()
+            print("of [0:%d], corruption ignored in %s" %
+                  (share_len, undetected.dump()))
         if self.catalog_detection:
             d.addCallback(_show_results)
             # of [0:2070], corruption ignored in len=1133:

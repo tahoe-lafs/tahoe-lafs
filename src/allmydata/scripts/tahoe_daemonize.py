@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os, sys
 from allmydata.scripts.common import BasedirOptions
 from twisted.scripts import twistd
@@ -154,13 +154,13 @@ def daemonize(config):
     err = config.stderr
     basedir = config['basedir']
     quoted_basedir = quote_local_unicode_path(basedir)
-    print >>out, "daemonizing in {}".format(quoted_basedir)
+    print("daemonizing in {}".format(quoted_basedir), file=out)
     if not os.path.isdir(basedir):
-        print >>err, "%s does not look like a directory at all" % quoted_basedir
+        print("%s does not look like a directory at all" % quoted_basedir, file=err)
         return 1
     nodetype = identify_node_type(basedir)
     if not nodetype:
-        print >>err, "%s is not a recognizable node directory" % quoted_basedir
+        print("%s is not a recognizable node directory" % quoted_basedir, file=err)
         return 1
     # Now prepare to turn into a twistd process. This os.chdir is the point
     # of no return.
@@ -180,15 +180,15 @@ def daemonize(config):
         twistd_config.parseOptions(twistd_args)
     except usage.error, ue:
         # these arguments were unsuitable for 'twistd'
-        print >>err, config
-        print >>err, "tahoe %s: usage error from twistd: %s\n" % (config.subcommand_name, ue)
+        print(config, file=err)
+        print("tahoe %s: usage error from twistd: %s\n" % (config.subcommand_name, ue), file=err)
         return 1
     twistd_config.loadedPlugins = {"DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir)}
 
     # handle invalid PID file (twistd might not start otherwise)
     pidfile = get_pidfile(basedir)
     if get_pid_from_pidfile(pidfile) == -1:
-        print >>err, "found invalid PID file in %s - deleting it" % basedir
+        print("found invalid PID file in %s - deleting it" % basedir, file=err)
         os.remove(pidfile)
 
     # On Unix-like platforms:
@@ -222,7 +222,7 @@ def daemonize(config):
     else:
         verb = "starting"
 
-    print >>out, "%s node in %s" % (verb, quoted_basedir)
+    print("%s node in %s" % (verb, quoted_basedir), file=out)
     twistd.runApp(twistd_config)
     # we should only reach here if --nodaemon or equivalent was used
     return 0

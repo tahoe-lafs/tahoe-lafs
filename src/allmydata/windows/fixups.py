@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 done = False
 
@@ -33,7 +34,7 @@ def initialize():
     # So be paranoid about catching errors and reporting them to original_stderr,
     # so that we can at least see them.
     def _complain(message):
-        print >>original_stderr, isinstance(message, str) and message or repr(message)
+        print(isinstance(message, str) and message or repr(message), file=original_stderr)
         log.msg(message, level=log.WEIRD)
 
     # Work around <http://bugs.python.org/issue6058>.

@@ -1,4 +1,3 @@
-
 import sys, os
 import os.path
 from errno import EEXIST
@@ -1104,9 +1103,9 @@ class WriteFileMixin(object):
 
         conflict_path_u = self._get_conflicted_filename(abspath_u)
         #if os.path.isfile(replacement_path_u):
-        #    print "%r exists" % (replacement_path_u,)
+        #    print("%r exists" % (replacement_path_u,))
         #if os.path.isfile(conflict_path_u):
-        #    print "%r exists" % (conflict_path_u,)
+        #    print("%r exists" % (conflict_path_u,))
 
         fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
         return conflict_path_u

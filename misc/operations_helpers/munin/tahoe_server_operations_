@@ -64,12 +64,12 @@ for nodename, url in node_urls:
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "config":
-        print configinfo.rstrip()
+        print(configinfo.rstrip())
         sys.exit(0)
 
 for nodename, url in node_urls:
     data = json.loads(urllib.urlopen(url).read())
     key = "storage_server.%s" % operation
     value = data["counters"][key]
-    print "%s.value %s" % (nodename, value)
+    print("%s.value %s" % (nodename, value))
 

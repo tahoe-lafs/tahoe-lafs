@@ -99,7 +99,7 @@ class NonASCIIPathMixin:
                     if os.path.exists(dirpath):
                         msg = ("We were unable to delete a non-ASCII directory %r created by the test. "
                                "This is liable to cause failures on future builds." % (dirpath,))
-                        print msg
+                        print(msg)
                         log.err(msg)
             self.addCleanup(_cleanup)
         os.mkdir(dirpath)
@@ -226,7 +226,7 @@ class TestMixin(SignalMixin):
             if p.active():
                 p.cancel()
             else:
-                print "WEIRDNESS! pending timed call not active!"
+                print("WEIRDNESS! pending timed call not active!")
         if required_to_quiesce and active:
             self.fail("Reactor was still active when it was required to be quiescent.")
 

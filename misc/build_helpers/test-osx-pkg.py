@@ -86,9 +86,9 @@ def test_osx_pkg(pkgfile):
 if __name__ == '__main__':
     pkgs = [fn for fn in os.listdir(".") if fn.endswith("-osx.pkg")]
     if len(pkgs) != 1:
-        print "ERR: unable to find a single .pkg file:", pkgs
+        print("ERR: unable to find a single .pkg file:", pkgs)
         sys.exit(1)
-    print "Testing %s ..." % pkgs[0]
+    print("Testing %s ..." % pkgs[0])
     test_osx_pkg(pkgs[0])
-    print "Looks OK!"
+    print("Looks OK!")
 

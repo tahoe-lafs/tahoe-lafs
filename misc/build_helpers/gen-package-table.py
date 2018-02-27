@@ -83,27 +83,27 @@ greybgstyle = '; background-color: #E0E0E0'
 nobgstyle = ''
 unsupportedstyle = '; color: #C00000'
 
-print '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">'
-print '<html>'
-print '<head>'
-print '  <meta http-equiv="Content-Type" content="text/html;charset=us-ascii">'
-print '  <title>Software packages that Tahoe-LAFS depends on</title>'
-print '</head>'
-print '<body>'
-print '<h2>What is this?</h2>'
-print '<p>See <a href="https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/quickstart.rst">quickstart.rst</a>, <a href="https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Installation">wiki:Installation</a>, and <a href="https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CompileError">wiki:CompileError</a>.'
-print '<h2>Software packages that Tahoe-LAFS depends on</h2>'
-print
+print('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">')
+print('<html>')
+print('<head>')
+print('  <meta http-equiv="Content-Type" content="text/html;charset=us-ascii">')
+print('  <title>Software packages that Tahoe-LAFS depends on</title>')
+print('</head>')
+print('<body>')
+print('<h2>What is this?</h2>')
+print('<p>See <a href="https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/quickstart.rst">quickstart.rst</a>, <a href="https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Installation">wiki:Installation</a>, and <a href="https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CompileError">wiki:CompileError</a>.')
+print('<h2>Software packages that Tahoe-LAFS depends on</h2>')
+print()
 for pyver in reversed(sorted(python_versions)):
     greybackground = False
     if pyver:
-        print '<p>Packages for Python %s that have compiled C/C++ code:</p>' % (pyver,)
-        print '<table border="1">'
-        print '  <tr>'
-        print '    <th style="background-color: #FFFFD0" width="%d%%">&nbsp;Platform&nbsp;</th>' % (width,)
+        print('<p>Packages for Python %s that have compiled C/C++ code:</p>' % (pyver,))
+        print('<table border="1">')
+        print('  <tr>')
+        print('    <th style="background-color: #FFFFD0" width="%d%%">&nbsp;Platform&nbsp;</th>' % (width,))
         for pkg in sorted(platform_dependent_pkgs):
-            print '    <th style="background-color: #FFE8FF;" width="%d%%">&nbsp;%s&nbsp;</th>' % (width, pkg)
-        print '  </tr>'
+            print('    <th style="background-color: #FFE8FF;" width="%d%%">&nbsp;%s&nbsp;</th>' % (width, pkg))
+        print('  </tr>')
 
         first = True
         for platform in sorted(matrix[pyver]):
@@ -122,38 +122,38 @@ for pyver in reversed(sorted(python_versions)):
             style2 = first and 'border-top: 2px solid #000000' or ''
             style2 += bgstyle
             annotated_platform = platform.replace('-', '&#x2011;') + (unsupported_python and '&nbsp;(unsupported)' or '')
-            print '  <tr>'
-            print '    <td style="%s">&nbsp;%s&nbsp;</td>' % (style1, annotated_platform)
+            print('  <tr>')
+            print('    <td style="%s">&nbsp;%s&nbsp;</td>' % (style1, annotated_platform))
             for pkg in sorted(platform_dependent_pkgs):
                 if pkg == 'pywin32' and not platform.startswith('windows'):
-                    print '    <td style="border: 0; text-align: center; %s"> n/a </td>' % (style2,)
+                    print('    <td style="border: 0; text-align: center; %s"> n/a </td>' % (style2,))
                 else:
-                    print '    <td style="%s">&nbsp;%s</td>' % (style2, file_list(row_files, pkg))
-            print '  </tr>'
+                    print('    <td style="%s">&nbsp;%s</td>' % (style2, file_list(row_files, pkg)))
+            print('  </tr>')
             first = False
 
-    print '</table>'
-    print
+    print('</table>')
+    print()
 
-print '<p>Packages that are platform-independent or source-only:</p>'
-print '<table border="1">'
-print '  <tr>'
-print '    <th style="background-color:#FFFFD0;">&nbsp;Package&nbsp;</th>'
-print '    <th style="background-color:#FFE8FF;">&nbsp;All Python versions&nbsp;</th>'
-print '  </tr>'
+print('<p>Packages that are platform-independent or source-only:</p>')
+print('<table border="1">')
+print('  <tr>')
+print('    <th style="background-color:#FFFFD0;">&nbsp;Package&nbsp;</th>')
+print('    <th style="background-color:#FFE8FF;">&nbsp;All Python versions&nbsp;</th>')
+print('  </tr>')
 
 style1 = 'border-top: 2px solid #000000; background-color:#FFFFF0;'
 style2 = 'border-top: 2px solid #000000;'
 m = matrix['']['']
 for pkg in sorted(platform_independent_pkgs):
-    print '  <tr>'
-    print '    <th style="%s">&nbsp;%s&nbsp;</th>' % (style1, pkg)
-    print '    <td style="%s">&nbsp;%s</td>' % (style2, file_list(m, pkg))
-    print '  </tr>'
+    print('  <tr>')
+    print('    <th style="%s">&nbsp;%s&nbsp;</th>' % (style1, pkg))
+    print('    <td style="%s">&nbsp;%s</td>' % (style2, file_list(m, pkg)))
+    print('  </tr>')
 
-print '</table>'
+print('</table>')
 
 # The document does validate, but not when it is included at the bottom of a directory listing.
-#print '<hr>'
-#print '<a href="http://validator.w3.org/check?uri=referer" target="_blank"><img border="0" src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01 Transitional" height="31" width="88"></a>'
-print '</body></html>'
+#print('<hr>')
+#print('<a href="http://validator.w3.org/check?uri=referer" target="_blank"><img border="0" src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01 Transitional" height="31" width="88"></a>')
+print('</body></html>')

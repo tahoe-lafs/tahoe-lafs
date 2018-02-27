@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import json
 
@@ -339,9 +340,9 @@ def write_client_config(c, config):
 @defer.inlineCallbacks
 def _get_config_via_wormhole(config):
     out = config.stdout
-    print >>out, "Opening wormhole with code '{}'".format(config['join'])
+    print("Opening wormhole with code '{}'".format(config['join']), file=out)
     relay_url = config.parent['wormhole-server']
-    print >>out, "Connecting to '{}'".format(relay_url)
+    print("Connecting to '{}'".format(relay_url), file=out)
 
     wh = wormhole.create(
         appid=config.parent['wormhole-invite-appid'],
@@ -351,7 +352,7 @@ def _get_config_via_wormhole(config):
     code = unicode(config['join'])
     wh.set_code(code)
     yield wh.get_welcome()
-    print >>out, "Connected to wormhole server"
+    print("Connected to wormhole server", file=out)
 
     intro = {
         u"abilities": {
@@ -363,14 +364,14 @@ def _get_config_via_wormhole(config):
     server_intro = yield wh.get_message()
     server_intro = json.loads(server_intro)
 
-    print >>out, "  received server introduction"
+    print("  received server introduction", file=out)
     if u'abilities' not in server_intro:
         raise RuntimeError("  Expected 'abilities' in server introduction")
     if u'server-v1' not in server_intro['abilities']:
         raise RuntimeError("  Expected 'server-v1' in server abilities")
 
     remote_data = yield wh.get_message()
-    print >>out, "  received configuration"
+    print("  received configuration", file=out)
     defer.returnValue(json.loads(remote_data))
 
 
@@ -384,9 +385,9 @@ def create_node(config):
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
-            print >>err, "To avoid clobbering anything, I am going to quit now."
-            print >>err, "Please use a different directory, or empty this one."
+            print("The base directory %s is not empty." % quote_local_unicode_path(basedir), file=err)
+            print("To avoid clobbering anything, I am going to quit now.", file=err)
+            print("Please use a different directory, or empty this one.", file=err)
             defer.returnValue(-1)
         # we're willing to use an empty directory
     else:
@@ -398,7 +399,7 @@ def create_node(config):
         try:
             remote_config = yield _get_config_via_wormhole(config)
         except RuntimeError as e:
-            print >>err, str(e)
+            print(str(e), file=err)
             defer.returnValue(1)
 
         # configuration we'll allow the inviter to set
@@ -408,8 +409,8 @@ def create_node(config):
         ]
         sensitive_keys = ['introducer']
 
-        print >>out, "Encoding: {shares-needed} of {shares-total} shares, on at least {shares-happy} servers".format(**remote_config)
-        print >>out, "Overriding the following config:"
+        print("Encoding: {shares-needed} of {shares-total} shares, on at least {shares-happy} servers".format(**remote_config), file=out)
+        print("Overriding the following config:", file=out)
 
         for k in whitelist:
             v = remote_config.get(k, None)
@@ -420,22 +421,22 @@ def create_node(config):
                 config[k] = v
                 if k not in sensitive_keys:
                     if k not in ['shares-happy', 'shares-total', 'shares-needed']:
-                        print >>out, "  {}: {}".format(k, v)
+                        print("  {}: {}".format(k, v), file=out)
                 else:
-                    print >>out, "  {}: [sensitive data; see tahoe.cfg]".format(k)
+                    print("  {}: [sensitive data; see tahoe.cfg]".format(k), file=out)
 
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
     with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
         yield write_node_config(c, config)
         write_client_config(c, config)
 
-    print >>out, "Node created in %s" % quote_local_unicode_path(basedir)
+    print("Node created in %s" % quote_local_unicode_path(basedir), file=out)
     tahoe_cfg = quote_local_unicode_path(os.path.join(basedir, "tahoe.cfg"))
     if not config.get("introducer", ""):
-        print >>out, " Please set [client]introducer.furl= in %s!" % tahoe_cfg
-        print >>out, " The node cannot connect to a grid without it."
+        print(" Please set [client]introducer.furl= in %s!" % tahoe_cfg, file=out)
+        print(" The node cannot connect to a grid without it.", file=out)
     if not config.get("nickname", ""):
-        print >>out, " Please set [node]nickname= in %s" % tahoe_cfg
+        print(" Please set [node]nickname= in %s" % tahoe_cfg, file=out)
     defer.returnValue(0)
 
 def create_client(config):
@@ -454,9 +455,9 @@ def create_introducer(config):
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_local_unicode_path(basedir)
-            print >>err, "To avoid clobbering anything, I am going to quit now."
-            print >>err, "Please use a different directory, or empty this one."
+            print("The base directory %s is not empty." % quote_local_unicode_path(basedir), file=err)
+            print("To avoid clobbering anything, I am going to quit now.", file=err)
+            print("Please use a different directory, or empty this one.", file=err)
             defer.returnValue(-1)
         # we're willing to use an empty directory
     else:
@@ -467,7 +468,7 @@ def create_introducer(config):
     with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
         yield write_node_config(c, config)
 
-    print >>out, "Introducer created in %s" % quote_local_unicode_path(basedir)
+    print("Introducer created in %s" % quote_local_unicode_path(basedir), file=out)
     defer.returnValue(0)
 
 

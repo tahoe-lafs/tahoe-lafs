@@ -234,7 +234,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         d.addCallback(self._download_and_check_plaintext)
         def _after_download(ign):
             num_reads = self._count_reads()
-            #print num_reads
+            #print(num_reads)
             self.failIf(num_reads > 41, num_reads)
         d.addCallback(_after_download)
         return d
@@ -247,7 +247,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
                       self.delete_shares_numbered(self.uri, range(7)))
         d.addCallback(self._download_and_check_plaintext)
         def _after_download(num_reads):
-            #print num_reads
+            #print(num_reads)
             self.failIf(num_reads > 41, num_reads)
         d.addCallback(_after_download)
         return d
@@ -294,7 +294,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
                                  download_to_data, self.filenode)
             def _check_numreads(ign):
                 num_reads = self._count_reads() - start_reads
-                #print num_reads
+                #print(num_reads)
 
                 # To pass this test, you are required to give up before
                 # reading all of the share data. Actually, we could give up

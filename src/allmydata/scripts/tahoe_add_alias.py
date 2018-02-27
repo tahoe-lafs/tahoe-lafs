@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os.path
 import codecs
 import json
@@ -39,22 +39,22 @@ def add_alias(options):
     stderr = options.stderr
     if u":" in alias:
         # a single trailing colon will already have been stripped if present
-        print >>stderr, "Alias names cannot contain colons."
+        print("Alias names cannot contain colons.", file=stderr)
         return 1
     if u" " in alias:
-        print >>stderr, "Alias names cannot contain spaces."
+        print("Alias names cannot contain spaces.", file=stderr)
         return 1
 
     old_aliases = get_aliases(nodedir)
     if alias in old_aliases:
-        print >>stderr, "Alias %s already exists!" % quote_output(alias)
+        print("Alias %s already exists!" % quote_output(alias), file=stderr)
         return 1
     aliasfile = os.path.join(nodedir, "private", "aliases")
     cap = uri.from_string_dirnode(cap).to_string()
 
     add_line_to_aliasfile(aliasfile, alias, cap)
 
-    print >>stdout, "Alias %s added" % quote_output(alias)
+    print("Alias %s added" % quote_output(alias), file=stdout)
     return 0
 
 def create_alias(options):
@@ -66,15 +66,15 @@ def create_alias(options):
     stderr = options.stderr
     if u":" in alias:
         # a single trailing colon will already have been stripped if present
-        print >>stderr, "Alias names cannot contain colons."
+        print("Alias names cannot contain colons.", file=stderr)
         return 1
     if u" " in alias:
-        print >>stderr, "Alias names cannot contain spaces."
+        print("Alias names cannot contain spaces.", file=stderr)
         return 1
 
     old_aliases = get_aliases(nodedir)
     if alias in old_aliases:
-        print >>stderr, "Alias %s already exists!" % quote_output(alias)
+        print("Alias %s already exists!" % quote_output(alias), file=stderr)
         return 1
 
     aliasfile = os.path.join(nodedir, "private", "aliases")
@@ -93,7 +93,7 @@ def create_alias(options):
 
     add_line_to_aliasfile(aliasfile, alias, new_uri)
 
-    print >>stdout, "Alias %s created" % (quote_output(alias),)
+    print("Alias %s created" % (quote_output(alias),), file=stdout)
     return 0
 
 
@@ -124,9 +124,9 @@ def list_aliases(options):
     if options['json']:
         try:
             # XXX why are we presuming utf-8 output?
-            print >>stdout, json.dumps(data, indent=4).decode('utf-8')
+            print(json.dumps(data, indent=4).decode('utf-8'), file=stdout)
         except (UnicodeEncodeError, UnicodeDecodeError):
-            print >>stderr, json.dumps(data, indent=4)
+            print(json.dumps(data, indent=4), file=stderr)
             rc = 1
     else:
         for name, details in data.items():
@@ -138,6 +138,6 @@ def list_aliases(options):
                 rc = 1
 
     if rc == 1:
-        print >>stderr, "\nThis listing included aliases or caps that could not be converted to the terminal" \
-                        "\noutput encoding. These are shown using backslash escapes and in quotes."
+        print("\nThis listing included aliases or caps that could not be converted to the terminal" \
+              "\noutput encoding. These are shown using backslash escapes and in quotes.", file=stderr)
     return rc

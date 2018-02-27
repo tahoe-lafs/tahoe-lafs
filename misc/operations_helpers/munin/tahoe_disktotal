@@ -9,7 +9,7 @@
 import os, sys, urllib, json
 
 if len(sys.argv) > 1 and sys.argv[1] == "config":
-    print """\
+    print("""\
 graph_title Tahoe Total Disk Space
 graph_vlabel bytes
 graph_category tahoe
@@ -17,10 +17,10 @@ graph_info This graph shows the total amount of disk space present in the grid, 
 disk_total.label disk total
 disk_total.draw LINE2
 disk_used.label disk used
-disk_used.draw LINE1"""
+disk_used.draw LINE1""")
     sys.exit(0)
 
 url = os.environ["url"]
 data = json.load(urllib.urlopen(url))
-print "disk_total.value", data["total"]
-print "disk_used.value", data["used"]
+print("disk_total.value", data["total"])
+print("disk_used.value", data["used"])

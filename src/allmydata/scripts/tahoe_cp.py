@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os.path
 import urllib
 import json
@@ -480,7 +480,7 @@ class Copier:
         self.stderr = options.stderr
         if verbosity >= 2 and not self.progressfunc:
             def progress(message):
-                print >>self.stderr, message
+                print(message, file=self.stderr)
             self.progressfunc = progress
         self.caps_only = options["caps-only"]
         self.cache = {}
@@ -490,7 +490,7 @@ class Copier:
         except TahoeError, te:
             if verbosity >= 2:
                 Failure().printTraceback(self.stderr)
-                print >>self.stderr
+                print("", file=self.stderr)
             te.display(self.stderr)
             return 1
 
@@ -579,7 +579,7 @@ class Copier:
         return self.copy_things_to_directory(sources, target)
 
     def to_stderr(self, text):
-        print >>self.stderr, text
+        print(text, file=self.stderr)
 
     # FIXME reduce the amount of near-duplicate code between get_target_info
     # and get_source_info.
@@ -698,7 +698,7 @@ class Copier:
 
     def announce_success(self, msg):
         if self.verbosity >= 1:
-            print >>self.stdout, "Success: %s" % msg
+            print("Success: %s" % msg, file=self.stdout)
         return 0
 
     def copy_file_to_file(self, source, target):

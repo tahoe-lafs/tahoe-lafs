@@ -130,7 +130,7 @@ currently they are retained indefinitely. (`#2440`_)
 Unicode filenames are supported on both Linux and Windows, but on Linux, the
 local name of a file must be encoded correctly in order for it to be uploaded.
 The expected encoding is that printed by
-``python -c "import sys; print sys.getfilesystemencoding()"``.
+``python -c "import sys; print(sys.getfilesystemencoding())"``.
 
 On Windows, local directories with non-ASCII names are not currently working.
 (`#2219`_)

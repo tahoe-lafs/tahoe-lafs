@@ -43,7 +43,7 @@ class Complete(unittest.TestCase):
                     ]
         self.failUnlessEqual(list(ht.depth_first()), expected)
         d = "\n" + ht.dump()
-        #print d
+        #print(d)
         self.failUnless("\n  0:" in d)
         self.failUnless("\n    1:" in d)
         self.failUnless("\n      3:" in d)

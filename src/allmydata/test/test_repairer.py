@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+
 from allmydata.test import common
 from allmydata.monitor import Monitor
 from allmydata import check_results
@@ -333,7 +335,7 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
             self.corrupt_shares_numbered(self.uri, [0], _corruptor)
         results = {}
         def _did_check(vr, i):
-            #print "corrupt %d: healthy=%s" % (i, vr.is_healthy())
+            #print("corrupt %d: healthy=%s" % (i, vr.is_healthy()))
             results[i] = vr.is_healthy()
         def _start(ign):
             d = defer.succeed(None)
@@ -348,9 +350,9 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         def _show_results(ign):
             f = open("test_each_byte_output", "w")
             for i in sorted(results.keys()):
-                print >>f, "%d: %s" % (i, results[i])
+                print("%d: %s" % (i, results[i]), file=f)
             f.close()
-            print "Please look in _trial_temp/test_each_byte_output for results"
+            print("Please look in _trial_temp/test_each_byte_output for results")
         d.addCallback(_show_results)
         return d
 

@@ -89,7 +89,7 @@ def b2a_l(os, lengthinbits):
 
     numquintets = (lengthinbits+4)/5
     numoctetsofdata = (lengthinbits+7)/8
-    # print "numoctetsofdata: %s, len(os): %s, lengthinbits: %s, numquintets: %s" % (numoctetsofdata, len(os), lengthinbits, numquintets,)
+    # print("numoctetsofdata: %s, len(os): %s, lengthinbits: %s, numquintets: %s" % (numoctetsofdata, len(os), lengthinbits, numquintets,))
     # strip trailing octets that won't be used
     del os[numoctetsofdata:]
     # zero out any unused bits in the final octet

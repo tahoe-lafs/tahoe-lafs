@@ -196,7 +196,7 @@ class StatsGatherer(Referenceable, service.MultiService):
     def remote_provide(self, provider, nickname):
         tubid = self.get_tubid(provider)
         if tubid == '<unauth>':
-            print "WARNING: failed to get tubid for %s (%s)" % (provider, nickname)
+            print("WARNING: failed to get tubid for %s (%s)" % (provider, nickname))
             # don't add to clients to poll (polluting data) don't care about disconnect
             return
         self.clients[tubid] = provider
@@ -229,15 +229,15 @@ class StdOutStatsGatherer(StatsGatherer):
     def remote_provide(self, provider, nickname):
         tubid = self.get_tubid(provider)
         if self.verbose:
-            print 'connect "%s" [%s]' % (nickname, tubid)
+            print('connect "%s" [%s]' % (nickname, tubid))
             provider.notifyOnDisconnect(self.announce_lost_client, tubid)
         StatsGatherer.remote_provide(self, provider, nickname)
 
     def announce_lost_client(self, tubid):
-        print 'disconnect "%s" [%s]' % (self.nicknames[tubid], tubid)
+        print('disconnect "%s" [%s]' % (self.nicknames[tubid], tubid))
 
     def got_stats(self, stats, tubid, nickname):
-        print '"%s" [%s]:' % (nickname, tubid)
+        print('"%s" [%s]:' % (nickname, tubid))
         pprint.pprint(stats)
 
 class JSONStatsGatherer(StdOutStatsGatherer):
@@ -253,10 +253,10 @@ class JSONStatsGatherer(StdOutStatsGatherer):
             try:
                 self.gathered_stats = json.load(f)
             except Exception:
-                print ("Error while attempting to load stats file %s.\n"
-                       "You may need to restore this file from a backup,"
-                       " or delete it if no backup is available.\n" %
-                       quote_local_unicode_path(self.jsonfile))
+                print("Error while attempting to load stats file %s.\n"
+                      "You may need to restore this file from a backup,"
+                      " or delete it if no backup is available.\n" %
+                      quote_local_unicode_path(self.jsonfile))
                 raise
             f.close()
         else:

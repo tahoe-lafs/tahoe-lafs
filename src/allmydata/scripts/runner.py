@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os, sys
 from six.moves import StringIO
 
@@ -81,12 +81,12 @@ class Options(usage.Options):
 
     def opt_version(self):
         import allmydata
-        print >>self.stdout, allmydata.get_package_versions_string(debug=True)
+        print(allmydata.get_package_versions_string(debug=True), file=self.stdout)
         self.no_command_needed = True
 
     def opt_version_and_path(self):
         import allmydata
-        print >>self.stdout, allmydata.get_package_versions_string(show_paths=True, debug=True)
+        print(allmydata.get_package_versions_string(show_paths=True, debug=True), file=self.stdout)
         self.no_command_needed = True
 
     def __str__(self):
@@ -125,12 +125,12 @@ def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
         c = config
         while hasattr(c, 'subOptions'):
             c = c.subOptions
-        print >>stdout, str(c)
+        print(str(c), file=stdout)
         try:
             msg = e.args[0].decode(get_io_encoding())
         except Exception:
             msg = repr(e)
-        print >>stdout, "%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False))
+        print("%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False)), file=stdout)
         sys.exit(1)
     return config
 

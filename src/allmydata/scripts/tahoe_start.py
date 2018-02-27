@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import io
 import sys
@@ -63,13 +64,13 @@ def start(config):
     err = config.stderr
     basedir = config['basedir']
     quoted_basedir = quote_local_unicode_path(basedir)
-    print >>out, "STARTING", quoted_basedir
+    print("STARTING", quoted_basedir, file=out)
     if not os.path.isdir(basedir):
-        print >>err, "%s does not look like a directory at all" % quoted_basedir
+        print("%s does not look like a directory at all" % quoted_basedir, file=err)
         return 1
     nodetype = identify_node_type(basedir)
     if not nodetype:
-        print >>err, "%s is not a recognizable node directory" % quoted_basedir
+        print("%s is not a recognizable node directory" % quoted_basedir, file=err)
         return 1
 
     # "tahoe start" attempts to monitor the logs for successful
@@ -86,7 +87,7 @@ def start(config):
         return 0
 
     if not can_monitor_logs:
-        print >>out, "Custom logging options; can't monitor logs for proper startup messages"
+        print("Custom logging options; can't monitor logs for proper startup messages", file=out)
         return 1
 
     # before we spawn tahoe, we check if "the log file" exists or not,
@@ -130,7 +131,7 @@ def start(config):
                 collected += f.read()
                 if magic_string in collected:
                     if not config.parent['quiet']:
-                        print >>out, "Node has started successfully"
+                        print("Node has started successfully", file=out)
                     return 0
                 if 'Traceback ' in collected:
                     print >>err, "Error starting node; see '{}' for more:\n\n{}".format(
@@ -139,12 +140,12 @@ def start(config):
                     )
                     return 1
                 time.sleep(0.1)
-            print >>out, "Still waiting up to {}s for node startup".format(
+            print("Still waiting up to {}s for node startup".format(
                 60 - int(time.time() - overall_start)
-            )
+            ), file=out)
 
-        print >>out, "Something has gone wrong starting the node."
-        print >>out, "Logs are available in '{}'".format(log_fname)
-        print >>out, "Collected for this run:"
-        print >>out, collected
+        print("Something has gone wrong starting the node.", file=out)
+        print("Logs are available in '{}'".format(log_fname), file=out)
+        print("Collected for this run:", file=out)
+        print(collected, file=out)
         return 1

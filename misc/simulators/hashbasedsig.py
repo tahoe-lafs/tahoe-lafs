@@ -1,4 +1,5 @@
 #!python
+from __future__ import print_function
 
 # range of hash output lengths
 range_L_hash = [128]
@@ -144,8 +145,8 @@ def calculate(K, K1, K2, q_max, L_hash, trees):
             lg_q = lg(q_cand)
             lg_pforge = [lg_px[x] + (lg_q*x - lg_K2)*q_cand for x in xrange(1, j)]
             if max(lg_pforge) < -L_hash + lg(j) and lg_px[j-1] + 1.0 < -L_hash:
-                #print "K = %d, K1 = %d, K2 = %d, L_hash = %d, lg_K2 = %.3f, q = %d, lg_pforge_1 = %.3f, lg_pforge_2 = %.3f, lg_pforge_3 = %.3f" \
-                #      % (K, K1, K2, L_hash, lg_K2, q, lg_pforge_1, lg_pforge_2, lg_pforge_3)
+                #print("K = %d, K1 = %d, K2 = %d, L_hash = %d, lg_K2 = %.3f, q = %d, lg_pforge_1 = %.3f, lg_pforge_2 = %.3f, lg_pforge_3 = %.3f" \
+                #      % (K, K1, K2, L_hash, lg_K2, q, lg_pforge_1, lg_pforge_2, lg_pforge_3))
                 q = q_cand
                 break
 
@@ -212,10 +213,10 @@ def calculate(K, K1, K2, q_max, L_hash, trees):
 
 def search():
     for L_hash in range_L_hash:
-        print >>stderr, "collecting...   \r",
+        print("collecting...   \r", file=stderr)
         collect()
 
-        print >>stderr, "precomputing... \r",
+        print("precomputing... \r", file=stderr)
 
         """
         # d/dq (lg(q+1) + L_hash/q) = 1/(ln(2)*(q+1)) - L_hash/q^2
@@ -266,7 +267,7 @@ def search():
                         trees[y] = (h, c_y, (dau, tri))
 
         #for x in xrange(1, K_max+1):
-        #    print x, trees[x]
+        #    print(x, trees[x])
 
         candidates = []
         progress = 0
@@ -277,9 +278,9 @@ def search():
                 for K1 in xrange(max(2, K-fuzz), min(K_max, K+fuzz)+1):
                     candidates += calculate(K, K1, K2, q_max, L_hash, trees)
                 progress += 1
-                print >>stderr, "searching: %3d %% \r" % (100.0 * progress / complete,),
+                print("searching: %3d %% \r" % (100.0 * progress / complete,), file=stderr)
 
-        print >>stderr, "filtering...    \r",
+        print("filtering...    \r", file=stderr)
         step = 2.0
         bins = {}
         limit = floor_div(limit_cost, step)
@@ -306,33 +307,33 @@ def search():
                     "%(c_ver)7d +/-%(c_ver_pm)5d (%(Mcycles_ver)5.2f +/-%(Mcycles_ver_pm)5.2f)   "
                    ) % candidate
 
-        print >>stderr, "                \r",
+        print("                \r", file=stderr)
         if len(best) > 0:
-            print "  B    K   K1     K2    q    T  L_hash  lg_N  sig_bytes  c_sign (Mcycles)        c_ver     (    Mcycles   )"
-            print "---- ---- ---- ------ ---- ---- ------ ------ --------- ------------------ --------------------------------"
+            print("  B    K   K1     K2    q    T  L_hash  lg_N  sig_bytes  c_sign (Mcycles)        c_ver     (    Mcycles   )")
+            print("---- ---- ---- ------ ---- ---- ------ ------ --------- ------------------ --------------------------------")
 
             best.sort(key=lambda c: (c['sig_bytes'], c['cost']))
             last_sign = None
             last_ver = None
             for c in best:
                 if last_sign is None or c['c_sign'] < last_sign or c['c_ver'] < last_ver:
-                    print format_candidate(c)
+                    print(format_candidate(c))
                     last_sign = c['c_sign']
                     last_ver = c['c_ver']
 
-            print
+            print()
         else:
-            print "No candidates found for L_hash = %d or higher." % (L_hash)
+            print("No candidates found for L_hash = %d or higher." % (L_hash))
             return
 
         del bins
         del best
 
-print "Maximum signature size: %d bytes" % (limit_bytes,)
-print "Maximum (signing + %d*verification) cost: %.1f Mcycles" % (weight_ver, limit_cost)
-print "Hash parameters: %d-bit blocks with %d-bit padding and %d-bit labels, %.2f cycles per byte" \
-      % (L_block, L_pad, L_label, cycles_per_byte)
-print "PRF output size: %d bits" % (L_prf,)
-print "Security level given by L_hash is maintained for up to 2^%d signatures.\n" % (lg_M,)
+print("Maximum signature size: %d bytes" % (limit_bytes,))
+print("Maximum (signing + %d*verification) cost: %.1f Mcycles" % (weight_ver, limit_cost))
+print("Hash parameters: %d-bit blocks with %d-bit padding and %d-bit labels, %.2f cycles per byte" \
+      % (L_block, L_pad, L_label, cycles_per_byte))
+print("PRF output size: %d bits" % (L_prf,))
+print("Security level given by L_hash is maintained for up to 2^%d signatures.\n" % (lg_M,))
 
 search()

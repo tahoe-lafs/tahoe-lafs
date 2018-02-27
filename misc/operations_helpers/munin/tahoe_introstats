@@ -19,13 +19,13 @@ storage_client.draw LINE2
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "config":
-        print configinfo.rstrip()
+        print(configinfo.rstrip())
         sys.exit(0)
 
 url = os.environ["url"]
 
 data = json.loads(urllib.urlopen(url).read())
-print "storage_server.value %d" % data["announcement_summary"]["storage"]
-print "storage_hosts.value %d" % data["announcement_distinct_hosts"]["storage"]
-print "storage_client.value %d" % data["subscription_summary"]["storage"]
+print("storage_server.value %d" % data["announcement_summary"]["storage"])
+print("storage_hosts.value %d" % data["announcement_distinct_hosts"]["storage"])
+print("storage_client.value %d" % data["subscription_summary"]["storage"])
 

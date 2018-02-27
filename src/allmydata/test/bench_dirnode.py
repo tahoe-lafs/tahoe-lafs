@@ -1,3 +1,4 @@
+from __future__ import print_function
 import hotshot.stats, os, random, sys
 
 from pyutil import benchutil, randutil # http://tahoe-lafs.org/trac/pyutil
@@ -110,12 +111,12 @@ class B(object):
         for (initfunc, func) in [(self.init_for_unpack, self.unpack),
                                  (self.init_for_pack, self.pack),
                                  (self.init_for_unpack, self.unpack_and_repack)]:
-            print "benchmarking %s" % (func,)
+            print("benchmarking %s" % (func,))
             for N in 16, 512, 2048, 16384:
-                print "%5d" % N,
+                print("%5d" % N)
                 benchutil.rep_bench(func, N, initfunc=initfunc, MAXREPS=20, UNITS_PER_SECOND=1000)
         benchutil.print_bench_footer(UNITS_PER_SECOND=1000)
-        print "(milliseconds)"
+        print("(milliseconds)")
 
     def prof_benchmarks(self):
         # This requires pyutil >= v1.3.34.
@@ -128,7 +129,7 @@ class B(object):
 if __name__ == "__main__":
     if '--profile' in sys.argv:
         if os.path.exists(PROF_FILE_NAME):
-            print "WARNING: profiling results file '%s' already exists -- the profiling results from this run will be added into the profiling results stored in that file and then the sum of them will be printed out after this run." % (PROF_FILE_NAME,)
+            print("WARNING: profiling results file '%s' already exists -- the profiling results from this run will be added into the profiling results stored in that file and then the sum of them will be printed out after this run." % (PROF_FILE_NAME,))
         b = B()
         b.prof_benchmarks()
         b.print_stats()

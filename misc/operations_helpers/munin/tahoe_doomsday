@@ -8,7 +8,7 @@
 import os, sys, urllib, json
 
 if len(sys.argv) > 1 and sys.argv[1] == "config":
-    print """\
+    print("""\
 graph_title Tahoe Remaining Time Predictor
 graph_vlabel days remaining
 graph_category tahoe
@@ -20,7 +20,7 @@ days_1day.draw LINE1
 days_2wk.label days left (two week sample)
 days_2wk.draw LINE2
 days_4wk.label days left (four week sample)
-days_4wk.draw LINE2"""
+days_4wk.draw LINE2""")
     sys.exit(0)
 
 url = os.environ["url"]
@@ -32,10 +32,10 @@ data = dict([(name, timeleft)
 # timeleft is in seconds
 DAY = 24*60*60
 if "1hr" in data:
-    print "days_1hr.value", data["1hr"]/DAY
+    print("days_1hr.value", data["1hr"]/DAY)
 if "1day" in data:
-    print "days_1day.value", data["1day"]/DAY
+    print("days_1day.value", data["1day"]/DAY)
 if "2wk" in data:
-    print "days_2wk.value", data["2wk"]/DAY
+    print("days_2wk.value", data["2wk"]/DAY)
 if "4wk" in data:
-    print "days_4wk.value", data["4wk"]/DAY
+    print("days_4wk.value", data["4wk"]/DAY)

@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os.path, sys, time, random, stat
 
 from allmydata.util.netstring import netstring
@@ -73,7 +73,7 @@ def get_backupdb(dbfile, stderr=sys.stderr,
                                just_create=just_create, dbname="backupdb")
         return BackupDB_v2(sqlite3, db)
     except DBError, e:
-        print >>stderr, e
+        print(e, file=stderr)
         return None
 
 

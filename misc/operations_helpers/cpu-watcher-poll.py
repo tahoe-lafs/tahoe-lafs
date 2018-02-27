@@ -6,8 +6,8 @@ import sys
 import pprint
 
 def oops(f):
-    print "ERROR"
-    print f
+    print("ERROR")
+    print(f)
 
 def fetch(furl):
     t = Tub()

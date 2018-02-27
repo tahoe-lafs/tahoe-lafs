@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from twisted.python import usage
 from allmydata.scripts.common import BaseOptions
 
@@ -16,8 +16,8 @@ def print_keypair(options):
     from allmydata.util.keyutil import make_keypair
     out = options.stdout
     privkey_vs, pubkey_vs = make_keypair()
-    print >>out, "private:", privkey_vs
-    print >>out, "public:", pubkey_vs
+    print("private:", privkey_vs, file=out)
+    print("public:", pubkey_vs, file=out)
 
 class DerivePubkeyOptions(BaseOptions):
     def parseArgs(self, privkey):
@@ -40,8 +40,8 @@ def derive_pubkey(options):
     from allmydata.util import keyutil
     privkey_vs = options.privkey
     sk, pubkey_vs = keyutil.parse_privkey(privkey_vs)
-    print >>out, "private:", privkey_vs
-    print >>out, "public:", pubkey_vs
+    print("private:", privkey_vs, file=out)
+    print("public:", pubkey_vs, file=out)
     return 0
 
 class AdminCommand(BaseOptions):

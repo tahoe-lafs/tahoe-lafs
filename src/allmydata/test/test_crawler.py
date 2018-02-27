@@ -373,9 +373,9 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
             # our buildslaves vary too much in their speeds and load levels,
             # and many of them only manage to hit 7% usage when our target is
             # 50%. So don't assert anything about the results, just log them.
-            print
-            print "crawler: got %d%% percent when trying for 50%%" % percent
-            print "crawler: got %d full cycles" % c.cycles
+            print()
+            print("crawler: got %d%% percent when trying for 50%%" % percent)
+            print("crawler: got %d full cycles" % c.cycles)
         d.addCallback(_done)
         return d
 

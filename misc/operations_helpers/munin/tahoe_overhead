@@ -30,7 +30,7 @@
 import os, sys, urllib, json
 
 if len(sys.argv) > 1 and sys.argv[1] == "config":
-    print """\
+    print("""\
 graph_title Tahoe Overhead Calculator
 graph_vlabel Percentage
 graph_category tahoe
@@ -40,7 +40,7 @@ overhead.draw LINE2
 inactive.label inactive account usage
 inactive.draw LINE1
 effective_expansion.label Effective Expansion Factor
-effective_expansion.graph no"""
+effective_expansion.graph no""")
     sys.exit(0)
 
 diskwatcher_url = os.environ["diskwatcher_url"]
@@ -54,12 +54,12 @@ ideal = expansion * deepsize["all"]
 overhead = (total - ideal) / ideal
 if overhead > 0:
     # until all the storage-servers come online, this number will be nonsense
-    print "overhead.value %f" % (100.0 * overhead)
+    print("overhead.value %f" % (100.0 * overhead))
 
     # same for this one
     effective_expansion = total / deepsize["all"]
-    print "effective_expansion.value %f" % effective_expansion
+    print("effective_expansion.value %f" % effective_expansion)
 
 # this value remains valid, though
 inactive_savings = (deepsize["all"] - deepsize["active"]) / deepsize["active"]
-print "inactive.value %f" % (100.0 * inactive_savings)
+print("inactive.value %f" % (100.0 * inactive_savings))

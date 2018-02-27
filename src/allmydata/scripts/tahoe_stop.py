@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import time
 import signal
@@ -23,16 +24,16 @@ def stop(config):
     err = config.stderr
     basedir = config['basedir']
     quoted_basedir = quote_local_unicode_path(basedir)
-    print >>out, "STOPPING", quoted_basedir
+    print("STOPPING", quoted_basedir, file=out)
     pidfile = get_pidfile(basedir)
     pid = get_pid_from_pidfile(pidfile)
     if pid is None:
-        print >>err, "%s does not look like a running node directory (no twistd.pid)" % quoted_basedir
+        print("%s does not look like a running node directory (no twistd.pid)" % quoted_basedir, file=err)
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
         return 2
     elif pid == -1:
-        print >>err, "%s contains an invalid PID file" % basedir
+        print("%s contains an invalid PID file" % basedir, file=err)
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
         return 2
@@ -44,7 +45,7 @@ def stop(config):
         os.kill(pid, signal.SIGKILL)
     except OSError, oserr:
         if oserr.errno == 3:
-            print oserr.strerror
+            print(oserr.strerror)
             # the process didn't exist, so wipe the pid file
             os.remove(pidfile)
             return COULD_NOT_STOP
@@ -63,20 +64,20 @@ def stop(config):
         try:
             os.kill(pid, 0)
         except OSError:
-            print >>out, "process %d is dead" % pid
+            print("process %d is dead" % pid, file=out)
             return
         wait -= 1
         if wait < 0:
             if first_time:
-                print >>err, ("It looks like pid %d is still running "
-                              "after %d seconds" % (pid,
-                                                    (time.time() - start)))
-                print >>err, "I will keep watching it until you interrupt me."
+                print("It looks like pid %d is still running "
+                      "after %d seconds" % (pid,
+                                            (time.time() - start)), file=err)
+                print("I will keep watching it until you interrupt me.", file=err)
                 wait = 10
                 first_time = False
             else:
-                print >>err, "pid %d still running after %d seconds" % \
-                      (pid, (time.time() - start))
+                print("pid %d still running after %d seconds" % \
+                      (pid, (time.time() - start)), file=err)
                 wait = 10
         time.sleep(1)
     # control never reaches here: no timeout

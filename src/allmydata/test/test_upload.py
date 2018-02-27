@@ -133,7 +133,7 @@ class FakeStorageServer:
 
     def allocate_buckets(self, storage_index, renew_secret, cancel_secret,
                          sharenums, share_size, canary):
-        # print "FakeStorageServer.allocate_buckets(num=%d, size=%d, mode=%s, queries=%d)" % (len(sharenums), share_size, self.mode, self._alloc_queries)
+        # print("FakeStorageServer.allocate_buckets(num=%d, size=%d, mode=%s, queries=%d)" % (len(sharenums), share_size, self.mode, self._alloc_queries))
         if self.mode == "timeout":
             return defer.Deferred()
         if self.mode == "first-fail":
