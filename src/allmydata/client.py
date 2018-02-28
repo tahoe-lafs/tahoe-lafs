@@ -27,6 +27,7 @@ from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
+from allmydata import node
 
 
 KiB=1024
@@ -191,9 +192,7 @@ def create_client(basedir=u".", _client_factory=None):
         `_client_factory` returns)
     """
     node.create_node_dir(basedir, CLIENT_README)
-
-    # load configuration
-    config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
+    config = read_config(basedir, u"client.port")
 
     if _client_factory is None:
         _client_factory = _Client
