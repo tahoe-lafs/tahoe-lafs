@@ -28,9 +28,7 @@ from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
-from allmydata.node import OldConfigOptionError, _common_config_sections
-from allmydata.node import read_config
-from allmydata.node import get_app_versions
+from allmydata import node
 
 
 KiB=1024
@@ -40,7 +38,7 @@ TiB=1024*GiB
 PiB=1024*TiB
 
 def _valid_config_sections():
-    cfg = _common_config_sections()
+    cfg = node._common_config_sections()
     cfg.update({
         "client": (
             "helper.furl",
@@ -164,6 +162,14 @@ class Terminator(service.Service):
         return service.Service.stopService(self)
 
 
+def read_config(basedir, portnumfile, generated_files=[]):
+    return node.read_config(
+        basedir, portnumfile,
+        generated_files=generated_files,
+        _valid_config_sections=_valid_config_sections,
+    )
+
+
 #@defer.inlineCallbacks
 def create_client(basedir=u".", _client_factory=None):
     """
@@ -174,9 +180,7 @@ def create_client(basedir=u".", _client_factory=None):
     :param _client_factory: for testing; the class to instantiate
     """
     node.create_node_dir(basedir, CLIENT_README)
-
-    # load configuration
-    config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
+    config = read_config(basedir, u"client.port")
 
     if _client_factory is None:
         _client_factory = _Client
@@ -300,7 +304,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                                   self.nickname,
                                   str(allmydata.__full_version__),
                                   str(self.OLDEST_SUPPORTED_VERSION),
-                                  get_app_versions(), self._sequencer,
+                                  node.get_app_versions(), self._sequencer,
                                   introducer_cache_filepath)
             self.introducer_clients.append(ic)
             self.introducer_furls.append(introducer['furl'])
@@ -595,8 +599,10 @@ class _Client(node.Node, pollmixin.PollMixin):
     def init_magic_folder(self):
         #print "init_magic_folder"
         if self.config.get_config("drop_upload", "enabled", False, boolean=True):
-            raise OldConfigOptionError("The [drop_upload] section must be renamed to [magic_folder].\n"
-                                       "See docs/frontends/magic-folder.rst for more information.")
+            raise node.OldConfigOptionError(
+                "The [drop_upload] section must be renamed to [magic_folder].\n"
+                "See docs/frontends/magic-folder.rst for more information."
+            )
 
         if self.config.get_config("magic_folder", "enabled", False, boolean=True):
             from allmydata.frontends import magic_folder
