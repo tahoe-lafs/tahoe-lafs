@@ -16,8 +16,8 @@ import foolscap.logging.log
 from twisted.application import service
 from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry, read_config, config_from_string, create_node_dir
 from allmydata.introducer.server import create_introducer
-from allmydata.client import create_client
-from allmydata.client import _valid_config_sections as client_valid_config_sections
+from allmydata import client
+
 from allmydata.util import fileutil, iputil
 from allmydata.util import i2p_provider, tor_provider
 from allmydata.util.namespace import Namespace
@@ -424,7 +424,7 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = tcp:example.org:1234\n")
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        config = read_config(basedir, "client.port", _valid_config_sections=client_valid_config_sections)
+        config = client.read_config(basedir, "client.port")
 
         i2p_ep = object()
         i2p_prov = i2p_provider.Provider(config, mock.Mock())
@@ -458,7 +458,7 @@ class ClientNotListening(unittest.TestCase):
         f.write(NOLISTEN)
         f.write(DISABLE_STORAGE)
         f.close()
-        n = create_client(basedir)
+        n = client.create_client(basedir)
         self.assertEqual(n.tub.getListeners(), [])
 
     def test_disabled_but_storage(self):
@@ -469,7 +469,7 @@ class ClientNotListening(unittest.TestCase):
         f.write(NOLISTEN)
         f.write(ENABLE_STORAGE)
         f.close()
-        e = self.assertRaises(ValueError, create_client, basedir)
+        e = self.assertRaises(ValueError, client.create_client, basedir)
         self.assertIn("storage is enabled, but tub is not listening", str(e))
 
     def test_disabled_but_helper(self):
@@ -481,7 +481,7 @@ class ClientNotListening(unittest.TestCase):
         f.write(DISABLE_STORAGE)
         f.write(ENABLE_HELPER)
         f.close()
-        e = self.assertRaises(ValueError, create_client, basedir)
+        e = self.assertRaises(ValueError, client.create_client, basedir)
         self.assertIn("helper is enabled, but tub is not listening", str(e))
 
 class IntroducerNotListening(unittest.TestCase):
