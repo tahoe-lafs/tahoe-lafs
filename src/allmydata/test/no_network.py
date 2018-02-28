@@ -400,6 +400,11 @@ class GridTestMixin:
     def get_client_config(self, i=0):
         return self.g.clients[i].config
 
+    def get_clientdir(self, i=0):
+        # ideally, use something get_client_config() only, we
+        # shouldn't need to manipulate raw paths..
+        return self.get_client_config(i).get_config_path()
+
     def get_client(self, i=0):
         return self.g.clients[i]
 
