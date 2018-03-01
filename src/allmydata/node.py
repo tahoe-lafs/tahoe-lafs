@@ -94,7 +94,10 @@ such as private keys.  On Unix-like systems, the permissions on this directory
 are set to disallow users other than its owner from reading the contents of
 the files.   See the 'configuration.rst' documentation file for details."""
 
-class _None: # used as a marker in get_config()
+class _None(object):
+    """
+    This class is to be used as a marker in get_config()
+    """
     pass
 
 class MissingConfigEntry(Exception):
@@ -299,7 +302,7 @@ class Node(service.MultiService):
         # which is frequently too small.
         temp_fd, test_name = tempfile.mkstemp()
         _assert(os.path.dirname(test_name) == tempdir, test_name, tempdir)
-        os.close(temp_fd)
+        os.close(temp_fd)  # avoid leak of unneeded fd
 
     def check_privacy(self):
         self._reveal_ip = self.config.get_config("node", "reveal-IP-address", True,
