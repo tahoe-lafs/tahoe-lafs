@@ -7,7 +7,7 @@ import allmydata
 import allmydata.frontends.magic_folder
 import allmydata.util.log
 
-from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, read_config
+from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, read_config, create_node_dir
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
@@ -199,6 +199,20 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            "enabled = true\n" + \
                            "reserved_space = bogus\n")
         self.failUnlessRaises(ValueError, client.create_client, basedir)
+
+    def test_web_apiauthtoken(self):
+        basedir = u"client.Basic.test_web_apiauthtoken"
+        create_node_dir(basedir, "testing")
+        config = read_config(basedir, "portnum")
+
+        c = client.create_client(basedir)
+        # this must come after we create the client, as it will create
+        # a new, random authtoken itself
+        with open(os.path.join(basedir, "private", "api_auth_token"), "w") as f:
+            f.write("deadbeef")
+
+        token = c.get_auth_token()
+        self.assertEqual("deadbeef", token)
 
     def test_web_staticdir(self):
         basedir = u"client.Basic.test_web_staticdir"
