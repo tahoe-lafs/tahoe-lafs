@@ -41,6 +41,11 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         from allmydata.introducer import IntroducerNode
         IntroducerNode  # pyflakes
 
+    def test_create(self):
+        basedir = "introducer.IntroducerNode.test_create"
+        create_introducer(basedir)
+        self.assertTrue(os.path.exists(basedir))
+
     def test_furl(self):
         basedir = "introducer.IntroducerNode.test_furl"
         create_node_dir(basedir, "testing")
