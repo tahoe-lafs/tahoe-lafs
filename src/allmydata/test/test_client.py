@@ -2,6 +2,7 @@ import os, sys
 import twisted
 from twisted.trial import unittest
 from twisted.application import service
+import mock
 
 import allmydata
 import allmydata.frontends.magic_folder
@@ -241,6 +242,21 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnlessReallyEqual(w.staticdir, expected)
 
     # TODO: also test config options for SFTP.
+
+    def test_ftp_create(self):
+        basedir = u"client.Basic.test_ftp_create"
+        create_node_dir(basedir, "testing")
+        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
+            f.write(
+                '[sftpd]\n'
+                'enabled = true\n'
+                'accounts.file = foo\n'
+                'host_pubkey_file = pubkey\n'
+                'host_privkey_file = privkey\n'
+            )
+        with mock.patch('allmydata.frontends.sftpd.SFTPServer') as p:
+            c = client.create_client(basedir)
+        self.assertTrue(p.called)
 
     def test_ftp_auth_keyfile(self):
         basedir = u"client.Basic.test_ftp_auth_keyfile"
