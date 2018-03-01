@@ -1,3 +1,7 @@
+"""
+This module contains classes and functions to implement and manage
+a node for Tahoe-LAFS.
+"""
 import datetime
 import os.path
 import re
@@ -71,8 +75,14 @@ ADDR_RE = re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1
 
 
 def formatTimeTahoeStyle(self, when):
-    # we want UTC timestamps that look like:
-    #  2007-10-12 00:26:28.566Z [Client] rnp752lz: 'client running'
+    """
+    Format the given (UTC) timestamp in the way Tahoe-LAFS expects it,
+    for example: 2007-10-12 00:26:28.566Z
+
+    :param when: UTC POSIX timestamp
+    :type when: float
+    :returns: datetime.datetime
+    """
     d = datetime.datetime.utcfromtimestamp(when)
     if d.microsecond:
         return d.isoformat(" ")[:-3]+"Z"
@@ -101,9 +111,11 @@ class OldConfigError(Exception):
                 % "\n".join([quote_output(fname) for fname in self.args[0]]))
 
 class OldConfigOptionError(Exception):
+    """Indicate that outdated configuration options are being used."""
     pass
 
 class UnescapedHashError(Exception):
+    """Indicate that a configuration entry contains an unescaped '#' character."""
     def __str__(self):
         return ("The configuration entry %s contained an unescaped '#' character."
                 % quote_output("[%s]%s = %s" % self.args))
@@ -232,13 +244,18 @@ class _Config(object):
 
 
 class Node(service.MultiService):
-    # this implements common functionality of both Client nodes and Introducer
-    # nodes.
+    """
+    This class implements common functionality of both Client nodes and Introducer nodes.
+    """
     NODETYPE = "unknown NODETYPE"
     CERTFILE = "node.pem"
     GENERATED_FILES = []
 
     def __init__(self, config, basedir=u"."):
+        """
+        Initialize the node with the given configuration. It's base directory
+        is the current directory by default.
+        """
         service.MultiService.__init__(self)
         # ideally, this would only be in _Config (or otherwise abstracted)
         self.basedir = abspath_expanduser_unicode(unicode(basedir))
@@ -269,6 +286,9 @@ class Node(service.MultiService):
         iputil.increase_rlimits()
 
     def init_tempdir(self):
+        """
+        Initialize/create a directory for temporary files.
+        """
         tempdir_config = self.config.get_config("node", "tempdir", "tmp").decode('utf-8')
         tempdir = abspath_expanduser_unicode(tempdir_config, base=self.basedir)
         if not os.path.exists(tempdir):
