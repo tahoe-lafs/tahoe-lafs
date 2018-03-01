@@ -67,7 +67,7 @@ for thing, things_version in get_package_versions().iteritems():
     app_versions.add_version(thing, str(things_version))
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
-ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
+ADDR_RE = re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
 
 
 def formatTimeTahoeStyle(self, when):
@@ -79,7 +79,7 @@ def formatTimeTahoeStyle(self, when):
     else:
         return d.isoformat(" ") + ".000Z"
 
-PRIV_README="""
+PRIV_README = """
 This directory contains files which contain private data for the Tahoe node,
 such as private keys.  On Unix-like systems, the permissions on this directory
 are set to disallow users other than its owner from reading the contents of
@@ -255,7 +255,7 @@ class Node(service.MultiService):
         self.check_privacy()
 
         self.create_log_tub()
-        self.logSource="Node"
+        self.logSource = "Node"
         self.setup_logging()
 
         self.create_i2p_provider()
@@ -284,7 +284,7 @@ class Node(service.MultiService):
 
     def check_privacy(self):
         self._reveal_ip = self.config.get_config("node", "reveal-IP-address", True,
-                                          boolean=True)
+                                                 boolean=True)
     def create_i2p_provider(self):
         self._i2p_provider = i2p_provider.Provider(self.basedir, self.config, reactor)
         self._i2p_provider.check_dest_config()
@@ -315,7 +315,7 @@ class Node(service.MultiService):
             "i2p": self._make_i2p_handler(),
             }
         self.log(format="built Foolscap connection handlers for: %(known_handlers)s",
-                 known_handlers=sorted([k for k,v in handlers.items() if v]),
+                 known_handlers=sorted([k for k, v in handlers.items() if v]),
                  facility="tahoe.node", umid="PuLh8g")
 
         # then we remember the default mappings from tahoe.cfg
