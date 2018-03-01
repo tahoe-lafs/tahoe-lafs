@@ -137,6 +137,44 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         config = read_config(basedir, "")
         self.failUnless(config.nickname == nickname)
 
+    def test_config_required(self):
+        basedir = u"test_node/test_config_required"
+        config = read_config(basedir, "portnum")
+
+        with self.assertRaises(Exception) as ctx:
+            config.get_config_from_file("it_does_not_exist", required=True)
+
+    def test_private_config_unreadable(self):
+        basedir = u"test_node/test_private_config_unreadable"
+        create_node_dir(basedir, "testing")
+        config = read_config(basedir, "portnum")
+        config.get_or_create_private_config("foo", "contents")
+        fname = os.path.join(basedir, "private", "foo")
+        os.chmod(fname, 0)
+
+        with self.assertRaises(Exception) as ctx:
+            config.get_or_create_private_config("foo")
+
+    def test_private_config_unreadable_preexisting(self):
+        basedir = u"test_node/test_private_config_unreadable_preexisting"
+        create_node_dir(basedir, "testing")
+        config = read_config(basedir, "portnum")
+        fname = os.path.join(basedir, "private", "foo")
+        with open(fname, "w") as f:
+            f.write("stuff")
+        os.chmod(fname, 0)
+
+        with self.assertRaises(Exception) as ctx:
+            config.get_private_config("foo")
+
+    def test_private_config_missing(self):
+        basedir = u"test_node/test_private_config_missing"
+        create_node_dir(basedir, "testing")
+        config = read_config(basedir, "portnum")
+
+        with self.assertRaises(MissingConfigEntry) as ctx:
+            config.get_or_create_private_config("foo")
+
     def test_private_config(self):
         basedir = "test_node/test_private_config"
         privdir = os.path.join(basedir, "private")
