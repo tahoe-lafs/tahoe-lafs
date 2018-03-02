@@ -262,43 +262,6 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.failUnless(ns.called)
 
 
-class EmptyNode(Node):
-    def __init__(self, config=None):
-        if config is None:
-            config = config_from_string("", "no portfile", 'no basedir')
-        Node.__init__(self, config)
-
-
-EXPECTED = {
-    # top-level key is tub.port category
-    "missing": {
-        # 2nd-level key is tub.location category
-        "missing": "alloc/auto",
-        "empty": "ERR2",
-        "disabled": "ERR4",
-        "hintstring": "alloc/file",
-        },
-    "empty": {
-        "missing": "ERR1",
-        "empty": "ERR1",
-        "disabled": "ERR1",
-        "hintstring": "ERR1",
-        },
-    "disabled": {
-        "missing": "ERR3",
-        "empty": "ERR2",
-        "disabled": "no-listen",
-        "hintstring": "ERR3",
-        },
-    "endpoint": {
-        "missing": "auto",
-        "empty": "ERR2",
-        "disabled": "ERR4",
-        "hintstring": "manual",
-        },
-    }
-
-
 class TestMissingPorts(unittest.TestCase):
     """
     Test certain error-cases for ports setup
@@ -512,7 +475,7 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = %s\n" % location)
 
         config = read_config(basedir, "client.port")
-        n = EmptyNode(config)
+        n = Node(config)
 
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
@@ -558,7 +521,7 @@ class Listeners(unittest.TestCase):
 
         tub_mock = mock.patch("allmydata.node.Tub", return_value=FakeTub())
         with i2p_mock, tor_mock, tub_mock:
-            n = EmptyNode(config)
+            n = Node(config)
 
         self.assertEqual(n._i2p_provider.get_listener.mock_calls, [mock.call()])
         self.assertEqual(n._tor_provider.get_listener.mock_calls, [mock.call()])
