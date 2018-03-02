@@ -216,7 +216,6 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
     def test_web_apiauthtoken(self):
         basedir = u"client.Basic.test_web_apiauthtoken"
         create_node_dir(basedir, "testing")
-        config = read_config(basedir, "portnum")
 
         c = client.create_client(basedir)
         # this must come after we create the client, as it will create
@@ -255,7 +254,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                 'host_privkey_file = privkey\n'
             )
         with mock.patch('allmydata.frontends.sftpd.SFTPServer') as p:
-            c = client.create_client(basedir)
+            client.create_client(basedir)
         self.assertTrue(p.called)
 
     def test_ftp_auth_keyfile(self):
