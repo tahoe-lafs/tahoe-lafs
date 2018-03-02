@@ -136,7 +136,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         basedir = u"test_node/test_config_required"
         config = read_config(basedir, "portnum")
 
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(Exception):
             config.get_config_from_file("it_does_not_exist", required=True)
 
     def test_private_config_unreadable(self):
@@ -147,7 +147,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         fname = os.path.join(basedir, "private", "foo")
         os.chmod(fname, 0)
 
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(Exception):
             config.get_or_create_private_config("foo")
 
     def test_private_config_unreadable_preexisting(self):
@@ -159,7 +159,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             f.write("stuff")
         os.chmod(fname, 0)
 
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(Exception):
             config.get_private_config("foo")
 
     def test_private_config_missing(self):
@@ -167,7 +167,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         create_node_dir(basedir, "testing")
         config = read_config(basedir, "portnum")
 
-        with self.assertRaises(MissingConfigEntry) as ctx:
+        with self.assertRaises(MissingConfigEntry):
             config.get_or_create_private_config("foo")
 
     def test_private_config(self):

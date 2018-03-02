@@ -28,7 +28,6 @@ from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
-from allmydata import node
 
 
 KiB=1024
