@@ -186,13 +186,34 @@ class NoNetworkStorageBroker(object):
         return []  # FIXME?
 
 
+# @defer.inlineCallbacks
 def create_no_network_client(basedir):
-    c = create_client(basedir, _client_factory=_NoNetworkClient)
+    basedir = abspath_expanduser_unicode(unicode(basedir))
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
+
+    from allmydata.client import read_config
+    config = read_config(basedir, u'client.port')
+    storage_broker = NoNetworkStorageBroker()
+    client = _NoNetworkClient(
+        config,
+        main_tub=None,
+        control_tub=None,
+        i2p_provider=None,
+        tor_provider=None,
+        introducer_clients=[],
+        introducer_furls=[],
+        storage_farm_broker=storage_broker,
+        tub_is_listening=True,
+    )
+    storage_broker.client = client
+    return defer.succeed(client)
+
+#    c = yield create_client(basedir, _client_factory=_NoNetworkClient)
     # XXX we should probably make a way to pass this in instead of
     # changing it later.. also, a reference-cycle (but, existed before :/)
-    c.storage_broker = NoNetworkStorageBroker()
-    storage_broker.client = c
-    return c
+#    c.storage_broker = NoNetworkStorageBroker()
+#    c.storage_broker.client = c
+#    defer.returnValue(c)
 
 
 class _NoNetworkClient(_Client):
@@ -295,7 +316,9 @@ class NoNetworkGrid(service.MultiService):
             c = self.client_config_hooks[i](clientdir)
 
         if not c:
-            c = create_no_network_client(clientdir)
+            d0 = create_no_network_client(clientdir)
+            assert d0.called
+            c = d0.result
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
         c.nodeid = clientid

@@ -7,8 +7,6 @@ from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
 from allmydata.util import log, rrefutil
-from allmydata.util import fileutil
-from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.introducer.interfaces import \
@@ -16,6 +14,7 @@ from allmydata.introducer.interfaces import \
 from allmydata.introducer.common import unsign_from_foolscap, \
      SubscriberDescriptor, AnnouncementDescriptor
 from allmydata.node import read_config
+from allmydata.node import create_node_dir
 from allmydata.node import create_connection_handlers
 from allmydata.node import create_control_tub
 from allmydata.node import create_tub_options
