@@ -3,7 +3,6 @@ from twisted.trial import unittest
 from foolscap.api import fireEventually, flushEventualQueue
 from twisted.internet import defer
 from allmydata.introducer import create_introducer
-from allmydata.util import fileutil
 from allmydata import node
 from .common import FAVICON_MARKUP
 from ..common_web import do_http
@@ -21,16 +20,16 @@ class IntroducerWeb(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_welcome(self):
-        config = (
-            "[node]\n"
-            "tub.location = 127.0.0.1:1\n"
-            "web.port = tcp:0\n"
-        )
         basedir = self.mktemp()
         node.create_node_dir(basedir, "testing")
+        with open(join(basedir, "tahoe.cfg"), "w") as f:
+            f.write(
+                "[node]\n"
+                "tub.location = 127.0.0.1:1\n"
+                "web.port = tcp:0\n"
+            )
 
-        from allmydata.node import config_from_string
-        self.node = yield create_introducer(d)
+        self.node = yield create_introducer(basedir)
         self.ws = self.node.getServiceNamed("webish")
 
         yield fireEventually(None)

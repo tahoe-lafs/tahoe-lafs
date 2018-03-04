@@ -18,7 +18,7 @@ from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
-                            yamlutil, fileutil)
+                            yamlutil)
 from allmydata.util.encodingutil import (get_filesystem_encoding,
                                          from_utf8_or_none)
 from allmydata.util.abbreviate import parse_abbreviated_size
@@ -176,7 +176,7 @@ def read_config(basedir, portnumfile, generated_files=[]):
 
 # this method is async
 # @defer.inlineCallbacks
-def create_client(basedir=u"."):
+def create_client(basedir=u".", _client_factory=None):
     """
     Create a new _Client instance in the given directory (which may
     not exist yet).
@@ -190,7 +190,7 @@ def create_client(basedir=u"."):
         _client_factory = _Client
 
     # read config file and create instance
-    config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
+    config = read_config(basedir, u"client.port")
     return create_client_from_config(config)  # async
 
 
@@ -205,15 +205,15 @@ def create_client_from_config(config):
     """
     i2p_provider = create_i2p_provider(reactor, config)
     tor_provider = create_tor_provider(reactor, config)
-    handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+    handlers = node.create_connection_handlers(reactor, config, i2p_provider, tor_provider)
     default_connection_handlers, foolscap_connection_handlers = handlers
-    tub_options = create_tub_options(config)
+    tub_options = node.create_tub_options(config)
 
-    main_tub, is_listening = create_main_tub(
+    main_tub, is_listening = node.create_main_tub(
         config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
-    control_tub = create_control_tub()
+    control_tub = node.create_control_tub()
 
     introducer_clients, introducer_furls = create_introducer_clients(config, main_tub)
     storage_broker = create_storage_farm_broker(
@@ -304,7 +304,7 @@ def create_introducer_clients(config, main_tub):
             config.nickname,
             str(allmydata.__full_version__),
             str(_Client.OLDEST_SUPPORTED_VERSION),
-            config.get_app_versions(),
+            node.get_app_versions(),
             partial(_sequencer, config),
             introducer_cache_filepath,
         )
@@ -322,7 +322,7 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     preferred_peers = tuple([p.strip() for p in ps if p != ""])
 
     def tub_creator(handler_overrides={}, **kwargs):
-        return create_tub(
+        return node.create_tub(
             tub_options,
             default_connection_handlers,
             foolscap_connection_handlers,
