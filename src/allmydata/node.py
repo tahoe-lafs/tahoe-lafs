@@ -530,6 +530,10 @@ def _tub_portlocation(config):
     else:
         tubport = _convert_tub_port(cfg_tubport)
 
+    for port in tubport.split(","):
+        if port in ("0", "tcp:0"):
+            raise ValueError("tub.port cannot be 0: you must choose")
+
     if cfg_location is None:
         cfg_location = "AUTO"
 
@@ -580,8 +584,6 @@ def create_main_tub(config, tub_options,
     if portlocation:
         tubport, location = portlocation
         for port in tubport.split(","):
-            if port in ("0", "tcp:0"):
-                raise ValueError("tub.port cannot be 0: you must choose")
             if port == "listen:i2p":
                 # the I2P provider will read its section of tahoe.cfg and
                 # return either a fully-formed Endpoint, or a descriptor
