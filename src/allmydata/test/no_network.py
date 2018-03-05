@@ -200,7 +200,6 @@ def create_no_network_client(basedir):
         i2p_provider=None,
         tor_provider=None,
         introducer_clients=[],
-        introducer_furls=[],
         storage_farm_broker=storage_broker,
         tub_is_listening=True,
     )
