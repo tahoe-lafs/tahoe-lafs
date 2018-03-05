@@ -221,7 +221,7 @@ def create_client_from_config(config, _client_factory=None):
     )
     control_tub = node.create_control_tub()
 
-    introducer_clients, introducer_furls = create_introducer_clients(config, main_tub)
+    introducer_clients = create_introducer_clients(config, main_tub)
     storage_broker = create_storage_farm_broker(
         config, default_connection_handlers, foolscap_connection_handlers,
         tub_options, introducer_clients
@@ -234,7 +234,6 @@ def create_client_from_config(config, _client_factory=None):
         i2p_provider,
         tor_provider,
         introducer_clients,
-        introducer_furls,
         storage_broker,
         tub_is_listening=is_listening,
     )
@@ -259,16 +258,10 @@ def _sequencer(config):
 
 def create_introducer_clients(config, main_tub):
     """
-    returns a 2-tuple containing two lists: introducer_clients,
-    introducer_furls
+    :returns: a list of IntroducerClient instances
     """
-    # (probably makes sense to return a list of 2-tuples instead of a
-    # 2-tuple of lists, but keeping variable names etc from when this
-    # was self.init_introducer_clients in Node)
-
-    # Returns both of these:
+    # we return this list
     introducer_clients = []
-    introducer_furls = []
 
     introducers_yaml_filename = config.get_private_path("introducers.yaml")
     introducers_filepath = FilePath(introducers_yaml_filename)
@@ -315,8 +308,8 @@ def create_introducer_clients(config, main_tub):
             introducer_cache_filepath,
         )
         introducer_clients.append(ic)
-        introducer_furls.append(introducer['furl'])
-    return introducer_clients, introducer_furls
+        # introducer_furls.append(introducer['furl'])
+    return introducer_clients
 
 
 def create_storage_farm_broker(config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients):
@@ -368,7 +361,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": 128*KiB,
                                    }
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients, introducer_furls,
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients,
                  storage_farm_broker, tub_is_listening):
         """
         Use create_client() to instantiate one of these.
@@ -381,7 +374,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
 
         self.introducer_clients = introducer_clients
-        self.introducer_furls = introducer_furls  # appears completely unused (but for tests?)
         self.storage_broker = storage_farm_broker
 
         self.init_stats_provider()
