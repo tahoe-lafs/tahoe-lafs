@@ -197,6 +197,7 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
     return _Config(parser, portnumfile, basedir, config_fname)
 
 
+# XXX consider re-ordering args to match read_config()
 def config_from_string(config_str, portnumfile, basedir):
     """
     load configuration from in-memory string
