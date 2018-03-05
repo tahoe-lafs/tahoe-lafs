@@ -83,7 +83,7 @@ class MultiIntroTests(unittest.TestCase):
 
         # get a client and first introducer_furl
         myclient = yield create_client(self.basedir)
-        tahoe_cfg_furl = myclient.introducer_furls[0]
+        tahoe_cfg_furl = myclient.introducer_clients[0].introducer_furl
 
         # assertions
         self.failUnlessEqual(fake_furl, tahoe_cfg_furl)
@@ -142,14 +142,14 @@ class NoDefault(unittest.TestCase):
             }}
         self.yaml_path.setContent(yamlutil.safe_dump(connections))
         myclient = yield create_client(self.basedir)
-        tahoe_cfg_furl = myclient.introducer_furls[0]
+        tahoe_cfg_furl = myclient.introducer_clients[0].introducer_furl
         self.assertEquals(tahoe_cfg_furl, 'furl1')
 
     @defer.inlineCallbacks
     def test_real_yaml(self):
         self.yaml_path.setContent(SIMPLE_YAML)
         myclient = yield create_client(self.basedir)
-        tahoe_cfg_furl = myclient.introducer_furls[0]
+        tahoe_cfg_furl = myclient.introducer_clients[0].introducer_furl
         self.assertEquals(tahoe_cfg_furl, 'furl1')
 
     @defer.inlineCallbacks
@@ -167,7 +167,7 @@ class NoDefault(unittest.TestCase):
         connections = {'introducers': {} }
         self.yaml_path.setContent(yamlutil.safe_dump(connections))
         myclient = yield create_client(self.basedir)
-        self.assertEquals(len(myclient.introducer_furls), 0)
+        self.assertEquals(len(myclient.introducer_clients), 0)
 
 if __name__ == "__main__":
     unittest.main()
