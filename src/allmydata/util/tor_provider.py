@@ -270,11 +270,7 @@ class _Provider(service.MultiService):
         # this fires with a tuple of (control_endpoint, tor_protocol)
         if not self._tor_launched:
             self._tor_launched = OneShotObserverList()
-<<<<<<< HEAD
             private_dir = self._config.get_config_path("private")
-=======
-            private_dir = os.path.join(self._config._basedir, "private")
->>>>>>> pull 'basedir' entirely into _Config
             tor_binary = self._get_tor_config("tor.executable", None)
             d = _launch_tor(reactor, tor_binary, private_dir, self._txtorcon)
             d.addBoth(self._tor_launched.fire)
