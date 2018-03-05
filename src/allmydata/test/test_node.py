@@ -321,12 +321,15 @@ class TestMissingPorts(unittest.TestCase):
             "allmydata.util.iputil.allocate_tcp_port",
             return_value=999,
         )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+            "tub.port = tcp:777\n"
+            "tub.location = AUTO\n"
+        )
+        config = config_from_string(config_data, self.basedir, "portnum")
 
         with get_addr, alloc_port:
-            cfg_tubport = "tcp:777"
-            cfg_location = "AUTO"
-            tubport, tublocation = _tub_portlocation(config, cfg_tubport, cfg_location)
+            tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:777")
         self.assertEqual(tublocation, "tcp:LOCAL:777")
 
@@ -339,12 +342,13 @@ class TestMissingPorts(unittest.TestCase):
             "allmydata.util.iputil.allocate_tcp_port",
             return_value=999,
         )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+        )
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with get_addr, alloc_port:
-            cfg_tubport = None
-            cfg_location = None
-            tubport, tublocation = _tub_portlocation(config, cfg_tubport, cfg_location)
+            tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:999")
         self.assertEqual(tublocation, "tcp:LOCAL:999")
 
@@ -357,12 +361,14 @@ class TestMissingPorts(unittest.TestCase):
             "allmydata.util.iputil.allocate_tcp_port",
             return_value=999,
         )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+            "tub.location = tcp:HOST:888,AUTO\n"
+        )
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with get_addr, alloc_port:
-            cfg_tubport = None
-            cfg_location = "tcp:HOST:888,AUTO"
-            tubport, tublocation = _tub_portlocation(config, cfg_tubport, cfg_location)
+            tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:999")
         self.assertEqual(tublocation, "tcp:HOST:888,tcp:LOCAL:999")
 
@@ -375,71 +381,70 @@ class TestMissingPorts(unittest.TestCase):
             "allmydata.util.iputil.allocate_tcp_port",
             return_value=999,
         )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+            "tub.port = disabled\n"
+            "tub.location = disabled\n"
+        )
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with get_addr, alloc_port:
-            cfg_tubport = "disabled"
-            cfg_location = "disabled"
-            res = _tub_portlocation(config, cfg_tubport, cfg_location)
+            res = _tub_portlocation(config)
         self.assertTrue(res is None)
 
     def test_empty_tub_port(self):
-        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
-            f.write(
-                "[node]\n"
-                "tub.port = \n"
-            )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+            "tub.port = \n"
+        )
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with self.assertRaises(ValueError) as ctx:
-            _tub_portlocation(config, "", None)
+            _tub_portlocation(config)
         self.assertIn(
             "tub.port must not be empty",
             str(ctx.exception)
         )
 
     def test_empty_tub_location(self):
-        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
-            f.write(
-                "[node]\n"
-                "tub.location = \n"
-            )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+            "tub.location = \n"
+        )
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with self.assertRaises(ValueError) as ctx:
-            _tub_portlocation(config, None, "")
+            _tub_portlocation(config)
         self.assertIn(
             "tub.location must not be empty",
             str(ctx.exception)
         )
 
     def test_disabled_port_not_tub(self):
-        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
-            f.write(
-                "[node]\n"
-                "tub.port = disabled\n"
-                "tub.location = not_disabled\n"
-            )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+            "tub.port = disabled\n"
+            "tub.location = not_disabled\n"
+        )
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with self.assertRaises(ValueError) as ctx:
-            _tub_portlocation(config, "disabled", "not_disabled")
+            _tub_portlocation(config)
         self.assertIn(
             "tub.port is disabled, but not tub.location",
             str(ctx.exception)
         )
 
     def test_disabled_tub_not_port(self):
-        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
-            f.write(
-                "[node]\n"
-                "tub.port = not_disabled\n"
-                "tub.location = disabled\n"
-            )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+            "tub.port = not_disabled\n"
+            "tub.location = disabled\n"
+        )
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with self.assertRaises(ValueError) as ctx:
-            _tub_portlocation(config, "not_disabled", "disabled")
+            _tub_portlocation(config)
         self.assertIn(
             "tub.location is disabled, but not tub.port",
             str(ctx.exception)
