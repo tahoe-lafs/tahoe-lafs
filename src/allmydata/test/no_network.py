@@ -27,7 +27,6 @@ from allmydata.util.assertutil import _assert
 
 from allmydata import uri as tahoe_uri
 from allmydata.client import _Client
-from allmydata.client import create_client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
