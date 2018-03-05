@@ -299,7 +299,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.patch(foolscap.logging.log, 'setLogDir', call_setLogDir)
 
         create_node_dir(basedir, "nothing to see here")
-        c = yield client.create_client(basedir)
+        yield client.create_client(basedir)
         self.failUnless(ns.called)
 
 
