@@ -178,31 +178,37 @@ def read_config(basedir, portnumfile, generated_files=[]):
 # @defer.inlineCallbacks
 def create_client(basedir=u".", _client_factory=None):
     """
-    Create a new _Client instance in the given directory (which may
-    not exist yet).
+    Creates a new client instance (a subclass of Node).
+
+    :param basedir: the node directory (which may not exist yet)
+
+    :param _client_factory: for testing; the class to instantiate
     """
     # should we check for this directory existing first? (this used to
     # be in Node's constructor)
     node.create_node_dir(basedir, CLIENT_README)
     config = read_config(basedir, u"client.port", _valid_config_sections=_valid_config_sections)
 
-    if _client_factory is None:
-        _client_factory = _Client
-
     # read config file and create instance
     config = read_config(basedir, u"client.port")
-    return create_client_from_config(config)  # async
+    return create_client_from_config(config, _client_factory=_client_factory)  # async
 
 
 # this method is async
 # @defer.inlineCallbacks
-def create_client_from_config(config):
+def create_client_from_config(config, _client_factory=None):
     """
-    Create a new _Client instance given a _Config instance (basedir
-    must already exist and be writable).
+    Creates a new client instance (a subclass of Node).  Most code
+    should probably use `create_client` instead.
 
-    Most code should probably use `create_client` instead.
+    :param config: configuration instance (from read_config()) which
+        encapsulates everything in the "node directory".
+
+    :param _client_factory: for testing; the class to instantiate
     """
+    if _client_factory is None:
+        _client_factory = _Client
+
     i2p_provider = create_i2p_provider(reactor, config)
     tor_provider = create_tor_provider(reactor, config)
     handlers = node.create_connection_handlers(reactor, config, i2p_provider, tor_provider)
@@ -221,7 +227,7 @@ def create_client_from_config(config):
         tub_options, introducer_clients
     )
 
-    client = _Client(
+    client = _client_factory(
         config,
         main_tub,
         control_tub,
