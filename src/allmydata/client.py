@@ -196,14 +196,13 @@ def create_client(basedir=u".", _client_factory=None):
     :returns: :class:`allmydata.client._Client` instance (or whatever
         `_client_factory` returns)
     """
-    # should we check for this directory existing first? (this used to
-    # be in Node's constructor)
     node.create_node_dir(basedir, CLIENT_README)
     config = read_config(basedir, u"client.port")
-
-    # read config file and create instance
-    config = read_config(basedir, u"client.port")
-    return create_client_from_config(config, _client_factory=_client_factory)  # async
+    # following call is async
+    return create_client_from_config(
+        config,
+        _client_factory=_client_factory,
+    )
 
 
 # this method is async
@@ -213,10 +212,13 @@ def create_client_from_config(config, _client_factory=None):
     Creates a new client instance (a subclass of Node).  Most code
     should probably use `create_client` instead.
 
+    :returns: Deferred yielding a _Client instance
+
     :param config: configuration instance (from read_config()) which
         encapsulates everything in the "node directory".
 
     :param _client_factory: for testing; the class to instantiate
+        instead of _Client
     """
     if _client_factory is None:
         _client_factory = _Client
