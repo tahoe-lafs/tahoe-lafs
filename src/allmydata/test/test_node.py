@@ -496,6 +496,32 @@ class FakeTub:
 
 class Listeners(unittest.TestCase):
 
+    def test_listen_on_zero(self):
+        """
+        Trying to listen on port 0 should be an error
+        """
+        basedir = self.mktemp()
+        create_node_dir(basedir, "testing")
+        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
+            f.write(BASE_CONFIG)
+            f.write("tub.port = tcp:0\n")
+            f.write("tub.location = AUTO\n")
+
+        config = client.read_config(basedir, "client.port")
+        i2p_provider = mock.Mock()
+        tor_provider = mock.Mock()
+        dfh, fch = create_connection_handlers(None, config, i2p_provider, tor_provider)
+        tub_options = create_tub_options(config)
+        t = FakeTub()
+
+        with mock.patch("allmydata.node.Tub", return_value=t):
+            with self.assertRaises(ValueError) as ctx:
+                create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
+        self.assertIn(
+            "you must choose",
+            str(ctx.exception),
+        )
+
     def test_multiple_ports(self):
         basedir = self.mktemp()
         create_node_dir(basedir, "testing")
