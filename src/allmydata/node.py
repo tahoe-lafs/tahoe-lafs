@@ -510,10 +510,16 @@ def _convert_tub_port(s):
     return s
 
 
-def _tub_portlocation(config, cfg_tubport, cfg_location):
-    # return None, or tuple of (port, location)
-    tubport_disabled = False
+def _tub_portlocation(config):
+    """
+    :returns: None or tuple of (port, location) for the main tub based
+        on the given configuration. May raise ValueError or PrivacyError
+        if there are problems with the config
+    """
+    cfg_tubport = config.get_config("node", "tub.port", None)
+    cfg_location = config.get_config("node", "tub.location", None)
     reveal_ip = config.get_config("node", "reveal-IP-address", True, boolean=True)
+    tubport_disabled = False
 
     if cfg_tubport is not None:
         cfg_tubport = cfg_tubport.strip()
@@ -592,9 +598,7 @@ def create_main_tub(config, tub_options,
                     default_connection_handlers, foolscap_connection_handlers,
                     i2p_provider, tor_provider,
                     handler_overrides={}, cert_filename="node.pem"):
-    cfg_tubport = config.get_config("node", "tub.port", None)
-    cfg_location = config.get_config("node", "tub.location", None)
-    portlocation = _tub_portlocation(config, cfg_tubport, cfg_location)
+    portlocation = _tub_portlocation(config)
 
     certfile = config.get_private_path("node.pem")  # FIXME? "node.pem" was the CERTFILE option/thing
     tub = create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
