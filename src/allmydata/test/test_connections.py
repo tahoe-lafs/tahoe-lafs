@@ -443,29 +443,15 @@ class Privacy(unittest.TestCase):
             str(ctx.exception),
             "tub.location uses AUTO",
         )
-        return
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
-        n._portnumfile = "missing"
-        n.check_privacy()
-        e = self.assertRaises(PrivacyError, n.get_tub_portlocation,
-                              None, "AUTO")
-        self.assertEqual(str(e), "tub.location uses AUTO")
-
-        n = FakeNode(BASECONFIG+"[node]\nreveal-IP-address = false\n")
-        n._portnumfile = "missing"
-        n.check_privacy()
-        e = self.assertRaises(PrivacyError, n.get_tub_portlocation,
-                              None, "AUTO,tcp:hostname:1234")
-        self.assertEqual(str(e), "tub.location uses AUTO")
 
     def test_tub_location_tcp(self):
         config = config_from_string(
-            BASECONFIG + "[node]\nreveal-IP-address = false\n",
+            BASECONFIG + "[node]\nreveal-IP-address = false\ntub.location=tcp:hostname:1234\n",
             "fake.port",
             "no-basedir",
         )
         with self.assertRaises(PrivacyError) as ctx:
-            _tub_portlocation(config, None, "tcp:hostname:1234")
+            _tub_portlocation(config)
         self.assertEqual(
             str(ctx.exception),
             "tub.location includes tcp: hint",
@@ -473,13 +459,13 @@ class Privacy(unittest.TestCase):
 
     def test_tub_location_legacy_tcp(self):
         config = config_from_string(
-            BASECONFIG + "[node]\nreveal-IP-address = false\n",
+            BASECONFIG + "[node]\nreveal-IP-address = false\ntub.location=hostname:1234\n",
             "fake.port",
             "no-basedir",
         )
 
         with self.assertRaises(PrivacyError) as ctx:
-            _tub_portlocation(config, None, "hostname:1234")
+            _tub_portlocation(config)
 
         self.assertEqual(
             str(ctx.exception),
