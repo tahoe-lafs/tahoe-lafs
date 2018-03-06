@@ -202,15 +202,10 @@ def create_no_network_client(basedir):
         introducer_clients=[],
         storage_farm_broker=storage_broker,
     )
-    storage_broker.client = client
-    return defer.succeed(client)
-
-#    c = yield create_client(basedir, _client_factory=_NoNetworkClient)
     # XXX we should probably make a way to pass this in instead of
     # changing it later.. also, a reference-cycle (but, existed before :/)
-#    c.storage_broker = NoNetworkStorageBroker()
-#    c.storage_broker.client = c
-#    defer.returnValue(c)
+    storage_broker.client = client
+    return defer.succeed(client)
 
 
 class _NoNetworkClient(_Client):
