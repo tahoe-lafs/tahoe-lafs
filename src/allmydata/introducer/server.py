@@ -62,7 +62,7 @@ def create_introducer(basedir=u"."):
     # outbound connections.
     i2p_provider = None
     tor_provider = None
-    main_tub, is_listening = create_main_tub(
+    main_tub = create_main_tub(
         config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
@@ -74,7 +74,6 @@ def create_introducer(basedir=u"."):
         control_tub,
         i2p_provider,
         tor_provider,
-        tub_is_listening=is_listening,
     )
     return defer.succeed(node)
 
@@ -82,15 +81,15 @@ def create_introducer(basedir=u"."):
 class _IntroducerNode(node.Node):
     NODETYPE = "introducer"
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening):
-        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening)
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider):
+        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
         self.init_introducer()
         webport = self.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
 
     def init_introducer(self):
-        if not self._tub_is_listening:
+        if not self._is_tub_listening():
             raise ValueError("config error: we are Introducer, but tub "
                              "is not listening ('tub.port=' is empty)")
         introducerservice = IntroducerService()
