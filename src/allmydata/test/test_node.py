@@ -51,7 +51,7 @@ def testing_tub(config_data=''):
     default_connection_handlers, foolscap_connection_handlers = handlers
     tub_options = create_tub_options(config)
 
-    main_tub, is_listening = create_main_tub(
+    main_tub = create_main_tub(
         config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
         cert_filename='DEFAULT_CERTFILE_BLANK'
