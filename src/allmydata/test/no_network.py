@@ -201,7 +201,6 @@ def create_no_network_client(basedir):
         tor_provider=None,
         introducer_clients=[],
         storage_farm_broker=storage_broker,
-        tub_is_listening=True,
     )
     storage_broker.client = client
     return defer.succeed(client)
@@ -215,6 +214,9 @@ def create_no_network_client(basedir):
 
 
 class _NoNetworkClient(_Client):
+
+    def _is_tub_listening(self):
+        return True
 
     def init_connections(self):
         pass

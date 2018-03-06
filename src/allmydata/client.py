@@ -216,7 +216,7 @@ def create_client_from_config(config, _client_factory=None):
     default_connection_handlers, foolscap_connection_handlers = handlers
     tub_options = node.create_tub_options(config)
 
-    main_tub, is_listening = node.create_main_tub(
+    main_tub = node.create_main_tub(
         config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
@@ -236,7 +236,6 @@ def create_client_from_config(config, _client_factory=None):
         tor_provider,
         introducer_clients,
         storage_broker,
-        tub_is_listening=is_listening,
     )
     i2p_provider.setServiceParent(client)
     tor_provider.setServiceParent(client)
@@ -363,11 +362,11 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    }
 
     def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients,
-                 storage_farm_broker, tub_is_listening):
+                 storage_farm_broker):
         """
         Use create_client() to instantiate one of these.
         """
-        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening)
+        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
 
         self._magic_folders = dict()
         self.started_timestamp = time.time()
@@ -390,7 +389,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.load_static_servers()
         self.helper = None
         if config.get_config("helper", "enabled", False, boolean=True):
-            if not self._tub_is_listening:
+            if not self._is_tub_listening():
                 raise ValueError("config error: helper is enabled, but tub "
                                  "is not listening ('tub.port=' is empty)")
             self.init_helper()
@@ -475,7 +474,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         # should we run a storage server (and publish it for others to use)?
         if not self.config.get_config("storage", "enabled", True, boolean=True):
             return
-        if not self._tub_is_listening:
+        if not self._is_tub_listening():
             raise ValueError("config error: storage is enabled, but tub "
                              "is not listening ('tub.port=' is empty)")
         readonly = self.config.get_config("storage", "readonly", False, boolean=True)

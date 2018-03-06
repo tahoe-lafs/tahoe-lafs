@@ -597,15 +597,12 @@ def create_main_tub(config, tub_options,
                 port_or_endpoint = port
             tub.listenOn(port_or_endpoint)
         tub.setLocation(location)
-        tub_is_listening = True
         log.msg("Tub location set to %s" % (location,))
         # the Tub is now ready for tub.registerReference()
     else:
-        tub_is_listening = False
         log.msg("Tub is not listening")
 
-    # XXX can we get rid of the tub_is_listening part?
-    return tub, tub_is_listening
+    return tub
 
 
 def create_control_tub():
@@ -630,14 +627,13 @@ class Node(service.MultiService):
     CERTFILE = "node.pem"
     GENERATED_FILES = []
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, tub_is_listening):
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider):
         """
         Initialize the node with the given configuration. Its base directory
         is the current directory by default.
         """
         service.MultiService.__init__(self)
 
-        self._tub_is_listening = tub_is_listening  # holdover; do we really need this?
         self.config = config
         self.get_config = config.get_config # XXX stopgap
         self.nickname = config.nickname # XXX stopgap
@@ -668,6 +664,12 @@ class Node(service.MultiService):
 
         self.log("Node constructed. " + get_package_versions_string())
         iputil.increase_rlimits()
+
+    def _is_tub_listening(self):
+        """
+        :returns: True if the main tub is listening
+        """
+        return len(self.tub.getListeners()) > 0
 
     def init_tempdir(self):
         """
