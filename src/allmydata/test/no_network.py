@@ -210,9 +210,6 @@ def create_no_network_client(basedir):
 
 class _NoNetworkClient(_Client):
 
-    def _is_tub_listening(self):
-        return True
-
     def init_connections(self):
         pass
     def create_main_tub(self):
