@@ -196,11 +196,11 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
     return _Config(parser, portnumfile, basedir, config_fname)
 
 
-# XXX consider re-ordering args to match read_config()
-def config_from_string(config_str, portnumfile, basedir):
+def config_from_string(basedir, portnumfile, config_str):
     """
     load configuration from in-memory string
     """
+    # load configuration from in-memory string
     parser = ConfigParser.SafeConfigParser()
     parser.readfp(BytesIO(config_str))
     return _Config(parser, portnumfile, basedir, '<in-memory>')
