@@ -580,7 +580,7 @@ class IntroducerClients(unittest.TestCase):
             "[client]\n"
             "introducer.furl = None\n"
         )
-        config = config_from_string(cfg, "client.port", "basedir")
+        config = config_from_string("basedir", "client.port", cfg)
 
         with self.assertRaises(ValueError) as ctx:
             client.create_introducer_clients(config, main_tub=None)
