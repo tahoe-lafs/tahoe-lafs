@@ -43,7 +43,7 @@ class LoggingMultiService(service.MultiService):
 def testing_tub(config_data=''):
     from twisted.internet import reactor
     basedir = 'dummy_basedir'
-    config = config_from_string(config_data, 'DEFAULT_PORTNUMFILE_BLANK', basedir)
+    config = config_from_string(basedir, 'DEFAULT_PORTNUMFILE_BLANK', config_data)
     fileutil.make_dirs(os.path.join(basedir, 'private'))
 
     i2p_provider = create_i2p_provider(reactor, config)
@@ -226,7 +226,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.close()
 
         basedir = fileutil.abspath_expanduser_unicode(basedir)
-        config = config_from_string("", "", basedir)
+        config = config_from_string(basedir, "", "")
 
         self.assertEqual(config.get_private_config("already"), "secret")
         self.assertEqual(config.get_private_config("not", "default"), "default")
@@ -255,7 +255,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         """
         basedir = "test_node/configdir"
         fileutil.make_dirs(basedir)
-        config = config_from_string("", "", basedir)
+        config = config_from_string(basedir, "", "")
         with open(os.path.join(basedir, "bad"), "w") as f:
             f.write("bad")
         os.chmod(os.path.join(basedir, "bad"), 0o000)
@@ -337,7 +337,7 @@ class TestMissingPorts(unittest.TestCase):
             "tub.port = tcp:777\n"
             "tub.location = AUTO\n"
         )
-        config = config_from_string(config_data, self.basedir, "portnum")
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
@@ -359,7 +359,7 @@ class TestMissingPorts(unittest.TestCase):
         config_data = (
             "[node]\n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
@@ -382,7 +382,7 @@ class TestMissingPorts(unittest.TestCase):
             "[node]\n"
             "tub.location = tcp:HOST:888,AUTO\n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
@@ -406,7 +406,7 @@ class TestMissingPorts(unittest.TestCase):
             "tub.port = disabled\n"
             "tub.location = disabled\n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
             res = _tub_portlocation(config)
@@ -420,7 +420,7 @@ class TestMissingPorts(unittest.TestCase):
             "[node]\n"
             "tub.port = \n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
             _tub_portlocation(config)
@@ -437,7 +437,7 @@ class TestMissingPorts(unittest.TestCase):
             "[node]\n"
             "tub.location = \n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
             _tub_portlocation(config)
@@ -455,7 +455,7 @@ class TestMissingPorts(unittest.TestCase):
             "tub.port = disabled\n"
             "tub.location = not_disabled\n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
             _tub_portlocation(config)
@@ -473,7 +473,7 @@ class TestMissingPorts(unittest.TestCase):
             "tub.port = not_disabled\n"
             "tub.location = disabled\n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
             _tub_portlocation(config)
