@@ -12,12 +12,6 @@ from ..util.i2p_provider import create as create_i2p_provider
 from ..util.tor_provider import create as create_tor_provider
 
 
-class FakeNode(Node):
-    def __init__(self, config_str):
-        self.config = config_from_string("fake.port", "no-basedir", config_str)
-        self._reveal_ip = True
-        self.services = []
-
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
               )
