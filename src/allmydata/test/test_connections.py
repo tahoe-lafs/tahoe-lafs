@@ -4,7 +4,7 @@ from twisted.trial import unittest
 from twisted.internet import reactor, endpoints, defer
 from twisted.internet.interfaces import IStreamClientEndpoint
 from foolscap.connections import tcp
-from ..node import Node, PrivacyError, config_from_string
+from ..node import PrivacyError, config_from_string
 from ..node import create_connection_handlers
 from ..node import create_main_tub, _tub_portlocation
 from ..util import connection_status
