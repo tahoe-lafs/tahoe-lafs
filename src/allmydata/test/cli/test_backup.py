@@ -64,19 +64,28 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         d = self.do_cli("create-alias", "tahoe")
 
-        d.addCallback(lambda res: do_backup())
+        d.addCallback(lambda res: do_backup(True))
         def _check0((rc, out, err)):
+            print()
+            print(out)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
-            fu, fr, fs, dc, dr, ds = self.count_output(out)
+            (
+                files_uploaded,
+                files_reused,
+                files_skipped,
+                directories_created,
+                directories_reused,
+                directories_skipped,
+            ) = self.count_output(out)
             # foo.txt, bar.txt, blah.txt
-            self.failUnlessReallyEqual(fu, 3)
-            self.failUnlessReallyEqual(fr, 0)
-            self.failUnlessReallyEqual(fs, 0)
+            self.failUnlessReallyEqual(files_uploaded, 3)
+            self.failUnlessReallyEqual(files_reused, 0)
+            self.failUnlessReallyEqual(files_skipped, 0)
             # empty, home, home/parent, home/parent/subdir
-            self.failUnlessReallyEqual(dc, 4)
-            self.failUnlessReallyEqual(dr, 0)
-            self.failUnlessReallyEqual(ds, 0)
+            self.failUnlessReallyEqual(directories_created, 4)
+            self.failUnlessReallyEqual(directories_reused, 0)
+            self.failUnlessReallyEqual(directories_skipped, 0)
         d.addCallback(_check0)
 
         d.addCallback(lambda res: self.do_cli("ls", "--uri", "tahoe:backups"))
