@@ -123,6 +123,7 @@ package_imports = [
     ('enum34',           'enum'),
     ('pycparser',        'pycparser'),
     ('PyYAML',           'yaml'),
+    ('magic-wormhole',   'wormhole')
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
