@@ -1553,10 +1553,9 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         yield iterate_uploader(self.magicfolder)
         yield iterate_uploader(self.magicfolder)  # req'd for windows; not sure why?
 
-        # status we got each time should be the same
-        self.assertEqual(len(upstatus0), len(upstatus1))
-        for item0, item1 in zip(upstatus0, upstatus1):
-            self.assertEqual(item0, item1)
+        # no matter which part of the queue the items are in, we
+        # should see the same status from the outside
+        self.assertEqual(upstatus0, upstatus1)
 
     @defer.inlineCallbacks
     def test_real_notify_failure(self):
