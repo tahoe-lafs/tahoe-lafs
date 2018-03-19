@@ -786,7 +786,8 @@ Storage Server Configuration
 
 ``storage_dir = (string, optional)``
 
-    This specifies a storing directory.
+    This specifies a directory where share files and other state pertaining to
+    storage servers will be kept.
 
     The default value is the ``storage`` directory in the node's base directory
     (i.e. ``BASEDIR/storage``), but it can be placed elsewhere. Relative paths
@@ -857,7 +858,7 @@ This section describes these other files.
   files on behalf of other clients. There will be a directory underneath it
   for each StorageIndex for which this node is holding shares. There is also
   an "incoming" directory where partially-completed shares are held while
-  they are being received.
+  they are being received.  This location may be overridden in ``tahoe.cfg``.
 
 ``tahoe-client.tac``
 
