@@ -1556,6 +1556,10 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     @defer.inlineCallbacks
     def test_real_notify_failure(self):
+        """
+        Simulate an exception from the _real_notify helper in
+        magic-folder's uploader, confirming error-handling works.
+        """
 
         def bad_stuff(*args, **kw):
             # the function we replaced would trigger this hook, so we
