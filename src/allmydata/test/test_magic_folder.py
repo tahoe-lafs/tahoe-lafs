@@ -1527,6 +1527,10 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     @defer.inlineCallbacks
     def test_batched_process(self):
+        """
+        status APIs correctly function when there are 2 items queued at
+        once for processing
+        """
         # setup: get at least two items into the deque
         path0 = os.path.join(self.local_dir, u'foo')
         yield self.fileops.write(path0, 'foo\n')
