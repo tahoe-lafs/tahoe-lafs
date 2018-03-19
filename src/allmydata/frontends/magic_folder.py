@@ -309,7 +309,7 @@ class QueueMixin(HookMixin):
     them. Tracks some history of recent items processed (for the
     "status" API).
 
-    Subclasses implment _scan_delay, _perform_scan and _process
+    Subclasses implement _scan_delay, _perform_scan and _process
 
     :ivar _deque: IQueuedItem instances to process
 
