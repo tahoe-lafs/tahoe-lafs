@@ -411,6 +411,9 @@ class FileOperationsHelper(object):
 
     def write(self, path_u, contents):
         fname = path_u
+        if not os.path.exists(fname):
+            self._maybe_notify(fname, self._inotify.IN_CREATE)
+
         d = self._uploader.set_hook('inotify')
         with open(fname, "wb") as f:
             f.write(contents)
@@ -435,7 +438,7 @@ class FileOperationsHelper(object):
 
     def _maybe_notify(self, fname, mask):
         if self._fake_inotify:
-            self._uploader._notifier.event(to_filepath(fname), self._inotify.IN_DELETE)
+            self._uploader._notifier.event(to_filepath(fname), mask)
 
 
 class CheckerMixin(object):
