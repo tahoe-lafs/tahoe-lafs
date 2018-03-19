@@ -681,7 +681,7 @@ class Uploader(QueueMixin):
             return self._real_notify(opaque, path, events_mask)
         except Exception as e:
             self._log(u"error calling _real_notify: {}".format(e))
-            twlog.err(Failure())
+            twlog.err(Failure(), "Error calling _real_notify")
 
     def _real_notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
