@@ -350,7 +350,10 @@ class _Client(node.Node, pollmixin.PollMixin):
                              "is not listening ('tub.port=' is empty)")
         readonly = self.get_config("storage", "readonly", False, boolean=True)
 
-        storedir = os.path.join(self.basedir, self.STOREDIR)
+        config_storedir = self.get_config(
+            "storage", "storage_dir", self.STOREDIR,
+        ).decode('utf-8')
+        storedir = os.path.join(self.basedir, config_storedir)
 
         data = self.get_config("storage", "reserved_space", None)
         try:

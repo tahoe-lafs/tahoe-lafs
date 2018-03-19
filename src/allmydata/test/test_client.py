@@ -12,6 +12,7 @@ from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.util import base32, fileutil
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
@@ -250,6 +251,84 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                         "enabled = true\n"
                         "port = tcp:0:interface=127.0.0.1\n"))
         self.failUnlessRaises(NeedRootcapLookupScheme, client.create_client, basedir)
+
+    def _storage_dir_test(self, basedir, storage_path, expected_path):
+        os.mkdir(basedir)
+        cfg_path = os.path.join(basedir, "tahoe.cfg")
+        fileutil.write(
+            cfg_path,
+            BASECONFIG +
+            "[storage]\n"
+            "enabled = true\n",
+        )
+        if storage_path is not None:
+            fileutil.write(
+                cfg_path,
+                "storage_dir = %s\n" % (storage_path,),
+                mode="ab",
+        )
+        c = client.create_client(basedir)
+        self.assertEqual(
+            c.getServiceNamed("storage").storedir,
+            expected_path,
+        )
+
+    def test_default_storage_dir(self):
+        """
+        If no value is given for ``storage_dir`` in the ``storage`` section of
+        ``tahoe.cfg`` then the ``storage`` directory beneath the node
+        directory is used.
+        """
+        basedir = u"client.Basic.test_default_storage_dir"
+        config_path = None
+        expected_path = os.path.join(
+            abspath_expanduser_unicode(basedir),
+            u"storage",
+        )
+        self._storage_dir_test(
+            basedir,
+            config_path,
+            expected_path,
+        )
+
+    def test_relative_storage_dir(self):
+        """
+        A storage node can be directed to use a particular directory for share
+        file storage by setting ``storage_dir`` in the ``storage`` section of
+        ``tahoe.cfg``.  If the path is relative, it is interpreted relative to
+        the node's basedir.
+        """
+        basedir = u"client.Basic.test_relative_storage_dir"
+        config_path = b"myowndir"
+        expected_path = os.path.join(
+            abspath_expanduser_unicode(basedir),
+            u"myowndir",
+        )
+        self._storage_dir_test(
+            basedir,
+            config_path,
+            expected_path,
+        )
+
+    def test_absolute_storage_dir(self):
+        """
+        If the ``storage_dir`` item in the ``storage`` section of the
+        configuration gives an absolute path then exactly that path is used.
+        """
+        basedir = u"client.Basic.test_absolute_storage_dir"
+        # create_client is going to try to make the storage directory so we
+        # don't want a literal absolute path like /myowndir which we won't
+        # have write permission to.  So construct an absolute path that we
+        # should be able to write to.
+        expected_path = abspath_expanduser_unicode(
+            u"client.Basic.test_absolute_storage_dir_myowndir/\N{SNOWMAN}"
+        )
+        config_path = expected_path.encode("utf-8")
+        self._storage_dir_test(
+            basedir,
+            config_path,
+            expected_path,
+        )
 
     def _permute(self, sb, key):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]

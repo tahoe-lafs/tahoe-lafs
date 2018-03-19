@@ -177,7 +177,8 @@ class CreateClientOptions(_CreateBaseOptions):
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
-        ] + TOR_FLAGS + I2P_FLAGS
+        ("storage-dir", None, "Path where the storage will be placed."),
+    ] + TOR_FLAGS + I2P_FLAGS
 
     synopsis = "[options] [NODEDIR]"
     description = "Create a full Tahoe-LAFS node (client+server)."
@@ -320,6 +321,11 @@ def write_client_config(c, config):
     c.write("enabled = %s\n" % boolstr[storage_enabled])
     c.write("#readonly =\n")
     c.write("reserved_space = 1G\n")
+    storage_dir = config.get("storage-dir")
+    if storage_dir:
+        c.write("storage_dir = %s\n" % (storage_dir,))
+    else:
+        c.write("#storage_dir =\n")
     c.write("#expire.enabled =\n")
     c.write("#expire.mode =\n")
     c.write("\n")
