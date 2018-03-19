@@ -1565,11 +1565,16 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         magic-folder's uploader, confirming error-handling works.
         """
 
+        orig_notify = self.magicfolder.uploader._real_notify
+
+        class BadStuff(Exception):
+            pass
+
         def bad_stuff(*args, **kw):
-            # the function we replaced would trigger this hook, so we
-            # have to or things will stall
-            self.magicfolder.uploader._call_hook(u"foo", "inotify")
-            raise RuntimeError("the bad stuff")
+            # call original method ..
+            orig_notify(*args, **kw)
+            # ..but then cause a special problem
+            raise BadStuff("the bad stuff")
 
         patch_notify = mock.patch.object(
             self.magicfolder.uploader,
@@ -1579,6 +1584,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         with patch_notify:
             path0 = os.path.join(self.local_dir, u'foo')
             yield self.fileops.write(path0, 'foo\n')
+            # this actually triggers two notifies
 
         # do a reactor turn; this is necessary because our "bad_stuff"
         # method calls the hook (so the above 'yield' resumes) right
@@ -1586,10 +1592,8 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         # pending callbacks including the exception are processed
         # before we flush the errors.
         yield task.deferLater(reactor, 0, lambda: None)
-        errors = self.flushLoggedErrors()
-
-        self.assertEqual(1, len(errors))
-        self.assertIn("the bad stuff", str(errors[0]))
+        errors = self.flushLoggedErrors(BadStuff)
+        self.assertEqual(2, len(errors))
 
     @defer.inlineCallbacks
     def test_delete_and_restore(self):
