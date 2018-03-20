@@ -34,6 +34,7 @@ class MagicFolderWebApi(TokenOnlyWebApi):
             for (status, ts) in item.status_history():
                 d[status + '_at'] = ts
             d['percent_done'] = item.progress.progress
+            d['size'] = item.size
             data.append(d)
 
         for item in magic_folder.downloader.get_status():
@@ -45,6 +46,7 @@ class MagicFolderWebApi(TokenOnlyWebApi):
             for (status, ts) in item.status_history():
                 d[status + '_at'] = ts
             d['percent_done'] = item.progress.progress
+            d['size'] = item.size
             data.append(d)
 
         return json.dumps(data)

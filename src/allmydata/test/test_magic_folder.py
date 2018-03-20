@@ -1,6 +1,7 @@
 
 import os, sys, time
 import shutil, json
+import mock
 from os.path import join, exists
 
 from twisted.trial import unittest
@@ -410,6 +411,9 @@ class FileOperationsHelper(object):
 
     def write(self, path_u, contents):
         fname = path_u
+        if not os.path.exists(fname):
+            self._maybe_notify(fname, self._inotify.IN_CREATE)
+
         d = self._uploader.set_hook('inotify')
         with open(fname, "wb") as f:
             f.write(contents)
@@ -434,7 +438,7 @@ class FileOperationsHelper(object):
 
     def _maybe_notify(self, fname, mask):
         if self._fake_inotify:
-            self._uploader._notifier.event(to_filepath(fname), self._inotify.IN_DELETE)
+            self._uploader._notifier.event(to_filepath(fname), mask)
 
 
 class CheckerMixin(object):
@@ -1428,7 +1432,13 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
             what_path = abspath_expanduser_unicode(u"what", base=small_tree_dir)
             fileutil.write(what_path, "say when")
             yield self.fileops.move(small_tree_dir, new_small_tree_dir)
+            upstatus = list(self.magicfolder.uploader.get_status())
+            downstatus = list(self.magicfolder.downloader.get_status())
+
+            self.assertEqual(2, len(upstatus))
+            self.assertEqual(0, len(downstatus))
             yield iterate(self.magicfolder)
+
             # when we add the dir, we queue a scan of it; so we want
             # the upload to "go" as well requiring 1 more iteration
             yield iterate(self.magicfolder)
@@ -1517,6 +1527,77 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         node, metadata = yield self.magicfolder.downloader._get_collective_latest_file(u'foo')
         self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
         self.failUnlessEqual(metadata['version'], 1)
+
+    @defer.inlineCallbacks
+    def test_batched_process(self):
+        """
+        status APIs correctly function when there are 2 items queued at
+        once for processing
+        """
+        # setup: get at least two items into the deque
+        path0 = os.path.join(self.local_dir, u'foo')
+        yield self.fileops.write(path0, 'foo\n')
+        path1 = os.path.join(self.local_dir, u'bar')
+        yield self.fileops.write(path1, 'bar\n')
+
+        # get the status before we've processed anything
+        upstatus0 = list(self.magicfolder.uploader.get_status())
+        upstatus1 = []
+
+        def one_item(item):
+            # grab status after we've processed a single item
+            us = list(self.magicfolder.uploader.get_status())
+            upstatus1.extend(us)
+        one_d = self.magicfolder.uploader.set_hook('item_processed')
+        # can't 'yield' here because the hook isn't called until
+        # inside iterate()
+        one_d.addCallbacks(one_item, self.fail)
+
+        yield iterate_uploader(self.magicfolder)
+        yield iterate_uploader(self.magicfolder)  # req'd for windows; not sure why?
+
+        # no matter which part of the queue the items are in, we
+        # should see the same status from the outside
+        self.assertEqual(upstatus0, upstatus1)
+
+    @defer.inlineCallbacks
+    def test_real_notify_failure(self):
+        """
+        Simulate an exception from the _real_notify helper in
+        magic-folder's uploader, confirming error-handling works.
+        """
+
+        orig_notify = self.magicfolder.uploader._real_notify
+
+        class BadStuff(Exception):
+            pass
+
+        def bad_stuff(*args, **kw):
+            # call original method ..
+            orig_notify(*args, **kw)
+            # ..but then cause a special problem
+            raise BadStuff("the bad stuff")
+
+        patch_notify = mock.patch.object(
+            self.magicfolder.uploader,
+            '_real_notify',
+            mock.Mock(side_effect=bad_stuff),
+        )
+        with patch_notify:
+            path0 = os.path.join(self.local_dir, u'foo')
+            yield self.fileops.write(path0, 'foo\n')
+            # this actually triggers two notifies
+
+        # do a reactor turn; this is necessary because our "bad_stuff"
+        # method calls the hook (so the above 'yield' resumes) right
+        # *before* it raises the exception; thus, we ensure all the
+        # pending callbacks including the exception are processed
+        # before we flush the errors.
+        yield task.deferLater(reactor, 0, lambda: None)
+        errors = self.flushLoggedErrors(BadStuff)
+        # it seems on Windows the "RealTest" variant only produces 1
+        # notification for some reason..
+        self.assertTrue(len(errors) >= 1)
 
     @defer.inlineCallbacks
     def test_delete_and_restore(self):

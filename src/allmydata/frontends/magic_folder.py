@@ -303,6 +303,23 @@ class MagicFolder(service.MultiService):
 
 
 class QueueMixin(HookMixin):
+    """
+    A parent class for Uploader and Downloader that handles putting
+    IQueuedItem instances into a work queue and processing
+    them. Tracks some history of recent items processed (for the
+    "status" API).
+
+    Subclasses implement _scan_delay, _perform_scan and _process
+
+    :ivar _deque: IQueuedItem instances to process
+
+    :ivar _process_history: the last 20 items we processed
+
+    :ivar _in_progress: current batch of items which are currently
+        being processed; chunks of work are removed from _deque and
+        worked on. As each finishes, it is added to _process_history
+        (with oldest items falling off the end).
+    """
 
     def __init__(self, client, local_path_u, db, name, clock):
         self._client = client
@@ -318,6 +335,7 @@ class QueueMixin(HookMixin):
             'started': None,
             'iteration': None,
             'inotify': None,
+            'item_processed': None,
         }
         self.started_d = self.set_hook('started')
 
@@ -329,6 +347,7 @@ class QueueMixin(HookMixin):
         self._deque = deque()
         # do we also want to bound on "maximum age"?
         self._process_history = deque(maxlen=20)
+        self._in_progress = []
         self._stopped = False
 
         # a Deferred to wait for the _do_processing() loop to exit
@@ -345,6 +364,8 @@ class QueueMixin(HookMixin):
         Returns an iterable of instances that implement IQueuedItem
         """
         for item in self._deque:
+            yield item
+        for item in self._in_progress:
             yield item
         for item in self._process_history:
             yield item
@@ -414,15 +435,27 @@ class QueueMixin(HookMixin):
         self._deque.clear()
         self._count('objects_queued', -len(to_process))
 
+        # we want to include all these in the next status request, so
+        # we must put them 'somewhere' before the next yield (and it's
+        # not in _process_history because that gets trimmed and we
+        # don't want anything to disappear until after it is
+        # completed)
+        self._in_progress.extend(to_process)
+
         self._log("%d items to process" % len(to_process), )
         for item in to_process:
             self._process_history.appendleft(item)
+            self._in_progress.remove(item)
             try:
                 self._log("  processing '%r'" % (item,))
                 proc = yield self._process(item)
                 self._log("  done: %r" % proc)
+                if not proc:
+                    self._process_history.remove(item)
+                self._call_hook(item, 'item_processed')
             except Exception as e:
                 log.err("processing '%r' failed: %s" % (item, e))
+                item.set_status('failed', self._clock.seconds())
                 proc = Failure()
 
             self._call_hook(proc, 'processed')
@@ -470,10 +503,11 @@ class IQueuedItem(Interface):
 
 @implementer(IQueuedItem)
 class QueuedItem(object):
-    def __init__(self, relpath_u, progress):
+    def __init__(self, relpath_u, progress, size):
         self.relpath_u = relpath_u
         self.progress = progress
         self._status_history = dict()
+        self.size = size
 
     def set_status(self, status, current_time=None):
         if current_time is None:
@@ -494,6 +528,12 @@ class QueuedItem(object):
         hist = self._status_history.items()
         hist.sort(lambda a, b: cmp(a[1], b[1]))
         return hist
+
+    def __eq__(self, other):
+        return (
+            other.relpath_u == self.relpath_u,
+            other.status_history() == self.status_history(),
+        )
 
 
 class UploadItem(QueuedItem):
@@ -601,8 +641,11 @@ class Uploader(QueueMixin):
             return
 
         self._pending.add(relpath_u)
+        fp = self._get_filepath(relpath_u)
+        pathinfo = get_pathinfo(unicode_from_filepath(fp))
         progress = PercentProgress()
-        item = UploadItem(relpath_u, progress)
+        self._log(u"add pending size: {}: {}".format(relpath_u, pathinfo.size))
+        item = UploadItem(relpath_u, progress, pathinfo.size)
         item.set_status('queued', self._clock.seconds())
         self._deque.append(item)
         self._count('objects_queued')
@@ -632,6 +675,15 @@ class Uploader(QueueMixin):
         return relpath_u in self._pending
 
     def _notify(self, opaque, path, events_mask):
+        # Twisted doesn't seem to do anything if our callback throws
+        # an error, so...
+        try:
+            return self._real_notify(opaque, path, events_mask)
+        except Exception as e:
+            self._log(u"error calling _real_notify: {}".format(e))
+            twlog.err(Failure(), "Error calling _real_notify")
+
+    def _real_notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
         relpath_u = self._get_relpath(path)
 
@@ -657,6 +709,10 @@ class Uploader(QueueMixin):
         self._call_hook(path, 'inotify')
 
     def _process(self, item):
+        """
+        process a single QueuedItem. If this returns False, the item is
+        removed from _process_history
+        """
         # Uploader
         relpath_u = item.relpath_u
         self._log("_process(%r)" % (relpath_u,))
@@ -944,8 +1000,8 @@ class DownloadItem(QueuedItem):
     """
     Represents a single item in the _deque of the Downloader
     """
-    def __init__(self, relpath_u, progress, filenode, metadata):
-        super(DownloadItem, self).__init__(relpath_u, progress)
+    def __init__(self, relpath_u, progress, filenode, metadata, size):
+        super(DownloadItem, self).__init__(relpath_u, progress, size)
         self.file_node = filenode
         self.metadata = metadata
 
@@ -1133,6 +1189,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                         PercentProgress(file_node.get_size()),
                         file_node,
                         metadata,
+                        file_node.get_size(),
                     )
                     to_dl.set_status('queued', self._clock.seconds())
                     self._deque.append(to_dl)
