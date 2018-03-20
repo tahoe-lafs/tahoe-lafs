@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import re, errno, subprocess, os
 
 from twisted.trial import unittest

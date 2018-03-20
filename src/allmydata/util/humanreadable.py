@@ -1,3 +1,4 @@
+from __future__ import print_function
 import exceptions, os
 from repr import Repr
 

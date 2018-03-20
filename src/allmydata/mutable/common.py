@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 MODE_CHECK = "MODE_CHECK" # query all peers
 MODE_ANYTHING = "MODE_ANYTHING" # one recoverable version
 MODE_WRITE = "MODE_WRITE" # replace all shares, probably.. not for initial

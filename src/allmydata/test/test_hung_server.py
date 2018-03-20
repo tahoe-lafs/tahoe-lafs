@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 import os, shutil
 from twisted.trial import unittest
 from twisted.internet import defer

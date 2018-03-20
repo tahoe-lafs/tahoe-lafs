@@ -1,7 +1,7 @@
 """
 Tests useful in assertion checking, prints out nicely formated messages too.
 """
-
+from __future__ import print_function
 from allmydata.util.humanreadable import hr
 
 def _assert(___cond=False, *___args, **___kwargs):

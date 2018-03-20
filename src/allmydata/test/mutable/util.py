@@ -1,3 +1,4 @@
+from __future__ import print_function
 from cStringIO import StringIO
 from twisted.internet import defer, reactor
 from foolscap.api import eventually, fireEventually

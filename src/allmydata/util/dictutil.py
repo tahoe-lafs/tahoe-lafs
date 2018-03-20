@@ -1,6 +1,7 @@
 """
 Tools to mess with dicts.
 """
+from __future__ import print_function
 
 class DictOfSets(dict):
     def add(self, key, value):

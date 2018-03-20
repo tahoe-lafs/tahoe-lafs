@@ -1,6 +1,6 @@
 # ISO-8601:
 # http://www.cl.cam.ac.uk/~mgk25/iso-time.html
-
+from __future__ import print_function
 import calendar, datetime, re, time
 
 def format_time(t):

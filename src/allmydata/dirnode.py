@@ -1,4 +1,5 @@
 """Directory Node implementation."""
+from __future__ import print_function
 import time, unicodedata
 
 from zope.interface import implementer

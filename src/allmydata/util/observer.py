@@ -1,5 +1,5 @@
 # -*- test-case-name: allmydata.test.test_observer -*-
-
+from __future__ import print_function
 import weakref
 from twisted.internet import defer
 from foolscap.api import eventually

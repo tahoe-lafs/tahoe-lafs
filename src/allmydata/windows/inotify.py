@@ -1,7 +1,6 @@
-
 # Windows near-equivalent to twisted.internet.inotify
 # This should only be imported on Windows.
-
+from __future__ import print_function
 import os, sys
 
 from twisted.internet import reactor

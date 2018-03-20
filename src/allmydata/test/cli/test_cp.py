@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os.path, json
 from twisted.trial import unittest
 from twisted.python import usage

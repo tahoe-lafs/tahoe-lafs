@@ -1,8 +1,8 @@
-
-"""This file defines a basic download-to-memory consumer, suitable for use in
+"""
+This file defines a basic download-to-memory consumer, suitable for use in
 a filenode's read() method. See download_to_data() for an example of its use.
 """
-
+from __future__ import print_function
 from zope.interface import implementer
 from twisted.internet.interfaces import IConsumer
 

@@ -30,7 +30,7 @@
 # service-identity: 14.0.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages/service_identity-14.0.0-py2.7.egg)
 # characteristic: 14.1.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages)
 # pyasn1-modules: 0.0.5 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pyasn1_modules-0.0.5-py2.7.egg)
-
+from __future__ import print_function
 import os, re, shutil, subprocess, sys, tempfile
 
 def test_osx_pkg(pkgfile):

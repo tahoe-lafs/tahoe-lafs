@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import heapq, traceback, array, stat, struct
 from types import NoneType
 from stat import S_IFREG, S_IFDIR

@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import time, os.path, platform, stat, re, json, struct, shutil
 
 from twisted.trial import unittest

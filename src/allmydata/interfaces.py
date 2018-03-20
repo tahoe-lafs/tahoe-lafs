@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from zope.interface import Interface, Attribute
 from foolscap.api import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
      ChoiceOf, IntegerConstraint, Any, RemoteInterface, Referenceable

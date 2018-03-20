@@ -1,3 +1,4 @@
+from __future__ import print_function
 import weakref
 from zope.interface import implementer
 from allmydata.util.assertutil import precondition

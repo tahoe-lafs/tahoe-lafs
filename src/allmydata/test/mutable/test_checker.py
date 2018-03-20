@@ -1,3 +1,4 @@
+from __future__ import print_function
 from twisted.trial import unittest
 from foolscap.api import flushEventualQueue
 from allmydata.monitor import Monitor

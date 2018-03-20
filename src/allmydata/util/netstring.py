@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 
 def netstring(s):
     assert isinstance(s, str), s # no unicode here

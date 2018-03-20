@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 # This checks that we can import the right versions of all dependencies.
 # Import this first to suppress deprecation warnings.
 import allmydata

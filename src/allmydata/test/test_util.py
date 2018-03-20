@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 def foo(): pass # keep the line number constant
 
 import os, time, sys

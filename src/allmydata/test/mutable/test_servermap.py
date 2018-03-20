@@ -1,3 +1,4 @@
+from __future__ import print_function
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata.monitor import Monitor

@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os, re, sys, time, json
 
 from twisted.trial import unittest

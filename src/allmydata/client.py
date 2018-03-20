@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, stat, time, weakref
 from allmydata import node
 from base64 import urlsafe_b64encode

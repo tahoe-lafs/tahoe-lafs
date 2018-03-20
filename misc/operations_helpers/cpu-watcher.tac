@@ -18,7 +18,7 @@
 
 # TODO:
 #  built-in graphs on web interface
-
+from __future__ import print_function
 import pickle, os.path, time, pprint
 from twisted.application import internet, service, strports
 from twisted.web import server, resource, http

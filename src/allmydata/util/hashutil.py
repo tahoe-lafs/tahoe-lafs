@@ -1,3 +1,4 @@
+from __future__ import print_function
 from pycryptopp.hash.sha256 import SHA256
 import os
 import hashlib

@@ -1,6 +1,5 @@
-
 # Test the NoNetworkGrid test harness
-
+from __future__ import print_function
 from twisted.trial import unittest
 from twisted.application import service
 from allmydata.test.no_network import NoNetworkGrid

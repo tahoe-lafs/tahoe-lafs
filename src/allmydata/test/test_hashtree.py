@@ -1,5 +1,5 @@
 # -*- test-case-name: allmydata.test.test_hashtree -*-
-
+from __future__ import print_function
 from twisted.trial import unittest
 
 from allmydata.util.hashutil import tagged_hash

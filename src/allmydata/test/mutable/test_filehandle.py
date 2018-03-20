@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 from cStringIO import StringIO
 from twisted.trial import unittest

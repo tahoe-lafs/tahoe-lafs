@@ -2,6 +2,7 @@
 This module contains classes and functions to implement and manage
 a node for Tahoe-LAFS.
 """
+from __future__ import print_function
 import datetime
 import os.path
 import re

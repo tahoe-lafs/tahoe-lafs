@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 lumiere_nfc = u"lumi\u00E8re"
 Artonwall_nfc = u"\u00C4rtonwall.mp3"

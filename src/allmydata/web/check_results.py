@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import time
 import json
 from nevow import rend, inevow, tags as T

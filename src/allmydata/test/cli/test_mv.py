@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os.path
 from twisted.trial import unittest
 from allmydata.util import fileutil

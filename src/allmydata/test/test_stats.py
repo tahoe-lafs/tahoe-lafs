@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from twisted.trial import unittest
 from twisted.application import service
 from allmydata.stats import CPUUsageMonitor

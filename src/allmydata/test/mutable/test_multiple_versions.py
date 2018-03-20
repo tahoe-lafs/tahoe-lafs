@@ -1,3 +1,4 @@
+from __future__ import print_function
 from twisted.trial import unittest
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import MODE_CHECK, MODE_READ

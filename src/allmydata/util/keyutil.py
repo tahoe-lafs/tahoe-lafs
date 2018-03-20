@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 from pycryptopp.publickey import ed25519
 from allmydata.util.base32 import a2b, b2a

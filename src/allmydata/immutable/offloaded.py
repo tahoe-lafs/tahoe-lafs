@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os, stat, time, weakref
 from zope.interface import implementer
 from twisted.internet import defer

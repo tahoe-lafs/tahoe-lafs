@@ -1,3 +1,4 @@
+from __future__ import print_function
 import json
 
 from allmydata.web.common import TokenOnlyWebApi, get_arg, WebError

@@ -1,3 +1,4 @@
+from __future__ import print_function
 from cStringIO import StringIO
 from zope.interface import implementer
 from twisted.internet import defer

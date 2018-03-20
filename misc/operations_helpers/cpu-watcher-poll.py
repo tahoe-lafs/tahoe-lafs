@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from __future__ import print_function
 from foolscap import Tub, eventual
 from twisted.internet import reactor
 import sys

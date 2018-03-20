@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, random, struct
 import treq
 from zope.interface import implementer

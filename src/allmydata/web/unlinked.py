@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import urllib
 from twisted.web import http
 from twisted.internet import defer

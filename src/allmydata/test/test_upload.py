@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 import os, shutil
 from cStringIO import StringIO
 from twisted.trial import unittest

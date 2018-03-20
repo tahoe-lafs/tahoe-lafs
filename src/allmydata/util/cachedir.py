@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os.path, stat, weakref, time
 from twisted.application import service, internet
 from allmydata.util import fileutil

@@ -1,5 +1,5 @@
 """Implementation of the deep stats class."""
-
+from __future__ import print_function
 import math
 
 from allmydata.interfaces import IImmutableFileNode

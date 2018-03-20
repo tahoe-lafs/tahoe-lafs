@@ -1,3 +1,4 @@
+from __future__ import print_function
 from ...util.encodingutil import unicode_to_argv
 from ...scripts import runner
 from ..common_util import ReallyEqualMixin, run_cli

@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import re
 import json
 from allmydata.util import keyutil, base32, rrefutil

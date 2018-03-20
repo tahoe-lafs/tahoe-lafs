@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from zope.interface import Interface, implementer
 from allmydata.util import observer
 

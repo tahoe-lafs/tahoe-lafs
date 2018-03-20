@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from zope.interface import implementer
 from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
      IDeepCheckResults, IDeepCheckAndRepairResults, IURI, IDisplayableServer

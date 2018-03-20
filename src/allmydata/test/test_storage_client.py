@@ -1,3 +1,4 @@
+from __future__ import print_function
 import hashlib
 from mock import Mock
 from allmydata.util import base32, yamlutil

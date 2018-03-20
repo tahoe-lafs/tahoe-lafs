@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 from os.path import dirname, join
 from mock import patch, Mock

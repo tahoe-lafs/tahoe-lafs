@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import re, struct, traceback, time, calendar
 from stat import S_IFREG, S_IFDIR
 

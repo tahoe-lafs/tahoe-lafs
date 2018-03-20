@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 class Spans:
     """I represent a compressed list of booleans, one per index (an integer).

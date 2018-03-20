@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 # This helper script is used with the 'test-desert-island' Makefile target.
-
+from __future__ import print_function
 import sys
 
 good = True

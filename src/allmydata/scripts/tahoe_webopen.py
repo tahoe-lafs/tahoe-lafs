@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 import urllib

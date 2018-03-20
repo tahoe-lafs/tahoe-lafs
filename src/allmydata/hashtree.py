@@ -1,5 +1,5 @@
 # -*- test-case-name: allmydata.test.test_hashtree -*-
-
+from __future__ import print_function
 from allmydata.util import mathutil # from the pyutil library
 
 """

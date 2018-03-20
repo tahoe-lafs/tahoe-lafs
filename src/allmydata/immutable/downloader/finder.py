@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import time
 now = time.time
 from foolscap.api import eventually

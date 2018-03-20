@@ -1,5 +1,5 @@
 #! /usr/bin/python
-
+from __future__ import print_function
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.immutable import ShareFile
 

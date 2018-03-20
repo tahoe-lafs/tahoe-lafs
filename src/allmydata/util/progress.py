@@ -3,7 +3,7 @@ Utilities relating to computing progress information.
 
 Ties in with the "consumer" module also
 """
-
+from __future__ import print_function
 from allmydata.interfaces import IProgress
 from zope.interface import implementer
 

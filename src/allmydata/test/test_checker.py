@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import json
 import os.path, shutil
 from twisted.trial import unittest

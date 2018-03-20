@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import time, os
 from nevow import rend
 from nevow.static import File as nevow_File

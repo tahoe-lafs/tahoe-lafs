@@ -1,3 +1,4 @@
+from __future__ import print_function
 import time, os, pickle, struct
 from allmydata.storage.crawler import ShareCrawler
 from allmydata.storage.shares import get_share_file

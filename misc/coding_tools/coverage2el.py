@@ -1,3 +1,4 @@
+from __future__ import print_function
 from coverage import coverage, summary, misc
 
 class ElispReporter(summary.SummaryReporter):

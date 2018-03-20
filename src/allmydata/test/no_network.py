@@ -1,4 +1,3 @@
-
 # This contains a test harness that creates a full Tahoe grid in a single
 # process (actually in a single MultiService) which does not use the network.
 # It does not use an Introducer, and there are no foolscap Tubs. Each storage
@@ -13,6 +12,7 @@
 # Tubs, so it is not useful for tests that involve a Helper or the
 # control.furl .
 
+from __future__ import print_function
 import os
 from zope.interface import implementer
 from twisted.application import service

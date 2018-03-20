@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, time, weakref, itertools
 from zope.interface import implementer
 from twisted.python import failure

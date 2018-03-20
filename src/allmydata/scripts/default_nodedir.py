@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import sys
 from allmydata.util.assertutil import precondition
 from allmydata.util.fileutil import abspath_expanduser_unicode

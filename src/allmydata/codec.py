@@ -1,5 +1,5 @@
 # -*- test-case-name: allmydata.test.test_encode_share -*-
-
+from __future__ import print_function
 from zope.interface import implementer
 from twisted.internet import defer
 from allmydata.util import mathutil

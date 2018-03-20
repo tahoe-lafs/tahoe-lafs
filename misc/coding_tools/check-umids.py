@@ -1,7 +1,7 @@
 #! /usr/bin/python
 
 # ./check-umids.py src
-
+from __future__ import print_function
 import sys, re, os
 
 ok = True

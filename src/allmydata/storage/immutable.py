@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, stat, struct, time
 
 from foolscap.api import Referenceable

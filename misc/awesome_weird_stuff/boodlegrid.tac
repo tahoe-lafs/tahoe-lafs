@@ -13,7 +13,7 @@ To install:
  5: launch this daemon with 'cd $BASEDIR && twistd -y boodlegrid.tac'
 
 """
-
+from __future__ import print_function
 import os, time
 from zope.interface import implements
 from twisted.application import service

@@ -1,3 +1,4 @@
+from __future__ import print_function
 from zope.interface import implementer
 from twisted.internet import defer
 from foolscap.api import DeadReferenceError, RemoteException

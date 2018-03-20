@@ -1,4 +1,5 @@
 # from the Python Standard Library
+from __future__ import print_function
 import os, re, socket, subprocess, errno
 
 from sys import platform

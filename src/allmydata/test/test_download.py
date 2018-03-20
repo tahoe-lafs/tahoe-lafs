@@ -1,8 +1,7 @@
-
 # system-level upload+download roundtrip test, but using shares created from
 # a previous run. This asserts that the current code is capable of decoding
 # shares from a previous version.
-
+from __future__ import print_function
 import os
 from twisted.trial import unittest
 from twisted.internet import defer, reactor

@@ -1,4 +1,5 @@
 # from the Python Standard Library
+from __future__ import print_function
 import string
 
 from allmydata.util.mathutil import log_ceil, log_floor

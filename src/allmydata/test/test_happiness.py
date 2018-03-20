@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 from twisted.trial import unittest
 from hypothesis import given
 from hypothesis.strategies import text, sets

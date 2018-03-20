@@ -1,3 +1,4 @@
+from __future__ import print_function
 from twisted.trial import unittest
 from allmydata.interfaces import SDMF_VERSION
 from allmydata.monitor import Monitor

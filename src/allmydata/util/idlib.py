@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 
 from foolscap import base32
 def nodeid_b2a(nodeid):

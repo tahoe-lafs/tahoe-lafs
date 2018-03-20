@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, base64
 from twisted.trial import unittest
 from allmydata import uri

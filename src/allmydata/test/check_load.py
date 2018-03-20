@@ -31,7 +31,7 @@ a mean of 10kB and a max of 100MB, so filesize=min(int(1.0/random(.0002)),1e8)
 
 
 """
-
+from __future__ import print_function
 import os, sys, httplib, binascii
 import urllib, json, random, time, urlparse
 

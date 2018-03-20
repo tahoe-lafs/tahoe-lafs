@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from twisted.internet import address
 from foolscap.api import Violation, RemoteException, DeadReferenceError, \
      SturdyRef

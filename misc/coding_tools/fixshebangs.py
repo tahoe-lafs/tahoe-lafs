@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from __future__ import print_function
 from allmydata.util import fileutil
 
 import re, shutil, sys

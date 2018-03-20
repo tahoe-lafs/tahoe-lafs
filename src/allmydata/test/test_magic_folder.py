@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os, sys, time
 import stat, shutil, json
 import mock

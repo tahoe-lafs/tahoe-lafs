@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from allmydata.uri import from_string
 from allmydata.util import base32, log, dictutil
 from allmydata.util.happinessutil import servers_of_happiness

@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os, json, urllib
 from twisted.trial import unittest
 from twisted.internet import defer

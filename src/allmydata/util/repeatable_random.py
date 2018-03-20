@@ -15,7 +15,7 @@ Caveats:
 2.  Likewise if some code called time.time() before force_repeatability() was called, then it will have gotten a real time stamp.  For example, trial does this.  (Then it later subtracts that real timestamp from a faketime timestamp to calculate elapsed time, resulting in a large negative elapsed time.)
 3.  The output from the fake urandom has weird distribution for performance reasons-- every byte after the first 20 bytes resulting from a single call to os.urandom() is zero.  In practice this hasn't caused any problems.
 """
-
+from __future__ import print_function
 import os, random, time
 if not hasattr(time, "realtime"):
     time.realtime = time.time

@@ -2,7 +2,7 @@
 Functions used to convert inputs from whatever encoding used in the system to
 unicode and back.
 """
-
+from __future__ import print_function
 import sys, os, re, locale
 from types import NoneType
 

@@ -1,7 +1,7 @@
 """
 Futz with files like a pro.
 """
-
+from __future__ import print_function
 import sys, exceptions, os, stat, tempfile, time, binascii
 from collections import namedtuple
 from errno import ENOENT

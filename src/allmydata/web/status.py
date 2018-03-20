@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import pprint, itertools, hashlib
 import json
 from twisted.internet import defer

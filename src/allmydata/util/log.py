@@ -1,3 +1,4 @@
+from __future__ import print_function
 from allmydata.util import nummedobj
 
 from foolscap.logging import log

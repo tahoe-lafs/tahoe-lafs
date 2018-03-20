@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from twisted.trial import unittest
 
 from allmydata import magicpath

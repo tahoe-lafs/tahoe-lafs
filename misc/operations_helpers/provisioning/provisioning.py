@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from nevow import inevow, rend, loaders, tags as T
 import math
 import util

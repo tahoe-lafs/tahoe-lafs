@@ -1,5 +1,5 @@
 # -*- test-case-name: allmydata.test.test_encode -*-
-
+from __future__ import print_function
 import time
 from zope.interface import implementer
 from twisted.internet import defer

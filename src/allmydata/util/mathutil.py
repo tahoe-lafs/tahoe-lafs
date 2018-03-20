@@ -1,7 +1,7 @@
 """
 A few commonly needed functions.
 """
-
+from __future__ import print_function
 import math
 
 def div_ceil(n, d):

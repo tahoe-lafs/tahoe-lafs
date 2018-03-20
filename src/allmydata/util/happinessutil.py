@@ -2,7 +2,7 @@
 I contain utilities useful for calculating servers_of_happiness, and for
 reporting it in messages
 """
-
+from __future__ import print_function
 from copy import deepcopy
 from allmydata.immutable.happiness_upload import residual_network
 from allmydata.immutable.happiness_upload import augmenting_path_for

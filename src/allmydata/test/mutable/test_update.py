@@ -1,3 +1,4 @@
+from __future__ import print_function
 import re
 from twisted.trial import unittest
 from twisted.internet import defer

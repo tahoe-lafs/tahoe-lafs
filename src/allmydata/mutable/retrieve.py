@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import time
 from itertools import count
 from zope.interface import implementer

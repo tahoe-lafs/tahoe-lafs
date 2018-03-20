@@ -1,3 +1,4 @@
+from __future__ import print_function
 import yaml
 
 # Announcements contain unicode, because they come from JSON. We tell PyYAML

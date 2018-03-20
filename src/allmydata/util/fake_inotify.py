@@ -1,7 +1,7 @@
-
 # Most of this is copied from Twisted 11.0. The reason for this hack is that
 # twisted.internet.inotify can't be imported when the platform does not support inotify.
 
+from __future__ import print_function
 
 # from /usr/src/linux/include/linux/inotify.h
 

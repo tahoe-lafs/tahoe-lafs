@@ -52,7 +52,7 @@ This script will also keep track of speeds and latencies and will write them
 in a machine-readable logfile.
 
 """
-
+from __future__ import print_function
 import time, subprocess, md5, os.path, random
 from twisted.python import usage
 

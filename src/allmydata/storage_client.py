@@ -1,4 +1,3 @@
-
 """
 I contain the client-side code which speaks to storage servers, in particular
 the foolscap-based server implemented in src/allmydata/storage/*.py .
@@ -28,7 +27,7 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
-
+from __future__ import print_function
 import re, time, hashlib
 from zope.interface import implementer
 from twisted.internet import defer

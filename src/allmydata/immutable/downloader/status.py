@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import itertools
 from zope.interface import implementer
 from allmydata.interfaces import IDownloadStatus

@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from twisted.trial.unittest import TestCase
 
 from allmydata.web.common import get_filenode_metadata, SDMF_VERSION, MDMF_VERSION

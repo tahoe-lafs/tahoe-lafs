@@ -1,3 +1,4 @@
+from __future__ import print_function
 from twisted.python.failure import Failure
 from foolscap.api import eventually
 from allmydata.interfaces import NotEnoughSharesError, NoSharesError

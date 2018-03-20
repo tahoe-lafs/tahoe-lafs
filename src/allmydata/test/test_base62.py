@@ -1,3 +1,4 @@
+from __future__ import print_function
 import random, unittest
 
 from allmydata.util import base62, mathutil

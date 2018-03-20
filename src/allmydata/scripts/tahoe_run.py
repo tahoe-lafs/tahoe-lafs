@@ -1,3 +1,4 @@
+from __future__ import print_function
 from .tahoe_daemonize import daemonize, DaemonizeOptions
 
 

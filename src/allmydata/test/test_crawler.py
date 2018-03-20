@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import time
 import os.path
 from twisted.trial import unittest

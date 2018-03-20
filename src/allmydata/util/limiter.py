@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from twisted.internet import defer
 from foolscap.api import eventually
 

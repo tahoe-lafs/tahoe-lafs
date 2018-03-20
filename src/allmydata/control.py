@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os, time, tempfile
 from zope.interface import implementer
 from twisted.application import service

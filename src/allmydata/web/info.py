@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import os, urllib
 
 from nevow import rend, tags as T
