@@ -1046,7 +1046,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         data = yield self.GET(
             '/',
         )
-        print(data)
 
     def test_status(self):
         h = self.s.get_history()
