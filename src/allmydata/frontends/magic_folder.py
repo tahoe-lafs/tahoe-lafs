@@ -990,7 +990,6 @@ class WriteFileMixin(object):
 
         precondition_abspath(abspath_u)
         replacement_path_u = abspath_u + u".tmp"  # FIXME more unique
-        backup_path_u = abspath_u + u".backup"
         if now is None:
             now = time.time()
 
@@ -1011,18 +1010,7 @@ class WriteFileMixin(object):
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
             try:
-                # XXX this is wrong; I think we're right now *always*
-                # creating a .backup file if we a) downloaded
-                # something and b) we already had a file.
-                # so if you have alice + bob and file0:
-                # - alice adds file0
-                # - bob downloads file0
-                # - alice changes file0
-                # - bob downloads file0 (and creates file0.backup)
-                # - alice changes file0
-                # - bob downloads file0 (tries to create file0.backup, then makes file0.conflict)
-
-                fileutil.replace_file(abspath_u, replacement_path_u, backup_path_u)
+                fileutil.replace_file(abspath_u, replacement_path_u)
                 return abspath_u
             except fileutil.ConflictError:
                 return self._rename_conflicted_file(abspath_u, replacement_path_u)
