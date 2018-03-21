@@ -456,7 +456,7 @@ class QueueMixin(HookMixin):
         seconds.
         """
         while not self._stopped:
-            self._log("doing iteration")
+            # self._log("_do_processing iteration")
             d = task.deferLater(self._clock, self._scan_delay(), lambda: None)
 
             # adds items to our deque
@@ -469,10 +469,8 @@ class QueueMixin(HookMixin):
             # *before* we trigger the 'iteration' hook, so that hook
             # can successfully advance the Clock and bypass the delay
             # if required (e.g. in the tests).
-            self._log("one loop; call_hook iteration %r" % self)
             self._call_hook(None, 'iteration')
             if not self._stopped:
-                self._log("waiting... %r" % d)
                 yield d
 
         self._log("stopped")
@@ -485,7 +483,6 @@ class QueueMixin(HookMixin):
 
     @defer.inlineCallbacks
     def _process_deque(self):
-        self._log("_process_deque %r" % (self._deque,))
         # process everything currently in the queue. we're turning it
         # into a list so that if any new items get added while we're
         # processing, they'll not run until next time)
@@ -500,7 +497,8 @@ class QueueMixin(HookMixin):
         # completed)
         self._in_progress.extend(to_process)
 
-        self._log("%d items to process" % len(to_process), )
+        if to_process:
+            self._log("%d items to process" % len(to_process), )
         for item in to_process:
             self._process_history.appendleft(item)
             self._in_progress.remove(item)
@@ -1013,6 +1011,17 @@ class WriteFileMixin(object):
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
             try:
+                # XXX this is wrong; I think we're right now *always*
+                # creating a .backup file if we a) downloaded
+                # something and b) we already had a file.
+                # so if you have alice + bob and file0:
+                # - alice adds file0
+                # - bob downloads file0
+                # - alice changes file0
+                # - bob downloads file0 (and creates file0.backup)
+                # - alice changes file0
+                # - bob downloads file0 (tries to create file0.backup, then makes file0.conflict)
+
                 fileutil.replace_file(abspath_u, replacement_path_u, backup_path_u)
                 return abspath_u
             except fileutil.ConflictError:
@@ -1122,15 +1131,11 @@ class Downloader(QueueMixin, WriteFileMixin):
         We check the remote metadata version against our magic-folder db version number;
         latest version wins.
         """
-        self._log("_should_download(%r, %r, %r)" % (relpath_u, remote_version, remote_uri))
         if magicpath.should_ignore_file(relpath_u):
-            self._log("nope")
             return False
-        self._log("yep")
         db_entry = self._db.get_db_entry(relpath_u)
         if db_entry is None:
             return True
-        self._log("version %r" % (db_entry.version,))
         if db_entry.version < remote_version:
             return True
         if db_entry.last_downloaded_uri is None and _is_empty_filecap(self._client, remote_uri):
@@ -1242,6 +1247,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                 file_node, metadata = max(scan_batch[relpath_u], key=lambda x: x[1]['version'])
 
                 if self._should_download(relpath_u, metadata['version'], file_node.get_readonly_uri()):
+                    self._log("_should_download(%r, %r, %r)" % (relpath_u, metadata['version'], file_node.get_readonly_uri()))
                     to_dl = DownloadItem(
                         relpath_u,
                         PercentProgress(file_node.get_size()),
