@@ -20,7 +20,7 @@ install_requires = [
     # need pkg_resources . We use >=11.3 here because that's what
     # "cryptography" requires (which is a sub-dependency of TLS-using
     # packages), so there's no point in requiring less.
-    "setuptools >= 11.3",
+    "setuptools >= 28.8.0",
 
     "zfec >= 1.1.0",
 
@@ -150,7 +150,9 @@ import sys
 if not hasattr(sys, 'frozen'):
     package_imports.append(('setuptools', 'setuptools'))
 
-setup_requires = []
+setup_requires = [
+    'setuptools >= 28.8.0',  # for PEP-440 style versions
+]
 
 
 # These are suppressed globally:
