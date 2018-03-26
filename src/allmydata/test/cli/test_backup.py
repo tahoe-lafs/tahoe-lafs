@@ -86,6 +86,12 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessReallyEqual(directories_created, 4)
             self.failUnlessReallyEqual(directories_reused, 0)
             self.failUnlessReallyEqual(directories_skipped, 0)
+
+            # This is the first-upload scenario so there should have been
+            # nothing to check.
+            (files_checked, directories_checked) = self.count_output2(out)
+            self.failUnlessReallyEqual(files_checked, 0)
+            self.failUnlessReallyEqual(directories_checked, 0)
         d.addCallback(_check0)
 
         d.addCallback(lambda res: self.do_cli("ls", "--uri", "tahoe:backups"))

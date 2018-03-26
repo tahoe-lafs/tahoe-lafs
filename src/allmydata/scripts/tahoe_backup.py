@@ -57,8 +57,19 @@ def put_child(dirurl, childname, childcap):
         raise HTTPError("Error during put_child", resp)
 
 class BackerUpper:
+    """
+    :ivar int _files_checked: The number of files which the backup process has
+        so-far inspected on the grid to determine if they need to be
+        re-uploaded.
+
+    :ivar int _directories_checked: The number of directories which the backup
+        process has so-far inspected on the grid to determine if they need to
+        be re-uploaded.
+    """
     def __init__(self, options):
         self.options = options
+        self._files_checked = 0
+        self._directories_checked = 0
 
     def run(self):
         options = self.options
@@ -122,7 +133,11 @@ class BackerUpper:
 
         put_child(archives_url, now, new_backup_dircap)
         put_child(to_url, "Latest", new_backup_dircap)
-        print >>stdout, completed.report(self.verbosity)
+        print >>stdout, completed.report(
+            self.verbosity,
+            self._files_checked,
+            self._directories_checked,
+        )
 
         # The command exits with code 2 if files or directories were skipped
         if completed.any_skips():
@@ -173,6 +188,7 @@ class BackerUpper:
         self.verboseprint("checking %s" % quote_output(filecap))
         nodeurl = self.options['node-url']
         checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(filecap)
+        self._files_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
             # can't check, so we must assume it's bad
@@ -205,6 +221,7 @@ class BackerUpper:
         self.verboseprint("checking %s" % quote_output(dircap))
         nodeurl = self.options['node-url']
         checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(dircap)
+        self._directories_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
             # can't check, so we must assume it's bad
@@ -417,7 +434,7 @@ class BackupComplete(object):
         return self._files_skipped or self._directories_skipped
 
 
-    def report(self, verbosity):
+    def report(self, verbosity, files_checked, directories_checked):
         result = []
 
         if verbosity >= 1:
@@ -438,8 +455,8 @@ class BackupComplete(object):
         if verbosity >= 2:
             result.append(
                 " %d files checked, %d directories checked" % (
-                    self._files_created + self._files_reused,
-                    self._directories_created + self._directories_reused,
+                    files_checked,
+                    directories_checked,
                 ),
             )
         # calc elapsed time, omitting microseconds
