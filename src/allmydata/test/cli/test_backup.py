@@ -1,6 +1,7 @@
 
 import os.path
 from cStringIO import StringIO
+from datetime import timedelta
 import re
 
 from twisted.trial import unittest
@@ -36,6 +37,19 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         mo = re.search(r"(\d)+ files checked, (\d+) directories checked", out)
         return [int(s) for s in mo.groups()]
 
+    def progress_output(self, out):
+        def parse_timedelta(h, m, s):
+            return timedelta(int(h), int(m), int(s))
+        mos = re.findall(
+            r"Backing up (\d)+/(\d)+\.\.\. (\d+)h (\d+)m (\d+)s elapsed\.\.\.",
+            out,
+        )
+        return list(
+            (int(progress), int(total), parse_timedelta(h, m, s))
+            for (progress, total, h, m, s)
+            in mos
+        )
+
     def test_backup(self):
         self.basedir = "cli/Backup/backup"
         self.set_up_grid(oneshare=True)
@@ -66,8 +80,6 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         d.addCallback(lambda res: do_backup(True))
         def _check0((rc, out, err)):
-            print()
-            print(out)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             (
@@ -92,6 +104,34 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             (files_checked, directories_checked) = self.count_output2(out)
             self.failUnlessReallyEqual(files_checked, 0)
             self.failUnlessReallyEqual(directories_checked, 0)
+
+            progress = self.progress_output(out)
+            for left, right in zip(progress[:-1], progress[1:]):
+                # Progress as measured by file count should progress
+                # monotonically.
+                self.assertTrue(
+                    left[0] < right[0],
+                    "Failed: {} < {}".format(left[0], right[0]),
+                )
+
+                # Total work to do should remain the same.
+                self.assertEqual(left[1], right[1])
+
+                # Amount of elapsed time should only go up.  Allow it to
+                # remain the same to account for resolution of the report.
+                self.assertTrue(
+                    left[2] <= right[2],
+                    "Failed: {} <= {}".format(left[2], right[2]),
+                )
+
+            for element in progress:
+                # Can't have more progress than the total.
+                self.assertTrue(
+                    element[0] <= element[1],
+                    "Failed: {} <= {}".format(element[0], element[1]),
+                )
+
+
         d.addCallback(_check0)
 
         d.addCallback(lambda res: self.do_cli("ls", "--uri", "tahoe:backups"))
