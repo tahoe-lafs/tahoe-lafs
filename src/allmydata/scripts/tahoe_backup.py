@@ -323,7 +323,7 @@ def run_backup(
         # Currently, BackupProgress is mutable, though, and everything just
         # mutates it.
         progress = target.backup(progress, upload_file, upload_directory)
-        progress.report()
+        print >>stdout, progress.report(datetime.datetime.now())
     return progress.backup_finished()
 
 
@@ -472,9 +472,10 @@ class BackupProgress(object):
     # Would be nice if this data structure were immutable and its methods were
     # transformations that created a new slightly different object.  Not there
     # yet, though.
-    def __init__(self, warn, start_timestamp):
+    def __init__(self, warn, start_timestamp, target_count):
         self._warn = warn
         self._start_timestamp = start_timestamp
+        self._target_count = target_count
         self._files_created = 0
         self._files_reused = 0
         self._files_skipped = 0
@@ -486,9 +487,34 @@ class BackupProgress(object):
         self._compare_contents = {}
 
 
-    def report(self):
-        pass
+    def report(self, now):
+        report_format = (
+            "Backing up {target_progress}/{target_total}... {elapsed} elapsed..."
+        )
+        return report_format.format(
+            target_progress=(
+                self._files_created
+                + self._files_reused
+                + self._files_skipped
+                + self._directories_created
+                + self._directories_reused
+                + self._directories_skipped
+            ),
+            target_total=self._target_count,
+            elapsed=self._format_elapsed(now - self._start_timestamp),
+        )
 
+
+    def _format_elapsed(self, elapsed):
+        seconds = elapsed.total_seconds()
+        hours = int(seconds / 3600)
+        minutes = int(seconds / 60 % 60)
+        seconds = int(seconds % 60)
+        return "{}h {}m {}s".format(
+            hours,
+            minutes,
+            seconds,
+        )
 
     def backup_finished(self):
         end_timestamp = datetime.datetime.now()
