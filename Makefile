@@ -218,9 +218,8 @@ test-pip-install:
 
 # TARBALL GENERATION
 .PHONY: tarballs
-tarballs:
-	$(MAKE) make-version
-	$(PYTHON) setup.py sdist --formats=bztar,gztar,zip bdist_wheel
+tarballs: # delegated to tox, so setup.py can update setuptools if needed
+	tox -e tarballs
 
 .PHONY: upload-tarballs
 upload-tarballs:
