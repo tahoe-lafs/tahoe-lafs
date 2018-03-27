@@ -4,13 +4,20 @@ from mock import patch
 from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks
 
-from allmydata.util.encodingutil import unicode_to_argv
+from allmydata.util.encodingutil import unicode_to_argv, get_io_encoding
 from allmydata.scripts.common import get_aliases
 from allmydata.test.no_network import GridTestMixin
 from .common import CLITestMixin
 
 
 # see also test_create_alias
+
+def skip_unless_unicode():
+    try:
+        etudes_arg = u"\u00E9tudes".encode(get_io_encoding())
+        del etudes_arg
+    except UnicodeEncodeError:
+        raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
 
 class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
@@ -48,6 +55,7 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         this
         """
         self.basedir = "cli/ListAlias/test_list_unicode_mismatch_json"
+        skip_unless_unicode()
         self.set_up_grid(oneshare=True)
 
         rc, stdout, stderr = yield self.do_cli(
@@ -79,6 +87,7 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
     @inlineCallbacks
     def test_list_unicode_mismatch(self):
         self.basedir = "cli/ListAlias/test_list_unicode_mismatch"
+        skip_unless_unicode()
         self.set_up_grid(oneshare=True)
 
         rc, stdout, stderr = yield self.do_cli(
