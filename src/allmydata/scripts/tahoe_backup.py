@@ -56,20 +56,20 @@ def put_child(dirurl, childname, childcap):
     if resp.status not in (200, 201):
         raise HTTPError("Error during put_child", resp)
 
-class BackupProcessingError(Exception):
-    pass
+class BackerUpper(object):
+    """
+    :ivar int _files_checked: The number of files which the backup process has
+        so-far inspected on the grid to determine if they need to be
+        re-uploaded.
 
-class BackerUpper:
+    :ivar int _directories_checked: The number of directories which the backup
+        process has so-far inspected on the grid to determine if they need to
+        be re-uploaded.
+    """
     def __init__(self, options):
         self.options = options
-        self.files_uploaded = 0
-        self.files_reused = 0
-        self.files_checked = 0
-        self.files_skipped = 0
-        self.directories_created = 0
-        self.directories_reused = 0
-        self.directories_checked = 0
-        self.directories_skipped = 0
+        self._files_checked = 0
+        self._directories_checked = 0
 
     def run(self):
         options = self.options
@@ -83,7 +83,6 @@ class BackerUpper:
         stderr = options.stderr
 
         start_timestamp = datetime.datetime.now()
-        self.backupdb = None
         bdbfile = os.path.join(options["node-directory"],
                                "private", "backupdb.sqlite")
         bdbfile = abspath_expanduser_unicode(bdbfile)
@@ -94,7 +93,7 @@ class BackerUpper:
 
         try:
             rootcap, path = get_alias(options.aliases, options.to_dir, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
+        except UnknownAliasError as e:
             e.display(stderr)
             return 1
         to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
@@ -115,36 +114,34 @@ class BackerUpper:
                 return 1
 
         # second step: process the tree
-        new_backup_dircap = self.process(options.from_dir)
+        targets = list(collect_backup_targets(
+            options.from_dir,
+            listdir_unicode,
+            self.options.filter_listdir,
+        ))
+        completed = run_backup(
+            warn=self.warn,
+            upload_file=self.upload,
+            upload_directory=self.upload_directory,
+            targets=targets,
+            start_timestamp=start_timestamp,
+            stdout=stdout,
+        )
+        new_backup_dircap = completed.dircap
 
         # third: attach the new backup to the list
         now = time_format.iso_utc(int(time.time()), sep="_") + "Z"
 
         put_child(archives_url, now, new_backup_dircap)
         put_child(to_url, "Latest", new_backup_dircap)
-        end_timestamp = datetime.datetime.now()
-        # calc elapsed time, omitting microseconds
-        elapsed_time = str(end_timestamp - start_timestamp).split('.')[0]
-
-        if self.verbosity >= 1:
-            print >>stdout, (" %d files uploaded (%d reused), "
-                             "%d files skipped, "
-                             "%d directories created (%d reused), "
-                             "%d directories skipped"
-                             % (self.files_uploaded,
-                                self.files_reused,
-                                self.files_skipped,
-                                self.directories_created,
-                                self.directories_reused,
-                                self.directories_skipped))
-            if self.verbosity >= 2:
-                print >>stdout, (" %d files checked, %d directories checked"
-                                 % (self.files_checked,
-                                    self.directories_checked))
-            print >>stdout, " backup done, elapsed time: %s" % elapsed_time
+        print >>stdout, completed.report(
+            self.verbosity,
+            self._files_checked,
+            self._directories_checked,
+        )
 
         # The command exits with code 2 if files or directories were skipped
-        if self.files_skipped or self.directories_skipped:
+        if completed.any_skips():
             return 2
 
         # done!
@@ -159,66 +156,19 @@ class BackerUpper:
         precondition(isinstance(msg, str), msg)
         print >>self.options.stderr, msg
 
-    def process(self, localpath):
-        precondition_abspath(localpath)
-        # returns newdircap
-
-        quoted_path = quote_local_unicode_path(localpath)
-        self.verboseprint("processing %s" % (quoted_path,))
-        create_contents = {} # childname -> (type, rocap, metadata)
-        compare_contents = {} # childname -> rocap
-
-        try:
-            children = listdir_unicode(localpath)
-        except EnvironmentError:
-            self.directories_skipped += 1
-            self.warn("WARNING: permission denied on directory %s" % (quoted_path,))
-            children = []
-        except FilenameEncodingError:
-            self.directories_skipped += 1
-            self.warn("WARNING: could not list directory %s due to a filename encoding error" % (quoted_path,))
-            children = []
-
-        for child in self.options.filter_listdir(children):
-            assert isinstance(child, unicode), child
-            childpath = os.path.join(localpath, child)
-            # note: symlinks to directories are both islink() and isdir()
-            if os.path.isdir(childpath) and not os.path.islink(childpath):
-                metadata = get_local_metadata(childpath)
-                # recurse on the child directory
-                childcap = self.process(childpath)
-                assert isinstance(childcap, str)
-                create_contents[child] = ("dirnode", childcap, metadata)
-                compare_contents[child] = childcap
-            elif os.path.isfile(childpath) and not os.path.islink(childpath):
-                try:
-                    childcap, metadata = self.upload(childpath)
-                    assert isinstance(childcap, str)
-                    create_contents[child] = ("filenode", childcap, metadata)
-                    compare_contents[child] = childcap
-                except EnvironmentError:
-                    self.files_skipped += 1
-                    self.warn("WARNING: permission denied on file %s" % quote_local_unicode_path(childpath))
-            else:
-                self.files_skipped += 1
-                if os.path.islink(childpath):
-                    self.warn("WARNING: cannot backup symlink %s" % quote_local_unicode_path(childpath))
-                else:
-                    self.warn("WARNING: cannot backup special file %s" % quote_local_unicode_path(childpath))
-
+    def upload_directory(self, path, compare_contents, create_contents):
         must_create, r = self.check_backupdb_directory(compare_contents)
         if must_create:
-            self.verboseprint(" creating directory for %s" % quote_local_unicode_path(localpath))
+            self.verboseprint(" creating directory for %s" % quote_local_unicode_path(path))
             newdircap = mkdir(create_contents, self.options)
             assert isinstance(newdircap, str)
             if r:
                 r.did_create(newdircap)
-            self.directories_created += 1
-            return newdircap
+            return True, newdircap
         else:
-            self.verboseprint(" re-using old directory for %s" % quote_local_unicode_path(localpath))
-            self.directories_reused += 1
-            return r.was_created()
+            self.verboseprint(" re-using old directory for %s" % quote_local_unicode_path(path))
+            return False, r.was_created()
+
 
     def check_backupdb_file(self, childpath):
         if not self.backupdb:
@@ -239,7 +189,7 @@ class BackerUpper:
         self.verboseprint("checking %s" % quote_output(filecap))
         nodeurl = self.options['node-url']
         checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(filecap)
-        self.files_checked += 1
+        self._files_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
             # can't check, so we must assume it's bad
@@ -272,7 +222,7 @@ class BackerUpper:
         self.verboseprint("checking %s" % quote_output(dircap))
         nodeurl = self.options['node-url']
         checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(dircap)
-        self.directories_checked += 1
+        self._directories_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
             # can't check, so we must assume it's bad
@@ -313,14 +263,328 @@ class BackerUpper:
             if bdb_results:
                 bdb_results.did_upload(filecap)
 
-            self.files_uploaded += 1
-            return filecap, metadata
+            return True, filecap, metadata
 
         else:
             self.verboseprint("skipping %s.." % quote_local_unicode_path(childpath))
-            self.files_reused += 1
-            return bdb_results.was_uploaded(), metadata
+            return False, bdb_results.was_uploaded(), metadata
+
 
 def backup(options):
     bu = BackerUpper(options)
     return bu.run()
+
+
+def collect_backup_targets(root, listdir, filter_children):
+    """
+    Yield BackupTargets in a suitable order for processing (deepest targets
+    before their parents).
+    """
+    try:
+        children = listdir(root)
+    except EnvironmentError:
+        yield PermissionDeniedTarget(root, isdir=True)
+    except FilenameEncodingError:
+        yield FilenameUndecodableTarget(root, isdir=True)
+    else:
+        for child in filter_children(children):
+            assert isinstance(child, unicode), child
+            childpath = os.path.join(root, child)
+            if os.path.islink(childpath):
+                yield LinkTarget(childpath, isdir=False)
+            elif os.path.isdir(childpath):
+                child_targets = collect_backup_targets(
+                    childpath,
+                    listdir,
+                    filter_children,
+                )
+                for child_target in child_targets:
+                    yield child_target
+            elif os.path.isfile(childpath):
+                yield FileTarget(childpath)
+            else:
+                yield SpecialTarget(childpath)
+        yield DirectoryTarget(root)
+
+
+def run_backup(
+        warn,
+        upload_file,
+        upload_directory,
+        targets,
+        start_timestamp,
+        stdout,
+):
+    progress = BackupProgress(warn, start_timestamp, len(targets))
+    for target in targets:
+        # Pass in the progress and get back a progress.  It would be great if
+        # progress objects were immutable.  Then the target's backup would
+        # make a new progress with the desired changes and return it to us.
+        # Currently, BackupProgress is mutable, though, and everything just
+        # mutates it.
+        progress = target.backup(progress, upload_file, upload_directory)
+        print >>stdout, progress.report(datetime.datetime.now())
+    return progress.backup_finished()
+
+
+class FileTarget(object):
+    def __init__(self, path):
+        self._path = path
+
+    def __repr__(self):
+        return "<File {}>".format(self._path)
+
+    def backup(self, progress, upload_file, upload_directory):
+        try:
+            created, childcap, metadata = upload_file(self._path)
+        except EnvironmentError:
+            target = PermissionDeniedTarget(self._path, isdir=False)
+            return target.backup(progress, upload_file, upload_directory)
+        else:
+            assert isinstance(childcap, str)
+            if created:
+                return progress.created_file(self._path, childcap, metadata)
+            return progress.reused_file(self._path, childcap, metadata)
+
+
+class DirectoryTarget(object):
+    def __init__(self, path):
+        self._path = path
+
+    def __repr__(self):
+        return "<Directory {}>".format(self._path)
+
+    def backup(self, progress, upload_file, upload_directory):
+        metadata = get_local_metadata(self._path)
+        progress, create, compare = progress.consume_directory(self._path)
+        did_create, dircap = upload_directory(self._path, compare, create)
+        if did_create:
+            return progress.created_directory(self._path, dircap, metadata)
+        return progress.reused_directory(self._path, dircap, metadata)
+
+
+class _ErrorTarget(object):
+    def __init__(self, path, isdir):
+        self._path = path
+        self._quoted_path = quote_local_unicode_path(path)
+        self._isdir = isdir
+
+
+class PermissionDeniedTarget(_ErrorTarget):
+    def backup(self, progress, upload_file, upload_directory):
+        return progress.permission_denied(self._isdir, self._quoted_path)
+
+
+class FilenameUndecodableTarget(_ErrorTarget):
+    def backup(self, progress, upload_file, upload_directory):
+        return progress.decoding_failed(self._isdir, self._quoted_path)
+
+
+class LinkTarget(_ErrorTarget):
+    def backup(self, progress, upload_file, upload_directory):
+        return progress.unsupported_filetype(
+            self._isdir,
+            self._quoted_path,
+            "symlink",
+        )
+
+
+class SpecialTarget(_ErrorTarget):
+    def backup(self, progress, upload_file, upload_directory):
+        return progress.unsupported_filetype(
+            self._isdir,
+            self._quoted_path,
+            "special",
+        )
+
+
+class BackupComplete(object):
+    def __init__(self,
+                 start_timestamp,
+                 end_timestamp,
+                 files_created,
+                 files_reused,
+                 files_skipped,
+                 directories_created,
+                 directories_reused,
+                 directories_skipped,
+                 dircap,
+    ):
+        self._start_timestamp = start_timestamp
+        self._end_timestamp = end_timestamp
+        self._files_created = files_created
+        self._files_reused = files_reused
+        self._files_skipped = files_skipped
+        self._directories_created = directories_created
+        self._directories_reused = directories_reused
+        self._directories_skipped = directories_skipped
+        self.dircap = dircap
+
+    def any_skips(self):
+        return self._files_skipped or self._directories_skipped
+
+    def report(self, verbosity, files_checked, directories_checked):
+        result = []
+
+        if verbosity >= 1:
+            result.append(
+                " %d files uploaded (%d reused),"
+                " %d files skipped,"
+                " %d directories created (%d reused),"
+                " %d directories skipped" % (
+                    self._files_created,
+                    self._files_reused,
+                    self._files_skipped,
+                    self._directories_created,
+                    self._directories_reused,
+                    self._directories_skipped,
+                ),
+            )
+
+        if verbosity >= 2:
+            result.append(
+                " %d files checked, %d directories checked" % (
+                    files_checked,
+                    directories_checked,
+                ),
+            )
+        # calc elapsed time, omitting microseconds
+        elapsed_time = str(
+            self._end_timestamp - self._start_timestamp
+        ).split('.')[0]
+        result.append(" backup done, elapsed time: %s" % (elapsed_time,))
+
+        return "\n".join(result)
+
+
+class BackupProgress(object):
+    # Would be nice if this data structure were immutable and its methods were
+    # transformations that created a new slightly different object.  Not there
+    # yet, though.
+    def __init__(self, warn, start_timestamp, target_count):
+        self._warn = warn
+        self._start_timestamp = start_timestamp
+        self._target_count = target_count
+        self._files_created = 0
+        self._files_reused = 0
+        self._files_skipped = 0
+        self._directories_created = 0
+        self._directories_reused = 0
+        self._directories_skipped = 0
+        self.last_dircap = None
+        self._create_contents = {}
+        self._compare_contents = {}
+
+    def report(self, now):
+        report_format = (
+            "Backing up {target_progress}/{target_total}... {elapsed} elapsed..."
+        )
+        return report_format.format(
+            target_progress=(
+                self._files_created
+                + self._files_reused
+                + self._files_skipped
+                + self._directories_created
+                + self._directories_reused
+                + self._directories_skipped
+            ),
+            target_total=self._target_count,
+            elapsed=self._format_elapsed(now - self._start_timestamp),
+        )
+
+    def _format_elapsed(self, elapsed):
+        seconds = elapsed.total_seconds()
+        hours = int(seconds / 3600)
+        minutes = int(seconds / 60 % 60)
+        seconds = int(seconds % 60)
+        return "{}h {}m {}s".format(
+            hours,
+            minutes,
+            seconds,
+        )
+
+    def backup_finished(self):
+        end_timestamp = datetime.datetime.now()
+        return BackupComplete(
+            self._start_timestamp,
+            end_timestamp,
+            self._files_created,
+            self._files_reused,
+            self._files_skipped,
+            self._directories_created,
+            self._directories_reused,
+            self._directories_skipped,
+            self.last_dircap,
+        )
+
+    def consume_directory(self, dirpath):
+        return self, {
+            os.path.basename(create_path): create_value
+            for (create_path, create_value)
+            in self._create_contents.iteritems()
+            if os.path.dirname(create_path) == dirpath
+        }, {
+            os.path.basename(compare_path): compare_value
+            for (compare_path, compare_value)
+            in self._compare_contents.iteritems()
+            if os.path.dirname(compare_path) == dirpath
+        }
+
+    def created_directory(self, path, dircap, metadata):
+        self._create_contents[path] = ("dirnode", dircap, metadata)
+        self._compare_contents[path] = dircap
+        self._directories_created += 1
+        self.last_dircap = dircap
+        return self
+
+    def reused_directory(self, path, dircap, metadata):
+        self._create_contents[path] = ("dirnode", dircap, metadata)
+        self._compare_contents[path] = dircap
+        self._directories_reused += 1
+        self.last_dircap = dircap
+        return self
+
+    def created_file(self, path, cap, metadata):
+        self._create_contents[path] = ("filenode", cap, metadata)
+        self._compare_contents[path] = cap
+        self._files_created += 1
+        return self
+
+    def reused_file(self, path, cap, metadata):
+        self._create_contents[path] = ("filenode", cap, metadata)
+        self._compare_contents[path] = cap
+        self._files_reused += 1
+        return self
+
+    def permission_denied(self, isdir, quoted_path):
+        return self._skip(
+            "WARNING: permission denied on {kind} {path}",
+            isdir,
+            path=quoted_path,
+        )
+
+    def decoding_failed(self, isdir, quoted_path):
+        return self._skip(
+            "WARNING: could not list {kind} {path} due to a filename encoding error",
+            isdir,
+            path=quoted_path,
+        )
+
+    def unsupported_filetype(self, isdir, quoted_path, filetype):
+        return self._skip(
+            "WARNING: cannot backup {filetype} {path}",
+            isdir,
+            path=quoted_path,
+            filetype=filetype,
+        )
+
+    def _skip(self, message, isdir, **kw):
+        if isdir:
+            self._directories_skipped += 1
+            kind = "directory"
+        else:
+            self._files_skipped += 1
+            kind = "file"
+        self._warn(message.format(kind=kind, **kw))
+        # Pretend we're a persistent data structure being transformed.
+        return self
