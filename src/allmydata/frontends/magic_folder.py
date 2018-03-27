@@ -823,6 +823,23 @@ class Uploader(QueueMixin):
                     'last_downloaded_timestamp': last_downloaded_timestamp,
                     'user_mtime': pathinfo.ctime_ns / 1000000000.0,  # why are we using ns in PathInfo??
                 }
+
+                # from the Fire Dragons part of the spec:
+                # Later, in response to a local filesystem change at a given path, the
+                # Magic Folder client reads the last-downloaded record associated with
+                # that path (if any) from the database and then uploads the current
+                # file. When it links the uploaded file into its client DMD, it
+                # includes the ``last_downloaded_uri`` field in the metadata of the
+                # directory entry, overwriting any existing field of that name. If
+                # there was no last-downloaded record associated with the path, this
+                # field is omitted.
+                # Note that ``last_downloaded_uri`` field does *not* record the URI of
+                # the uploaded file (which would be redundant); it records the URI of
+                # the last download before the local change that caused the upload.
+                # The field will be absent if the file has never been downloaded by
+                # this client (i.e. if it was created on this client and no change
+                # by any other client has been detected).
+
                 if db_entry.last_downloaded_uri is not None:
                     metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
 
@@ -1010,9 +1027,15 @@ class WriteFileMixin(object):
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
             try:
+                # XXX FIXME why ever bother with "rename_no_overwrite"
+                # under the hood in replace_file() then..?
+                if os.path.exists(abspath_u):
+                    print("unlinking {}".format(abspath_u))
+                    os.unlink(abspath_u)
                 fileutil.replace_file(abspath_u, replacement_path_u)
                 return abspath_u
-            except fileutil.ConflictError:
+            except fileutil.ConflictError as e:
+                self._log("overwrite becomes _conflict: {}".format(e))
                 return self._rename_conflicted_file(abspath_u, replacement_path_u)
 
     def _rename_conflicted_file(self, abspath_u, replacement_path_u):
@@ -1286,12 +1309,13 @@ class Downloader(QueueMixin, WriteFileMixin):
         fp = self._get_filepath(item.relpath_u)
         abspath_u = unicode_from_filepath(fp)
         conflict_path_u = self._get_conflicted_filename(abspath_u)
+        last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
 
         d = defer.succeed(False)
 
         def do_update_db(written_abspath_u):
             filecap = item.file_node.get_uri()
-            last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
+            self._log("updating last_uploaded_uri to {}".format(last_uploaded_uri))
             if not item.file_node.get_size():
                 filecap = None  # ^ is an empty file
             last_downloaded_uri = filecap
@@ -1320,22 +1344,71 @@ class Downloader(QueueMixin, WriteFileMixin):
                 raise ConflictError("download failed: already conflicted: %r" % (item.relpath_u,))
             d.addCallback(fail)
         else:
+
+            # Let ``last_downloaded_uri`` be the field of that name obtained from
+            # the directory entry metadata for ``foo`` in Bob's DMD (this field
+            # may be absent). Then the algorithm is:
+
+            # * 2a. Attempt to "stat" ``foo`` to get its *current statinfo* (size
+            #   in bytes, ``mtime``, and ``ctime``). If Alice has no local copy
+            #   of ``foo``, classify as an overwrite.
+
+            current_statinfo = get_pathinfo(abspath_u)
+
             is_conflict = False
             db_entry = self._db.get_db_entry(item.relpath_u)
             dmd_last_downloaded_uri = item.metadata.get('last_downloaded_uri', None)
-            dmd_last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
+
+            # * 2b. Read the following information for the path ``foo`` from the
+            #   local magic folder db:
+
+            #   * the *last-seen statinfo*, if any (this is the size in
+            #     bytes, ``mtime``, and ``ctime`` stored in the ``local_files``
+            #     table when the file was last uploaded);
+            #   * the ``last_uploaded_uri`` field of the ``local_files`` table
+            #     for this file, which is the URI under which the file was last
+            #     uploaded.
+
+            self._log("HI0")
             if db_entry:
-                if dmd_last_downloaded_uri is not None and db_entry.last_downloaded_uri is not None:
-                    if dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
-                        if not _is_empty_filecap(self._client, dmd_last_downloaded_uri):
-                            is_conflict = True
-                            self._count('objects_conflicted')
-                elif dmd_last_uploaded_uri is not None and dmd_last_uploaded_uri != db_entry.last_uploaded_uri:
-                    is_conflict = True
-                    self._count('objects_conflicted')
-                elif self._is_upload_pending(item.relpath_u):
-                    is_conflict = True
-                    self._count('objects_conflicted')
+
+                # * 2c. If any of the following are true, then classify as a conflict:
+
+                #   * i. there are pending notifications of changes to ``foo``;
+
+                # XXX FIXME
+
+                #   * ii. the last-seen statinfo is either absent (i.e. there is
+                #     no entry in the database for this path), or different from the
+                #     current statinfo;
+
+                if current_statinfo.exists:
+                    self._log("HI1")
+                    if (db_entry.mtime_ns != current_statinfo.mtime_ns or \
+                        db_entry.ctime_ns != current_statinfo.ctime_ns or \
+                        db_entry.size != current_statinfo.size):
+                        is_conflict = True
+                        self._log("conflict because local change")
+
+                    # XXX is "last-seen statinfo" last_downloaded_timestamp?
+
+                    #   * iii. either ``last_downloaded_uri`` or ``last_uploaded_uri``
+                    #     (or both) are absent, or they are different.
+
+                    # XXX actually I think the spec is slightly wrong
+                    # here: if Alice keeps upload new versions and Bob
+                    # never has, when would his last_uploaded_uri ever
+                    # change?
+                    elif dmd_last_downloaded_uri is None:
+                        is_conflict = True
+                        self._log("conflict because no last_downloaded_uri")
+                    elif last_uploaded_uri is None:
+                        # is_conflict = True
+                        self._log("no last_uploaded_uri; not a conflict")
+                    elif dmd_last_downloaded_uri != last_uploaded_uri:
+                        is_conflict = True
+                        self._log("conflict because last_downloaded_uri != last_uploaded_uri")
+                        self._log(" ({} != {})".format(dmd_last_downloaded_uri, last_uploaded_uri))
 
             if item.relpath_u.endswith(u"/"):
                 if item.metadata.get('deleted', False):

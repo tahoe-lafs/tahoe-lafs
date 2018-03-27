@@ -629,7 +629,7 @@ if sys.platform == "win32":
                 raise ConflictError("WinError: %s" % (WinError(err),))
 
             try:
-                rename_no_overwrite(replacement_path, replaced_path)
+                move_into_place(replacement_path, replaced_path)
             except EnvironmentError:
                 reraise(ConflictError)
 else:
@@ -649,7 +649,7 @@ else:
             raise ConflictError("Replacement file not found: %r" % (replacement_path,))
 
         try:
-            rename_no_overwrite(replacement_path, replaced_path)
+            move_into_place(replacement_path, replaced_path)
         except EnvironmentError:
             reraise(ConflictError)
 

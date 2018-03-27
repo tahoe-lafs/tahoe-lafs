@@ -510,40 +510,34 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         workdir = fileutil.abspath_expanduser_unicode(u"test_replace_file")
         fileutil.make_dirs(workdir)
 
-        backup_path      = os.path.join(workdir, "backup")
         replaced_path    = os.path.join(workdir, "replaced")
         replacement_path = os.path.join(workdir, "replacement")
 
         # when none of the files exist
-        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path, backup_path)
+        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path)
 
         # when only replaced exists
         fileutil.write(replaced_path,    "foo")
-        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path, backup_path)
+        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path)
         self.failUnlessEqual(fileutil.read(replaced_path), "foo")
 
-        # when both replaced and replacement exist, but not backup
+        # when both replaced and replacement exist
         fileutil.write(replacement_path, "bar")
-        fileutil.replace_file(replaced_path, replacement_path, backup_path)
-        self.failUnlessEqual(fileutil.read(backup_path),   "foo")
+        fileutil.replace_file(replaced_path, replacement_path)
         self.failUnlessEqual(fileutil.read(replaced_path), "bar")
         self.failIf(os.path.exists(replacement_path))
 
         # when only replacement exists
-        os.remove(backup_path)
         os.remove(replaced_path)
         fileutil.write(replacement_path, "bar")
-        fileutil.replace_file(replaced_path, replacement_path, backup_path)
+        fileutil.replace_file(replaced_path, replacement_path)
         self.failUnlessEqual(fileutil.read(replaced_path), "bar")
         self.failIf(os.path.exists(replacement_path))
-        self.failIf(os.path.exists(backup_path))
 
         # when replaced, replacement and backup all exist
         fileutil.write(replaced_path,    "foo")
         fileutil.write(replacement_path, "bar")
-        fileutil.write(backup_path,      "bak")
-        fileutil.replace_file(replaced_path, replacement_path, backup_path)
-        self.failUnlessEqual(fileutil.read(backup_path),   "foo")
+        fileutil.replace_file(replaced_path, replacement_path)
         self.failUnlessEqual(fileutil.read(replaced_path), "bar")
         self.failIf(os.path.exists(replacement_path))
 

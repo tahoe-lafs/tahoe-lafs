@@ -30,31 +30,37 @@ def test_alice_writes_bob_receives_multiple(magic_folder):
     """
     alice_dir, bob_dir = magic_folder
 
+    unwanted_files = [
+        join(bob_dir, "multiple.backup"),
+        join(bob_dir, "multiple.conflict")
+    ]
+
     # first update
     with open(join(alice_dir, "multiple"), "w") as f:
         f.write("alice wrote this")
 
-    util.await_file_contents(join(bob_dir, "multiple"), "alice wrote this")
-    assert not exists(join(bob_dir, "multiple.backup"))
-    assert not exists(join(bob_dir, "multiple.conflict"))
+    util.await_file_contents(
+        join(bob_dir, "multiple"), "alice wrote this",
+        error_if=unwanted_files,
+    )
 
     # second update
-    time.sleep(2)
     with open(join(alice_dir, "multiple"), "w") as f:
-        f.write("alice changed her mind")
+        f.write("someone changed their mind")
 
-    util.await_file_contents(join(bob_dir, "multiple"), "alice changed her mind")
-    assert not exists(join(bob_dir, "multiple.backup"))
-    assert not exists(join(bob_dir, "multiple.conflict"))
+    util.await_file_contents(
+        join(bob_dir, "multiple"), "someone changed their mind",
+        error_if=unwanted_files,
+    )
 
     # third update
-    time.sleep(2)
     with open(join(alice_dir, "multiple"), "w") as f:
         f.write("absolutely final version ship it")
 
-    util.await_file_contents(join(bob_dir, "multiple"), "absolutely final version ship it")
-    assert not exists(join(bob_dir, "multiple.backup"))
-    assert not exists(join(bob_dir, "multiple.conflict"))
+    util.await_file_contents(
+        join(bob_dir, "multiple"), "absolutely final version ship it",
+        error_if=unwanted_files,
+    )
 
     # forth update, but both "at once" so one should conflict
     time.sleep(2)
