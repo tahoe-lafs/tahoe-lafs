@@ -56,7 +56,7 @@ def put_child(dirurl, childname, childcap):
     if resp.status not in (200, 201):
         raise HTTPError("Error during put_child", resp)
 
-class BackerUpper:
+class BackerUpper(object):
     """
     :ivar int _files_checked: The number of files which the backup process has
         so-far inspected on the grid to determine if they need to be
