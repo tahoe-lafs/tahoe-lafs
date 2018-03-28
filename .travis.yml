@@ -23,8 +23,8 @@ install:
   - echo $PATH; which python; which pip; which tox
   - python misc/build_helpers/show-tool-versions.py
 script:
-  - PIP_VERBOSE=1 tox -e codechecks
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then tox; else tox -e coverage; fi
+  - PIP_VERBOSE=1 tox -vv -e codechecks
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then tox -vv; else tox -vv -e coverage; fi
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then /bin/bash integration/install-tor.sh && tox -e integration; fi
 after_success:
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then codecov; fi
