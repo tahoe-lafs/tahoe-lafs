@@ -35,6 +35,6 @@ matrix:
   include:
   - os: linux
   - os: linux
-    env: LANG=
+    env: LANG=C
   - os: osx
   fast_finish: true
