@@ -48,6 +48,8 @@ artifacts:
   # "pip wheel -w dist ." puts all the dependency wheels there too
   # this gives us a zipfile with everything
   - path: 'dist\*'
+  - path: _trial_temp\test.log
+    name: Trial test.log
 
 #on_success:
 #  You can use this step to upload your artifacts to a public website.
