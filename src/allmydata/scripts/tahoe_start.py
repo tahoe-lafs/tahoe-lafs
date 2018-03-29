@@ -104,7 +104,7 @@ def start(config):
     # "pretty fast" and with a zero return-code, or else something
     # Very Bad has happened.
     try:
-        args = [sys.executable]
+        args = [sys.executable] if not getattr(sys, 'frozen', False) else []
         for i, arg in enumerate(sys.argv):
             if arg in ['start', 'restart']:
                 args.append('daemonize')

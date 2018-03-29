@@ -123,6 +123,8 @@ package_imports = [
     ('enum34',           'enum'),
     ('pycparser',        'pycparser'),
     ('PyYAML',           'yaml'),
+    ('magic-wormhole',   'wormhole'),
+    ('setuptools',       'setuptools')
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
@@ -141,14 +143,6 @@ ignorable = [
     'twisted-conch',
 ]
 
-import sys
-
-# Don't try to get the version number of setuptools in frozen builds, because
-# that triggers 'site' processing that causes failures. Note that frozen
-# builds still (unfortunately) import pkg_resources in .tac files, so the
-# entry for setuptools in install_requires above isn't conditional.
-if not hasattr(sys, 'frozen'):
-    package_imports.append(('setuptools', 'setuptools'))
 
 setup_requires = [
     'setuptools >= 28.8.0',  # for PEP-440 style versions
