@@ -1,27 +1,27 @@
-dist: trusty
-sudo: required
+sudo: false
+language: python
 cache: pip
+dist: trusty
 before_cache:
   - rm -f $HOME/.cache/pip/log/debug.log
-before_install:
-  - sh -c set
-  - git config --global user.email "travis-tahoe@tahoe-lafs.org"
-  - git config --global user.name "Travis Tahoe"
-  - git fetch --depth=1000
+git:
+  depth: 1000
 install:
 # ~/.local/bin is on $PATH by default, but on OS-X, --user puts it elsewhere
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=$HOME/Library/Python/2.7/bin:$PATH; fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then wget https://bootstrap.pypa.io/get-pip.py && sudo python ./get-pip.py; fi
   - pip list
-  - pip install --user --upgrade codecov tox setuptools
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install --user --upgrade codecov tox setuptools; fi
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then pip install --upgrade codecov tox setuptools; fi
   - echo $PATH; which python; which pip; which tox
   - python misc/build_helpers/show-tool-versions.py
 script:
-  - tox -e codechecks
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then tox; else tox -e coverage; fi
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then /bin/bash integration/install-tor.sh && tox -e integration; fi
+  - if [ "${MODE}" = "codechecks" ]; then tox -e codechecks; fi
+  - if [ "${MODE}" = "tests" ]; then tox; fi
+  - if [ "${MODE}" = "coverage" ]; then tox -e coverage; fi
+  - if [ "${MODE}" = "integration" ]; then /bin/bash integration/install-tor.sh && tox -e integration; fi
 after_success:
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then codecov; fi
+  - if [ "${MODE}" = "coverage" ]; then codecov; fi
 notifications:
   email: false
   irc:
@@ -34,9 +34,14 @@ notifications:
 matrix:
   include:
   - os: linux
-    env: LANG=en_US.UTF-8
+    env: MODE=coverage LANG=en_US.UTF-8
   - os: linux
-    env: LANG=C
+    env: MODE=integration LANG=en_US.UTF-8
+  - os: linux
+    env: MODE=codechecks LANG=en_US.UTF-8
+  - os: linux
+    env: MODE=tests LANG=C
   - os: osx
-    env: LANG=en_US.UTF-8
+    env: MODE=tests LANG=en_US.UTF-8
+    language: generic  # "python" is not available on OS-X
   fast_finish: true
