@@ -33,6 +33,8 @@ hidden_imports = [
     'cffi',
     'characteristic',
     'Crypto',
+    'packaging.specifiers',
+    'six.moves.html_parser',
     'yaml',
     'zfec'
 ]
