@@ -1315,7 +1315,6 @@ class Downloader(QueueMixin, WriteFileMixin):
 
         def do_update_db(written_abspath_u):
             filecap = item.file_node.get_uri()
-            self._log("updating last_uploaded_uri to {}".format(last_uploaded_uri))
             if not item.file_node.get_size():
                 filecap = None  # ^ is an empty file
             last_downloaded_uri = filecap
@@ -1369,8 +1368,8 @@ class Downloader(QueueMixin, WriteFileMixin):
             #     for this file, which is the URI under which the file was last
             #     uploaded.
 
-            self._log("HI0")
             if db_entry:
+                dmd_last_uploaded_uri = db_entry.last_uploaded_uri
 
                 # * 2c. If any of the following are true, then classify as a conflict:
 
@@ -1383,7 +1382,6 @@ class Downloader(QueueMixin, WriteFileMixin):
                 #     current statinfo;
 
                 if current_statinfo.exists:
-                    self._log("HI1")
                     if (db_entry.mtime_ns != current_statinfo.mtime_ns or \
                         db_entry.ctime_ns != current_statinfo.ctime_ns or \
                         db_entry.size != current_statinfo.size):
@@ -1402,13 +1400,12 @@ class Downloader(QueueMixin, WriteFileMixin):
                     elif dmd_last_downloaded_uri is None:
                         is_conflict = True
                         self._log("conflict because no last_downloaded_uri")
-                    elif last_uploaded_uri is None:
-                        # is_conflict = True
-                        self._log("no last_uploaded_uri; not a conflict")
-                    elif dmd_last_downloaded_uri != last_uploaded_uri:
+                    elif dmd_last_uploaded_uri is None:
+                        is_conflict = True
+                        self._log("conflict because no last_uploaded_uri")
+                    elif dmd_last_downloaded_uri != dmd_last_uploaded_uri:
                         is_conflict = True
                         self._log("conflict because last_downloaded_uri != last_uploaded_uri")
-                        self._log(" ({} != {})".format(dmd_last_downloaded_uri, last_uploaded_uri))
 
             if item.relpath_u.endswith(u"/"):
                 if item.metadata.get('deleted', False):
