@@ -15,17 +15,6 @@ if not hasattr(sys, 'real_prefix'):
     sys.exit("Please run inside a virtualenv with Tahoe-LAFS installed.")
 
 
-# Ugly hack to disable the setuptools requirement asserted in '_auto_deps.py'.
-# Without patching out this requirement, frozen binaries will fail at runtime.
-autodeps_path = os.path.join(get_python_lib(), 'allmydata', '_auto_deps.py')
-print("Patching '{}' to remove setuptools check...".format(autodeps_path))
-autodeps_path_backup = autodeps_path + '.backup'
-shutil.copy2(autodeps_path, autodeps_path_backup)
-with open(autodeps_path_backup) as src, open(autodeps_path, 'w+') as dest:
-    dest.write(src.read().replace('"setuptools >=', '#"setuptools >='))
-print("Done!")
-
-
 options = [('u', None, 'OPTION')]  # Unbuffered stdio
 
 added_files = [
@@ -37,12 +26,25 @@ added_files = [
     ('src/allmydata/web/static/css/*', 'allmydata/web/static/css'),
     ('src/allmydata/web/static/img/*.png', 'allmydata/web/static/img')]
 
+hidden_imports = [
+    'allmydata.client',
+    'allmydata.introducer',
+    'allmydata.stats',
+    'cffi',
+    'characteristic',
+    'Crypto',
+    'packaging.specifiers',
+    'six.moves.html_parser',
+    'yaml',
+    'zfec'
+]
+
 a = Analysis(
     ['static/tahoe.py'],
     pathex=[],
     binaries=None,
     datas=added_files,
-    hiddenimports=['characteristic', 'cffi'],
+    hiddenimports=hidden_imports,
     hookspath=[],
     runtime_hooks=[],
     excludes=[],
@@ -74,10 +76,6 @@ coll = COLLECT(
     strip=False,
     upx=False,
     name='Tahoe-LAFS')
-
-
-# Revert the '_auto_deps.py' patch above
-shutil.move(autodeps_path_backup, autodeps_path)
 
 
 print("Creating archive...")
