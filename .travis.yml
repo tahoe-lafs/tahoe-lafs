@@ -34,7 +34,9 @@ notifications:
 matrix:
   include:
   - os: linux
+    env: LANG=en_US.UTF-8
   - os: linux
     env: LANG=C
   - os: osx
+    env: LANG=en_US.UTF-8
   fast_finish: true
