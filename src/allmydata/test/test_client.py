@@ -11,7 +11,7 @@ from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashEr
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
-from allmydata.util import base32, fileutil
+from allmydata.util import base32, fileutil, encodingutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
@@ -320,8 +320,11 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         # don't want a literal absolute path like /myowndir which we won't
         # have write permission to.  So construct an absolute path that we
         # should be able to write to.
+        base = u"\N{SNOWMAN}"
+        if encodingutil.filesystem_encoding != "utf-8":
+            base = u"melted_snowman"
         expected_path = abspath_expanduser_unicode(
-            u"client.Basic.test_absolute_storage_dir_myowndir/\N{SNOWMAN}"
+            u"client.Basic.test_absolute_storage_dir_myowndir/" + base
         )
         config_path = expected_path.encode("utf-8")
         self._storage_dir_test(

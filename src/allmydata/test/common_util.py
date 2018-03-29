@@ -22,6 +22,13 @@ def skip_if_cannot_represent_filename(u):
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
 
+def skip_if_cannot_represent_argv(u):
+    precondition(isinstance(u, unicode))
+    try:
+        u.encode(get_io_encoding())
+    except UnicodeEncodeError:
+        raise unittest.SkipTest("A non-ASCII argv could not be encoded on this platform.")
+
 def run_cli(verb, *args, **kwargs):
     precondition(not [True for arg in args if not isinstance(arg, str)],
                  "arguments to do_cli must be strs -- convert using unicode_to_argv", args=args)
