@@ -31,6 +31,132 @@ from allmydata.immutable.upload import Data
 _debug = False
 
 
+@implements(IMutableFileVersion)
+class FakeMutableFileVersion(object):
+    def overwrite(self, contents):
+        self._contents = contents
+
+
+class FakeFileNode(object):
+    def download_best_version(self, **kw):
+        defer.succeed(
+            FakeMutableFileVersion()
+        )
+
+
+def _do_processing(case, queue):
+    # These two lines are like the real _do_processing but without the
+    # deferLater.
+    case.successResultOf(queue._perform_scan())
+    case.successResultOf(queue._process_deque())
+
+
+class UnconflictedMagicFolder(RuleBasedStateMachine):
+
+    def __init__(self, case):
+        super(UnconflictedMagicFolder, self).__init__()
+        self.case = case
+
+        self.root = FilePath(self.mktemp())
+        self.alice_tree = self.root.child("alice")
+        self.bob_tree = self.root.child("bob")
+
+        self.alice_dirnode = FakeDirectoryNode()
+        self.bob_dirnode = FakeDirectoryNode()
+
+        self.collective_dirnode = FakeDirectoryNode()
+        self.collective_dirnode.set_node(
+            "alice", self.alice_dirnode,
+        )
+        self.collective_dirnode.set_node(
+            "bob", self.bob_dirnode,
+        )
+
+        collective_dircap = "collective-dircap"
+        alice_dircap = "alice-dircap"
+        bob_dircap = "bob-dircap"
+
+        self.client = FakeClient({
+            collective_dircap: self.collective_dirnode,
+            alice_dircap: self.alice_dirnode,
+            bob_dircap: self.bob_dirnode,
+        })
+
+        self.alice = MagicFolder(
+            self.client,
+            alice_dircap,
+            collective_dircap,
+            self.alice_tree.child("tree"),
+            self.alice_tree.child("db"),
+            0o777,
+            "default",
+        )
+        self.bob = MagicFolder(
+            self.client,
+            bob_dircap,
+            collective_dircap,
+            self.bob_tree.child("tree"),
+            self.bob_tree.child("db"),
+            0o777,
+            "default",
+        )
+
+    @rule(
+        which_client=sampled_from(["alice", "bob"]),
+        filename=text(),
+        contents=text(),
+    )
+    def create(self, which_client, filename, contents):
+        assume(self.dirty in (None, which_client))
+
+        actor = getattr(self, which_client)
+
+        self.dirty = which_client
+
+        self.safe_directory.child(filename).setContent(contents)
+
+        path = actor.tree.child(filename)
+        path.setContents(contents)
+
+        actor._notify(None, path.path, IN_CLOSE_WRITE)
+
+
+    def modify(self, which_client, data):
+        pass
+
+
+    @rule(
+        which_client=sampled_from(["alice", "bob"]),
+    )
+    def process(self, which_client):
+        actor = getattr(self, which_client)
+        other = None # ...
+
+        _do_processing(self.case, actor.uploader)
+        _do_processing(self.case, other.downloader)
+        self.dirty = None
+
+        self.assert_fs_equal(
+            self.safe_directory,
+            self.alice_tree.child("tree"),
+        )
+        self.assert_fs_equal(
+            self.safe_directory,
+            self.bob_tree.child("tree"),
+        )
+
+
+
+class HypothesisTests(TestCase):
+    def test_convergence(self):
+        run_state_machine_as_test(
+            self._machine,
+        )
+
+    def _machine(self):
+        return UnconflictedMagicFolder(self)
+
+
 class NewConfigUtilTests(unittest.TestCase):
 
     def setUp(self):
