@@ -254,9 +254,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
       python_requires="<3.0",
       install_requires=install_requires,
       extras_require={
-          # this pinning is temporary until an upstream issue is fixed:
-          # https://github.com/mhammond/pywin32/issues/1151
-          ':sys_platform=="win32"': ["pypiwin32==219"],
+          ':sys_platform=="win32"': ["pypiwin32"],
           "test": [
               "pyflakes",
               "coverage",
