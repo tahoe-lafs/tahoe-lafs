@@ -323,13 +323,15 @@ def run_backup(
         # Currently, BackupProgress is mutable, though, and everything just
         # mutates it.
         progress = target.backup(progress, upload_file, upload_directory)
-        print >>stdout, progress.report(datetime.datetime.now())
+        progress.report()
     return progress.backup_finished()
+
 
 
 class FileTarget(object):
     def __init__(self, path):
         self._path = path
+
 
     def __repr__(self):
         return "<File {}>".format(self._path)
@@ -347,12 +349,15 @@ class FileTarget(object):
             return progress.reused_file(self._path, childcap, metadata)
 
 
+
 class DirectoryTarget(object):
     def __init__(self, path):
         self._path = path
 
+
     def __repr__(self):
         return "<Directory {}>".format(self._path)
+
 
     def backup(self, progress, upload_file, upload_directory):
         metadata = get_local_metadata(self._path)
@@ -363,6 +368,7 @@ class DirectoryTarget(object):
         return progress.reused_directory(self._path, dircap, metadata)
 
 
+
 class _ErrorTarget(object):
     def __init__(self, path, isdir):
         self._path = path
@@ -370,14 +376,17 @@ class _ErrorTarget(object):
         self._isdir = isdir
 
 
+
 class PermissionDeniedTarget(_ErrorTarget):
     def backup(self, progress, upload_file, upload_directory):
         return progress.permission_denied(self._isdir, self._quoted_path)
 
 
+
 class FilenameUndecodableTarget(_ErrorTarget):
     def backup(self, progress, upload_file, upload_directory):
         return progress.decoding_failed(self._isdir, self._quoted_path)
+
 
 
 class LinkTarget(_ErrorTarget):
@@ -389,6 +398,7 @@ class LinkTarget(_ErrorTarget):
         )
 
 
+
 class SpecialTarget(_ErrorTarget):
     def backup(self, progress, upload_file, upload_directory):
         return progress.unsupported_filetype(
@@ -396,6 +406,7 @@ class SpecialTarget(_ErrorTarget):
             self._quoted_path,
             "special",
         )
+
 
 
 class BackupComplete(object):
@@ -461,10 +472,9 @@ class BackupProgress(object):
     # Would be nice if this data structure were immutable and its methods were
     # transformations that created a new slightly different object.  Not there
     # yet, though.
-    def __init__(self, warn, start_timestamp, target_count):
+    def __init__(self, warn, start_timestamp):
         self._warn = warn
         self._start_timestamp = start_timestamp
-        self._target_count = target_count
         self._files_created = 0
         self._files_reused = 0
         self._files_skipped = 0
@@ -475,33 +485,10 @@ class BackupProgress(object):
         self._create_contents = {}
         self._compare_contents = {}
 
-    def report(self, now):
-        report_format = (
-            "Backing up {target_progress}/{target_total}... {elapsed} elapsed..."
-        )
-        return report_format.format(
-            target_progress=(
-                self._files_created
-                + self._files_reused
-                + self._files_skipped
-                + self._directories_created
-                + self._directories_reused
-                + self._directories_skipped
-            ),
-            target_total=self._target_count,
-            elapsed=self._format_elapsed(now - self._start_timestamp),
-        )
 
-    def _format_elapsed(self, elapsed):
-        seconds = elapsed.total_seconds()
-        hours = int(seconds / 3600)
-        minutes = int(seconds / 60 % 60)
-        seconds = int(seconds % 60)
-        return "{}h {}m {}s".format(
-            hours,
-            minutes,
-            seconds,
-        )
+    def report(self):
+        pass
+
 
     def backup_finished(self):
         end_timestamp = datetime.datetime.now()
@@ -517,6 +504,7 @@ class BackupProgress(object):
             self.last_dircap,
         )
 
+
     def consume_directory(self, dirpath):
         return self, {
             os.path.basename(create_path): create_value
@@ -530,12 +518,14 @@ class BackupProgress(object):
             if os.path.dirname(compare_path) == dirpath
         }
 
+
     def created_directory(self, path, dircap, metadata):
         self._create_contents[path] = ("dirnode", dircap, metadata)
         self._compare_contents[path] = dircap
         self._directories_created += 1
         self.last_dircap = dircap
         return self
+
 
     def reused_directory(self, path, dircap, metadata):
         self._create_contents[path] = ("dirnode", dircap, metadata)
@@ -544,17 +534,20 @@ class BackupProgress(object):
         self.last_dircap = dircap
         return self
 
+
     def created_file(self, path, cap, metadata):
         self._create_contents[path] = ("filenode", cap, metadata)
         self._compare_contents[path] = cap
         self._files_created += 1
         return self
 
+
     def reused_file(self, path, cap, metadata):
         self._create_contents[path] = ("filenode", cap, metadata)
         self._compare_contents[path] = cap
         self._files_reused += 1
         return self
+
 
     def permission_denied(self, isdir, quoted_path):
         return self._skip(
@@ -563,12 +556,14 @@ class BackupProgress(object):
             path=quoted_path,
         )
 
+
     def decoding_failed(self, isdir, quoted_path):
         return self._skip(
             "WARNING: could not list {kind} {path} due to a filename encoding error",
             isdir,
             path=quoted_path,
         )
+
 
     def unsupported_filetype(self, isdir, quoted_path, filetype):
         return self._skip(
@@ -577,6 +572,7 @@ class BackupProgress(object):
             path=quoted_path,
             filetype=filetype,
         )
+
 
     def _skip(self, message, isdir, **kw):
         if isdir:
