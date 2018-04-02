@@ -82,7 +82,7 @@ def _get_inotify_module():
             from allmydata.watchdog import inotify
         else:
             raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
-                                      "This currently requires Linux, Windows, or macOS.")
+                                      "This currently requires Linux or Windows or macOS (found {}).".format(sys.platform))
         return inotify
     except (ImportError, AttributeError) as e:
         log.msg(e)
