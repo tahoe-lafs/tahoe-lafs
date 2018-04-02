@@ -56,7 +56,7 @@ def get_inotify_module():
             from twisted.internet import inotify
         else:
             raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
-                                      "This currently requires Linux or Windows.")
+                                      "This currently requires Linux or Windows (found {}).".format(sys.platform))
         return inotify
     except (ImportError, AttributeError) as e:
         log.msg(e)

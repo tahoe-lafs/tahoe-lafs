@@ -117,6 +117,7 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         self.dirty = None
         self.root = FilePath(self.case.mktemp())
         self.safe_directory = FilePath(self.case.mktemp())
+        self.safe_directory.makedirs()
         self.alice_tree = self.root.child("alice")
         self.bob_tree = self.root.child("bob")
 
@@ -150,7 +151,7 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
             0o777,
             u"default",
         )
-        self.alice.tree = self.alice_tree
+        self.alice.tree = self.alice_tree.child("tree")
 
         self.bob_tree.child("tree").makedirs()
         self.bob = MagicFolder(
@@ -162,11 +163,11 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
             0o777,
             u"default",
         )
-        self.bob.tree = self.bob_tree
+        self.bob.tree = self.bob_tree.child("tree")
 
     @rule(
         which_client=sampled_from(["alice", "bob"]),
-        filename=text(min_size=2),
+        filename=text(min_size=1, alphabet=string.letters),  # FIXME, can't have e.g. / in filename
         contents=text(),
     )
     def create(self, which_client, filename, contents):
@@ -176,13 +177,14 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
 
         self.dirty = which_client
 
+        print(self.safe_directory.child(filename).path)
         self.safe_directory.child(filename).setContent(contents)
 
         path = actor.tree.child(filename)
         print("set {} to {}".format(path, contents))
         path.setContent(contents)
 
-        actor._notify(None, path.path, IN_CLOSE_WRITE)
+        actor.uploader._notify(None, path, actor.uploader._inotify.IN_CLOSE_WRITE)
 
 
     def modify(self, which_client, data):
