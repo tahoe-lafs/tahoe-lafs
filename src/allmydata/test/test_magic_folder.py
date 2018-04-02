@@ -6,6 +6,7 @@ from os.path import join, exists, isdir
 
 from twisted.trial import unittest
 from twisted.internet import defer, task, reactor
+from twisted.python.filepath import FilePath
 
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util.assertutil import precondition
@@ -27,11 +28,18 @@ from allmydata import magicfolderdb, magicpath
 from allmydata.util.fileutil import get_pathinfo
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import Data
+from allmydata.interfaces import IMutableFileVersion
+
+from zope.interface import implementer
+
+from hypothesis.stateful import RuleBasedStateMachine, rule
+from hypothesis.stateful import run_state_machine_as_test
+from hypothesis.strategies import sampled_from, text, assume
 
 _debug = False
 
 
-@implements(IMutableFileVersion)
+@implementer(IMutableFileVersion)
 class FakeMutableFileVersion(object):
     def overwrite(self, contents):
         self._contents = contents
@@ -44,11 +52,60 @@ class FakeFileNode(object):
         )
 
 
+@implementer(IDirectoryNode)
+class FakeDirectoryNode(object):
+    def __init__(self, uri, read_only=False):
+        self.nodes = dict()
+        self.uri = uri
+        self._read_only = read_only
+
+    def set_node(self, name, capability):
+        self.nodes[name] = capability
+
+    def is_unknown(self):
+        return False
+
+    def is_readonly(self):
+        return self._read_only
+
+    def get_readonly_uri(self):
+        return self.uri + '.readonly'
+
+
+class FakeStatsProvider(object):
+    def __init__(self):
+        self.counters = dict()
+
+    def count(self, name, delta=1):
+        val = self.counters.setdefault(name, 0)
+        self.counters[name] = val + delta
+
+
+class FakeClient(object):
+    def __init__(self, caps):
+        self._caps = caps
+        self.nickname = "fake_client"
+        self.stats_provider = FakeStatsProvider()
+
+    def log(self, msg):
+        print(msg)
+
+    def create_node_from_uri(self, uri):
+        print("create {}".format(uri))
+        return self._caps[uri]
+
+
 def _do_processing(case, queue):
     # These two lines are like the real _do_processing but without the
     # deferLater.
-    case.successResultOf(queue._perform_scan())
+    d = queue._perform_scan()
+    if d:
+        case.successResultOf(d)
     case.successResultOf(queue._process_deque())
+
+
+def _assert_fs_equal(a, b):
+    return True  # XXX FIXME
 
 
 class UnconflictedMagicFolder(RuleBasedStateMachine):
@@ -57,14 +114,19 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         super(UnconflictedMagicFolder, self).__init__()
         self.case = case
 
-        self.root = FilePath(self.mktemp())
+        self.dirty = None
+        self.root = FilePath(self.case.mktemp())
+        self.safe_directory = FilePath(self.case.mktemp())
         self.alice_tree = self.root.child("alice")
         self.bob_tree = self.root.child("bob")
 
-        self.alice_dirnode = FakeDirectoryNode()
-        self.bob_dirnode = FakeDirectoryNode()
+        collective_dircap = "collective-dircap"
+        alice_dircap = "alice-dircap"
+        bob_dircap = "bob-dircap"
+        self.alice_dirnode = FakeDirectoryNode(alice_dircap)
+        self.bob_dirnode = FakeDirectoryNode(bob_dircap)
 
-        self.collective_dirnode = FakeDirectoryNode()
+        self.collective_dirnode = FakeDirectoryNode(collective_dircap, read_only=True)
         self.collective_dirnode.set_node(
             "alice", self.alice_dirnode,
         )
@@ -72,38 +134,39 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
             "bob", self.bob_dirnode,
         )
 
-        collective_dircap = "collective-dircap"
-        alice_dircap = "alice-dircap"
-        bob_dircap = "bob-dircap"
-
         self.client = FakeClient({
             collective_dircap: self.collective_dirnode,
             alice_dircap: self.alice_dirnode,
             bob_dircap: self.bob_dirnode,
         })
 
+        self.alice_tree.child("tree").makedirs()
         self.alice = MagicFolder(
             self.client,
             alice_dircap,
             collective_dircap,
-            self.alice_tree.child("tree"),
-            self.alice_tree.child("db"),
+            unicode(self.alice_tree.child("tree").path),
+            unicode(self.alice_tree.child("db").path),
             0o777,
-            "default",
+            u"default",
         )
+        self.alice.tree = self.alice_tree
+
+        self.bob_tree.child("tree").makedirs()
         self.bob = MagicFolder(
             self.client,
             bob_dircap,
             collective_dircap,
-            self.bob_tree.child("tree"),
-            self.bob_tree.child("db"),
+            unicode(self.bob_tree.child("tree").path),
+            unicode(self.bob_tree.child("db").path),
             0o777,
-            "default",
+            u"default",
         )
+        self.bob.tree = self.bob_tree
 
     @rule(
         which_client=sampled_from(["alice", "bob"]),
-        filename=text(),
+        filename=text(min_size=2),
         contents=text(),
     )
     def create(self, which_client, filename, contents):
@@ -116,7 +179,8 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         self.safe_directory.child(filename).setContent(contents)
 
         path = actor.tree.child(filename)
-        path.setContents(contents)
+        print("set {} to {}".format(path, contents))
+        path.setContent(contents)
 
         actor._notify(None, path.path, IN_CLOSE_WRITE)
 
@@ -130,24 +194,25 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
     )
     def process(self, which_client):
         actor = getattr(self, which_client)
-        other = None # ...
+        other_client = "bob" if which_client == "alice" else "alice"
+        other = getattr(self, other_client)
 
         _do_processing(self.case, actor.uploader)
         _do_processing(self.case, other.downloader)
         self.dirty = None
 
-        self.assert_fs_equal(
+        _assert_fs_equal(
             self.safe_directory,
             self.alice_tree.child("tree"),
         )
-        self.assert_fs_equal(
+        _assert_fs_equal(
             self.safe_directory,
             self.bob_tree.child("tree"),
         )
 
 
 
-class HypothesisTests(TestCase):
+class HypothesisTests(unittest.TestCase):
     def test_convergence(self):
         run_state_machine_as_test(
             self._machine,
