@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from twisted.trial import unittest
-from hypothesis import given, settings, HealthCheck
 from hypothesis.strategies import text, sets
 from allmydata.immutable import happiness_upload
 
@@ -225,7 +224,6 @@ class PlacementTests(unittest.TestCase):
         sets(elements=text(min_size=1, max_size=30), min_size=4, max_size=4),
         sets(elements=text(min_size=1, max_size=30), min_size=4),
     )
-    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_hypothesis_unhappy(self, peers, shares):
         """
         similar to test_unhappy we test that the resulting happiness is
@@ -245,7 +243,6 @@ class PlacementTests(unittest.TestCase):
         # can we make a readonly_peers that's a subset of           ^
         sets(elements=text(min_size=1, max_size=30), min_size=1, max_size=20),
     )
-    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_more_hypothesis(self, peers, shares):
         """
         similar to test_unhappy we test that the resulting happiness is
