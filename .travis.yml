@@ -9,7 +9,7 @@ git:
 
 env:
   global:
-    - TAHOE_HYPOTHESIS_PROFILE=ci
+    - TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
 
 install:
 # ~/.local/bin is on $PATH by default, but on OS-X, --user puts it elsewhere
