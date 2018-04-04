@@ -7,6 +7,10 @@ before_cache:
 git:
   depth: 1000
 
+env:
+  global:
+    - TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
+
 install:
 # ~/.local/bin is on $PATH by default, but on OS-X, --user puts it elsewhere
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=$HOME/Library/Python/2.7/bin:$PATH; fi
