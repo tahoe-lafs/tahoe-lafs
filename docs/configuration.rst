@@ -954,6 +954,9 @@ If you omit the introducer definitions from both ``tahoe.cfg`` and
 "introducerless" clients must be configured with static servers (described
 below), or they will not be able to upload and download files.
 
+
+.. _server_list:
+
 Static Server Definitions
 =========================
 
