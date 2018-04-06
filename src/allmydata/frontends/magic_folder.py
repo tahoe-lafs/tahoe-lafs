@@ -692,6 +692,7 @@ class Uploader(QueueMixin):
         self._log("stop")
         self._stopped = True
         self._notifier.stopReading()
+        self._notifier.loseConnection()
         self._count('dirs_monitored', -1)
         if self._periodic_callid:
             try:

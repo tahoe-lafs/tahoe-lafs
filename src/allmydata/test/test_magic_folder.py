@@ -35,6 +35,7 @@ from zope.interface import implementer
 from hypothesis.stateful import RuleBasedStateMachine, rule
 from hypothesis.stateful import run_state_machine_as_test
 from hypothesis.strategies import sampled_from, text, assume
+from hypothesis import settings
 
 _debug = False
 
@@ -112,6 +113,7 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
 
     def __init__(self, case):
         super(UnconflictedMagicFolder, self).__init__()
+        print("XXX CREATING unconflictedmagicfolder {}".format(case))
         self.case = case
 
         self.dirty = None
@@ -165,6 +167,20 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         )
         self.bob.tree = self.bob_tree.child("tree")
 
+    def teardown(self):
+        print("TEARDOWN")
+        self.case.successResultOf(self.bob.stopService())
+        self.case.successResultOf(self.alice.stopService())
+        self.bob.tree.remove()
+        self.alice.tree.remove()
+        self.safe_directory.remove()
+        self.root.remove()
+        del self.bob.tree
+        del self.alice.tree
+        del self.safe_directory
+        del self.root
+
+    @settings(max_examples=2)
     @rule(
         which_client=sampled_from(["alice", "bob"]),
         filename=text(min_size=1, alphabet=string.letters),  # FIXME, can't have e.g. / in filename
@@ -178,7 +194,10 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         self.dirty = which_client
 
         print(self.safe_directory.child(filename).path)
-        self.safe_directory.child(filename).setContent(contents)
+        print(u"XXX '{}' {}".format(repr(contents), type(contents)))
+        fn = self.safe_directory.child(filename).path
+        with open(fn, 'wb') as f:
+            f.write(contents)
 
         path = actor.tree.child(filename)
         print("set {} to {}".format(path, contents))
@@ -215,12 +234,18 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
 
 
 class HypothesisTests(unittest.TestCase):
+
     def test_convergence(self):
+        s = settings(
+            stateful_step_count=1,  # only thing below looks at
+        )
         run_state_machine_as_test(
             self._machine,
+            settings=s,
         )
 
     def _machine(self):
+        print("machine!")
         return UnconflictedMagicFolder(self)
 
 
