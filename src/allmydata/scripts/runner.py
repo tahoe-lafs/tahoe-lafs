@@ -9,7 +9,7 @@ from twisted.internet import defer, task, threads
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
     stats_gatherer, admin, magic_folder_cli, tahoe_daemonize, tahoe_start, \
-    tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite
+    tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite, tahoe_grid_manager
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 from allmydata.util.eliotutil import (
     opt_eliot_destination,
@@ -72,6 +72,7 @@ class Options(usage.Options):
                     +   magic_folder_cli.subCommands
                     + GROUP("Grid Management")
                     +   tahoe_invite.subCommands
+                    +   tahoe_grid_manager.subCommands
                     )
 
     optFlags = [
@@ -169,6 +170,8 @@ def dispatch(config,
         # same
         f0 = magic_folder_cli.dispatch[command]
         f = lambda so: threads.deferToThread(f0, so)
+    elif command in tahoe_grid_manager.dispatch:
+        f = tahoe_grid_manager.dispatch[command]
     elif command in tahoe_invite.dispatch:
         f = tahoe_invite.dispatch[command]
     else:
