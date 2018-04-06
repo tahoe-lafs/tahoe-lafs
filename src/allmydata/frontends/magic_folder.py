@@ -1228,6 +1228,16 @@ class Uploader(QueueMixin):
             else:
                 d = DeferredContext(defer.succeed(None))
 
+            self._stopped = True
+            self._notifier.stopReading()
+            self._notifier.loseConnection()
+            self._count('dirs_monitored', -1)
+            if self._periodic_callid:
+                try:
+                    self._periodic_callid.cancel()
+                except AlreadyCancelled:
+                    pass
+
             d.addCallback(lambda ignored: QueueMixin.stop(self))
             return d.addActionFinish()
 
