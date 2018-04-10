@@ -61,7 +61,7 @@ from zope.interface import implementer
 
 from hypothesis.stateful import RuleBasedStateMachine, rule
 from hypothesis.stateful import run_state_machine_as_test
-from hypothesis.strategies import sampled_from, text, assume
+from hypothesis.strategies import sampled_from, text, assume, binary
 from hypothesis import settings
 
 from ..util.eliotutil import (
@@ -254,7 +254,7 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
     @rule(
         which_client=sampled_from(["alice", "bob"]),
         filename=text(min_size=1, alphabet=string.letters),  # FIXME, can't have e.g. / in filename
-        contents=text(),
+        contents=binary(),
     )
     def create(self, which_client, filename, contents):
         assume(self.dirty in (None, which_client))
