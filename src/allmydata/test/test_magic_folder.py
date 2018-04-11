@@ -123,6 +123,20 @@ else:
         """
 
 
+class FakeFileNode(object):
+
+    def __init__(self, uri):
+        self.uri = uri
+
+    def get_uri(self):
+        return self.uri
+
+    def download_best_version(self, **kw):
+        defer.succeed(
+            FakeMutableFileVersion()
+        )
+
+
 @implementer(IDirectoryNode)
 class FakeDirectoryNode(object):
     def __init__(self, uri, read_only=False):
@@ -132,6 +146,11 @@ class FakeDirectoryNode(object):
 
     def set_node(self, name, capability):
         self.nodes[name] = capability
+
+    def add_file(self, namex, uploadable, metadata=None, overwrite=True, progress=None):
+        self.nodes[namex] = uploadable
+        fn = FakeFileNode(namex)
+        return defer.succeed(fn)
 
     def is_unknown(self):
         return False
@@ -157,12 +176,13 @@ class FakeClient(object):
         self._caps = caps
         self.nickname = "fake_client"
         self.stats_provider = FakeStatsProvider()
+        self.convergence = 'deadbeef'
+        self._logs = []
 
     def log(self, msg):
-        print(msg)
+        self._logs.append(msg)
 
     def create_node_from_uri(self, uri):
-        print("create {}".format(uri))
         return self._caps[uri]
 
 
@@ -176,14 +196,18 @@ def _do_processing(case, queue):
 
 
 def _assert_fs_equal(a, b):
-    return True  # XXX FIXME
+    if sorted(a.listdir()) != sorted(b.listdir()):
+        return False
+    for f in a.listdir():
+        if a.child(f).getContent() != b.child(f).getContent():
+            return False
+    return True
 
 
 class UnconflictedMagicFolder(RuleBasedStateMachine):
 
     def __init__(self, case):
         super(UnconflictedMagicFolder, self).__init__()
-        print("XXX CREATING unconflictedmagicfolder {}".format(case))
         self.case = case
 
         self.dirty = None
@@ -238,7 +262,6 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         self.bob.tree = self.bob_tree.child("tree")
 
     def teardown(self):
-        print("TEARDOWN")
         self.case.successResultOf(self.bob.stopService())
         self.case.successResultOf(self.alice.stopService())
         self.bob.tree.remove()
@@ -263,14 +286,9 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
 
         self.dirty = which_client
 
-        print(self.safe_directory.child(filename).path)
-        print(u"XXX '{}' {}".format(repr(contents), type(contents)))
-        fn = self.safe_directory.child(filename).path
-        with open(fn, 'wb') as f:
-            f.write(contents)
+        self.safe_directory.child(filename).setContent(contents)
 
         path = actor.tree.child(filename)
-        print("set {} to {}".format(path, contents))
         path.setContent(contents)
 
         actor.uploader._notify(None, path, actor.uploader._inotify.IN_CLOSE_WRITE)
@@ -307,7 +325,7 @@ class HypothesisTests(unittest.TestCase):
 
     def test_convergence(self):
         s = settings(
-            stateful_step_count=1,  # only thing below looks at
+#            stateful_step_count=1,  # only thing below looks at
         )
         run_state_machine_as_test(
             self._machine,
@@ -315,7 +333,6 @@ class HypothesisTests(unittest.TestCase):
         )
 
     def _machine(self):
-        print("machine!")
         return UnconflictedMagicFolder(self)
 
 
