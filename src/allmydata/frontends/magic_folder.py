@@ -842,6 +842,8 @@ class Uploader(QueueMixin):
 
                 if db_entry.last_downloaded_uri is not None:
                     metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
+                if db_entry.last_uploaded_uri is not None:
+                    metadata['last_uploaded_uri'] = db_entry.last_uploaded_uri
 
                 empty_uploadable = Data("", self._client.convergence)
                 d2 = self._upload_dirnode.add_file(
@@ -916,8 +918,11 @@ class Uploader(QueueMixin):
                     'last_downloaded_timestamp': last_downloaded_timestamp,
                     'user_mtime': pathinfo.mtime_ns / 1000000000.0,  # why are we using ns in PathInfo??
                 }
-                if db_entry is not None and db_entry.last_downloaded_uri is not None:
-                    metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
+                if db_entry is not None:
+                    if db_entry.last_downloaded_uri is not None:
+                        metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
+                    if db_entry.last_uploaded_uri is not None:
+                        metadata['last_uploaded_uri'] = db_entry.last_uploaded_uri
 
                 uploadable = FileName(unicode_from_filepath(fp), self._client.convergence)
                 d2 = self._upload_dirnode.add_file(
@@ -1360,7 +1365,6 @@ class Downloader(QueueMixin, WriteFileMixin):
 
             # * 2b. Read the following information for the path ``foo`` from the
             #   local magic folder db:
-
             #   * the *last-seen statinfo*, if any (this is the size in
             #     bytes, ``mtime``, and ``ctime`` stored in the ``local_files``
             #     table when the file was last uploaded);
@@ -1370,13 +1374,13 @@ class Downloader(QueueMixin, WriteFileMixin):
 
             if db_entry:
                 dmd_last_uploaded_uri = db_entry.last_uploaded_uri
+                if dmd_last_uploaded_uri is None:
+                    # not 100% sure about this; *does* work but does
+                    # the spec need fixups, then?
+                    dmd_last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
 
                 # * 2c. If any of the following are true, then classify as a conflict:
-
                 #   * i. there are pending notifications of changes to ``foo``;
-
-                # XXX FIXME
-
                 #   * ii. the last-seen statinfo is either absent (i.e. there is
                 #     no entry in the database for this path), or different from the
                 #     current statinfo;
@@ -1388,15 +1392,9 @@ class Downloader(QueueMixin, WriteFileMixin):
                         is_conflict = True
                         self._log("conflict because local change")
 
-                    # XXX is "last-seen statinfo" last_downloaded_timestamp?
-
                     #   * iii. either ``last_downloaded_uri`` or ``last_uploaded_uri``
                     #     (or both) are absent, or they are different.
 
-                    # XXX actually I think the spec is slightly wrong
-                    # here: if Alice keeps upload new versions and Bob
-                    # never has, when would his last_uploaded_uri ever
-                    # change?
                     elif dmd_last_downloaded_uri is None:
                         is_conflict = True
                         self._log("conflict because no last_downloaded_uri")

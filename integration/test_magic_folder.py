@@ -242,39 +242,26 @@ def test_bob_conflicts_with_alice_fresh(magic_folder):
         join(bob_dir, 'alpha.conflict'),
         join(alice_dir, 'alpha.conflict'),
     ]
-    found = None
+    found = 0
     start_time = time.time()
-    while not found and time.time() - start_time < 15.0:
+    while found != 2 and time.time() - start_time < 15.0:
         print("  waiting for conflict")
         print("bob")
         print(listdir(bob_dir))
         print("alice")
         print(listdir(alice_dir))
+        found = 0
         for path in acceptable:
             if exists(path):
                 print("FOUND {}".format(path))
-                found = path
-                break
+                found += 1
         time.sleep(1)
 
-    assert found, "should have gotten a conflict"
-    if exists(acceptable[0]):  # bob got the conflict, so alice won the race
-        assert open(join(bob_dir, 'alpha'), 'r').read() == "this is bob's alpha\n"
-        assert open(join(bob_dir, 'alpha.conflict'), 'r').read() == "this is alice's alpha\n"
-        assert open(join(alice_dir, 'alpha'), 'r').read() == "this is alice's alpha\n"
-        if exists(join(alice_dir, 'alpha.conflict')):
-            assert open(join(alice_dir, 'alpha.conflict'), 'r').read() == "this is bob's alpha\n"
-        # hmm, so Alice is getting a conflict *too*? Is that okay?
-        # assert not exists(join(alice_dir, 'alpha.conflict'))
-    else:                      # alice got the conflict, so bob won the race
-        assert exists(acceptable[1])
-        assert open(join(alice_dir, 'alpha'), 'r').read() == "this is alice's alpha\n"
-        assert open(join(alice_dir, 'alpha.conflict'), 'r').read() == "this is bob's alpha\n"
-        assert open(join(bob_dir, 'alpha'), 'r').read() == "this is bob's alpha\n"
-        if exists(join(bob_dir, 'alpha.conflict')):
-            assert open(join(bob_dir, 'alpha.conflict'), 'r').read() == "this is alice's alpha\n"
-        # hmm, so Bob is getting a conflict *too*? Is that okay?
-        # assert not exists(join(bob_dir, 'alpha.conflict'))
+    assert found == 2, "both sides should conflict"
+    assert open(join(bob_dir, 'alpha'), 'r').read() == "this is bob's alpha\n"
+    assert open(join(bob_dir, 'alpha.conflict'), 'r').read() == "this is alice's alpha\n"
+    assert open(join(alice_dir, 'alpha'), 'r').read() == "this is alice's alpha\n"
+    assert open(join(alice_dir, 'alpha.conflict'), 'r').read() == "this is bob's alpha\n"
 
 
 def test_bob_conflicts_with_alice_preexisting(magic_folder):
