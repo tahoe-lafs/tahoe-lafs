@@ -1238,8 +1238,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         self.basedir = "web/Grid/blacklist"
         self.set_up_grid(oneshare=True)
         c0 = self.g.clients[0]
-        c0_basedir = c0.basedir
-        fn = os.path.join(c0_basedir, "access.blacklist")
+        fn = c0.config.get_config_path("access.blacklist")
         self.uris = {}
         DATA = "off-limits " * 50
 
