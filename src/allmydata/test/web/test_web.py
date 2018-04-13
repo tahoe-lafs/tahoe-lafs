@@ -782,10 +782,11 @@ class MultiFormatPageTests(unittest.TestCase):
 
 
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, unittest.TestCase):
+    maxDiff = None
+
     def test_create(self):
         pass
 
-    maxDiff = None
     def test_welcome_json(self):
         """
         There is a JSON version of the welcome page which can be selected with the
