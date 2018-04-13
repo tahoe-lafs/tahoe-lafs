@@ -787,6 +787,20 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_create(self):
         pass
 
+    def test_frame_options(self):
+        """
+        All pages deny the ability to be loaded in frames.
+        """
+        d = self.GET("/", return_response=True)
+        def responded(result):
+            _, _, headers = result
+            self.assertEqual(
+                [b"DENY"],
+                headers.getRawHeaders(b"X-Frame-Options"),
+            )
+        d.addCallback(responded)
+        return d
+
     def test_welcome_json(self):
         """
         There is a JSON version of the welcome page which can be selected with the
