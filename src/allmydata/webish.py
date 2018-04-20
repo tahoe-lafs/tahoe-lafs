@@ -114,16 +114,20 @@ class MyRequest(appserver.NevowRequest):
         if self._tahoe_request_had_error:
             error = " [ERROR]"
 
-        log.msg(format="web: %(clientip)s %(method)s %(uri)s %(code)s %(length)s%(error)s",
-                clientip=self.getClientIP(),
-                method=self.method,
-                uri=uri,
-                code=self.code,
-                length=(self.sentLength or "-"),
-                error=error,
-                facility="tahoe.webish",
-                level=log.OPERATIONAL,
-                )
+        log.msg(
+            format=(
+                "web: %(clientip)s %(method)s %(uri)s %(code)s "
+                "%(length)s%(error)s"
+            ),
+            clientip=self.getClientIP(),
+            method=self.method,
+            uri=uri,
+            code=self.code,
+            length=(self.sentLength or "-"),
+            error=error,
+            facility="tahoe.webish",
+            level=log.OPERATIONAL,
+        )
 
 
 class WebishServer(service.MultiService):
@@ -218,4 +222,3 @@ class IntroducerWebishServer(WebishServer):
         service.MultiService.__init__(self)
         self.root = introweb.IntroducerRoot(introducer)
         self.buildServer(webport, nodeurl_path, staticdir)
-
