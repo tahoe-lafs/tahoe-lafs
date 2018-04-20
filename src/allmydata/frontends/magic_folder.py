@@ -1,6 +1,7 @@
 
 import sys, os
 import os.path
+from errno import EEXIST
 from collections import deque
 from datetime import datetime
 import time
@@ -31,6 +32,11 @@ from allmydata import magicfolderdb, magicpath
 
 
 IN_EXCL_UNLINK = 0x04000000L
+
+
+class ConfigurationError(Exception):
+    pass
+
 
 def get_inotify_module():
     try:
@@ -142,28 +148,6 @@ def load_magic_folders(node_directory):
                 interval = 60
             dir_fp = to_filepath(directory)
 
-            # make sure directory for magic folder exists
-            if not dir_fp.exists():
-                # there is something there, but it is not a directory,
-                # so we try to create one and cry if it fails
-                try:
-                    umask = config.get("magic_folder", "download.umask").decode('utf8')
-                    os.mkdir(quote_local_unicode_path(directory, 0777 & (~ umask)))
-                except OSError:
-                    raise Exception(
-                        "The '[magic_folder] local.directory' parameter is {} "
-                        "but no directory could be created at that location.".format(
-                            quote_local_unicode_path(directory)
-                        )
-                    )
-            if not dir_fp.isdir():
-                raise Exception(
-                    "The '[magic_folder] local.directory' parameter is {} "
-                    "but the thing at that location is not a directory.".format(
-                        quote_local_unicode_path(directory)
-                    )
-                )
-
             folders[u"default"] = {
                 u"directory": directory,
                 u"upload_dircap": fileutil.read(up_fname),
@@ -204,23 +188,59 @@ def load_magic_folders(node_directory):
                 )
 
     # check configuration
-    for (name, mf_config) in folders.items():
-        if not isinstance(mf_config, dict):
-            raise Exception(
-                "Each item in '{}' must itself be a dict".format(yaml_fname)
-            )
-        for k in ['collective_dircap', 'upload_dircap', 'directory', 'poll_interval']:
-            if k not in mf_config:
-                raise Exception(
-                    "Config for magic folder '{}' is missing '{}'".format(
-                        name, k
-                    )
-                )
-        for k in ['collective_dircap', 'upload_dircap']:
-            if isinstance(mf_config[k], unicode):
-                mf_config[k] = mf_config[k].encode('ascii')
-
+    folders = dict(
+        (name, fix_magic_folder_config(yaml_fname, name, config))
+        for (name, config)
+        in folders.items()
+    )
     return folders
+
+
+def fix_magic_folder_config(yaml_fname, name, config):
+    if not isinstance(config, dict):
+        raise Exception(
+            "Each item in '{}' must itself be a dict".format(yaml_fname)
+        )
+
+    for k in ['collective_dircap', 'upload_dircap', 'directory', 'poll_interval']:
+        if k not in config:
+            raise Exception(
+                "Config for magic folder '{}' is missing '{}'".format(
+                    name, k
+                )
+            )
+
+    # make sure directory for magic folder exists
+    dir_fp = to_filepath(config['directory'])
+    umask = config.setdefault('umask', 0077)
+
+    try:
+        os.mkdir(dir_fp.path, 0777 & (~ umask))
+    except OSError as e:
+        if EEXIST != e.errno:
+            # Report some unknown problem.
+            raise ConfigurationError(
+                "magic-folder {} configured path {} could not be created: "
+                "{}".format(
+                    name,
+                    dir_fp.path,
+                    str(e),
+                ),
+            )
+        elif not dir_fp.isdir():
+            # Tell the user there's a collision.
+            raise ConfigurationError(
+                "magic-folder {} configured path {} exists and is not a "
+                "directory".format(
+                    name, dir_fp.path,
+                ),
+            )
+
+    result_config = config.copy()
+    for k in ['collective_dircap', 'upload_dircap']:
+        if isinstance(config[k], unicode):
+            result_config[k] = config[k].encode('ascii')
+    return result_config
 
 
 def save_magic_folders(node_directory, folders):
