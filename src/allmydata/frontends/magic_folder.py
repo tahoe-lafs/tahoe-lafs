@@ -840,6 +840,10 @@ class Uploader(QueueMixin):
                 # this client (i.e. if it was created on this client and no change
                 # by any other client has been detected).
 
+                # XXX currently not actually true: it will record the
+                # LAST THING we wrote to (or saw on) disk (not
+                # necessarily downloaded?)
+
                 if db_entry.last_downloaded_uri is not None:
                     metadata['last_downloaded_uri'] = db_entry.last_downloaded_uri
                 if db_entry.last_uploaded_uri is not None:
@@ -859,9 +863,14 @@ class Uploader(QueueMixin):
                     # last_downloaded_uri to the filecap so that we don't
                     # immediately re-download it when we start up next
                     last_downloaded_uri = metadata.get('last_downloaded_uri', filecap)
-                    self._db.did_upload_version(relpath_u, new_version, filecap,
-                                                last_downloaded_uri, last_downloaded_timestamp,
-                                                pathinfo)
+                    self._db.did_upload_version(
+                        relpath_u,
+                        new_version,
+                        filecap,
+                        last_downloaded_uri,
+                        last_downloaded_timestamp,
+                        pathinfo,
+                    )
                     self._count('files_uploaded')
                 d2.addCallback(_add_db_entry)
                 d2.addCallback(lambda ign: True)
@@ -1330,8 +1339,12 @@ class Downloader(QueueMixin, WriteFileMixin):
                 raise Exception("downloaded object %s disappeared" % quote_local_unicode_path(written_abspath_u))
 
             self._db.did_upload_version(
-                item.relpath_u, item.metadata['version'], last_uploaded_uri,
-                last_downloaded_uri, last_downloaded_timestamp, written_pathinfo,
+                item.relpath_u,
+                item.metadata['version'],
+                last_uploaded_uri,
+                last_downloaded_uri,
+                last_downloaded_timestamp,
+                written_pathinfo,
             )
             self._count('objects_downloaded')
             item.set_status('success', self._clock.seconds())
