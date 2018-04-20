@@ -946,10 +946,15 @@ class Uploader(QueueMixin):
                     # if we're uploading a file, we want to set
                     # last_downloaded_uri to the filecap so that we don't
                     # immediately re-download it when we start up next
-                    last_downloaded_uri = metadata.get('last_downloaded_uri', filecap)
-                    self._db.did_upload_version(relpath_u, new_version, filecap,
-                                                last_downloaded_uri, last_downloaded_timestamp,
-                                                pathinfo)
+                    last_downloaded_uri = filecap
+                    self._db.did_upload_version(
+                        relpath_u,
+                        new_version,
+                        filecap,
+                        last_downloaded_uri,
+                        last_downloaded_timestamp,
+                        pathinfo
+                    )
                     self._count('files_uploaded')
                     return True
                 d2.addCallback(_add_db_entry)
@@ -1386,11 +1391,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             #     uploaded.
 
             if db_entry:
-                dmd_last_uploaded_uri = db_entry.last_uploaded_uri
-                if dmd_last_uploaded_uri is None:
-                    # not 100% sure about this; *does* work but does
-                    # the spec need fixups, then?
-                    dmd_last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
+                dmd_last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
 
                 # * 2c. If any of the following are true, then classify as a conflict:
                 #   * i. there are pending notifications of changes to ``foo``;
@@ -1398,25 +1399,40 @@ class Downloader(QueueMixin, WriteFileMixin):
                 #     no entry in the database for this path), or different from the
                 #     current statinfo;
 
+                print(u"just downloaded {}".format(item.file_node.get_uri()))
+                print(u"db_entry.last_uploaded_uri={}".format(db_entry.last_uploaded_uri))
+                print(u"db_entry.last_downloaded_uri={}".format(db_entry.last_downloaded_uri))
+                print(u"dmd_last_downloaded_uri={}".format(dmd_last_downloaded_uri))
+                print(u"dmd_last_uploaded_uri={}".format(dmd_last_uploaded_uri))
+
                 if current_statinfo.exists:
+                    self._log("checking conflicts {}".format(item.relpath_u))
                     if (db_entry.mtime_ns != current_statinfo.mtime_ns or \
                         db_entry.ctime_ns != current_statinfo.ctime_ns or \
                         db_entry.size != current_statinfo.size):
                         is_conflict = True
                         self._log("conflict because local change")
 
-                    #   * iii. either ``last_downloaded_uri`` or ``last_uploaded_uri``
-                    #     (or both) are absent, or they are different.
-
-                    elif dmd_last_downloaded_uri is None:
-                        is_conflict = True
-                        self._log("conflict because no last_downloaded_uri")
-                    elif dmd_last_uploaded_uri is None:
-                        is_conflict = True
-                        self._log("conflict because no last_uploaded_uri")
-                    elif dmd_last_downloaded_uri != dmd_last_uploaded_uri:
-                        is_conflict = True
-                        self._log("conflict because last_downloaded_uri != last_uploaded_uri")
+                    if db_entry.last_uploaded_uri is None:
+                        pass
+                    elif db_entry.last_downloaded_uri is None:
+                        pass
+                    else:
+                        if dmd_last_downloaded_uri is None:
+                            # we've never downloaded anything before for this
+                            # file, but the other side might have created a new
+                            # file "at the same time"
+                            if db_entry.version >= item.metadata['version']:
+                                self._log("conflict because my version >= remote version")
+                                print("conflict because my version {} >= remote version {}".format(db_entry.version, item.metadata['version']))
+                                is_conflict = True
+                        elif dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
+                            is_conflict = True
+                            self._log("conflict because dmd_last_downloaded_uri != db_entry.last_downloaded_uri")
+                            print("conflict dmd_last_download ({}) != local last_download ({})".format(
+                                dmd_last_downloaded_uri,
+                                db_entry.last_downloaded_uri)
+                            )
 
             if item.relpath_u.endswith(u"/"):
                 if item.metadata.get('deleted', False):
