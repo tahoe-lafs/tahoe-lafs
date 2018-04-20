@@ -602,8 +602,8 @@ class _Client(node.Node, pollmixin.PollMixin):
 
                 s = magic_folder.MagicFolder(
                     client=self,
-                    upload_dircap=mf_config["upload_dircap"].encode('ascii'),
-                    collective_dircap=mf_config["collective_dircap"].encode('ascii'),
+                    upload_dircap=mf_config["upload_dircap"],
+                    collective_dircap=mf_config["collective_dircap"],
                     local_path_u=abspath_expanduser_unicode(local_dir_config, base=self.basedir),
                     dbfile=abspath_expanduser_unicode(db_filename),
                     umask=self.get_config("magic_folder", "download.umask", 0077),
