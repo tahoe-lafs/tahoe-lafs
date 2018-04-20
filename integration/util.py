@@ -235,6 +235,31 @@ def await_file_contents(path, contents, timeout=15, error_if=None):
     raise Exception("Didn't find '{}' after {}s".format(path, timeout))
 
 
+def await_files_exist(paths, timeout=15, await_all=False):
+    """
+    wait up to `timeout` seconds for any of the paths to exist; when
+    any exist, a list of all found filenames is returned. Otherwise,
+    an Exception is raised
+    """
+    found = []
+    start_time = time.time()
+    while not found and time.time() - start_time < 15.0:
+        print("  waiting for: {}".format(' '.join(paths)))
+        found = []
+        for path in paths:
+            if exists(path):
+                print("FOUND {}".format(path))
+                found.append(path)
+        if await_all:
+            if len(found) == len(paths):
+                return found
+        else:
+            if found:
+                return found
+        time.sleep(1)
+    raise Exception("Didn't find any of {} after {}s".format(', '.join(paths), timeout))
+
+
 def await_file_vanishes(path, timeout=10):
     start_time = time.time()
     while time.time() - start_time < timeout:
