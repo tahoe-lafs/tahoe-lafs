@@ -146,7 +146,6 @@ def load_magic_folders(node_directory):
                 interval = int(config.get("magic_folder", "poll_interval"))
             except ConfigParser.NoOptionError:
                 interval = 60
-            dir_fp = to_filepath(directory)
 
             folders[u"default"] = {
                 u"directory": directory,

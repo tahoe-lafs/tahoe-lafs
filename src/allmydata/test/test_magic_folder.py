@@ -88,7 +88,7 @@ class NewConfigUtilTests(unittest.TestCase):
         self.folders[u"default"][u"umask"] = (0o777 & ~perm)
         self.write_magic_folder_config(self.basedir, self.folders)
 
-        folders = magic_folder.load_magic_folders(self.basedir)
+        magic_folder.load_magic_folders(self.basedir)
 
         # It is created.
         self.assertTrue(
