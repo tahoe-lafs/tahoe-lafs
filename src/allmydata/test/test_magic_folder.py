@@ -65,6 +65,7 @@ class NewConfigUtilTests(unittest.TestCase):
     def test_load(self):
         folders = magic_folder.load_magic_folders(self.basedir)
         self.assertEqual(['default'], list(folders.keys()))
+        self.assertEqual(folders['default'][u'umask'], 0o077)
 
     def test_both_styles_of_config(self):
         os.unlink(join(self.basedir, u"private", u"magic_folders.yaml"))
@@ -112,6 +113,23 @@ class NewConfigUtilTests(unittest.TestCase):
         )
         self.assertIn(
             "'magic-folders'",
+            str(ctx.exception)
+        )
+
+    def test_wrong_umask_obj(self):
+        """
+        If a umask is given for a magic-folder that is not an integer, an
+        exception is raised.
+        """
+        self.folders[u"default"][u"umask"] = "0077"
+        yaml_fname = join(self.basedir, u"private", u"magic_folders.yaml")
+        with open(yaml_fname, "w") as f:
+            f.write(yamlutil.safe_dump({u"magic-folders": self.folders}))
+
+        with self.assertRaises(Exception) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "umask must be an integer",
             str(ctx.exception)
         )
 

@@ -30,6 +30,9 @@ from allmydata.immutable.upload import FileName, Data
 from allmydata import magicfolderdb, magicpath
 
 
+# Mask off all non-owner permissions for magic-folders files by default.
+_DEFAULT_DOWNLOAD_UMASK = 0o077
+
 IN_EXCL_UNLINK = 0x04000000L
 
 def get_inotify_module():
@@ -157,11 +160,17 @@ def load_magic_folders(node_directory):
                     )
                 )
 
+            if config.has_option("magic_folder", "download.umask"):
+                umask = int(config.get("magic_folder", "download.umask"), 8)
+            else:
+                umask = _DEFAULT_DOWNLOAD_UMASK
+
             folders[u"default"] = {
                 u"directory": directory,
                 u"upload_dircap": fileutil.read(up_fname),
                 u"collective_dircap": fileutil.read(coll_fname),
                 u"poll_interval": interval,
+                u"umask": umask,
             }
         else:
             # without any YAML file AND no local.directory option it's
@@ -212,6 +221,12 @@ def load_magic_folders(node_directory):
         for k in ['collective_dircap', 'upload_dircap']:
             if isinstance(mf_config[k], unicode):
                 mf_config[k] = mf_config[k].encode('ascii')
+
+        if not isinstance(
+            mf_config.setdefault(u"umask", _DEFAULT_DOWNLOAD_UMASK),
+            int,
+        ):
+            raise Exception("magic-folder download umask must be an integer")
 
     return folders
 
