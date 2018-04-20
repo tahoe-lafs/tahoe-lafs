@@ -1049,7 +1049,6 @@ class WriteFileMixin(object):
                 # XXX FIXME why ever bother with "rename_no_overwrite"
                 # under the hood in replace_file() then..?
                 if os.path.exists(abspath_u):
-                    print("unlinking {}".format(abspath_u))
                     os.unlink(abspath_u)
                 fileutil.replace_file(abspath_u, replacement_path_u)
                 return abspath_u
@@ -1399,12 +1398,6 @@ class Downloader(QueueMixin, WriteFileMixin):
                 #     no entry in the database for this path), or different from the
                 #     current statinfo;
 
-                print(u"just downloaded {}".format(item.file_node.get_uri()))
-                print(u"db_entry.last_uploaded_uri={}".format(db_entry.last_uploaded_uri))
-                print(u"db_entry.last_downloaded_uri={}".format(db_entry.last_downloaded_uri))
-                print(u"dmd_last_downloaded_uri={}".format(dmd_last_downloaded_uri))
-                print(u"dmd_last_uploaded_uri={}".format(dmd_last_uploaded_uri))
-
                 if current_statinfo.exists:
                     self._log("checking conflicts {}".format(item.relpath_u))
                     if (db_entry.mtime_ns != current_statinfo.mtime_ns or \
@@ -1424,15 +1417,10 @@ class Downloader(QueueMixin, WriteFileMixin):
                             # file "at the same time"
                             if db_entry.version >= item.metadata['version']:
                                 self._log("conflict because my version >= remote version")
-                                print("conflict because my version {} >= remote version {}".format(db_entry.version, item.metadata['version']))
                                 is_conflict = True
                         elif dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
                             is_conflict = True
                             self._log("conflict because dmd_last_downloaded_uri != db_entry.last_downloaded_uri")
-                            print("conflict dmd_last_download ({}) != local last_download ({})".format(
-                                dmd_last_downloaded_uri,
-                                db_entry.last_downloaded_uri)
-                            )
 
             if item.relpath_u.endswith(u"/"):
                 if item.metadata.get('deleted', False):
