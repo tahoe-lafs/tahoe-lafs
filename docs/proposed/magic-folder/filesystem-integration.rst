@@ -62,12 +62,14 @@ to the target folder cease for a sufficiently long period of time.
 
 *Detecting filesystem changes*
 
-For the Linux implementation, we will use the inotify Linux kernel
+For the Linux implementation, we will use the `inotify`_ Linux kernel
 subsystem to gather events on the local Magic Folder directory tree. This
 implementation was already present in Tahoe-LAFS 1.9.0, but needs to be
 changed to gather directory creation and move events, in addition to the
 events indicating that a file has been written that are gathered by the
 current code.
+
+.. _`inotify`: https://en.wikipedia.org/wiki/Inotify
 
 For the Windows implementation, we will use the ``ReadDirectoryChangesW``
 Win32 API. The prototype implementation simulates a Python interface to
