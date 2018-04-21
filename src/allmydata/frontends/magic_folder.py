@@ -1390,8 +1390,6 @@ class Downloader(QueueMixin, WriteFileMixin):
             #     uploaded.
 
             if db_entry:
-                dmd_last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
-
                 # * 2c. If any of the following are true, then classify as a conflict:
                 #   * i. there are pending notifications of changes to ``foo``;
                 #   * ii. the last-seen statinfo is either absent (i.e. there is

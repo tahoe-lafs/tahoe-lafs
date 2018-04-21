@@ -652,6 +652,10 @@ else:
             move_into_place(replacement_path, replaced_path)
         except EnvironmentError:
             reraise(ConflictError)
+        except OSError as e:
+            if e.errno != ENOENT:
+                raise
+
 
 PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime_ns ctime_ns')
 
