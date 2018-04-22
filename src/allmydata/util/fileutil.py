@@ -243,7 +243,9 @@ def du(basedir):
 def move_into_place(source, dest):
     """Atomically replace a file, or as near to it as the platform allows.
     The dest file may or may not exist."""
-    if "win32" in sys.platform.lower():
+    if "win32" in sys.platform.lower() and os.path.exists(source):
+        # we check for source existing since we don't want to nuke the
+        # dest unless we'll succeed at moving the target into place
         remove_if_possible(dest)
     os.rename(source, dest)
 
@@ -650,11 +652,11 @@ else:
 
         try:
             move_into_place(replacement_path, replaced_path)
-        except EnvironmentError:
-            reraise(ConflictError)
         except OSError as e:
             if e.errno != ENOENT:
-                raise
+                reraise(ConflictError)
+        except EnvironmentError as e:
+            reraise(ConflictError)
 
 
 PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime_ns ctime_ns')
