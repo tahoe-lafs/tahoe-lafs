@@ -257,7 +257,9 @@ def await_files_exist(paths, timeout=15, await_all=False):
             if found:
                 return found
         time.sleep(1)
-    raise Exception("Didn't find any of {} after {}s".format(', '.join(paths), timeout))
+    if await_all:
+        raise Exception("Didn't find {} after {}s".format(' and '.join(paths), timeout))
+    raise Exception("Didn't find {} after {}s".format(' or '.join(paths), timeout))
 
 
 def await_file_vanishes(path, timeout=10):

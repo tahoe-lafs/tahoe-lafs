@@ -176,11 +176,13 @@ def test_bob_creates_alice_deletes_bob_restores(magic_folder):
         "bob wrote this"
     )
 
-    # alice deletes it (so bob should as well
+    # alice deletes it (so bob should as well .. but keep a backup)
     unlink(join(alice_dir, "boom"))
     util.await_file_vanishes(join(bob_dir, "boom"))
+    assert exists(join(bob_dir, "boom.backup"))
 
     # bob restore it, with new contents
+    unlink(join(bob_dir, "boom.backup"))
     with open(join(bob_dir, "boom"), "w") as f:
         f.write("bob wrote this again, because reasons")
 
@@ -207,13 +209,19 @@ def test_bob_creates_alice_deletes_alice_restores(magic_folder):
         "bob wrote this"
     )
 
-    # alice deletes it (so bob should as well
+    # alice deletes it (so bob should as well)
     unlink(join(alice_dir, "boom2"))
     util.await_file_vanishes(join(bob_dir, "boom2"))
 
     # alice restore it, with new contents
     with open(join(alice_dir, "boom2"), "w") as f:
         f.write("alice re-wrote this again, because reasons")
+
+    util.await_file_contents(
+        join(bob_dir, "boom2"),
+        "alice re-wrote this again, because reasons"
+    )
+
 
 
 def test_bob_conflicts_with_alice_fresh(magic_folder):
@@ -270,22 +278,16 @@ def test_bob_conflicts_with_alice_preexisting(magic_folder):
         join(bob_dir, 'beta.conflict'),
         join(alice_dir, 'beta.conflict'),
     ]
-    found = util.await_files_exist(acceptable, await_all=True)
+    found = util.await_files_exist(acceptable)
 
-    assert len(found) == 2, "both should have gotten a conflict"
+    assert len(found) >= 1, "should have found at least one conflict"
 
     assert open(join(bob_dir, 'beta'), 'r').read() == "this is bob's beta\n"
-    assert open(join(bob_dir, 'beta.conflict'), 'r').read() == "this is alice's beta\n"
     assert open(join(alice_dir, 'beta'), 'r').read() == "this is alice's beta\n"
-    if exists(join(alice_dir, 'beta.conflict')):
-        assert open(join(alice_dir, 'beta.conflict'), 'r').read() == "this is bob's beta\n"
-
-    assert exists(acceptable[1])
-    assert open(join(alice_dir, 'beta'), 'r').read() == "this is alice's beta\n"
-    assert open(join(alice_dir, 'beta.conflict'), 'r').read() == "this is bob's beta\n"
-    assert open(join(bob_dir, 'beta'), 'r').read() == "this is bob's beta\n"
     if exists(join(bob_dir, 'beta.conflict')):
         assert open(join(bob_dir, 'beta.conflict'), 'r').read() == "this is alice's beta\n"
+    if exists(join(alice_dir, 'beta.conflict')):
+        assert open(join(alice_dir, 'beta.conflict'), 'r').read() == "this is bob's beta\n"
 
 
 @pytest.inlineCallbacks
