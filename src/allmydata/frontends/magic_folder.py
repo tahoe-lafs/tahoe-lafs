@@ -1403,23 +1403,26 @@ class Downloader(QueueMixin, WriteFileMixin):
                         db_entry.ctime_ns != current_statinfo.ctime_ns or \
                         db_entry.size != current_statinfo.size):
                         is_conflict = True
-                        self._log("conflict because local change")
+                        self._log("conflict because local change0")
 
-                    if db_entry.last_uploaded_uri is None:
-                        pass
-                    elif db_entry.last_downloaded_uri is None:
-                        pass
-                    else:
-                        if dmd_last_downloaded_uri is None:
-                            # we've never downloaded anything before for this
-                            # file, but the other side might have created a new
-                            # file "at the same time"
-                            if db_entry.version >= item.metadata['version']:
-                                self._log("conflict because my version >= remote version")
-                                is_conflict = True
-                        elif dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
+                    if db_entry.last_downloaded_uri is None \
+                       or db_entry.last_uploaded_uri is None \
+                       or dmd_last_downloaded_uri is None:
+                        # we've never downloaded anything before for this
+                        # file, but the other side might have created a new
+                        # file "at the same time"
+                        if db_entry.version >= item.metadata['version']:
+                            self._log("conflict because my version >= remote version")
                             is_conflict = True
-                            self._log("conflict because dmd_last_downloaded_uri != db_entry.last_downloaded_uri")
+                    elif dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
+                        is_conflict = True
+                        self._log("conflict because dmd_last_downloaded_uri != db_entry.last_downloaded_uri")
+                        self._log("{} != {}".format(dmd_last_downloaded_uri, db_entry.last_downloaded_uri))
+
+            else:  # no local db_entry .. but has the file appeared locally meantime?
+                if current_statinfo.exists:
+                    is_conflict = True
+                    self._log("conflict because local change1")
 
             if is_conflict:
                 self._count('objects_conflicted')
