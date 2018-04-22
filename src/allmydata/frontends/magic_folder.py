@@ -1420,6 +1420,9 @@ class Downloader(QueueMixin, WriteFileMixin):
                             is_conflict = True
                             self._log("conflict because dmd_last_downloaded_uri != db_entry.last_downloaded_uri")
 
+            if is_conflict:
+                self._count('objects_conflicted')
+
             if item.relpath_u.endswith(u"/"):
                 if item.metadata.get('deleted', False):
                     self._log("rmdir(%r) ignored" % (abspath_u,))
