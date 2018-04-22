@@ -1749,10 +1749,9 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         conflicted_path = local_file + u".conflict"
         self.failIf(os.path.exists(conflicted_path))
 
-        # At this point, the backup file should exist with content "foo"
-#        backup_path = local_file + u".backup"
-#        self.failUnless(os.path.exists(backup_path))
-#        self.failUnlessEqual(fileutil.read(backup_path), "foo")
+        # no backup
+        backup_path = local_file + u".backup"
+        self.failIf(os.path.exists(backup_path))
 
         # .tmp file shouldn't exist
         self.failIf(os.path.exists(local_file + u".tmp"))
