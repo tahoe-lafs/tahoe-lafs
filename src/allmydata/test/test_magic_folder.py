@@ -854,6 +854,69 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         )
         yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
 
+    @defer.inlineCallbacks
+    def test_conflict_local_change_fresh(self):
+        alice_fname = os.path.join(self.alice_magic_dir, 'localchange0')
+        bob_fname = os.path.join(self.bob_magic_dir, 'localchange0')
+
+        # alice creates a file, bob downloads it
+        alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
+        bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+
+        yield self.alice_fileops.write(alice_fname, 'contents0\n')
+        yield iterate(self.alice_magicfolder)  # for windows
+
+        # before bob downloads, we make a local file for bob by the
+        # same name
+        with open(bob_fname, 'w') as f:
+            f.write("not the right stuff")
+
+        yield iterate_uploader(self.alice_magicfolder)
+        yield alice_proc  # alice uploads
+
+        yield iterate_downloader(self.bob_magicfolder)
+        yield bob_proc    # bob downloads
+
+        # ...so now bob should produce a conflict
+        self.failUnless(os.path.exists(bob_fname + '.conflict'))
+
+    @defer.inlineCallbacks
+    def test_conflict_local_change_existing(self):
+        alice_fname = os.path.join(self.alice_magic_dir, 'localchange1')
+        bob_fname = os.path.join(self.bob_magic_dir, 'localchange1')
+
+        # alice creates a file, bob downloads it
+        alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
+        bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+
+        yield self.alice_fileops.write(alice_fname, 'contents0\n')
+        yield iterate(self.alice_magicfolder)  # for windows
+
+        yield iterate_uploader(self.alice_magicfolder)
+        yield alice_proc  # alice uploads
+
+        yield iterate_downloader(self.bob_magicfolder)
+        yield bob_proc    # bob downloads
+
+        # alice creates a new change
+        alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
+        bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+        yield self.alice_fileops.write(alice_fname, 'contents1\n')
+
+        yield iterate(self.alice_magicfolder)  # for windows
+
+        # before bob downloads, make a local change
+        with open(bob_fname, "w") as f:
+            f.write("bob's local change")
+
+        yield iterate_uploader(self.alice_magicfolder)
+        yield alice_proc  # alice uploads
+
+        yield iterate_downloader(self.bob_magicfolder)
+        yield bob_proc    # bob downloads
+
+        # ...so now bob should produce a conflict
+        self.failUnless(os.path.exists(bob_fname + '.conflict'))
 
     @defer.inlineCallbacks
     def test_alice_delete_and_restore(self):

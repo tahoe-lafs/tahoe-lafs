@@ -1361,6 +1361,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             return f
 
         if os.path.isfile(conflict_path_u):
+            self._log("already conflict: {}".format(conflict_path_u))
             def fail(res):
                 raise ConflictError("download failed: already conflicted: %r" % (item.relpath_u,))
             d.addCallback(fail)
