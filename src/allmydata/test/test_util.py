@@ -534,13 +534,6 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(fileutil.read(replaced_path), "bar")
         self.failIf(os.path.exists(replacement_path))
 
-        # when replaced, replacement and backup all exist
-        fileutil.write(replaced_path,    "foo")
-        fileutil.write(replacement_path, "bar")
-        fileutil.replace_file(replaced_path, replacement_path)
-        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
-        self.failIf(os.path.exists(replacement_path))
-
     def test_du(self):
         basedir = "util/FileUtil/test_du"
         fileutil.make_dirs(basedir)
