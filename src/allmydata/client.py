@@ -593,7 +593,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
             for (name, mf_config) in magic_folders.items():
                 self.log("Starting magic_folder '{}'".format(name))
-                s = magic_folder.MagicFolder.from_config(self.basedir, name, mf_config)
+                s = magic_folder.MagicFolder.from_config(self, name, mf_config)
                 self._magic_folders[name] = s
                 s.setServiceParent(self)
                 s.startService()
