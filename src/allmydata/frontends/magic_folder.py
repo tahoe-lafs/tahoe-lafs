@@ -43,7 +43,9 @@ IN_EXCL_UNLINK = 0x04000000L
 
 
 class ConfigurationError(Exception):
-    pass
+    """
+    There was something wrong with some magic-folder configuration.
+    """
 
 
 def get_inotify_module():
@@ -210,14 +212,33 @@ def load_magic_folders(node_directory):
 
 
 def fix_magic_folder_config(yaml_fname, name, config):
+    """
+    Check the given folder configuration for validity.
+
+    If it refers to a local directory which does not exist, create that
+    directory with the configured permissions.
+
+    :param unicode yaml_fname: The configuration file from which the
+        configuration was read.
+
+    :param unicode name: The name of the magic-folder this particular
+        configuration blob is associated with.
+
+    :param config: The configuration for a single magic-folder.  This is
+        expected to be a ``dict`` with certain keys and values of certain
+        types but these properties will be checked.
+
+    :raise ConfigurationError: If the given configuration object does not
+        conform to some magic-folder configuration requirement.
+    """
     if not isinstance(config, dict):
-        raise Exception(
+        raise ConfigurationError(
             "Each item in '{}' must itself be a dict".format(yaml_fname)
         )
 
     for k in ['collective_dircap', 'upload_dircap', 'directory', 'poll_interval']:
         if k not in config:
-            raise Exception(
+            raise ConfigurationError(
                 "Config for magic folder '{}' is missing '{}'".format(
                     name, k
                 )
