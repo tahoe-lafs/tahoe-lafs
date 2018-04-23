@@ -1046,10 +1046,6 @@ class WriteFileMixin(object):
             return self._rename_conflicted_file(abspath_u, replacement_path_u)
         else:
             try:
-                # XXX FIXME why ever bother with "rename_no_overwrite"
-                # under the hood in replace_file() then..?
-                if os.path.exists(abspath_u):
-                    os.unlink(abspath_u)
                 fileutil.replace_file(abspath_u, replacement_path_u)
                 return abspath_u
             except fileutil.ConflictError as e:
