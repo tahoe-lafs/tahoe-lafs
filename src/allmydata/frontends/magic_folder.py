@@ -18,7 +18,12 @@ from zope.interface import Interface, Attribute, implementer
 from allmydata.util import fileutil, configutil, yamlutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
-from allmydata.util.fileutil import precondition_abspath, get_pathinfo, ConflictError
+from allmydata.util.fileutil import (
+    precondition_abspath,
+    get_pathinfo,
+    ConflictError,
+    abspath_expanduser_unicode,
+)
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.progress import PercentProgress
@@ -29,6 +34,9 @@ from allmydata.util.time_format import format_time
 from allmydata.immutable.upload import FileName, Data
 from allmydata import magicfolderdb, magicpath
 
+
+# Mask off all non-owner permissions for magic-folders files by default.
+_DEFAULT_DOWNLOAD_UMASK = 0o077
 
 IN_EXCL_UNLINK = 0x04000000L
 
@@ -119,6 +127,7 @@ def load_magic_folders(node_directory):
     old-style to new-style config (but WILL read old-style config and
     return in the same way as if it was new-style).
 
+    :param node_directory: path where node data is stored
     :returns: dict mapping magic-folder-name to its config (also a dict)
     """
     yaml_fname = os.path.join(node_directory, u"private", u"magic_folders.yaml")
@@ -156,11 +165,17 @@ def load_magic_folders(node_directory):
                     )
                 )
 
+            if config.has_option("magic_folder", "download.umask"):
+                umask = int(config.get("magic_folder", "download.umask"), 8)
+            else:
+                umask = _DEFAULT_DOWNLOAD_UMASK
+
             folders[u"default"] = {
                 u"directory": directory,
                 u"upload_dircap": fileutil.read(up_fname),
                 u"collective_dircap": fileutil.read(coll_fname),
                 u"poll_interval": interval,
+                u"umask": umask,
             }
         else:
             # without any YAML file AND no local.directory option it's
@@ -212,6 +227,12 @@ def load_magic_folders(node_directory):
             if isinstance(mf_config[k], unicode):
                 mf_config[k] = mf_config[k].encode('ascii')
 
+        if not isinstance(
+            mf_config.setdefault(u"umask", _DEFAULT_DOWNLOAD_UMASK),
+            int,
+        ):
+            raise Exception("magic-folder download umask must be an integer")
+
     return folders
 
 
@@ -227,6 +248,43 @@ def save_magic_folders(node_directory, folders):
 
 
 class MagicFolder(service.MultiService):
+
+    @classmethod
+    def from_config(cls, client_node, name, config):
+        """
+        Create a ``MagicFolder`` from a client node and magic-folder
+        configuration.
+
+        :param _Client client_node: The client node the magic-folder is
+            attached to.
+
+        :param dict config: Magic-folder configuration like that in the list
+            returned by ``load_magic_folders``.
+        """
+        db_filename = os.path.join(
+            client_node.basedir,
+            "private",
+            "magicfolder_{}.sqlite".format(name),
+        )
+        local_dir_config = config['directory']
+        try:
+            poll_interval = int(config["poll_interval"])
+        except ValueError:
+            raise ValueError("'poll_interval' option must be an int")
+
+        return cls(
+            client=client_node,
+            upload_dircap=config["upload_dircap"],
+            collective_dircap=config["collective_dircap"],
+            local_path_u=abspath_expanduser_unicode(
+                local_dir_config,
+                base=client_node.basedir,
+            ),
+            dbfile=abspath_expanduser_unicode(db_filename),
+            umask=config["umask"],
+            name=name,
+            downloader_delay=poll_interval,
+        )
 
     def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask,
                  name, uploader_delay=1.0, clock=None, downloader_delay=60):
