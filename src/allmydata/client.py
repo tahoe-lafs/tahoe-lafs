@@ -593,23 +593,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
             for (name, mf_config) in magic_folders.items():
                 self.log("Starting magic_folder '{}'".format(name))
-                db_filename = os.path.join(self.basedir, "private", "magicfolder_{}.sqlite".format(name))
-                local_dir_config = mf_config['directory']
-                try:
-                    poll_interval = int(mf_config["poll_interval"])
-                except ValueError:
-                    raise ValueError("'poll_interval' option must be an int")
-
-                s = magic_folder.MagicFolder(
-                    client=self,
-                    upload_dircap=mf_config["upload_dircap"],
-                    collective_dircap=mf_config["collective_dircap"],
-                    local_path_u=abspath_expanduser_unicode(local_dir_config, base=self.basedir),
-                    dbfile=abspath_expanduser_unicode(db_filename),
-                    umask=mf_config["umask"],
-                    name=name,
-                    downloader_delay=poll_interval,
-                )
+                s = magic_folder.MagicFolder.from_config(self.basedir, mf_config)
                 self._magic_folders[name] = s
                 s.setServiceParent(self)
                 s.startService()

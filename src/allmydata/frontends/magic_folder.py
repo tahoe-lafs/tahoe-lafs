@@ -244,6 +244,43 @@ def save_magic_folders(node_directory, folders):
 
 class MagicFolder(service.MultiService):
 
+    @classmethod
+    def from_config(cls, client_node, config):
+        """
+        Create a ``MagicFolder`` from a client node and magic-folder
+        configuration.
+
+        :param _Client client_node: The client node the magic-folder is
+            attached to.
+
+        :param dict config: Magic-folder configuration like that in the list
+            returned by ``load_magic_folders``.
+        """
+        db_filename = os.path.join(
+            client_node.basedir,
+            "private",
+            "magicfolder_{}.sqlite".format(name),
+        )
+        local_dir_config = config['directory']
+        try:
+            poll_interval = int(config["poll_interval"])
+        except ValueError:
+            raise ValueError("'poll_interval' option must be an int")
+
+        return cls(
+            client=client_node,
+            upload_dircap=config["upload_dircap"],
+            collective_dircap=config["collective_dircap"],
+            local_path_u=abspath_expanduser_unicode(
+                local_dir_config,
+                base=client_node.basedir,
+            ),
+            dbfile=abspath_expanduser_unicode(db_filename),
+            umask=config["umask"],
+            name=name,
+            downloader_delay=poll_interval,
+        )
+
     def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask,
                  name, uploader_delay=1.0, clock=None, downloader_delay=60):
         precondition_abspath(local_path_u)
