@@ -18,7 +18,12 @@ from zope.interface import Interface, Attribute, implementer
 from allmydata.util import fileutil, configutil, yamlutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
-from allmydata.util.fileutil import precondition_abspath, get_pathinfo, ConflictError
+from allmydata.util.fileutil import (
+    precondition_abspath,
+    get_pathinfo,
+    ConflictError,
+    abspath_expanduser_unicode,
+)
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.progress import PercentProgress
@@ -245,7 +250,7 @@ def save_magic_folders(node_directory, folders):
 class MagicFolder(service.MultiService):
 
     @classmethod
-    def from_config(cls, client_node, config):
+    def from_config(cls, client_node, name, config):
         """
         Create a ``MagicFolder`` from a client node and magic-folder
         configuration.
