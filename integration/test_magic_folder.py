@@ -221,7 +221,6 @@ def test_bob_creates_alice_deletes_alice_restores(magic_folder):
     )
 
 
-
 def test_bob_conflicts_with_alice_fresh(magic_folder):
     # both alice and bob make a file at "the same time".
     alice_dir, bob_dir = magic_folder
