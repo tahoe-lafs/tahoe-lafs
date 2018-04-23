@@ -71,8 +71,6 @@ def test_alice_writes_bob_receives_multiple(magic_folder):
 
     bob_conflict = join(bob_dir, "multiple.conflict")
     alice_conflict = join(alice_dir, "multiple.conflict")
-#    bob_backup = join(bob_dir, "multiple.backup")
-#    alice_backup = join(alice_dir, "multiple.backup")
 
     found = util.await_files_exist([
         bob_conflict,
