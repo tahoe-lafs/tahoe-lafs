@@ -654,7 +654,7 @@ else:
             move_into_place(replacement_path, replaced_path)
         except OSError as e:
             if e.errno != ENOENT:
-                reraise(ConflictError)
+                raise
         except EnvironmentError as e:
             reraise(ConflictError)
 
