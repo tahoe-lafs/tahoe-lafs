@@ -1,6 +1,7 @@
 
 import sys, os
 import os.path
+from errno import EEXIST
 from collections import deque
 from datetime import datetime
 import time
@@ -31,6 +32,11 @@ from allmydata import magicfolderdb, magicpath
 
 
 IN_EXCL_UNLINK = 0x04000000L
+
+
+class ConfigurationError(Exception):
+    pass
+
 
 def get_inotify_module():
     try:
@@ -119,6 +125,7 @@ def load_magic_folders(node_directory):
     old-style to new-style config (but WILL read old-style config and
     return in the same way as if it was new-style).
 
+    :param node_directory: path where node data is stored
     :returns: dict mapping magic-folder-name to its config (also a dict)
     """
     yaml_fname = os.path.join(node_directory, u"private", u"magic_folders.yaml")
@@ -139,22 +146,6 @@ def load_magic_folders(node_directory):
                 interval = int(config.get("magic_folder", "poll_interval"))
             except ConfigParser.NoOptionError:
                 interval = 60
-            dir_fp = to_filepath(directory)
-
-            if not dir_fp.exists():
-                raise Exception(
-                    "The '[magic_folder] local.directory' parameter is {} "
-                    "but there is no directory at that location.".format(
-                        quote_local_unicode_path(directory),
-                    )
-                )
-            if not dir_fp.isdir():
-                raise Exception(
-                    "The '[magic_folder] local.directory' parameter is {} "
-                    "but the thing at that location is not a directory.".format(
-                        quote_local_unicode_path(directory)
-                    )
-                )
 
             folders[u"default"] = {
                 u"directory": directory,
@@ -196,23 +187,59 @@ def load_magic_folders(node_directory):
                 )
 
     # check configuration
-    for (name, mf_config) in folders.items():
-        if not isinstance(mf_config, dict):
-            raise Exception(
-                "Each item in '{}' must itself be a dict".format(yaml_fname)
-            )
-        for k in ['collective_dircap', 'upload_dircap', 'directory', 'poll_interval']:
-            if k not in mf_config:
-                raise Exception(
-                    "Config for magic folder '{}' is missing '{}'".format(
-                        name, k
-                    )
-                )
-        for k in ['collective_dircap', 'upload_dircap']:
-            if isinstance(mf_config[k], unicode):
-                mf_config[k] = mf_config[k].encode('ascii')
-
+    folders = dict(
+        (name, fix_magic_folder_config(yaml_fname, name, config))
+        for (name, config)
+        in folders.items()
+    )
     return folders
+
+
+def fix_magic_folder_config(yaml_fname, name, config):
+    if not isinstance(config, dict):
+        raise Exception(
+            "Each item in '{}' must itself be a dict".format(yaml_fname)
+        )
+
+    for k in ['collective_dircap', 'upload_dircap', 'directory', 'poll_interval']:
+        if k not in config:
+            raise Exception(
+                "Config for magic folder '{}' is missing '{}'".format(
+                    name, k
+                )
+            )
+
+    # make sure directory for magic folder exists
+    dir_fp = to_filepath(config['directory'])
+    umask = config.setdefault('umask', 0077)
+
+    try:
+        os.mkdir(dir_fp.path, 0777 & (~ umask))
+    except OSError as e:
+        if EEXIST != e.errno:
+            # Report some unknown problem.
+            raise ConfigurationError(
+                "magic-folder {} configured path {} could not be created: "
+                "{}".format(
+                    name,
+                    dir_fp.path,
+                    str(e),
+                ),
+            )
+        elif not dir_fp.isdir():
+            # Tell the user there's a collision.
+            raise ConfigurationError(
+                "magic-folder {} configured path {} exists and is not a "
+                "directory".format(
+                    name, dir_fp.path,
+                ),
+            )
+
+    result_config = config.copy()
+    for k in ['collective_dircap', 'upload_dircap']:
+        if isinstance(config[k], unicode):
+            result_config[k] = config[k].encode('ascii')
+    return result_config
 
 
 def save_magic_folders(node_directory, folders):
@@ -569,13 +596,13 @@ class Uploader(QueueMixin):
 
         # TODO: what about IN_MOVE_SELF and IN_UNMOUNT?
         #
-        self.mask = ( self._inotify.IN_CREATE
-                    | self._inotify.IN_CLOSE_WRITE
-                    | self._inotify.IN_MOVED_TO
-                    | self._inotify.IN_MOVED_FROM
-                    | self._inotify.IN_DELETE
-                    | self._inotify.IN_ONLYDIR
-                    | IN_EXCL_UNLINK
+        self.mask = (self._inotify.IN_CREATE
+                     | self._inotify.IN_CLOSE_WRITE
+                     | self._inotify.IN_MOVED_TO
+                     | self._inotify.IN_MOVED_FROM
+                     | self._inotify.IN_DELETE
+                     | self._inotify.IN_ONLYDIR
+                     | IN_EXCL_UNLINK
                     )
         self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
                              recursive=False)#True)
@@ -694,7 +721,7 @@ class Uploader(QueueMixin):
         # It isn't possible to avoid watching for IN_CREATE at all, because
         # it is the only event notified for a directory creation.
 
-        if ((events_mask & self._inotify.IN_CREATE) != 0 and
+        if ((events_mask & self._inotify.IN_CREATE) != 0 and \
             (events_mask & self._inotify.IN_ISDIR) == 0):
             self._log("ignoring event for %r (creation of non-directory)\n" % (relpath_u,))
             return
@@ -993,7 +1020,7 @@ def _is_empty_filecap(client, cap):
         None,
         cap.encode('ascii'),
     )
-    return (not node.get_size())
+    return not node.get_size()
 
 
 class DownloadItem(QueuedItem):
@@ -1141,8 +1168,8 @@ class Downloader(QueueMixin, WriteFileMixin):
                 self._log("%r has local dbentry %r, remote version %r, remote uri %r"
                           % (relpath_u, local_dbentry, remote_version, remote_uri))
 
-                if (local_dbentry is None or remote_version is None or
-                    local_dbentry.version < remote_version or
+                if (local_dbentry is None or remote_version is None or \
+                    local_dbentry.version < remote_version or \
                     (local_dbentry.version == remote_version and local_dbentry.last_downloaded_uri != remote_uri)):
                     self._log("%r added to download queue" % (relpath_u,))
                     if scan_batch.has_key(relpath_u):

@@ -606,7 +606,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                     collective_dircap=mf_config["collective_dircap"],
                     local_path_u=abspath_expanduser_unicode(local_dir_config, base=self.basedir),
                     dbfile=abspath_expanduser_unicode(db_filename),
-                    umask=self.get_config("magic_folder", "download.umask", 0077),
+                    umask=mf_config["umask"],
                     name=name,
                     downloader_delay=poll_interval,
                 )
