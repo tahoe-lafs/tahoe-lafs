@@ -878,7 +878,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         yield bob_proc    # bob downloads
 
         # ...so now bob should produce a conflict
-        self.failUnless(os.path.exists(bob_fname + '.conflict'))
+        self.assertTrue(os.path.exists(bob_fname + '.conflict'))
 
     @defer.inlineCallbacks
     def test_conflict_local_change_existing(self):
@@ -916,7 +916,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         yield bob_proc    # bob downloads
 
         # ...so now bob should produce a conflict
-        self.failUnless(os.path.exists(bob_fname + '.conflict'))
+        self.assertTrue(os.path.exists(bob_fname + '.conflict'))
 
     @defer.inlineCallbacks
     def test_alice_delete_and_restore(self):
