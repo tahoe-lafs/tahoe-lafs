@@ -1,5 +1,6 @@
 ﻿.. -*- coding: utf-8-with-signature -*-
 
+.. towncrier start line
 ==================================
 User-Visible Changes in Tahoe-LAFS
 ==================================
