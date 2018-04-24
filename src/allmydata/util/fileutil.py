@@ -655,7 +655,7 @@ else:
         except OSError as e:
             if e.errno != ENOENT:
                 raise
-        except EnvironmentError as e:
+        except EnvironmentError:
             reraise(ConflictError)
 
 
