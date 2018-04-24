@@ -200,13 +200,53 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
 
 
 class UnwantedFilesException(Exception):
+    """
+    While waiting for some files to appear, some undesired files
+    appeared instead (or in addition).
+    """
     def __init__(self, waiting, unwanted):
         super(self, Exception).__init__(
             self,
             u"While waiting for '{}', unwanted files appeared: {}".format(
                 waiting,
-                ', '.join(unwanted),
+                u', '.join(unwanted),
             )
+        )
+
+
+class ExpectedFileMismatchException(Exception):
+    """
+    A file or files we wanted weren't found within the timeout.
+    """
+    def __init__(self, path, timeout):
+        super(self, Exception).__init__(
+            self,
+            u"Contents of '{}' mismatched after {}s".format(path, timeout),
+        )
+
+
+class ExpectedFileUnfoundException(Exception):
+    """
+    A file or files we expected to find didn't appear within the
+    timeout.
+    """
+    def __init__(self, path, timeout):
+        super(self, Exception).__init__(
+            self,
+            u"Didn't find '{}' after {}s".format(path, timeout),
+        )
+
+
+
+class FileShouldVanishException(Exception):
+    """
+    A file or files we expected to disappear did not within the
+    timeout
+    """
+    def __init__(self, path, timeout):
+        super(self, Exception).__init__(
+            self,
+            u"'{}' still exists after {}s".format(path, timeout),
         )
 
 
@@ -240,8 +280,8 @@ def await_file_contents(path, contents, timeout=15, error_if=None):
                 print("     got: {}".format(current.replace('\n', ' ')))
         time.sleep(1)
     if exists(path):
-        raise Exception("Contents of '{}' mismatched after {}s".format(path, timeout))
-    raise Exception("Didn't find '{}' after {}s".format(path, timeout))
+        raise ExpectedFileMismatchException(path, timeout)
+    raise ExpectedFileUnfoundException(path, timeout)
 
 
 def await_files_exist(paths, timeout=15, await_all=False):
@@ -267,8 +307,10 @@ def await_files_exist(paths, timeout=15, await_all=False):
                 return found
         time.sleep(1)
     if await_all:
-        raise Exception("Didn't find {} after {}s".format(' and '.join(paths), timeout))
-    raise Exception("Didn't find {} after {}s".format(' or '.join(paths), timeout))
+        nice_paths = ' and '.join(paths)
+    else:
+        nice_paths = ' or '.join(paths)
+    raise ExpectedFileUnfoundException(nice_paths, timeout)
 
 
 def await_file_vanishes(path, timeout=10):
@@ -278,4 +320,4 @@ def await_file_vanishes(path, timeout=10):
         if not exists(path):
             return
         time.sleep(1)
-    raise Exception("'{}' still exists after {}s".format(path, timeout))
+    raise FileShouldVanishException(path, timeout)
