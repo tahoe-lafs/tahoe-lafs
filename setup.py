@@ -277,6 +277,9 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "foolscap[i2p] >= 0.12.6",
               "txi2p >= 0.3.2", # in case pip's resolver doesn't work
           ],
+          "release": [
+              "towncrier",
+          ],
       },
       package_data={"allmydata.web": ["*.xhtml",
                                       "static/*.js", "static/*.png", "static/*.css",
