@@ -199,6 +199,17 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     return d
 
 
+class UnwantedFilesException(Exception):
+    def __init__(self, waiting, unwanted):
+        super(self, Exception).__init__(
+            self,
+            u"While waiting for '{}', unwanted files appeared: {}".format(
+                waiting,
+                ', '.join(unwanted),
+            )
+        )
+
+
 def await_file_contents(path, contents, timeout=15, error_if=None):
     """
     wait up to `timeout` seconds for the file at `path` to have the
@@ -211,11 +222,9 @@ def await_file_contents(path, contents, timeout=15, error_if=None):
     while time.time() - start_time < timeout:
         print("  waiting for '{}'".format(path))
         if error_if and any([exists(p) for p in error_if]):
-            raise Exception(
-                "While waiting for '{}', unwanted files appeared: {}".format(
-                    path,
-                    ', '.join([p for p in error_if if exists(p)]),
-                )
+            raise UnwantedFilesException(
+                waiting=path,
+                unwanted=[p for p in error_if if exists(p)],
             )
         if exists(path):
             try:
