@@ -212,8 +212,8 @@ class UnwantedFilesException(Exception):
 
 def await_file_contents(path, contents, timeout=15, error_if=None):
     """
-    wait up to `timeout` seconds for the file at `path` to have the
-    exact content `contents.
+    wait up to `timeout` seconds for the file at `path` (any path-like
+    object) to have the exact content `contents`.
 
     :param error_if: if specified, a list of additional paths; if any
         of these paths appear an Exception is raised.

@@ -456,7 +456,6 @@ class QueueMixin(HookMixin):
         seconds.
         """
         while not self._stopped:
-            # self._log("_do_processing iteration")
             d = task.deferLater(self._clock, self._scan_delay(), lambda: None)
 
             # adds items to our deque
@@ -1272,7 +1271,6 @@ class Downloader(QueueMixin, WriteFileMixin):
                 file_node, metadata = max(scan_batch[relpath_u], key=lambda x: x[1]['version'])
 
                 if self._should_download(relpath_u, metadata['version'], file_node.get_readonly_uri()):
-                    self._log("_should_download(%r, %r, %r)" % (relpath_u, metadata['version'], file_node.get_readonly_uri()))
                     to_dl = DownloadItem(
                         relpath_u,
                         PercentProgress(file_node.get_size()),
@@ -1357,7 +1355,6 @@ class Downloader(QueueMixin, WriteFileMixin):
             return f
 
         if os.path.isfile(conflict_path_u):
-            self._log("already conflict: {}".format(conflict_path_u))
             def fail(res):
                 raise ConflictError("download failed: already conflicted: %r" % (item.relpath_u,))
             d.addCallback(fail)
@@ -1413,7 +1410,6 @@ class Downloader(QueueMixin, WriteFileMixin):
                     elif dmd_last_downloaded_uri != db_entry.last_downloaded_uri:
                         is_conflict = True
                         self._log("conflict because dmd_last_downloaded_uri != db_entry.last_downloaded_uri")
-                        self._log("{} != {}".format(dmd_last_downloaded_uri, db_entry.last_downloaded_uri))
 
             else:  # no local db_entry .. but has the file appeared locally meantime?
                 if current_statinfo.exists:
