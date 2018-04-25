@@ -205,8 +205,7 @@ class UnwantedFilesException(Exception):
     appeared instead (or in addition).
     """
     def __init__(self, waiting, unwanted):
-        super(self, Exception).__init__(
-            self,
+        super(Exception, self).__init__(
             u"While waiting for '{}', unwanted files appeared: {}".format(
                 waiting,
                 u', '.join(unwanted),
@@ -219,8 +218,7 @@ class ExpectedFileMismatchException(Exception):
     A file or files we wanted weren't found within the timeout.
     """
     def __init__(self, path, timeout):
-        super(self, Exception).__init__(
-            self,
+        super(ExpectedFileMismatchException, self).__init__(
             u"Contents of '{}' mismatched after {}s".format(path, timeout),
         )
 
@@ -231,8 +229,7 @@ class ExpectedFileUnfoundException(Exception):
     timeout.
     """
     def __init__(self, path, timeout):
-        super(self, Exception).__init__(
-            self,
+        super(ExpectedFileUnfoundException, self).__init__(
             u"Didn't find '{}' after {}s".format(path, timeout),
         )
 
@@ -244,8 +241,7 @@ class FileShouldVanishException(Exception):
     timeout
     """
     def __init__(self, path, timeout):
-        super(self, Exception).__init__(
-            self,
+        super(self, FileShouldVanishException).__init__(
             u"'{}' still exists after {}s".format(path, timeout),
         )
 
