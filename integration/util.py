@@ -205,7 +205,7 @@ class UnwantedFilesException(Exception):
     appeared instead (or in addition).
     """
     def __init__(self, waiting, unwanted):
-        super(Exception, self).__init__(
+        super(UnwantedFilesException, self).__init__(
             u"While waiting for '{}', unwanted files appeared: {}".format(
                 waiting,
                 u', '.join(unwanted),
