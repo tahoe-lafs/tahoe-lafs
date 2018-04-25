@@ -226,29 +226,12 @@ def test_bob_conflicts_with_alice_fresh(magic_folder):
     alice_dir, bob_dir = magic_folder
 
     # either alice or bob will "win" by uploading to the DMD first.
-    with open(join(bob_dir, 'alpha'), 'w') as f:
-        f.write("this is bob's alpha\n")
-    with open(join(alice_dir, 'alpha'), 'w') as f:
-        f.write("this is alice's alpha\n")
+    with open(join(bob_dir, 'alpha'), 'w') as f0, open(join(alice_dir, 'alpha'), 'w') as f1:
+        f0.write("this is bob's alpha\n")
+        f1.write("this is alice's alpha\n")
 
-    # there should be a conflict, but we don't know who will win the
-    # race
-    found = util.await_files_exist([
-        join(bob_dir, 'alpha.conflict'),
-        join(alice_dir, 'alpha.conflict'),
-    ])
-
-    assert len(found) >= 1, "at least one side should conflict"
-    assert open(join(bob_dir, 'alpha'), 'r').read() == "this is bob's alpha\n"
-    assert open(join(alice_dir, 'alpha'), 'r').read() == "this is alice's alpha\n"
-
-    bob_conflict = join(bob_dir, 'alpha.conflict')
-    if exists(bob_conflict):
-        assert open(bob_conflict, 'r').read() == "this is alice's alpha\n"
-
-    alice_conflict = join(alice_dir, 'alpha.conflict')
-    if exists(alice_conflict):
-        assert open(alice_conflict, 'r').read() == "this is bob's alpha\n"
+    # there should be conflicts
+    _bob_conflicts_alice_await_conflicts('alpha', alice_dir, bob_dir)
 
 
 def test_bob_conflicts_with_alice_preexisting(magic_folder):
@@ -271,20 +254,28 @@ def test_bob_conflicts_with_alice_preexisting(magic_folder):
         f.write("this is alice's beta\n")
 
     # both alice and bob should see a conflict
-    acceptable = [
-        join(bob_dir, 'beta.conflict'),
-        join(alice_dir, 'beta.conflict'),
-    ]
-    found = util.await_files_exist(acceptable)
+    _bob_conflicts_alice_await_conflicts("beta", alice_dir, bob_dir)
 
-    assert len(found) >= 1, "should have found at least one conflict"
 
-    assert open(join(bob_dir, 'beta'), 'r').read() == "this is bob's beta\n"
-    assert open(join(alice_dir, 'beta'), 'r').read() == "this is alice's beta\n"
-    if exists(join(bob_dir, 'beta.conflict')):
-        assert open(join(bob_dir, 'beta.conflict'), 'r').read() == "this is alice's beta\n"
-    if exists(join(alice_dir, 'beta.conflict')):
-        assert open(join(alice_dir, 'beta.conflict'), 'r').read() == "this is bob's beta\n"
+def _bob_conflicts_alice_await_conflicts(name, alice_dir, bob_dir):
+    """
+    shared code between _fresh and _preexisting conflict test
+    """
+    found = util.await_files_exist(
+        [
+            join(bob_dir, '{}.conflict'.format(name)),
+            join(alice_dir, '{}.conflict'.format(name)),
+        ],
+        await_all=True,
+        timeout=30,
+    )
+
+    assert len(found) == 2, "both sides should conflict"
+    assert open(join(bob_dir, name), 'r').read() == "this is bob's {}\n".format(name)
+    assert open(join(alice_dir, name), 'r').read() == "this is alice's {}\n".format(name)
+
+    assert open(join(bob_dir, '{}.conflict'.format(name)), 'r').read() == "this is alice's {}\n".format(name)
+    assert open(join(alice_dir, '{}.conflict'.format(name)), 'r').read() == "this is bob's {}\n".format(name)
 
 
 @pytest.inlineCallbacks
