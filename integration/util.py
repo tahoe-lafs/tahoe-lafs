@@ -286,20 +286,16 @@ def await_files_exist(paths, timeout=15, await_all=False):
     any exist, a list of all found filenames is returned. Otherwise,
     an Exception is raised
     """
-    found = []
     start_time = time.time()
-    while not found and time.time() - start_time < 15.0:
+    while time.time() - start_time < 15.0:
         print("  waiting for: {}".format(' '.join(paths)))
-        found = []
-        for path in paths:
-            if exists(path):
-                print("FOUND {}".format(path))
-                found.append(path)
+        found = [p for p in paths if exists(p)]
+        print("found: {}".format(found))
         if await_all:
             if len(found) == len(paths):
                 return found
         else:
-            if found:
+            if len(found) > 0:
                 return found
         time.sleep(1)
     if await_all:
