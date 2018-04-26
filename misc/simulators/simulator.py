@@ -70,10 +70,7 @@ class Node:
             return False
 
     def decide(self, sharesize):
-        if sharesize > self.capacity:
-            return False
         return False
-        return random.random() > 0.5
 
     def make_space(self, sharesize):
         assert sharesize <= self.capacity
