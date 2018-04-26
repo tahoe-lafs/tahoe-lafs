@@ -15,3 +15,8 @@ queries:
   # There is no such thing as a "procedure" in Python and "None" is not
   # meaningless.
   - exclude: "py/procedure-return-value-used"
+
+  # It is true that this query identifies things which are sometimes mistakes.
+  # However, it also identifies things which are entirely valid.  Therefore,
+  # it produces noisy results.
+  - exclude: "py/implicit-string-concatenation-in-list"
