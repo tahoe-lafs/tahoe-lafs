@@ -909,9 +909,7 @@ class Publish:
                  level=log.NOISY)
 
     def update_goal(self):
-        # if log.recording_noisy
-        if True:
-            self.log_goal(self.goal, "before update: ")
+        self.log_goal(self.goal, "before update: ")
 
         # first, remove any bad servers from our goal
         self.goal = set([ (server, shnum)
