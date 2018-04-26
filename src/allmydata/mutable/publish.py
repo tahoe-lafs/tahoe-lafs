@@ -976,8 +976,7 @@ class Publish:
             i += 1
             if i >= len(serverlist):
                 i = 0
-        if True:
-            self.log_goal(self.goal, "after update: ")
+        self.log_goal(self.goal, "after update: ")
 
 
     def _got_write_answer(self, answer, writer, started):
