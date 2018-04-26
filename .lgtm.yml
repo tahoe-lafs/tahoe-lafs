@@ -4,3 +4,9 @@ extraction:
       - |
         # https://discuss.lgtm.com/t/determination-of-python-requirements/974/4
         sed -i 's/\("pyOpenSSL\)/\# Dependency removed for lgtm  (see .lgtm.yml): \1/g' src/allmydata/_auto_deps.py
+
+queries:
+  # This generates spurious errors for calls by interface because of the
+  # zope.interface choice to exclude self from method signatures.  So, turn it
+  # off.
+  - exclude: "py/call/wrong-arguments"
