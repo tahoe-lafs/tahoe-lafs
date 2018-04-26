@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import sha as shamodule
+import hashlib
 import os, random
 
 from pkg_resources import require
@@ -10,7 +10,7 @@ from pyrrd.rrd import DataSource, RRD, RRA
 
 
 def sha(s):
-    return shamodule.new(s).digest()
+    return hashlib.sha1(s).digest()
 
 def randomid():
     return os.urandom(20)
