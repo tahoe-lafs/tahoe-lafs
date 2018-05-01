@@ -401,11 +401,18 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         _check("helper.furl = pb://blah\n", "pb://blah")
 
     def test_create_magic_folder_service(self):
-        class MockMagicFolder(service.MultiService):
+        boom = False
+        class Boom(Exception):
+            pass
+
+        class MockMagicFolder(allmydata.frontends.magic_folder.MagicFolder):
             name = 'magic-folder'
 
             def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask, name,
                          inotify=None, uploader_delay=1.0, clock=None, downloader_delay=3):
+                if boom:
+                    raise Boom()
+
                 service.MultiService.__init__(self)
                 self.client = client
                 self._umask = umask
@@ -414,6 +421,12 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                 self.local_dir = local_path_u
                 self.dbfile = dbfile
                 self.inotify = inotify
+
+            def startService(self):
+                self.running = True
+
+            def stopService(self):
+                self.running = False
 
             def ready(self):
                 pass
@@ -461,12 +474,8 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnless(magicfolder.inotify is None, magicfolder.inotify)
         self.failUnless(magicfolder.running)
 
-        class Boom(Exception):
-            pass
-        def BoomMagicFolder(client, upload_dircap, collective_dircap, local_path_u, dbfile, name,
-                            umask, inotify=None, uploader_delay=1.0, clock=None, downloader_delay=3):
-            raise Boom()
-        self.patch(allmydata.frontends.magic_folder, 'MagicFolder', BoomMagicFolder)
+        # See above.
+        boom = True
 
         basedir2 = "test_client.Basic.test_create_magic_folder_service2"
         os.mkdir(basedir2)

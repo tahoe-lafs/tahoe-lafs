@@ -5,9 +5,9 @@ _AMD_KEY = r"Software\Allmydata"
 _BDIR_KEY = 'Base Dir Path'
 
 if sys.platform not in ('win32'):
-    raise ImportError, "registry cannot be used on non-windows systems"
     class WindowsError(Exception): # stupid voodoo to appease pyflakes
         pass
+    raise ImportError("registry cannot be used on non-windows systems")
 
 def get_registry_setting(key, name, _topkey=None):
     """

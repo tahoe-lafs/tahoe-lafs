@@ -74,8 +74,6 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         return d
 
     def got_child(self, node_or_failure, ctx, name):
-        DEBUG = False
-        if DEBUG: print "GOT_CHILD", name, node_or_failure
         req = IRequest(ctx)
         method = req.method
         nonterminal = len(req.postpath) > 1
@@ -84,24 +82,18 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             f = node_or_failure
             f.trap(NoSuchChildError)
             # No child by this name. What should we do about it?
-            if DEBUG: print "no child", name
-            if DEBUG: print "postpath", req.postpath
             if nonterminal:
-                if DEBUG: print " intermediate"
                 if should_create_intermediate_directories(req):
                     # create intermediate directories
-                    if DEBUG: print " making intermediate directory"
                     d = self.node.create_subdirectory(name)
                     d.addCallback(make_handler_for,
                                   self.client, self.node, name)
                     return d
             else:
-                if DEBUG: print " terminal"
                 # terminal node
                 if (method,t) in [ ("POST","mkdir"), ("PUT","mkdir"),
                                    ("POST", "mkdir-with-children"),
                                    ("POST", "mkdir-immutable") ]:
-                    if DEBUG: print " making final directory"
                     # final directory
                     kids = {}
                     if t in ("mkdir-with-children", "mkdir-immutable"):
@@ -122,14 +114,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                                   self.client, self.node, name)
                     return d
                 if (method,t) in ( ("PUT",""), ("PUT","uri"), ):
-                    if DEBUG: print " PUT, making leaf placeholder"
                     # we were trying to find the leaf filenode (to put a new
                     # file in its place), and it didn't exist. That's ok,
                     # since that's the leaf node that we're about to create.
                     # We make a dummy one, which will respond to the PUT
                     # request by replacing itself.
                     return PlaceHolderNodeHandler(self.client, self.node, name)
-            if DEBUG: print " 404"
             # otherwise, we just return a no-such-child error
             return f
 
@@ -138,11 +128,9 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             if not IDirectoryNode.providedBy(node):
                 # we would have put a new directory here, but there was a
                 # file in the way.
-                if DEBUG: print "blocking"
                 raise WebError("Unable to create directory '%s': "
                                "a file was in the way" % name,
                                http.CONFLICT)
-        if DEBUG: print "good child"
         return make_handler_for(node, self.client, self.node, name)
 
     def render_DELETE(self, ctx):

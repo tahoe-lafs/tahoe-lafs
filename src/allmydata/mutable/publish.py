@@ -909,9 +909,7 @@ class Publish:
                  level=log.NOISY)
 
     def update_goal(self):
-        # if log.recording_noisy
-        if True:
-            self.log_goal(self.goal, "before update: ")
+        self.log_goal(self.goal, "before update: ")
 
         # first, remove any bad servers from our goal
         self.goal = set([ (server, shnum)
@@ -976,8 +974,7 @@ class Publish:
             i += 1
             if i >= len(serverlist):
                 i = 0
-        if True:
-            self.log_goal(self.goal, "after update: ")
+        self.log_goal(self.goal, "after update: ")
 
 
     def _got_write_answer(self, answer, writer, started):
