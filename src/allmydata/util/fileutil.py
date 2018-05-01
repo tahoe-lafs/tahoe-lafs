@@ -243,7 +243,9 @@ def du(basedir):
 def move_into_place(source, dest):
     """Atomically replace a file, or as near to it as the platform allows.
     The dest file may or may not exist."""
-    if "win32" in sys.platform.lower():
+    if "win32" in sys.platform.lower() and os.path.exists(source):
+        # we check for source existing since we don't want to nuke the
+        # dest unless we'll succeed at moving the target into place
         remove_if_possible(dest)
     os.rename(source, dest)
 
@@ -613,12 +615,13 @@ if sys.platform == "win32":
     def rename_no_overwrite(source_path, dest_path):
         os.rename(source_path, dest_path)
 
-    def replace_file(replaced_path, replacement_path, backup_path):
+    def replace_file(replaced_path, replacement_path):
         precondition_abspath(replaced_path)
         precondition_abspath(replacement_path)
-        precondition_abspath(backup_path)
 
-        r = ReplaceFileW(replaced_path, replacement_path, backup_path,
+        # no "backup" path (the first None) because we don't want to
+        # create a backup file
+        r = ReplaceFileW(replaced_path, replacement_path, None,
                          REPLACEFILE_IGNORE_MERGE_ERRORS, None, None)
         if r == 0:
             # The UnableToUnlinkReplacementError case does not happen on Windows;
@@ -628,7 +631,7 @@ if sys.platform == "win32":
                 raise ConflictError("WinError: %s" % (WinError(err),))
 
             try:
-                rename_no_overwrite(replacement_path, replaced_path)
+                move_into_place(replacement_path, replaced_path)
             except EnvironmentError:
                 reraise(ConflictError)
 else:
@@ -640,23 +643,21 @@ else:
         except EnvironmentError:
             reraise(UnableToUnlinkReplacementError)
 
-    def replace_file(replaced_path, replacement_path, backup_path):
+    def replace_file(replaced_path, replacement_path):
         precondition_abspath(replaced_path)
         precondition_abspath(replacement_path)
-        precondition_abspath(backup_path)
 
         if not os.path.exists(replacement_path):
             raise ConflictError("Replacement file not found: %r" % (replacement_path,))
 
         try:
-            os.rename(replaced_path, backup_path)
+            move_into_place(replacement_path, replaced_path)
         except OSError as e:
             if e.errno != ENOENT:
                 raise
-        try:
-            rename_no_overwrite(replacement_path, replaced_path)
         except EnvironmentError:
             reraise(ConflictError)
+
 
 PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime_ns ctime_ns')
 

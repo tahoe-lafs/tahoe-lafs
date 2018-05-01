@@ -82,6 +82,9 @@ class INotify(object):
     def stopReading(self):
         pass
 
+    def loseConnection(self):
+        pass
+
     def watch(self, filepath, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
         self.callbacks = callbacks
 

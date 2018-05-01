@@ -23,6 +23,64 @@ def test_alice_writes_bob_receives(magic_folder):
     return
 
 
+def test_alice_writes_bob_receives_multiple(magic_folder):
+    """
+    When Alice does a series of updates, Bob should just receive them
+    with no .backup or .conflict files being produced.
+    """
+    alice_dir, bob_dir = magic_folder
+
+    unwanted_files = [
+        join(bob_dir, "multiple.backup"),
+        join(bob_dir, "multiple.conflict")
+    ]
+
+    # first update
+    with open(join(alice_dir, "multiple"), "w") as f:
+        f.write("alice wrote this")
+
+    util.await_file_contents(
+        join(bob_dir, "multiple"), "alice wrote this",
+        error_if=unwanted_files,
+    )
+
+    # second update
+    with open(join(alice_dir, "multiple"), "w") as f:
+        f.write("someone changed their mind")
+
+    util.await_file_contents(
+        join(bob_dir, "multiple"), "someone changed their mind",
+        error_if=unwanted_files,
+    )
+
+    # third update
+    with open(join(alice_dir, "multiple"), "w") as f:
+        f.write("absolutely final version ship it")
+
+    util.await_file_contents(
+        join(bob_dir, "multiple"), "absolutely final version ship it",
+        error_if=unwanted_files,
+    )
+
+    # forth update, but both "at once" so one should conflict
+    time.sleep(2)
+    with open(join(alice_dir, "multiple"), "w") as f:
+        f.write("okay one more attempt")
+    with open(join(bob_dir, "multiple"), "w") as f:
+        f.write("...but just let me add")
+
+    bob_conflict = join(bob_dir, "multiple.conflict")
+    alice_conflict = join(alice_dir, "multiple.conflict")
+
+    found = util.await_files_exist([
+        bob_conflict,
+        alice_conflict,
+    ])
+
+    assert len(found) > 0, "Should have found a conflict"
+    print("conflict found (as expected)")
+
+
 def test_alice_writes_bob_receives_old_timestamp(magic_folder):
     alice_dir, bob_dir = magic_folder
     fname = join(alice_dir, "ts_file")
@@ -116,11 +174,13 @@ def test_bob_creates_alice_deletes_bob_restores(magic_folder):
         "bob wrote this"
     )
 
-    # alice deletes it (so bob should as well
+    # alice deletes it (so bob should as well .. but keep a backup)
     unlink(join(alice_dir, "boom"))
     util.await_file_vanishes(join(bob_dir, "boom"))
+    assert exists(join(bob_dir, "boom.backup"))
 
     # bob restore it, with new contents
+    unlink(join(bob_dir, "boom.backup"))
     with open(join(bob_dir, "boom"), "w") as f:
         f.write("bob wrote this again, because reasons")
 
@@ -147,7 +207,7 @@ def test_bob_creates_alice_deletes_alice_restores(magic_folder):
         "bob wrote this"
     )
 
-    # alice deletes it (so bob should as well
+    # alice deletes it (so bob should as well)
     unlink(join(alice_dir, "boom2"))
     util.await_file_vanishes(join(bob_dir, "boom2"))
 
@@ -155,32 +215,25 @@ def test_bob_creates_alice_deletes_alice_restores(magic_folder):
     with open(join(alice_dir, "boom2"), "w") as f:
         f.write("alice re-wrote this again, because reasons")
 
+    util.await_file_contents(
+        join(bob_dir, "boom2"),
+        "alice re-wrote this again, because reasons"
+    )
 
-# this sometimes fails on Travis
-@pytest.mark.xfail
+
 def test_bob_conflicts_with_alice_fresh(magic_folder):
     # both alice and bob make a file at "the same time".
     alice_dir, bob_dir = magic_folder
 
-    # really, we fudge this a little: in reality, either alice or bob
-    # "wins" by uploading to the DMD first. So we make sure bob wins
-    # this one by giving him a massive head start
-    with open(join(bob_dir, 'alpha'), 'w') as f:
-        f.write("this is bob's alpha\n")
-    time.sleep(1.0)
-    with open(join(alice_dir, 'alpha'), 'w') as f:
-        f.write("this is alice's alpha\n")
+    # either alice or bob will "win" by uploading to the DMD first.
+    with open(join(bob_dir, 'alpha'), 'w') as f0, open(join(alice_dir, 'alpha'), 'w') as f1:
+        f0.write("this is bob's alpha\n")
+        f1.write("this is alice's alpha\n")
 
-    # since bob uploaded first, alice should see a backup
-    util.await_file_contents(join(alice_dir, 'alpha'), "this is bob's alpha\n")
-    util.await_file_contents(join(alice_dir, 'alpha.backup'), "this is alice's alpha\n")
-
-    util.await_file_contents(join(bob_dir, 'alpha'), "this is alice's alpha\n")
-    util.await_file_contents(join(bob_dir, 'alpha.backup'), "this is bob's alpha\n")
+    # there should be conflicts
+    _bob_conflicts_alice_await_conflicts('alpha', alice_dir, bob_dir)
 
 
-# this sometimes fails on Travis
-@pytest.mark.xfail
 def test_bob_conflicts_with_alice_preexisting(magic_folder):
     # both alice and bob edit a file at "the same time" (similar to
     # above, but the file already exists before the edits)
@@ -193,19 +246,39 @@ def test_bob_conflicts_with_alice_preexisting(magic_folder):
 
     # both alice and bob now have a "beta" file, at version 0
 
-    # really, we fudge this a little: in reality, either alice or bob
-    # "wins" by uploading to the DMD first. So we make sure bob wins
-    # this one by giving him a massive head start
+    # either alice or bob will "win" by uploading to the DMD first
+    # (however, they should both detect a conflict)
     with open(join(bob_dir, 'beta'), 'w') as f:
         f.write("this is bob's beta\n")
-    time.sleep(1.0)
     with open(join(alice_dir, 'beta'), 'w') as f:
         f.write("this is alice's beta\n")
 
-    # since bob uploaded first, alice should see a backup
-    util.await_file_contents(join(bob_dir, 'beta'), "this is bob's beta\n")
-    util.await_file_contents(join(alice_dir, 'beta'), "this is bob's beta\n")
-    util.await_file_contents(join(alice_dir, 'beta.backup'), "this is alice's beta\n")
+    # both alice and bob should see a conflict
+    _bob_conflicts_alice_await_conflicts("beta", alice_dir, bob_dir)
+
+
+def _bob_conflicts_alice_await_conflicts(name, alice_dir, bob_dir):
+    """
+    shared code between _fresh and _preexisting conflict test
+    """
+    found = util.await_files_exist(
+        [
+            join(bob_dir, '{}.conflict'.format(name)),
+            join(alice_dir, '{}.conflict'.format(name)),
+        ],
+        await_all=True,
+    )
+
+    assert len(found) >= 1, "should be at least one conflict"
+    assert open(join(bob_dir, name), 'r').read() == "this is bob's {}\n".format(name)
+    assert open(join(alice_dir, name), 'r').read() == "this is alice's {}\n".format(name)
+
+    alice_conflict = join(alice_dir, '{}.conflict'.format(name))
+    bob_conflict = join(bob_dir, '{}.conflict'.format(name))
+    if exists(bob_conflict):
+        assert open(bob_conflict, 'r').read() == "this is alice's {}\n".format(name)
+    if exists(alice_conflict):
+        assert open(alice_conflict, 'r').read() == "this is bob's {}\n".format(name)
 
 
 @pytest.inlineCallbacks
