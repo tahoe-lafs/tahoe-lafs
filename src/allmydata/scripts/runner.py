@@ -47,7 +47,6 @@ class Options(usage.Options):
     stdout = sys.stdout
     stderr = sys.stderr
 
-    synopsis = "\nUsage:  tahoe <command> [command options]"
     subCommands = ( GROUP("Administration")
                     +   create_node.subCommands
                     +   stats_gatherer.subCommands

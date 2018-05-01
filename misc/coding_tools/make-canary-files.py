@@ -50,7 +50,7 @@ system where Tahoe is installed, or in a source tree with setup.py like this:
  setup.py run_with_pythonpath -p -c 'misc/make-canary-files.py ARGS..'
 """
 
-import os, sha
+import os, hashlib
 from twisted.python import usage
 from allmydata.immutable import upload
 from allmydata.util import base32
@@ -96,7 +96,7 @@ convergence = base32.a2b(convergence_s)
 def get_permuted_peers(key):
     results = []
     for nodeid in nodes:
-        permuted = sha.new(key + nodeid).digest()
+        permuted = hashlib.sha1(key + nodeid).digest()
         results.append((permuted, nodeid))
     results.sort(lambda a,b: cmp(a[0], b[0]))
     return [ r[1] for r in results ]

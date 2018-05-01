@@ -6,10 +6,9 @@
 
 import os, sys, re
 
-if 0:
-    # for testing
-    os.environ["nodememory_warner1"] = "run/warner1"
-    os.environ["nodememory_warner2"] = "run/warner2"
+# for testing
+# os.environ["nodememory_warner1"] = "run/warner1"
+# os.environ["nodememory_warner2"] = "run/warner2"
 
 nodedirs = []
 for k,v in os.environ.items():

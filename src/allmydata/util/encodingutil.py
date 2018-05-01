@@ -335,8 +335,8 @@ def listdir_unicode_fallback(path):
 
     try:
         return [unicode(fn, filesystem_encoding) for fn in os.listdir(byte_path)]
-    except UnicodeDecodeError:
-        raise FilenameEncodingError(fn)
+    except UnicodeDecodeError as e:
+        raise FilenameEncodingError(e.object)
 
 def listdir_unicode(path):
     """

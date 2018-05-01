@@ -72,13 +72,9 @@ def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
     tor_config = txtorcon.TorConfig()
     tor_config.DataDirectory = data_directory(private_dir)
 
-    if True: # unix-domain control socket
-        tor_config.ControlPort = "unix:" + os.path.join(private_dir, "tor.control")
-        tor_control_endpoint_desc = tor_config.ControlPort
-    else:
-        # we allocate a new TCP control port each time
-        tor_config.ControlPort = allocate_tcp_port()
-        tor_control_endpoint_desc = "tcp:127.0.0.1:%d" % tor_config.ControlPort
+    # unix-domain control socket
+    tor_config.ControlPort = "unix:" + os.path.join(private_dir, "tor.control")
+    tor_control_endpoint_desc = tor_config.ControlPort
 
     tor_config.SOCKSPort = allocate_tcp_port()
 
