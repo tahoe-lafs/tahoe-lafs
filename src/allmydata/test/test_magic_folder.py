@@ -34,6 +34,9 @@ _debug = False
 class NewConfigUtilTests(unittest.TestCase):
 
     def setUp(self):
+        # some tests look at the umask of created directories or files
+        # so we set an explicit one
+        self._old_umask = os.umask(0o022)
         self.basedir = abspath_expanduser_unicode(unicode(self.mktemp()))
         os.mkdir(self.basedir)
         self.local_dir = abspath_expanduser_unicode(unicode(self.mktemp()))
@@ -62,6 +65,9 @@ class NewConfigUtilTests(unittest.TestCase):
         )
         # ..and the yaml
         self.write_magic_folder_config(self.basedir, self.folders)
+
+    def tearDown(self):
+        os.umask(self._old_umask)
 
     def write_tahoe_config(self, basedir, tahoe_config):
         with open(join(basedir, u"tahoe.cfg"), "w") as f:
@@ -99,10 +105,14 @@ class NewConfigUtilTests(unittest.TestCase):
             ),
         )
         # It has permissions determined by the configured umask.
-        self.assertEqual(
-            perm,
-            stat.S_IMODE(os.stat(self.local_dir).st_mode),
-        )
+        if sys.platform != "win32":
+            self.assertEqual(
+                perm,
+                stat.S_IMODE(os.stat(self.local_dir).st_mode),
+            )
+        else:
+            # Do directories even have permissions on Windows?
+            print("Not asserting directory-creation mode on windows")
 
     def test_directory_collision(self):
         """
