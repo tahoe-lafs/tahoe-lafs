@@ -533,7 +533,6 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                 # we haven't improved over the last iteration; give up
                 break;
             if errors_before == self._query_stats.bad:
-                if False: print("no more errors; break")
                 break;
             last_happiness = effective_happiness
             # print("write trackers left: {}".format(len(write_trackers)))

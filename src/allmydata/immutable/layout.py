@@ -438,9 +438,7 @@ class ReadBucketProxy(object):
     def _get_share_hashes(self, unused=None):
         if hasattr(self, '_share_hashes'):
             return self._share_hashes
-        else:
-            return self._get_share_hashes_the_old_way()
-        return self._share_hashes
+        return self._get_share_hashes_the_old_way()
 
     def get_share_hashes(self):
         d = self._start_if_needed()

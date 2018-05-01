@@ -2,6 +2,10 @@ import re, time
 from twisted.application import service, strports, internet
 from twisted.web import http, static
 from twisted.internet import defer
+from twisted.internet.address import (
+    IPv4Address,
+    IPv6Address,
+)
 from nevow import appserver, inevow
 from allmydata.util import log, fileutil
 
@@ -114,16 +118,32 @@ class MyRequest(appserver.NevowRequest):
         if self._tahoe_request_had_error:
             error = " [ERROR]"
 
-        log.msg(format="web: %(clientip)s %(method)s %(uri)s %(code)s %(length)s%(error)s",
-                clientip=self.getClientIP(),
-                method=self.method,
-                uri=uri,
-                code=self.code,
-                length=(self.sentLength or "-"),
-                error=error,
-                facility="tahoe.webish",
-                level=log.OPERATIONAL,
-                )
+        log.msg(
+            format=(
+                "web: %(clientip)s %(method)s %(uri)s %(code)s "
+                "%(length)s%(error)s"
+            ),
+            clientip=_get_client_ip(self),
+            method=self.method,
+            uri=uri,
+            code=self.code,
+            length=(self.sentLength or "-"),
+            error=error,
+            facility="tahoe.webish",
+            level=log.OPERATIONAL,
+        )
+
+
+def _get_client_ip(request):
+    try:
+        get = request.getClientAddress
+    except AttributeError:
+        return request.getClientIP()
+    else:
+        client_addr = get()
+        if isinstance(client_addr, (IPv4Address, IPv6Address)):
+            return client_addr.host
+        return None
 
 
 class WebishServer(service.MultiService):
@@ -218,4 +238,3 @@ class IntroducerWebishServer(WebishServer):
         service.MultiService.__init__(self)
         self.root = introweb.IntroducerRoot(introducer)
         self.buildServer(webport, nodeurl_path, staticdir)
-

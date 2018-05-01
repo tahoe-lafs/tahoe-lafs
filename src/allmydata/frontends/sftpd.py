@@ -38,24 +38,9 @@ from allmydata.dirnode import update_metadata
 from allmydata.util.fileutil import EncryptedTemporaryFile
 
 noisy = True
-use_foolscap_logging = True
 
 from allmydata.util.log import NOISY, OPERATIONAL, WEIRD, \
-    msg as _msg, err as _err, PrefixingLogMixin as _PrefixingLogMixin
-
-if use_foolscap_logging:
-    (logmsg, logerr, PrefixingLogMixin) = (_msg, _err, _PrefixingLogMixin)
-else:  # pragma: no cover
-    def logmsg(s, level=None):
-        print s
-    def logerr(s, level=None):
-        print s
-    class PrefixingLogMixin:
-        def __init__(self, facility=None, prefix=''):
-            self.prefix = prefix
-        def log(self, s, level=None):
-            print "%r %s" % (self.prefix, s)
-
+    msg as logmsg, PrefixingLogMixin
 
 def eventually_callback(d):
     return lambda res: eventually(d.callback, res)
