@@ -2540,6 +2540,8 @@ class IClient(Interface):
         @return: a Deferred that fires with the new IDirectoryNode instance.
         """
 
+    # XXX Only implementation of this method makes rouri optional and
+    # magic-folder (at least) fails to pass a value for it.
     def create_node_from_uri(uri, rouri):
         """Create a new IFilesystemNode instance from the uri, synchronously.
         @param uri: a string or IURI-providing instance, or None. This could
@@ -2935,4 +2937,3 @@ class IConnectionStatus(Interface):
         connection hint and the handler it is using) to the status string
         (pending, connected, refused, or other errors).
         """)
-

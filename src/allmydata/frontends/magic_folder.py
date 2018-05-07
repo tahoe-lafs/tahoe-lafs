@@ -1066,6 +1066,16 @@ class QueueMixin(HookMixin):
             value=self._client.stats_provider.counters[ctr],
         )
 
+    def _logcb(self, res, msg):
+        self._log("%s: %r" % (msg, res))
+        return res
+
+    def _log(self, msg):
+        s = "Magic Folder %s %s: %s" % (quote_output(self._client.nickname), self._name, msg)
+        self._client.log(s)
+        if True:
+            twlog.msg(s)
+
 # this isn't in interfaces.py because it's very specific to QueueMixin
 class IQueuedItem(Interface):
     relpath_u = Attribute("The path this item represents")
@@ -1778,16 +1788,27 @@ class Downloader(QueueMixin, WriteFileMixin):
         latest version wins.
         """
         if magicpath.should_ignore_file(relpath_u):
+            twlog.msg("_should_download -> should_ignore_file")
             return False
         db_entry = self._db.get_db_entry(relpath_u)
         if db_entry is None:
+            twlog.msg("_should_download -> db_entry is None")
             return True
         if db_entry.version < remote_version:
+            twlog.msg("_should_download -> db_entry.version < remote_version")
             return True
         if db_entry.last_downloaded_uri is None and _is_empty_filecap(self._client, remote_uri):
+            twlog.msg("_should_download -> no last_downloaded_uri and empty filecap")
             pass
         elif db_entry.last_downloaded_uri != remote_uri:
+            twlog.msg(
+                format="_should_download -> last_downloaded_uri %(last)s != remote_uri %(remote)s",
+                last=db_entry.last_downloaded_uri,
+                remote=remote_uri,
+            )
             return True
+
+        twlog.msg("_should_download -> False")
         return False
 
     def _get_local_latest(self, relpath_u):
