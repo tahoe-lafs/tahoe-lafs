@@ -2,6 +2,7 @@
 import os, sys, time
 import stat, shutil, json
 import mock
+import string
 from os.path import join, exists, isdir
 
 from twisted.trial import unittest
