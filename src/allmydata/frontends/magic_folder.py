@@ -578,7 +578,7 @@ class QueueMixin(HookMixin):
     def _log(self, msg):
         s = "Magic Folder %s %s: %s" % (quote_output(self._client.nickname), self._name, msg)
         self._client.log(s)
-        if self._debug_log:
+        if True:
             twlog.msg(s)
 
 # this isn't in interfaces.py because it's very specific to QueueMixin
@@ -1202,16 +1202,27 @@ class Downloader(QueueMixin, WriteFileMixin):
         latest version wins.
         """
         if magicpath.should_ignore_file(relpath_u):
+            twlog.msg("_should_download -> should_ignore_file")
             return False
         db_entry = self._db.get_db_entry(relpath_u)
         if db_entry is None:
+            twlog.msg("_should_download -> db_entry is None")
             return True
         if db_entry.version < remote_version:
+            twlog.msg("_should_download -> db_entry.version < remote_version")
             return True
         if db_entry.last_downloaded_uri is None and _is_empty_filecap(self._client, remote_uri):
+            twlog.msg("_should_download -> no last_downloaded_uri and empty filecap")
             pass
         elif db_entry.last_downloaded_uri != remote_uri:
+            twlog.msg(
+                format="_should_download -> last_downloaded_uri %(last)s != remote_uri %(remote)s",
+                last=db_entry.last_downloaded_uri,
+                remote=remote_uri,
+            )
             return True
+
+        twlog.msg("_should_download -> False")
         return False
 
     def _get_local_latest(self, relpath_u):
@@ -1349,7 +1360,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                 'Last scan: %s' % self.nice_current_time(),
             )
         except Exception as e:
-            twlog.msg("Remote scan failed: %s" % (e,))
+            twlog.err(Failure(), "Remote scan failed")
             self._log("_scan failed: %s" % (repr(e),))
             self._status_reporter(
                 False, 'Remote scan has failed: %s' % str(e),

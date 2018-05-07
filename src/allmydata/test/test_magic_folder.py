@@ -1,6 +1,6 @@
 
 import os, sys, time
-import stat, shutil, json
+import stat, shutil, json, string
 import mock
 import string
 from os.path import join, exists, isdir
@@ -8,6 +8,7 @@ from os.path import join, exists, isdir
 from twisted.trial import unittest
 from twisted.internet import defer, task, reactor
 from twisted.python.filepath import FilePath
+from twisted.python import log
 
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util.assertutil import precondition
@@ -36,7 +37,7 @@ from zope.interface import implementer
 from hypothesis.stateful import RuleBasedStateMachine, rule
 from hypothesis.stateful import run_state_machine_as_test
 from hypothesis.strategies import sampled_from, text, assume, binary
-from hypothesis import settings
+from hypothesis import Verbosity, settings
 
 _debug = False
 
@@ -49,31 +50,80 @@ class FakeMutableFileVersion(object):
 
 class FakeFileNode(object):
 
-    def __init__(self, uri):
+    def __init__(self, uri, contents):
         self.uri = uri
+        self._contents = contents
 
     def get_uri(self):
         return self.uri
 
+    def get_readonly_uri(self):
+        if self.uri.endswith(".readonly"):
+            return self.uri
+        return self.uri + '.readonly'
+
+    def get_size(self):
+        return len(self._contents)
+
     def download_best_version(self, **kw):
-        defer.succeed(
-            FakeMutableFileVersion()
+        return defer.succeed(self._contents)
+
+    def _as_read_only(self):
+        return FakeFileNode(self.get_readonly_uri(), self._contents)
+
+
+def _read_uploadable(case, uploadable):
+    size = case.successResultOf(uploadable.get_size())
+    contents = b"".join(case.successResultOf(uploadable.read(size)))
+    return contents
+
+
+class FakeGrid(object):
+    def __init__(self, case, initial_nodes):
+        self._case = case
+        self._nodes = initial_nodes
+
+    def set_node(self, cap, node):
+        self._nodes[cap] = node
+
+    def add_file(self, cap, uploadable):
+        fn = self._nodes[cap] = FakeFileNode(
+            cap,
+            _read_uploadable(self._case, uploadable),
         )
+        return fn
+
+    def get_node(self, cap):
+        try:
+            return self._nodes[cap]
+        except KeyError:
+            if cap.endswith(".readonly"):
+                node = self._nodes[cap[:-len(".readonly")]]
+                return node._as_read_only()
+            raise
 
 
 @implementer(IDirectoryNode)
 class FakeDirectoryNode(object):
-    def __init__(self, uri, read_only=False):
-        self.nodes = dict()
+    def __init__(self, grid, uri, metadata=None, read_only=False):
+        self._grid = grid
+        self._metadata = {} if metadata is None else metadata
         self.uri = uri
         self._read_only = read_only
 
-    def set_node(self, name, capability):
-        self.nodes[name] = capability
+    def set_node(self, name, node, metadata=None, overwrite=True):
+        self._grid.set_node("cap-" + name, node)
+        self._metadata[name] = metadata
+        return defer.succeed(node)
 
     def add_file(self, namex, uploadable, metadata=None, overwrite=True, progress=None):
-        self.nodes[namex] = uploadable
-        fn = FakeFileNode(namex)
+        log.msg(
+            format="Adding file to %(uri)s: %(name)s",
+            uri=self.uri,
+            name=namex,
+        )
+        fn = self._grid.add_file("cap-" + namex, uploadable)
+        self._metadata[namex] = metadata
         return defer.succeed(fn)
 
     def is_unknown(self):
@@ -83,7 +133,31 @@ class FakeDirectoryNode(object):
         return self._read_only
 
     def get_readonly_uri(self):
+        if self.uri.endswith(".readonly"):
+            return self.uri
         return self.uri + '.readonly'
+
+    def _as_read_only(self):
+        return FakeDirectoryNode(
+            self._grid,
+            self.get_readonly_uri(),
+            self._metadata,
+            read_only=True,
+        )
+
+    def list(self):
+        children = {
+            name: (
+                self._grid.get_node(
+                    "cap-" + name + (
+                        ".readonly" if self._read_only else ""
+                    )),
+                self._metadata[name],
+            )
+            for name
+            in self._metadata
+        }
+        return defer.succeed(children)
 
 
 class FakeStatsProvider(object):
@@ -96,9 +170,9 @@ class FakeStatsProvider(object):
 
 
 class FakeClient(object):
-    def __init__(self, caps):
-        self._caps = caps
-        self.nickname = "fake_client"
+    def __init__(self, grid, nickname):
+        self._grid = grid
+        self.nickname = nickname
         self.stats_provider = FakeStatsProvider()
         self.convergence = 'deadbeef'
         self._logs = []
@@ -106,8 +180,8 @@ class FakeClient(object):
     def log(self, msg):
         self._logs.append(msg)
 
-    def create_node_from_uri(self, uri):
-        return self._caps[uri]
+    def create_node_from_uri(self, uri, rouri=None):
+        return self._grid.get_node(uri if uri is not None else rouri)
 
 
 def _do_processing(case, queue):
@@ -119,13 +193,21 @@ def _do_processing(case, queue):
     case.successResultOf(queue._process_deque())
 
 
-def _assert_fs_equal(a, b):
-    if sorted(a.listdir()) != sorted(b.listdir()):
-        return False
+def _assert_fs_equal(case, a, b):
+    case.assertEqual(
+        sorted(a.listdir()),
+        sorted(b.listdir()),
+    )
+
     for f in a.listdir():
-        if a.child(f).getContent() != b.child(f).getContent():
-            return False
-    return True
+        case.assertEqual(
+            a.child(f).getContent(),
+            b.child(f).getContent(),
+            "{} contents differ from {} contents".format(
+                a.path,
+                b.path,
+            ),
+        )
 
 
 class UnconflictedMagicFolder(RuleBasedStateMachine):
@@ -133,6 +215,8 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
     def __init__(self, case):
         super(UnconflictedMagicFolder, self).__init__()
         self.case = case
+
+        self.grid = FakeGrid(case, {})
 
         self.dirty = None
         self.root = FilePath(self.case.mktemp())
@@ -144,43 +228,48 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         collective_dircap = "collective-dircap"
         alice_dircap = "alice-dircap"
         bob_dircap = "bob-dircap"
-        self.alice_dirnode = FakeDirectoryNode(alice_dircap)
-        self.bob_dirnode = FakeDirectoryNode(bob_dircap)
+        self.alice_dirnode = FakeDirectoryNode(self.grid, alice_dircap)
+        self.bob_dirnode = FakeDirectoryNode(self.grid, bob_dircap)
 
-        self.collective_dirnode = FakeDirectoryNode(collective_dircap, read_only=True)
-        self.collective_dirnode.set_node(
-            "alice", self.alice_dirnode,
-        )
-        self.collective_dirnode.set_node(
-            "bob", self.bob_dirnode,
+        self.collective_dirnode = FakeDirectoryNode(
+            self.grid, collective_dircap, read_only=True,
         )
 
-        self.client = FakeClient({
-            collective_dircap: self.collective_dirnode,
-            alice_dircap: self.alice_dirnode,
-            bob_dircap: self.bob_dirnode,
-        })
+        self.grid.set_node(collective_dircap, self.collective_dirnode)
+        self.grid.set_node(alice_dircap, self.alice_dirnode)
+        self.grid.set_node(bob_dircap, self.bob_dirnode)
 
+        self.collective_dirnode.set_node(
+            "alice",
+            self.alice_dirnode,
+        )
+        self.collective_dirnode.set_node(
+            "bob",
+            self.bob_dirnode,
+        )
+
+        self.alice_client = FakeClient(self.grid, "alice-client")
         self.alice_tree.child("tree").makedirs()
         self.alice = MagicFolder(
-            self.client,
+            self.alice_client,
             alice_dircap,
             collective_dircap,
             unicode(self.alice_tree.child("tree").path),
             unicode(self.alice_tree.child("db").path),
-            0o777,
+            stat.S_IWGRP | stat.S_IWOTH,
             u"default",
         )
         self.alice.tree = self.alice_tree.child("tree")
 
+        self.bob_client = FakeClient(self.grid, "bob-client")
         self.bob_tree.child("tree").makedirs()
         self.bob = MagicFolder(
-            self.client,
+            self.bob_client,
             bob_dircap,
             collective_dircap,
             unicode(self.bob_tree.child("tree").path),
             unicode(self.bob_tree.child("db").path),
-            0o777,
+            stat.S_IWGRP | stat.S_IWOTH,
             u"default",
         )
         self.bob.tree = self.bob_tree.child("tree")
@@ -197,10 +286,11 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         del self.safe_directory
         del self.root
 
-    @settings(max_examples=2)
     @rule(
         which_client=sampled_from(["alice", "bob"]),
-        filename=text(min_size=1, alphabet=string.letters),  # FIXME, can't have e.g. / in filename
+        # FIXME, can't have e.g. / in filename
+        # FIXME, is this state space a waste of time?
+        filename=text(min_size=1, alphabet=string.letters),
         contents=binary(),
     )
     def create(self, which_client, filename, contents):
@@ -232,16 +322,20 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
 
         _do_processing(self.case, actor.uploader)
         _do_processing(self.case, other.downloader)
-        self.dirty = None
 
-        _assert_fs_equal(
-            self.safe_directory,
-            self.alice_tree.child("tree"),
-        )
-        _assert_fs_equal(
-            self.safe_directory,
-            self.bob_tree.child("tree"),
-        )
+        if which_client == self.dirty:
+            self.dirty = None
+
+            _assert_fs_equal(
+                self.case,
+                self.safe_directory,
+                self.alice_tree.child("tree"),
+            )
+            _assert_fs_equal(
+                self.case,
+                self.safe_directory,
+                self.bob_tree.child("tree"),
+            )
 
 
 
@@ -250,6 +344,7 @@ class HypothesisTests(unittest.TestCase):
     def test_convergence(self):
         s = settings(
 #            stateful_step_count=1,  # only thing below looks at
+#            verbosity=Verbosity.verbose,
         )
         run_state_machine_as_test(
             self._machine,
