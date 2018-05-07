@@ -1,8 +1,8 @@
 
 import os, sys, time
-import shutil, json
+import stat, shutil, json
 import mock
-from os.path import join, exists
+from os.path import join, exists, isdir
 
 from twisted.trial import unittest
 from twisted.internet import defer, task, reactor
@@ -19,7 +19,10 @@ from allmydata.test.common import ShouldFailMixin
 from .cli.test_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
-from allmydata.frontends.magic_folder import MagicFolder, WriteFileMixin
+from allmydata.frontends.magic_folder import (
+    MagicFolder, WriteFileMixin,
+    ConfigurationError,
+)
 from allmydata import magicfolderdb, magicpath
 from allmydata.util.fileutil import get_pathinfo
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -31,6 +34,9 @@ _debug = False
 class NewConfigUtilTests(unittest.TestCase):
 
     def setUp(self):
+        # some tests look at the umask of created directories or files
+        # so we set an explicit one
+        self._old_umask = os.umask(0o022)
         self.basedir = abspath_expanduser_unicode(unicode(self.mktemp()))
         os.mkdir(self.basedir)
         self.local_dir = abspath_expanduser_unicode(unicode(self.mktemp()))
@@ -52,20 +58,95 @@ class NewConfigUtilTests(unittest.TestCase):
         }
 
         # we need a bit of tahoe.cfg
-        with open(join(self.basedir, u"tahoe.cfg"), "w") as f:
-            f.write(
-                u"[magic_folder]\n"
-                u"enabled = True\n"
-            )
+        self.write_tahoe_config(
+            self.basedir,
+            u"[magic_folder]\n"
+            u"enabled = True\n",
+        )
         # ..and the yaml
-        yaml_fname = join(self.basedir, u"private", u"magic_folders.yaml")
+        self.write_magic_folder_config(self.basedir, self.folders)
+
+    def tearDown(self):
+        os.umask(self._old_umask)
+
+    def write_tahoe_config(self, basedir, tahoe_config):
+        with open(join(basedir, u"tahoe.cfg"), "w") as f:
+            f.write(tahoe_config)
+
+    def write_magic_folder_config(self, basedir, folder_configuration):
+        yaml_fname = join(basedir, u"private", u"magic_folders.yaml")
         with open(yaml_fname, "w") as f:
-            f.write(yamlutil.safe_dump({u"magic-folders": self.folders}))
+            f.write(yamlutil.safe_dump({u"magic-folders": folder_configuration}))
 
     def test_load(self):
         folders = magic_folder.load_magic_folders(self.basedir)
         self.assertEqual(['default'], list(folders.keys()))
         self.assertEqual(folders['default'][u'umask'], 0o077)
+
+    def test_load_makes_directory(self):
+        """
+        If the *directory* does not exist then it is created by
+        ``load_magic_folders``.
+        """
+        os.rmdir(self.local_dir)
+        # Just pick some arbitrary bits.
+        # rwxr-xr--
+        perm = stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH
+        self.folders[u"default"][u"umask"] = (0o777 & ~perm)
+        self.write_magic_folder_config(self.basedir, self.folders)
+
+        magic_folder.load_magic_folders(self.basedir)
+
+        # It is created.
+        self.assertTrue(
+            isdir(self.local_dir),
+            "magic-folder local directory {} was not created".format(
+                self.local_dir,
+            ),
+        )
+        # It has permissions determined by the configured umask.
+        if sys.platform != "win32":
+            self.assertEqual(
+                perm,
+                stat.S_IMODE(os.stat(self.local_dir).st_mode),
+            )
+        else:
+            # Do directories even have permissions on Windows?
+            print("Not asserting directory-creation mode on windows")
+
+    def test_directory_collision(self):
+        """
+        If a non-directory already exists at the magic folder's configured local
+        directory path, ``load_magic_folders`` raises an exception.
+        """
+        os.rmdir(self.local_dir)
+        open(self.local_dir, "w").close()
+
+        with self.assertRaises(ConfigurationError) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "exists and is not a directory",
+            str(ctx.exception),
+        )
+
+    def test_directory_creation_error(self):
+        """
+        If a directory at the magic folder's configured local directory path
+        cannot be created for some other reason, ``load_magic_folders`` raises
+        an exception.
+        """
+        os.rmdir(self.local_dir)
+        open(self.local_dir, "w").close()
+        self.folders[u"default"][u"directory"] = self.local_dir + "/foo"
+        self.write_magic_folder_config(self.basedir, self.folders)
+
+        with self.assertRaises(ConfigurationError) as ctx:
+            magic_folder.load_magic_folders(self.basedir)
+        self.assertIn(
+            "could not be created",
+            str(ctx.exception),
+        )
+
 
     def test_both_styles_of_config(self):
         os.unlink(join(self.basedir, u"private", u"magic_folders.yaml"))
@@ -194,22 +275,25 @@ class LegacyConfigUtilTests(unittest.TestCase):
             pass
 
     def test_load_legacy_no_dir(self):
+        expected = self.local_dir + 'foo'
         with open(join(self.basedir, u"tahoe.cfg"), "w") as f:
             f.write(
                 u"[magic_folder]\n"
                 u"enabled = True\n"
                 u"local.directory = {}\n"
                 u"poll_interval = {}\n".format(
-                    self.local_dir + 'foo',
+                    expected,
                     self.poll_interval,
                 )
             )
 
-        with self.assertRaises(Exception) as ctx:
-            magic_folder.load_magic_folders(self.basedir)
-        self.assertIn(
-            "there is no directory at that location",
-            str(ctx.exception)
+        magic_folder.load_magic_folders(self.basedir)
+
+        self.assertTrue(
+            isdir(expected),
+            "magic-folder local directory {} was not created".format(
+                expected,
+            ),
         )
 
     def test_load_legacy_not_a_dir(self):
@@ -226,10 +310,10 @@ class LegacyConfigUtilTests(unittest.TestCase):
         with open(self.local_dir + "foo", "w") as f:
             f.write("not a directory")
 
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ConfigurationError) as ctx:
             magic_folder.load_magic_folders(self.basedir)
         self.assertIn(
-            "location is not a directory",
+            "is not a directory",
             str(ctx.exception)
         )
 
