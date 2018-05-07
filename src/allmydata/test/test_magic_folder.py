@@ -3,7 +3,6 @@ from __future__ import print_function
 import os, sys, time
 import stat, shutil, json, string
 import mock
-import string
 from os.path import join, exists, isdir
 from errno import ENOENT
 
