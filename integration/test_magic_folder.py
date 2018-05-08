@@ -266,7 +266,6 @@ def _bob_conflicts_alice_await_conflicts(name, alice_dir, bob_dir):
             join(bob_dir, '{}.conflict'.format(name)),
             join(alice_dir, '{}.conflict'.format(name)),
         ],
-        await_all=True,
     )
 
     assert len(found) >= 1, "should be at least one conflict"
