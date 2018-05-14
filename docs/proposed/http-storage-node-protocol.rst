@@ -95,6 +95,60 @@ Client node implementations could cache a successful protocol upgrade.
 This would avoid the double connection on subsequent startups.
 This is left as a decision for the implementation, though.
 
+Reading
+-------
+
+``GET /v1/storage/:storage_index``:
+
+Retrieve a mapping describing buckets for the indicated storage index.
+The mapping is returned as an encoded structured object
+(JSON is used for the example here but is not necessarily the true encoding).
+The mapping has share numbers as keys and bucket identifiers as values.
+For example::
+
+  .. XXX Share numbers are logically integers and probably sequential starting from 0.
+     But JSON cannot encode them as integers if they are keys in a mapping.
+     Is this really a mapping or would an array (with share number implied by array index) work as well?
+
+  {0: "abcd", 1: "efgh"}
+
+``GET /v1/buckets/:bucket_id``
+
+Read data from the indicated bucket.
+The data is returned raw (i.e., ``application/octet-stream``).
+Range requests may be made to read only part of a bucket.
+
+``POST /v1/buckets/:bucket_id/corrupt``
+
+Advise the server the share data read from the indicated bucket was corrupt.
+The request body includes an human-meaningful string with details about the corruption.
+It also includes potentially important details about the share.
+
+For example::
+
+  {"share_type": "mutable", "storage_index": "abcd", "share_number": 3,
+   "reason": "expected hash abcd, got hash efgh"}
+
+Writing
+-------
+
+``POST /v1/buckets``
+
+Create some new buckets in which to store some shares.
+Details of the buckets to create are encoded in the request body.
+For example::
+
+  {"storage_index": "abcd", "renew_secret": "efgh", "cancel_secret": "ijkl",
+   "sharenums": [1, 7, ...], "allocated_size": 12345}
+
+The response body includes encoded information about the created buckets.
+For example::
+
+  .. XXX Same deal about share numbers as integers/strings here.
+     But here it's clear we can't just use an array as mentioned above.
+  {"already_have": [1, ...],
+   "allocated": {"7": "bucket_id", ...}}
+
 .. [#] What are best practices regarding TLS version?
        Would a policy of "use the newest version shared between the two endpoints" be better?
        Is it necessary to specify more than a TLS version number here?
