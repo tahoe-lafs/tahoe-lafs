@@ -7,6 +7,11 @@ The target audience for this document is Tahoe-LAFS developers.
 After reading this document,
 one should expect to understand how Tahoe-LAFS clients interact over the network with Tahoe-LAFS storage nodes.
 
+The primary goal of the introduction of this protocol is to simplify the task of implementing a Tahoe-LAFS storage server.
+Specifically, it should be possible to implement a Tahoe-LAFS storage server without a Foolscap implementation
+(substituting an HTTP server implementation).
+The Tahoe-LAFS client will also need to change but it is not expected that it will be noticably simplified by this change.
+
 Security
 --------
 
