@@ -199,3 +199,78 @@ For example::
 Read data from the indicated bucket.
 The data is returned raw (i.e., ``application/octet-stream``).
 Range requests may be made to read only part of a bucket.
+
+Slots
+-----
+
+Slots are mutable data.
+
+Writing
+~~~~~~~
+
+``POST /v1/slot/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+General purpose test-read-and-set operation for mutable slots.
+The request body includes the secrets necessary to write to the slot
+and the test, read, and write vectors for the operation.
+For example::
+
+   {
+       "secrets": {
+           "write-enabler": "abcd",
+           "lease-renew": "efgh",
+           "lease-cancel": "ijkl"
+       },
+       "test-write-vectors": {
+           0: {
+               "test": [{
+                   "offset": 3,
+                   "size": 5,
+                   "operator": "eq",
+                   "specimen": "hello"
+               }, ...],
+               "write": [{
+                   "offset": 9,
+                   "data": "world"
+               }, ...],
+               "new-length": 5
+           }
+       },
+       "read-vector": [{"offset": 3, "size": 12}, ...]
+   }
+
+The response body contains a boolean indicating whether the tests all succeed
+(and writes were applied) and a mapping giving read data (pre-write).
+For example::
+
+  {
+      "success": true,
+      "data": {
+          0: ["foo"],
+          5: ["bar"],
+          ...
+      }
+  }
+
+Reading
+~~~~~~~
+
+``POST /v1/slot/:storage_index``
+
+Read a vector from the numbered shares associated with the given storage index.
+The request body contains the share numbers and read vector.
+For example::
+
+  {
+      "shares": [3, 5, 7],
+      "read-vector": ["offset": 3, "size": 12}, ...]
+  }
+
+The response body contains a mapping giving the read data.
+For example::
+
+  {
+      3: ["foo"],
+      7: ["bar"]
+  }
