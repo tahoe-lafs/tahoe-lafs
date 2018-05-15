@@ -23,7 +23,8 @@
 
   - [ ] code passes all checks / tests (i.e. all CI is green)
   - [ ] documentation is ready (see above)
-  - [ ] build code locally
+  - [ ] build code locally:
+     tox -e py27,codechecks,coverage,deprecations,docs,integration,tarballs,upcoming-deprecations
   - [ ] release version is reporting itself as intended version
   - [ ] created tarballs (for later comparision)
   - [ ] 'git pull' doesn't pull anything
