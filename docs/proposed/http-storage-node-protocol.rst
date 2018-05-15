@@ -118,10 +118,64 @@ For example::
     }
 
 
+Shares
+------
+
+Shares are immutable data stored in buckets.
+
+Writing
+~~~~~~~
+
+``POST /v1/buckets/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Create some new buckets in which to store some shares.
+Details of the buckets to create are encoded in the request body.
+For example::
+
+  {"renew_secret": "efgh", "cancel_secret": "ijkl",
+   "sharenums": [1, 7, ...], "allocated_size": 12345}
+
+The response body includes encoded information about the created buckets.
+For example::
+
+  {"already_have": [1, ...],
+   "allocated": {7: "bucket_id", ...}}
+
+
+
+Discussion
+``````````
+
+We considered making this ``POST /v1/storage`` instead.
+The motivation was to keep *storage index* out of the request URL.
+Request URLs have a mildly elevated chance of being logged by something.
+We were concerned that having the *storage index* logged may increase some risks.
+However, we decided this does not matter because the *storage index* can only be used to read the share (which is ciphertext).
+TODO Verify this conclusion.
+
+``PUT /v1/buckets/:bucket_id``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Write the share data to the indicated bucket.
+The request body is the raw share data (i.e., ``application/octet-stream``).
+
+``POST /v1/buckets/:bucket_id/corrupt``
+
+Advise the server the share data read from the indicated bucket was corrupt.
+The request body includes an human-meaningful string with details about the corruption.
+It also includes potentially important details about the share.
+
+For example::
+
+  {"share_type": "mutable", "storage_index": "abcd", "share_number": 3,
+   "reason": "expected hash abcd, got hash efgh"}
+
 Reading
--------
+~~~~~~~
 
 ``GET /v1/storage/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Retrieve a mapping describing buckets for the indicated storage index.
 The mapping is returned as an encoded structured object
@@ -136,46 +190,11 @@ For example::
   {0: "abcd", 1: "efgh"}
 
 ``GET /v1/buckets/:bucket_id``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read data from the indicated bucket.
 The data is returned raw (i.e., ``application/octet-stream``).
 Range requests may be made to read only part of a bucket.
-
-``POST /v1/buckets/:bucket_id/corrupt``
-
-Advise the server the share data read from the indicated bucket was corrupt.
-The request body includes an human-meaningful string with details about the corruption.
-It also includes potentially important details about the share.
-
-For example::
-
-  {"share_type": "mutable", "storage_index": "abcd", "share_number": 3,
-   "reason": "expected hash abcd, got hash efgh"}
-
-Writing
--------
-
-``PUT /v1/storage/:storage_index``
-
-Create some new buckets in which to store some shares.
-Details of the buckets to create are encoded in the request body.
-For example::
-
-  {"renew_secret": "efgh", "cancel_secret": "ijkl",
-   "sharenums": [1, 7, ...], "allocated_size": 12345}
-
-The response body includes encoded information about the created buckets.
-For example::
-
-  .. XXX Same deal about share numbers as integers/strings here.
-
-  {"already_have": [1, ...],
-   "allocated": {7: "bucket_id", ...}}
-
-``PUT /v1/buckets/:bucket_id``
-
-Write the share data to the indicated bucket.
-The request body is the raw share data (i.e., ``application/octet-stream``).
 
 .. [#] What are best practices regarding TLS version?
        Would a policy of "use the newest version shared between the two endpoints" be better?
