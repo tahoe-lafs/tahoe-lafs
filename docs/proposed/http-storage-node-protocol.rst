@@ -34,34 +34,31 @@ That is, the protocol must include some means to cryptographically verify the in
 Solutions
 ~~~~~~~~~
 
-Communication with the storage node will take place using TLS 1.2 [#]_.
-
-* The storage node will present a certificate proving its identity.
-* The certificate will include a ``subjectAltName`` containing ... [#]_.
-* The certificate will be signed by an entity known to and trusted by the client.
-  This entity will *not* be a standard web-focused Certificate Authority.
+Communication with the storage node will take place using TLS.
+The TLS version and configuration will be dictated by an ongoing understanding of best practices.
+The only requirement is that the certificate have a valid signature.
+The storage node will publish the corresponding public key
+(e.g., via an introducer).
+The public key will constitute the storage node's identity.
 
 When connecting to a storage node,
 the client will take the following steps to gain confidence it has reached the intended peer:
 
 * It will perform the usual cryptographic verification of the certificate presented by the storage server
   (that is,
-  that the certificate itself is well-formed,
-  that the signature it carries is valid,
-  that the signature was created by a "trusted entity").
-* It will consider the only "trusted entity" to be an entity explicitly configured for the intended storage node
-  (specifically, it will not considered the standard web-focused Certificate Authorities to be trusted).
-* It will check the ``subjectAltName`` against ... [#]_.
+  that the certificate itself is well-formed
+  and that the signature it carries is valid.
+* It will compare the hash of the public key of the certificate to the expected public key.
 
 To further clarify, consider this example.
 Alice operates a storage node.
-Alice generates a Certificate Authority certificate and secures the private key appropriately.
-Alice generates a Storage Node certificate and signs it with the Certificate Authority certificate's private key.
-Alice prints out the Certificate Authority certificate and storage node URI [#]_ and hands it to Bob.
-Bob creates a client node.
-Bob configures the client node with the storage node URI and the Certificate Authority certificate received from Alice.
+Alice generates a key pair and secures it properly.
+Alice generates a self-signed storage node certificate with the key pair.
+Alice's storage node announces a fURL containing (among other information) the public key to an introducer.
+Bob creates a client node pointed at the same introducer.
+Bob's client node receives the announcement from Alice's storage node.
 
-Bob's client node can now perform a TLS handshake with a server at the address indicated by the storage node URI.
+Bob's client node can now perform a TLS handshake with a server at the address indicated by the storage node fURL.
 Following the above described validation procedures,
 Bob's client node can determine whether it has reached Alice's storage node or not.
 
@@ -74,17 +71,20 @@ Transition
 
 Storage nodes already possess an x509 certificate.
 This is used with Foolscap to provide the same security properties described in the above requirements section.
-There are some differences.
 
 * The certificate is self-signed.
+  This remains the same.
 * The certificate has a ``commonName`` of "newpb_thingy".
+  This is not harmful to the new protocol.
 * The validity of the certificate is determined by checking the certificate digest against a value carried in the fURL.
   Only a correctly signed certificate with a matching digest is accepted.
+  This validation will be replaced with a public key hash comparison.
 
 A mixed-protocol storage node should:
 
 * Start the Foolscap server as it has always done.
 * Start a TLS server dispatching to an HTTP server.
+
   * Use the same certificate as the Foolscap server uses.
   * Accept anonymous client connections.
 
@@ -93,6 +93,7 @@ A mixed-protocol client node should:
 * If it is configured with a storage URI, connect using HTTP over TLS.
 * If it is configured with a storage fURL, connect using Foolscap.
   If the server version indicates support for the new protocol:
+
   * Attempt to connect using the new protocol.
   * Drop the Foolscap connection if this new connection succeeds.
 
@@ -206,6 +207,4 @@ Range requests may be made to read only part of a bucket.
        Is it necessary to specify more than a TLS version number here?
        For example, should we be specifying a set of ciphers as well?
        Or is that a quality of implementation issue rather than a protocol specification issue?
-.. [#] TODO
-.. [#] TODO
 .. [#] URL?  IRI?
