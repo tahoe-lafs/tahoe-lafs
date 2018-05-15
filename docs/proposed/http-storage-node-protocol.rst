@@ -31,22 +31,22 @@ Solutions
 
 Communication with the storage node will take place using TLS 1.2 [#]_.
 
-  * The storage node will present a certificate proving its identity.
-  * The certificate will include a ``subjectAltName`` containing ... [#]_.
-  * The certificate will be signed by an entity known to and trusted by the client.
-    This entity will *not* be a standard web-focused Certificate Authority.
+* The storage node will present a certificate proving its identity.
+* The certificate will include a ``subjectAltName`` containing ... [#]_.
+* The certificate will be signed by an entity known to and trusted by the client.
+  This entity will *not* be a standard web-focused Certificate Authority.
 
 When connecting to a storage node,
 the client will take the following steps to gain confidence it has reached the intended peer:
 
-  * It will perform the usual cryptographic verification of the certificate presented by the storage server
-    (that is,
-    that the certificate itself is well-formed,
-    that the signature it carries is valid,
-    that the signature was created by a "trusted entity").
-  * It will consider the only "trusted entity" to be an entity explicitly configured for the intended storage node
-    (specifically, it will not considered the standard web-focused Certificate Authorities to be trusted).
-  * It will check the ``subjectAltName`` against ... [#]_.
+* It will perform the usual cryptographic verification of the certificate presented by the storage server
+  (that is,
+  that the certificate itself is well-formed,
+  that the signature it carries is valid,
+  that the signature was created by a "trusted entity").
+* It will consider the only "trusted entity" to be an entity explicitly configured for the intended storage node
+  (specifically, it will not considered the standard web-focused Certificate Authorities to be trusted).
+* It will check the ``subjectAltName`` against ... [#]_.
 
 To further clarify, consider this example.
 Alice operates a storage node.
