@@ -149,6 +149,11 @@ For example::
   {"already_have": [1, ...],
    "allocated": {7: "bucket_id", ...}}
 
+``PUT /v1/buckets/:bucket_id``
+
+Write the share data to the indicated bucket.
+The request body is the raw share data (i.e., ``application/octet-stream``).
+
 .. [#] What are best practices regarding TLS version?
        Would a policy of "use the newest version shared between the two endpoints" be better?
        Is it necessary to specify more than a TLS version number here?
