@@ -106,9 +106,9 @@ The mapping is returned as an encoded structured object
 The mapping has share numbers as keys and bucket identifiers as values.
 For example::
 
-  .. XXX Share numbers are logically integers and probably sequential starting from 0.
-     But JSON cannot encode them as integers if they are keys in a mapping.
-     Is this really a mapping or would an array (with share number implied by array index) work as well?
+  .. XXX Share numbers are logically integers.
+     JSON cannot encode integer mapping keys.
+     So this is not valid JSON but you know what I mean.
 
   {0: "abcd", 1: "efgh"}
 
@@ -145,9 +145,9 @@ The response body includes encoded information about the created buckets.
 For example::
 
   .. XXX Same deal about share numbers as integers/strings here.
-     But here it's clear we can't just use an array as mentioned above.
+
   {"already_have": [1, ...],
-   "allocated": {"7": "bucket_id", ...}}
+   "allocated": {7: "bucket_id", ...}}
 
 .. [#] What are best practices regarding TLS version?
        Would a policy of "use the newest version shared between the two endpoints" be better?
