@@ -198,10 +198,3 @@ For example::
 Read data from the indicated bucket.
 The data is returned raw (i.e., ``application/octet-stream``).
 Range requests may be made to read only part of a bucket.
-
-.. [#] What are best practices regarding TLS version?
-       Would a policy of "use the newest version shared between the two endpoints" be better?
-       Is it necessary to specify more than a TLS version number here?
-       For example, should we be specifying a set of ciphers as well?
-       Or is that a quality of implementation issue rather than a protocol specification issue?
-.. [#] URL?  IRI?
