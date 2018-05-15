@@ -163,7 +163,8 @@ TODO Verify this conclusion.
 Write the share data to the indicated bucket.
 The request body is the raw share data (i.e., ``application/octet-stream``).
 
-``POST /v1/buckets/:bucket_id/corrupt``
+``POST /v1/buckets/:bucket_id/:share_number/corrupt``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Advise the server the share data read from the indicated bucket was corrupt.
 The request body includes an human-meaningful string with details about the corruption.
@@ -171,7 +172,7 @@ It also includes potentially important details about the share.
 
 For example::
 
-  {"share_type": "mutable", "storage_index": "abcd", "share_number": 3,
+  {"share_type": "mutable", "storage_index": "abcd",
    "reason": "expected hash abcd, got hash efgh"}
 
 Reading
