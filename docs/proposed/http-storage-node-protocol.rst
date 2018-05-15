@@ -95,6 +95,29 @@ Client node implementations could cache a successful protocol upgrade.
 This would avoid the double connection on subsequent startups.
 This is left as a decision for the implementation, though.
 
+Server Details
+--------------
+
+``GET /v1/version``
+
+Retrieve information about the version of the storage server.
+Information is returned as an encoded mapping.
+For example::
+
+  { "http://allmydata.org/tahoe/protocols/storage/v1" :
+    { "maximum-immutable-share-size": 1234,
+      "maximum-mutable-share-size": 1235,
+      "available-space": 123456,
+      "tolerates-immutable-read-overrun": true,
+      "delete-mutable-shares-with-zero-length-writev": true,
+      "fills-holes-with-zero-bytes": true,
+      "prevents-read-past-end-of-share-data": true,
+      "http-protocol-available": true
+      },
+    "application-version": "1.13.0"
+    }
+
+
 Reading
 -------
 
