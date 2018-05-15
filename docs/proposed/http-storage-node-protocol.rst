@@ -132,13 +132,13 @@ For example::
 Writing
 -------
 
-``POST /v1/buckets``
+``PUT /v1/storage/:storage_index``
 
 Create some new buckets in which to store some shares.
 Details of the buckets to create are encoded in the request body.
 For example::
 
-  {"storage_index": "abcd", "renew_secret": "efgh", "cancel_secret": "ijkl",
+  {"renew_secret": "efgh", "cancel_secret": "ijkl",
    "sharenums": [1, 7, ...], "allocated_size": 12345}
 
 The response body includes encoded information about the created buckets.
