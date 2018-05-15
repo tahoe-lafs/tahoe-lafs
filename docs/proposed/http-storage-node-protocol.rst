@@ -71,25 +71,25 @@ Storage nodes already possess an x509 certificate.
 This is used with Foolscap to provide the same security properties described in the above requirements section.
 There are some differences.
 
-  * The certificate is self-signed.
-  * The certificate has a ``commonName`` of "newpb_thingy".
-  * The validity of the certificate is determined by checking the certificate digest against a value carried in the fURL.
-    Only a correctly signed certificate with a matching digest is accepted.
+* The certificate is self-signed.
+* The certificate has a ``commonName`` of "newpb_thingy".
+* The validity of the certificate is determined by checking the certificate digest against a value carried in the fURL.
+  Only a correctly signed certificate with a matching digest is accepted.
 
 A mixed-protocol storage node should:
 
-  * Start the Foolscap server as it has always done.
-  * Start a TLS server dispatching to an HTTP server.
-    * Use the same certificate as the Foolscap server uses.
-    * Accept anonymous client connections.
+* Start the Foolscap server as it has always done.
+* Start a TLS server dispatching to an HTTP server.
+  * Use the same certificate as the Foolscap server uses.
+  * Accept anonymous client connections.
 
 A mixed-protocol client node should:
 
-  * If it is configured with a storage URI, connect using HTTP over TLS.
-  * If it is configured with a storage fURL, connect using Foolscap.
-    If the server version indicates support for the new protocol:
-    * Attempt to connect using the new protocol.
-    * Drop the Foolscap connection if this new connection succeeds.
+* If it is configured with a storage URI, connect using HTTP over TLS.
+* If it is configured with a storage fURL, connect using Foolscap.
+  If the server version indicates support for the new protocol:
+  * Attempt to connect using the new protocol.
+  * Drop the Foolscap connection if this new connection succeeds.
 
 Client node implementations could cache a successful protocol upgrade.
 This would avoid the double connection on subsequent startups.
