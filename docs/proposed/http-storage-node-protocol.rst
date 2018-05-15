@@ -145,10 +145,7 @@ For example::
 The response body includes encoded information about the created buckets.
 For example::
 
-  {"already_have": [1, ...],
-   "allocated": {7: "bucket_id", ...}}
-
-
+  {"already_have": [1, ...], "allocated": {7: "bucket_id", ...}}
 
 Discussion
 ``````````
