@@ -121,7 +121,7 @@ For example::
 Reading
 -------
 
-``GET /v1/storage/:storage_index``:
+``GET /v1/storage/:storage_index``
 
 Retrieve a mapping describing buckets for the indicated storage index.
 The mapping is returned as an encoded structured object
