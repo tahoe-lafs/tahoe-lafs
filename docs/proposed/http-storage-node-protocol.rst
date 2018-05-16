@@ -56,12 +56,17 @@ Alice operates a storage node.
 Alice generates a key pair and secures it properly.
 Alice generates a self-signed storage node certificate with the key pair.
 Alice's storage node announces a fURL containing (among other information) the public key to an introducer.
+For example, ``pb://i5xb...@example.com:443/g3m5...``.
 Bob creates a client node pointed at the same introducer.
 Bob's client node receives the announcement from Alice's storage node.
 
-Bob's client node can now perform a TLS handshake with a server at the address indicated by the storage node fURL.
+Bob's client node can now perform a TLS handshake with a server at the address indicated by the storage node fURL
+(``example.com:443`` in this example).
 Following the above described validation procedures,
 Bob's client node can determine whether it has reached Alice's storage node or not.
+If and only if the public key hash matches the value in the published fURL
+(``i5xb...`` in this example)
+then Alice's storage node has been contacted.
 
 Additionally,
 by continuing to interact using TLS,
