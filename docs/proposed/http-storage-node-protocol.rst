@@ -298,3 +298,5 @@ For example::
     spki_sha256 = sha256(spki_bytes).digest()
     spki_digest32 = base32.encode(spki_sha256)
     assert spki_digest32 == tub_id
+
+   Note we use the Tahoe-LAFS-preferred base32 encoding rather than base64.
