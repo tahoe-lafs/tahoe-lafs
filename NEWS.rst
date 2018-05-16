@@ -7,64 +7,73 @@ User-Visible Changes in Tahoe-LAFS
 Release ?? (??)
 '''''''''''''''
 
+TOP
+
 unedited list of changes since last release, needs cleanup, explanation,
 credit authors, limit to user-visible things
 
 * add "tahoe list-aliases --readonly-uri" PR400
-* web: return "Referrer-Policy: no-referrer" on all requests
-* deps: use stdlib "json" instead of external "simplejson" #2766 PR405
-* internal: use @implementer instead of implements PR406
 * add "tahoe status" command
-* other PRs: 407 412 410 419 423
-* deps: require txi2p>=0.3.2 to work around TLS who-is-client issue #2861 PR409
-* complain more loudly in setup.py under py3 PR414
+* add "tahoe list-aliases --json" PR452
 * immutable upload now uses happiness-metric algorithm #1382 PR416
-* deps: now need libyaml-dev from system before build PR420
-* rename "filesystem" to "file store" #2345 PR380
-* test "tahoe list-aliases --readonly-uri" #2863 PR403
-* replace deprecated twisted.web.client with treq #2857 PR428
-* internal: improve happiness integration test #2895 PR432
-* web internal: refactor response-format (?t=) logic #2893 PR429
-* web: add JSON welcome page #2476 PR430
-* improve/stablize some test coverage #2891
-* internal: fix pyflakes issues #2898 PR434
-* internal: setup.py use find_packages #2897 PR433
 * add magic-wormhole -based "tahoe invite" and "tahoe create-client --join="
   #126 PR418
-* internal: ValueOrderedDict fixes #2891
+* tahoe-backup: report progress #1587 PR474
+* web: return "Referrer-Policy: no-referrer" on all requests
+* web: add JSON welcome page #2476 PR430
+* web: handle OPTIONS request #1307 PR447
 * add PyInstaller build #2729 PR421
-* internal: remove unnused NumDict #2891 PR438
-* internal: setup.py use python_requires= so tox3 works #2876
-* fix crash when starting with invalid pidfile PR440
-* delete invalid pidfile #1680 PR450
 * update debian packaging notes after 'stretch' release PR444
 * add Dockerfile PR445
-* internal: rewrite tahoe stop/start/daemonize refs #1148 #275 #1121 #1377 #2149 #719 PR417
 * add tub.port=listen:i2p / listen:tor, refs #2889 PR437
-* handle multiple magic-folders
-* #2880 (something involving magic-folders) PR448
-* internal magic-folder test improvement PR453
-* deps: twisted>=16.4.0 for "python -m twisted.trial" PR454
-* web: handle OPTIONS request #1307 PR447
-* internal: add docs links to RFCs/etc PR456
-* docs: #455
+* magic-folder: allow for multiple magic-folders in one client
+* magic-folder: only create .backup files on deletes #2880 PR448
 * magic-folder: don't set +x in default umask #2881 PR458
-* internal: pytest changes PR462
-* deps: pin pypiwin32 to 219 until upstream bug resolved PR464
-  TODO: can we remove this now? pypiwin32 is now at 223
 * magic-folder: preserve user mtime #2882 PR457
-* internal: upload appveyor generated wheels as artifacts #2903
-* use secure mkstemp() PR460
-* add "tahoe list-aliases --json" PR452
-* tahoe.cfg: allow storage path to be configured #2045 PR472
 * magic-folder: something about status #2885
-* deps: setuptools >=28.8.0 for something PR470
-* tahoe-backup: report progress #1587 PR474
-* internal: fix tox-vs-setuptools-upgrade #2910
+* tahoe.cfg: allow storage path to be configured #2045 PR472
+* tahoe.cfg: tell user path to tahoe.cfg file PR412
+* fix crash when starting with invalid pidfile PR440
+* delete invalid pidfile #1680 PR450
+
+People hacking on Tahoe-LAFS code will be interested in some internal
+improvements which shouldn't have any user-visible effects:
+
 * internal: skip some unicode tests on non-unicode platforms #2912
 * internal: tox: pre-install Incremental to workaround setuptools bug #2913
 * internal: fix PyInstaller builds PR482
-
+* internal: use @implementer instead of implements PR406
+* internal: improve happiness integration test #2895 PR432
+* web internal: refactor response-format (?t=) logic #2893 PR429
+* internal: fix pyflakes issues #2898 PR434
+* internal: setup.py use find_packages #2897 PR433
+* internal: ValueOrderedDict fixes #2891
+* internal: remove unnused NumDict #2891 PR438
+* internal: setup.py use python_requires= so tox3 works #2876
+* internal: rewrite tahoe stop/start/daemonize refs #1148 #275 #1121 #1377 #2149 #719 PR417
+* internal: add docs links to RFCs/etc PR456
+* internal: magic-folder test improvement PR453
+* internal: pytest changes PR462
+* internal: upload appveyor generated wheels as artifacts #2903
+* internal: fix tox-vs-setuptools-upgrade #2910
+* deps: require txi2p>=0.3.2 to work around TLS who-is-client issue #2861 PR409
+* deps: now need libyaml-dev from system before build PR420
+* deps: twisted>=16.4.0 for "python -m twisted.trial" PR454
+* deps: pin pypiwin32 to 219 until upstream bug resolved PR464
+* deps: setuptools >=28.8.0 for something PR470
+* deps: use stdlib "json" instead of external "simplejson" #2766 PR405
+* complain more loudly in setup.py under py3 PR414
+* rename "filesystem" to "file store" #2345 PR380
+* replace deprecated twisted.web.client with treq #2857 PR428
+* improve/stablize some test coverage #2891
+* TODO: can we remove this now? pypiwin32 is now at 223
+* use secure mkstemp() PR460
+* test "tahoe list-aliases --readonly-uri" #2863 PR403
+* #455: remove outdated comment
+* PR407 fix stopService calls
+* PR410 explicit python2.7 virtualenv
+* PR419 fix list of supported OSes
+* PR423 switch travis to a supported Ubuntu
 
 
 Release 1.12.1 (18-Jan-2017)
