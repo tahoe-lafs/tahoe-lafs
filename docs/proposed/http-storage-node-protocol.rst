@@ -49,6 +49,7 @@ the client will take the following steps to gain confidence it has reached the i
   that the certificate itself is well-formed
   and that the signature it carries is valid.
 * It will compare the hash of the public key of the certificate to the expected public key.
+  The specifics of the comparison are the same as for the comparison specified by `RFC 7469`_ with "sha256" [#]_.
 
 To further clarify, consider this example.
 Alice operates a storage node.
@@ -274,3 +275,21 @@ For example::
       3: ["foo"],
       7: ["bar"]
   }
+
+
+.. _RFC 7469: https://tools.ietf.org/html/rfc7469#section-2.4
+
+.. [#]
+   More simply::
+
+    from hashlib import sha256
+    from cryptography.hazmat.primitives.serialization import (
+      Encoding,
+      SubjectPublicKeyInfo,
+    )
+    from foolscap import base32
+
+    spki_bytes = cert.public_key().public_bytes(DER, SubjectPublicKeyInfo)
+    spki_sha256 = sha256(spki_bytes).digest()
+    spki_digest32 = base32.encode(spki_sha256)
+    assert spki_digest32 == tub_id
