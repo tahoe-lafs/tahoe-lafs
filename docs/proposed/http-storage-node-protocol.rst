@@ -138,7 +138,7 @@ Shares are immutable data stored in buckets.
 Writing
 ~~~~~~~
 
-``POST /v1/buckets/:storage_index``
+``POST /v1/storage/:storage_index``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Create some new buckets in which to store some shares.
