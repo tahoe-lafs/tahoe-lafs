@@ -54,9 +54,8 @@
   - [ ] test install works properly: pip install tahoe-lafs
   - [ ] copied the release tarballs and signatures to tahoe-lafs.org: ~source/downloads/
   - [ ] moved old release out of ~source/downloads (to downloads/old/?)
-  - [ ] updated readthedocs.org (XXX what does this mean? it updates automatically, no?)
+  - [ ] ensured readthedocs.org updated
   - [ ] uploaded wheels to https://tahoe-lafs.org/deps/
-  - [ ] updated txAWS-0.2.1.post5.tar.gz (?)
   - [ ] uploaded release to https://github.com/tahoe-lafs/tahoe-lafs/releases
 
 * check release downloads [0/]
@@ -83,8 +82,7 @@
   - [ ] make an "announcement of new release" on freshmeat (XXX still a thing?)
   - [ ] make an "announcement of new release" on launchpad
   - [ ] tweeted as @tahoelafs
-  - [ ] emailed relnotes.txt to interested third parties (XXX what does this mean?)
-  - [ ] updated https://launchpad.net/tahoe-lafs
+  - [ ] emailed signed relnotes.txt to below listed mailing-lists/organizations
   - [ ] also announce release to (trimmed from previous version of this doc):
       - twisted-python@twistedmatrix.com
       - liberationtech@lists.stanford.edu
