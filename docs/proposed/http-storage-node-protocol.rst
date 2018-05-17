@@ -168,6 +168,13 @@ TODO Verify this conclusion.
 
 Write the share data to the indicated bucket.
 The request body is the raw share data (i.e., ``application/octet-stream``).
+*Range* requests are encouraged for large transfers.
+For example,
+for a 1MiB share the data can be broken in to 8 128KiB chunks.
+Each chunk can be *PUT* separately with the appropriate *Range* headers.
+The server must recognize when all of the data has been received and mark the bucket as filled.
+Clients should upload chunks in re-assembly order.
+Servers may reject out-of-order chunks for implementation simplicity.
 
 ``POST /v1/buckets/:bucket_id/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
