@@ -7,8 +7,6 @@ User-Visible Changes in Tahoe-LAFS
 Release ?? (??)
 '''''''''''''''
 
-TOP
-
 unedited list of changes since last release, needs cleanup, explanation,
 credit authors, limit to user-visible things
 
