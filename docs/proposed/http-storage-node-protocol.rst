@@ -176,6 +176,8 @@ The server must recognize when all of the data has been received and mark the bu
 Clients should upload chunks in re-assembly order.
 Servers may reject out-of-order chunks for implementation simplicity.
 
+.. think about copying https://developers.google.com/drive/api/v2/resumable-upload
+
 ``POST /v1/buckets/:bucket_id/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
