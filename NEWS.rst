@@ -4,74 +4,234 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release ?? (??)
-'''''''''''''''
+Release 1.13.0 (18-May-2018)
+''''''''''''''''''''''''''''
 
-unedited list of changes since last release, needs cleanup, explanation,
-credit authors, limit to user-visible things
+New Features
+------------
 
-* add "tahoe list-aliases --readonly-uri" PR400
-* add "tahoe status" command
-* add "tahoe list-aliases --json" PR452
-* immutable upload now uses happiness-metric algorithm #1382 PR416
-* add magic-wormhole -based "tahoe invite" and "tahoe create-client --join="
-  #126 PR418
-* tahoe-backup: report progress #1587 PR474
-* web: return "Referrer-Policy: no-referrer" on all requests
-* web: add JSON welcome page #2476 PR430
-* web: handle OPTIONS request #1307 PR447
-* add PyInstaller build #2729 PR421
-* update debian packaging notes after 'stretch' release PR444
-* add Dockerfile PR445
-* add tub.port=listen:i2p / listen:tor, refs #2889 PR437
-* magic-folder: allow for multiple magic-folders in one client
-* magic-folder: only create .backup files on deletes #2880 PR448
-* magic-folder: don't set +x in default umask #2881 PR458
-* magic-folder: preserve user mtime #2882 PR457
-* magic-folder: something about status #2885
-* tahoe.cfg: allow storage path to be configured #2045 PR472
-* tahoe.cfg: tell user path to tahoe.cfg file PR412
-* fix crash when starting with invalid pidfile PR440
-* delete invalid pidfile #1680 PR450
+The ``tahoe list-aliases`` command gained the ``--readonly-uri``
+option in `PR400`_, which lists read-only capabilities (the default
+shows read/write capabilities if available). This command also gained
+a ``--json`` option in `PR452`_, providing machine-readable output.
+
+A new command ``tahoe status`` is added, showing some statistics and
+currently active operations (similar to the ``/status`` page in the
+Web UI).
+
+Immutable uploads now use the "servers of happiness" algorithm for
+uploading shares. This means better placement of shares on available
+servers. See `PR416`_.
+
+To join a new client to a grid, the command ``tahoe invite`` was
+added. This uses `magic wormhole`_ to connect two computers and
+exchange the required information to start the client. The "client
+side" of this command is the also new option ``tahoe
+create-client --join=``. Together, this provides a way to provision a
+new client without having to securely transmit the fURL and other
+details. `PR418`_
+
+``tahoe backup`` now reports progress. `PR474`_
+
+The ``tub.port=`` option can now accept ``listen:i2p`` or
+``listen:tor`` options to use popular anonymity networks with storage
+servers. See `PR437`_
+
+The place where storage servers put shares (the "storage path") is now
+configurable (`PR472`_).
+
+A PyInstaller-based build is now availalbe (`PR421`_). A "Docker
+compose" setup for development purposes is now available (`PR445`_).
+
+
+Bug Fixes in Core
+-----------------
+
+Some bugs with pidfile handling were fixed (`PR440`_ and `PR450`_)
+meaning invalid pidfiles are now deleted. Error-messages related to
+``tahoe.cfg`` now include the full path to the file.
+
+
+Web UI Changes
+--------------
+
+We set the "Referrer-Policy: no-referrer" header on all requests. The
+Welcome page now understands the JSON option (`PR430`_) and OPTIONS
+requests are handled (`PR447`_).
+
+
+Magic Folder Changes
+--------------------
+
+Multiple magic-folders in a single Tahoe client are now
+supported. Bugs with ``.backup`` files have been fixed, meaning
+spurious ``.backup`` files will no longer be produced
+(`PR448`_). Handling of default umask on new magic-folder files is
+fixed in `PR458`_. The user mtime value is now correctly preserved
+(`PR457`_).
+
+A bug in ``tahoe magic-folder status`` causing active operations to
+sometimes not show up is fixed (`PR461`_).
+
+
+Raw Pull Requests
+-----------------
+
+In total, 44 Pull Requests were merged for this release, including
+contributions of code or review from 15 different GitHub users. Thanks
+everyone! A complete list of these PRs and contributions:
+
+`PR380`_: `daira`_
+`PR400`_: `meejah`_ (with `warner`_)
+`PR403`_: `meejah`_
+`PR405`_: `meejah`_ (with `warner`_)
+`PR406`_: `meejah`_ (with `warner`_)
+`PR407`_: `david415`_ (with `meejah`_, `warner`_)
+`PR409`_: `str4d`_ (with `warner`_)
+`PR410`_: `tpltnt`_ (with `warner`_)
+`PR412`_: `tpltnt`_ (with `warner`_)
+`PR414`_: `tpltnt`_ (with `meejah`_, `warner`_)
+`PR416`_: `david415`_, `meejah`_, `markberger`_, `warner`_
+`PR417`_: `meejah`_ (with `pataquets`_, `warner`_)
+`PR418`_: `meejah`_ (with `crwood`_, `exarkun`_, `warner`_)
+`PR419`_: `tpltnt`_ (with `warner`_)
+`PR420`_: `ValdikSS`_ (with `warner`_)
+`PR421`_: `crwood`_ (with `meejah`_, `warner`_)
+`PR423`_: `warner`_
+`PR428`_: `warner`_
+`PR429`_: `exarkun`_ (with `warner`_)
+`PR430`_: `david415`_, `exarkun`_ (with `warner`_)
+`PR432`_: `exarkun`_ (with `meejah`_)
+`PR433`_: `exarkun`_ (with `warner`_)
+`PR434`_: `exarkun`_ (with `warner`_)
+`PR437`_: `warner`_
+`PR438`_: `warner`_ (with `meejah`_)
+`PR440`_: `exarkun`_, `lpirl`_ (with `meejah`_)
+`PR444`_: `AnBuKu`_ (with `warner`_)
+`PR445`_: `bookchin`_ (with `warner`_)
+`PR447`_: `meejah`_ (with `tpltnt`_, `meejah`_)
+`PR448`_: `meejah`_ (with `warner`_)
+`PR450`_: `exarkun`_, `meejah`_, `lpirl`_
+`PR452`_: `meejah`_ (with `tpltnt`_)
+`PR453`_: `meejah`_
+`PR454`_: `meejah`_ (with `tpltnt`_, `meejah`_, `warner`_)
+`PR456`_: `meejah`_ (with `meejah`_)
+`PR457`_: `meejah`_ (with `crwood`_, `tpltnt`_)
+`PR458`_: `meejah`_ (with `tpltnt`_)
+`PR460`_: `tpltnt`_ (with `exarkun`_, `meejah`_)
+`PR462`_: `meejah`_ (with `crwood`_)
+`PR464`_: `meejah`_
+`PR470`_: `meejah`_ (with `exarkun`_, `tpltnt`_, `warner`_)
+`PR472`_: `exarkun`_, `meskio`_
+`PR474`_: `exarkun`_
+`PR482`_: `crwood`_ (with `warner`_)
+
+
+Developer and Internal Changes
+------------------------------
 
 People hacking on Tahoe-LAFS code will be interested in some internal
 improvements which shouldn't have any user-visible effects:
 
 * internal: skip some unicode tests on non-unicode platforms #2912
 * internal: tox: pre-install Incremental to workaround setuptools bug #2913
-* internal: fix PyInstaller builds PR482
-* internal: use @implementer instead of implements PR406
-* internal: improve happiness integration test #2895 PR432
-* web internal: refactor response-format (?t=) logic #2893 PR429
-* internal: fix pyflakes issues #2898 PR434
-* internal: setup.py use find_packages #2897 PR433
+* internal: fix PyInstaller builds `PR482`_
+* internal: use @implementer instead of implements `PR406`_
+* internal: improve happiness integration test #2895 `PR432`_
+* web internal: refactor response-format (?t=) logic #2893 `PR429`_
+* internal: fix pyflakes issues #2898 `PR434`_
+* internal: setup.py use find_packages #2897 `PR433`_
 * internal: ValueOrderedDict fixes #2891
-* internal: remove unnused NumDict #2891 PR438
+* internal: remove unnused NumDict #2891 `PR438`_
 * internal: setup.py use python_requires= so tox3 works #2876
-* internal: rewrite tahoe stop/start/daemonize refs #1148 #275 #1121 #1377 #2149 #719 PR417
-* internal: add docs links to RFCs/etc PR456
-* internal: magic-folder test improvement PR453
-* internal: pytest changes PR462
+* internal: rewrite tahoe stop/start/daemonize refs #1148 #275 #1121 #1377 #2149 #719 `PR417`_
+* internal: add docs links to RFCs/etc `PR456`_
+* internal: magic-folder test improvement `PR453`_
+* internal: pytest changes `PR462`_
 * internal: upload appveyor generated wheels as artifacts #2903
 * internal: fix tox-vs-setuptools-upgrade #2910
-* deps: require txi2p>=0.3.2 to work around TLS who-is-client issue #2861 PR409
-* deps: now need libyaml-dev from system before build PR420
-* deps: twisted>=16.4.0 for "python -m twisted.trial" PR454
-* deps: pin pypiwin32 to 219 until upstream bug resolved PR464
-* deps: setuptools >=28.8.0 for something PR470
-* deps: use stdlib "json" instead of external "simplejson" #2766 PR405
-* complain more loudly in setup.py under py3 PR414
-* rename "filesystem" to "file store" #2345 PR380
-* replace deprecated twisted.web.client with treq #2857 PR428
+* deps: require txi2p>=0.3.2 to work around TLS who-is-client issue #2861 `PR409`_
+* deps: now need libyaml-dev from system before build `PR420`_
+* deps: twisted>=16.4.0 for "python -m twisted.trial" `PR454`_
+* deps: pin pypiwin32 to 219 until upstream bug resolved `PR464`_
+* deps: setuptools >=28.8.0 for something `PR470`_
+* deps: use stdlib "json" instead of external "simplejson" #2766 `PR405`_
+* complain more loudly in setup.py under py3 `PR414`_
+* rename "filesystem" to "file store" #2345 `PR380`_
+* replace deprecated twisted.web.client with treq #2857 `PR428`_
 * improve/stablize some test coverage #2891
 * TODO: can we remove this now? pypiwin32 is now at 223
-* use secure mkstemp() PR460
-* test "tahoe list-aliases --readonly-uri" #2863 PR403
+* use secure mkstemp() `PR460`_
+* test "tahoe list-aliases --readonly-uri" #2863 `PR403`_
 * #455: remove outdated comment
-* PR407 fix stopService calls
-* PR410 explicit python2.7 virtualenv
-* PR419 fix list of supported OSes
-* PR423 switch travis to a supported Ubuntu
+* `PR407`_ fix stopService calls
+* `PR410`_ explicit python2.7 virtualenv
+* `PR419`_ fix list of supported OSes
+* `PR423`_ switch travis to a supported Ubuntu
+
+
+
+.. _PR380: https://github.com/tahoe-lafs/tahoe-lafs/pull/380
+.. _PR400: https://github.com/tahoe-lafs/tahoe-lafs/pull/400
+.. _PR403: https://github.com/tahoe-lafs/tahoe-lafs/pull/403
+.. _PR405: https://github.com/tahoe-lafs/tahoe-lafs/pull/405
+.. _PR406: https://github.com/tahoe-lafs/tahoe-lafs/pull/406
+.. _PR407: https://github.com/tahoe-lafs/tahoe-lafs/pull/407
+.. _PR409: https://github.com/tahoe-lafs/tahoe-lafs/pull/409
+.. _PR410: https://github.com/tahoe-lafs/tahoe-lafs/pull/410
+.. _PR412: https://github.com/tahoe-lafs/tahoe-lafs/pull/412
+.. _PR414: https://github.com/tahoe-lafs/tahoe-lafs/pull/414
+.. _PR416: https://github.com/tahoe-lafs/tahoe-lafs/pull/416
+.. _PR417: https://github.com/tahoe-lafs/tahoe-lafs/pull/417
+.. _PR418: https://github.com/tahoe-lafs/tahoe-lafs/pull/418
+.. _PR419: https://github.com/tahoe-lafs/tahoe-lafs/pull/419
+.. _PR420: https://github.com/tahoe-lafs/tahoe-lafs/pull/420
+.. _PR421: https://github.com/tahoe-lafs/tahoe-lafs/pull/421
+.. _PR423: https://github.com/tahoe-lafs/tahoe-lafs/pull/423
+.. _PR428: https://github.com/tahoe-lafs/tahoe-lafs/pull/428
+.. _PR429: https://github.com/tahoe-lafs/tahoe-lafs/pull/429
+.. _PR430: https://github.com/tahoe-lafs/tahoe-lafs/pull/430
+.. _PR432: https://github.com/tahoe-lafs/tahoe-lafs/pull/432
+.. _PR433: https://github.com/tahoe-lafs/tahoe-lafs/pull/433
+.. _PR434: https://github.com/tahoe-lafs/tahoe-lafs/pull/434
+.. _PR437: https://github.com/tahoe-lafs/tahoe-lafs/pull/437
+.. _PR438: https://github.com/tahoe-lafs/tahoe-lafs/pull/438
+.. _PR440: https://github.com/tahoe-lafs/tahoe-lafs/pull/440
+.. _PR444: https://github.com/tahoe-lafs/tahoe-lafs/pull/444
+.. _PR445: https://github.com/tahoe-lafs/tahoe-lafs/pull/445
+.. _PR447: https://github.com/tahoe-lafs/tahoe-lafs/pull/447
+.. _PR448: https://github.com/tahoe-lafs/tahoe-lafs/pull/448
+.. _PR450: https://github.com/tahoe-lafs/tahoe-lafs/pull/450
+.. _PR452: https://github.com/tahoe-lafs/tahoe-lafs/pull/452
+.. _PR453: https://github.com/tahoe-lafs/tahoe-lafs/pull/453
+.. _PR454: https://github.com/tahoe-lafs/tahoe-lafs/pull/454
+.. _PR456: https://github.com/tahoe-lafs/tahoe-lafs/pull/456
+.. _PR457: https://github.com/tahoe-lafs/tahoe-lafs/pull/457
+.. _PR458: https://github.com/tahoe-lafs/tahoe-lafs/pull/458
+.. _PR460: https://github.com/tahoe-lafs/tahoe-lafs/pull/460
+.. _PR462: https://github.com/tahoe-lafs/tahoe-lafs/pull/462
+.. _PR464: https://github.com/tahoe-lafs/tahoe-lafs/pull/464
+.. _PR470: https://github.com/tahoe-lafs/tahoe-lafs/pull/470
+.. _PR472: https://github.com/tahoe-lafs/tahoe-lafs/pull/472
+.. _PR474: https://github.com/tahoe-lafs/tahoe-lafs/pull/474
+.. _PR482: https://github.com/tahoe-lafs/tahoe-lafs/pull/482
+.. _AnBuKu: https://github.com/AnBuKu
+.. _ValdikSS: https://github.com/ValdikSS
+.. _bookchin: https://github.com/bookchin
+.. _crwood: https://github.com/crwood
+.. _daira: https://github.com/daira
+.. _david415: https://github.com/david415
+.. _exarkun: https://github.com/exarkun
+.. _lpirl: https://github.com/lpirl
+.. _markberger: https://github.com/markberger
+.. _meejah: https://github.com/meejah
+.. _meskio: https://github.com/meskio
+.. _pataquets: https://github.com/pataquets
+.. _str4d: https://github.com/str4d
+.. _tpltnt: https://github.com/tpltnt
+.. _warner: https://github.com/warner
+
+
 
 
 Release 1.12.1 (18-Jan-2017)
