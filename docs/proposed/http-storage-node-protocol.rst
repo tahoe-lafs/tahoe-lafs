@@ -204,7 +204,7 @@ For example::
 
 Read data from the indicated bucket.
 The data is returned raw (i.e., ``application/octet-stream``).
-Range requests may be made to read only part of a bucket.
+*Range* requests may be made to read only part of a bucket.
 
 Slots
 -----
@@ -215,7 +215,7 @@ Writing
 ~~~~~~~
 
 ``POST /v1/slots/:storage_index``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 General purpose test-read-and-set operation for mutable slots.
 The request body includes the secrets necessary to write to the slot
@@ -263,6 +263,7 @@ Reading
 ~~~~~~~
 
 ``POST /v1/slots/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read a vector from the numbered shares associated with the given storage index.
 The request body contains the share numbers and read vector.
