@@ -270,7 +270,7 @@ For example::
 
   {
       "shares": [3, 5, 7],
-      "read-vector": ["offset": 3, "size": 12}, ...]
+      "read-vector": [{"offset": 3, "size": 12}, ...]
   }
 
 The response body contains a mapping giving the read data.
