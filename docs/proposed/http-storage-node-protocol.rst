@@ -214,7 +214,7 @@ Slots are mutable data.
 Writing
 ~~~~~~~
 
-``POST /v1/slot/:storage_index``
+``POST /v1/slots/:storage_index``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 General purpose test-read-and-set operation for mutable slots.
@@ -262,7 +262,7 @@ For example::
 Reading
 ~~~~~~~
 
-``POST /v1/slot/:storage_index``
+``POST /v1/slots/:storage_index``
 
 Read a vector from the numbered shares associated with the given storage index.
 The request body contains the share numbers and read vector.
