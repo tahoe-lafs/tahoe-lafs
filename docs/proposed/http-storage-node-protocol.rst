@@ -165,10 +165,6 @@ For example::
 The response body includes encoded information about the created buckets.
 For example::
 
-  .. XXX Share numbers are logically integers.
-     JSON cannot encode integer mapping keys.
-     So this is not valid JSON but you know what I mean.
-
   {"already-have": [1, ...], "allocated": [7, ...]}
 
 Discussion
