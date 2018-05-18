@@ -49,11 +49,17 @@ class AddOptions(BasedirOptions):
         self['name'] = unicode(args[0])
         try:
             # WTF?! why does it want 'str' and not six.text_type?
-            self['storage_public_key'] = keyutil.parse_public_key(args[1])
+            self['storage_public_key'] = keyutil.parse_pubkey(args[1])
         except Exception as e:
             raise usage.UsageError(
                 "Invalid public_key argument: {}".format(e)
             )
+
+
+class ListOptions(BasedirOptions):
+    description = (
+        "List all storage servers in this Grid Manager"
+    )
 
 
 class SignOptions(BasedirOptions):
@@ -75,6 +81,7 @@ class GridManagerOptions(BasedirOptions):
         ["create", None, CreateOptions, "Create a Grid Manager."],
         ["public-identity", None, ShowIdentityOptions, "Get the public-key for this Grid Manager."],
         ["add", None, AddOptions, "Add a storage server to this Grid Manager."],
+        ["list", None, ListOptions, "List all storage servers in this Grid Manager."],
         ["sign", None, SignOptions, "Create and sign a new Storage Certificate."],
     ]
 
@@ -107,8 +114,10 @@ def _create_gridmanager():
     }
 
 def _create(gridoptions, options):
+    """
+    Create a new Grid Manager
+    """
     gm_config = gridoptions['config']
-    assert gm_config is not None
 
     # pre-conditions check
     fp = None
@@ -123,19 +132,78 @@ def _create(gridoptions, options):
     _save_gridmanager_config(fp, gm)
 
 
+class _GridManager(object):
+    """
+    A Grid Manager's configuration.
+    """
+
+    def __init__(self, config, config_location):
+        if 'private_key' not in config:
+            raise RuntimeError(
+                "Grid Manager config from '{}' requires a 'private_key'".format(
+                    config_config
+                )
+            )
+
+        private_key_str = config['private_key']
+        try:
+            self._private_key_bytes = base32.a2b(private_key_str.encode('ascii'))
+            self._private_key = ed25519.SigningKey(self._private_key_bytes)
+        except Exception as e:
+            raise RuntimeError(
+                "Invalid Grid Manager private_key: {}".format(e)
+            )
+
+        gm_version = config.get('grid_manager_config_version', None)
+        if gm_version != 0:
+            raise RuntimeError(
+                "Missing or unknown version '{}' of Grid Manager config".format(
+                    gm_version
+                )
+            )
+        self._version = 0
+        self._storage_servers = dict()
+
+    @property
+    def storage_servers(self):
+        return self._storage_servers
+
+    def add_storage_server(self, name, public_key):
+        """
+        :param name: a user-meaningful name for the server
+        :param public_key: ed25519.VerifyingKey the public-key of the
+            storage provider (e.g. from the contents of node.pubkey
+            for the client)
+        """
+        if name in self._storage_servers:
+            raise KeyError(
+                "Already have a storage server called '{}'".format(name)
+            )
+        assert public_key.vk_bytes
+        self._storage_servers[name] = public_key
+
+    def marshal(self):
+        data = {
+            u"grid_manager_config_version": self._version,
+            u"private_key": base32.b2a(self._private_key.sk_and_vk[:32]),
+        }
+        if self._storage_servers:
+            data[u"storage_servers"] = {
+                name: base32.b2a(public_key.vk_bytes)
+                for name, public_key
+                in self._storage_servers.items()
+            }
+
+
 def _save_gridmanager_config(file_path, grid_manager):
     """
     Writes a Grid Manager configuration to the place specified by
     'file_path' (if None, stdout is used).
     """
-    # FIXME probably want a GridManagerConfig class or something with
-    # .save and .load instead of this crap
-    raw_data = {
-        k: v
-        for k, v in grid_manager.items()
-    }
-    raw_data['private_key'] = base32.b2a(raw_data['private_key'].sk_and_vk[:32])
-    data = json.dumps(raw_data, indent=4)
+    data = json.dumps(
+        grid_manager.marshal(),
+        indent=4,
+    )
 
     if file_path is None:
         print("{}\n".format(data))
@@ -167,30 +235,7 @@ def _load_gridmanager_config(gm_config):
         with fp.child("config.json").open("r") as f:
             gm = json.load(f)
 
-    if 'private_key' not in gm:
-        raise RuntimeError(
-            "Grid Manager config from '{}' requires a 'private_key'".format(
-                gm_config
-            )
-        )
-
-    private_key_str = gm['private_key']
-    try:
-        private_key_bytes = base32.a2b(private_key_str.encode('ascii'))  # WTF?! why is a2b requiring "str", not "unicode"?
-        gm['private_key'] = ed25519.SigningKey(private_key_bytes)
-    except Exception as e:
-        raise RuntimeError(
-            "Invalid Grid Manager private_key: {}".format(e)
-        )
-
-    gm_version = gm.get('grid_manager_config_version', None)
-    if gm_version != 0:
-        raise RuntimeError(
-            "Missing or unknown version '{}' of Grid Manager config".format(
-                gm_version
-            )
-        )
-    return gm
+    return _GridManager(gm, gm_config)
 
 
 def _show_identity(gridoptions, options):
@@ -210,18 +255,33 @@ def _add(gridoptions, options):
     Add a new storage-server by name to a Grid Manager
     """
     gm_config = gridoptions['config'].strip()
-    assert gm_config is not None
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
 
     gm = _load_gridmanager_config(gm_config)
-    if options['name'] in gm.get('storage_severs', set()):
+    try:
+        gm.add_storage_server(
+            options['name'],
+            options['storage_public_key'],
+        )
+    except KeyError:
         raise usage.UsageError(
             "A storage-server called '{}' already exists".format(options['name'])
         )
-    if 'storage_servers' not in gm:
-        gm['storage_servers'] = dict()
-    gm['storage_servers'][options['name']] = base32.b2a(options['storage_public_key'].vk_bytes)
+
     _save_gridmanager_config(fp, gm)
+
+
+def _list(gridoptions, options):
+    """
+    List all storage-servers known to a Grid Manager
+    """
+    gm_config = gridoptions['config'].strip()
+    fp = FilePath(gm_config) if gm_config.strip() != '-' else None
+
+    gm = _load_gridmanager_config(gm_config)
+    for name in sorted(gm.storage_servers.keys()):
+        key = "pub-v0-" + gm.storage_servers[name].vk_bytes
+        print("{}: {}".format(name, key))
 
 
 def _sign(gridoptions, options):
@@ -229,7 +289,6 @@ def _sign(gridoptions, options):
     sign a new certificate
     """
     gm_config = gridoptions['config'].strip()
-    assert gm_config is not None
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
     gm = _load_gridmanager_config(gm_config)
 
@@ -262,6 +321,7 @@ grid_manager_commands = {
     CreateOptions: _create,
     ShowIdentityOptions: _show_identity,
     AddOptions: _add,
+    ListOptions: _list,
     SignOptions: _sign,
 }
 
