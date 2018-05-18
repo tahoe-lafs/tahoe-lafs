@@ -28,7 +28,10 @@ class CreateOptions(BasedirOptions):
 
 class ShowIdentityOptions(BasedirOptions):
     description = (
-        "Create a new identity key and configuration of a Grid Manager"
+        "Show the public identity key of a Grid Manager\n"
+        "\n"
+        "This is what you give to clients to add to their configuration"
+        " so they use announcements from this Grid Manager"
     )
 
 
@@ -41,15 +44,15 @@ class AddOptions(BasedirOptions):
         BasedirOptions.parseArgs(self, **kw)
         if len(args) != 2:
             raise usage.UsageError(
-                "Requires two arguments: name pubkey"
+                "Requires two arguments: name public_key"
             )
         self['name'] = unicode(args[0])
         try:
             # WTF?! why does it want 'str' and not six.text_type?
-            self['storage_pubkey'] = keyutil.parse_pubkey(args[1])
+            self['storage_public_key'] = keyutil.parse_public_key(args[1])
         except Exception as e:
             raise usage.UsageError(
-                "Invalid pubkey argument: {}".format(e)
+                "Invalid public_key argument: {}".format(e)
             )
 
 
@@ -70,8 +73,8 @@ class SignOptions(BasedirOptions):
 class GridManagerOptions(BasedirOptions):
     subCommands = [
         ["create", None, CreateOptions, "Create a Grid Manager."],
-        ["show-identity", None, ShowIdentityOptions, "Show public-key for Grid Manager."],
-        ["add", None, AddOptions, "Add a storage server to a Grid Manager."],
+        ["public-identity", None, ShowIdentityOptions, "Get the public-key for this Grid Manager."],
+        ["add", None, AddOptions, "Add a storage server to this Grid Manager."],
         ["sign", None, SignOptions, "Create and sign a new Storage Certificate."],
     ]
 
@@ -86,16 +89,21 @@ class GridManagerOptions(BasedirOptions):
             raise usage.UsageError("Must supply configuration with --config")
 
     description = (
-        "A Grid Manager creates certificates for Storage Servers certifying "
-        "them for use by clients to upload shares to. Configuration may be "
-        "passed in on stdin or stored in a directory."
+        'A "grid-manager" consists of some data defining a keypair (along with '
+        'some other details) and Tahoe sub-commands to manipulate the data and '
+        'produce certificates to give to storage-servers. Certificates assert '
+        'the statement: "Grid Manager X suggests you use storage-server Y to '
+        'upload shares to" (X and Y are public-keys).'
+        '\n\n'
+        'Clients can use Grid Managers to decide which storage servers to '
+        'upload shares to.'
     )
 
 
 def _create_gridmanager():
     return {
         "grid_manager_config_version": 0,
-        "privkey": ed25519.SigningKey(os.urandom(32)),
+        "private_key": ed25519.SigningKey(os.urandom(32)),
     }
 
 def _create(gridoptions, options):
@@ -126,7 +134,7 @@ def _save_gridmanager_config(file_path, grid_manager):
         k: v
         for k, v in grid_manager.items()
     }
-    raw_data['privkey'] = base32.b2a(raw_data['privkey'].sk_and_vk[:32])
+    raw_data['private_key'] = base32.b2a(raw_data['private_key'].sk_and_vk[:32])
     data = json.dumps(raw_data, indent=4)
 
     if file_path is None:
@@ -159,20 +167,20 @@ def _load_gridmanager_config(gm_config):
         with fp.child("config.json").open("r") as f:
             gm = json.load(f)
 
-    if 'privkey' not in gm:
+    if 'private_key' not in gm:
         raise RuntimeError(
-            "Grid Manager config from '{}' requires a 'privkey'".format(
+            "Grid Manager config from '{}' requires a 'private_key'".format(
                 gm_config
             )
         )
 
-    privkey_str = gm['privkey']
+    private_key_str = gm['private_key']
     try:
-        privkey_bytes = base32.a2b(privkey_str.encode('ascii'))  # WTF?! why is a2b requiring "str", not "unicode"?
-        gm['privkey'] = ed25519.SigningKey(privkey_bytes)
+        private_key_bytes = base32.a2b(private_key_str.encode('ascii'))  # WTF?! why is a2b requiring "str", not "unicode"?
+        gm['private_key'] = ed25519.SigningKey(private_key_bytes)
     except Exception as e:
         raise RuntimeError(
-            "Invalid Grid Manager privkey: {}".format(e)
+            "Invalid Grid Manager private_key: {}".format(e)
         )
 
     gm_version = gm.get('grid_manager_config_version', None)
@@ -193,7 +201,7 @@ def _show_identity(gridoptions, options):
     assert gm_config is not None
 
     gm = _load_gridmanager_config(gm_config)
-    verify_key_bytes = gm['privkey'].get_verifying_key_bytes()
+    verify_key_bytes = gm['private_key'].get_verifying_key_bytes()
     print(base32.b2a(verify_key_bytes))
 
 
@@ -212,7 +220,7 @@ def _add(gridoptions, options):
         )
     if 'storage_servers' not in gm:
         gm['storage_servers'] = dict()
-    gm['storage_servers'][options['name']] = base32.b2a(options['storage_pubkey'].vk_bytes)
+    gm['storage_servers'][options['name']] = base32.b2a(options['storage_public_key'].vk_bytes)
     _save_gridmanager_config(fp, gm)
 
 
@@ -230,15 +238,15 @@ def _sign(gridoptions, options):
             "No storage-server called '{}' exists".format(options['name'])
         )
 
-    pubkey = gm['storage_servers'][options['name']]
+    public_key = gm['storage_servers'][options['name']]
     import time
     cert_info = {
         "expires": int(time.time() + 86400),  # XXX FIXME
-        "pubkey": pubkey,
+        "public_key": public_key,
         "version": 1,
     }
     cert_data = json.dumps(cert_info, separators=(',',':'), sort_keys=True)
-    sig = gm['privkey'].sign(cert_data)
+    sig = gm['private_key'].sign(cert_data)
     certificate = {
         "certificate": cert_data,
         "signature": base32.b2a(sig),
