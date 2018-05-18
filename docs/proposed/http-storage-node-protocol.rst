@@ -249,8 +249,8 @@ Writing
 Initialize a mutable storage index with some buckets.
 Essentially the same as the API for initializing an immutable storage index.
 
-``POST /v1/read-test-write/:storage_index``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``POST /v1/mutable/:storage_index/read-test-write``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 General purpose read-test-and-write operation for mutable storage indexes.
 The request body includes the secrets necessary to rewrite to the shares
