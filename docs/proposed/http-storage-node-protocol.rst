@@ -122,6 +122,9 @@ Server Details
 JSON is used throughout for the examples but is likely not the preferred encoding.
 The structure of the examples should nevertheless be representative.
 
+General
+~~~~~~~
+
 ``GET /v1/version``
 !!!!!!!!!!!!!!!!!!!
 
