@@ -72,6 +72,15 @@ Additionally,
 by continuing to interact using TLS,
 Bob's client and Alice's storage node are assured of the integrity of the communication.
 
+.. I think Foolscap TubIDs are 20 bytes and base32 encode to 32 bytes.
+   SPKI information discussed here is 32 bytes and base32 encodes to 52 bytes.
+   https://tools.ietf.org/html/rfc7515#appendix-C may prove a better choice for encoding the information into a fURL.
+   It will encode 32 bytes into merely 43...
+   We could also choose to reduce the hash size of the SPKI information through use of another cryptographic hash (replacing sha256).
+   A 224 bit hash function (SHA3-224, for example) might be suitable -
+   improving the encoded length to 38 bytes.
+
+
 Transition
 ~~~~~~~~~~
 
