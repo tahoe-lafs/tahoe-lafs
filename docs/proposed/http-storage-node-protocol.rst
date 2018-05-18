@@ -120,6 +120,7 @@ Server Details
 --------------
 
 ``GET /v1/version``
+!!!!!!!!!!!!!!!!!!!
 
 Retrieve information about the version of the storage server.
 Information is returned as an encoded mapping.
