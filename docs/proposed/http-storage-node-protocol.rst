@@ -219,22 +219,23 @@ For example::
 
   [1, 5]
 
-``GET /v1/immutable/:storage_index?share=s0&share=sN``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``GET /v1/immutable/:storage_index?share=:s0&share=:sN&offset=o1&size=z0&offset=oN&size=zN``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read data from the indicated shares.
-If no ``share`` query arguments are present,
-read data from all shares present.
-The data is returned in a multipart container.
-*Range* requests may be made to read only parts of the shares.
+Read data from the indicated immutable shares.
+If ``share`` query parameters are given, selecte only those shares for reading.
+Otherwise, select all shares present.
+If ``size`` and ``offset`` query parameters are given,
+only the portions thus identified of the selected shares are returned.
+Otherwise, all data is from the selected shares is returned.
 
-.. Blech, multipart!
-   We know the data size.
-   How about implicit size-based framing, instead?
-   Or frame it all in a CBOR array (drop *Range* and use query args!).
-   Maybe HTTP/2 server push is a better solution.
-   For example, request /shares and get a push of the first share with the result?
-   (Then request the rest, if you want, while reading the first.)
+The response body contains a mapping giving the read data.
+For example::
+
+  {
+      3: ["foo", "bar"],
+      7: ["baz", "quux"]
+  }
 
 Mutable
 -------
@@ -307,19 +308,8 @@ For example::
 ``GET /v1/mutable/:storage_index?share=:s0&share=:sN&offset=o1&size=z0&offset=oN&size=zN``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read some data from some shares associated with the given storage index.
-If ``share`` query parameters are given, only data from those shares is read.
-Otherwise, data from all shares is read.
-If ``size`` and ``offset`` query parameters are given,
-only the portions of the selected shares thus identified are returned.
-
-The response body contains a mapping giving the read data.
-For example::
-
-  {
-      3: ["foo", "bar"],
-      7: ["baz", "quux"]
-  }
+Read data from the indicated mutable shares.
+Just like ``GET /v1/mutable/:storage_index``.
 
 ``POST /v1/mutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
