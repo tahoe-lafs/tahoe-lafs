@@ -184,6 +184,7 @@ Each chunk can be *PUT* separately with the appropriate *Content-Range* headers.
 The server must recognize when all of the data has been received and mark the bucket as filled.
 Clients should upload chunks in re-assembly order.
 Servers may reject out-of-order chunks for implementation simplicity.
+If an individual *PUT* fails then only a limited amount of effort is wasted on the necessary retry.
 
 .. think about copying https://developers.google.com/drive/api/v2/resumable-upload
 
