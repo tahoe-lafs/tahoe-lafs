@@ -32,8 +32,8 @@ from a similar disadvantage.
 Grid Manager
 ------------
 
-A "grid-manager" consists of some data defining a keypair along with
-some other details and Tahoe sub-commands to manipulate the data and
+A "grid-manager" consists of some data defining a keypair (along with
+some other details) and Tahoe sub-commands to manipulate the data and
 produce certificates to give to storage-servers. Certificates assert
 the statement: "Grid Manager X suggests you use storage-server Y to
 upload shares to" (X and Y are public-keys). Such a certificate
@@ -45,8 +45,8 @@ consists of:
  - a signature of the above
 
 A client will always use any storage-server for downloads (expired
-certificate, or no certificate) because we check the ciphertext and
-re-assembled plaintext agains the keys in the capability;
+certificate, or no certificate) because clients check the ciphertext
+and re-assembled plaintext against the keys in the capability;
 "grid-manager" certificates only control uploads.
 
 
