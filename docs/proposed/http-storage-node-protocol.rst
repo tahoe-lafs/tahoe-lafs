@@ -119,6 +119,9 @@ This is left as a decision for the implementation, though.
 Server Details
 --------------
 
+JSON is used throughout for the examples but is likely not the preferred encoding.
+The structure of the examples should nevertheless be representative.
+
 ``GET /v1/version``
 !!!!!!!!!!!!!!!!!!!
 
@@ -139,19 +142,17 @@ For example::
     "application-version": "1.13.0"
     }
 
-
-Shares
-------
-
-Shares are immutable data stored in buckets.
+Immutable
+---------
 
 Writing
 ~~~~~~~
 
-``POST /v1/storage/:storage_index``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``POST /v1/immutable/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Create some new buckets in which to store some shares.
+Initialize an immutable storage index with some buckets.
+The buckets may have share data written to them once.
 Details of the buckets to create are encoded in the request body.
 For example::
 
@@ -161,85 +162,98 @@ For example::
 The response body includes encoded information about the created buckets.
 For example::
 
-  {"already_have": [1, ...], "allocated": {7: "bucket_id", ...}}
+  .. XXX Share numbers are logically integers.
+     JSON cannot encode integer mapping keys.
+     So this is not valid JSON but you know what I mean.
+
+  {"already_have": [1, ...], "allocated": [7, ...]}
 
 Discussion
 ``````````
 
-We considered making this ``POST /v1/storage`` instead.
+We considered making this ``POST /v1/immutable`` instead.
 The motivation was to keep *storage index* out of the request URL.
 Request URLs have an elevated chance of being logged by something.
 We were concerned that having the *storage index* logged may increase some risks.
 However, we decided this does not matter because the *storage index* can only be used to read the share (which is ciphertext).
 TODO Verify this conclusion.
 
-``PUT /v1/buckets/:bucket_id``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``PUT /v1/immutable/:storage_index/:share_num``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Write the share data to the indicated bucket.
+Write data for the indicated share.
+The share number must belong to the storage index.
 The request body is the raw share data (i.e., ``application/octet-stream``).
 *Content-Range* requests are encouraged for large transfers.
 For example,
 for a 1MiB share the data can be broken in to 8 128KiB chunks.
-Each chunk can be *PUT* separately with the appropriate *Content-Range* headers.
-The server must recognize when all of the data has been received and mark the bucket as filled.
+Each chunk can be *PUT* separately with the appropriate *Content-Range* header.
+The server must recognize when all of the data has been received and mark the share as complete
+(which it can do because it was informed of the size when the storage index was initialized).
 Clients should upload chunks in re-assembly order.
 Servers may reject out-of-order chunks for implementation simplicity.
 If an individual *PUT* fails then only a limited amount of effort is wasted on the necessary retry.
 
 .. think about copying https://developers.google.com/drive/api/v2/resumable-upload
 
-``POST /v1/buckets/:bucket_id/:share_number/corrupt``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``POST /v1/immutable/:storage_index/:share_number/corrupt``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Advise the server the share data read from the indicated bucket was corrupt.
+Advise the server the data read from the indicated share was corrupt.
 The request body includes an human-meaningful string with details about the corruption.
 It also includes potentially important details about the share.
 
 For example::
 
-  {"share_type": "mutable", "storage_index": "abcd",
-   "reason": "expected hash abcd, got hash efgh"}
+  {"reason": "expected hash abcd, got hash efgh"}
+
+.. share_type, storage_index, and share number are inferred from the URL
 
 Reading
 ~~~~~~~
 
-``GET /v1/storage/:storage_index``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``GET /v1/immutable/:storage_index/shares``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve a mapping describing buckets for the indicated storage index.
-The mapping is returned as an encoded structured object
-(JSON is used for the example here but is not necessarily the true encoding).
-The mapping has share numbers as keys and bucket identifiers as values.
+Retrieve a list indicating all shares available for the indicated storage index.
 For example::
 
-  .. XXX Share numbers are logically integers.
-     JSON cannot encode integer mapping keys.
-     So this is not valid JSON but you know what I mean.
+  [1, 5]
 
-  {0: "abcd", 1: "efgh"}
+``GET /v1/immutable/:storage_index?share=s0&share=sN``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-``GET /v1/buckets/:bucket_id``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Read data from the indicated shares.
+If no ``share`` query arguments are present,
+read data from all shares present.
+The data is returned in a multipart container.
+*Range* requests may be made to read only parts of the shares.
 
-Read data from the indicated bucket.
-The data is returned raw (i.e., ``application/octet-stream``).
-*Range* requests may be made to read only part of a bucket.
+.. Blech, multipart!
+   We know the data size.
+   How about implicit size-based framing, instead?
+   Maybe HTTP/2 server push is a better solution.
+   For example, request /shares and get a push of the first share with the result?
+   (Then request the rest, if you want, while reading the first.)
 
-Slots
------
-
-Slots are mutable data.
+Mutable
+-------
 
 Writing
 ~~~~~~~
 
-``POST /v1/slots/:storage_index``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``POST /v1/mutable/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-General purpose test-read-and-set operation for mutable slots.
-The request body includes the secrets necessary to write to the slot
-and the test, read, and write vectors for the operation.
+Initialize a mutable storage index with some buckets.
+Essentially the same as the API for initializing an immutable storage index.
+
+``POST /v1/read-test-write/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+General purpose read-test-and-write operation for mutable storage indexes.
+The request body includes the secrets necessary to rewrite to the shares
+along with test, read, and write vectors for the operation.
 For example::
 
    {
@@ -282,18 +296,15 @@ For example::
 Reading
 ~~~~~~~
 
-``POST /v1/slots/:storage_index``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``GET /v1/mutable/:storage_index?share=s0&share=sN``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Read mutable shares (like the immutable version).
+
+``GET /v1/mutable/:storage_index?share=:s1&share=:sN&offset=o1&size=z1&offset=oN&size=zN``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read a vector from the numbered shares associated with the given storage index.
-The request body contains the share numbers and read vector.
-For example::
-
-  {
-      "shares": [3, 5, 7],
-      "read-vector": [{"offset": 3, "size": 12}, ...]
-  }
-
 The response body contains a mapping giving the read data.
 For example::
 
@@ -301,7 +312,6 @@ For example::
       3: ["foo"],
       7: ["bar"]
   }
-
 
 .. _RFC 7469: https://tools.ietf.org/html/rfc7469#section-2.4
 
