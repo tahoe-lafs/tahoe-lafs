@@ -297,21 +297,29 @@ For example::
 Reading
 ~~~~~~~
 
-``GET /v1/mutable/:storage_index?share=s0&share=sN``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``GET /v1/mutable/:storage_index/shares``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read mutable shares (like the immutable version).
+Retrieve a list indicating all shares available for the indicated storage index.
+For example::
 
-``GET /v1/mutable/:storage_index?share=:s1&share=:sN&offset=o1&size=z1&offset=oN&size=zN``
+  [1, 5]
+
+``GET /v1/mutable/:storage_index?share=:s0&share=:sN&offset=o1&size=z0&offset=oN&size=zN``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read a vector from the numbered shares associated with the given storage index.
+Read some data from some shares associated with the given storage index.
+If ``share`` query parameters are given, only data from those shares is read.
+Otherwise, data from all shares is read.
+If ``size`` and ``offset`` query parameters are given,
+only the portions of the selected shares thus identified are returned.
+
 The response body contains a mapping giving the read data.
 For example::
 
   {
-      3: ["foo"],
-      7: ["bar"]
+      3: ["foo", "bar"],
+      7: ["baz", "quux"]
   }
 
 ``POST /v1/mutable/:storage_index/:share_number/corrupt``
