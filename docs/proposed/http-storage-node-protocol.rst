@@ -178,8 +178,8 @@ We were concerned that having the *storage index* logged may increase some risks
 However, we decided this does not matter because the *storage index* can only be used to read the share (which is ciphertext).
 TODO Verify this conclusion.
 
-``PUT /v1/immutable/:storage_index/:share_num``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``PUT /v1/immutable/:storage_index/:share_number``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Write data for the indicated share.
 The share number must belong to the storage index.
