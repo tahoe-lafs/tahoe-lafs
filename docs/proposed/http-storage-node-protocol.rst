@@ -314,6 +314,12 @@ For example::
       7: ["bar"]
   }
 
+``POST /v1/mutable/:storage_index/:share_number/corrupt``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Advise the server the data read from the indicated share was corrupt.
+Just like the immutable version.
+
 .. _RFC 7469: https://tools.ietf.org/html/rfc7469#section-2.4
 
 .. [#]
