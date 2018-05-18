@@ -309,11 +309,11 @@ For example::
     from hashlib import sha256
     from cryptography.hazmat.primitives.serialization import (
       Encoding,
-      SubjectPublicKeyInfo,
+      PublicFormat,
     )
     from foolscap import base32
 
-    spki_bytes = cert.public_key().public_bytes(DER, SubjectPublicKeyInfo)
+    spki_bytes = cert.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
     spki_sha256 = sha256(spki_bytes).digest()
     spki_digest32 = base32.encode(spki_sha256)
     assert spki_digest32 == tub_id
