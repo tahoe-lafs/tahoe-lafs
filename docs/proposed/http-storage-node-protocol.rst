@@ -232,6 +232,7 @@ The data is returned in a multipart container.
 .. Blech, multipart!
    We know the data size.
    How about implicit size-based framing, instead?
+   Or frame it all in a CBOR array (drop *Range* and use query args!).
    Maybe HTTP/2 server push is a better solution.
    For example, request /shares and get a push of the first share with the result?
    (Then request the rest, if you want, while reading the first.)
