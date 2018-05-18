@@ -156,8 +156,8 @@ The buckets may have share data written to them once.
 Details of the buckets to create are encoded in the request body.
 For example::
 
-  {"renew_secret": "efgh", "cancel_secret": "ijkl",
-   "sharenums": [1, 7, ...], "allocated_size": 12345}
+  {"renew-secret": "efgh", "cancel-secret": "ijkl",
+   "share-numbers": [1, 7, ...], "allocated-size": 12345}
 
 The response body includes encoded information about the created buckets.
 For example::
@@ -166,7 +166,7 @@ For example::
      JSON cannot encode integer mapping keys.
      So this is not valid JSON but you know what I mean.
 
-  {"already_have": [1, ...], "allocated": [7, ...]}
+  {"already-have": [1, ...], "allocated": [7, ...]}
 
 Discussion
 ``````````
@@ -207,7 +207,7 @@ For example::
 
   {"reason": "expected hash abcd, got hash efgh"}
 
-.. share_type, storage_index, and share number are inferred from the URL
+.. share-type, storage-index, and share-number are inferred from the URL
 
 Reading
 ~~~~~~~
