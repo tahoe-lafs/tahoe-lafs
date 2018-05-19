@@ -176,6 +176,10 @@ class _GridManager(object):
     def storage_servers(self):
         return self._storage_servers
 
+    def public_identity(self):
+        verify_key_bytes = self._private_key.get_verifying_key_bytes()
+        return base32.b2a(verify_key_bytes)
+
     def sign(self, name):
         try:
             public_key = self._storage_servers[name]
@@ -274,8 +278,7 @@ def _show_identity(gridoptions, options):
     assert gm_config is not None
 
     gm = _load_gridmanager_config(gm_config)
-    verify_key_bytes = gm['private_key'].get_verifying_key_bytes()
-    print(base32.b2a(verify_key_bytes))
+    print(gm.public_identity())
 
 
 def _add(gridoptions, options):
