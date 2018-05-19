@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+import time
 
 from pycryptopp.publickey import ed25519  # perhaps NaCl instead? other code uses this though
 
@@ -108,10 +109,7 @@ class GridManagerOptions(BasedirOptions):
 
 
 def _create_gridmanager():
-    return {
-        "grid_manager_config_version": 0,
-        "private_key": ed25519.SigningKey(os.urandom(32)),
-    }
+    return _GridManager(ed25519.SigningKey(os.urandom(32)), {})
 
 def _create(gridoptions, options):
     """
@@ -137,9 +135,10 @@ class _GridManager(object):
     A Grid Manager's configuration.
     """
 
-    def __init__(self, config, config_location):
+    @staticmethod
+    def from_config(config, config_location):
         if 'private_key' not in config:
-            raise RuntimeError(
+            raise ValueError(
                 "Grid Manager config from '{}' requires a 'private_key'".format(
                     config_config
                 )
@@ -147,26 +146,55 @@ class _GridManager(object):
 
         private_key_str = config['private_key']
         try:
-            self._private_key_bytes = base32.a2b(private_key_str.encode('ascii'))
-            self._private_key = ed25519.SigningKey(self._private_key_bytes)
+            private_key_bytes = base32.a2b(private_key_str.encode('ascii'))
+            private_key = ed25519.SigningKey(private_key_bytes)
         except Exception as e:
-            raise RuntimeError(
+            raise ValueError(
                 "Invalid Grid Manager private_key: {}".format(e)
             )
 
-        gm_version = config.get('grid_manager_config_version', None)
+        storage_servers = dict()
+        for name, pubkey in config.get(u'storage_servers', {}).items():
+            pubkey_bytes = base32.a2b(pubkey.encode('ascii'))
+            storage_servers[name] = ed25519.VerifyingKey(pubkey_bytes)
+
+        gm_version = config.get(u'grid_manager_config_version', None)
         if gm_version != 0:
-            raise RuntimeError(
+            raise ValueError(
                 "Missing or unknown version '{}' of Grid Manager config".format(
                     gm_version
                 )
             )
+        return _GridManager(private_key, storage_servers)
+
+    def __init__(self, private_key, storage_servers):
+        self._storage_servers = dict() if storage_servers is None else storage_servers
+        self._private_key = private_key
         self._version = 0
-        self._storage_servers = dict()
 
     @property
     def storage_servers(self):
         return self._storage_servers
+
+    def sign(self, name):
+        try:
+            public_key = self._storage_servers[name]
+        except KeyError:
+            raise KeyError(
+                u"No storage server named '{}'".format(name)
+            )
+        cert_info = {
+            "expires": int(time.time() + 86400),  # XXX FIXME
+            "public_key": base32.b2a(public_key.vk_bytes),
+            "version": 1,
+        }
+        cert_data = json.dumps(cert_info, separators=(',',':'), sort_keys=True)
+        sig = self._private_key.sign(cert_data)
+        certificate = {
+            u"certificate": cert_data,
+            u"signature": base32.b2a(sig),
+        }
+        return certificate
 
     def add_storage_server(self, name, public_key):
         """
@@ -193,6 +221,7 @@ class _GridManager(object):
                 for name, public_key
                 in self._storage_servers.items()
             }
+        return data
 
 
 def _save_gridmanager_config(file_path, grid_manager):
@@ -211,7 +240,6 @@ def _save_gridmanager_config(file_path, grid_manager):
         fileutil.make_dirs(file_path.path, mode=0o700)
         with file_path.child("config.json").open("w") as f:
             f.write("{}\n".format(data))
-    return 0
 
 
 # XXX should take a FilePath or None
@@ -235,7 +263,7 @@ def _load_gridmanager_config(gm_config):
         with fp.child("config.json").open("r") as f:
             gm = json.load(f)
 
-    return _GridManager(gm, gm_config)
+    return _GridManager.from_config(gm, gm_config)
 
 
 def _show_identity(gridoptions, options):
@@ -269,6 +297,7 @@ def _add(gridoptions, options):
         )
 
     _save_gridmanager_config(fp, gm)
+    return 0
 
 
 def _list(gridoptions, options):
@@ -280,7 +309,7 @@ def _list(gridoptions, options):
 
     gm = _load_gridmanager_config(gm_config)
     for name in sorted(gm.storage_servers.keys()):
-        key = "pub-v0-" + gm.storage_servers[name].vk_bytes
+        key = "pub-v0-" + base32.b2a(gm.storage_servers[name].vk_bytes)
         print("{}: {}".format(name, key))
 
 
@@ -292,24 +321,13 @@ def _sign(gridoptions, options):
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
     gm = _load_gridmanager_config(gm_config)
 
-    if options['name'] not in gm.get('storage_servers', dict()):
+    try:
+        certificate = gm.sign(options['name'])
+    except KeyError:
         raise usage.UsageError(
             "No storage-server called '{}' exists".format(options['name'])
         )
 
-    public_key = gm['storage_servers'][options['name']]
-    import time
-    cert_info = {
-        "expires": int(time.time() + 86400),  # XXX FIXME
-        "public_key": public_key,
-        "version": 1,
-    }
-    cert_data = json.dumps(cert_info, separators=(',',':'), sort_keys=True)
-    sig = gm['private_key'].sign(cert_data)
-    certificate = {
-        "certificate": cert_data,
-        "signature": base32.b2a(sig),
-    }
     certificate_data = json.dumps(certificate, indent=4)
     print(certificate_data)
     if fp is not None:
