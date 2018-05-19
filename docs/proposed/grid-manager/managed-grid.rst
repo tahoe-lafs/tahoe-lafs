@@ -127,8 +127,7 @@ somewhere, that is up to you).
 This command creates a new "version 1" certificate for a
 storage-server (identified by its public key). The new certificate is
 printed to stdout. If you stored the config on disk, the new
-certificate will (also) be in a file named like
-``pub-v0-kioayfth3g7zaitcskln64ddx7tkd6xoe7dbr62uogmlwxtxudpq.cert``.
+certificate will (also) be in a file named like ``alice.cert.0``.
 
 
 Enrolling a Storage Server
