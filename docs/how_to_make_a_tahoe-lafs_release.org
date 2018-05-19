@@ -23,7 +23,7 @@
 
   - [ ] code passes all checks / tests (i.e. all CI is green)
   - [ ] documentation is ready (see above)
-  - [ ] git tag -s -u 0xBDE0D31D68666A7A -m "release Tahoe-LAFS-X.Y.Z" tahoe-lafs-X.Y.Z
+  - [ ] git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-X.Y.Z" tahoe-lafs-X.Y.Z
   - [ ] build code locally:
      tox -e py27,codechecks,coverage,deprecations,docs,integration,upcoming-deprecations
   - [ ] release version is reporting itself as intended version
@@ -39,7 +39,7 @@
   - [ ] downloaded upstream tarballs+wheels
   - [ ] announce on IRC that master is unlocked
   - [ ] compared upstream tarballs+wheels against local copies
-  - [ ] signed each upstream artifacts with "gpg -ba -u 0xBDE0D31D68666A7A FILE"
+  - [ ] signed each upstream artifacts with "gpg -ba -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A FILE"
   - [ ] added to relnotes.txt: [0/3]
     - [ ] prefix with SHA256 of tarballs
     - [ ] release pubkey
