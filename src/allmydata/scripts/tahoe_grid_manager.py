@@ -3,10 +3,12 @@ import os
 import sys
 import json
 import time
+from datetime import datetime
 
 from pycryptopp.publickey import ed25519  # perhaps NaCl instead? other code uses this though
 
 from allmydata.scripts.common import BasedirOptions
+from allmydata.util.abbreviate import abbreviate_time
 from twisted.scripts import twistd
 from twisted.python import usage
 from twisted.python.reflect import namedAny
@@ -130,6 +132,25 @@ def _create(gridoptions, options):
     _save_gridmanager_config(fp, gm)
 
 
+class _GridManagerStorageServer(object):
+    """
+    A Grid Manager's notion of a storage server
+    """
+
+    def __init__(self, name, public_key, certificates):
+        self.name = name
+        self._public_key = public_key
+        self._certificates = [] if certificates is None else certificates
+
+    def add_certificate(self, certificate):
+        self._certificates.append(certificate)
+
+    def public_key(self):
+        return "pub-v0-" + base32.b2a(self._public_key.vk_bytes)
+
+    def marshal(self):
+        pass
+
 class _GridManager(object):
     """
     A Grid Manager's configuration.
@@ -156,7 +177,9 @@ class _GridManager(object):
         storage_servers = dict()
         for name, pubkey in config.get(u'storage_servers', {}).items():
             pubkey_bytes = base32.a2b(pubkey.encode('ascii'))
-            storage_servers[name] = ed25519.VerifyingKey(pubkey_bytes)
+            storage_servers[name] = _GridManagerStorageServer(
+                name, ed25519.VerifyingKey(pubkey_bytes), None
+            )
 
         gm_version = config.get(u'grid_manager_config_version', None)
         if gm_version != 0:
@@ -182,14 +205,14 @@ class _GridManager(object):
 
     def sign(self, name):
         try:
-            public_key = self._storage_servers[name]
+            srv = self._storage_servers[name]
         except KeyError:
             raise KeyError(
                 u"No storage server named '{}'".format(name)
             )
         cert_info = {
             "expires": int(time.time() + 86400),  # XXX FIXME
-            "public_key": base32.b2a(public_key.vk_bytes),
+            "public_key": srv.public_key(),
             "version": 1,
         }
         cert_data = json.dumps(cert_info, separators=(',',':'), sort_keys=True)
@@ -212,7 +235,9 @@ class _GridManager(object):
                 "Already have a storage server called '{}'".format(name)
             )
         assert public_key.vk_bytes
-        self._storage_servers[name] = public_key
+        ss = _GridManagerStorageServer(name, public_key, None)
+        self._storage_servers[name] = ss
+        return ss
 
     def marshal(self):
         data = {
@@ -221,8 +246,8 @@ class _GridManager(object):
         }
         if self._storage_servers:
             data[u"storage_servers"] = {
-                name: base32.b2a(public_key.vk_bytes)
-                for name, public_key
+                name: srv.marshal()
+                for name, srv
                 in self._storage_servers.items()
             }
         return data
@@ -312,8 +337,20 @@ def _list(gridoptions, options):
 
     gm = _load_gridmanager_config(gm_config)
     for name in sorted(gm.storage_servers.keys()):
-        key = "pub-v0-" + base32.b2a(gm.storage_servers[name].vk_bytes)
-        print("{}: {}".format(name, key))
+        print("{}: {}".format(name, gm.storage_servers[name].public_key()))
+        if fp:
+            cert_count = 0
+            while fp.child('{}.cert.{}'.format(name, cert_count)).exists():
+                container = json.load(fp.child('{}.cert.{}'.format(name, cert_count)).open('r'))
+                cert_data = json.loads(container['certificate'])
+                expires = datetime.fromtimestamp(cert_data['expires'])
+                delta = datetime.utcnow() - expires
+                if delta.total_seconds() < 0:
+                    print("  {}: valid until {} ({})".format(cert_count, expires, abbreviate_time(delta)))
+                else:
+                    print("  {}: expired ({})".format(cert_count, abbreviate_time(delta)))
+                cert_count += 1
+            certs = ' ({} certificates)'.format(cert_count)
 
 
 def _sign(gridoptions, options):
@@ -334,7 +371,11 @@ def _sign(gridoptions, options):
     certificate_data = json.dumps(certificate, indent=4)
     print(certificate_data)
     if fp is not None:
-        with fp.child('{}.cert'.format(options['name'])).open('w') as f:
+        next_serial = 0
+        p = fp.child('{}.cert'.format(options['name'])).path
+        while fp.child("{}.cert.{}".format(options['name'], next_serial)).exists():
+            next_serial += 1
+        with fp.child('{}.cert.{}'.format(options['name'], next_serial)).open('w') as f:
             f.write(certificate_data)
 
 
