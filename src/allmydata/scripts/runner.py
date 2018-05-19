@@ -176,7 +176,13 @@ def dispatch(config,
     # 4: return a Deferred that does 1 or 2 or 3
     def _raise_sys_exit(rc):
         sys.exit(rc)
+
+    def _error(f):
+        f.trap(usage.UsageError)
+        print("Error: {}".format(f.value.message))
+        sys.exit(1)
     d.addCallback(_raise_sys_exit)
+    d.addErrback(_error)
     return d
 
 def run():
