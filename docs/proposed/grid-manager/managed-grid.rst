@@ -82,8 +82,8 @@ directory specified by the ``--config`` option. It is an error if the
 directory already exists.
 
 
-tahoe grid-manager show-identity
-````````````````````````````````
+tahoe grid-manager public-identity
+``````````````````````````````````
 
 Print out a grid-manager's public key. This key is derived from the
 private-key of the grid-manager, so a valid grid-manager config must
@@ -103,6 +103,13 @@ file in the storage-server's node directory (with no whitespace).
 This adds a new storage-server to a Grid Manager's
 configuration. (Since it mutates the configuration, if you used
 ``--config -`` the new configuration will be printed to stdout).
+
+
+tahoe grid-manager list
+```````````````````````
+
+Lists all storage-servers that have previously been added using
+``tahoe grid-manager add``.
 
 
 tahoe grid-manager sign
