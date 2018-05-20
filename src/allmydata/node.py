@@ -146,7 +146,7 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
     except EnvironmentError:
         if os.path.exists(config_fname):
             raise
-        configutil.validate_config(config_fname, parser, _valid_config_sections())
+    configutil.validate_config(config_fname, parser, _valid_config_sections())
     return _Config(parser, portnumfile, config_fname)
 
 

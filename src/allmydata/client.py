@@ -72,6 +72,7 @@ def _valid_config_sections():
             "expire.override_lease_duration",
             "readonly",
             "reserved_space",
+            "storage_dir",
         ),
         "sftpd": (
             "accounts.file",
