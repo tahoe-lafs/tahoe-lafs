@@ -1,4 +1,8 @@
-import os, stat, time, weakref
+import os
+import stat
+import time
+import weakref
+import json
 from allmydata import node
 from base64 import urlsafe_b64encode
 
@@ -389,23 +393,55 @@ class _Client(node.Node, pollmixin.PollMixin):
             sharetypes.append("mutable")
         expiration_sharetypes = tuple(sharetypes)
 
-        ss = StorageServer(storedir, self.nodeid,
-                           reserved_space=reserved,
-                           discard_storage=discard,
-                           readonly_storage=readonly,
-                           stats_provider=self.stats_provider,
-                           expiration_enabled=expire,
-                           expiration_mode=mode,
-                           expiration_override_lease_duration=o_l_d,
-                           expiration_cutoff_date=cutoff_date,
-                           expiration_sharetypes=expiration_sharetypes)
+        ss = StorageServer(
+            storedir,
+            self.nodeid,
+            reserved_space=reserved,
+            discard_storage=discard,
+            readonly_storage=readonly,
+            stats_provider=self.stats_provider,
+            expiration_enabled=expire,
+            expiration_mode=mode,
+            expiration_override_lease_duration=o_l_d,
+            expiration_cutoff_date=cutoff_date,
+            expiration_sharetypes=expiration_sharetypes,
+        )
         self.add_service(ss)
+
+        grid_manager_certificates = []
+        cert_fnames = self.get_config("storage", "grid_manager_certificate_files", "")
+        for fname in cert_fnames.split():
+            fname = abspath_expanduser_unicode(fname.decode('ascii'), base=self.basedir)
+            if not os.path.exists(fname):
+                raise ValueError(
+                    "Grid Manager certificate file '{}' doesn't exist".format(
+                        fname
+                    )
+                )
+            with open(fname, 'r') as f:
+                cert = json.load(f)
+            if set(cert.keys()) != {"certificate", "signature"}:
+                raise ValueError(
+                    "Unknown key in Grid Manager certificate '{}'".format(
+                        fname
+                    )
+                )
+            grid_manager_certificates.append(cert)
+
+        # XXX we should probably verify that the certificates are
+        # valid and not expired, as that could be confusing for the
+        # storage-server operator -- but then we need the public key
+        # of the Grid Manager (should that go in the config too,
+        # then? How to handle multiple grid-managers?)
+
 
         furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
         furl = self.tub.registerReference(ss, furlFile=furl_file)
-        ann = {"anonymous-storage-FURL": furl,
-               "permutation-seed-base32": self._init_permutation_seed(ss),
-               }
+        ann = {
+            "anonymous-storage-FURL": furl,
+            "permutation-seed-base32": self._init_permutation_seed(ss),
+            "grid-manager-certificates": grid_manager_certificates,
+        }
         for ic in self.introducer_clients:
             ic.publish("storage", ann, self._node_key)
 
