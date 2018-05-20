@@ -59,6 +59,20 @@ class AddOptions(BasedirOptions):
             )
 
 
+class RemoveOptions(BasedirOptions):
+    description = (
+        "Remove a storage-server from a Grid Manager configuration"
+    )
+
+    def parseArgs(self, *args, **kw):
+        BasedirOptions.parseArgs(self, **kw)
+        if len(args) != 1:
+            raise usage.UsageError(
+                "Requires one arguments: name"
+            )
+        self['name'] = unicode(args[0])
+
+
 class ListOptions(BasedirOptions):
     description = (
         "List all storage servers in this Grid Manager"
@@ -84,6 +98,7 @@ class GridManagerOptions(BasedirOptions):
         ["create", None, CreateOptions, "Create a Grid Manager."],
         ["public-identity", None, ShowIdentityOptions, "Get the public-key for this Grid Manager."],
         ["add", None, AddOptions, "Add a storage server to this Grid Manager."],
+        ["remove", None, RemoveOptions, "Remove a storage server from this Grid Manager."],
         ["list", None, ListOptions, "List all storage servers in this Grid Manager."],
         ["sign", None, SignOptions, "Create and sign a new Storage Certificate."],
     ]
@@ -149,7 +164,9 @@ class _GridManagerStorageServer(object):
         return "pub-v0-" + base32.b2a(self._public_key.vk_bytes)
 
     def marshal(self):
-        pass
+        return {
+            u"public_key": self.public_key(),
+        }
 
 class _GridManager(object):
     """
@@ -175,10 +192,15 @@ class _GridManager(object):
             )
 
         storage_servers = dict()
-        for name, pubkey in config.get(u'storage_servers', {}).items():
-            pubkey_bytes = base32.a2b(pubkey.encode('ascii'))
+        for name, srv_config in config.get(u'storage_servers', {}).items():
+            if not 'public_key' in srv_config:
+                raise ValueError(
+                    "No 'public_key' for storage server '{}'".format(name)
+                )
             storage_servers[name] = _GridManagerStorageServer(
-                name, ed25519.VerifyingKey(pubkey_bytes), None
+                name,
+                keyutil.parse_pubkey(srv_config['public_key'].encode('ascii')),
+                None,
             )
 
         gm_version = config.get(u'grid_manager_config_version', None)
@@ -238,6 +260,17 @@ class _GridManager(object):
         ss = _GridManagerStorageServer(name, public_key, None)
         self._storage_servers[name] = ss
         return ss
+
+    def remove_storage_server(self, name):
+        """
+        :param name: a user-meaningful name for the server
+        """
+        try:
+            del self._storage_servers[name]
+        except KeyError:
+            raise KeyError(
+                "No storage server called '{}'".format(name)
+            )
 
     def marshal(self):
         data = {
@@ -328,6 +361,29 @@ def _add(gridoptions, options):
     return 0
 
 
+def _remove(gridoptions, options):
+    """
+    Remove an existing storage-server by name from a Grid Manager
+    """
+    gm_config = gridoptions['config'].strip()
+    fp = FilePath(gm_config) if gm_config.strip() != '-' else None
+    gm = _load_gridmanager_config(gm_config)
+
+    try:
+        gm.remove_storage_server(options['name'])
+    except KeyError:
+        raise usage.UsageError(
+            "No storage-server called '{}' exists".format(options['name'])
+        )
+    cert_count = 0
+    while fp.child('{}.cert.{}'.format(options['name'], cert_count)).exists():
+        fp.child('{}.cert.{}'.format(options['name'], cert_count)).remove()
+        cert_count += 1
+
+    _save_gridmanager_config(fp, gm)
+    return 0
+
+
 def _list(gridoptions, options):
     """
     List all storage-servers known to a Grid Manager
@@ -383,6 +439,7 @@ grid_manager_commands = {
     CreateOptions: _create,
     ShowIdentityOptions: _show_identity,
     AddOptions: _add,
+    RemoveOptions: _remove,
     ListOptions: _list,
     SignOptions: _sign,
 }
