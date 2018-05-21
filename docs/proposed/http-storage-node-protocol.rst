@@ -74,11 +74,12 @@ The SPKI hash will constitute the storage node's identity.
 When connecting to a storage node,
 the client will take the following steps to gain confidence it has reached the intended peer:
 
-* It will perform the usual cryptographic verification of the certificate presented by the storage server
-  (that is,
-  that the certificate itself is well-formed
+* It will perform the usual cryptographic verification of the certificate presented by the storage server.
+  That is,
+  it will check that the certificate itself is well-formed,
+  that it is currently valid [#]_,
   and that the signature it carries is valid.
-* It will compare the SPKI hashof the certificate to the expected value.
+* It will compare the SPKI hash of the certificate to the expected value.
   The specifics of the comparison are the same as for the comparison specified by `RFC 7469`_ with "sha256" [#]_.
 
 To further clarify, consider this example.
@@ -117,32 +118,25 @@ Bob's client and Alice's storage node are assured of both **message authenticati
 Transition
 ~~~~~~~~~~
 
-Storage nodes already possess an x509 certificate.
-This is used with Foolscap to provide the same security properties described in the above requirements section.
+To provide a seamless user experience during this protocol transition,
+there should be a period during which both protocols are supported by storage nodes.
+The HTTP protocol announcement will be introduced in a way that updated client software can recognize.
+Its introduction will also be made in such a way that non-updated client software disregards the new information
+(of which it cannot make any use).
 
-* The certificate is self-signed.
-  This remains the same.
-* The certificate has a ``commonName`` of "newpb_thingy".
-  This is not harmful to the new protocol.
-* The validity of the certificate is determined by checking the certificate digest against a value carried in the fURL.
-  Only a correctly signed certificate with a matching digest is accepted.
-  This validation will be replaced with an SPKI hash comparison.
-  This introduces a difference from the Foolscap protocol:
-  it allows the generation and use of new certificates using the same key pair.
-  This does not seem likely to pose any new risks.
-  On the contrary,
-  it may remove certain risks by allowing certificate renewal at certificate expiration time.
-  This will allow the certificate validation code to be simplified somewhat
-  (compared to the current implementation which must make an exception for validity-period-related validation errors).
+Therefore, concurrent with the following, storage nodes will continue to operate their Foolscap server unaltered compared to their previous behavior.
 
-A mixed-protocol storage node should:
+Storage nodes will begin to operate a new HTTP-based server.
+They may re-use their existing x509 certificate or generate a new one.
+Generation of a new certificate allows for certain non-optimal conditions to be address::
+* The ``commonName`` of ``newpb_thingy`` may be changed to a more descriptive value.
+* A ``notValidAfter`` field with a timestamp in the past may be updated.
 
-* Start the Foolscap server as it has always done.
-* Start a TLS server dispatching to an HTTP server.
+Storage nodes will announce a new fURL for this new HTTP-based server.
+This fURL will be announced alongside their existing Foolscap-based server's fURL.
 
-  * Use the same certificate as the Foolscap server uses.
-  * Announce both its Foolscap fURL and its HTTP fURL.
-  * Accept anonymous client connections.
+Non-updated clients will see the Foolscap fURL and continue with their current behavior.
+Updated clients will see the Foolscap fURL *and* the HTTP fURL and prefer the HTTP fURL.
 
 A mixed-protocol client node should:
 
@@ -359,6 +353,23 @@ Advise the server the data read from the indicated share was corrupt.
 Just like the immutable version.
 
 .. _RFC 7469: https://tools.ietf.org/html/rfc7469#section-2.4
+
+.. [#]
+   The security value of checking ``notValidBefore`` and ``notValidAfter`` is not entirely clear.
+   There is an argument to make that letting an existing TLS implementation which wants to make these checks just make them reduces overall complexity
+   (and, at least in general, reducing complexity is good for security).
+   On the other hand, checking the validity time period forces certificate regeneration.
+   A possible compromise is to recommend very long-lived certificates
+   (many years, perhaps many decades?).
+   "Recommend" may be read as "provide software encouraging the generation of".
+   But what about key theft?
+   If certificates are valid for years then a successful attacker can pretend to be a valid storage node for years.
+   An introducer *might* eventually recognize such a node as an attacker and blacklist their announcements...
+   It's likely not all clients configured to use compromised storage server identities will be updated
+   (if only because there are many of them
+   but possibly also because there is no automatic mechanism for fixing this state).
+   Such clients may go on placing shares on an attacker's storage server for a long time.
+   Would short-validity-period certificates with automatic certificate renewal not be better?
 
 .. [#]
    More simply::
