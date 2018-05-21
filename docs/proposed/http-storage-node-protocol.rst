@@ -20,7 +20,7 @@ Requirements
 
 A client node relies on a storage node to persist certain data until a future retrieval request is made.
 In this way, the node is vulnerable to attacks which cause the data not to be persisted.
-Though this vulnerability can be mitigated by including redundancy in the share encoding parameters for stored data,
+Though this vulnerability can be (and typically is) mitigated by including redundancy in the share encoding parameters for stored data,
 it is still sensible to attempt to minimize unnecessary vulnerability to this attack.
 
 One way to do this is for the client to be confident it the storage node with which it is communicating is really the expected node
