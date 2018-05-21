@@ -141,6 +141,7 @@ A mixed-protocol storage node should:
 * Start a TLS server dispatching to an HTTP server.
 
   * Use the same certificate as the Foolscap server uses.
+  * Announce both its Foolscap fURL and its HTTP fURL.
   * Accept anonymous client connections.
 
 A mixed-protocol client node should:
