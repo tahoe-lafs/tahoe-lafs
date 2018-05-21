@@ -23,7 +23,9 @@ In this way, the node is vulnerable to attacks which cause the data not to be pe
 Though this vulnerability can be mitigated by including redundancy in the share encoding parameters for stored data,
 it is still sensible to attempt to minimize unnecessary vulnerability to this attack.
 
-One way to do this is for the client to be confident it the storage node with which it is communicating is really the expected node.
+One way to do this is for the client to be confident it the storage node with which it is communicating is really the expected node
+(because this allows it to develop a notion of that node's reputation over time;
+the more retrieval requests it satisfies correctly the more it probably will).
 Therefore, the protocol must include some means for cryptographically verifying the identify of the storage node.
 The initialization of the client with the correct identity information is out of scope for this protocol
 (the system may be trust-on-first-use, there may be a third-party identity broker, etc).
