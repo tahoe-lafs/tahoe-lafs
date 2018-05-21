@@ -18,21 +18,48 @@ Security
 Requirements
 ~~~~~~~~~~~~
 
+Summary
+!!!!!!!
+
+An HTTP-based protocol should offer at minimum the security properties offered by the Foolscap-based protocol.
+The Foolscap-based protocol offers:
+
+* **Peer authentication** by way of checked x509 certificates
+* **Message authentication** by way of TLS
+* **Message confidentiality** by way of TLS
+
+  * A careful configuration of the TLS connection parameters *may* also offer **forward secrecy**.
+    However, Tahoe-LAFS' use of Foolscap takes no steps to ensure this is the case.
+
+Discussion
+!!!!!!!!!!
+
 A client node relies on a storage node to persist certain data until a future retrieval request is made.
 In this way, the node is vulnerable to attacks which cause the data not to be persisted.
 Though this vulnerability can be (and typically is) mitigated by including redundancy in the share encoding parameters for stored data,
 it is still sensible to attempt to minimize unnecessary vulnerability to this attack.
 
-One way to do this is for the client to be confident it the storage node with which it is communicating is really the expected node
-(because this allows it to develop a notion of that node's reputation over time;
-the more retrieval requests it satisfies correctly the more it probably will).
-Therefore, the protocol must include some means for cryptographically verifying the identify of the storage node.
+One way to do this is for the client to be confident the storage node with which it is communicating is really the expected node.
+That is, for the client to perform **peer authentication** of the storage node it connects to.
+This allows it to develop a notion of that node's reputation over time.
+The more retrieval requests the node satisfies correctly the more it probably will satisfy correctly.
+Therefore, the protocol must include some means for verifying the identify of the storage node.
 The initialization of the client with the correct identity information is out of scope for this protocol
 (the system may be trust-on-first-use, there may be a third-party identity broker, etc).
 
 With confidence that communication is proceeding with the intended storage node,
 it must also be possible to trust that data is exchanged without modification.
-That is, the protocol must include some means to cryptographically verify the integrity of exchanged messages.
+That is, the protocol must include some means to perform **message authentication**.
+This is most likely done using cryptographic MACs (such as those used in TLS).
+
+The messages which enable the mutable shares feature include secrets related to those shares.
+For example, the write enabler secret is used to restrict the parties with write access to mutable shares.
+It is exchanged over the network as part of a write operation.
+An attacker learning this secret and overwrite share data with garbage
+(lacking a separate encryption key,
+there is no way to write data which appears legitimate to a legitimate client).
+Therefore, **message confidentiality** is necessary when exchanging these secrets.
+**Forward security** is preferred so that an attacker recording an exchange today cannot launch this attack at some future point after compromising the necessary keys.
 
 Solutions
 ~~~~~~~~~
