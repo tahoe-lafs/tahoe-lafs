@@ -85,7 +85,7 @@ To further clarify, consider this example.
 Alice operates a storage node.
 Alice generates a key pair and secures it properly.
 Alice generates a self-signed storage node certificate with the key pair.
-Alice's storage node announces a fURL containing (among other information) the public key to an introducer.
+Alice's storage node announces (to an introducer) a fURL containing (among other information) the SPKI hash.
 For example, ``pb://i5xb...@example.com:443/g3m5...``.
 Bob creates a client node pointed at the same introducer.
 Bob's client node receives the announcement from Alice's storage node.
@@ -97,12 +97,15 @@ Bob's client node can determine whether it has reached Alice's storage node or n
 If and only if the SPKI hash matches the value in the published fURL
 (``i5xb...`` in this example)
 then Alice's storage node has been contacted.
+**Peer authentication** has been achieved.
 
 Additionally,
 by continuing to interact using TLS,
-Bob's client and Alice's storage node are assured of the integrity of the communication.
+Bob's client and Alice's storage node are assured of both **message authentication** and **message confidentiality**.
 
-.. I think Foolscap TubIDs are 20 bytes and base32 encode to 32 bytes.
+.. note::
+
+   I think Foolscap TubIDs are 20 bytes and base32 encode to 32 bytes.
    SPKI information discussed here is 32 bytes and base32 encodes to 52 bytes.
    https://tools.ietf.org/html/rfc7515#appendix-C may prove a better choice for encoding the information into a fURL.
    It will encode 32 bytes into merely 43...
