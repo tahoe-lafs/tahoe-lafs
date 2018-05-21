@@ -67,9 +67,9 @@ Solutions
 Communication with the storage node will take place using TLS.
 The TLS version and configuration will be dictated by an ongoing understanding of best practices.
 The only requirement is that the certificate have a valid signature.
-The storage node will publish the corresponding public key
+The storage node will publish the corresponding Subject Public Key Information hash (SPKI hash)
 (e.g., via an introducer).
-The public key will constitute the storage node's identity.
+The SPKI hash will constitute the storage node's identity.
 
 When connecting to a storage node,
 the client will take the following steps to gain confidence it has reached the intended peer:
@@ -78,7 +78,7 @@ the client will take the following steps to gain confidence it has reached the i
   (that is,
   that the certificate itself is well-formed
   and that the signature it carries is valid.
-* It will compare the hash of the public key of the certificate to the expected public key.
+* It will compare the SPKI hashof the certificate to the expected value.
   The specifics of the comparison are the same as for the comparison specified by `RFC 7469`_ with "sha256" [#]_.
 
 To further clarify, consider this example.
@@ -94,7 +94,7 @@ Bob's client node can now perform a TLS handshake with a server at the address i
 (``example.com:443`` in this example).
 Following the above described validation procedures,
 Bob's client node can determine whether it has reached Alice's storage node or not.
-If and only if the public key hash matches the value in the published fURL
+If and only if the SPKI hash matches the value in the published fURL
 (``i5xb...`` in this example)
 then Alice's storage node has been contacted.
 
@@ -123,7 +123,14 @@ This is used with Foolscap to provide the same security properties described in 
   This is not harmful to the new protocol.
 * The validity of the certificate is determined by checking the certificate digest against a value carried in the fURL.
   Only a correctly signed certificate with a matching digest is accepted.
-  This validation will be replaced with a public key hash comparison.
+  This validation will be replaced with an SPKI hash comparison.
+  This introduces a difference from the Foolscap protocol:
+  it allows the generation and use of new certificates using the same key pair.
+  This does not seem likely to pose any new risks.
+  On the contrary,
+  it may remove certain risks by allowing certificate renewal at certificate expiration time.
+  This will allow the certificate validation code to be simplified somewhat
+  (compared to the current implementation which must make an exception for validity-period-related validation errors).
 
 A mixed-protocol storage node should:
 
