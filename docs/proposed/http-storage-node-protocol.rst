@@ -1,7 +1,7 @@
 .. -*- coding: utf-8 -*-
 
-HTTP Storage Node Protocol ("Great Black Swamp", "GBS")
-=======================================================
+Storage Node Protocol ("Great Black Swamp", "GBS")
+==================================================
 
 The target audience for this document is Tahoe-LAFS developers.
 After reading this document,
@@ -9,9 +9,9 @@ one should expect to understand how Tahoe-LAFS clients interact over the network
 
 The primary goal of the introduction of this protocol is to simplify the task of implementing a Tahoe-LAFS storage server.
 Specifically, it should be possible to implement a Tahoe-LAFS storage server without a Foolscap implementation
-(substituting an HTTP server implementation).
-The Tahoe-LAFS client will also need to change but it is not expected that it will be noticably simplified by this change.
-
+(substituting a simpler GBS server implementation).
+The Tahoe-LAFS client will also need to change but it is not expected that it will be noticably simplified by this change
+(though this may be the first step towards simplifying it).
 
 Requirements
 ------------
@@ -22,7 +22,7 @@ Security
 Summary
 !!!!!!!
 
-An HTTP-based protocol should offer at minimum the security properties offered by the Foolscap-based protocol.
+The storage node protocol should offer at minimum the security properties offered by the Foolscap-based protocol.
 The Foolscap-based protocol offers:
 
 * **Peer authentication** by way of checked x509 certificates
