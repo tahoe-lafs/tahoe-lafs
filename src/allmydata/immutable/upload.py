@@ -398,7 +398,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # 0. Start with an ordered list of servers. Maybe *2N* of them.
         #
 
-        all_servers = storage_broker.get_servers_for_psi(storage_index)
+        all_servers = storage_broker.get_servers_for_psi(storage_index, for_upload=True)
         if not all_servers:
             raise NoServersError("client gave us zero servers")
 
