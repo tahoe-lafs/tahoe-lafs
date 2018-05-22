@@ -15,6 +15,7 @@ from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 from pycryptopp.publickey import rsa
+from pycryptopp.publickey import ed25519
 
 import allmydata
 from allmydata.storage.server import StorageServer
@@ -31,6 +32,7 @@ from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
+from allmydata.util.base32 import a2b, b2a
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
@@ -58,6 +60,7 @@ def _valid_config_sections():
             "shares.needed",
             "shares.total",
             "stats_gatherer.furl",
+            "grid_managers",
         ),
         "drop_upload": (  # deprecated already?
             "enabled",
@@ -380,10 +383,28 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
             **kwargs
         )
 
+    # grid manager setup
+
+    grid_manager_keys = []
+    gm_keydata = self.get_config('client', 'grid_manager_public_keys', '')
+    for gm_key in gm_keydata.strip().split():
+        grid_manager_keys.append(
+            keyutil.parse_pubkey(a2b(gm_key))
+        )
+
+    my_pubkey = keyutil.parse_pubkey(
+        self.get_config_from_file("node.pubkey")
+    )
+
+    # create the actual storage-broker
+    
     sb = storage_client.StorageFarmBroker(
         permute_peers=True,
         tub_maker=tub_creator,
         preferred_peers=preferred_peers,
+        grid_manager_keys=grid_manager_keys,
+        node_pubkey=my_pubkey,
+        
     )
     for ic in introducer_clients:
         sb.use_introducer(ic)
