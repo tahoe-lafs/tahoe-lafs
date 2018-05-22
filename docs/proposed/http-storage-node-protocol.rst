@@ -79,10 +79,10 @@ This protocol aims to satisfy the above requirements at a lower level of complex
 
 Communication with the storage node will take place using TLS.
 The TLS version and configuration will be dictated by an ongoing understanding of best practices.
-The only requirement is that the certificate have a valid signature.
-The storage node will publish the corresponding Subject Public Key Information hash (SPKI hash)
-(e.g., via an introducer).
-The SPKI hash will constitute the storage node's identity.
+The storage node will present an x509 certificate during the TLS handshake.
+Storage clients will require that the certificate have a valid signature.
+The Subject Public Key Information (SPKI) hash of the certificate will constitute the storage node's identity.
+The **tub id** portion of the storage node fURL will be replaced with the SPKI hash.
 
 When connecting to a storage node,
 the client will take the following steps to gain confidence it has reached the intended peer:
