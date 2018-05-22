@@ -281,12 +281,14 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         for petname, introducer in introducers.items():
             introducer_cache_filepath = FilePath(os.path.join(self.basedir, "private", "introducer_{}_cache.yaml".format(petname)))
-            ic = IntroducerClient(self.tub, introducer['furl'].encode("ascii"),
-                                  self.nickname,
-                                  str(allmydata.__full_version__),
-                                  str(self.OLDEST_SUPPORTED_VERSION),
-                                  self.get_app_versions(), self._sequencer,
-                                  introducer_cache_filepath)
+            ic = IntroducerClient(
+                self.tub, introducer['furl'].encode("ascii"),
+                self.nickname,
+                str(allmydata.__full_version__),
+                str(self.OLDEST_SUPPORTED_VERSION),
+                self.get_app_versions(), self._sequencer,
+                introducer_cache_filepath,
+            )
             self.introducer_clients.append(ic)
             self.introducer_furls.append(introducer['furl'])
             ic.setServiceParent(self)

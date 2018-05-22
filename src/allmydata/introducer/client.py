@@ -35,12 +35,13 @@ class IntroducerClient(service.Service, Referenceable):
         self._sequencer = sequencer
         self._cache_filepath = cache_filepath
 
-        self._my_subscriber_info = { "version": 0,
-                                     "nickname": self._nickname,
-                                     "app-versions": self._app_versions,
-                                     "my-version": self._my_version,
-                                     "oldest-supported": self._oldest_supported,
-                                     }
+        self._my_subscriber_info = {
+            "version": 0,
+            "nickname": self._nickname,
+            "app-versions": self._app_versions,
+            "my-version": self._my_version,
+            "oldest-supported": self._oldest_supported,
+        }
 
         self._outbound_announcements = {} # not signed
         self._published_announcements = {} # signed
