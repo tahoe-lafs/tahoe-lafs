@@ -62,6 +62,15 @@ there is no way to write data which appears legitimate to a legitimate client).
 Therefore, **message confidentiality** is necessary when exchanging these secrets.
 **Forward security** is preferred so that an attacker recording an exchange today cannot launch this attack at some future point after compromising the necessary keys.
 
+Functionality
+-------------
+
+Tahoe-LAFS application-level information must be transferred using this protocol.
+This information is exchanged with a dozen or so request/response-oriented messages.
+Some of these messages carry large binary payloads.
+Others are small structured-data messages.
+Some facility for expansion to support new information exchanges should also be present.
+
 Solutions
 ---------
 
