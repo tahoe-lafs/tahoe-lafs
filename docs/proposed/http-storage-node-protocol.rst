@@ -60,7 +60,7 @@ An attacker learning this secret can overwrite share data with garbage
 (lacking a separate encryption key,
 there is no way to write data which appears legitimate to a legitimate client).
 Therefore, **message confidentiality** is necessary when exchanging these secrets.
-**Forward security** is preferred so that an attacker recording an exchange today cannot launch this attack at some future point after compromising the necessary keys.
+**Forward secrecy** is preferred so that an attacker recording an exchange today cannot launch this attack at some future point after compromising the necessary keys.
 
 Functionality
 -------------
