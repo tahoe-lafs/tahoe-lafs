@@ -9,17 +9,11 @@ from pycryptopp.publickey import ed25519  # perhaps NaCl instead? other code use
 
 from allmydata.scripts.common import BasedirOptions
 from allmydata.util.abbreviate import abbreviate_time
-from twisted.scripts import twistd
 from twisted.python import usage
-from twisted.python.reflect import namedAny
 from twisted.python.filepath import FilePath
-from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util import fileutil
 from allmydata.util import base32
 from allmydata.util import keyutil
-from allmydata.node import read_config
-from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
-from twisted.application.service import Service
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 
@@ -178,7 +172,7 @@ class _GridManager(object):
         if 'private_key' not in config:
             raise ValueError(
                 "Grid Manager config from '{}' requires a 'private_key'".format(
-                    config_config
+                    config_location,
                 )
             )
 
@@ -406,7 +400,6 @@ def _list(gridoptions, options):
                 else:
                     print("  {}: expired ({})".format(cert_count, abbreviate_time(delta)))
                 cert_count += 1
-            certs = ' ({} certificates)'.format(cert_count)
 
 
 def _sign(gridoptions, options):
@@ -428,7 +421,6 @@ def _sign(gridoptions, options):
     print(certificate_data)
     if fp is not None:
         next_serial = 0
-        p = fp.child('{}.cert'.format(options['name'])).path
         while fp.child("{}.cert.{}".format(options['name'], next_serial)).exists():
             next_serial += 1
         with fp.child('{}.cert.{}'.format(options['name'], next_serial)).open('w') as f:
