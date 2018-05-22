@@ -40,7 +40,7 @@ class TestNativeStorageServer(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        nss = NativeStorageServer("server_id", ann, None, {})
+        nss = NativeStorageServer("server_id", ann, None, {}, {}, None)
         self.assertEqual(nss.get_nickname(), "")
 
 class TestStorageFarmBroker(unittest.TestCase):
