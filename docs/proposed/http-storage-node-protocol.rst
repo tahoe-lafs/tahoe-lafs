@@ -373,20 +373,29 @@ Just like the immutable version.
 
 .. [#]
    The security value of checking ``notValidBefore`` and ``notValidAfter`` is not entirely clear.
-   There is an argument to make that letting an existing TLS implementation which wants to make these checks just make them reduces overall complexity
-   (and, at least in general, reducing complexity is good for security).
-   On the other hand, checking the validity time period forces certificate regeneration.
-   A possible compromise is to recommend very long-lived certificates
-   (many years, perhaps many decades?).
-   "Recommend" may be read as "provide software encouraging the generation of".
-   But what about key theft?
+   The arguments which apply to web-facing certificates do not seem to apply
+   (due to the decision for Tahoe-LAFS to operate independently of the web-oriented CA system).
+
+   There is an argument to make that complexity is reduced by allowing an existing TLS implementation which wants to make these checks make them
+   (compared to including additional code to either bypass them or disregard their results).
+   Reducing complexity, at least in general, is often good for security.
+
+   On the other hand, checking the validity time period forces certificate regeneration
+   (which comes with its own set of complexity).
+
+   A possible compromise is to recommend very certificates with validity periods of many years or decades.
+   "Recommend" may be read as "provide software supporting the generation of".
+
+   What about key theft?
    If certificates are valid for years then a successful attacker can pretend to be a valid storage node for years.
-   An introducer *might* eventually recognize such a node as an attacker and blacklist their announcements...
-   It's likely not all clients configured to use compromised storage server identities will be updated
-   (if only because there are many of them
-   but possibly also because there is no automatic mechanism for fixing this state).
-   Such clients may go on placing shares on an attacker's storage server for a long time.
-   Would short-validity-period certificates with automatic certificate renewal not be better?
+   However, short-validity-period certificates are no help in this case.
+   The attacker can generate new, valid certificates using the stolen keys.
+
+   Therefore, the only recourse to key theft
+   (really *identity theft*)
+   is to burn the identity and generate a new one.
+   Burning the identity is a non-trivial task.
+   It is worth solving but it is not solved here.
 
 .. [#]
    More simply::
