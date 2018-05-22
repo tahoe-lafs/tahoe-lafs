@@ -100,7 +100,8 @@ Alice operates a storage node.
 Alice generates a key pair and secures it properly.
 Alice generates a self-signed storage node certificate with the key pair.
 Alice's storage node announces (to an introducer) a fURL containing (among other information) the SPKI hash.
-For example, ``pb://i5xb...@example.com:443/g3m5...#v=2`` [#]_.
+Imagine the SPKI hash is ``i5xb...``.
+This results in a fURL of ``pb://i5xb...@example.com:443/g3m5...#v=2`` [#]_.
 Bob creates a client node pointed at the same introducer.
 Bob's client node receives the announcement from Alice's storage node.
 
@@ -109,9 +110,7 @@ Bob's client node can now perform a TLS handshake with a server at the address i
 (``example.com:443`` in this example).
 Following the above described validation procedures,
 Bob's client node can determine whether it has reached Alice's storage node or not.
-If and only if the SPKI hash matches the value in the published fURL
-(``i5xb...`` in this example)
-then Alice's storage node has been contacted.
+If and only if the validation procedure is successful does Bob's client node conclude it has reached Alice's storage node.
 **Peer authentication** has been achieved.
 
 Additionally,
