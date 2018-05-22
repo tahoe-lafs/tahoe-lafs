@@ -144,7 +144,8 @@ Therefore, concurrent with the following, storage nodes will continue to operate
 
 Storage nodes will begin to operate a new HTTP-based server.
 They may re-use their existing x509 certificate or generate a new one.
-Generation of a new certificate allows for certain non-optimal conditions to be address::
+Generation of a new certificate allows for certain non-optimal conditions to be addressed:
+
 * The ``commonName`` of ``newpb_thingy`` may be changed to a more descriptive value.
 * A ``notValidAfter`` field with a timestamp in the past may be updated.
 
