@@ -33,6 +33,7 @@ import re
 import time
 import hashlib
 import json
+from datetime import datetime
 
 from zope.interface import implementer
 from twisted.internet import defer
@@ -41,6 +42,7 @@ from twisted.application import service
 from foolscap.api import eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32, connection_status
+from allmydata.util import keyutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference

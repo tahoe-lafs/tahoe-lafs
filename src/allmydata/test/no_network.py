@@ -167,7 +167,7 @@ class NoNetworkServer(object):
 
 @implementer(IStorageBroker)
 class NoNetworkStorageBroker(object):
-    def get_servers_for_psi(self, peer_selection_index):
+    def get_servers_for_psi(self, peer_selection_index, for_upload=True):
         def _permuted(server):
             seed = server.get_permutation_seed()
             return permute_server_hash(peer_selection_index, seed)

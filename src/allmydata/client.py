@@ -12,7 +12,6 @@ from twisted.application import service
 from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
 from pycryptopp.publickey import rsa
-from pycryptopp.publickey import ed25519
 
 import allmydata
 from allmydata.storage.server import StorageServer
@@ -28,7 +27,6 @@ from allmydata.util.encodingutil import (get_filesystem_encoding,
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
-from allmydata.util.base32 import a2b, b2a
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
@@ -500,7 +498,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         gm_keydata = self.get_config('client', 'grid_manager_public_keys', '')
         for gm_key in gm_keydata.strip().split():
             grid_manager_keys.append(
-                keyutil.parse_pubkey(a2b(gm_key))
+                keyutil.parse_pubkey(base32.a2b(gm_key))
             )
 
         my_pubkey = keyutil.parse_pubkey(
