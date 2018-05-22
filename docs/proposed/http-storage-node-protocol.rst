@@ -56,7 +56,7 @@ This is most likely done using cryptographic MACs (such as those used in TLS).
 The messages which enable the mutable shares feature include secrets related to those shares.
 For example, the write enabler secret is used to restrict the parties with write access to mutable shares.
 It is exchanged over the network as part of a write operation.
-An attacker learning this secret and overwrite share data with garbage
+An attacker learning this secret can overwrite share data with garbage
 (lacking a separate encryption key,
 there is no way to write data which appears legitimate to a legitimate client).
 Therefore, **message confidentiality** is necessary when exchanging these secrets.
