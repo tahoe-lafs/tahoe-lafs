@@ -12,11 +12,12 @@ Specifically, it should be possible to implement a Tahoe-LAFS storage server wit
 (substituting an HTTP server implementation).
 The Tahoe-LAFS client will also need to change but it is not expected that it will be noticably simplified by this change.
 
-Security
---------
 
 Requirements
-~~~~~~~~~~~~
+------------
+
+Security
+~~~~~~~~
 
 Summary
 !!!!!!!
@@ -62,7 +63,7 @@ Therefore, **message confidentiality** is necessary when exchanging these secret
 **Forward security** is preferred so that an attacker recording an exchange today cannot launch this attack at some future point after compromising the necessary keys.
 
 Solutions
-~~~~~~~~~
+---------
 
 Communication with the storage node will take place using TLS.
 The TLS version and configuration will be dictated by an ongoing understanding of best practices.
