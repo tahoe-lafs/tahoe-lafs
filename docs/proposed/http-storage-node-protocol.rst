@@ -149,22 +149,57 @@ Generation of a new certificate allows for certain non-optimal conditions to be 
 
 Storage nodes will announce a new fURL for this new HTTP-based server.
 This fURL will be announced alongside their existing Foolscap-based server's fURL.
+Such an announcement will resemble this::
 
-Non-updated clients will see the Foolscap fURL and continue with their current behavior.
-Updated clients will see the Foolscap fURL *and* the HTTP fURL and prefer the HTTP fURL.
+  {
+      "anonymous-storage-FURL": "pb://...",          # The old key
+      "anonymous-storage-gbs-FURL": "pb://...#v=2"   # The new key
+  }
 
-A mixed-protocol client node should:
+The transition process will proceed in three stages:
 
-* If it is configured with a storage URI, connect using HTTP over TLS.
-* If it is configured with a storage fURL, connect using Foolscap.
-  If the server version indicates support for the new protocol:
+1. The first stage represents the starting conditions in which clients and servers can speak only Foolscap.
+#. The intermediate stage represents a condition in which some clients and servers can both speak Foolscap and GBS.
+#. The final stage represents the desired condition in which all clients and servers speak only GBS.
 
-  * Attempt to connect using the new protocol.
-  * Drop the Foolscap connection if this new connection succeeds.
+During the first stage only one client/server interaction is possible:
+the storage server announces only Foolscap and speaks only Foolscap.
+During the final stage there is only one supported interaction:
+the client and server are both updated and speak GBS to each other.
 
-Client node implementations could cache a successful protocol upgrade.
-This would avoid the double connection on subsequent startups.
-This is left as a decision for the implementation, though.
+During the intermediate stage there are four supported interactions:
+
+1. Both the client and server are non-updated.
+   The interaction is just as it would be during the first stage.
+#. The client is updated and the server is non-updated.
+   The client will see the Foolscap announcement and the lack of a GBS announcement.
+   It will speak to the server using Foolscap.
+#. The client is non-updated and the server is updated.
+   The client will see the Foolscap announcement.
+   It will speak Foolscap to the storage server.
+#. Both the client and server are updated.
+   The client will see the GBS announcement and disregard the Foolscap announcement.
+   It will speak GBS to the server.
+
+There is one further complication:
+the client maintains a cache of storage server information
+(to avoid continuing to rely on the introducer after it has been introduced).
+The follow sequence of events is likely:
+
+1. The client connects to an introducer.
+#. It receives an announcement for a non-updated storage server (Foolscap only).
+#. It caches this announcement.
+#. At some point, the storage server is updated.
+#. The client uses the information in its cache to open a Foolscap connection to the storage server.
+
+Ideally,
+the client would not rely on an update from the introducer to give it the GBS fURL for the updated storage server.
+Therefore,
+when an updated client connects to a storage server using Foolscap,
+it should request the server's version information.
+If this information indicates that GBS is supported then the client should cache this GBS information.
+On subsequent connection attempts,
+it should make use of this GBS information.
 
 Server Details
 --------------
