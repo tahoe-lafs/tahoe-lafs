@@ -12,6 +12,7 @@ from twisted.application import service
 from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
 from pycryptopp.publickey import rsa
+from pycryptopp.publickey import ed25519
 
 import allmydata
 from allmydata.storage.server import StorageServer
@@ -27,6 +28,7 @@ from allmydata.util.encodingutil import (get_filesystem_encoding,
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
+from allmydata.util.base32 import a2b, b2a
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
@@ -54,6 +56,7 @@ def _valid_config_sections():
             "shares.needed",
             "shares.total",
             "stats_gatherer.furl",
+            "grid_managers",
         ),
         "drop_upload": (  # deprecated already?
             "enabled",
@@ -490,14 +493,29 @@ class _Client(node.Node, pollmixin.PollMixin):
         )
 
     def init_client_storage_broker(self):
+
+        grid_manager_keys = []
+        gm_keydata = self.get_config('client', 'grid_manager_public_keys', '')
+        for gm_key in gm_keydata.strip().split():
+            grid_manager_keys.append(
+                keyutil.parse_pubkey(a2b(gm_key))
+            )
+
+        my_pubkey = keyutil.parse_pubkey(
+            self.get_config_from_file("node.pubkey")
+        )
+
         # create a StorageFarmBroker object, for use by Uploader/Downloader
         # (and everybody else who wants to use storage servers)
         ps = self.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
-        sb = storage_client.StorageFarmBroker(permute_peers=True,
-                                              tub_maker=self._create_tub,
-                                              preferred_peers=preferred_peers,
-                                              )
+        sb = storage_client.StorageFarmBroker(
+            permute_peers=True,
+            tub_maker=self._create_tub,
+            preferred_peers=preferred_peers,
+            grid_manager_keys=grid_manager_keys,
+            node_pubkey=my_pubkey,
+        )
         self.storage_broker = sb
         sb.setServiceParent(self)
         for ic in self.introducer_clients:
