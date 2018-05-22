@@ -136,13 +136,11 @@ Transition
 
 To provide a seamless user experience during this protocol transition,
 there should be a period during which both protocols are supported by storage nodes.
-The HTTP protocol announcement will be introduced in a way that updated client software can recognize.
-Its introduction will also be made in such a way that non-updated client software disregards the new information
+The GBS announcement will be introduced in a way that *updated client* software can recognize.
+Its introduction will also be made in such a way that *non-updated client* software disregards the new information
 (of which it cannot make any use).
 
-Therefore, concurrent with the following, storage nodes will continue to operate their Foolscap server unaltered compared to their previous behavior.
-
-Storage nodes will begin to operate a new HTTP-based server.
+Storage nodes will begin to operate a new GBS server.
 They may re-use their existing x509 certificate or generate a new one.
 Generation of a new certificate allows for certain non-optimal conditions to be addressed:
 
