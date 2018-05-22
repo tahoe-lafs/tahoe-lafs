@@ -1,7 +1,7 @@
 .. -*- coding: utf-8 -*-
 
-HTTP Storage Node Protocol
-==========================
+HTTP Storage Node Protocol ("Great Black Swamp", "GBS")
+=======================================================
 
 The target audience for this document is Tahoe-LAFS developers.
 After reading this document,
