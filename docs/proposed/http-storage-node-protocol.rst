@@ -87,11 +87,12 @@ Alice operates a storage node.
 Alice generates a key pair and secures it properly.
 Alice generates a self-signed storage node certificate with the key pair.
 Alice's storage node announces (to an introducer) a fURL containing (among other information) the SPKI hash.
-For example, ``pb://i5xb...@example.com:443/g3m5...``.
+For example, ``pb://i5xb...@example.com:443/g3m5...#v=2`` [#]_.
 Bob creates a client node pointed at the same introducer.
 Bob's client node receives the announcement from Alice's storage node.
 
-Bob's client node can now perform a TLS handshake with a server at the address indicated by the storage node fURL
+Bob's client node recognizes the fURL as referring to an HTTP-dialect server due to the ``v=2`` fragment.
+Bob's client node can now perform a TLS handshake with a server at the address in the fURL location hints
 (``example.com:443`` in this example).
 Following the above described validation procedures,
 Bob's client node can determine whether it has reached Alice's storage node or not.
@@ -387,3 +388,10 @@ Just like the immutable version.
     assert spki_digest32 == tub_id
 
    Note we use the Tahoe-LAFS-preferred base32 encoding rather than base64.
+
+.. [#]
+   Other schemes for differentiating between the two server types is possible.
+   If the tubID length remains different,
+   that provides an unambiguous (if obscure) signal about which protocol to use.
+   Or a different scheme could be adopted
+   (``[x-]pb+http``, ``x-tahoe+http``, ``x-gbs`` come to mind).
