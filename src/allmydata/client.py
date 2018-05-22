@@ -15,7 +15,6 @@ from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 from pycryptopp.publickey import rsa
-from pycryptopp.publickey import ed25519
 
 import allmydata
 from allmydata.storage.server import StorageServer
