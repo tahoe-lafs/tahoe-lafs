@@ -74,6 +74,9 @@ Some facility for expansion to support new information exchanges should also be 
 Solutions
 ---------
 
+An HTTP-based protocol, dubbed "Great Black Swamp" (or "GBS"), is described below.
+This protocol aims to satisfy the above requirements at a lower level of complexity than the current Foolscap-based protocol.
+
 Communication with the storage node will take place using TLS.
 The TLS version and configuration will be dictated by an ongoing understanding of best practices.
 The only requirement is that the certificate have a valid signature.
