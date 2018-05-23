@@ -913,8 +913,8 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         tub = Tub()
         tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
-        portnum = iputil.allocate_tcp_port()
-        tub.listenOn("tcp:%d" % portnum)
+        portnum, endpoint = foolscapEndpointForPortNumber(None)
+        tub.listenOn(endpoint)
         tub.setLocation("localhost:%d" % portnum)
 
         c = IntroducerClient(tub, self.introducer_furl,
