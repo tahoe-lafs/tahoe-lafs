@@ -315,10 +315,23 @@ class Server(unittest.TestCase):
 NICKNAME = u"n\u00EDickname-%s" # LATIN SMALL LETTER I WITH ACUTE
 
 def foolscapEndpointForPortNumber(portnum):
+    """
+    Create an endpoint that can be passed to ``Tub.listen``.
+
+    :param portnum: Either an integer port number indicating which TCP/IPv4
+        port number the endpoint should bind or ``None`` to automatically
+        allocate such a port number.
+
+    :return: A two-tuple of the integer port number allocated and a
+        Foolscap-compatible endpoint object.
+    """
     if portnum is None:
         from twisted.internet import reactor
         from twisted.internet.interfaces import IReactorSocket
         if IReactorSocket.providedBy(reactor):
+            # On POSIX we can take this very safe approach of binding the
+            # actual socket to an address.  Once the bind succeeds here, we're
+            # no longer subject to any future EADDRINUSE problems.
             import fcntl
             from socket import socket, AF_INET
             from twisted.internet.endpoints import AdoptedStreamServerEndpoint
@@ -338,7 +351,10 @@ def foolscapEndpointForPortNumber(portnum):
             finally:
                 s.close()
         else:
-            # Get a random port number and fall through.
+            # Get a random port number and fall through.  This is necessary on
+            # Windows where Twisted doesn't offer IReactorSocket.  This
+            # approach is error prone for the reasons described on
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2787
             portnum = iputil.allocate_tcp_port()
     return (portnum, "tcp:%d" % (portnum,))
 
