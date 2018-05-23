@@ -50,6 +50,8 @@ from ..common_web import (
 )
 from allmydata.client import _Client, SecretHolder
 from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
+from ..status import FakeStatus
+
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
@@ -109,17 +111,6 @@ class FakeUploader(service.Service):
 
     def get_helper_info(self):
         return (self.helper_furl, self.helper_connected)
-
-
-class FakeStatus(object):
-    def __init__(self):
-        self.status = []
-
-    def setServiceParent(self, p):
-        pass
-
-    def get_status(self):
-        return self.status
 
 
 def create_test_queued_item(relpath_u, history=[]):
