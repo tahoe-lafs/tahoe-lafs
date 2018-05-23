@@ -319,17 +319,21 @@ def foolscapEndpointForPortNumber(portnum):
         from twisted.internet import reactor
         from twisted.internet.interfaces import IReactorSocket
         if IReactorSocket.providedBy(reactor):
+            import fcntl
             from socket import socket, AF_INET
             from twisted.internet.endpoints import AdoptedStreamServerEndpoint
             s = socket()
             try:
-                s.setblocking(False)
                 s.bind(('', 0))
                 portnum = s.getsockname()[1]
-                s.listen(3)
+                s.listen(1)
+                fd = os.dup(s.fileno())
+                flags = fcntl.fcntl(fd, fcntl.F_GETFD)
+                flags = flags | os.O_NONBLOCK | fcntl.FD_CLOEXEC
+                fcntl.fcntl(fd, fcntl.F_SETFD, flags)
                 return (
                     portnum,
-                    AdoptedStreamServerEndpoint(reactor, os.dup(s.fileno()), AF_INET),
+                    AdoptedStreamServerEndpoint(reactor, fd, AF_INET),
                 )
             finally:
                 s.close()
