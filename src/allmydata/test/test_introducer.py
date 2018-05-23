@@ -322,11 +322,17 @@ def foolscapEndpointForPortNumber(portnum):
             from socket import socket, AF_INET
             from twisted.internet.endpoints import AdoptedStreamServerEndpoint
             s = socket()
-            s.setblocking(False)
-            s.bind(('', 0))
-            portnum = s.getsockname()[1]
-            s.listen(3)
-            return (portnum, AdoptedStreamServerEndpoint(reactor, s.fileno(), AF_INET))
+            try:
+                s.setblocking(False)
+                s.bind(('', 0))
+                portnum = s.getsockname()[1]
+                s.listen(3)
+                return (
+                    portnum,
+                    AdoptedStreamServerEndpoint(reactor, os.dup(s.fileno()), AF_INET),
+                )
+            finally:
+                s.close()
         else:
             # Get a random port number and fall through.
             portnum = iputil.allocate_tcp_port()
