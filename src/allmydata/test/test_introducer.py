@@ -314,18 +314,36 @@ class Server(unittest.TestCase):
 
 NICKNAME = u"n\u00EDickname-%s" # LATIN SMALL LETTER I WITH ACUTE
 
+def foolscapEndpointForPortNumber(portnum):
+    if portnum is None:
+        from twisted.internet import reactor
+        from twisted.internet.interfaces import IReactorSocket
+        if IReactorSocket.providedBy(reactor):
+            from socket import socket, AF_INET
+            from twisted.internet.endpoints import AdoptedStreamServerEndpoint
+            s = socket()
+            s.setblocking(False)
+            s.bind(('', 0))
+            portnum = s.getsockname()[1]
+            s.listen(3)
+            return (portnum, AdoptedStreamServerEndpoint(reactor, s.fileno(), AF_INET))
+        else:
+            # Get a random port number and fall through.
+            portnum = iputil.allocate_tcp_port()
+    return (portnum, "tcp:%d" % (portnum,))
+
+
 class SystemTestMixin(ServiceMixin, pollmixin.PollMixin):
 
     def create_tub(self, portnum=None):
+        portnum, endpoint = foolscapEndpointForPortNumber(portnum)
         tubfile = os.path.join(self.basedir, "tub.pem")
         self.central_tub = tub = Tub(certFile=tubfile)
         #tub.setOption("logLocalFailures", True)
         #tub.setOption("logRemoteFailures", True)
         tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
-        if portnum is None:
-            portnum = iputil.allocate_tcp_port()
-        tub.listenOn("tcp:%d" % portnum)
+        tub.listenOn(endpoint)
         self.central_portnum = portnum
         tub.setLocation("localhost:%d" % self.central_portnum)
 
