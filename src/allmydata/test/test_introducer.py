@@ -432,8 +432,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             #tub.setOption("logRemoteFailures", True)
             tub.setOption("expose-remote-exception-types", False)
             tub.setServiceParent(self.parent)
-            portnum = iputil.allocate_tcp_port()
-            tub.listenOn("tcp:%d" % portnum)
+            portnum, endpoint = foolscapEndpointForPortNumber(None)
+            tub.listenOn(endpoint)
             tub.setLocation("localhost:%d" % portnum)
 
             log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
