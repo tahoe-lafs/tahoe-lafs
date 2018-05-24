@@ -362,6 +362,9 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         actor_path.setContent(new_content)
         actor.uploader._notify(None, actor_path, actor.uploader._inotify.IN_CLOSE_WRITE)
 
+    # TODO: Add a rename rule and support renames more nicely in the
+    # implementation.
+
     @rule(
         which_client=sampled_from(["alice", "bob"]),
         filename=sampled_from([u"a", u"b", u"c"]),
