@@ -1131,6 +1131,9 @@ class QueuedItem(object):
         hist.sort(lambda a, b: cmp(a[1], b[1]))
         return hist
 
+    def __repr__(self):
+        return "<{} {}>".format(self.__class__.__name__, self.relpath_u)
+
     def __eq__(self, other):
         return (
             other.relpath_u == self.relpath_u,
@@ -1488,15 +1491,14 @@ class Uploader(QueueMixin):
                 ))
 
                 def _add_db_entry(filenode):
-                    filecap = filenode.get_uri()
                     # if we're uploading a file, we want to set
                     # last_downloaded_uri to the filecap so that we don't
                     # immediately re-download it when we start up next
-                    last_downloaded_uri = metadata.get('last_downloaded_uri', filecap)
+                    last_downloaded_uri = metadata.get('last_downloaded_uri', filenode.get_readonly_uri())
                     self._db.did_upload_version(
                         real_relpath_u,
                         new_version,
-                        filecap,
+                        filenode.get_uri(),
                         last_downloaded_uri,
                         last_downloaded_timestamp,
                         pathinfo,
@@ -1573,15 +1575,14 @@ class Uploader(QueueMixin):
                 ))
 
                 def _add_db_entry(filenode):
-                    filecap = filenode.get_uri()
                     # if we're uploading a file, we want to set
                     # last_downloaded_uri to the filecap so that we don't
                     # immediately re-download it when we start up next
-                    last_downloaded_uri = filecap
+                    last_downloaded_uri = filenode.get_readonly_uri()
                     self._db.did_upload_version(
                         relpath_u,
                         new_version,
-                        filecap,
+                        filenode.get_uri(),
                         last_downloaded_uri,
                         last_downloaded_timestamp,
                         pathinfo
@@ -2012,10 +2013,10 @@ class Downloader(QueueMixin, WriteFileMixin):
             d = DeferredContext(defer.succeed(False))
 
         def do_update_db(written_abspath_u):
-            filecap = item.file_node.get_uri()
+            fileuri = item.file_node.get_readonly_uri()
             if not item.file_node.get_size():
-                filecap = None  # ^ is an empty file
-            last_downloaded_uri = filecap
+                fileuri = None  # ^ is an empty file
+            last_downloaded_uri = fileuri
             last_downloaded_timestamp = now
             written_pathinfo = get_pathinfo(written_abspath_u)
 
