@@ -25,6 +25,7 @@ from allmydata.util.fileutil import (
     ConflictError,
     abspath_expanduser_unicode,
 )
+from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.progress import PercentProgress
@@ -1359,13 +1360,14 @@ class Downloader(QueueMixin, WriteFileMixin):
                 True, 'Magic folder is working',
                 'Last scan: %s' % self.nice_current_time(),
             )
-        except Exception as e:
-            twlog.msg(Failure(), "Remote scan failed")
+        except UnrecoverableFileError as e:
             self._log("_scan failed: %s" % (repr(e),))
             self._status_reporter(
                 False, 'Remote scan has failed: %s' % str(e),
                 'Last attempted at %s' % self.nice_current_time(),
             )
+        except Exception:
+            twlog.err(Failure(), "Remote scan failed")
         defer.returnValue(x)
 
     def _process(self, item):
