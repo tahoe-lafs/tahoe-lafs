@@ -1,6 +1,6 @@
 
 import os, sys, time
-import stat, shutil, json, string
+import stat, shutil, json
 import mock
 from os.path import join, exists, isdir
 
@@ -35,8 +35,8 @@ from zope.interface import implementer
 
 from hypothesis.stateful import RuleBasedStateMachine, rule
 from hypothesis.stateful import run_state_machine_as_test
-from hypothesis.strategies import sampled_from, text, assume, binary
-from hypothesis import Verbosity, settings
+from hypothesis.strategies import sampled_from, assume
+from hypothesis import settings
 
 _debug = False
 
@@ -293,6 +293,7 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
             u"default",
         )
         self.alice.tree = self.alice_tree.child("tree")
+        self.alice.startService()
 
         self.bob_client = FakeClient(self.grid, "bob-client")
         self.bob_tree.child("tree").makedirs()
@@ -306,6 +307,7 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
             u"default",
         )
         self.bob.tree = self.bob_tree.child("tree")
+        self.bob.startService()
 
         self.deleted_files = set()
 

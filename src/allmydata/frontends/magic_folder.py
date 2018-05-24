@@ -579,7 +579,7 @@ class QueueMixin(HookMixin):
     def _log(self, msg):
         s = "Magic Folder %s %s: %s" % (quote_output(self._client.nickname), self._name, msg)
         self._client.log(s)
-        if True:
+        if self._debug_log:
             twlog.msg(s)
 
 # this isn't in interfaces.py because it's very specific to QueueMixin
@@ -630,7 +630,7 @@ class QueuedItem(object):
         hist.sort(lambda a, b: cmp(a[1], b[1]))
         return hist
 
-    def __repr__(self):
+    def __str__(self):
         return "<{} {}>".format(self.__class__.__name__, self.relpath_u)
 
     def __eq__(self, other):
