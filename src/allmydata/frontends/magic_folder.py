@@ -1360,7 +1360,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                 'Last scan: %s' % self.nice_current_time(),
             )
         except Exception as e:
-            twlog.err(Failure(), "Remote scan failed")
+            twlog.msg(Failure(), "Remote scan failed")
             self._log("_scan failed: %s" % (repr(e),))
             self._status_reporter(
                 False, 'Remote scan has failed: %s' % str(e),
