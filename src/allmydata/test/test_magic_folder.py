@@ -192,21 +192,49 @@ def _do_processing(case, queue):
     case.successResultOf(queue._process_deque())
 
 
-def _assert_fs_equal(case, a, b):
+def _assert_fs_equal(case, safe_path, client_path, other_client, deleted_files):
+    def not_backups(fs):
+        return list(f for f in fs if not f.endswith(".backup"))
+
+    def backups(fs):
+        return list(f for f in fs if f.endswith(".backup"))
+
     case.assertEqual(
-        sorted(a.listdir()),
-        sorted(b.listdir()),
+        sorted(safe_path.listdir()),
+        sorted(not_backups(client_path.listdir())),
     )
 
-    for f in a.listdir():
+    for f in safe_path.listdir():
         case.assertEqual(
-            a.child(f).getContent(),
-            b.child(f).getContent(),
+            safe_path.child(f).getContent(),
+            client_path.child(f).getContent(),
             "{} contents differ from {} contents".format(
-                a.path,
-                b.path,
+                safe_path.path,
+                client_path.path,
             ),
         )
+
+    for f in backups(client_path.listdir()):
+        case.assertIn(
+            (other_client, f.rsplit(".")[0]),
+            deleted_files,
+        )
+
+    case.assertEqual(
+        len(backups(client_path.listdir())),
+        sum(
+            1
+            for (which_client, name)
+            in deleted_files
+            if which_client == other_client
+        ),
+        "Had backups: {}\nHad deletions: {}\n".format(
+            backups(client_path.listdir()),
+            deleted_files,
+        ),
+
+    )
+
 
 def bump_version(s):
     # "version: 3" -> "version: 4"
@@ -279,6 +307,8 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         )
         self.bob.tree = self.bob_tree.child("tree")
 
+        self.deleted_files = set()
+
     def teardown(self):
         self.case.successResultOf(self.bob.stopService())
         self.case.successResultOf(self.alice.stopService())
@@ -293,8 +323,6 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
 
     @rule(
         which_client=sampled_from(["alice", "bob"]),
-        # FIXME, can't have e.g. / in filename
-        # FIXME, is this state space a waste of time?
         filename=sampled_from([u"a", u"b", u"c"]),
     )
     def create(self, which_client, filename):
@@ -317,8 +345,6 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
 
     @rule(
         which_client=sampled_from(["alice", "bob"]),
-        # FIXME, can't have e.g. / in filename
-        # FIXME, is this state space a waste of time?
         filename=sampled_from([u"a", u"b", u"c"]),
     )
     def modify(self, which_client, filename):
@@ -328,14 +354,36 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         assume(safe_path.exists())
 
         actor = getattr(self, which_client)
-        alice_path = actor.tree.child(filename)
+        actor_path = actor.tree.child(filename)
         self.dirty = which_client
 
-        new_content = bump_version(alice_path.getContent())
+        new_content = bump_version(actor_path.getContent())
         safe_path.setContent(new_content)
-        alice_path.setContent(new_content)
-        actor.uploader._notify(None, alice_path, actor.uploader._inotify.IN_CLOSE_WRITE)
+        actor_path.setContent(new_content)
+        actor.uploader._notify(None, actor_path, actor.uploader._inotify.IN_CLOSE_WRITE)
 
+    @rule(
+        which_client=sampled_from(["alice", "bob"]),
+        filename=sampled_from([u"a", u"b", u"c"]),
+    )
+    def delete(self, which_client, filename):
+        assume(self.dirty in (None, which_client))
+
+        safe_path = self.safe_directory.child(filename)
+        assume(safe_path.exists())
+
+        actor = getattr(self, which_client)
+        actor_path = actor.tree.child(filename)
+        self.dirty = which_client
+
+        safe_path.remove()
+        actor_path.remove()
+
+        other_client = "alice" if which_client == "bob" else "bob"
+        other_actor = getattr(self, other_client)
+        if other_actor.tree.child(filename).exists():
+            self.deleted_files.add((which_client, filename))
+        actor.uploader._notify(None, actor_path, actor.uploader._inotify.IN_DELETE)
 
     @rule(
         which_client=sampled_from(["alice", "bob"]),
@@ -355,11 +403,15 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
                 self.case,
                 self.safe_directory,
                 self.alice_tree.child("tree"),
+                "bob",
+                self.deleted_files,
             )
             _assert_fs_equal(
                 self.case,
                 self.safe_directory,
                 self.bob_tree.child("tree"),
+                "alice",
+                self.deleted_files,
             )
 
 
