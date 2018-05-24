@@ -208,6 +208,12 @@ def _assert_fs_equal(case, a, b):
             ),
         )
 
+def bump_version(s):
+    # "version: 3" -> "version: 4"
+    return "version: {}".format(
+        int(s.split(":")[1]) + 1
+    )
+
 
 class UnconflictedMagicFolder(RuleBasedStateMachine):
 
@@ -289,17 +295,19 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         which_client=sampled_from(["alice", "bob"]),
         # FIXME, can't have e.g. / in filename
         # FIXME, is this state space a waste of time?
-        filename=text(min_size=1, alphabet=string.letters),
-        contents=binary(),
+        filename=sampled_from([u"a", u"b", u"c"]),
     )
-    def create(self, which_client, filename, contents):
+    def create(self, which_client, filename):
         assume(self.dirty in (None, which_client))
+        safe_path = self.safe_directory.child(filename)
+        assume(not safe_path.exists())
 
         actor = getattr(self, which_client)
 
         self.dirty = which_client
 
-        self.safe_directory.child(filename).setContent(contents)
+        contents = "version: 0"
+        safe_path.setContent(contents)
 
         path = actor.tree.child(filename)
         path.setContent(contents)
@@ -307,8 +315,26 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
         actor.uploader._notify(None, path, actor.uploader._inotify.IN_CLOSE_WRITE)
 
 
-    def modify(self, which_client, data):
-        pass
+    @rule(
+        which_client=sampled_from(["alice", "bob"]),
+        # FIXME, can't have e.g. / in filename
+        # FIXME, is this state space a waste of time?
+        filename=sampled_from([u"a", u"b", u"c"]),
+    )
+    def modify(self, which_client, filename):
+        assume(self.dirty in (None, which_client))
+
+        safe_path = self.safe_directory.child(filename)
+        assume(safe_path.exists())
+
+        actor = getattr(self, which_client)
+        alice_path = actor.tree.child(filename)
+        self.dirty = which_client
+
+        new_content = bump_version(alice_path.getContent())
+        safe_path.setContent(new_content)
+        alice_path.setContent(new_content)
+        actor.uploader._notify(None, alice_path, actor.uploader._inotify.IN_CLOSE_WRITE)
 
 
     @rule(
