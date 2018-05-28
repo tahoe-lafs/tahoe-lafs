@@ -49,6 +49,10 @@ class MyRequest(appserver.NevowRequest):
         self.client = self.channel.transport.getPeer()
         self.host = self.channel.transport.getHost()
 
+        # Adding security headers. These will be sent for *all* HTTP requests.
+        # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
+        self.responseHeaders.setRawHeaders("X-Frame-Options", ["DENY"])
+
         # Argument processing.
 
 ##      The original twisted.web.http.Request.requestReceived code parsed the
