@@ -15,9 +15,17 @@ from allmydata.scripts.tahoe_status import _get_json_for_fragment
 from allmydata.scripts.tahoe_status import _get_json_for_cap
 from allmydata.scripts.tahoe_status import pretty_progress
 from allmydata.scripts.tahoe_status import do_status
+from allmydata.web.status import marshal_json
+
+from allmydata.immutable.upload import UploadStatus
+from allmydata.immutable.downloader.status import DownloadStatus
+from allmydata.mutable.publish import PublishStatus
+from allmydata.mutable.retrieve import RetrieveStatus
+from allmydata.mutable.servermap import UpdateStatus
 
 from ..no_network import GridTestMixin
 from ..common_web import do_http
+from ..status import FakeStatus
 from .common import CLITestMixin
 
 
@@ -135,30 +143,26 @@ class CommandStatus(unittest.TestCase):
     @mock.patch('allmydata.scripts.tahoe_status.do_http')
     @mock.patch('sys.stdout', StringIO())
     def test_simple(self, http):
+        recent_items = active_items = [
+            UploadStatus(),
+            DownloadStatus("abcd", 12345),
+            PublishStatus(),
+            RetrieveStatus(),
+            UpdateStatus(),
+            FakeStatus(),
+        ]
         values = [
             StringIO(json.dumps({
-                "active": [
-                    {
-                        "progress": 0.5,
-                        "storage-index-string": "index0",
-                        "status": "foo",
-                    },
-                    {
-                        "progress-hash": 1.0,
-                        "progress-ciphertext": 1.0,
-                        "progress-encode-push": 0.5,
-                        "storage-index-string": "index1",
-                        "status": "bar",
-                    }
-                ],
-                "recent": [
-                    {
-                        "type": "download",
-                        "total-size": 12345,
-                        "storage-index-string": "index1",
-                        "status": "bar",
-                    },
-                ]
+                "active": list(
+                    marshal_json(item)
+                    for item
+                    in active_items
+                ),
+                "recent": list(
+                    marshal_json(item)
+                    for item
+                    in recent_items
+                ),
             })),
             StringIO(json.dumps({
                 "counters": {
