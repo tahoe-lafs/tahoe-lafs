@@ -11,6 +11,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 import treq
 
 base_pr_url = "https://api.github.com/repos/tahoe-lafs/tahoe-lafs/pulls/{}"
+ignore_handles = ('codecov-io', )
 
 
 def _find_pull_request_numbers():
@@ -71,6 +72,38 @@ def _initialize_headers(username, token):
 
 
 @inlineCallbacks
+def _report_authors(data, headers):
+    print("Commits:")
+    commits_resp = yield treq.get(data['commits_url'], headers=headers)
+    commits_data = yield commits_resp.text()
+    commits = json.loads(commits_data)
+    authors = set()
+    for commit in commits:
+        if commit['author'] is None:
+            print("  {}: no author!".format(commit['sha']))
+        else:
+            author = commit['author']['login']
+            print("  {}: {}".format(commit['sha'], author))
+            if author not in ignore_handles:
+                authors.add(author)
+    returnValue(authors)
+
+
+@inlineCallbacks
+def _report_helpers(data, headers):
+    helpers = set()
+    print("Comments:")
+    comments_resp = yield treq.get(data['comments_url'], headers=headers)
+    comments_data = yield comments_resp.text()
+    comments = json.loads(comments_data)
+    for comment in comments:
+        author = comment['user']['login']
+        if author not in ignore_handles:
+            helpers.add(author)
+        print("  {}: {}".format(author, comment['body'].replace('\n', ' ')[:60]))
+    returnValue(helpers)
+
+@inlineCallbacks
 def _request_pr_information(username, token, headers, all_prs):
     """
     Download PR information from GitHub.
@@ -91,32 +124,8 @@ def _request_pr_information(username, token, headers, all_prs):
         raw_data = yield resp.text()
         data = json.loads(raw_data)
 
-        code_handles = set()
-        help_handles = set()
-        ignore = ('codecov-io', )
-
-        print("Commits:")
-        commits_resp = yield treq.get(data['commits_url'], headers=headers)
-        commits_data = yield commits_resp.text()
-        commits = json.loads(commits_data)
-        for commit in commits:
-            if commit['author'] is None:
-                print("  {}: no author!".format(commit['sha']))
-            else:
-                author = commit['author']['login']
-                print("  {}: {}".format(commit['sha'], author))
-                if author not in ignore:
-                      code_handles.add(author)
-
-        print("Comments:")
-        comments_resp = yield treq.get(data['comments_url'], headers=headers)
-        comments_data = yield comments_resp.text()
-        comments = json.loads(comments_data)
-        for comment in comments:
-            author = comment['user']['login']
-            if author not in ignore:
-                help_handles.add(author)
-            print("  {}: {}".format(author, comment['body'].replace('\n', ' ')[:60]))
+        code_handles = yield _report_authors(data, headers)
+        help_handles = yield _report_helpers(data, headers)
 
         pr_info[pr] = (
             code_handles,
