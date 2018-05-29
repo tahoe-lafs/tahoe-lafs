@@ -19,6 +19,7 @@ from allmydata.introducer.server import create_introducer
 from allmydata.client import create_client, _valid_config_sections
 from allmydata.util import fileutil, iputil
 from allmydata.util.namespace import Namespace
+from allmydata.util.configutil import UnknownConfigError
 import allmydata.test.common_util as testutil
 
 
@@ -483,3 +484,41 @@ class IntroducerNotListening(unittest.TestCase):
         f.close()
         e = self.assertRaises(ValueError, create_introducer, basedir)
         self.assertIn("we are Introducer, but tub is not listening", str(e))
+
+class Configuration(unittest.TestCase):
+
+    def setUp(self):
+        self.basedir = self.mktemp()
+        fileutil.make_dirs(self.basedir)
+
+    def test_read_invalid_config(self):
+        with open(os.path.join(self.basedir, 'tahoe.cfg'), 'w') as f:
+            f.write(
+                '[invalid section]\n'
+                'foo = bar\n'
+            )
+        with self.assertRaises(UnknownConfigError) as ctx:
+            read_config(
+                self.basedir,
+                "client.port",
+                _valid_config_sections=_valid_config_sections,
+            )
+
+        self.assertIn(
+            "invalid section",
+            str(ctx.exception),
+        )
+
+    def test_create_client_invalid_config(self):
+        with open(os.path.join(self.basedir, 'tahoe.cfg'), 'w') as f:
+            f.write(
+                '[invalid section]\n'
+                'foo = bar\n'
+            )
+        with self.assertRaises(UnknownConfigError) as ctx:
+            create_client(self.basedir)
+
+        self.assertIn(
+            "invalid section",
+            str(ctx.exception),
+        )
