@@ -322,6 +322,20 @@ For example::
       7: ["baz", "quux"]
   }
 
+Discussion
+``````````
+
+Offset and size of the requested data are specified here as query arguments.
+Instead, this information could be present in a ``Range`` header in the request.
+This is the more obvious choice and leverages an HTTP feature built for exactly this use-case.
+However, HTTP requires that the ``Content-Type`` of the response to "range requests" be ``multipart/...``.
+The ``multipart`` major type brings along string sentinel delimiting as a means to frame the different response parts.
+There are many drawbacks to this framing technique:
+
+1. It is resource-intensive to generate.
+2. It is resource-intensive to parse.
+3. It is complex to parse safely [#]_ [#]_ [#]_ [#]_.
+
 Mutable
 -------
 
@@ -453,3 +467,12 @@ Just like the immutable version.
    that provides an unambiguous (if obscure) signal about which protocol to use.
    Or a different scheme could be adopted
    (``[x-]pb+http``, ``x-tahoe+http``, ``x-gbs`` come to mind).
+
+.. [#]
+   https://www.cvedetails.com/cve/CVE-2017-5638/
+.. [#]
+   https://pivotal.io/security/cve-2018-1272
+.. [#]
+   https://nvd.nist.gov/vuln/detail/CVE-2017-5124
+.. [#]
+   https://efail.de/
