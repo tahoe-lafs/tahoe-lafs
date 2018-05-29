@@ -132,9 +132,6 @@ class DaemonizeTheRealService(Service):
             except UnknownConfigError as e:
                 sys.stderr.write("\nConfiguration error:\n{}\n\n".format(e))
                 reactor.stop()
-            except Exception as e:
-                sys.stderr.write("\nError building service:\n{}\n\n".format(e))
-                reactor.stop()
 
         from twisted.internet import reactor
         reactor.callWhenRunning(start)
