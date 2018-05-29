@@ -171,4 +171,4 @@ San Francisco, California, USA
 [10] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Dev
 [12] https://leastauthority.com/
 [13] https://tahoe-lafs.org/hacktahoelafs/
-[14] http://magic-wormhole.io
+[14] https://github.com/warner/magic-wormhole
