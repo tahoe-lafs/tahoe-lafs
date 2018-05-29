@@ -12,26 +12,19 @@ import treq
 
 base_pr_url = "https://api.github.com/repos/tahoe-lafs/tahoe-lafs/pulls/{}"
 
-#async def main(reactor):
-@inlineCallbacks
-def main(reactor):
+
+def _find_pull_request_numbers():
     """
-    Fetch Pull Request (PR) information from GitHub.
-
-    Either pass a list of PR numbers on the command-line, or pipe text
-    containing references like: "There is a PR123 somewhere" from
-    which instances of "PRxxx" are extrated. From GitHub's API we get
-    all author information and anyone who disucced the PR and print a
-    summary afterwards.
-
-    You need a 'token' file containing two lines: your username, and
-    access token (get this from the GitHub Web UI).
+    This returns a list of Pull Request numbers that are
+    interesting. It first assumes any command-line arguments are PR
+    numbers. Failing that, it reads stdin and looks for works starting
+    with 'PR'
     """
     if len(sys.argv) < 2:
         data = sys.stdin.read()
         if not len(data):
             print("put some PR numbers on the command-line")
-            returnValue(1)
+            raise SystemExit(1)
         else:
             all_prs = set()
             for word in data.split():
@@ -42,25 +35,52 @@ def main(reactor):
             print("Found {} PRs in stdin text".format(len(all_prs)))
     else:
         all_prs = sys.argv[1:]
+    return all_prs
 
-    # a 'token' file contains two lines: username, github token
+
+def _read_github_token(fname='token'):
+    """
+    read a secret github token; a 'token' file contains two lines:
+    username, github token.
+
+    If the token can't be found, SystemExit is raised
+    """
     try:
-        with open('token', 'r') as f:
+        with open(fname, 'r') as f:
             data = f.read().strip()
             username, token = data.split('\n', 1)
     except (IOError, EnvironmentError) as e:
         print("Couldn't open or parse 'token' file: {}".format(e))
-        returnValue(1)
+        raise SystemExit(1)
     except ValueError:
         print("'token' should contain two lines: username, github token")
-        returnValue(1)
+        raise SystemExit(1)
+    return username, token
 
-    headers = {
+
+def _initialize_headers(username, token):
+    """
+    Create the base headers for all requests.
+
+    :return dict: the headers dict
+    """
+    return {
         "User-Agent": "treq",
         "Authorization": "Basic {}".format(base64.b64encode("{}:{}".format(username, token))),
     }
 
-    pr_info = {}
+
+@inlineCallbacks
+def _request_pr_information(username, token, headers, all_prs):
+    """
+    Download PR information from GitHub.
+
+    :return dict: mapping PRs to a 2-tuple of "contributers" and
+        "helpers" to the PR. Contributers are nicks of people who
+        commited to the PR, and "helpers" either reviewed or commented
+        on the PR.
+    """
+    pr_info = dict()
 
     for pr in all_prs:
         print("Fetching PR{}".format(pr))
@@ -102,6 +122,31 @@ def main(reactor):
             code_handles,
             help_handles - help_handles.intersection(code_handles),
         )
+    returnValue(pr_info)
+
+
+#async def main(reactor):
+@inlineCallbacks
+def main(reactor):
+    """
+    Fetch Pull Request (PR) information from GitHub.
+
+    Either pass a list of PR numbers on the command-line, or pipe text
+    containing references like: "There is a PR123 somewhere" from
+    which instances of "PRxxx" are extrated. From GitHub's API we get
+    all author information and anyone who disucced the PR and print a
+    summary afterwards.
+
+    You need a 'token' file containing two lines: your username, and
+    access token (get this from the GitHub Web UI).
+    """
+
+    username, token = _read_github_token()
+    pr_info = yield _request_pr_information(
+        username, token,
+        _initialize_headers(username, token),
+        _find_pull_request_numbers(),
+    )
 
     unique_handles = set()
     for pr, (code_handles, help_handles) in sorted(pr_info.items()):
