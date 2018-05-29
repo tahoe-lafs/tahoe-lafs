@@ -336,6 +336,14 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
 
         self.dirty = which_client
 
+        # if this client previously deleted this file, they've no
+        # longer done so -- we *might* have to account for "was there
+        # an intermediate process call" but I don't think so
+        try:
+            self.deleted_files.remove((which_client, filename))
+        except KeyError:
+            pass
+
         contents = "version: 0"
         safe_path.setContent(contents)
 
