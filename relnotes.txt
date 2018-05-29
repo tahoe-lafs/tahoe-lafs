@@ -15,10 +15,10 @@ unique security and fault-tolerance properties:
 
   http://tahoe-lafs.readthedocs.org/en/latest/about.html
 
-The previous stable release of Tahoe-LAFS was v1.13.1,
+The previous stable release of Tahoe-LAFS was v1.12.1,
 released on January 18, 2017.
 
-v1.13.1 fixes several problems with the magic-folder frontend, adds
+v1.13.0 fixes several problems with the magic-folder frontend, adds
 --json to more commands, adds the "tahoe status" and "tahoe
 magic-folder status" commands and some internal refactoring. It is
 also now possible to have multiple magic folders in a single Tahoe
