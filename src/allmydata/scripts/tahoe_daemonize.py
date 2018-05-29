@@ -8,6 +8,7 @@ from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util import fileutil
 from allmydata.node import read_config
 from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
+from allmydata.util.configutil import UnknownConfigError
 from twisted.application.service import Service
 
 
@@ -125,8 +126,15 @@ class DaemonizeTheRealService(Service):
             except KeyError:
                 raise ValueError("unknown nodetype %s" % self.nodetype)
 
-            srv = service_factory()
-            srv.setServiceParent(self.parent)
+            try:
+                srv = service_factory()
+                srv.setServiceParent(self.parent)
+            except UnknownConfigError as e:
+                sys.stderr.write("\nConfiguration error:\n{}\n\n".format(e))
+                reactor.stop()
+            except Exception as e:
+                sys.stderr.write("\nError building service:\n{}\n\n".format(e))
+                reactor.stop()
 
         from twisted.internet import reactor
         reactor.callWhenRunning(start)
