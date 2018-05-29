@@ -17,7 +17,7 @@ a ``--json`` option in `PR452`_, providing machine-readable output.
 
 A new command ``tahoe status`` is added, showing some statistics and
 currently active operations (similar to the ``/status`` page in the
-Web UI). See slso `PR502`_.
+Web UI). See also `PR502`_.
 
 Immutable uploads now use the "servers of happiness" algorithm for
 uploading shares. This means better placement of shares on available
@@ -40,7 +40,7 @@ servers. See `PR437`_
 The place where storage servers put shares (the "storage path") is now
 configurable (`PR472`_).
 
-A PyInstaller-based build is now availalbe (`PR421`_). A "Docker
+A PyInstaller-based build is now available (`PR421`_). A "Docker
 compose" setup for development purposes is now available (`PR445`_).
 
 
