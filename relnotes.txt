@@ -13,7 +13,7 @@ operators of your storage servers can read or alter your data
 without your consent. Here is the one-page explanation of its
 unique security and fault-tolerance properties:
 
-  http://tahoe-lafs.readthedocs.org/en/latest/about.html
+  https://tahoe-lafs.readthedocs.org/en/latest/about.html
 
 The previous stable release of Tahoe-LAFS was v1.12.1,
 released on January 18, 2017.
@@ -164,7 +164,7 @@ San Francisco, California, USA
 [3] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
 [4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.13.0/COPYING.GPL
 [5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.13.0/COPYING.TGPPL.rst
-[6] http://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.13.0/INSTALL.html
+[6] https://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.13.0/INSTALL.html
 [7] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [8] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
 [9] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/CREDITS
