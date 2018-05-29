@@ -2415,5 +2415,12 @@ try:
 except NotImplementedError:
     msg = "Magic Folder support can only be tested for-real on an OS that " + \
           "supports inotify or equivalent."
-    for klass in [RealTest, MockTest, MockTestAliceBob, RealTestAliceBob]:
+    tests_using_inotify = [
+        RealTest,
+        MockTest,
+        MockTestAliceBob,
+        RealTestAliceBob,
+        HypothesisTests,
+    ]
+    for klass in tests_using_inotify:
         klass.skip = msg
