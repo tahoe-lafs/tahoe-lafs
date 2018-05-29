@@ -30,7 +30,11 @@ class TestNode(Node):
     CERTFILE='DEFAULT_CERTFILE_BLANK'
 
     def __init__(self, basedir):
-        config = read_config(basedir, 'DEFAULT_PORTNUMFILE_BLANK', _valid_config_sections=_valid_config_sections)
+        config = read_config(
+            basedir,
+            'DEFAULT_PORTNUMFILE_BLANK',
+            _valid_config_sections=_valid_config_sections,
+        )
         Node.__init__(self, config, basedir)
 
 
@@ -262,7 +266,11 @@ class PortLocation(unittest.TestCase):
         n = EmptyNode()
         basedir = os.path.join("test_node/portlocation/%s/%s" % (tp, tl))
         fileutil.make_dirs(basedir)
-        config = n.config = read_config(basedir, "node.port", _valid_config_sections=_valid_config_sections)
+        config = n.config = read_config(
+            basedir,
+            "node.port",
+            _valid_config_sections=_valid_config_sections,
+        )
         n._reveal_ip = True
 
         if exp in ("ERR1", "ERR2", "ERR3", "ERR4"):
@@ -377,7 +385,11 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = %s\n" % location)
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        n.config = read_config(n.basedir, "client.port", _valid_config_sections=_valid_config_sections)
+        n.config = read_config(
+            n.basedir,
+            "client.port",
+            _valid_config_sections=_valid_config_sections,
+        )
         n.check_privacy()
         n.services = []
         n.create_i2p_provider()
@@ -403,7 +415,11 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = tcp:example.org:1234\n")
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        n.config = read_config(n.basedir, "client.port", _valid_config_sections=_valid_config_sections)
+        n.config = read_config(
+            n.basedir,
+            "client.port",
+            _valid_config_sections=_valid_config_sections,
+        )
         n.check_privacy()
         n.services = []
         i2p_ep = object()
