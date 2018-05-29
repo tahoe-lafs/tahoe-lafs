@@ -17,7 +17,7 @@ a ``--json`` option in `PR452`_, providing machine-readable output.
 
 A new command ``tahoe status`` is added, showing some statistics and
 currently active operations (similar to the ``/status`` page in the
-Web UI).
+Web UI). See slso `PR502`_.
 
 Immutable uploads now use the "servers of happiness" algorithm for
 uploading shares. This means better placement of shares on available
@@ -65,7 +65,7 @@ Magic Folder Changes
 
 Multiple magic-folders in a single Tahoe client are now
 supported. Bugs with ``.backup`` files have been fixed, meaning
-spurious ``.backup`` files will no longer be produced
+spurious ``.backup`` files will be produced less often
 (`PR448`_). Handling of default umask on new magic-folder files is
 fixed in `PR458`_. The user mtime value is now correctly preserved
 (`PR457`_).
@@ -125,6 +125,7 @@ everyone! A complete list of these PRs and contributions:
 `PR472`_: `exarkun`_, `meskio`_
 `PR474`_: `exarkun`_
 `PR482`_: `crwood`_ (with `warner`_)
+`PR502`_: `exarkun`_ (with `meejah`_)
 
 
 Developer and Internal Changes
@@ -215,6 +216,7 @@ improvements which shouldn't have any user-visible effects:
 .. _PR472: https://github.com/tahoe-lafs/tahoe-lafs/pull/472
 .. _PR474: https://github.com/tahoe-lafs/tahoe-lafs/pull/474
 .. _PR482: https://github.com/tahoe-lafs/tahoe-lafs/pull/482
+.. _PR502: https://github.com/tahoe-lafs/tahoe-lafs/pull/502
 .. _AnBuKu: https://github.com/AnBuKu
 .. _ValdikSS: https://github.com/ValdikSS
 .. _bookchin: https://github.com/bookchin
