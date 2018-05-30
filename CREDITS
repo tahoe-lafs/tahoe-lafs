@@ -192,3 +192,12 @@ D: fix the Download! button on the Welcome page
 N: Jean-Paul Calderone
 E: exarkun@twistedmatrix.com
 D: support SFTP public key authentication.
+
+N: David Stainton
+E: dstainton415@gmail.com
+D: various bug-fixes and features
+
+N: meejah
+E: meejah@meejah.ca
+P: 0xC2602803128069A7, 9D5A 2BD5 688E CB88 9DEB  CD3F C260 2803 1280 69A7
+D: various bug-fixes and features
