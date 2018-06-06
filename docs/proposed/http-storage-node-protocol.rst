@@ -210,8 +210,26 @@ and shares.
 A particular resource is addressed by the HTTP request path.
 Details about the interface are encoded in the HTTP message body.
 
-JSON is used throughout for the examples but is likely not the preferred encoding.
-The structure of the examples should nevertheless be representative.
+Message Encoding
+~~~~~~~~~~~~~~~~
+
+The preferred encoding for HTTP message bodies is `CBOR`_.
+A request may be submitted using an alternate encoding by declaring this in the ``Content-Type`` header.
+A request may indicate its preference for an alternate encoding in the response using the ``Accept`` header.
+These two headers are used in the typical way for an HTTP application.
+
+The only other encoding support for which is currently recommended is JSON.
+For HTTP messages carrying binary share data,
+this is expected to be a particularly poor encoding.
+However,
+for HTTP messages carrying small payloads of strings, numbers, and containers
+it is expected that JSON will be more convenient than CBOR for ad hoc testing and manual interaction.
+
+For this same reason,
+JSON is used throughout for the examples presented here.
+Because of the simple types used throughout
+and the equivalence described in `RFC 7049`_
+these examples should be representative regardless of which of these two encodings is chosen.
 
 General
 ~~~~~~~
@@ -423,6 +441,10 @@ Advise the server the data read from the indicated share was corrupt.
 Just like the immutable version.
 
 .. _RFC 7469: https://tools.ietf.org/html/rfc7469#section-2.4
+
+.. _RFC 7049: https://tools.ietf.org/html/rfc7049#section-4
+
+.. _CBOR: http://cbor.io/
 
 .. [#]
    The security value of checking ``notValidBefore`` and ``notValidAfter`` is not entirely clear.
