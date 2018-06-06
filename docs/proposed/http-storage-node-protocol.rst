@@ -204,6 +204,12 @@ it should make use of this GBS information.
 Server Details
 --------------
 
+The protocol primarily enables interaction with "resources" of two types:
+storage indexes
+and shares.
+A particular resource is addressed by the HTTP request path.
+Details about the interface are encoded in the HTTP message body.
+
 JSON is used throughout for the examples but is likely not the preferred encoding.
 The structure of the examples should nevertheless be representative.
 
