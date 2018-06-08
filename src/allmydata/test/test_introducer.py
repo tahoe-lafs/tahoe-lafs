@@ -329,6 +329,8 @@ def foolscapEndpointForPortNumber(portnum):
         Foolscap-compatible endpoint object.
     """
     if portnum is None:
+        # Bury this reactor import here to minimize the chances of it having
+        # the effect of installing the default reactor.
         from twisted.internet import reactor
         if IReactorSocket.providedBy(reactor):
             # On POSIX we can take this very safe approach of binding the
