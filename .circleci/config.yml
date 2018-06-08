@@ -1,0 +1,21 @@
+# https://circleci.com/docs/2.0/
+
+version: 2
+workflows:
+  version: 2
+  ci:
+    jobs:
+      - "lint"
+
+jobs:
+  lint:
+    docker:
+      - image: "circleci/python:2"
+
+    steps:
+      - "checkout"
+
+      - run:
+          name: "Static-ish code checks"
+          command: |
+            tox -e codechecks
