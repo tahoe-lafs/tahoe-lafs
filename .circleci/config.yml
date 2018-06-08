@@ -18,4 +18,5 @@ jobs:
       - run:
           name: "Static-ish code checks"
           command: |
-            tox -e codechecks
+            pip install --user tox
+            ~/.local/bin/tox -e codechecks
