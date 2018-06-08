@@ -23,9 +23,13 @@ jobs:
       - "checkout"
 
       - run:
-          name: "Static-ish code checks"
+          name: "Install tox"
           command: |
             pip install --user tox
+
+      - run:
+          name: "Static-ish code checks"
+          command: |
             ~/.local/bin/tox -e codechecks
 
   debian-8: &DEBIAN
