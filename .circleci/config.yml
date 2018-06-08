@@ -6,6 +6,7 @@ workflows:
   ci:
     jobs:
       - "lint"
+      - "tests"
 
 jobs:
   lint:
@@ -20,3 +21,30 @@ jobs:
           command: |
             pip install --user tox
             ~/.local/bin/tox -e codechecks
+
+  tests:
+    docker:
+      - image: "debian:8"
+
+    steps:
+      - "checkout"
+
+      - run:
+          name: "Bootstrap test environment"
+          command: |
+            apt-get --quiet update
+            apt-get --quiet --yes install \
+                build-essential \
+                python2.7 \
+                python2.7-dev \
+                libffi-dev \
+                libssl-dev \
+                libyaml-dev \
+                virtualenv
+            virtualenv --python python2.7 tests
+            tests/bin/pip install tox
+
+      - run:
+          name: "Run test suite"
+          command: |
+            tests/bin/tox -e py27
