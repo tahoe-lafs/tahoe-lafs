@@ -36,12 +36,14 @@ class TestNode(Node):
 
 class TestCase(testutil.SignalMixin, unittest.TestCase):
 
-    @defer.inlineCallbacks
     def setUp(self):
         testutil.SignalMixin.setUp(self)
         self.parent = LoggingMultiService()
         self.parent.startService()
-        self._available_port = yield iputil.allocate_tcp_port()
+        # We can use a made-up port number because these tests never actually
+        # try to bind the port.  We'll use a low-numbered one that's likely to
+        # conflict with another service to prove it.
+        self._available_port = 22
 
     def tearDown(self):
         log.msg("%s.tearDown" % self.__class__.__name__)
@@ -66,10 +68,9 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
                        lambda: local_addresses)
 
         n = TestNode(basedir)
-        n.setServiceParent(self.parent)
         furl = n.tub.registerReference(n)
         for address in expected_addresses:
-            self.failUnlessIn(address, furl)
+            self.assertIn(address, furl)
 
     def test_location1(self):
         return self._test_location(basedir="test_node/test_location1",
