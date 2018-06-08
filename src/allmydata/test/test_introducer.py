@@ -8,6 +8,7 @@ from twisted.trial import unittest
 from twisted.internet import defer, address
 from twisted.python import log
 from twisted.python.filepath import FilePath
+from twisted.python.reflect import requireModule
 from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 from twisted.internet.interfaces import IReactorSocket
 
@@ -25,6 +26,8 @@ from allmydata.web import introweb
 from allmydata.client import create_client
 from allmydata.util import pollmixin, keyutil, idlib, fileutil, iputil, yamlutil
 import allmydata.test.common_util as testutil
+
+fcntl = requireModule("fcntl")
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
@@ -332,11 +335,10 @@ def foolscapEndpointForPortNumber(portnum):
         # Bury this reactor import here to minimize the chances of it having
         # the effect of installing the default reactor.
         from twisted.internet import reactor
-        if IReactorSocket.providedBy(reactor):
+        if fcntl is not None and IReactorSocket.providedBy(reactor):
             # On POSIX we can take this very safe approach of binding the
             # actual socket to an address.  Once the bind succeeds here, we're
             # no longer subject to any future EADDRINUSE problems.
-            import fcntl
             s = socket()
             try:
                 s.bind(('', 0))
