@@ -2,11 +2,13 @@
 import os, re, itertools
 from base64 import b32decode
 import json
+from socket import socket, AF_INET
 
 from twisted.trial import unittest
 from twisted.internet import defer, address
 from twisted.python import log
 from twisted.python.filepath import FilePath
+from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 
 from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
@@ -333,8 +335,6 @@ def foolscapEndpointForPortNumber(portnum):
             # actual socket to an address.  Once the bind succeeds here, we're
             # no longer subject to any future EADDRINUSE problems.
             import fcntl
-            from socket import socket, AF_INET
-            from twisted.internet.endpoints import AdoptedStreamServerEndpoint
             s = socket()
             try:
                 s.bind(('', 0))
