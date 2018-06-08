@@ -5,6 +5,14 @@ import sys
 import time
 import mock
 
+from hypothesis import (
+    given,
+    settings,
+)
+from hypothesis.strategies import (
+    integers,
+    sets,
+)
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -21,6 +29,9 @@ from allmydata.util import fileutil, iputil
 from allmydata.util.namespace import Namespace
 import allmydata.test.common_util as testutil
 
+
+def port_numbers():
+    return integers(min_value=1, max_value=2 ** 16 - 1)
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
@@ -361,14 +372,27 @@ class FakeTub:
     def setServiceParent(self, parent): pass
 
 class Listeners(unittest.TestCase):
-    def test_multiple_ports(self):
+    # Randomly allocate a couple distinct port numbers to try out.  The test
+    # never actually binds these port numbers so we don't care if they're "in
+    # use" on the system or not.  We just want a couple distinct values we can
+    # check expected results against.
+    @given(ports=sets(elements=port_numbers(), min_size=2, max_size=2))
+    # A few examples should satisfy us here.  The logic for dealing with these
+    # numbers is hardly complex.  On the flip side, all of the setup work we
+    # do to get a node we can test against is pretty expensive.
+    @settings(max_examples=10)
+    def test_multiple_ports(self, ports):
+        """
+        When there are multiple listen addresses suggested by the ``tub.port`` and
+        ``tub.location`` configuration, the node's *main* port listens on all
+        of them.
+        """
         n = EmptyNode()
         n.basedir = self.mktemp()
         n.config_fname = os.path.join(n.basedir, "tahoe.cfg")
         os.mkdir(n.basedir)
         os.mkdir(os.path.join(n.basedir, "private"))
-        port1 = iputil.allocate_tcp_port()
-        port2 = iputil.allocate_tcp_port()
+        port1, port2 = iter(ports)
         port = ("tcp:%d:interface=127.0.0.1,tcp:%d:interface=127.0.0.1" %
                 (port1, port2))
         location = "tcp:localhost:%d,tcp:localhost:%d" % (port1, port2)
