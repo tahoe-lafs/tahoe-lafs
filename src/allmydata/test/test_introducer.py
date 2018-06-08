@@ -358,20 +358,32 @@ def foolscapEndpointForPortNumber(portnum):
             portnum = iputil.allocate_tcp_port()
     return (portnum, "tcp:%d" % (portnum,))
 
+def listenOnUnused(tub, portnum=None):
+    """
+    Start listening on an unused TCP port number with the given tub.
+
+    :param portnum: Either an integer port number indicating which TCP/IPv4
+        port number the endpoint should bind or ``None`` to automatically
+        allocate such a port number.
+
+    :return: An integer indicating the TCP port number on which the tub is now
+        listening.
+    """
+    portnum, endpoint = foolscapEndpointForPortNumber(portnum)
+    tub.listenOn(endpoint)
+    tub.setLocation("localhost:%d" % (portnum,))
+    return portnum
 
 class SystemTestMixin(ServiceMixin, pollmixin.PollMixin):
 
     def create_tub(self, portnum=None):
-        portnum, endpoint = foolscapEndpointForPortNumber(portnum)
         tubfile = os.path.join(self.basedir, "tub.pem")
         self.central_tub = tub = Tub(certFile=tubfile)
         #tub.setOption("logLocalFailures", True)
         #tub.setOption("logRemoteFailures", True)
         tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
-        tub.listenOn(endpoint)
-        self.central_portnum = portnum
-        tub.setLocation("localhost:%d" % self.central_portnum)
+        self.central_portnum = listenOnUnused(tub, portnum)
 
 class Queue(SystemTestMixin, unittest.TestCase):
     def test_queue_until_connected(self):
@@ -458,10 +470,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             #tub.setOption("logRemoteFailures", True)
             tub.setOption("expose-remote-exception-types", False)
             tub.setServiceParent(self.parent)
-            portnum, endpoint = foolscapEndpointForPortNumber(None)
-            tub.listenOn(endpoint)
-            tub.setLocation("localhost:%d" % portnum)
-
+            listenOnUnused(tub)
             log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
             c = IntroducerClient(tub, self.introducer_furl,
                                  NICKNAME % str(i),
@@ -939,10 +948,7 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         tub = Tub()
         tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
-        portnum, endpoint = foolscapEndpointForPortNumber(None)
-        tub.listenOn(endpoint)
-        tub.setLocation("localhost:%d" % portnum)
-
+        listenOnUnused(tub)
         c = IntroducerClient(tub, self.introducer_furl,
                              u"nickname-client", "version", "oldest", {},
                              fakeseq, FilePath(self.mktemp()))
