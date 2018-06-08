@@ -28,12 +28,17 @@ jobs:
       - image: "debian:8"
 
     steps:
+      - run:
+          node: "Install Git"
+          command: |
+            apt-get --quiet update
+            apt-get --quiet --yes install git
+
       - "checkout"
 
       - run:
           name: "Bootstrap test environment"
           command: |
-            apt-get --quiet update
             apt-get --quiet --yes install \
                 build-essential \
                 python2.7 \
