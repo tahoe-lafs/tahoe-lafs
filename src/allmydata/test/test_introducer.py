@@ -9,6 +9,7 @@ from twisted.internet import defer, address
 from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import AdoptedStreamServerEndpoint
+from twisted.internet.interfaces import IReactorSocket
 
 from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
@@ -329,7 +330,6 @@ def foolscapEndpointForPortNumber(portnum):
     """
     if portnum is None:
         from twisted.internet import reactor
-        from twisted.internet.interfaces import IReactorSocket
         if IReactorSocket.providedBy(reactor):
             # On POSIX we can take this very safe approach of binding the
             # actual socket to an address.  Once the bind succeeds here, we're
