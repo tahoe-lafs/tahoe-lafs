@@ -8,6 +8,7 @@ workflows:
       - "lint"
       - "debian-8"
       - "debian-9"
+      - "centos-7"
 
 jobs:
   lint:
@@ -87,3 +88,66 @@ jobs:
       - image: "debian:9"
 
     <<: *DEBIAN
+
+
+  centos-7:
+    docker:
+      - image: "centos:7"
+
+    environment:
+      - TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+
+    steps:
+      - run:
+          node: "Install Git"
+          command: |
+            yum install --assumeyes git
+
+      - "checkout"
+
+      - run:
+          name: "Bootstrap test environment"
+          working_directory: "/tmp"
+          command: |
+            # Avoid the /nonexistent home directory in nobody's /etc/passwd
+            # entry.
+            usermod --home /tmp/nobody nobody
+
+            # Grant read access to nobody, the user which will eventually try
+            # to test this checkout.
+            mv /root/project /tmp/project
+
+            # Python build/install toolchain wants to write to the source
+            # checkout, too.
+            chown --recursive nobody:nobody /tmp/project
+
+            yum install --assumeyes \
+                sudo \
+                make automake gcc gcc-c++ \
+                python \
+                python-devel \
+                libffi-devel \
+                openssl-devel \
+                libyaml-devel \
+                python-virtualenv
+
+            # XXX net-tools is actually a Tahoe-LAFS runtime dependency!
+            yum install --assumeyes \
+                net-tools
+
+            # Set up the virtualenv as a non-root user so we can run the test
+            # suite as a non-root user.  See below.
+            sudo -u nobody virtualenv --python python2.7 /tmp/tests
+            sudo -u nobody /tmp/tests/bin/pip install tox
+
+      - run:
+          name: "Run test suite"
+          command: |
+            # Run the test suite as a non-root user.  This is the expected
+            # usage some small areas of the test suite assume non-root
+            # privileges (such as unreadable files being unreadable).
+            #
+            # Also run with /tmp as a workdir because the non-root user won't
+            # be able to create the tox working filesystem state in the source
+            # checkout because it is owned by root.
+            sudo -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp -e py27
