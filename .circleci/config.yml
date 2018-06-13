@@ -27,6 +27,9 @@ jobs:
     docker:
       - image: "debian:8"
 
+    environment:
+      - TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+
     steps:
       - run:
           node: "Install Git"
