@@ -643,9 +643,31 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failIfEqual(new_mode, 0766)
 
     def test_create_long_path(self):
+        """
+        Even for paths with total length greater than 260 bytes,
+        ``fileutil.abspath_expanduser_unicode`` produces a path on which other
+        path-related APIs can operate.
+
+        https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
+        documents certain Windows-specific path length limitations this test
+        is specifically intended to demonstrate can be overcome.
+        """
         workdir = u"test_create_long_path"
         fileutil.make_dirs(workdir)
-        long_path = fileutil.abspath_expanduser_unicode(os.path.join(workdir, u'x'*255))
+        base_path = fileutil.abspath_expanduser_unicode(workdir)
+        base_length = len(base_path)
+
+        # Construct a path /just/ long enough to exercise the important case.
+        # It would be nice if we could just use a seemingly globally valid
+        # long file name (the `x...` portion) here - for example, a name 255
+        # bytes long- and a previous version of this test did just that.
+        # However, aufs imposes a 242 byte length limit on file names.  Most
+        # other POSIX filesystems do allow names up to 255 bytes.  It's not
+        # clear there's anything we can *do* about lower limits, though, and
+        # POSIX.1-2017 (and earlier) only requires that the maximum be at
+        # least 14 (!!!)  bytes.
+        long_path = os.path.join(base_path, u'x' * (261 - base_length))
+
         def _cleanup():
             fileutil.remove(long_path)
         self.addCleanup(_cleanup)
