@@ -36,7 +36,7 @@ Discussion
 !!!!!!!!!!
 
 A client node relies on a storage node to persist certain data until a future retrieval request is made.
-In this way, the node is vulnerable to attacks which cause the data not to be persisted.
+In this way, the client node is vulnerable to attacks which cause the data not to be persisted.
 Though this vulnerability can be (and typically is) mitigated by including redundancy in the share encoding parameters for stored data,
 it is still sensible to attempt to minimize unnecessary vulnerability to this attack.
 
