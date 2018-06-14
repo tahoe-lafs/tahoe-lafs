@@ -36,6 +36,8 @@ jobs:
       # Tell Hypothesis which configuration we want it to use.
       - TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
       # Tell the C runtime things about character encoding (mainly to do with
+      # filenames and argv).
+      - LANG: "en_US.UTF-8"
 
     steps:
       - run:
@@ -70,12 +72,13 @@ jobs:
                 libffi-dev \
                 libssl-dev \
                 libyaml-dev \
-                virtualenv
+                virtualenv \
+                ${EXTRA_PACKAGES}
 
             # Set up the virtualenv as a non-root user so we can run the test
             # suite as a non-root user.  See below.
-            sudo -u nobody virtualenv --python python2.7 /tmp/tests
-            sudo -u nobody /tmp/tests/bin/pip install tox
+            sudo --set-home -u nobody virtualenv --python python2.7 /tmp/tests
+            sudo --set-home -u nobody /tmp/tests/bin/pip install tox
 
       - run: &RUN_TESTS
           name: "Run test suite"
@@ -87,7 +90,7 @@ jobs:
             # Also run with /tmp as a workdir because the non-root user won't
             # be able to create the tox working filesystem state in the source
             # checkout because it is owned by root.
-            sudo -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp -e py27
+            sudo --set-home -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp -e py27
 
 
   debian-9:
@@ -102,6 +105,11 @@ jobs:
     docker:
       - image: "ubuntu:16.04"
 
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # Necessary for en_US LANG setting.
+      EXTRA_PACKAGES: "language-pack-en"
+
 
   ubuntu-18.04:
     <<: *DEBIAN
@@ -113,8 +121,7 @@ jobs:
     docker:
       - image: "centos:7"
 
-    environment:
-      <<: *UTF_8_ENVIRONMENT
+    environment: *UTF_8_ENVIRONMENT
 
     steps:
       - run:
