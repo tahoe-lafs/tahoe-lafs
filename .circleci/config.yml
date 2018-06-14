@@ -92,6 +92,11 @@ jobs:
             # checkout because it is owned by root.
             sudo --set-home -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp -e py27
 
+      - store_artifacts: &STORE_ARTIFACTS
+          # Despite passing --workdir /tmp to tox above, it still runs trial
+          # in the project source checkout.
+          path: "/tmp/project/_trial_temp/test.log"
+
 
   debian-9:
     docker:
@@ -169,6 +174,8 @@ jobs:
       - run:
           <<: *RUN_TESTS
 
+
+      - store_artifacts: *STORE_ARTIFACTS
 
   fedora-27:
     docker:
