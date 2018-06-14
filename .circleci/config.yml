@@ -10,6 +10,7 @@ workflows:
       - "debian-9"
       - "centos-7"
       - "fedora-27"
+      - "fedora-28"
 
 jobs:
   lint:
@@ -149,5 +150,11 @@ jobs:
   fedora-27:
     docker:
       - image: "fedora:27"
+
+    <<: *RHEL_DERIV
+
+  fedora-28:
+    docker:
+      - image: "fedora:28"
 
     <<: *RHEL_DERIV
