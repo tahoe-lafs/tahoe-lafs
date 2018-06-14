@@ -8,6 +8,7 @@ workflows:
       - "lint"
       - "debian-8"
       - "debian-9"
+      - "ubuntu-16.04"
       - "ubuntu-18.04"
       - "centos-7"
       - "fedora-27"
@@ -92,6 +93,12 @@ jobs:
       - image: "debian:9"
 
     <<: *DEBIAN
+
+
+  ubuntu-16.04:
+    <<: *DEBIAN
+    docker:
+      - image: "ubuntu:16.04"
 
 
   ubuntu-18.04:
