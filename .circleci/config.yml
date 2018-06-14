@@ -32,8 +32,10 @@ jobs:
     docker:
       - image: "debian:8"
 
-    environment:
+    environment: &UTF_8_ENVIRONMENT
+      # Tell Hypothesis which configuration we want it to use.
       - TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+      # Tell the C runtime things about character encoding (mainly to do with
 
     steps:
       - run:
@@ -112,7 +114,7 @@ jobs:
       - image: "centos:7"
 
     environment:
-      - TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+      <<: *UTF_8_ENVIRONMENT
 
     steps:
       - run:
