@@ -171,8 +171,7 @@ jobs:
             sudo -u nobody virtualenv --python python2.7 /tmp/tests
             sudo -u nobody /tmp/tests/bin/pip install tox
 
-      - run:
-          <<: *RUN_TESTS
+      - run: *RUN_TESTS
 
 
       - store_artifacts: *STORE_ARTIFACTS
