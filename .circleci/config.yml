@@ -50,7 +50,6 @@ jobs:
 
       - run:
           name: "Bootstrap test environment"
-          working_directory: "/tmp"
           command: |
             # Avoid the /nonexistent home directory in nobody's /etc/passwd
             # entry.
@@ -75,10 +74,16 @@ jobs:
                 virtualenv \
                 ${EXTRA_PACKAGES}
 
+      - run: &SETUP_VIRTUALENV
+          name: "Setup virtualenv"
+          # pip cannot install packages if the working directory is not
+          # readable.
+          working_directory: "/tmp"
+          command: |
             # Set up the virtualenv as a non-root user so we can run the test
             # suite as a non-root user.  See below.
             sudo --set-home -u nobody virtualenv --python python2.7 /tmp/tests
-            sudo --set-home -u nobody /tmp/tests/bin/pip install tox
+            sudo --set-home -u nobody /tmp/tests/bin/pip install tox codecov
 
       - run: &RUN_TESTS
           name: "Run test suite"
@@ -90,12 +95,17 @@ jobs:
             # Also run with /tmp as a workdir because the non-root user won't
             # be able to create the tox working filesystem state in the source
             # checkout because it is owned by root.
-            sudo --set-home -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp -e py27
+            sudo --set-home -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp -e coverage
 
       - store_artifacts: &STORE_ARTIFACTS
           # Despite passing --workdir /tmp to tox above, it still runs trial
           # in the project source checkout.
           path: "/tmp/project/_trial_temp/test.log"
+
+      - run:
+          name: "Submit coverage results"
+          command: |
+            /tmp/tests/bin/codecov
 
 
   debian-9:
@@ -166,11 +176,7 @@ jobs:
             yum install --assumeyes \
                 net-tools
 
-            # Set up the virtualenv as a non-root user so we can run the test
-            # suite as a non-root user.  See below.
-            sudo -u nobody virtualenv --python python2.7 /tmp/tests
-            sudo -u nobody /tmp/tests/bin/pip install tox
-
+      - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
 
 
