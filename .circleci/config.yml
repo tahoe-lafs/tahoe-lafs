@@ -14,6 +14,8 @@ workflows:
       - "fedora-27"
       - "fedora-28"
 
+      - "deprecations"
+
 jobs:
   lint:
     docker:
@@ -99,6 +101,8 @@ jobs:
           # if the working directory is not readable.
           working_directory: "/tmp"
           command: |
+            env
+
             # Run the test suite as a non-root user.  This is the expected
             # usage some small areas of the test suite assume non-root
             # privileges (such as unreadable files being unreadable).
@@ -122,6 +126,18 @@ jobs:
   debian-9:
     docker:
       - image: "debian:9"
+
+    <<: *DEBIAN
+
+
+  deprecations:
+    docker:
+      - image: "debian:9"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # Select a tox environment to run for this job.
+      TAHOE_LAFS_TOX_ENVIRONMENT: "deprecations,upcoming-deprecations"
 
     <<: *DEBIAN
 
