@@ -78,7 +78,7 @@ jobs:
           # if the working directory is not readable.
           working_directory: "/tmp"
           command: |
-            /tmp/project/.circleci/setup-virtualenv.sh
+            /tmp/project/.circleci/run-tests.sh
 
       - store_artifacts: &STORE_TEST_LOG
           # Despite passing --workdir /tmp to tox above, it still runs trial
@@ -234,7 +234,7 @@ jobs:
       - run:
           <<: *RUN_TESTS
           command: |
-            sudo /tmp/project/.circleci/setup-virtualenv.sh
+            sudo /tmp/project/.circleci/run-tests.sh
 
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
