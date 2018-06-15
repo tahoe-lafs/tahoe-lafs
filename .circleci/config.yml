@@ -72,7 +72,7 @@ jobs:
           # readable.
           working_directory: "/tmp"
           command: |
-            /tmp/project/.circleci/setup-virtualenv.sh
+            /tmp/project/.circleci/setup-virtualenv.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" ${TAHOE_LAFS_TOX_ARGS}
 
       - run: &RUN_TESTS
           name: "Run test suite"
@@ -80,7 +80,7 @@ jobs:
           # if the working directory is not readable.
           working_directory: "/tmp"
           command: |
-            /tmp/project/.circleci/run-tests.sh
+            /tmp/project/.circleci/run-tests.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" ${TAHOE_LAFS_TOX_ARGS}
 
       - store_artifacts: &STORE_TEST_LOG
           # Despite passing --workdir /tmp to tox above, it still runs trial
