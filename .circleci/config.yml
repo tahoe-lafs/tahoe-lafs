@@ -124,13 +124,13 @@ jobs:
 
 
   debian-9:
+    <<: *DEBIAN
     docker:
       - image: "debian:9"
 
-    <<: *DEBIAN
-
 
   deprecations:
+    <<: *DEBIAN
     docker:
       - image: "debian:9"
 
@@ -138,8 +138,6 @@ jobs:
       <<: *UTF_8_ENVIRONMENT
       # Select a tox environment to run for this job.
       TAHOE_LAFS_TOX_ENVIRONMENT: "deprecations,upcoming-deprecations"
-
-    <<: *DEBIAN
 
 
   ubuntu-16.04:
@@ -209,14 +207,14 @@ jobs:
 
       - store_artifacts: *STORE_ARTIFACTS
 
+
   fedora-27:
+    <<: *RHEL_DERIV
     docker:
       - image: "fedora:27"
 
-    <<: *RHEL_DERIV
 
   fedora-28:
+    <<: *RHEL_DERIV
     docker:
       - image: "fedora:28"
-
-    <<: *RHEL_DERIV
