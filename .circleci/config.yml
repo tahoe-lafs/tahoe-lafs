@@ -64,7 +64,7 @@ jobs:
       - run: &BOOTSTRAP_TEST_ENVIRONMENT
           name: "Bootstrap test environment"
           command: |
-            ~/project/.circleci/bootstrap-test-environment.sh ~/project
+            ~/project/.circleci/bootstrap-test-environment.sh ~/project "${EXTRA_PACKAGES}"
 
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
