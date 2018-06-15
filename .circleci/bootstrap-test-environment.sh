@@ -21,5 +21,4 @@ apt-get --quiet --yes install \
     libffi-dev \
     libssl-dev \
     libyaml-dev \
-    virtualenv \
     ${EXTRA_PACKAGES}
