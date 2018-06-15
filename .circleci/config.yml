@@ -53,7 +53,9 @@ jobs:
     steps:
       - run: &INSTALL_GIT
           node: "Install Git"
-          command: "${CIRCLE_WORKING_DIRECTORY}/.circleci/install-git.sh"
+          command: |
+            sudo apt-get --quiet update
+            sudo apt-get --quiet --yes install git
 
       - "checkout"
 
@@ -208,9 +210,7 @@ jobs:
 
     # Unfortunately, duplicate all the steps here but run with `sudo`.
     steps:
-      - run:
-          <<: *INSTALL_GIT
-          command: "sudo ${CIRCLE_WORKING_DIRECTORY}/.circleci/install-git.sh"
+      - run: *INSTALL_GIT
 
       - "checkout"
 
