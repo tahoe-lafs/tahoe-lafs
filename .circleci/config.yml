@@ -34,12 +34,12 @@ jobs:
 
     environment: &UTF_8_ENVIRONMENT
       # Tell Hypothesis which configuration we want it to use.
-      - TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+      TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
       # Tell the C runtime things about character encoding (mainly to do with
       # filenames and argv).
-      - LANG: "en_US.UTF-8"
+      LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      - TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
 
     steps:
       - run:
