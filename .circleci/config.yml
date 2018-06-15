@@ -136,7 +136,7 @@ jobs:
 
     environment:
       <<: *UTF_8_ENVIRONMENT
-      # Select a tox environment to run for this job.
+      # Select the deprecations tox environments.
       TAHOE_LAFS_TOX_ENVIRONMENT: "deprecations,upcoming-deprecations"
 
 
