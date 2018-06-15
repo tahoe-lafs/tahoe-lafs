@@ -227,17 +227,17 @@ jobs:
       - run:
           <<: *BOOTSTRAP_TEST_ENVIRONMENT
           command: |
-            sudo --preserve-env ~/project/.circleci/bootstrap-test-environment.sh ~/project
+            sudo ~/project/.circleci/bootstrap-test-environment.sh ~/project "${EXTRA_PACKAGES}"
 
       - run:
           <<: *SETUP_VIRTUALENV
           command: |
-            sudo --preserve-env /tmp/project/.circleci/setup-virtualenv.sh
+            sudo /tmp/project/.circleci/setup-virtualenv.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" ${TAHOE_LAFS_TOX_ARGS}
 
       - run:
           <<: *RUN_TESTS
           command: |
-            sudo --preserve-env /tmp/project/.circleci/run-tests.sh
+            sudo /tmp/project/.circleci/run-tests.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" ${TAHOE_LAFS_TOX_ARGS}
 
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS

@@ -3,6 +3,9 @@
 PROJECT=$1
 shift
 
+EXTRA_PACKAGES=$1
+shift
+
 # Avoid the /nonexistent home directory in nobody's /etc/passwd entry.
 usermod --home /tmp/nobody nobody
 
