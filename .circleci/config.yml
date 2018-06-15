@@ -214,7 +214,11 @@ jobs:
 
     # Unfortunately, duplicate all the steps here but run with `sudo`.
     steps:
-      - run: *INSTALL_GIT
+      - run:
+          node: "Install Git"
+          command: |
+            sudo apt-get --quiet update
+            sudo apt-get --quiet --yes install git
 
       - "checkout"
 
