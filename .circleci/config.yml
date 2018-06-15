@@ -227,17 +227,17 @@ jobs:
       - run:
           <<: *BOOTSTRAP_TEST_ENVIRONMENT
           command: |
-            sudo ~/project/.circleci/bootstrap-test-environment.sh ~/project
+            sudo --preserve-env ~/project/.circleci/bootstrap-test-environment.sh ~/project
 
       - run:
           <<: *SETUP_VIRTUALENV
           command: |
-            sudo /tmp/project/.circleci/setup-virtualenv.sh
+            sudo --preserve-env /tmp/project/.circleci/setup-virtualenv.sh
 
       - run:
           <<: *RUN_TESTS
           command: |
-            sudo /tmp/project/.circleci/run-tests.sh
+            sudo --preserve-env /tmp/project/.circleci/run-tests.sh
 
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
