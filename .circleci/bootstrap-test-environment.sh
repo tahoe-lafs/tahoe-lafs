@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash -eo pipefail
 
 # Avoid the /nonexistent home directory in nobody's /etc/passwd entry.
 usermod --home /tmp/nobody nobody
