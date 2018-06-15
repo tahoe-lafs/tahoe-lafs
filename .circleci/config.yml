@@ -101,8 +101,6 @@ jobs:
           # if the working directory is not readable.
           working_directory: "/tmp"
           command: |
-            env
-
             # Run the test suite as a non-root user.  This is the expected
             # usage some small areas of the test suite assume non-root
             # privileges (such as unreadable files being unreadable).
