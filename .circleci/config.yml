@@ -5,17 +5,17 @@ workflows:
   version: 2
   ci:
     jobs:
-      - "lint"
-      - "debian-8"
-      - "debian-9"
-      - "ubuntu-16.04"
-      - "ubuntu-18.04"
-      - "centos-7"
-      - "fedora-27"
-      - "fedora-28"
+      # - "lint"
+      # - "debian-8"
+      # - "debian-9"
+      # - "ubuntu-16.04"
+      # - "ubuntu-18.04"
+      # - "centos-7"
+      # - "fedora-27"
+      # - "fedora-28"
 
       - "magic-folder-ubuntu-14.04"
-      - "deprecations"
+      # - "deprecations"
 
 jobs:
   lint:
@@ -51,80 +51,42 @@ jobs:
       TAHOE_LAFS_TOX_ARGS: ""
 
     steps:
-      - run:
+      - run: &INSTALL_GIT
           node: "Install Git"
-          command: |
-            apt-get --quiet update
-            apt-get --quiet --yes install git
+          command: "${CIRCLE_WORKING_DIRECTORY}/.circleci/install-git.sh"
 
       - "checkout"
 
-      - run:
+      - run: &BOOTSTRAP_TEST_ENVIRONMENT
           name: "Bootstrap test environment"
-          command: |
-            # Avoid the /nonexistent home directory in nobody's /etc/passwd
-            # entry.
-            usermod --home /tmp/nobody nobody
-
-            # Grant read access to nobody, the user which will eventually try
-            # to test this checkout.
-            mv /root/project /tmp/project
-
-            # Python build/install toolchain wants to write to the source
-            # checkout, too.
-            chown --recursive nobody:nogroup /tmp/project
-
-            apt-get --quiet --yes install \
-                sudo \
-                build-essential \
-                python2.7 \
-                python2.7-dev \
-                libffi-dev \
-                libssl-dev \
-                libyaml-dev \
-                virtualenv \
-                ${EXTRA_PACKAGES}
+          command: "${CIRCLE_WORKING_DIRECTORY}/.circleci/bootstrap-test-environment.sh"
 
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
           # pip cannot install packages if the working directory is not
           # readable.
           working_directory: "/tmp"
-          command: |
-            # Set up the virtualenv as a non-root user so we can run the test
-            # suite as a non-root user.  See below.
-            sudo --set-home -u nobody virtualenv --python python2.7 /tmp/tests
-            sudo --set-home -u nobody /tmp/tests/bin/pip install tox codecov
-            # Get everything installed in it, too.
-            sudo --set-home -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp --notest -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" ${TAHOE_LAFS_TOX_ARGS}
+          command: "${CIRCLE_WORKING_DIRECTORY}/.circleci/setup-virtualenv.sh"
 
       - run: &RUN_TESTS
           name: "Run test suite"
           # Something about when it re-uses an existing environment blows up
           # if the working directory is not readable.
           working_directory: "/tmp"
-          command: |
-            # Run the test suite as a non-root user.  This is the expected
-            # usage some small areas of the test suite assume non-root
-            # privileges (such as unreadable files being unreadable).
-            #
-            # Also run with /tmp as a workdir because the non-root user won't
-            # be able to create the tox working filesystem state in the source
-            # checkout because it is owned by root.
-            sudo --set-home -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp -e ${TAHOE_LAFS_TOX_ENVIRONMENT}
+          command: "${CIRCLE_WORKING_DIRECTORY}/.circleci/setup-virtualenv.sh"
 
-      - store_artifacts: &STORE_ARTIFACTS
+      - store_artifacts: &STORE_TEST_LOG
           # Despite passing --workdir /tmp to tox above, it still runs trial
           # in the project source checkout.
           path: "/tmp/project/_trial_temp/test.log"
 
-      - store_artifacts:
+      - store_artifacts: &STORE_OTHER_ARTIFACTS
           # Store any other artifacts, too.  This is handy to allow other jobs
           # sharing most of the definition of this one to be able to
           # contribute artifacts easily.
           path: "/tmp/artifacts"
 
-      - run:
+      - run: &SUBMIT_COVERAGE
           name: "Submit coverage results"
           command: |
             /tmp/tests/bin/codecov
@@ -218,7 +180,9 @@ jobs:
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
 
-      - store_artifacts: *STORE_ARTIFACTS
+      - store_artifacts: *STORE_TEST_LOG
+      - store_artifacts: *STORE_OTHER_ARTIFACTS
+      - run: *SUBMIT_COVERAGE
 
 
   fedora-27:
@@ -234,11 +198,6 @@ jobs:
 
 
   magic-folder-ubuntu-14.04:
-    <<: *DEBIAN
-
-    # Turn off the inherited docker executor.
-    docker: null
-
     machine:
       enabled: true
       image: "circleci/classic:201711-01"
@@ -246,3 +205,27 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ARGS: "-- allmydata.test.test_magic_folder"
+
+    # Unfortunately, duplicate all the steps here but run with `sudo`.
+    steps:
+      - run:
+          <<: *INSTALL_GIT
+          command: "sudo ${CIRCLE_WORKING_DIRECTORY}/.circleci/install-git.sh"
+
+      - "checkout"
+
+      - run:
+          <<: *BOOTSTRAP_TEST_ENVIRONMENT
+          command: "${CIRCLE_WORKING_DIRECTORY}/.circleci/bootstrap-test-environment.sh"
+
+      - run:
+          <<: *SETUP_VIRTUALENV
+          command: "sudo ${CIRCLE_WORKING_DIRECTORY}/.circleci/setup-virtualenv.sh"
+
+      - run:
+          <<: *RUN_TESTS
+          command: "sudo ${CIRCLE_WORKING_DIRECTORY}/.circleci/setup-virtualenv.sh"
+
+      - store_artifacts: *STORE_TEST_LOG
+      - store_artifacts: *STORE_OTHER_ARTIFACTS
+      - run: *SUBMIT_COVERAGE
