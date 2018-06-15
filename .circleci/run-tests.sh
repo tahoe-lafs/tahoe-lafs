@@ -4,7 +4,7 @@ TAHOE_LAFS_TOX_ENVIRONMENT=$1
 shift
 
 TAHOE_LAFS_TOX_ARGS=$1
-shift
+shift || :
 
 # Run the test suite as a non-root user.  This is the expected usage some
 # small areas of the test suite assume non-root privileges (such as unreadable

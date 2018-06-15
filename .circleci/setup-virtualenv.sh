@@ -4,7 +4,7 @@ TAHOE_LAFS_TOX_ENVIRONMENT=$1
 shift
 
 TAHOE_LAFS_TOX_ARGS=$1
-shift
+shift || :
 
 # Set up the virtualenv as a non-root user so we can run the test suite as a
 # non-root user.  See below.
