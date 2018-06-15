@@ -6,7 +6,7 @@ workflows:
   ci:
     jobs:
       # - "lint"
-      # - "debian-8"
+      - "debian-8"
       # - "debian-9"
       # - "ubuntu-16.04"
       # - "ubuntu-18.04"
@@ -61,7 +61,11 @@ jobs:
 
       - run: &BOOTSTRAP_TEST_ENVIRONMENT
           name: "Bootstrap test environment"
-          command: "${CIRCLE_WORKING_DIRECTORY}/.circleci/bootstrap-test-environment.sh"
+          command: |
+            echo ${CIRCLE_WORKING_DIRECTORY}/.circleci/bootstrap-test-environment.sh
+            ls ${CIRCLE_WORKING_DIRECTORY}/.circleci/
+            ls ${CIRCLE_WORKING_DIRECTORY}/
+            ${CIRCLE_WORKING_DIRECTORY}/.circleci/bootstrap-test-environment.sh
 
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
@@ -216,7 +220,11 @@ jobs:
 
       - run:
           <<: *BOOTSTRAP_TEST_ENVIRONMENT
-          command: "${CIRCLE_WORKING_DIRECTORY}/.circleci/bootstrap-test-environment.sh"
+          command: |
+            echo ${CIRCLE_WORKING_DIRECTORY}/.circleci/bootstrap-test-environment.sh
+            ls ${CIRCLE_WORKING_DIRECTORY}/.circleci/
+            ls ${CIRCLE_WORKING_DIRECTORY}/
+            sudo ${CIRCLE_WORKING_DIRECTORY}/.circleci/bootstrap-test-environment.sh
 
       - run:
           <<: *SETUP_VIRTUALENV
