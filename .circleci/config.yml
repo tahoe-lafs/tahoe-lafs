@@ -14,6 +14,7 @@ workflows:
       - "fedora-27"
       - "fedora-28"
 
+      - "magic-folder-ubuntu-14.04"
       - "deprecations"
 
 jobs:
@@ -46,6 +47,8 @@ jobs:
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
       TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
+      # Additional arguments to pass to tox.
+      TAHOE_LAFS_TOX_ARGS: ""
 
     steps:
       - run:
@@ -93,7 +96,7 @@ jobs:
             sudo --set-home -u nobody virtualenv --python python2.7 /tmp/tests
             sudo --set-home -u nobody /tmp/tests/bin/pip install tox codecov
             # Get everything installed in it, too.
-            sudo --set-home -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp --notest -e ${TAHOE_LAFS_TOX_ENVIRONMENT}
+            sudo --set-home -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp --notest -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" ${TAHOE_LAFS_TOX_ARGS}
 
       - run: &RUN_TESTS
           name: "Run test suite"
@@ -222,4 +225,19 @@ jobs:
   fedora-28:
     <<: *RHEL_DERIV
     docker:
-      - image: "fedora:28"
+      - image: "fedora"
+
+
+  magic-folder-ubuntu-14.04:
+    <<: *DEBIAN
+
+    # Turn off the inherited docker executor.
+    docker: null
+
+    machine:
+      enabled: true
+      image: "circleci/classic:201711-01"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ARGS: "-- allmydata.test.test_magic_folder"
