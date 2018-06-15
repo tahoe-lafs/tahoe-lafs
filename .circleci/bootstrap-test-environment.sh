@@ -1,11 +1,14 @@
 #!/bin/bash -eo pipefail
 
+PROJECT=$1
+shift
+
 # Avoid the /nonexistent home directory in nobody's /etc/passwd entry.
 usermod --home /tmp/nobody nobody
 
 # Grant read access to nobody, the user which will eventually try to test this
 # checkout.
-mv /root/project /tmp/project
+mv "${PROJECT}" /tmp/project
 
 # Python build/install toolchain wants to write to the source checkout, too.
 chown --recursive nobody:nogroup /tmp/project

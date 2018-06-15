@@ -62,21 +62,23 @@ jobs:
       - run: &BOOTSTRAP_TEST_ENVIRONMENT
           name: "Bootstrap test environment"
           command: |
-            ~/project/.circleci/bootstrap-test-environment.sh
+            ~/project/.circleci/bootstrap-test-environment.sh ~/project
 
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
           # pip cannot install packages if the working directory is not
           # readable.
           working_directory: "/tmp"
-          command: "~/project/.circleci/setup-virtualenv.sh"
+          command: |
+            ~/project/.circleci/setup-virtualenv.sh
 
       - run: &RUN_TESTS
           name: "Run test suite"
           # Something about when it re-uses an existing environment blows up
           # if the working directory is not readable.
           working_directory: "/tmp"
-          command: "~/project/.circleci/setup-virtualenv.sh"
+          command: |
+            ~/project/.circleci/setup-virtualenv.sh
 
       - store_artifacts: &STORE_TEST_LOG
           # Despite passing --workdir /tmp to tox above, it still runs trial
@@ -222,15 +224,17 @@ jobs:
       - run:
           <<: *BOOTSTRAP_TEST_ENVIRONMENT
           command: |
-            sudo ~/project/.circleci/bootstrap-test-environment.sh
+            sudo ~/project/.circleci/bootstrap-test-environment.sh ~/project
 
       - run:
           <<: *SETUP_VIRTUALENV
-          command: "sudo ~/project/.circleci/setup-virtualenv.sh"
+          command: |
+            sudo ~/project/.circleci/setup-virtualenv.sh
 
       - run:
           <<: *RUN_TESTS
-          command: "sudo ~/project/.circleci/setup-virtualenv.sh"
+          command: |
+            sudo ~/project/.circleci/setup-virtualenv.sh
 
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
