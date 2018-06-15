@@ -115,6 +115,12 @@ jobs:
           # in the project source checkout.
           path: "/tmp/project/_trial_temp/test.log"
 
+      - store_artifacts:
+          # Store any other artifacts, too.  This is handy to allow other jobs
+          # sharing most of the definition of this one to be able to
+          # contribute artifacts easily.
+          path: "/tmp/artifacts"
+
       - run:
           name: "Submit coverage results"
           command: |
@@ -136,6 +142,8 @@ jobs:
       <<: *UTF_8_ENVIRONMENT
       # Select the deprecations tox environments.
       TAHOE_LAFS_TOX_ENVIRONMENT: "deprecations,upcoming-deprecations"
+      # Put the logs somewhere we can report them.
+      TAHOE_LAFS_WARNINGS_LOG: "/tmp/artifacts/deprecation-warnings.log"
 
 
   ubuntu-16.04:
@@ -201,7 +209,6 @@ jobs:
 
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
-
 
       - store_artifacts: *STORE_ARTIFACTS
 
