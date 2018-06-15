@@ -1,4 +1,4 @@
-#!/bin/bash -eo pipefail
+#!/bin/bash -e
 
 # Set up the virtualenv as a non-root user so we can run the test suite as a
 # non-root user.  See below.

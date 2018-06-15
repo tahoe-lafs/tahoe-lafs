@@ -1,4 +1,4 @@
-#!/bin/bash -eo pipefail
+#!/bin/bash -e
 
 # Run the test suite as a non-root user.  This is the expected usage some
 # small areas of the test suite assume non-root privileges (such as unreadable

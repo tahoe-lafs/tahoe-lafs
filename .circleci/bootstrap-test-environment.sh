@@ -1,4 +1,4 @@
-#!/bin/bash -eo pipefail
+#!/bin/bash -e
 
 PROJECT=$1
 shift
