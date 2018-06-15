@@ -54,8 +54,8 @@ jobs:
       - run: &INSTALL_GIT
           node: "Install Git"
           command: |
-            sudo apt-get --quiet update
-            sudo apt-get --quiet --yes install git
+            apt-get --quiet update
+            apt-get --quiet --yes install git
 
       - "checkout"
 
@@ -222,8 +222,8 @@ jobs:
           <<: *BOOTSTRAP_TEST_ENVIRONMENT
           command: |
             echo ${CIRCLE_WORKING_DIRECTORY}/.circleci/bootstrap-test-environment.sh
-            ls ${CIRCLE_WORKING_DIRECTORY}/.circleci/
             ls ${CIRCLE_WORKING_DIRECTORY}/
+            ls ${CIRCLE_WORKING_DIRECTORY}/.circleci/
             sudo ${CIRCLE_WORKING_DIRECTORY}/.circleci/bootstrap-test-environment.sh
 
       - run:
