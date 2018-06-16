@@ -5,17 +5,17 @@ workflows:
   version: 2
   ci:
     jobs:
-      # - "lint"
+      - "lint"
       - "debian-8"
-      # - "debian-9"
-      # - "ubuntu-16.04"
-      # - "ubuntu-18.04"
-      # - "centos-7"
-      # - "fedora-27"
-      # - "fedora-28"
+      - "debian-9"
+      - "ubuntu-16.04"
+      - "ubuntu-18.04"
+      - "centos-7"
+      - "fedora-27"
+      - "fedora-28"
 
       - "magic-folder-ubuntu-14.04"
-      # - "deprecations"
+      - "deprecations"
 
 jobs:
   lint:
