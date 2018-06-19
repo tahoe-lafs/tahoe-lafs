@@ -16,6 +16,7 @@ workflows:
 
       - "magic-folder-ubuntu-14.04"
       - "deprecations"
+      - "c-locale"
 
 jobs:
   lint:
@@ -106,6 +107,17 @@ jobs:
     <<: *DEBIAN
     docker:
       - image: "debian:9"
+
+
+  c-locale:
+    <<: *DEBIAN
+    docker:
+      - image: "debian:9"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      LANG: "C"
+
 
 
   deprecations:
