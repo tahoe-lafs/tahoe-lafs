@@ -459,7 +459,7 @@ Just like the immutable version.
    On the other hand, checking the validity time period forces certificate regeneration
    (which comes with its own set of complexity).
 
-   A possible compromise is to recommend very certificates with validity periods of many years or decades.
+   A possible compromise is to recommend certificates with validity periods of many years or decades.
    "Recommend" may be read as "provide software supporting the generation of".
 
    What about key theft?
