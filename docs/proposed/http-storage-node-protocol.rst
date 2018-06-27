@@ -154,7 +154,7 @@ Such an announcement will resemble this::
 
   {
       "anonymous-storage-FURL": "pb://...",          # The old key
-      "anonymous-storage-gbs-FURL": "pb://...#v=2"   # The new key
+      "gbs-anonymous-storage-url": "pb://...#v=2"    # The new key
   }
 
 The transition process will proceed in three stages:
@@ -250,7 +250,7 @@ For example::
       "delete-mutable-shares-with-zero-length-writev": true,
       "fills-holes-with-zero-bytes": true,
       "prevents-read-past-end-of-share-data": true,
-      "http-protocol-available": true
+      "gbs-anonymous-storage-url": "pb://...#v=2"
       },
     "application-version": "1.13.0"
     }
