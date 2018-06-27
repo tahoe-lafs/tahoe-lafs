@@ -103,7 +103,8 @@ Alice's storage node announces (to an introducer) a fURL containing (among other
 Imagine the SPKI hash is ``i5xb...``.
 This results in a fURL of ``pb://i5xb...@example.com:443/g3m5...#v=2`` [#]_.
 Bob creates a client node pointed at the same introducer.
-Bob's client node receives the announcement from Alice's storage node.
+Bob's client node receives the announcement from Alice's storage node
+(indirected through the introducer).
 
 Bob's client node recognizes the fURL as referring to an HTTP-dialect server due to the ``v=2`` fragment.
 Bob's client node can now perform a TLS handshake with a server at the address in the fURL location hints
