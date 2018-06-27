@@ -452,7 +452,7 @@ Just like the immutable version.
    The arguments which apply to web-facing certificates do not seem to apply
    (due to the decision for Tahoe-LAFS to operate independently of the web-oriented CA system).
 
-   There is an argument to make that complexity is reduced by allowing an existing TLS implementation which wants to make these checks make them
+   Arguably, complexity is reduced by allowing an existing TLS implementation which wants to make these checks make them
    (compared to including additional code to either bypass them or disregard their results).
    Reducing complexity, at least in general, is often good for security.
 
