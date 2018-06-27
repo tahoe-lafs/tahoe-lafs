@@ -218,7 +218,11 @@ class RunTests(unittest.TestCase):
         os.mkdir(self.node_dir)
         return d
 
-    def test_run_invalid_config(self):
+    @patch('twisted.internet.reactor')
+    def test_run_invalid_config(self, reactor):
+        def cwr(fn, *args, **kw):
+            fn()
+        reactor.callWhenRunning = cwr
 
         with open(os.path.join(self.node_dir, "client.tac"), "w") as f:
             f.write('test')
