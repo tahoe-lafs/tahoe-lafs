@@ -429,8 +429,8 @@ For example::
 
   [1, 5]
 
-``GET /v1/mutable/:storage_index?share=:s0&share=:sN&offset=o1&size=z0&offset=oN&size=zN``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``GET /v1/mutable/:storage_index?share=:s0&share=:sN&offset=:o1&size=:z0&offset=:oN&size=:zN``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read data from the indicated mutable shares.
 Just like ``GET /v1/mutable/:storage_index``.
