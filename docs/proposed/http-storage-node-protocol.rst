@@ -121,15 +121,17 @@ Bob's client and Alice's storage node are assured of both **message authenticati
 .. note::
 
    Foolscap TubIDs are 20 bytes (SHA1 digest of the certificate).
-   They are presented with base32 encoding at a length of 32 bytes.
+   They are encoded with Base32 for a length of 32 bytes.
    SPKI information discussed here is 32 bytes (SHA256 digest).
-   They will present in base32 as 52 bytes.
-   https://tools.ietf.org/html/rfc7515#appendix-C may prove a better (more compact) choice for encoding the information into a fURL.
-   It will encode 32 bytes into merely 43...
-   We could also choose to reduce the hash size of the SPKI information through use of another cryptographic hash (replacing sha256).
+   They would be encoded in Base32 for a length of 52 bytes.
+   `base64url`_ provides a more compact encoding of the information while remaining URL-compatible.
+   This would encode the SPKI information for a length of merely 43 bytes.
+   SHA1,
+   the current Foolscap hash function,
+   is not a practical choice at this time due to advances made in `attacking SHA1`_.
+   The selection of a safe hash function with output smaller than SHA256 could be the subject of future improvements.
    A 224 bit hash function (SHA3-224, for example) might be suitable -
    improving the encoded length to 38 bytes.
-   Or we could stick with the Foolscap digest function - SHA1.
 
 
 Transition
@@ -481,14 +483,15 @@ Just like the immutable version.
       Encoding,
       PublicFormat,
     )
-    from foolscap import base32
+    from pybase64 import urlsafe_b64encode
 
-    spki_bytes = cert.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
-    spki_sha256 = sha256(spki_bytes).digest()
-    spki_digest32 = base32.encode(spki_sha256)
-    assert spki_digest32 == tub_id
+    def check_tub_id(tub_id):
+        spki_bytes = cert.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
+        spki_sha256 = sha256(spki_bytes).digest()
+        spki_encoded = urlsafe_b64encode(spki_sha256)
+        assert spki_encoded == tub_id
 
-   Note we use the Tahoe-LAFS-preferred base32 encoding rather than base64.
+   Note we use `base64url`_ rather than the Foolscap- and Tahoe-LAFS-preferred Base32.
 
 .. [#]
    Other schemes for differentiating between the two server types is possible.
@@ -505,3 +508,7 @@ Just like the immutable version.
    https://nvd.nist.gov/vuln/detail/CVE-2017-5124
 .. [#]
    https://efail.de/
+
+.. _base64url: https://tools.ietf.org/html/rfc7515#appendix-C
+
+.. _attacking SHA1: https://en.wikipedia.org/wiki/SHA-1#Attacks
