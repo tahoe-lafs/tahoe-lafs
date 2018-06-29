@@ -373,6 +373,12 @@ Writing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 General purpose read-test-and-write operation for mutable storage indexes.
+A mutable storage index is also called a "slot"
+(particularly by the existing Tahoe-LAFS codebase).
+The first write operation on a mutable storage index creates it
+(that is,
+there is no separate "create this storage index" operation as there is for the immutable storage index type).
+
 The request body includes the secrets necessary to rewrite to the shares
 along with test, read, and write vectors for the operation.
 For example::
