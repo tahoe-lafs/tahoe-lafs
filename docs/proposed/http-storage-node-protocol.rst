@@ -369,12 +369,6 @@ Mutable
 Writing
 ~~~~~~~
 
-``POST /v1/mutable/:storage_index``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-Initialize a mutable storage index with some buckets.
-Essentially the same as the API for initializing an immutable storage index.
-
 ``POST /v1/mutable/:storage_index/read-test-write``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
