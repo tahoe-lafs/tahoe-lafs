@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import subprocess
 from os.path import join
@@ -207,3 +208,45 @@ class RunStartTests(unittest.TestCase):
             e.getvalue()
         )
         self.assertEqual([1], exit_code)
+
+
+class RunTests(unittest.TestCase):
+
+    def setUp(self):
+        d = super(RunTests, self).setUp()
+        self.node_dir = self.mktemp()
+        os.mkdir(self.node_dir)
+        return d
+
+    def test_run_invalid_config(self):
+
+        with open(os.path.join(self.node_dir, "client.tac"), "w") as f:
+            f.write('test')
+
+        with open(os.path.join(self.node_dir, "tahoe.cfg"), "w") as f:
+            f.write(
+                "[invalid section]\n"
+                "foo = bar\n"
+            )
+
+        config = runner.parse_or_exit_with_explanation([
+            # have to do this so the tests don't muck around in
+            # ~/.tahoe (the default)
+            '--node-directory', self.node_dir,
+            'run',
+        ])
+
+        i, o, e = StringIO(), StringIO(), StringIO()
+        with patch.object(sys, 'stdout', o), patch.object(sys, 'stderr', e):
+            runner.dispatch(config, i, o, e)
+
+        # should print out the collected logs and an error-code
+        self.assertIn(
+            "invalid section",
+            o.getvalue(),
+        )
+        # this is SystemExit(0) for some reason I can't understand,
+        # while running on the command-line, "echo $?" shows "1" on
+        # this same error (some config exception)...
+        errs = self.flushLoggedErrors(SystemExit)
+        self.assertEqual(1, len(errs))
