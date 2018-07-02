@@ -67,7 +67,7 @@ Then restart the storage server.
 Further Reading
 ===============
 
-To acquiant yourself with the security and privacy properties of Zcash,
+To acquaint yourself with the security and privacy properties of Zcash,
 refer to the `Zcash documentation`_.
 
 .. _Zcash shielded transactions: https://z.cash/support/security/privacy-security-recommendations.html#transaction
