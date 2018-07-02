@@ -46,9 +46,6 @@ Using the Zcash cli wallet, this can be done with a command like::
 Remember that you must also have funds to pay the transaction fee
 (which defaults to 0.0001 ZEC in mid-2018).
 
-You can find ``$YOUR_ADDRESS`` using one of several commands.
-To find
-
 Receiving Donations
 ===================
 
