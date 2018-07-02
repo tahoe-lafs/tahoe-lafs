@@ -683,6 +683,8 @@ Client Configuration
     location to prefer their local servers so that they can maintain access to
     all of their uploads without using the internet.
 
+In addition,
+see :doc:`accepting-donations` for a convention for donating to storage server operators.
 
 Frontend Configuration
 ======================
@@ -793,6 +795,8 @@ Storage Server Configuration
     (i.e. ``BASEDIR/storage``), but it can be placed elsewhere. Relative paths
     will be interpreted relative to the node's base directory.
 
+In addition,
+see :doc:`accepting-donations` for a convention encouraging donations to storage server operators.
 
 Running A Helper
 ================
