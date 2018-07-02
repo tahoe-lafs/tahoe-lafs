@@ -4,7 +4,7 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.13.0 (18-May-2018)
+Release 1.13.0 (6-July-2018)
 ''''''''''''''''''''''''''''
 
 New Features
@@ -49,7 +49,8 @@ Bug Fixes in Core
 
 Some bugs with pidfile handling were fixed (`PR440`_ and `PR450`_)
 meaning invalid pidfiles are now deleted. Error-messages related to
-``tahoe.cfg`` now include the full path to the file.
+``tahoe.cfg`` now include the full path to the file. `PR501`_ fixes
+"address already in use" test failures.
 
 
 Web UI Changes
