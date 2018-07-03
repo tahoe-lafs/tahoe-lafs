@@ -231,7 +231,7 @@ jobs:
           node: "Install Git"
           command: |
             slackpkg update
-            slackpkg install git
+            slackpkg install git </dev/null
 
       - "checkout"
 
@@ -259,7 +259,7 @@ jobs:
                 libffi-devel \
                 openssl-devel \
                 libyaml-devel \
-                python-virtualenv
+                python-virtualenv </dev/null
 
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
