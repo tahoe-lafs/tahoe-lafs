@@ -72,4 +72,4 @@ refer to the `Zcash documentation`_.
 
 .. _Zcash shielded transactions: https://z.cash/support/security/privacy-security-recommendations.html#transaction
 
-.. _Zcash documentation: https://z.cash/technology/index.html
+.. _Zcash documentation: http://zcash.readthedocs.io/en/latest/
