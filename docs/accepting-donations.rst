@@ -11,7 +11,7 @@ Sending Donations
 To support a storage server following this convention, you need several things:
 
 * a Zcash wallet capable of sending shielded transactions
-  (this *may* require a Zcash full node)
+  (at least until Zcash 1.1.1 this requires a Zcash full node)
 * a shielded address with sufficient balance
 * a running Tahoe-LAFS client node which knows about the recipient storage server
 
