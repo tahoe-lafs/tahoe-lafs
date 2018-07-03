@@ -259,7 +259,7 @@ jobs:
                 gcc-c++-5.5.0 \
                 python-2.7.15 \
                 libffi-3.2.1 \
-                openssl-solibs \
+                openssl-1.0.2k \
                 libyaml-0.1.6 </dev/null
 
             # neither virtualenv nor pip is packaged.
