@@ -60,7 +60,7 @@ The Zcash shielded address is placed in the storage server's ``nickname`` field.
 Edit ``tahoe.cfg`` and edit the ``nickname`` field in the ``node`` section like so::
 
   [node]
-  nickname = zcash:zABCDEF....
+  nickname = zcash:zcABCDEF....
 
 Then restart the storage server.
 
