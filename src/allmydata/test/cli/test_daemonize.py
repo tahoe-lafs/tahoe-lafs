@@ -37,6 +37,7 @@ class Util(unittest.TestCase):
         with patch('twisted.internet.reactor') as r:
             def call(fn, *args, **kw):
                 fn()
+            r.stop = lambda: None
             r.callWhenRunning = call
             service = plug.makeService(None)
             service.parent = Mock()
@@ -52,6 +53,7 @@ class Util(unittest.TestCase):
             def call(fn, *args, **kw):
                 fn()
             r.callWhenRunning = call
+            r.stop = lambda: None
             service = plug.makeService(None)
             service.parent = Mock()
             with self.assertRaises(ValueError) as ctx:
@@ -68,6 +70,7 @@ class Util(unittest.TestCase):
         with patch('twisted.internet.reactor') as r:
             def call(fn, *args, **kw):
                 fn()
+            r.stop = lambda: None
             r.callWhenRunning = call
             service = plug.makeService(None)
             service.parent = Mock()
@@ -97,6 +100,7 @@ class RunDaemonizeTests(unittest.TestCase):
         self._working = os.path.abspath('.')
         d = super(RunDaemonizeTests, self).setUp()
         self._reactor = patch('twisted.internet.reactor')
+        self._reactor.stop = lambda: None
         self._twistd = patch('allmydata.scripts.tahoe_daemonize.twistd')
         self.node_dir = self.mktemp()
         os.mkdir(self.node_dir)

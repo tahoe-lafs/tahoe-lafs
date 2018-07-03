@@ -16,9 +16,10 @@ import foolscap.logging.log
 from twisted.application import service
 from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry, read_config, config_from_string
 from allmydata.introducer.server import create_introducer
-from allmydata.client import create_client
+from allmydata.client import create_client, _valid_config_sections
 from allmydata.util import fileutil, iputil
 from allmydata.util.namespace import Namespace
+from allmydata.util.configutil import UnknownConfigError
 import allmydata.test.common_util as testutil
 
 
@@ -30,7 +31,11 @@ class TestNode(Node):
     CERTFILE='DEFAULT_CERTFILE_BLANK'
 
     def __init__(self, basedir):
-        config = read_config(basedir, 'DEFAULT_PORTNUMFILE_BLANK')
+        config = read_config(
+            basedir,
+            'DEFAULT_PORTNUMFILE_BLANK',
+            _valid_config_sections=_valid_config_sections,
+        )
         Node.__init__(self, config, basedir)
 
 
@@ -262,7 +267,11 @@ class PortLocation(unittest.TestCase):
         n = EmptyNode()
         basedir = os.path.join("test_node/portlocation/%s/%s" % (tp, tl))
         fileutil.make_dirs(basedir)
-        config = n.config = read_config(basedir, "node.port")
+        config = n.config = read_config(
+            basedir,
+            "node.port",
+            _valid_config_sections=_valid_config_sections,
+        )
         n._reveal_ip = True
 
         if exp in ("ERR1", "ERR2", "ERR3", "ERR4"):
@@ -377,7 +386,11 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = %s\n" % location)
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        n.config = read_config(n.basedir, "client.port")
+        n.config = read_config(
+            n.basedir,
+            "client.port",
+            _valid_config_sections=_valid_config_sections,
+        )
         n.check_privacy()
         n.services = []
         n.create_i2p_provider()
@@ -403,7 +416,11 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = tcp:example.org:1234\n")
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        n.config = read_config(n.basedir, "client.port")
+        n.config = read_config(
+            n.basedir,
+            "client.port",
+            _valid_config_sections=_valid_config_sections,
+        )
         n.check_privacy()
         n.services = []
         i2p_ep = object()
@@ -467,3 +484,41 @@ class IntroducerNotListening(unittest.TestCase):
         f.close()
         e = self.assertRaises(ValueError, create_introducer, basedir)
         self.assertIn("we are Introducer, but tub is not listening", str(e))
+
+class Configuration(unittest.TestCase):
+
+    def setUp(self):
+        self.basedir = self.mktemp()
+        fileutil.make_dirs(self.basedir)
+
+    def test_read_invalid_config(self):
+        with open(os.path.join(self.basedir, 'tahoe.cfg'), 'w') as f:
+            f.write(
+                '[invalid section]\n'
+                'foo = bar\n'
+            )
+        with self.assertRaises(UnknownConfigError) as ctx:
+            read_config(
+                self.basedir,
+                "client.port",
+                _valid_config_sections=_valid_config_sections,
+            )
+
+        self.assertIn(
+            "invalid section",
+            str(ctx.exception),
+        )
+
+    def test_create_client_invalid_config(self):
+        with open(os.path.join(self.basedir, 'tahoe.cfg'), 'w') as f:
+            f.write(
+                '[invalid section]\n'
+                'foo = bar\n'
+            )
+        with self.assertRaises(UnknownConfigError) as ctx:
+            create_client(self.basedir)
+
+        self.assertIn(
+            "invalid section",
+            str(ctx.exception),
+        )

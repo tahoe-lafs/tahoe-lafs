@@ -71,7 +71,13 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         old_mode = os.stat(fn).st_mode
         os.chmod(fn, 0)
         try:
-            e = self.assertRaises(EnvironmentError, read_config, basedir, "client.port")
+            e = self.assertRaises(
+                EnvironmentError,
+                read_config,
+                basedir,
+                "client.port",
+                _valid_config_sections=client._valid_config_sections,
+            )
             self.assertIn("Permission denied", str(e))
         finally:
             # don't leave undeleteable junk lying around
@@ -93,7 +99,13 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         logged_messages = []
         self.patch(twisted.python.log, 'msg', logged_messages.append)
 
-        e = self.failUnlessRaises(OldConfigError, read_config, basedir, "client.port")
+        e = self.failUnlessRaises(
+            OldConfigError,
+            read_config,
+            basedir,
+            "client.port",
+            _valid_config_sections=client._valid_config_sections,
+        )
         abs_basedir = fileutil.abspath_expanduser_unicode(unicode(basedir)).encode(sys.getfilesystemencoding())
         self.failUnlessIn(os.path.join(abs_basedir, "introducer.furl"), e.args[0])
         self.failUnlessIn(os.path.join(abs_basedir, "no_storage"), e.args[0])
