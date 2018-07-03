@@ -231,7 +231,7 @@ jobs:
           node: "Install Git"
           command: |
             slackpkg update
-            slackpkg install openssh git </dev/null
+            slackpkg install openssh-7.4p1 git-2.14.4 </dev/null
 
       - "checkout"
 
@@ -252,14 +252,22 @@ jobs:
             chown --recursive nobody:nobody /tmp/project
 
             slackpkg install \
-                sudo \
-                make automake gcc gcc-c++ \
-                python \
-                python-devel \
-                libffi-devel \
-                openssl-devel \
-                libyaml-devel \
-                python-virtualenv </dev/null
+                sudo-1.8.20p2 \
+                make-4.1 \
+                automake-1.15 \
+                gcc-5.5.0 \
+                gcc-c++-5.5.0 \
+                python-2.7.15 \
+                libffi-3.2.1 \
+                openssl-solibs \
+                libyaml-0.1.6 </dev/null
+
+            # neither virtualenv nor pip is packaged
+            # do it the hard way
+            slackpkg install curl-7.60 </dev/null
+            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+            python get-pip.py
+            pip install virtualenv
 
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
