@@ -262,9 +262,12 @@ jobs:
                 openssl-solibs \
                 libyaml-0.1.6 </dev/null
 
-            # neither virtualenv nor pip is packaged
-            # do it the hard way
-            slackpkg install curl-7.60 </dev/null
+            # neither virtualenv nor pip is packaged.
+            # do it the hard way.
+            # and it is extra hard since it is slackware.
+            slackpkg install \
+                cyrus-sasl-2.1.26 \
+                curl-7.60 </dev/null
             curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
             python get-pip.py
             pip install virtualenv
