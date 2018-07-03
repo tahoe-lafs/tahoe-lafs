@@ -13,6 +13,7 @@ workflows:
       - "centos-7"
       - "fedora-27"
       - "fedora-28"
+      - "slackware-14.2"
 
       - "magic-folder-ubuntu-14.04"
       - "deprecations"
@@ -217,6 +218,55 @@ jobs:
     <<: *RHEL_DERIV
     docker:
       - image: "fedora"
+
+
+  slackware-14.2:
+    docker:
+      - image: "vbatts/slackware:14.2"
+
+    environment: *UTF_8_ENVIRONMENT
+
+    steps:
+      - run:
+          node: "Install Git"
+          command: |
+            slackpkg update
+            slackpkg install git
+
+      - "checkout"
+
+      - run:
+          name: "Bootstrap test environment"
+          working_directory: "/tmp"
+          command: |
+            # Avoid the /nonexistent home directory in nobody's /etc/passwd
+            # entry.
+            usermod --home /tmp/nobody nobody
+
+            # Grant read access to nobody, the user which will eventually try
+            # to test this checkout.
+            mv /root/project /tmp/project
+
+            # Python build/install toolchain wants to write to the source
+            # checkout, too.
+            chown --recursive nobody:nobody /tmp/project
+
+            slackpkg install \
+                sudo \
+                make automake gcc gcc-c++ \
+                python \
+                python-devel \
+                libffi-devel \
+                openssl-devel \
+                libyaml-devel \
+                python-virtualenv
+
+      - run: *SETUP_VIRTUALENV
+      - run: *RUN_TESTS
+
+      - store_artifacts: *STORE_TEST_LOG
+      - store_artifacts: *STORE_OTHER_ARTIFACTS
+      - run: *SUBMIT_COVERAGE
 
 
   magic-folder-ubuntu-14.04:
