@@ -5,6 +5,7 @@ import subprocess
 from os.path import join
 from mock import patch
 from StringIO import StringIO
+from functools import partial
 
 from twisted.trial import unittest
 from allmydata.scripts import runner
@@ -217,6 +218,7 @@ class RunTests(unittest.TestCase):
 
     def setUp(self):
         d = super(RunTests, self).setUp()
+        self.addCleanup(partial(os.chdir, os.getcwd()))
         self.node_dir = self.mktemp()
         os.mkdir(self.node_dir)
         return d
