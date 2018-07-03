@@ -134,10 +134,10 @@ def start(config):
                         print("Node has started successfully", file=out)
                     return 0
                 if 'Traceback ' in collected:
-                    print >>err, "Error starting node; see '{}' for more:\n\n{}".format(
+                    print("Error starting node; see '{}' for more:\n\n{}".format(
                         log_fname,
                         collected,
-                    )
+                    ), file=err)
                     return 1
                 time.sleep(0.1)
             print("Still waiting up to {}s for node startup".format(

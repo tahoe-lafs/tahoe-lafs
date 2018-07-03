@@ -58,7 +58,7 @@ def mv(options, mode="move"):
         if status == 409:
             print("Error: You can't overwrite a directory with a file", file=stderr)
         else:
-            print >>stderr, format_http_error("Error", resp)
+            print(format_http_error("Error", resp), file=stderr)
             if mode == "move":
                 print("NOT removing the original", file=stderr)
         return 1

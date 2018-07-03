@@ -132,9 +132,9 @@ def list_aliases(options):
         for name, details in data.items():
             dircap = details['readonly'] if options['readonly-uri'] else details['readwrite']
             try:
-                print >>stdout, fmt % (unicode_to_output(name), unicode_to_output(dircap.decode('utf-8')))
+                print(fmt % (unicode_to_output(name), unicode_to_output(dircap.decode('utf-8'))), file=stdout)
             except (UnicodeEncodeError, UnicodeDecodeError):
-                print >>stderr, fmt % (quote_output(name), quote_output(dircap))
+                print(fmt % (quote_output(name), quote_output(dircap)), file=stderr)
                 rc = 1
 
     if rc == 1:
