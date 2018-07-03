@@ -231,7 +231,7 @@ jobs:
           node: "Install Git"
           command: |
             slackpkg update
-            slackpkg install git </dev/null
+            slackpkg install openssh git </dev/null
 
       - "checkout"
 
