@@ -255,6 +255,7 @@ jobs:
                 sudo-1.8.20p2 \
                 make-4.1 \
                 automake-1.15 \
+                kernel-headers \
                 glibc-2.23 \
                 binutils-2.26 \
                 gcc-5.5.0 \
