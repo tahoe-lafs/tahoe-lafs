@@ -262,7 +262,7 @@ jobs:
                 libyaml-0.1.6 </dev/null
 
             slackpkg upgrade \
-                openssl-1.0.2k </dev/null
+                openssl-1.0 </dev/null
 
             # neither virtualenv nor pip is packaged.
             # do it the hard way.
