@@ -256,6 +256,7 @@ jobs:
                 make-4.1 \
                 automake-1.15 \
                 glibc-2.23 \
+                binutils-2.26 \
                 gcc-5.5.0 \
                 gcc-c++-5.5.0 \
                 python-2.7.15 \
