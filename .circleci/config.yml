@@ -255,6 +255,7 @@ jobs:
                 sudo-1.8.20p2 \
                 make-4.1 \
                 automake-1.15 \
+                glibc-2.23 \
                 gcc-5.5.0 \
                 gcc-c++-5.5.0 \
                 python-2.7.15 \
