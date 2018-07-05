@@ -85,7 +85,6 @@ jobs:
           # readable.
           working_directory: "/tmp"
           command: |
-            env
             /tmp/project/.circleci/setup-virtualenv.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
 
       - run: &RUN_TESTS
@@ -94,7 +93,6 @@ jobs:
           # if the working directory is not readable.
           working_directory: "/tmp"
           command: |
-            env
             /tmp/project/.circleci/run-tests.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
 
       - store_artifacts: &STORE_TEST_LOG
