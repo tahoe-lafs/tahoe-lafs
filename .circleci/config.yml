@@ -263,6 +263,8 @@ jobs:
                 python-2.7.15 \
                 libffi-3.2.1 \
                 libyaml-0.1.6 \
+                sqlite-3.13.0 \
+                icu4c-56.1 \
                 libmpc-1.0.3 </dev/null
 
             slackpkg upgrade \
