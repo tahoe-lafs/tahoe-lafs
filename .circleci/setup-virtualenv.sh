@@ -14,7 +14,7 @@ sudo --set-home -u nobody virtualenv --python python2.7 /tmp/tests
 # installed.  SSL support in setuptools is needed in case packages use
 # `setup_requires` which gets satisfied by setuptools instead of by pip.
 # txi2p (vcversioner) is one such package.  Twisted (incremental) is another.
-sudo --set-home -u nobody /tmp/tests/bin/pip install certifi tox codecov
+sudo --set-home -u nobody /tmp/tests/bin/pip install tox codecov
 
 # Get everything else installed in it, too.
 sudo --set-home -u nobody /tmp/tests/bin/tox -c /tmp/project/tox.ini --workdir /tmp --notest -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" ${TAHOE_LAFS_TOX_ARGS}
