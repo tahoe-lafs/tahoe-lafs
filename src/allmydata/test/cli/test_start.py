@@ -211,6 +211,9 @@ class RunStartTests(unittest.TestCase):
 
 
 class RunTests(unittest.TestCase):
+    """
+    Tests confirming end-user behavior of CLI commands
+    """
 
     def setUp(self):
         d = super(RunTests, self).setUp()
@@ -220,6 +223,10 @@ class RunTests(unittest.TestCase):
 
     @patch('twisted.internet.reactor')
     def test_run_invalid_config(self, reactor):
+        """
+        Configuration that's invalid should be obvious to the user
+        """
+
         def cwr(fn, *args, **kw):
             fn()
         reactor.callWhenRunning = cwr
