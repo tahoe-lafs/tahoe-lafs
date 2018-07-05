@@ -229,7 +229,12 @@ class RunTests(unittest.TestCase):
 
         def cwr(fn, *args, **kw):
             fn()
+
+        def stop(*args, **kw):
+            stopped.append(None)
+        stopped = []
         reactor.callWhenRunning = cwr
+        reactor.stop = stop
 
         with open(os.path.join(self.node_dir, "client.tac"), "w") as f:
             f.write('test')
@@ -251,13 +256,20 @@ class RunTests(unittest.TestCase):
         with patch.object(sys, 'stdout', o), patch.object(sys, 'stderr', e):
             runner.dispatch(config, i, o, e)
 
+        output = o.getvalue()
         # should print out the collected logs and an error-code
         self.assertIn(
             "invalid section",
-            o.getvalue(),
+            output,
+        )
+        self.assertIn(
+            "Configuration error:",
+            output,
         )
         # this is SystemExit(0) for some reason I can't understand,
         # while running on the command-line, "echo $?" shows "1" on
         # this same error (some config exception)...
         errs = self.flushLoggedErrors(SystemExit)
         self.assertEqual(1, len(errs))
+        # ensure reactor.stop was actually called
+        self.assertEqual([None], stopped)
