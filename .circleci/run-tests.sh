@@ -33,4 +33,4 @@ messy_output = result["testenvs"][argv[1]]["test"][-1]["output"]
 stdout.write(messy_output.split("\n", 3)[3].strip())
 ' "${TAHOE_LAFS_TOX_ENVIRONMENT}" |
     /tmp/tests/bin/subunit-1to2 |
-    /tmp/tests/bin/subunit2junitxml > /tmp/junit/results.junitxml
+    /tmp/tests/bin/subunit2junitxml > /tmp/junit/results.xml
