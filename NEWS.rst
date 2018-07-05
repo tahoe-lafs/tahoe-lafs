@@ -50,7 +50,9 @@ Bug Fixes in Core
 Some bugs with pidfile handling were fixed (`PR440`_ and `PR450`_)
 meaning invalid pidfiles are now deleted. Error-messages related to
 ``tahoe.cfg`` now include the full path to the file. `PR501`_ fixes
-"address already in use" test failures.
+"address already in use" test failures. `PR502`_ fixes ticket #2926
+("tahoe status" failures). `PR487`_ fixes ticket #1455 (setting
+``X-Frame-Options: DENY``)
 
 
 Web UI Changes
@@ -66,19 +68,20 @@ Magic Folder Changes
 
 Multiple magic-folders in a single Tahoe client are now
 supported. Bugs with ``.backup`` files have been fixed, meaning
-spurious ``.backup`` files will be produced less often
-(`PR448`_). Handling of default umask on new magic-folder files is
+spurious ``.backup`` files will be produced less often (`PR448`_,
+`PR475`_). Handling of default umask on new magic-folder files is
 fixed in `PR458`_. The user mtime value is now correctly preserved
 (`PR457`_).
 
 A bug in ``tahoe magic-folder status`` causing active operations to
-sometimes not show up is fixed (`PR461`_).
+sometimes not show up is fixed (`PR461`_). If a directory is missing,
+it is created (`PR492`_).
 
 
 Raw Pull Requests
 -----------------
 
-In total, 44 Pull Requests were merged for this release, including
+In total, 50 Pull Requests were merged for this release, including
 contributions of code or review from 15 different GitHub users. Thanks
 everyone! A complete list of these PRs and contributions:
 
@@ -125,7 +128,13 @@ everyone! A complete list of these PRs and contributions:
 `PR470`_: `meejah`_ (with `exarkun`_, `tpltnt`_, `warner`_)
 `PR472`_: `exarkun`_, `meskio`_
 `PR474`_: `exarkun`_
+`PR475`_: `meejah`_ (with `exarkun`_)
 `PR482`_: `crwood`_ (with `warner`_)
+`PR485`_: `warner`_
+`PR487`_: `exarkun`_ (with `tpltnt`_)
+`PR491`_: `exarkun`_ (with `meejah`_)
+`PR492`_: `exarkun`_ (with `meejah`_, `tpltnt`_)
+`PR501`_: `exarkun`_ (with `meejah`_)
 `PR502`_: `exarkun`_ (with `meejah`_)
 
 
