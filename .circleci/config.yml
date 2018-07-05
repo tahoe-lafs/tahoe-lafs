@@ -95,6 +95,9 @@ jobs:
           command: |
             /tmp/project/.circleci/run-tests.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
 
+      - store_test_results: &STORE_TEST_RESULTS
+          path: "/tmp/junit"
+
       - store_artifacts: &STORE_TEST_LOG
           # Despite passing --workdir /tmp to tox above, it still runs trial
           # in the project source checkout.
@@ -211,6 +214,7 @@ jobs:
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
 
+      - store_test_results: *STORE_TEST_RESULTS
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
@@ -291,6 +295,7 @@ jobs:
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
 
+      - store_test_results: *STORE_TEST_RESULTS
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
