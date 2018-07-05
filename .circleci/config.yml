@@ -5,16 +5,28 @@ workflows:
   version: 2
   ci:
     jobs:
-      - "lint"
-      - "debian-8"
+      # Platforms
       - "debian-9"
-      - "ubuntu-16.04"
-      - "ubuntu-18.04"
-      - "centos-7"
-      - "fedora-27"
-      - "fedora-28"
+      - "debian-8":
+          requires:
+            - "debian-9"
 
-      - "magic-folder-ubuntu-14.04"
+      - "ubuntu-18.04"
+      - "ubuntu-16.04":
+          requires:
+            - "ubuntu-18.04"
+
+      - "fedora-28"
+      - "fedora-27":
+          requires:
+            - "fedora-28"
+
+      - "centos-7"
+
+      - "slackware-14.2"
+
+      # Other assorted tasks and configurations
+      - "lint"
       - "deprecations"
       - "c-locale"
 
@@ -119,7 +131,6 @@ jobs:
       LANG: "C"
 
 
-
   deprecations:
     <<: *DEBIAN
     docker:
@@ -219,42 +230,68 @@ jobs:
       - image: "fedora"
 
 
-  magic-folder-ubuntu-14.04:
-    machine:
-      enabled: true
-      image: "circleci/classic:201711-01"
+  slackware-14.2:
+    docker:
+      - image: "vbatts/slackware:14.2"
 
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      EXTRA_PACKAGES: "python-virtualenv"
-      TAHOE_LAFS_TOX_ARGS: "-- allmydata.test.test_magic_folder"
+    environment: *UTF_8_ENVIRONMENT
 
-    # Unfortunately, duplicate all the steps here but run with `sudo`.
     steps:
       - run:
           node: "Install Git"
           command: |
-            sudo apt-get --quiet update
-            sudo apt-get --quiet --yes install git
+            slackpkg update
+            slackpkg install openssh-7.4p1 git-2.14.4 </dev/null
 
       - "checkout"
 
       - run:
-          <<: *BOOTSTRAP_TEST_ENVIRONMENT
+          name: "Bootstrap test environment"
+          working_directory: "/tmp"
           command: |
-            sudo ~/project/.circleci/bootstrap-test-environment.sh ~/project "${EXTRA_PACKAGES}"
+            # Avoid the /nonexistent home directory in nobody's /etc/passwd
+            # entry.
+            usermod --home /tmp/nobody nobody
 
-      - run:
-          <<: *SETUP_VIRTUALENV
-          command: |
-            env
-            sudo /tmp/project/.circleci/setup-virtualenv.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
+            # Grant read access to nobody, the user which will eventually try
+            # to test this checkout.
+            mv /root/project /tmp/project
 
-      - run:
-          <<: *RUN_TESTS
-          command: |
-            env
-            sudo /tmp/project/.circleci/run-tests.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
+            # Python build/install toolchain wants to write to the source
+            # checkout, too.
+            chown --recursive nobody:nobody /tmp/project
+
+            slackpkg install \
+                sudo-1.8.20p2 \
+                make-4.1 \
+                automake-1.15 \
+                kernel-headers \
+                glibc-2.23 \
+                binutils-2.26 \
+                gcc-5.5.0 \
+                gcc-g++-5.5.0 \
+                python-2.7.15 \
+                libffi-3.2.1 \
+                libyaml-0.1.6 \
+                sqlite-3.13.0 \
+                icu4c-56.1 \
+                libmpc-1.0.3 </dev/null
+
+            slackpkg upgrade \
+                openssl-1.0 </dev/null
+
+            # neither virtualenv nor pip is packaged.
+            # do it the hard way.
+            # and it is extra hard since it is slackware.
+            slackpkg install \
+                cyrus-sasl-2.1.26 \
+                curl-7.60 </dev/null
+            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+            python get-pip.py
+            pip install virtualenv
+
+      - run: *SETUP_VIRTUALENV
+      - run: *RUN_TESTS
 
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
