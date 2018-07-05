@@ -15,7 +15,6 @@ workflows:
       - "fedora-28"
       - "slackware-14.2"
 
-      - "magic-folder-ubuntu-14.04"
       - "deprecations"
       - "c-locale"
 
@@ -282,48 +281,6 @@ jobs:
 
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
-
-      - store_artifacts: *STORE_TEST_LOG
-      - store_artifacts: *STORE_OTHER_ARTIFACTS
-      - run: *SUBMIT_COVERAGE
-
-
-  magic-folder-ubuntu-14.04:
-    machine:
-      enabled: true
-      image: "circleci/classic:201711-01"
-
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      EXTRA_PACKAGES: "python-virtualenv"
-      TAHOE_LAFS_TOX_ARGS: "-- allmydata.test.test_magic_folder"
-
-    # Unfortunately, duplicate all the steps here but run with `sudo`.
-    steps:
-      - run:
-          node: "Install Git"
-          command: |
-            sudo apt-get --quiet update
-            sudo apt-get --quiet --yes install git
-
-      - "checkout"
-
-      - run:
-          <<: *BOOTSTRAP_TEST_ENVIRONMENT
-          command: |
-            sudo ~/project/.circleci/bootstrap-test-environment.sh ~/project "${EXTRA_PACKAGES}"
-
-      - run:
-          <<: *SETUP_VIRTUALENV
-          command: |
-            env
-            sudo /tmp/project/.circleci/setup-virtualenv.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
-
-      - run:
-          <<: *RUN_TESTS
-          command: |
-            env
-            sudo /tmp/project/.circleci/run-tests.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
 
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
