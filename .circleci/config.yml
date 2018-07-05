@@ -5,16 +5,28 @@ workflows:
   version: 2
   ci:
     jobs:
-      - "lint"
-      - "debian-8"
+      # Platforms
       - "debian-9"
-      - "ubuntu-16.04"
+      - "debian-8":
+          requires:
+            - "debian-9"
+
       - "ubuntu-18.04"
-      - "centos-7"
-      - "fedora-27"
+      - "ubuntu-16.04":
+          requires:
+            - "ubuntu-18.04"
+
       - "fedora-28"
+      - "fedora-27":
+          requires:
+            - "fedora-28"
+
+      - "centos-7"
+
       - "slackware-14.2"
 
+      # Other assorted tasks and configurations
+      - "lint"
       - "deprecations"
       - "c-locale"
 
