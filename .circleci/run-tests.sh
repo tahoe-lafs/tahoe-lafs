@@ -32,7 +32,7 @@ sudo TAHOE_LAFS_TRIAL_ARGS="--reporter=subunit" \
      --user nobody \
      /tmp/tests/bin/tox \
      -c /tmp/project/tox.ini \
-     --result-json "${ARTIFACTS}"/tox-result.json \
+     --result-json "${TOX_JSON}" \
      --workdir /tmp/tahoe-lafs.tox \
      -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
      ${TAHOE_LAFS_TOX_ARGS}
