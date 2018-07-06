@@ -39,5 +39,5 @@ for environ in argv[1].split(","):
 # Create a junitxml results area.  Put these results in a subdirectory of the
 # ultimate location because CircleCI extracts some label information from the
 # subdirectory name.
-mkdir -p /tmp/junit/unittests
-/tmp/tests/bin/subunit2junitxml < /tmp/results.subunit2 > /tmp/junit/unittests/results.xml
+mkdir -p /tmp/artifacts/junit/unittests
+/tmp/tests/bin/subunit2junitxml < /tmp/results.subunit2 > /tmp/artifacts/junit/unittests/results.xml
