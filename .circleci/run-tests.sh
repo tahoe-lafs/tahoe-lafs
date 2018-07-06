@@ -43,7 +43,14 @@ from json import load
 from sys import stdin, stdout, argv
 result = load(stdin)
 for environ in argv[1].split(","):
-    messy_output = result["testenvs"][environ]["test"][-1]["output"]
+    # Heuristically discover which blob is probably the test output!
+    test_result = next(
+        result
+        for result
+        in result["testenvs"][environ]["test"]
+        if "test: allmydata." in result["output"]
+    )
+    messy_output = test_result["output"]
     stdout.write(messy_output.split("\n", 3)[3].strip() + "\n")
 ' "${TAHOE_LAFS_TOX_ENVIRONMENT}" < "${TOX_JSON}" > "${SUBUNIT1}"
 
