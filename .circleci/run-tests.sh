@@ -28,8 +28,9 @@ sudo TAHOE_LAFS_TRIAL_ARGS="--reporter=subunit" \
 from json import load
 from sys import stdin, stdout, argv
 result = load(stdin)
-messy_output = result["testenvs"][argv[1]]["test"][-1]["output"]
-stdout.write(messy_output.split("\n", 3)[3].strip() + "\n")
+for environ in argv[1].split(","):
+    messy_output = result["testenvs"][environ]["test"][-1]["output"]
+    stdout.write(messy_output.split("\n", 3)[3].strip() + "\n")
 ' "${TAHOE_LAFS_TOX_ENVIRONMENT}" < /tmp/tox-result.json > /tmp/results.subunit1
 
 # Upgrade subunit version because subunit2junitxml only works on subunit2
