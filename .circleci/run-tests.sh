@@ -10,7 +10,7 @@ TAHOE_LAFS_TOX_ARGS=$1
 shift || :
 
 # Make sure we can actually write things to this directory.
-mkdir -p "${ARTIFACTS}"
+sudo --user nobody mkdir -p "${ARTIFACTS}"
 
 # Run the test suite as a non-root user.  This is the expected usage some
 # small areas of the test suite assume non-root privileges (such as unreadable
