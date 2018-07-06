@@ -85,7 +85,9 @@ jobs:
           # readable.
           working_directory: "/tmp"
           command: |
-            /tmp/project/.circleci/setup-virtualenv.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
+            /tmp/project/.circleci/setup-virtualenv.sh \
+                "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+                "${TAHOE_LAFS_TOX_ARGS}"
 
       - run: &RUN_TESTS
           name: "Run test suite"
