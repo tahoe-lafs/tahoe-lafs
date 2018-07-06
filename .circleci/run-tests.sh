@@ -13,7 +13,6 @@ shift || :
 sudo --user nobody mkdir -p "${ARTIFACTS}"
 
 TOX_JSON="${ARTIFACTS}"/tox-result.json
-SUBUNIT1="${ARTIFACTS}"/results.subunit1
 SUBUNIT2="${ARTIFACTS}"/results.subunit2
 
 # Use an intermediate directory here because CircleCI extracts some label
@@ -27,7 +26,7 @@ JUNITXML="${ARTIFACTS}"/junit/unittests/results.xml
 # Also run with /tmp as a workdir because the non-root user won't be able to
 # create the tox working filesystem state in the source checkout because it is
 # owned by root.
-sudo TAHOE_LAFS_TRIAL_ARGS="--reporter=subunit" \
+sudo TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2" \
      --set-home \
      --user nobody \
      /tmp/tests/bin/tox \
@@ -37,7 +36,7 @@ sudo TAHOE_LAFS_TRIAL_ARGS="--reporter=subunit" \
      -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
      ${TAHOE_LAFS_TOX_ARGS}
 
-# Extract the test process output which should be subunit1-format.
+# Extract the test process output which should be subunit2-format.
 /tmp/tests/bin/python -c '
 from json import load
 from sys import stdin, stdout, argv
@@ -52,10 +51,7 @@ for environ in argv[1].split(","):
     )
     messy_output = test_result["output"]
     stdout.write(messy_output.split("\n", 3)[3].strip() + "\n")
-' "${TAHOE_LAFS_TOX_ENVIRONMENT}" < "${TOX_JSON}" > "${SUBUNIT1}"
-
-# Upgrade subunit version because subunit2junitxml only works on subunit2
-/tmp/tests/bin/subunit-1to2 < "${SUBUNIT1}" > "${SUBUNIT2}"
+' "${TAHOE_LAFS_TOX_ENVIRONMENT}" < "${TOX_JSON}" > "${SUBUNIT2}"
 
 # Create a junitxml results area.
 mkdir -p "$(dirname "${JUNITXML}")"
