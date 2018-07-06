@@ -1,5 +1,8 @@
 #!/bin/bash -e
 
+ARTIFACTS=$1
+shift
+
 TAHOE_LAFS_TOX_ENVIRONMENT=$1
 shift
 
@@ -18,10 +21,18 @@ sudo TAHOE_LAFS_TRIAL_ARGS="--reporter=subunit" \
      --user nobody \
      /tmp/tests/bin/tox \
      -c /tmp/project/tox.ini \
-     --result-json /tmp/tox-result.json \
+     --result-json "${ARTIFACTS}"/tox-result.json \
      --workdir /tmp/tahoe-lafs.tox \
      -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
      ${TAHOE_LAFS_TOX_ARGS}
+
+TOX_JSON="${ARTIFACTS}"/tox-result.json
+SUBUNIT1="${ARTIFACTS}"/results.subunit1
+SUBUNIT2="${ARTIFACTS}"/results.subunit2
+
+# Use an intermediate directory here because CircleCI extracts some label
+# information from its name.
+JUNITXML="${ARTIFACTS}"/junit/unittests/results.xml
 
 # Extract the test process output which should be subunit1-format.
 /tmp/tests/bin/python -c '
@@ -31,13 +42,11 @@ result = load(stdin)
 for environ in argv[1].split(","):
     messy_output = result["testenvs"][environ]["test"][-1]["output"]
     stdout.write(messy_output.split("\n", 3)[3].strip() + "\n")
-' "${TAHOE_LAFS_TOX_ENVIRONMENT}" < /tmp/tox-result.json > /tmp/results.subunit1
+' "${TAHOE_LAFS_TOX_ENVIRONMENT}" < "${TOX_JSON}" > "${SUBUNIT1}"
 
 # Upgrade subunit version because subunit2junitxml only works on subunit2
-/tmp/tests/bin/subunit-1to2 < /tmp/results.subunit1 > /tmp/results.subunit2
+/tmp/tests/bin/subunit-1to2 < "${SUBUNIT1}" > "${SUBUNIT2}"
 
-# Create a junitxml results area.  Put these results in a subdirectory of the
-# ultimate location because CircleCI extracts some label information from the
-# subdirectory name.
-mkdir -p /tmp/artifacts/junit/unittests
-/tmp/tests/bin/subunit2junitxml < /tmp/results.subunit2 > /tmp/artifacts/junit/unittests/results.xml
+# Create a junitxml results area.
+mkdir -p "$(dirname "${JUNITXML}")"
+/tmp/tests/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}"

@@ -93,7 +93,10 @@ jobs:
           # if the working directory is not readable.
           working_directory: "/tmp"
           command: |
-            /tmp/project/.circleci/run-tests.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
+            /tmp/project/.circleci/run-tests.sh \
+                /tmp/artifacts \
+                "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+                "${TAHOE_LAFS_TOX_ARGS}"
 
       - store_test_results: &STORE_TEST_RESULTS
           path: "/tmp/artifacts/junit"
