@@ -12,6 +12,14 @@ shift || :
 # Make sure we can actually write things to this directory.
 sudo --user nobody mkdir -p "${ARTIFACTS}"
 
+TOX_JSON="${ARTIFACTS}"/tox-result.json
+SUBUNIT1="${ARTIFACTS}"/results.subunit1
+SUBUNIT2="${ARTIFACTS}"/results.subunit2
+
+# Use an intermediate directory here because CircleCI extracts some label
+# information from its name.
+JUNITXML="${ARTIFACTS}"/junit/unittests/results.xml
+
 # Run the test suite as a non-root user.  This is the expected usage some
 # small areas of the test suite assume non-root privileges (such as unreadable
 # files being unreadable).
@@ -28,14 +36,6 @@ sudo TAHOE_LAFS_TRIAL_ARGS="--reporter=subunit" \
      --workdir /tmp/tahoe-lafs.tox \
      -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
      ${TAHOE_LAFS_TOX_ARGS}
-
-TOX_JSON="${ARTIFACTS}"/tox-result.json
-SUBUNIT1="${ARTIFACTS}"/results.subunit1
-SUBUNIT2="${ARTIFACTS}"/results.subunit2
-
-# Use an intermediate directory here because CircleCI extracts some label
-# information from its name.
-JUNITXML="${ARTIFACTS}"/junit/unittests/results.xml
 
 # Extract the test process output which should be subunit1-format.
 /tmp/tests/bin/python -c '
