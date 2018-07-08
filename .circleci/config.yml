@@ -99,6 +99,9 @@ jobs:
                 /tmp/artifacts \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
+          # trial output gets directed straight to a log.  avoid the circleci
+          # timeout while the test suite runs.
+          no_output_timeout: "20m"
 
       - store_test_results: &STORE_TEST_RESULTS
           path: "/tmp/artifacts/junit"
