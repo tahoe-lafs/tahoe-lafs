@@ -12,7 +12,6 @@ shift || :
 # Make sure we can actually write things to this directory.
 sudo --user nobody mkdir -p "${ARTIFACTS}"
 
-TOX_JSON="${ARTIFACTS}"/tox-result.json
 SUBUNIT2="${ARTIFACTS}"/results.subunit2
 
 # Use an intermediate directory here because CircleCI extracts some label
@@ -26,32 +25,19 @@ JUNITXML="${ARTIFACTS}"/junit/unittests/results.xml
 # Also run with /tmp as a workdir because the non-root user won't be able to
 # create the tox working filesystem state in the source checkout because it is
 # owned by root.
-sudo TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2" \
+#
+# Send the output directly to a file because transporting the binary subunit2
+# via tox and then scraping it out is hideous and failure prone.
+sudo \
+    SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}" \
+    TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file" \
      --set-home \
      --user nobody \
      /tmp/tests/bin/tox \
      -c /tmp/project/tox.ini \
-     --result-json "${TOX_JSON}" \
      --workdir /tmp/tahoe-lafs.tox \
      -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
      ${TAHOE_LAFS_TOX_ARGS}
-
-# Extract the test process output which should be subunit2-format.
-/tmp/tests/bin/python -c '
-from json import load
-from sys import stdin, stdout, argv
-result = load(stdin)
-for environ in argv[1].split(","):
-    # Heuristically discover which blob is probably the test output!
-    test_result = next(
-        result
-        for result
-        in result["testenvs"][environ]["test"]
-        if "test: allmydata." in result["output"]
-    )
-    messy_output = test_result["output"]
-    stdout.write(messy_output.split("\n", 3)[3].strip() + "\n")
-' "${TAHOE_LAFS_TOX_ENVIRONMENT}" < "${TOX_JSON}" > "${SUBUNIT2}"
 
 # Create a junitxml results area.
 mkdir -p "$(dirname "${JUNITXML}")"
