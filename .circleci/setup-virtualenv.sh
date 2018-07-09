@@ -19,6 +19,10 @@ sudo --set-home -u nobody virtualenv --python python2.7 /tmp/tests
 # install things using pip!
 sudo --set-home -u nobody /tmp/tests/bin/pip install certifi
 
+# Get a new, awesome version of pip.  For example, the distro-packaged
+# virtualenv's pip may not know about wheels.
+sudo --set-home -u nobody /tmp/tests/bin/pip install --upgrade pip
+
 # Populate the wheelhouse, if necessary.
 sudo --set-home -u nobody /tmp/tests/bin/pip \
      wheel \
