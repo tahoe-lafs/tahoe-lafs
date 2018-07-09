@@ -67,7 +67,7 @@ jobs:
 
     steps:
       - run: &INSTALL_GIT
-          node: "Install Git"
+          name: "Install Git"
           command: |
             apt-get --quiet update
             apt-get --quiet --yes install git
@@ -183,7 +183,7 @@ jobs:
 
     steps:
       - run:
-          node: "Install Git"
+          name: "Install Git"
           command: |
             yum install --assumeyes git
 
@@ -248,7 +248,7 @@ jobs:
 
     steps:
       - run:
-          node: "Install Git"
+          name: "Install Git"
           command: |
             slackpkg update
             slackpkg install openssh-7.4p1 git-2.14.4 </dev/null
