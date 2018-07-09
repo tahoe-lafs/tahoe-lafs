@@ -85,8 +85,9 @@ jobs:
           # readable.
           working_directory: "/tmp"
           command: |
-            env
-            /tmp/project/.circleci/setup-virtualenv.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
+            /tmp/project/.circleci/setup-virtualenv.sh \
+                "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+                "${TAHOE_LAFS_TOX_ARGS}"
 
       - run: &RUN_TESTS
           name: "Run test suite"
@@ -94,8 +95,16 @@ jobs:
           # if the working directory is not readable.
           working_directory: "/tmp"
           command: |
-            env
-            /tmp/project/.circleci/run-tests.sh "${TAHOE_LAFS_TOX_ENVIRONMENT}" "${TAHOE_LAFS_TOX_ARGS}"
+            /tmp/project/.circleci/run-tests.sh \
+                /tmp/artifacts \
+                "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+                "${TAHOE_LAFS_TOX_ARGS}"
+          # trial output gets directed straight to a log.  avoid the circleci
+          # timeout while the test suite runs.
+          no_output_timeout: "20m"
+
+      - store_test_results: &STORE_TEST_RESULTS
+          path: "/tmp/artifacts/junit"
 
       - store_artifacts: &STORE_TEST_LOG
           # Despite passing --workdir /tmp to tox above, it still runs trial
@@ -213,6 +222,7 @@ jobs:
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
 
+      - store_test_results: *STORE_TEST_RESULTS
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
@@ -262,6 +272,7 @@ jobs:
             chown --recursive nobody:nobody /tmp/project
 
             slackpkg install \
+                ca-certificates \
                 sudo-1.8.20p2 \
                 make-4.1 \
                 automake-1.15 \
@@ -293,6 +304,7 @@ jobs:
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
 
+      - store_test_results: *STORE_TEST_RESULTS
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
