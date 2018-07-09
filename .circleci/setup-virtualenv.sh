@@ -16,7 +16,7 @@ sudo --set-home -u nobody virtualenv --python python2.7 /tmp/tests
 # requirements (TLS >= 1.2) are incompatible with the old TLS clients
 # available to those systems.  Installing it ahead of time (with pip) avoids
 # this problem.
-sudo --set-home -u nobody PIP_FIND_LINKS=/tmp/packages /tmp/tests/bin/pip install certifi
+sudo --set-home -u nobody /tmp/tests/bin/pip install certifi
 
 # Python packages we need to support the test infrastructure.  *Not* packages
 # Tahoe-LAFS itself (implementation or test suite) need.
