@@ -10,6 +10,9 @@ shift || :
 # non-root user.  See below.
 sudo --set-home -u nobody virtualenv --python python2.7 /tmp/tests
 
+# Populate the wheelhouse, if necessary.
+/tmp/tests/bin/pip wheel --wheel-dir "${WHEELHOUSE_PATH}" /tmp/project
+
 # Get "certifi" to avoid bug #2913. Basically if a `setup_requires=...` causes
 # a package to be installed (with setuptools) then it'll fail on certain
 # platforms (travis's OX-X 10.12, Slackware 14.2) because PyPI's TLS

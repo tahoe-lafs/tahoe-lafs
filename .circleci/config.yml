@@ -63,7 +63,11 @@ jobs:
       # Select a tox environment to run for this job.
       TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
       # Additional arguments to pass to tox.
-      TAHOE_LAFS_TOX_ARGS: ""
+      TAHOE_LAFS_TOX_ARGS: "allmydata.test.cli.test_daemonize"
+      # Convince all of our pip invocations to look at the cached wheelhouse
+      # we maintain.
+      WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
+      PIP_FIND_LINKS: "file:///tmp/wheelhouse"
 
     steps:
       - run: &INSTALL_GIT
@@ -73,6 +77,19 @@ jobs:
             apt-get --quiet --yes install git
 
       - "checkout"
+
+      - restore_cache: &RESTORE_HTTP_CACHE
+          keys:
+            - v1-pip-http-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+            - v1-pip-http-{{ .Branch }}
+            - v1-pip-http-
+
+      - restore_cache: &RESTORE_WHEELHOUSE
+          keys:
+            - v1-wheelhouse-{{ .arch }}-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+            - v1-wheelhouse-{{ .arch }}-{{ .Branch }}
+            - v1-wheelhouse-{{ .arch }}
+            - v1-wheelhouse-
 
       - run: &BOOTSTRAP_TEST_ENVIRONMENT
           name: "Bootstrap test environment"
@@ -88,6 +105,17 @@ jobs:
             /tmp/project/.circleci/setup-virtualenv.sh \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
+
+      - save_cache: &SAVE_HTTP_CACHE
+          key: v1-pip-http-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+          paths:
+            # Perfectly valid for Linux.
+            - "/tmp/nobody/.cache/pip"
+
+      - save_cache: &SAVE_WHEELHOUSE
+          key: v1-wheelhouse-{{ .arch }}-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+          paths:
+            - *WHEELHOUSE_PATH
 
       - run: &RUN_TESTS
           name: "Run test suite"
