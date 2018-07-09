@@ -217,6 +217,9 @@ jobs:
 
       - "checkout"
 
+      - restore_cache: *RESTORE_HTTP_CACHE
+      - restore_cache: *RESTORE_WHEEHLHOUSE
+
       - run:
           name: "Bootstrap test environment"
           working_directory: "/tmp"
@@ -248,6 +251,10 @@ jobs:
                 net-tools
 
       - run: *SETUP_VIRTUALENV
+
+      - save_cache: *SAVE_HTTP_CACHE
+      - save_cache: *SAVE_WHEELHOUSE
+
       - run: *RUN_TESTS
 
       - store_test_results: *STORE_TEST_RESULTS
@@ -282,6 +289,9 @@ jobs:
             slackpkg install openssh-7.4p1 git-2.14.4 </dev/null
 
       - "checkout"
+
+      - restore_cache: *RESTORE_HTTP_CACHE
+      - restore_cache: *RESTORE_WHEEHLHOUSE
 
       - run:
           name: "Bootstrap test environment"
@@ -330,6 +340,10 @@ jobs:
             pip install virtualenv
 
       - run: *SETUP_VIRTUALENV
+
+      - save_cache: *SAVE_HTTP_CACHE
+      - save_cache: *SAVE_WHEELHOUSE
+
       - run: *RUN_TESTS
 
       - store_test_results: *STORE_TEST_RESULTS
