@@ -107,13 +107,13 @@ jobs:
                 "${TAHOE_LAFS_TOX_ARGS}"
 
       - save_cache: &SAVE_HTTP_CACHE
-          key: v1-pip-http-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+          key: v1-pip-http-{{ .Branch }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
           paths:
             # Perfectly valid for Linux.
             - "/tmp/nobody/.cache/pip"
 
       - save_cache: &SAVE_WHEELHOUSE
-          key: v1-wheelhouse-{{ arch }}-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+          key: v1-wheelhouse-{{ arch }}-{{ .Branch }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
           paths:
             - *WHEELHOUSE_PATH
 
