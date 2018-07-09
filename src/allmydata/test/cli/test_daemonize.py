@@ -112,6 +112,7 @@ class RunDaemonizeTests(unittest.TestCase):
         # or raise RuntimeError) it is apparently just ignored and the
         # test passes anyway...
         if self._working != os.path.abspath('.'):
+            print("WARNING: a test just changed the working dir; putting it back")
             os.chdir(self._working)
         return d
 
