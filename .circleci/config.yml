@@ -63,7 +63,7 @@ jobs:
       # Select a tox environment to run for this job.
       TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
       # Additional arguments to pass to tox.
-      TAHOE_LAFS_TOX_ARGS: "allmydata.test.cli.test_daemonize"
+      TAHOE_LAFS_TOX_ARGS: ""
       # Convince all of our pip invocations to look at the cached wheelhouse
       # we maintain.
       WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
