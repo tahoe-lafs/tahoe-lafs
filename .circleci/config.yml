@@ -272,6 +272,7 @@ jobs:
             chown --recursive nobody:nobody /tmp/project
 
             slackpkg install \
+                ca-certificates \
                 sudo-1.8.20p2 \
                 make-4.1 \
                 automake-1.15 \
