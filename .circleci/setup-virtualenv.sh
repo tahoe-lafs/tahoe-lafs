@@ -21,7 +21,7 @@ sudo --set-home -u nobody /tmp/tests/bin/pip install certifi
 
 # Get a new, awesome version of pip and setuptools.  For example, the
 # distro-packaged virtualenv's pip may not know about wheels.
-sudo --set-home -u nobody /tmp/tests/bin/pip install --upgrade pip setuptools
+sudo --set-home -u nobody /tmp/tests/bin/pip install --upgrade pip setuptools wheel
 
 # Populate the wheelhouse, if necessary.
 sudo --set-home -u nobody /tmp/tests/bin/pip -vvv \
