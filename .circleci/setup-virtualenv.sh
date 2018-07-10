@@ -30,23 +30,32 @@ sudo --set-home -u nobody virtualenv --python python2.7 /tmp/tests
 # available to those systems.  Installing it ahead of time (with pip) avoids
 # this problem.  Make sure this step comes before any other attempts to
 # install things using pip!
-sudo --set-home -u nobody /tmp/tests/bin/pip install certifi
+sudo --set-home -u nobody \
+     PIP_FIND_LINKS="${PIP_FIND_LINKS}" \
+     /tmp/tests/bin/pip install certifi
 
 # Get a new, awesome version of pip and setuptools.  For example, the
 # distro-packaged virtualenv's pip may not know about wheels.
-sudo --set-home -u nobody /tmp/tests/bin/pip install --upgrade pip setuptools wheel
+sudo --set-home -u nobody \
+     PIP_FIND_LINKS="${PIP_FIND_LINKS}" \
+     /tmp/tests/bin/pip install --upgrade pip setuptools wheel
 
 # Populate the wheelhouse, if necessary.
-sudo --set-home -u nobody /tmp/tests/bin/pip \
+sudo --set-home -u nobody \
+     PIP_FIND_LINKS="${PIP_FIND_LINKS}" \
+     /tmp/tests/bin/pip \
      wheel \
-     --find-links "${PIP_FIND_LINKS}" \
      --wheel-dir "${WHEELHOUSE_PATH}" \
      /tmp/project ${TEST_DEPS} ${REPORTING_DEPS}
 
-sudo --set-home -u nobody /tmp/tests/bin/pip install ${TEST_DEPS} ${REPORTING_DEPS}
+sudo --set-home -u nobody \
+     PIP_FIND_LINKS="${PIP_FIND_LINKS}" \
+     /tmp/tests/bin/pip install ${TEST_DEPS} ${REPORTING_DEPS}
 
 # Get everything else installed in it, too.
-sudo --set-home -u nobody /tmp/tests/bin/tox \
+sudo --set-home -u nobody \
+     PIP_FIND_LINKS="${PIP_FIND_LINKS}" \
+     /tmp/tests/bin/tox \
      -c /tmp/project/tox.ini \
      --workdir /tmp/tahoe-lafs.tox \
      --notest \
