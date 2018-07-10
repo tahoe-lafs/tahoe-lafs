@@ -80,16 +80,14 @@ jobs:
 
       - restore_cache: &RESTORE_HTTP_CACHE
           keys:
-            - v1-pip-http-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
-            - v1-pip-http-{{ .Branch }}
-            - v1-pip-http-
+            - v2-pip-http-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+            - v2-pip-http-
 
       - restore_cache: &RESTORE_WHEELHOUSE
           keys:
-            - v1-wheelhouse-{{ arch }}-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
-            - v1-wheelhouse-{{ arch }}-{{ .Branch }}
-            - v1-wheelhouse-{{ arch }}
-            - v1-wheelhouse-
+            - v2-wheelhouse-{{ arch }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+            - v2-wheelhouse-{{ arch }}
+            - v2-wheelhouse-
 
       - run: &BOOTSTRAP_TEST_ENVIRONMENT
           name: "Bootstrap test environment"
@@ -107,13 +105,13 @@ jobs:
                 "${TAHOE_LAFS_TOX_ARGS}"
 
       - save_cache: &SAVE_HTTP_CACHE
-          key: v1-pip-http-{{ .Branch }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
+          key: v2-pip-http-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
           paths:
             # Perfectly valid for Linux.
             - "/tmp/nobody/.cache/pip"
 
       - save_cache: &SAVE_WHEELHOUSE
-          key: v1-wheelhouse-{{ arch }}-{{ .Branch }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
+          key: v2-wheelhouse-{{ arch }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
           paths:
             - *WHEELHOUSE_PATH
 
