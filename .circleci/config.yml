@@ -85,8 +85,8 @@ jobs:
 
       - restore_cache: &RESTORE_WHEELHOUSE
           keys:
-            - v2-wheelhouse-{{ arch }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
-            - v2-wheelhouse-{{ arch }}
+            - v2-wheelhouse-{{ .Environment.CIRCLE_JOB }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+            - v2-wheelhouse-{{ .Environment.CIRCLE_JOB }}
             - v2-wheelhouse-
 
       - run: &BOOTSTRAP_TEST_ENVIRONMENT
@@ -111,7 +111,7 @@ jobs:
             - "/tmp/nobody/.cache/pip"
 
       - save_cache: &SAVE_WHEELHOUSE
-          key: v2-wheelhouse-{{ arch }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
+          key: v2-wheelhouse-{{ .Environment.CIRCLE_JOB }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
           paths:
             - *WHEELHOUSE_PATH
 
