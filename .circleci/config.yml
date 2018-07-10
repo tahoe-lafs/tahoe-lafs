@@ -80,14 +80,31 @@ jobs:
 
       - restore_cache: &RESTORE_HTTP_CACHE
           keys:
+            # An exact match on the http cache key is great.  It should have
+            # exactly the packages (tgz, whl, whatever) we need.
             - v2-pip-http-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+            # A prefix match is okay too.  It might have a
+            # partially-overlapping set of packages.  That's a head-start, at
+            # least.  We might have to download a few more things but at least
+            # we saved a little time.  After we download some more stuff we'll
+            # create a new cache entry with the full key above and the next
+            # build will get a better cache hit.
             - v2-pip-http-
 
       - restore_cache: &RESTORE_WHEELHOUSE
           keys:
+            # As above, an exact match is great.  Here, we also need to
+            # include the job name to make sure the platform ABI matches.
+            # There are binary wheels in this wheelhouse and we're not taking
+            # care to make manylinux1 wheels.  The binary wheels in this cache
+            # will only work on some Linux distros.
             - v2-wheelhouse-{{ .Environment.CIRCLE_JOB }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+            # A partial match is okay too.  It'll get us at least some of the
+            # wheels.  We do need to keep the job name as part of the key or
+            # we might get binary wheels build against an incompatible ABI and
+            # we won't be able to use them (and they'll break the build rather
+            # than being ignored).
             - v2-wheelhouse-{{ .Environment.CIRCLE_JOB }}
-            - v2-wheelhouse-
 
       - run: &BOOTSTRAP_TEST_ENVIRONMENT
           name: "Bootstrap test environment"
