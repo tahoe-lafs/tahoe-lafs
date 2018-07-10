@@ -31,6 +31,7 @@ sudo --set-home -u nobody /tmp/tests/bin/pip install --upgrade pip setuptools wh
 # Populate the wheelhouse, if necessary.
 sudo --set-home -u nobody /tmp/tests/bin/pip \
      wheel \
+     --find-links "${PIP_FIND_LINKS}" \
      --wheel-dir "${WHEELHOUSE_PATH}" \
      /tmp/project
 
