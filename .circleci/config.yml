@@ -82,14 +82,14 @@ jobs:
           keys:
             # An exact match on the http cache key is great.  It should have
             # exactly the packages (tgz, whl, whatever) we need.
-            - v3-pip-http-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+            - v4-pip-http-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
             # A prefix match is okay too.  It might have a
             # partially-overlapping set of packages.  That's a head-start, at
             # least.  We might have to download a few more things but at least
             # we saved a little time.  After we download some more stuff we'll
             # create a new cache entry with the full key above and the next
             # build will get a better cache hit.
-            - v3-pip-http-
+            - v4-pip-http-
 
       - restore_cache: &RESTORE_WHEELHOUSE
           keys:
@@ -122,10 +122,12 @@ jobs:
                 "${TAHOE_LAFS_TOX_ARGS}"
 
       - save_cache: &SAVE_HTTP_CACHE
-          key: v3-pip-http-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
+          key: v4-pip-http-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
           paths:
-            # Perfectly valid for Linux.
-            - "/tmp/nobody/.cache/pip"
+            # Perfectly valid for Linux.  Note we exclude the wheel cache
+            # because we want this cache to be valid across all platforms and
+            # the wheels in the pip wheel cache are not necessarily so.
+            - "/tmp/nobody/.cache/pip/http"
 
       - save_cache: &SAVE_WHEELHOUSE
           key: v3-wheelhouse-{{ .Environment.CIRCLE_JOB }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
