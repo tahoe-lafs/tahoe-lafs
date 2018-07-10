@@ -33,12 +33,12 @@ sudo \
     TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file" \
     PIP_NO_INDEX="1" \
     --set-home \
-     --user nobody \
-     /tmp/tests/bin/tox \
-     -c /tmp/project/tox.ini \
-     --workdir /tmp/tahoe-lafs.tox \
-     -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
-     ${TAHOE_LAFS_TOX_ARGS}
+    --user nobody \
+    /tmp/tests/bin/tox \
+    -c /tmp/project/tox.ini \
+    --workdir /tmp/tahoe-lafs.tox \
+    -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+    ${TAHOE_LAFS_TOX_ARGS}
 
 # Create a junitxml results area.
 mkdir -p "$(dirname "${JUNITXML}")"
