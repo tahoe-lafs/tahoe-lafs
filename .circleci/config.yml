@@ -84,6 +84,7 @@ jobs:
             ~/project/.circleci/bootstrap-test-environment.sh ~/project "${EXTRA_PACKAGES}"
 
       - restore_cache: &RESTORE_HTTP_CACHE
+          name: "Restoring pip HTTP cache"
           keys:
             # An exact match on the http cache key is great.  It should have
             # exactly the packages (tgz, whl, whatever) we need.
@@ -97,6 +98,7 @@ jobs:
             - v5-pip-http-
 
       - restore_cache: &RESTORE_WHEELHOUSE
+          name: "Restoring wheelhouse"
           keys:
             # As above, an exact match is great.  Here, we also need to
             # include the job name to make sure the platform ABI matches.
@@ -122,6 +124,7 @@ jobs:
                 "${TAHOE_LAFS_TOX_ARGS}"
 
       - save_cache: &SAVE_HTTP_CACHE
+          name: "Saving pip HTTP cache"
           key: v5-pip-http-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
           paths:
             # Perfectly valid for Linux.  Note we exclude the wheel cache
@@ -130,6 +133,7 @@ jobs:
             - "/tmp/nobody/.cache/pip/http"
 
       - save_cache: &SAVE_WHEELHOUSE
+          name: "Caching wheelhouse"
           key: v4-wheelhouse-{{ .Environment.CIRCLE_JOB }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
           paths:
             - *WHEELHOUSE_PATH
