@@ -9,7 +9,7 @@ shift || :
 # Make sure the ownership of the pip cache directory is correct.  The CircleCI
 # cache management operations seem to mess it up.  The cache directory might
 # not exist if there was no matching cache to restore.
-[ -e /tmp/nobody/.cache ] && sudo chown --recursive nobody /tmp/nobody/.cache
+[ -e /tmp/nobody/.cache ] && chown --recursive nobody /tmp/nobody/.cache
 
 # Set up the virtualenv as a non-root user so we can run the test suite as a
 # non-root user.  See below.
