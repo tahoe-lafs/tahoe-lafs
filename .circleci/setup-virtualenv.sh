@@ -24,7 +24,7 @@ sudo --set-home -u nobody /tmp/tests/bin/pip install certifi
 sudo --set-home -u nobody /tmp/tests/bin/pip install --upgrade pip setuptools
 
 # Populate the wheelhouse, if necessary.
-sudo --set-home -u nobody /tmp/tests/bin/pip \
+sudo --set-home -u nobody /tmp/tests/bin/pip -vvv \
      wheel \
      --wheel-dir "${WHEELHOUSE_PATH}" \
      /tmp/project
