@@ -117,8 +117,6 @@ jobs:
           # readable.
           working_directory: "/tmp"
           command: |
-            # XXX DEBUGGING
-            ls -la /tmp/nobody
             /tmp/project/.circleci/setup-virtualenv.sh \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
