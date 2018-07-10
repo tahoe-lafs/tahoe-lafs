@@ -78,6 +78,11 @@ jobs:
 
       - "checkout"
 
+      - run: &BOOTSTRAP_TEST_ENVIRONMENT
+          name: "Bootstrap test environment"
+          command: |
+            ~/project/.circleci/bootstrap-test-environment.sh ~/project "${EXTRA_PACKAGES}"
+
       - restore_cache: &RESTORE_HTTP_CACHE
           keys:
             # An exact match on the http cache key is great.  It should have
@@ -105,11 +110,6 @@ jobs:
             # we won't be able to use them (and they'll break the build rather
             # than being ignored).
             - v3-wheelhouse-{{ .Environment.CIRCLE_JOB }}
-
-      - run: &BOOTSTRAP_TEST_ENVIRONMENT
-          name: "Bootstrap test environment"
-          command: |
-            ~/project/.circleci/bootstrap-test-environment.sh ~/project "${EXTRA_PACKAGES}"
 
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
@@ -234,9 +234,6 @@ jobs:
 
       - "checkout"
 
-      - restore_cache: *RESTORE_HTTP_CACHE
-      - restore_cache: *RESTORE_WHEELHOUSE
-
       - run:
           name: "Bootstrap test environment"
           working_directory: "/tmp"
@@ -266,6 +263,9 @@ jobs:
             # XXX net-tools is actually a Tahoe-LAFS runtime dependency!
             yum install --assumeyes \
                 net-tools
+
+      - restore_cache: *RESTORE_HTTP_CACHE
+      - restore_cache: *RESTORE_WHEELHOUSE
 
       - run: *SETUP_VIRTUALENV
 
@@ -306,9 +306,6 @@ jobs:
             slackpkg install openssh-7.4p1 git-2.14.4 </dev/null
 
       - "checkout"
-
-      - restore_cache: *RESTORE_HTTP_CACHE
-      - restore_cache: *RESTORE_WHEELHOUSE
 
       - run:
           name: "Bootstrap test environment"
@@ -355,6 +352,9 @@ jobs:
             curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
             python get-pip.py
             pip install virtualenv
+
+      - restore_cache: *RESTORE_HTTP_CACHE
+      - restore_cache: *RESTORE_WHEELHOUSE
 
       - run: *SETUP_VIRTUALENV
 
