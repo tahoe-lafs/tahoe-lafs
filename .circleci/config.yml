@@ -87,7 +87,7 @@ jobs:
           keys:
             # An exact match on the http cache key is great.  It should have
             # exactly the packages (tgz, whl, whatever) we need.
-            - v4-pip-http-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+            - v4-pip-http-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
             # A prefix match is okay too.  It might have a
             # partially-overlapping set of packages.  That's a head-start, at
             # least.  We might have to download a few more things but at least
@@ -103,7 +103,7 @@ jobs:
             # There are binary wheels in this wheelhouse and we're not taking
             # care to make manylinux1 wheels.  The binary wheels in this cache
             # will only work on some Linux distros.
-            - v3-wheelhouse-{{ .Environment.CIRCLE_JOB }}-{{ checksum "setup.py" }}-{{ checksum "src/allmydata/_auto_deps.py" }}
+            - v3-wheelhouse-{{ .Environment.CIRCLE_JOB }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
             # A partial match is okay too.  It'll get us at least some of the
             # wheels.  We do need to keep the job name as part of the key or
             # we might get binary wheels build against an incompatible ABI and
