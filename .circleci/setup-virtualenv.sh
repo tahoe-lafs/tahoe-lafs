@@ -6,6 +6,14 @@ shift
 TAHOE_LAFS_TOX_ARGS=$1
 shift || :
 
+# Python packages we need to support the test infrastructure.  *Not* packages
+# Tahoe-LAFS itself (implementation or test suite) need.
+TEST_DEPS="tox codecov"
+
+# Python packages we need to generate test reports for CI infrastructure.
+# *Not* packages Tahoe-LAFS itself (implement or test suite) need.
+REPORTING_DEPS="python-subunit junitxml subunitreporter"
+
 # Make sure the ownership of the pip cache directory is correct.  The CircleCI
 # cache management operations seem to mess it up.  The cache directory might
 # not exist if there was no matching cache to restore.
@@ -33,16 +41,7 @@ sudo --set-home -u nobody /tmp/tests/bin/pip \
      wheel \
      --find-links "${PIP_FIND_LINKS}" \
      --wheel-dir "${WHEELHOUSE_PATH}" \
-     /tmp/project
-
-
-# Python packages we need to support the test infrastructure.  *Not* packages
-# Tahoe-LAFS itself (implementation or test suite) need.
-TEST_DEPS="tox codecov"
-
-# Python packages we need to generate test reports for CI infrastructure.
-# *Not* packages Tahoe-LAFS itself (implement or test suite) need.
-REPORTING_DEPS="python-subunit junitxml subunitreporter"
+     /tmp/project ${TEST_DEPS} ${REPORTING_DEPS}
 
 sudo --set-home -u nobody /tmp/tests/bin/pip install ${TEST_DEPS} ${REPORTING_DEPS}
 
