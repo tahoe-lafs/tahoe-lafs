@@ -93,6 +93,7 @@ everyone! A complete list of these PRs and contributions:
 `PR407`_: `david415`_ (with `meejah`_, `warner`_)
 `PR409`_: `str4d`_ (with `warner`_)
 `PR410`_: `tpltnt`_ (with `warner`_)
+`PR411`_: `tpltnt`_ (with `warner`_, `meejah`_)
 `PR412`_: `tpltnt`_ (with `warner`_)
 `PR414`_: `tpltnt`_ (with `meejah`_, `warner`_)
 `PR416`_: `david415`_, `meejah`_, `markberger`_, `warner`_
@@ -119,6 +120,7 @@ everyone! A complete list of these PRs and contributions:
 `PR452`_: `meejah`_ (with `tpltnt`_)
 `PR453`_: `meejah`_
 `PR454`_: `meejah`_ (with `tpltnt`_, `meejah`_, `warner`_)
+`PR455`_: `tpltnt`_ (with `meejah`_)
 `PR456`_: `meejah`_ (with `meejah`_)
 `PR457`_: `meejah`_ (with `crwood`_, `tpltnt`_)
 `PR458`_: `meejah`_ (with `tpltnt`_)
@@ -131,9 +133,16 @@ everyone! A complete list of these PRs and contributions:
 `PR475`_: `meejah`_ (with `exarkun`_)
 `PR482`_: `crwood`_ (with `warner`_)
 `PR485`_: `warner`_
+`PR486`_: `exarkun`_ (with `warner`_)
 `PR487`_: `exarkun`_ (with `tpltnt`_)
+`PR489`_: `exarkun`_
+`PR490`_: `exarkun`_
 `PR491`_: `exarkun`_ (with `meejah`_)
 `PR492`_: `exarkun`_ (with `meejah`_, `tpltnt`_)
+`PR493`_: `exarkun`_ (with `meejah`_)
+`PR494`_: `exarkun`_ (with `meejah`_)
+`PR497`_: `meejah`_ (with `multikatt`_, `exarkun`_)
+`PR499`_: `exarkun`_ (with `meejah`_)
 `PR501`_: `exarkun`_ (with `meejah`_)
 `PR502`_: `exarkun`_ (with `meejah`_)
 
@@ -238,6 +247,7 @@ improvements which shouldn't have any user-visible effects:
 .. _markberger: https://github.com/markberger
 .. _meejah: https://github.com/meejah
 .. _meskio: https://github.com/meskio
+.. _multikatt: https://github.com/multikatt
 .. _pataquets: https://github.com/pataquets
 .. _str4d: https://github.com/str4d
 .. _tpltnt: https://github.com/tpltnt
