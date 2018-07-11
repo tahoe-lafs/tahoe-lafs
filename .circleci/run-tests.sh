@@ -31,13 +31,14 @@ JUNITXML="${ARTIFACTS}"/junit/unittests/results.xml
 sudo \
     SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}" \
     TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file" \
-     --set-home \
-     --user nobody \
-     /tmp/tests/bin/tox \
-     -c /tmp/project/tox.ini \
-     --workdir /tmp/tahoe-lafs.tox \
-     -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
-     ${TAHOE_LAFS_TOX_ARGS}
+    PIP_NO_INDEX="1" \
+    --set-home \
+    --user nobody \
+    /tmp/tests/bin/tox \
+    -c /tmp/project/tox.ini \
+    --workdir /tmp/tahoe-lafs.tox \
+    -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+    ${TAHOE_LAFS_TOX_ARGS}
 
 # Create a junitxml results area.
 mkdir -p "$(dirname "${JUNITXML}")"

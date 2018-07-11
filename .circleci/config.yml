@@ -64,10 +64,14 @@ jobs:
       TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
+      # Convince all of our pip invocations to look at the cached wheelhouse
+      # we maintain.
+      WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
+      PIP_FIND_LINKS: "file:///tmp/wheelhouse"
 
     steps:
       - run: &INSTALL_GIT
-          node: "Install Git"
+          name: "Install Git"
           command: |
             apt-get --quiet update
             apt-get --quiet --yes install git
@@ -79,6 +83,36 @@ jobs:
           command: |
             ~/project/.circleci/bootstrap-test-environment.sh ~/project "${EXTRA_PACKAGES}"
 
+      - restore_cache: &RESTORE_HTTP_CACHE
+          name: "Restoring pip HTTP cache"
+          keys:
+            # An exact match on the http cache key is great.  It should have
+            # exactly the packages (tgz, whl, whatever) we need.
+            - v5-pip-http-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
+            # A prefix match is okay too.  It might have a
+            # partially-overlapping set of packages.  That's a head-start, at
+            # least.  We might have to download a few more things but at least
+            # we saved a little time.  After we download some more stuff we'll
+            # create a new cache entry with the full key above and the next
+            # build will get a better cache hit.
+            - v5-pip-http-
+
+      - restore_cache: &RESTORE_WHEELHOUSE
+          name: "Restoring wheelhouse"
+          keys:
+            # As above, an exact match is great.  Here, we also need to
+            # include the job name to make sure the platform ABI matches.
+            # There are binary wheels in this wheelhouse and we're not taking
+            # care to make manylinux1 wheels.  The binary wheels in this cache
+            # will only work on some Linux distros.
+            - v4-wheelhouse-{{ .Environment.CIRCLE_JOB }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
+            # A partial match is okay too.  It'll get us at least some of the
+            # wheels.  We do need to keep the job name as part of the key or
+            # we might get binary wheels build against an incompatible ABI and
+            # we won't be able to use them (and they'll break the build rather
+            # than being ignored).
+            - v4-wheelhouse-{{ .Environment.CIRCLE_JOB }}
+
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
           # pip cannot install packages if the working directory is not
@@ -88,6 +122,21 @@ jobs:
             /tmp/project/.circleci/setup-virtualenv.sh \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
+
+      - save_cache: &SAVE_HTTP_CACHE
+          name: "Saving pip HTTP cache"
+          key: v5-pip-http-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
+          paths:
+            # Perfectly valid for Linux.  Note we exclude the wheel cache
+            # because we want this cache to be valid across all platforms and
+            # the wheels in the pip wheel cache are not necessarily so.
+            - "/tmp/nobody/.cache/pip/http"
+
+      - save_cache: &SAVE_WHEELHOUSE
+          name: "Caching wheelhouse"
+          key: v4-wheelhouse-{{ .Environment.CIRCLE_JOB }}-{{ checksum "/tmp/project/setup.py" }}-{{ checksum "/tmp/project/src/allmydata/_auto_deps.py" }}
+          paths:
+            - *WHEELHOUSE_PATH
 
       - run: &RUN_TESTS
           name: "Run test suite"
@@ -183,7 +232,7 @@ jobs:
 
     steps:
       - run:
-          node: "Install Git"
+          name: "Install Git"
           command: |
             yum install --assumeyes git
 
@@ -219,7 +268,14 @@ jobs:
             yum install --assumeyes \
                 net-tools
 
+      - restore_cache: *RESTORE_HTTP_CACHE
+      - restore_cache: *RESTORE_WHEELHOUSE
+
       - run: *SETUP_VIRTUALENV
+
+      - save_cache: *SAVE_HTTP_CACHE
+      - save_cache: *SAVE_WHEELHOUSE
+
       - run: *RUN_TESTS
 
       - store_test_results: *STORE_TEST_RESULTS
@@ -248,7 +304,7 @@ jobs:
 
     steps:
       - run:
-          node: "Install Git"
+          name: "Install Git"
           command: |
             slackpkg update
             slackpkg install openssh-7.4p1 git-2.14.4 </dev/null
@@ -301,7 +357,14 @@ jobs:
             python get-pip.py
             pip install virtualenv
 
+      - restore_cache: *RESTORE_HTTP_CACHE
+      - restore_cache: *RESTORE_WHEELHOUSE
+
       - run: *SETUP_VIRTUALENV
+
+      - save_cache: *SAVE_HTTP_CACHE
+      - save_cache: *SAVE_WHEELHOUSE
+
       - run: *RUN_TESTS
 
       - store_test_results: *STORE_TEST_RESULTS
