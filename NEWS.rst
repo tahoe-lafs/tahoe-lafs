@@ -4,7 +4,7 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.13.0 (6-July-2018)
+Release 1.13.0 (30-July-2018)
 ''''''''''''''''''''''''''''
 
 New Features
