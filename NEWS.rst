@@ -4,7 +4,7 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.13.0 (18-May-2018)
+Release 1.13.0 (30-July-2018)
 ''''''''''''''''''''''''''''
 
 New Features
@@ -49,7 +49,10 @@ Bug Fixes in Core
 
 Some bugs with pidfile handling were fixed (`PR440`_ and `PR450`_)
 meaning invalid pidfiles are now deleted. Error-messages related to
-``tahoe.cfg`` now include the full path to the file.
+``tahoe.cfg`` now include the full path to the file. `PR501`_ fixes
+"address already in use" test failures. `PR502`_ fixes ticket #2926
+("tahoe status" failures). `PR487`_ fixes ticket #1455 (setting
+``X-Frame-Options: DENY``)
 
 
 Web UI Changes
@@ -65,19 +68,20 @@ Magic Folder Changes
 
 Multiple magic-folders in a single Tahoe client are now
 supported. Bugs with ``.backup`` files have been fixed, meaning
-spurious ``.backup`` files will be produced less often
-(`PR448`_). Handling of default umask on new magic-folder files is
+spurious ``.backup`` files will be produced less often (`PR448`_,
+`PR475`_). Handling of default umask on new magic-folder files is
 fixed in `PR458`_. The user mtime value is now correctly preserved
 (`PR457`_).
 
 A bug in ``tahoe magic-folder status`` causing active operations to
-sometimes not show up is fixed (`PR461`_).
+sometimes not show up is fixed (`PR461`_). If a directory is missing,
+it is created (`PR492`_).
 
 
 Raw Pull Requests
 -----------------
 
-In total, 44 Pull Requests were merged for this release, including
+In total, 50 Pull Requests were merged for this release, including
 contributions of code or review from 15 different GitHub users. Thanks
 everyone! A complete list of these PRs and contributions:
 
@@ -89,6 +93,7 @@ everyone! A complete list of these PRs and contributions:
 `PR407`_: `david415`_ (with `meejah`_, `warner`_)
 `PR409`_: `str4d`_ (with `warner`_)
 `PR410`_: `tpltnt`_ (with `warner`_)
+`PR411`_: `tpltnt`_ (with `warner`_, `meejah`_)
 `PR412`_: `tpltnt`_ (with `warner`_)
 `PR414`_: `tpltnt`_ (with `meejah`_, `warner`_)
 `PR416`_: `david415`_, `meejah`_, `markberger`_, `warner`_
@@ -115,6 +120,7 @@ everyone! A complete list of these PRs and contributions:
 `PR452`_: `meejah`_ (with `tpltnt`_)
 `PR453`_: `meejah`_
 `PR454`_: `meejah`_ (with `tpltnt`_, `meejah`_, `warner`_)
+`PR455`_: `tpltnt`_ (with `meejah`_)
 `PR456`_: `meejah`_ (with `meejah`_)
 `PR457`_: `meejah`_ (with `crwood`_, `tpltnt`_)
 `PR458`_: `meejah`_ (with `tpltnt`_)
@@ -124,7 +130,20 @@ everyone! A complete list of these PRs and contributions:
 `PR470`_: `meejah`_ (with `exarkun`_, `tpltnt`_, `warner`_)
 `PR472`_: `exarkun`_, `meskio`_
 `PR474`_: `exarkun`_
+`PR475`_: `meejah`_ (with `exarkun`_)
 `PR482`_: `crwood`_ (with `warner`_)
+`PR485`_: `warner`_
+`PR486`_: `exarkun`_ (with `warner`_)
+`PR487`_: `exarkun`_ (with `tpltnt`_)
+`PR489`_: `exarkun`_
+`PR490`_: `exarkun`_
+`PR491`_: `exarkun`_ (with `meejah`_)
+`PR492`_: `exarkun`_ (with `meejah`_, `tpltnt`_)
+`PR493`_: `exarkun`_ (with `meejah`_)
+`PR494`_: `exarkun`_ (with `meejah`_)
+`PR497`_: `meejah`_ (with `multikatt`_, `exarkun`_)
+`PR499`_: `exarkun`_ (with `meejah`_)
+`PR501`_: `exarkun`_ (with `meejah`_)
 `PR502`_: `exarkun`_ (with `meejah`_)
 
 
@@ -228,6 +247,7 @@ improvements which shouldn't have any user-visible effects:
 .. _markberger: https://github.com/markberger
 .. _meejah: https://github.com/meejah
 .. _meskio: https://github.com/meskio
+.. _multikatt: https://github.com/multikatt
 .. _pataquets: https://github.com/pataquets
 .. _str4d: https://github.com/str4d
 .. _tpltnt: https://github.com/tpltnt
