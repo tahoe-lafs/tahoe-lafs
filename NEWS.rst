@@ -43,6 +43,8 @@ configurable (`PR472`_).
 A PyInstaller-based build is now available (`PR421`_). A "Docker
 compose" setup for development purposes is now available (`PR445`_).
 
+There is now a recommended workflow for Zcash-based donations to support
+storage server operators (`PR506`_).
 
 Bug Fixes in Core
 -----------------
@@ -145,6 +147,7 @@ everyone! A complete list of these PRs and contributions:
 `PR499`_: `exarkun`_ (with `meejah`_)
 `PR501`_: `exarkun`_ (with `meejah`_)
 `PR502`_: `exarkun`_ (with `meejah`_)
+`PR506`_: `exarkun`_ (with `crwood`_, `nejucomo`_)
 
 
 Developer and Internal Changes
@@ -236,10 +239,12 @@ improvements which shouldn't have any user-visible effects:
 .. _PR474: https://github.com/tahoe-lafs/tahoe-lafs/pull/474
 .. _PR482: https://github.com/tahoe-lafs/tahoe-lafs/pull/482
 .. _PR502: https://github.com/tahoe-lafs/tahoe-lafs/pull/502
+.. _PR506: https://github.com/tahoe-lafs/tahoe-lafs/pull/506
 .. _AnBuKu: https://github.com/AnBuKu
 .. _ValdikSS: https://github.com/ValdikSS
 .. _bookchin: https://github.com/bookchin
 .. _crwood: https://github.com/crwood
+.. _nejucomo: https://github.com/nejucomo
 .. _daira: https://github.com/daira
 .. _david415: https://github.com/david415
 .. _exarkun: https://github.com/exarkun
