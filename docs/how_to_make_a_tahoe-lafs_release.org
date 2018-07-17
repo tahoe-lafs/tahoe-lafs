@@ -19,18 +19,20 @@
   - [ ] docs/INSTALL.rst only points to current tahoe-lafs-X.Y.Z.tar.gz source code file
   - [ ] updated https://tahoe-lafs.org/hacktahoelafs/
 
-* sign the tag [0/8]
+* sign + build the tag [0/8]
 
   - [ ] code passes all checks / tests (i.e. all CI is green)
   - [ ] documentation is ready (see above)
   - [ ] git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-X.Y.Z" tahoe-lafs-X.Y.Z
   - [ ] build code locally:
      tox -e py27,codechecks,coverage,deprecations,docs,integration,upcoming-deprecations
-  - [ ] release version is reporting itself as intended version
   - [ ] created tarballs (they'll be in dist/ for later comparison)
      tox -e tarballs
+  - [ ] release version is reporting itself as intended version
+     ls dist/
   - [ ] 'git pull' doesn't pull anything
-  - [ ] pushed tag to trigger buildslaves: git push official master TAGNAME
+  - [ ] pushed tag to trigger buildslaves
+     git push official master TAGNAME
 
 * sign the release artifacts [0/8]
 
