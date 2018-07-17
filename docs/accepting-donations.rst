@@ -39,9 +39,12 @@ Send the Donation
 
 First, select a donation amount.
 Next, use a Zcash wallet to send the selected amount to the donation address.
-Using the Zcash cli wallet, this can be done with a command like::
+Using the Zcash cli wallet, this can be done with commands like::
 
-  $ zcash-cli z_sendmany $YOUR_ADDRESS '[{"address": "$DONATION_ADDRESS", "amount": $AMOUNT}]'
+  $ DONATION_ADDRESS="..."
+  $ AMOUNT="..."
+  $ YOUR_ADDRESS="..."
+  $ zcash-cli z_sendmany $YOUR_ADDRESS "[{\"address\": \"$DONATION_ADDRESS\", \"amount\": $AMOUNT}]"
 
 Remember that you must also have funds to pay the transaction fee
 (which defaults to 0.0001 ZEC in mid-2018).
