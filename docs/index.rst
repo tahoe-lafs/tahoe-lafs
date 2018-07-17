@@ -32,6 +32,7 @@ Contents:
 
    backdoors
    donations
+   accepting-donations
    expenses
    cautions
    write_coordination
