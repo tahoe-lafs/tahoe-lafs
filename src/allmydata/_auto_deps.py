@@ -170,5 +170,4 @@ warning_imports = [
     'nevow',
     'twisted.persisted.sob',
     'twisted.python.filepath',
-    'Crypto.Hash.SHA',
 ]
