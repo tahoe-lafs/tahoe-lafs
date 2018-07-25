@@ -75,7 +75,7 @@ def _get_inotify_module():
             from allmydata.windows import inotify
         elif runtime.platform.supportsINotify():
             from twisted.internet import inotify
-        elif sys.platform != "linux":
+        elif not sys.platform.startswith("linux"):
             from allmydata.watchdog import inotify
         else:
             raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
