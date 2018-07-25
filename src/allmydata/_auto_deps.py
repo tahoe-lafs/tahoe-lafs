@@ -142,11 +142,6 @@ setup_requires = [
     'setuptools >= 28.8.0',  # for PEP-440 style versions
 ]
 
-import sys
-if sys.platform != "win32" and not sys.platform.startswith("linux"):
-    install_requires.append('watchdog')
-    package_imports.append(('watchdog', 'watchdog'))
-
 
 # These are suppressed globally:
 
