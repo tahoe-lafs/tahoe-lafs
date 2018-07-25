@@ -143,10 +143,6 @@ setup_requires = [
 ]
 
 import sys
-if sys.platform == "win32":
-    install_requires.append('pypiwin32')
-    package_imports.append(('pypiwin32', 'win32api'))
-
 if sys.platform != "win32" and not sys.platform.startswith("linux"):
     install_requires.append('watchdog')
     package_imports.append(('watchdog', 'watchdog'))
