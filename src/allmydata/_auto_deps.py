@@ -42,11 +42,6 @@ install_requires = [
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     "foolscap >= 0.12.6",
 
-    # Needed for SFTP.
-    # pycrypto 2.2 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/620253>
-    # pycrypto 2.4 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/881130>
-    "pycrypto >= 2.1.0, != 2.2, != 2.4",
-
     # pycryptopp-0.6.0 includes ed25519
     "pycryptopp >= 0.6.0",
 
@@ -112,7 +107,6 @@ package_imports = [
     ('platform',         None),
     ('pyOpenSSL',        'OpenSSL'),
     ('OpenSSL',          None),
-    ('pycrypto',         'Crypto'),
     ('pyasn1',           'pyasn1'),
     ('service-identity', 'service_identity'),
     ('characteristic',   'characteristic'),
@@ -176,5 +170,4 @@ warning_imports = [
     'nevow',
     'twisted.persisted.sob',
     'twisted.python.filepath',
-    'Crypto.Hash.SHA',
 ]

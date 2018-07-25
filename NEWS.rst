@@ -191,6 +191,7 @@ improvements which shouldn't have any user-visible effects:
 * `PR410`_ explicit python2.7 virtualenv
 * `PR419`_ fix list of supported OSes
 * `PR423`_ switch travis to a supported Ubuntu
+* deps: no longer declare a PyCrypto dependency (actual use vanished long ago) `PR514`_
 
 
 
@@ -240,6 +241,7 @@ improvements which shouldn't have any user-visible effects:
 .. _PR482: https://github.com/tahoe-lafs/tahoe-lafs/pull/482
 .. _PR502: https://github.com/tahoe-lafs/tahoe-lafs/pull/502
 .. _PR506: https://github.com/tahoe-lafs/tahoe-lafs/pull/506
+.. _PR514: https://github.com/tahoe-lafs/tahoe-lafs/pull/514
 .. _AnBuKu: https://github.com/AnBuKu
 .. _ValdikSS: https://github.com/ValdikSS
 .. _bookchin: https://github.com/bookchin
