@@ -282,8 +282,12 @@ class _GridManager(object):
 
 def _save_gridmanager_config(file_path, grid_manager):
     """
-    Writes a Grid Manager configuration to the place specified by
-    'file_path' (if None, stdout is used).
+    Writes a Grid Manager configuration.
+
+    :param file_path: a FilePath specifying where to write the config
+        (if None, stdout is used)
+
+    :param grid_manager: a _GridManager instance
     """
     data = json.dumps(
         grid_manager.marshal(),
@@ -298,20 +302,33 @@ def _save_gridmanager_config(file_path, grid_manager):
             f.write("{}\n".format(data))
 
 
-# XXX should take a FilePath or None
-def _load_gridmanager_config(gm_config):
+def _config_to_filepath(gm_config_location):
     """
-    Loads a Grid Manager configuration and returns it (a dict) after
-    validating. Exceptions if the config can't be found, or has
-    problems.
+    Converts a command-line string specifying the GridManager
+    configuration's location into a readable file-like object.
+
+    :param gm_config_location str: a valid GridManager directory or
+        '-' (a single dash) to use stdin.
     """
     fp = None
     if gm_config.strip() != '-':
-        fp = FilePath(gm_config.strip())
+        fp = FilePath(gm_config_location.strip())
         if not fp.exists():
             raise RuntimeError(
                 "No such directory '{}'".format(gm_config)
             )
+    return fp
+
+
+def _load_gridmanager_config(file_path)
+    """
+    Loads a Grid Manager configuration and returns it (a dict) after
+    validating. Exceptions if the config can't be found, or has
+    problems.
+
+    :param file_path: a FilePath to a vlid GridManager directory or
+        None to load from stdin.
+    """
 
     if fp is None:
         gm = json.load(sys.stdin)
@@ -329,7 +346,7 @@ def _show_identity(gridoptions, options):
     gm_config = gridoptions['config'].strip()
     assert gm_config is not None
 
-    gm = _load_gridmanager_config(gm_config)
+    gm = _load_gridmanager_config(_config_to_filepath(gm_config))
     print(gm.public_identity())
 
 
@@ -340,7 +357,7 @@ def _add(gridoptions, options):
     gm_config = gridoptions['config'].strip()
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
 
-    gm = _load_gridmanager_config(gm_config)
+    gm = _load_gridmanager_config(_config_to_filepath(gm_config))
     try:
         gm.add_storage_server(
             options['name'],
@@ -361,7 +378,7 @@ def _remove(gridoptions, options):
     """
     gm_config = gridoptions['config'].strip()
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
-    gm = _load_gridmanager_config(gm_config)
+    gm = _load_gridmanager_config(_config_to_filepath(gm_config))
 
     try:
         gm.remove_storage_server(options['name'])
@@ -385,7 +402,7 @@ def _list(gridoptions, options):
     gm_config = gridoptions['config'].strip()
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
 
-    gm = _load_gridmanager_config(gm_config)
+    gm = _load_gridmanager_config(_config_to_filepath(gm_config))
     for name in sorted(gm.storage_servers.keys()):
         print("{}: {}".format(name, gm.storage_servers[name].public_key()))
         if fp:
@@ -408,7 +425,7 @@ def _sign(gridoptions, options):
     """
     gm_config = gridoptions['config'].strip()
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
-    gm = _load_gridmanager_config(gm_config)
+    gm = _load_gridmanager_config(_config_to_filepath(gm_config))
 
     try:
         certificate = gm.sign(options['name'])
