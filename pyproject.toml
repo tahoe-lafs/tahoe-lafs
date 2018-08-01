@@ -5,6 +5,7 @@
     directory = "newsfragments"
     start_string = ".. towncrier start line"
     title_format = "{version} ({project_date})"
+    issue_format = "`#{issue} <https://github.com/tahoe-lafs/tahoe-lafs/issues/{issue}>`_"
 
     [[tool.towncrier.type]]
         directory = "incompat"
