@@ -74,14 +74,13 @@ class StorageFarmBroker(service.MultiService):
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, permute_peers, tub_maker, preferred_peers=(), grid_manager_keys=[], node_pubkey=None):
+    def __init__(self, permute_peers, tub_maker, preferred_peers=(), grid_manager_keys=[]):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self._tub_maker = tub_maker
         self.preferred_peers = preferred_peers
         self._grid_manager_keys = grid_manager_keys
-        self._node_pubkey = node_pubkey
 
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its

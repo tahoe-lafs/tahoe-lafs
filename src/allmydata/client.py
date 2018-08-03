@@ -392,9 +392,11 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
             keyutil.parse_pubkey(gm_key)
         )
 
-    my_pubkey = keyutil.parse_pubkey(
-        self.get_config_from_file("node.pubkey")
-    )
+    # we don't actually use this keypair for anything (yet) as far
+    # as I can see.
+    # my_pubkey = keyutil.parse_pubkey(
+    #     self.get_config_from_file("node.pubkey")
+    # )
 
     # create the actual storage-broker
     
