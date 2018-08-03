@@ -243,7 +243,7 @@ class _GridManager(object):
             "public_key": srv.public_key(),
             "version": 1,
         }
-        cert_data = json.dumps(cert_info, separators=(',',':'), sort_keys=True)
+        cert_data = json.dumps(cert_info, separators=(',',':'), sort_keys=True).encode('utf8')
         sig = self._private_key.sign(cert_data)
         certificate = {
             u"certificate": cert_data,
