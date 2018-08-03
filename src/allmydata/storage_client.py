@@ -38,8 +38,9 @@ from datetime import datetime
 from zope.interface import implementer
 from twisted.internet import defer
 from twisted.application import service
-
 from foolscap.api import eventually
+from pycryptopp.publickey import ed25519  # perhaps NaCl instead? other code uses this though
+
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32, connection_status
 from allmydata.util import keyutil
@@ -99,7 +100,7 @@ class StorageFarmBroker(service.MultiService):
             self._static_server_ids.add(server_id)
             handler_overrides = server.get("connections", {})
             s = NativeStorageServer(server_id, server["ann"],
-                                    self._tub_maker, handler_overrides, [], self._node_pubkey)
+                                    self._tub_maker, handler_overrides, [])
             s.on_status_changed(lambda _: self._got_connection())
             s.setServiceParent(self)
             self.servers[server_id] = s
@@ -118,7 +119,7 @@ class StorageFarmBroker(service.MultiService):
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
-        s = NativeStorageServer(serverid, ann.copy(), self._tub_maker, {}, [], self._node_pubkey)
+        s = NativeStorageServer(serverid, ann.copy(), self._tub_maker, {}, [])
         s.rref = rref
         s._is_connected = True
         self.servers[serverid] = s
@@ -159,7 +160,9 @@ class StorageFarmBroker(service.MultiService):
                     facility="tahoe.storage_broker", umid="AlxzqA",
                     level=log.UNUSUAL)
             return
-        s = NativeStorageServer(server_id, ann, self._tub_maker, {}, self._grid_manager_keys, self._node_pubkey)
+
+        grid_manager_certs = ann.get("grid-manager-certificates", [])
+        s = NativeStorageServer(server_id, ann, self._tub_maker, {}, self._grid_manager_keys, grid_manager_certs)
         s.on_status_changed(lambda _: self._got_connection())
         server_id = s.get_serverid()
         old = self.servers.get(server_id)
@@ -272,7 +275,7 @@ class StubServer(object):
         return "?"
 
 
-def _validate_grid_manager_certificate(gm_key, alleged_cert, storage_pubkey):
+def _validate_grid_manager_certificate(gm_key, alleged_cert):
     """
     :param gm_key: a VerifyingKey instance, a Grid Manager's public
         key.
@@ -286,18 +289,16 @@ def _validate_grid_manager_certificate(gm_key, alleged_cert, storage_pubkey):
     """
     try:
         gm_key.verify(
-            alleged_cert['signature'],
-            alleged_cert['certificate'],
+            base32.a2b(alleged_cert['signature'].encode('ascii')),
+            alleged_cert['certificate'].encode('ascii'),
         )
-    except Exception:
+    except ed25519.BadSignatureError:
         return False
     # signature is valid; now we can load the actual data
     cert = json.loads(alleged_cert['certificate'])
     now = datetime.utcnow()
-    expires = datetime.fromordinal(cert['expires'])
-    cert_pubkey = keyutil.parse_pubkey(cert['public_key'])
-    if cert_pubkey != storage_pubkey:
-        return False  # certificate is for wrong server
+    expires = datetime.utcfromtimestamp(cert['expires'])
+    # cert_pubkey = keyutil.parse_pubkey(cert['public_key'].encode('ascii'))
     if expires < now:
         return False  # certificate is expired
     return True
@@ -331,15 +332,25 @@ class NativeStorageServer(service.MultiService):
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, server_id, ann, tub_maker, handler_overrides, grid_manager_keys, node_pubkey):
+    def __init__(self, server_id, ann, tub_maker, handler_overrides, grid_manager_keys, grid_manager_certs):
         service.MultiService.__init__(self)
         assert isinstance(server_id, str)
         self._server_id = server_id
         self.announcement = ann
         self._tub_maker = tub_maker
         self._handler_overrides = handler_overrides
-        self._node_pubkey = node_pubkey
+
+        # XXX we should validate as much as we can about the
+        # certificates right now -- the only thing we HAVE to be lazy
+        # about is the expiry, which should be checked before any
+        # possible upload...
+
+        # any public-keys which the user has configured (if none, it
+        # means use any storage servers)
         self._grid_manager_keys = grid_manager_keys
+        # any storage-certificates that this storage-server included
+        # in its announcement
+        self._grid_manager_certificates = grid_manager_certs
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
@@ -395,12 +406,11 @@ class NativeStorageServer(service.MultiService):
         # XXX probably want to cache the answer to this? (ignoring
         # that for now because certificates expire, so .. slightly
         # more complex)
-        certificates = self.announcements.get("grid-manager-certificates", None)
-        if not certificates:
+        if not self._grid_manager_certificates:
             return False
         for gm_key in self._grid_manager_keys:
-            for cert in certificates:
-                if _validate_grid_manager_certificate(gm_key, cert, self._pubkey):
+            for cert in self._grid_manager_certificates:
+                if _validate_grid_manager_certificate(gm_key, cert):
                     return True
         return False
 
