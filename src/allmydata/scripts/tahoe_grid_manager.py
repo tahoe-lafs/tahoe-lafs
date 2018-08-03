@@ -7,7 +7,7 @@ from datetime import datetime
 
 from pycryptopp.publickey import ed25519  # perhaps NaCl instead? other code uses this though
 
-from allmydata.scripts.common import BasedirOptions
+from allmydata.scripts.common import BaseOptions
 from allmydata.util.abbreviate import abbreviate_time
 from twisted.python import usage
 from twisted.python.filepath import FilePath
@@ -17,13 +17,13 @@ from allmydata.util import keyutil
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 
-class CreateOptions(BasedirOptions):
+class CreateOptions(BaseOptions):
     description = (
         "Create a new identity key and configuration of a Grid Manager"
     )
 
 
-class ShowIdentityOptions(BasedirOptions):
+class ShowIdentityOptions(BaseOptions):
     description = (
         "Show the public identity key of a Grid Manager\n"
         "\n"
@@ -32,13 +32,17 @@ class ShowIdentityOptions(BasedirOptions):
     )
 
 
-class AddOptions(BasedirOptions):
+class AddOptions(BaseOptions):
     description = (
-        "Add a new storage-server's key to a Grid Manager configuration"
+        "Add a new storage-server's key to a Grid Manager configuration\n"
+        "using NAME and PUBIC_KEY (comes from a node.pubkey file)"
     )
 
+    def getSynopsis(self):
+        return "{} add NAME PUBLIC_KEY".format(BaseOptions.getSynopsis())
+
     def parseArgs(self, *args, **kw):
-        BasedirOptions.parseArgs(self, **kw)
+        BaseOptions.parseArgs(self, **kw)
         if len(args) != 2:
             raise usage.UsageError(
                 "Requires two arguments: name public_key"
@@ -53,13 +57,13 @@ class AddOptions(BasedirOptions):
             )
 
 
-class RemoveOptions(BasedirOptions):
+class RemoveOptions(BaseOptions):
     description = (
         "Remove a storage-server from a Grid Manager configuration"
     )
 
     def parseArgs(self, *args, **kw):
-        BasedirOptions.parseArgs(self, **kw)
+        BaseOptions.parseArgs(self, **kw)
         if len(args) != 1:
             raise usage.UsageError(
                 "Requires one arguments: name"
@@ -67,19 +71,22 @@ class RemoveOptions(BasedirOptions):
         self['name'] = unicode(args[0])
 
 
-class ListOptions(BasedirOptions):
+class ListOptions(BaseOptions):
     description = (
         "List all storage servers in this Grid Manager"
     )
 
 
-class SignOptions(BasedirOptions):
+class SignOptions(BaseOptions):
     description = (
         "Create and sign a new certificate for a storage-server"
     )
 
+    def getSynopsis(self):
+        return "{} NAME".format(super(SignOptions, self).getSynopsis())
+
     def parseArgs(self, *args, **kw):
-        BasedirOptions.parseArgs(self, **kw)
+        BaseOptions.parseArgs(self, **kw)
         if len(args) != 1:
             raise usage.UsageError(
                 "Requires one argument: name"
@@ -87,7 +94,7 @@ class SignOptions(BasedirOptions):
         self['name'] = unicode(args[0])
 
 
-class GridManagerOptions(BasedirOptions):
+class GridManagerOptions(BaseOptions):
     subCommands = [
         ["create", None, CreateOptions, "Create a Grid Manager."],
         ["public-identity", None, ShowIdentityOptions, "Get the public-key for this Grid Manager."],
@@ -115,7 +122,8 @@ class GridManagerOptions(BasedirOptions):
         'upload shares to" (X and Y are public-keys).'
         '\n\n'
         'Clients can use Grid Managers to decide which storage servers to '
-        'upload shares to.'
+        'upload shares to. They do this by adding one or more Grid Manager '
+        'public keys to their config.'
     )
 
 
@@ -169,6 +177,10 @@ class _GridManager(object):
 
     @staticmethod
     def from_config(config, config_location):
+        if not config:
+            raise ValueError(
+                "Invalid Grid Manager config in '{}'".format(config_location)
+            )
         if 'private_key' not in config:
             raise ValueError(
                 "Grid Manager config from '{}' requires a 'private_key'".format(
@@ -307,28 +319,26 @@ def _config_to_filepath(gm_config_location):
     Converts a command-line string specifying the GridManager
     configuration's location into a readable file-like object.
 
-    :param gm_config_location str: a valid GridManager directory or
-        '-' (a single dash) to use stdin.
+    :param gm_config_location str: a valid path, or '-' (a single
+        dash) to use stdin.
     """
-    fp = None
-    if gm_config.strip() != '-':
-        fp = FilePath(gm_config_location.strip())
-        if not fp.exists():
-            raise RuntimeError(
-                "No such directory '{}'".format(gm_config)
-            )
-    return fp
 
 
-def _load_gridmanager_config(file_path)
+def _load_gridmanager_config(gm_config):
     """
     Loads a Grid Manager configuration and returns it (a dict) after
     validating. Exceptions if the config can't be found, or has
     problems.
 
-    :param file_path: a FilePath to a vlid GridManager directory or
-        None to load from stdin.
+    :param gm_config str: "-" (a single dash) for stdin or a filename
     """
+    fp = None
+    if gm_config.strip() != '-':
+        fp = FilePath(gm_config.strip())
+        if not fp.exists():
+            raise RuntimeError(
+                "No such directory '{}'".format(gm_config)
+            )
 
     if fp is None:
         gm = json.load(sys.stdin)
@@ -336,7 +346,10 @@ def _load_gridmanager_config(file_path)
         with fp.child("config.json").open("r") as f:
             gm = json.load(f)
 
-    return _GridManager.from_config(gm, gm_config)
+    try:
+        return _GridManager.from_config(gm, gm_config)
+    except ValueError as e:
+        raise usage.UsageError(str(e))
 
 
 def _show_identity(gridoptions, options):
@@ -346,7 +359,7 @@ def _show_identity(gridoptions, options):
     gm_config = gridoptions['config'].strip()
     assert gm_config is not None
 
-    gm = _load_gridmanager_config(_config_to_filepath(gm_config))
+    gm = _load_gridmanager_config(gm_config)
     print(gm.public_identity())
 
 
@@ -357,7 +370,7 @@ def _add(gridoptions, options):
     gm_config = gridoptions['config'].strip()
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
 
-    gm = _load_gridmanager_config(_config_to_filepath(gm_config))
+    gm = _load_gridmanager_config(gm_config)
     try:
         gm.add_storage_server(
             options['name'],
@@ -378,7 +391,7 @@ def _remove(gridoptions, options):
     """
     gm_config = gridoptions['config'].strip()
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
-    gm = _load_gridmanager_config(_config_to_filepath(gm_config))
+    gm = _load_gridmanager_config(gm_config)
 
     try:
         gm.remove_storage_server(options['name'])
@@ -402,7 +415,7 @@ def _list(gridoptions, options):
     gm_config = gridoptions['config'].strip()
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
 
-    gm = _load_gridmanager_config(_config_to_filepath(gm_config))
+    gm = _load_gridmanager_config(gm_config)
     for name in sorted(gm.storage_servers.keys()):
         print("{}: {}".format(name, gm.storage_servers[name].public_key()))
         if fp:
@@ -425,7 +438,7 @@ def _sign(gridoptions, options):
     """
     gm_config = gridoptions['config'].strip()
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
-    gm = _load_gridmanager_config(_config_to_filepath(gm_config))
+    gm = _load_gridmanager_config(gm_config)
 
     try:
         certificate = gm.sign(options['name'])
