@@ -249,6 +249,12 @@ class _GridManager(object):
             u"certificate": cert_data,
             u"signature": base32.b2a(sig),
         }
+
+        if True:
+            verify_key_bytes = self._private_key.get_verifying_key_bytes()
+            vk = ed25519.VerifyingKey(verify_key_bytes)
+            assert vk.verify(sig, cert_data) is None, "cert should verify"
+
         return certificate
 
     def add_storage_server(self, name, public_key):
