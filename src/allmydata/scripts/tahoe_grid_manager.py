@@ -366,7 +366,7 @@ def _show_identity(gridoptions, options):
     assert gm_config is not None
 
     gm = _load_gridmanager_config(gm_config)
-    print(gm.public_identity())
+    print("pub-v0-{}".format(gm.public_identity()))
 
 
 def _add(gridoptions, options):
