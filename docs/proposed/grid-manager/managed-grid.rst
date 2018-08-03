@@ -169,17 +169,17 @@ Example Setup of a New Managed Grid
 We'll store our Grid Manager configuration on disk, in
 ``~/grid-manager``. To initialize this directory::
 
-    tahoe grid-manager create --config ~/grid-manager
+    tahoe grid-manager --config ~/grid-manager create
 
 This example creates an actual grid, but it's all just on one machine
-with different "node directories". Usually of course each one would be
-on a separate computer.
+with different "node directories". Usually of course each storage
+server would be on a separate computer.
 
 (If you already have a grid, you can :ref:`skip ahead <skip_ahead>`.)
 
 First of all, create an Introducer. Note that we actually have to run
 it briefly before it creates the "Introducer fURL" we want for the
-next steps.
+next steps::
 
     tahoe create-introducer --listen=tcp --port=5555 --location=tcp:localhost:5555 ./introducer
     tahoe -d introducer run
@@ -194,21 +194,26 @@ Next, we attach a couple of storage nodes::
 
 .. _skip_ahead:
 
-We can now ask the Grid Manager to create certificates for our new
-storage servers::
+We can now tell the Grid Manager about our new storage servers::
 
-    tahoe grid-manager --config ~/grid-manager add-storage --pubkey $(cat storage0/node.pubkey) > storage0.cert
-    tahoe grid-manager --config ~/grid-manager add-storage --pubkey $(cat storage1/node.pubkey) > storage1.cert
+    tahoe grid-manager --config ~/grid-manager add storage0 $(cat storage0/node.pubkey)
+    tahoe grid-manager --config ~/grid-manager add storage1 $(cat storage1/node.pubkey)
 
-    # enroll server0 (using file)
-    kill $(cat storage0/twistd.pid)
-    tahoe -d storage0 admin add-grid-manager-cert --filename storage0.cert
-    daemonize tahoe -d storage0 run
 
-    # enroll server1 (using stdin)
-    kill $(cat storage1/twistd.pid)
-    cat storage1.cert | tahoe -d storage1 admin add-grid-manager-cert
-    daemonize tahoe -d storage1 run
+To produce a new certificate for each node, we do this::
+
+    tahoe grid-manager --config ~/grid-manager sign storage0 > ./storage0/gridmanager.cert
+    tahoe grid-manager --config ~/grid-manager sign storage1 > ./storage1/gridmanager.cert
+
+Now, we want our storage servers to actually announce these
+certificates into the grid. We do this by adding some configuration
+(in ``tahoe.cfg``)::
+
+    [storage]
+    grid_manager_certificate_files = gridmanager.cert
+
+Add the above bit to each node's ``tahoe.cfg`` and re-start the
+storage nodes.
 
 Now try adding a new storage server ``storage2``. This client can join
 the grid just fine, and announce itself to the Introducer as providing
@@ -232,19 +237,24 @@ grid-manager has given certificates to (``storage0`` and
 ``storage1``). We need the grid-manager's public key to put in Alice's
 configuration::
 
-    kill $(cat alice/twistd.pid)
-    tahoe -d alice add-grid-manager --name work-grid $(tahoe grid-manager --config ~/grid-manager show-identity)
-    daemonize tahoe -d alice start
+    tahoe grid-manager --config ~/grid-manager public-identity
+
+Put the key printed out above into Alice's ``tahoe.cfg`` in section
+``client``::
+
+    [client]
+    grid_manager_keys = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq
+
 
 DECIDE:
  - should the grid-manager be identified by a certificate? exarkun
    points out: --name seems like the hint of the beginning of a
    use-case for certificates rather than bare public keys?).
 
-Since we made Alice's parameters require 3 storage servers to be
-reachable (`--happy=3`), all their uploads should now fail (so `tahoe
-mkdir` will fail) because they won't use storage2 and can't "achieve
-happiness".
+Now, re-start the "alice" client. Since we made Alice's parameters
+require 3 storage servers to be reachable (``--happy=3``), all their
+uploads should now fail (so ``tahoe mkdir`` will fail) because they
+won't use storage2 and thus can't "achieve happiness".
 
 You can check Alice's "Welcome" page (where the list of connected servers
 is) at http://localhost:6301/ and should be able to see details about
