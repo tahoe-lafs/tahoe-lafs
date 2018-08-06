@@ -1,10 +1,10 @@
 ﻿.. -*- coding: utf-8-with-signature -*-
 
-.. towncrier start line
 ==================================
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
+.. towncrier start line
 Release 1.13.0 (05-August-2018)
 '''''''''''''''''''''''''''''''
 
