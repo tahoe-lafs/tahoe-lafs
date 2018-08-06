@@ -268,6 +268,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "pytest-twisted",
               "hypothesis >= 3.6.1",
               "treq",
+              "towncrier",
           ],
           "tor": [
               "foolscap[tor] >= 0.12.5",
@@ -276,9 +277,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
           "i2p": [
               "foolscap[i2p] >= 0.12.6",
               "txi2p >= 0.3.2", # in case pip's resolver doesn't work
-          ],
-          "release": [
-              "towncrier",
           ],
       },
       package_data={"allmydata.web": ["*.xhtml",
