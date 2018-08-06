@@ -14,7 +14,7 @@
 
     [[tool.towncrier.type]]
         directory = "incompat"
-        name = "Backwards incompatible changes"
+        name = "Backwards Incompatible Changes"
         showcontent = true
 
     [[tool.towncrier.type]]
@@ -24,17 +24,17 @@
 
     [[tool.towncrier.type]]
         directory = "bugfix"
-        name = "Bug fixes"
+        name = "Bug Fixes"
         showcontent = true
 
     [[tool.towncrier.type]]
         directory = "installation"
-        name = "Dependency/Installation changes"
+        name = "Dependency/Installation Changes"
         showcontent = true
 
     [[tool.towncrier.type]]
         directory = "configuration"
-        name = "Configuration changes"
+        name = "Configuration Changes"
         showcontent = true
 
     [[tool.towncrier.type]]
@@ -44,5 +44,5 @@
 
     [[tool.towncrier.type]]
         directory = "other"
-        name = "Other changes"
+        name = "Other Changes"
         showcontent = true
