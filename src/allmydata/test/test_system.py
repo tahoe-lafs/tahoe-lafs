@@ -528,10 +528,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         for i in range(self.numclients):
             basedirs.append((yield self._set_up_client_node(i)))
 
-        # give subclasses a chance to append lines to the node's tahoe.cfg
-        # files before they are launched.
-        self._set_up_nodes_extra_config()
-
         # start clients[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
         c = self.add_service(client.create_client(basedirs[0]))
@@ -630,10 +626,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         config = self._generate_config(which, basedir)
         fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
         return basedir
-
-    def _set_up_nodes_extra_config(self):
-        # for overriding by subclasses
-        pass
 
     def _grab_stats(self):
         d = self.stats_gatherer.poll()
