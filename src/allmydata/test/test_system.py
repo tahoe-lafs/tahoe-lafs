@@ -568,9 +568,12 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             ("client", "introducer.furl"): except1,
             ("client", "nickname"): except1,
 
+            # client 1 has to auto-assign an address.
             ("node", "tub.port"): except1,
             ("node", "tub.location"): except1,
-            # clients 0 runs a webserver and a helper
+
+            # client 0 runs a webserver and a helper
+            # client 3 runs a webserver but no helper
             ("node", "web.port"): {0, 3},
             ("node", "timeout.keepalive"): {0},
             ("node", "timeout.disconnect"): {3},
