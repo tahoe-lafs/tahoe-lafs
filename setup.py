@@ -279,6 +279,9 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "txi2p >= 0.3.2", # in case pip's resolver doesn't work
           ],
       },
+      dependency_links=[
+          "git+ssh://git@github.com/leastauthority/towncrier.git@9366f33#egg=towncrier",
+      ],
       package_data={"allmydata.web": ["*.xhtml",
                                       "static/*.js", "static/*.png", "static/*.css",
                                       "static/img/*.png",
