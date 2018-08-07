@@ -1,0 +1,48 @@
+[tool.towncrier]
+    package = "allmydata"
+    package_dir = "src"
+    filename = "NEWS.rst"
+    directory = "newsfragments"
+    start_string = ".. towncrier start line"
+    title_format = "Release {version} ({project_date})"
+    issue_format = "`#{issue} <https://github.com/tahoe-lafs/tahoe-lafs/issues/{issue}>`_"
+    underlines = [
+        "'",
+        "-",
+        "~",
+    ]
+
+    [[tool.towncrier.type]]
+        directory = "incompat"
+        name = "Backwards Incompatible Changes"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "feature"
+        name = "Features"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "bugfix"
+        name = "Bug Fixes"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "installation"
+        name = "Dependency/Installation Changes"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "configuration"
+        name = "Configuration Changes"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "removed"
+        name = "Removed Features"
+        showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "other"
+        name = "Other Changes"
+        showcontent = true
