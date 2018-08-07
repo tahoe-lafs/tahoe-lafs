@@ -680,14 +680,38 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         return d
 
     def _check_connections(self):
-        for c in self.clients:
+        for i, c in enumerate(self.clients):
             if not c.connected_to_introducer():
+                log.msg("%s not connected to introducer yet" % (i,))
                 return False
             sb = c.get_storage_broker()
-            if len(sb.get_connected_servers()) != self.numclients:
+            connected_servers = sb.get_connected_servers()
+            connected_names = sorted(list(
+                connected.get_nickname()
+                for connected
+                in sb.get_known_servers()
+                if connected.is_connected()
+            ))
+            if len(connected_servers) != self.numclients:
+                wanted = sorted(list(
+                    client.nickname
+                    for client
+                    in self.clients
+                ))
+                log.msg(
+                    "client %s storage broker connected to %s, missing %s" % (
+                        i,
+                        connected_names,
+                        set(wanted) - set(connected_names),
+                    )
+                )
                 return False
+            log.msg("client %s storage broker connected to %s, happy" % (
+                i, connected_names,
+            ))
             up = c.getServiceNamed("uploader")
             if up._helper_furl and not up._helper:
+                log.msg("Helper fURL but no helper")
                 return False
         return True
 
