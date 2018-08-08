@@ -10,6 +10,7 @@ from socket import (
 
 from zope.interface import implementer
 
+from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -453,6 +454,18 @@ class AdoptedServerPort(object):
         return AdoptedStreamServerEndpoint(reactor, os.dup(int(fd)), AF_INET)
 
 
+def patch_plugins(testcase):
+    """
+    Add the testing package ``plugins`` directory to the ``twisted.plugins``
+    aggregate package.  Arrange for it to be removed again when the given test
+    is torn down.
+    """
+    import twisted.plugins
+    testplugins = FilePath(__file__).sibling("plugins")
+    twisted.plugins.__path__.insert(0, testplugins.path)
+    testcase.addCleanup(lambda: twisted.plugins.__path__.remove(testplugins.path))
+
+
 def assign_foolscap_port(testcase, reactor):
     """
     Assign a TCP port which can be used for a Foolscap server.
@@ -481,6 +494,10 @@ def assign_foolscap_port(testcase, reactor):
         # ``s`` alive and use it as the cleanup mechanism.
         port_endpoint = "adopt-socket:fd=%d" % (s.fileno(),)
         testcase.addCleanup(s.close)
+        # Make sure `adopt-socket` is recognized.  We do this instead of
+        # providing a dropin because we don't want to make this endpoint
+        # available to random other applications.
+        patch_plugins(testcase)
     else:
         # On other platforms, we blindly guess and hope we get lucky.
         portnum = iputil.allocate_tcp_port()
