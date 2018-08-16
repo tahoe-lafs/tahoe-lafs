@@ -386,7 +386,7 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
 
     grid_manager_keys = []
     gm_keydata = self.get_config('client', 'grid_manager_public_keys', '')
-    for gm_key in gm_keydata.strip().split():
+    for name, gm_key in self.config.enumerate_section('grid_managers').items():
         # XXX FIXME this needs pub-v0- prefix then ...
         grid_manager_keys.append(
             keyutil.parse_pubkey(gm_key)

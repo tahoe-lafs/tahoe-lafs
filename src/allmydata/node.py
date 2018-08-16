@@ -287,6 +287,19 @@ class _Config(object):
                 "Unable to write config file '{}'".format(fn),
             )
 
+    def enumerate_section(self, section):
+        """
+        returns a dict containing all items in a configuration section. an
+        empty dict is returned if the section doesn't exist.
+        """
+        answer = dict()
+        try:
+            for k in self.config.options(section):
+                answer[k] = self.config.get(section, k)
+        except ConfigParser.NoSectionError:
+            pass
+        return answer
+
     def get_config(self, section, option, default=_None, boolean=False):
         try:
             if boolean:
