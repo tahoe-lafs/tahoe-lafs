@@ -98,8 +98,15 @@ class StorageFarmBroker(service.MultiService):
             server_id = server_id.encode("ascii")
             self._static_server_ids.add(server_id)
             handler_overrides = server.get("connections", {})
-            s = NativeStorageServer(server_id, server["ann"],
-                                    self._tub_maker, handler_overrides, [])
+            s = NativeStorageServer(
+                server_id,
+                server["ann"],
+                self._tub_maker,
+                handler_overrides,
+                self._grid_manager_keys,
+                self._grid_manager_certificates,
+            )
+            print("SET STATIC {}".format(s))
             s.on_status_changed(lambda _: self._got_connection())
             s.setServiceParent(self)
             self.servers[server_id] = s
@@ -161,6 +168,7 @@ class StorageFarmBroker(service.MultiService):
             return
 
         grid_manager_certs = ann.get("grid-manager-certificates", [])
+        print("certs for {}: {}".format(key_s, grid_manager_certs))
         s = NativeStorageServer(server_id, ann, self._tub_maker, {}, self._grid_manager_keys, grid_manager_certs)
         s.on_status_changed(lambda _: self._got_connection())
         server_id = s.get_serverid()
@@ -332,6 +340,7 @@ class NativeStorageServer(service.MultiService):
         }
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides, grid_manager_keys, grid_manager_certs):
+        print("CREATE {}: {}".format(server_id, grid_manager_certs))
         service.MultiService.__init__(self)
         assert isinstance(server_id, str)
         self._server_id = server_id
@@ -347,9 +356,11 @@ class NativeStorageServer(service.MultiService):
         # any public-keys which the user has configured (if none, it
         # means use any storage servers)
         self._grid_manager_keys = grid_manager_keys
+        print("keys: {}".format(self._grid_manager_keys))
         # any storage-certificates that this storage-server included
         # in its announcement
         self._grid_manager_certificates = grid_manager_certs
+        print("certs: {}".format(self._grid_manager_certificates))
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
@@ -398,19 +409,26 @@ class NativeStorageServer(service.MultiService):
         :return: True if we should use this server for uploads, False
             otherwise.
         """
+        print("upload permitted? {}".format(self._server_id))
         # if we have no Grid Manager keys configured, choice is easy
         if not self._grid_manager_keys:
+            print("{} no grid manager keys at all (so yes)".format(self._server_id))
             return True
 
         # XXX probably want to cache the answer to this? (ignoring
         # that for now because certificates expire, so .. slightly
         # more complex)
         if not self._grid_manager_certificates:
+            print("{} no grid-manager certificates {} (so no)".format(self._server_id, self._grid_manager_certificates))
             return False
         for gm_key in self._grid_manager_keys:
             for cert in self._grid_manager_certificates:
                 if _validate_grid_manager_certificate(gm_key, cert):
+                    print("valid: {}\n{}".format(gm_key, cert))
                     return True
+                else:
+                    print("invalid: {}\n{}".format(gm_key, cert))
+        print("didn't validate {} keys".format(len(self._grid_manager_keys)))
         return False
 
 
