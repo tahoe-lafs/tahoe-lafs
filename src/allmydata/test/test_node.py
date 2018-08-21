@@ -37,9 +37,8 @@ class TestNode(Node):
         config = read_config(
             basedir,
             'DEFAULT_PORTNUMFILE_BLANK',
-            _valid_config_sections=client_valid_config_sections,
         )
-        Node.__init__(self, config, basedir)
+        Node.__init__(self, config)
 
 
 class TestCase(testutil.SignalMixin, unittest.TestCase):
@@ -522,12 +521,11 @@ class Listeners(unittest.TestCase):
 
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
-        config = read_config(
+        config = client.read_config(
             basedir,
             "client.port",
-            _valid_config_sections=client_valid_config_sections,
         )
-        n = EmptyNode(config)
+        n = Node(config)
         n.check_privacy()
         n.services = []
         n.create_i2p_provider()
@@ -553,9 +551,8 @@ class Listeners(unittest.TestCase):
         # we're doing a lot of calling-into-setup-methods here, it might be
         # better to just create a real Node instance, I'm not sure.
         config = client.read_config(
-            n.basedir,
+            basedir,
             "client.port",
-            _valid_config_sections=client_valid_config_sections,
         )
 
         i2p_ep = object()
@@ -643,7 +640,6 @@ class Configuration(unittest.TestCase):
             read_config(
                 self.basedir,
                 "client.port",
-                _valid_config_sections=_valid_config_sections,
             )
 
         self.assertIn(
@@ -658,7 +654,7 @@ class Configuration(unittest.TestCase):
                 'foo = bar\n'
             )
         with self.assertRaises(UnknownConfigError) as ctx:
-            create_client(self.basedir)
+            client.create_client(self.basedir)
 
         self.assertIn(
             "invalid section",
