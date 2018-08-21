@@ -1,4 +1,14 @@
-﻿* select features/PRs for new release [0/2]
+﻿How to Make a Tahoe-LAFS Release
+
+Any developer with push priveleges can do most of these steps, but a
+"Release Maintainer" is required for some signing operations -- these
+steps are marked with (Release Maintainer). Currently, the following
+people are Release Maintainers:
+
+  - Brian Warner (https://github.com/warner)
+
+
+* select features/PRs for new release [0/2]
   - [ ] made sure they are tagged/labeled
   - [ ] merged all release PRs
 
@@ -23,7 +33,7 @@
 
   - [ ] code passes all checks / tests (i.e. all CI is green)
   - [ ] documentation is ready (see above)
-  - [ ] git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-X.Y.Z" tahoe-lafs-X.Y.Z
+  - [ ] (Release Maintainer): git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-X.Y.Z" tahoe-lafs-X.Y.Z
   - [ ] build code locally:
      tox -e py27,codechecks,coverage,deprecations,docs,integration,upcoming-deprecations
   - [ ] created tarballs (they'll be in dist/ for later comparison)
@@ -38,17 +48,19 @@
 
 * sign the release artifacts [0/8]
 
-  - [ ] pushed signed tag (should trigger Buildbot builders)
+  - [ ] (Release Maintainer): pushed signed tag (should trigger Buildbot builders)
   - [ ] Buildbot workers built all artifacts successfully
   - [ ] downloaded upstream tarballs+wheels
   - [ ] announce on IRC that master is unlocked
   - [ ] compared upstream tarballs+wheels against local copies
-  - [ ] signed each upstream artifacts with "gpg -ba -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A FILE"
+  - [ ] (Release Maintainer): signed each upstream artifacts with "gpg -ba -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A FILE"
   - [ ] added to relnotes.txt: [0/3]
     - [ ] prefix with SHA256 of tarballs
     - [ ] release pubkey
     - [ ] git revision hash
-  - [ ] GPG-signed the release email with release key (write to relnotes.txt.asc)
+  - [ ] GPG-signed the release email with release key (write to
+        relnotes.txt.asc) Ideally this is a Release Maintainer, but could
+        be any developer
 
 * publish release artifacts [0/9]
 
