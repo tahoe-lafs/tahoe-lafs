@@ -20,7 +20,6 @@ from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
                             yamlutil)
 from allmydata.util.encodingutil import (get_filesystem_encoding,
                                          from_utf8_or_none)
-from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.stats import StatsProvider
