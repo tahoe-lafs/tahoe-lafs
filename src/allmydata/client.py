@@ -1,5 +1,4 @@
 import os, stat, time, weakref
-from allmydata import node
 from base64 import urlsafe_b64encode
 from functools import partial
 
