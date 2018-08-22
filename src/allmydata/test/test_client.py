@@ -319,6 +319,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         with self.assertRaises(NeedRootcapLookupScheme):
             yield client.create_client(basedir)
 
+    @defer.inlineCallbacks
     def _storage_dir_test(self, basedir, storage_path, expected_path):
         os.mkdir(basedir)
         cfg_path = os.path.join(basedir, "tahoe.cfg")
@@ -334,7 +335,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                 "storage_dir = %s\n" % (storage_path,),
                 mode="ab",
         )
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         self.assertEqual(
             c.getServiceNamed("storage").storedir,
             expected_path,
@@ -352,7 +353,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
             abspath_expanduser_unicode(basedir),
             u"storage",
         )
-        self._storage_dir_test(
+        return self._storage_dir_test(
             basedir,
             config_path,
             expected_path,
@@ -371,7 +372,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
             abspath_expanduser_unicode(basedir),
             u"myowndir",
         )
-        self._storage_dir_test(
+        return self._storage_dir_test(
             basedir,
             config_path,
             expected_path,
@@ -394,7 +395,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
             u"client.Basic.test_absolute_storage_dir_myowndir/" + base
         )
         config_path = expected_path.encode("utf-8")
-        self._storage_dir_test(
+        return self._storage_dir_test(
             basedir,
             config_path,
             expected_path,
