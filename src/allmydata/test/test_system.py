@@ -405,10 +405,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
     def getdir(self, subdir):
         return os.path.join(self.basedir, subdir)
 
-    def add_service(self, s):
-        s.setServiceParent(self.sparent)
-        return s
-
+    @defer.inlineCallbacks
     def set_up_nodes(self, NUMCLIENTS=5, use_stats_gatherer=False):
         self.numclients = NUMCLIENTS
         iv_dir = self.getdir("introducer")
@@ -423,16 +420,14 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
                 f.write(SYSTEM_TEST_CERTS[0])
                 f.close()
-        iv = create_introducer(basedir=iv_dir)
-        self.introducer = self.add_service(iv)
+        self.introducer = yield create_introducer(basedir=iv_dir)
+        self.introducer.setServiceParent(self.sparent)
         self._get_introducer_web()
-        d = defer.succeed(None)
         if use_stats_gatherer:
-            d.addCallback(self._set_up_stats_gatherer)
-        d.addCallback(self._set_up_nodes_2)
+            yield self._set_up_stats_gatherer(None)
+        yield self._set_up_nodes_2(None)
         if use_stats_gatherer:
-            d.addCallback(self._grab_stats)
-        return d
+            yield self._grab_stats(None)
 
     def _get_introducer_web(self):
         f = open(os.path.join(self.getdir("introducer"), "node.url"), "r")
@@ -449,7 +444,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         fileutil.write(os.path.join(statsdir, "port"), port)
         self.stats_gatherer_svc = StatsGathererService(statsdir)
         self.stats_gatherer = self.stats_gatherer_svc.stats_gatherer
-        self.add_service(self.stats_gatherer_svc)
+        self.stats_gatherer_svc.setServiceParent(self.sparent)
 
         d = fireEventually()
         sgf = os.path.join(statsdir, 'stats_gatherer.furl')
@@ -461,13 +456,14 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d.addCallback(get_furl)
         return d
 
+    @defer.inlineCallbacks
     def _set_up_nodes_2(self, res):
         q = self.introducer
         self.introducer_furl = q.introducer_url
         self.clients = []
         basedirs = []
         for i in range(self.numclients):
-            basedir = self.getdir("client%d" % i)
+            basedir = self.getdir("client{}".format(i))
             basedirs.append(basedir)
             fileutil.make_dirs(os.path.join(basedir, "private"))
             if len(SYSTEM_TEST_CERTS) > (i+1):
@@ -520,7 +516,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         # start clients[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
-        c = self.add_service(client.create_client(basedirs[0]))
+        c = yield client.create_client(basedirs[0])
+        c.setServiceParent(self.sparent)
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
@@ -537,20 +534,17 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         # this starts the rest of the clients
         for i in range(1, self.numclients):
-            c = self.add_service(client.create_client(basedirs[i]))
+            c = yield client.create_client(basedirs[i])
+            c.setServiceParent(self.sparent)
             self.clients.append(c)
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         log.msg("STARTING")
-        d = self.wait_for_connections()
-        def _connected(res):
-            log.msg("CONNECTED")
-            # now find out where the web port was
-            self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
-            if self.numclients >=4:
-                # and the helper-using webport
-                self.helper_webish_url = self.clients[3].getServiceNamed("webish").getURL()
-        d.addCallback(_connected)
-        return d
+        yield self.wait_for_connections()
+        # now find out where the web port was
+        self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
+        if self.numclients >=4:
+            # and the helper-using webport
+            self.helper_webish_url = self.clients[3].getServiceNamed("webish").getURL()
 
     def _set_up_nodes_extra_config(self):
         # for overriding by subclasses
@@ -568,11 +562,13 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # behavior, see if this is really the problem, see if we can do
         # better than blindly waiting for a second.
         d.addCallback(self.stall, 1.0)
+
+        @defer.inlineCallbacks
         def _stopped(res):
-            new_c = client.create_client(self.getdir("client%d" % num))
+            new_c = yield client.create_client(self.getdir("client%d" % num))
             self.clients[num] = new_c
             new_c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
-            self.add_service(new_c)
+            new_c.setServiceParent(self.sparent)
         d.addCallback(_stopped)
         d.addCallback(lambda res: self.wait_for_connections())
         def _maybe_get_webport(res):
@@ -582,6 +578,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d.addCallback(_maybe_get_webport)
         return d
 
+    @defer.inlineCallbacks
     def add_extra_node(self, client_num, helper_furl=None,
                        add_to_sparent=False):
         # usually this node is *not* parented to our self.sparent, so we can
@@ -596,7 +593,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             config += "helper.furl = %s\n" % helper_furl
         fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
 
-        c = client.create_client(basedir)
+        c = yield client.create_client(basedir)
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         self.numclients += 1
@@ -604,9 +601,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             c.setServiceParent(self.sparent)
         else:
             c.startService()
-        d = self.wait_for_connections()
-        d.addCallback(lambda res: c)
-        return d
+        yield self.wait_for_connections()
+        defer.returnValue(c)
 
     def _check_connections(self):
         for c in self.clients:
@@ -1931,7 +1927,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # exercise the remote-control-the-client foolscap interfaces in
         # allmydata.control (mostly used for performance tests)
         c0 = self.clients[0]
-        control_furl_file = os.path.join(c0.basedir, "private", "control.furl")
+        control_furl_file = c0.config.get_private_path("control.furl")
         control_furl = open(control_furl_file, "r").read().strip()
         # it doesn't really matter which Tub we use to connect to the client,
         # so let's just use our IntroducerNode's
@@ -2370,6 +2366,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 
 class Connections(SystemTestMixin, unittest.TestCase):
+
     def test_rref(self):
         self.basedir = "system/Connections/rref"
         d = self.set_up_nodes(2)
