@@ -26,7 +26,7 @@ import treq
 from allmydata.util.assertutil import _assert
 
 from allmydata import uri as tahoe_uri
-from allmydata.client import _Client
+from allmydata.client import _Client, _valid_config_sections
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
@@ -188,7 +188,7 @@ def NoNetworkClient(basedir):
     # XXX FIXME this is just to avoid massive search-replace for now;
     # should be create_nonetwork_client() or something...
     from allmydata.node import read_config
-    config = read_config(basedir, u'client.port')
+    config = read_config(basedir, u'client.port', _valid_config_sections=_valid_config_sections)
     return _NoNetworkClient(config, basedir=basedir)
 
 

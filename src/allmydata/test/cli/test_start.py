@@ -1,9 +1,11 @@
 import os
+import sys
 import shutil
 import subprocess
 from os.path import join
 from mock import patch
 from StringIO import StringIO
+from functools import partial
 
 from twisted.trial import unittest
 from allmydata.scripts import runner
@@ -207,3 +209,69 @@ class RunStartTests(unittest.TestCase):
             e.getvalue()
         )
         self.assertEqual([1], exit_code)
+
+
+class RunTests(unittest.TestCase):
+    """
+    Tests confirming end-user behavior of CLI commands
+    """
+
+    def setUp(self):
+        d = super(RunTests, self).setUp()
+        self.addCleanup(partial(os.chdir, os.getcwd()))
+        self.node_dir = self.mktemp()
+        os.mkdir(self.node_dir)
+        return d
+
+    @patch('twisted.internet.reactor')
+    def test_run_invalid_config(self, reactor):
+        """
+        Configuration that's invalid should be obvious to the user
+        """
+
+        def cwr(fn, *args, **kw):
+            fn()
+
+        def stop(*args, **kw):
+            stopped.append(None)
+        stopped = []
+        reactor.callWhenRunning = cwr
+        reactor.stop = stop
+
+        with open(os.path.join(self.node_dir, "client.tac"), "w") as f:
+            f.write('test')
+
+        with open(os.path.join(self.node_dir, "tahoe.cfg"), "w") as f:
+            f.write(
+                "[invalid section]\n"
+                "foo = bar\n"
+            )
+
+        config = runner.parse_or_exit_with_explanation([
+            # have to do this so the tests don't muck around in
+            # ~/.tahoe (the default)
+            '--node-directory', self.node_dir,
+            'run',
+        ])
+
+        i, o, e = StringIO(), StringIO(), StringIO()
+        with patch.object(sys, 'stdout', o), patch.object(sys, 'stderr', e):
+            runner.dispatch(config, i, o, e)
+
+        output = o.getvalue()
+        # should print out the collected logs and an error-code
+        self.assertIn(
+            "invalid section",
+            output,
+        )
+        self.assertIn(
+            "Configuration error:",
+            output,
+        )
+        # this is SystemExit(0) for some reason I can't understand,
+        # while running on the command-line, "echo $?" shows "1" on
+        # this same error (some config exception)...
+        errs = self.flushLoggedErrors(SystemExit)
+        self.assertEqual(1, len(errs))
+        # ensure reactor.stop was actually called
+        self.assertEqual([None], stopped)
