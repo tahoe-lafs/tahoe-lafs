@@ -195,7 +195,9 @@ def config_from_string(config_str, portnumfile, basedir):
 
 
 def get_app_versions():
-    # TODO: merge this with allmydata.get_package_versions
+    """
+    :returns: dict of versions important to Foolscap
+    """
     return dict(app_versions.versions)
 
 
