@@ -94,7 +94,7 @@ such as private keys.  On Unix-like systems, the permissions on this directory
 are set to disallow users other than its owner from reading the contents of
 the files.   See the 'configuration.rst' documentation file for details."""
 
-class _None(object):  # used as a marker in get_config()
+class _None(object):
     """
     This class is to be used as a marker in get_config()
     """
@@ -145,6 +145,22 @@ def create_node_dir(basedir, readme_text):
 
 
 def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections=None):
+    """
+    Read and validate configuration.
+
+    :param unicode basedir: directory where configuration data begins
+
+    :param unicode portnumfile: filename fragment for "port number" files
+
+    :param list generated_files: a list of automatically-generated
+        configuration files.
+
+    :param dict _valid_config_sections: (internal use, optional) a
+        dict-of-dicts structure defining valid configuration sections and
+        keys
+
+    :returns: :class:`allmydata.node._Config` instance
+    """
     basedir = abspath_expanduser_unicode(unicode(basedir))
     if _valid_config_sections is None:
         _valid_config_sections = _common_config_sections
