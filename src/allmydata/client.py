@@ -259,7 +259,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         # If the node sees an exit_trigger file, it will poll every second to see
         # whether the file still exists, and what its mtime is. If the file does not
         # exist or has not been modified for a given timeout, the node will exit.
-        exit_trigger_file = self.config.get_config_path(self.EXIT_TRIGGER_FILE)
+        exit_trigger_file = config.get_config_path(self.EXIT_TRIGGER_FILE)
         if os.path.exists(exit_trigger_file):
             age = time.time() - os.stat(exit_trigger_file)[stat.ST_MTIME]
             self.log("%s file noticed (%ds old), starting timer" % (self.EXIT_TRIGGER_FILE, age))
@@ -268,7 +268,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         # this needs to happen last, so it can use getServiceNamed() to
         # acquire references to StorageServer and other web-statusable things
-        webport = self.config.get_config("node", "web.port", None)
+        webport = config.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
 
