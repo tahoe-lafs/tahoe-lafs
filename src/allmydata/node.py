@@ -139,7 +139,7 @@ def create_node_dir(basedir, readme_text):
         fileutil.make_dirs(basedir)
     privdir = os.path.join(basedir, "private")
     if not os.path.exists(privdir):
-        fileutil.make_dirs(privdir, 0700)
+        fileutil.make_dirs(privdir, 0o700)
         with open(os.path.join(privdir, 'README'), 'w') as f:
             f.write(readme_text)
 
