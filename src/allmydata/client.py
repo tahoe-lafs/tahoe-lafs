@@ -376,7 +376,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients,
                  storage_farm_broker):
         """
-        Use create_client() to instantiate one of these.
+        Use :func:`allmydata.client.create_client` to instantiate one of these.
         """
         node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
 
