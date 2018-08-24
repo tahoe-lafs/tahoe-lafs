@@ -166,6 +166,13 @@ class Terminator(service.Service):
 
 
 def read_config(basedir, portnumfile, generated_files=[]):
+    """
+    Read and validate configuration for a client-style Node. See
+    :method:`allmydata.node.read_config` for parameter meanings (the
+    only difference here is we pass different validation data)
+
+    :returns: :class:`allmydata.node._Config` instance
+    """
     return node.read_config(
         basedir, portnumfile,
         generated_files=generated_files,
@@ -179,9 +186,14 @@ def create_client(basedir=u".", _client_factory=None):
     """
     Creates a new client instance (a subclass of Node).
 
-    :param basedir: the node directory (which may not exist yet)
+    :param unicode basedir: the node directory (which may not exist yet)
 
-    :param _client_factory: for testing; the class to instantiate
+    :param _client_factory: (for testing) a callable that returns an
+        instance of :class:`allmydata.node.Node` (or a subclass). By default
+        this is :class:`allmydata.client._Client`
+
+    :returns: :class:`allmydata.client._Client` instance (or whatever
+        `_client_factory` returns)
     """
     node.create_node_dir(basedir, CLIENT_README)
     config = read_config(basedir, u"client.port")
@@ -364,7 +376,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients,
                  storage_farm_broker):
         """
-        Use create_client() to instantiate one of these.
+        Use :func:`allmydata.client.create_client` to instantiate one of these.
         """
         node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
 
