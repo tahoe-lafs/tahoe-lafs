@@ -42,6 +42,9 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         IntroducerNode  # pyflakes
 
     def test_create(self):
+        """
+        A brand new introducer creates its config dir
+        """
         basedir = "introducer.IntroducerNode.test_create"
         create_introducer(basedir)
         self.assertTrue(os.path.exists(basedir))

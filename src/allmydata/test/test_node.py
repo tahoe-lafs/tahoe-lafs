@@ -138,6 +138,9 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.failUnless(config.nickname == nickname)
 
     def test_config_required(self):
+        """
+        Asking for missing (but required) configuration is an error
+        """
         basedir = u"test_node/test_config_required"
         config = read_config(basedir, "portnum")
 
@@ -145,6 +148,9 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             config.get_config_from_file("it_does_not_exist", required=True)
 
     def test_private_config_unreadable(self):
+        """
+        Asking for inaccessible private config is an error
+        """
         if "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower():
             # We don't know how to test that unprivileged users can't read this
             # thing.  (Also we don't know exactly how to set the permissions so
