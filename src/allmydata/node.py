@@ -6,6 +6,7 @@ import datetime
 import os.path
 import re
 import types
+import errno
 import ConfigParser
 import tempfile
 from io import BytesIO
@@ -13,6 +14,7 @@ from base64 import b32decode, b32encode
 
 from twisted.python import log as twlog
 from twisted.application import service
+from twisted.python.failure import Failure
 from foolscap.api import Tub, app_versions
 import foolscap.logging.log
 from allmydata import get_package_versions, get_package_versions_string
@@ -182,8 +184,8 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
     parser = ConfigParser.SafeConfigParser()
     try:
         parser = configutil.get_config(config_fname)
-    except EnvironmentError:
-        if os.path.exists(config_fname):
+    except EnvironmentError as e:
+        if e.errno != errno.ENOENT:
             raise
 
     configutil.validate_config(config_fname, parser, _valid_config_sections())
@@ -277,9 +279,11 @@ class _Config(object):
         fn = os.path.join(self._basedir, name)
         try:
             fileutil.write(fn, value, mode)
-        except EnvironmentError as e:
-            log.msg("Unable to write config file '{}'".format(fn))
-            log.err(e)
+        except EnvironmentError:
+            log.err(
+                Failure(),
+                "Unable to write config file '{}'".format(fn),
+            )
 
     def get_config(self, section, option, default=_None, boolean=False):
         try:
@@ -310,7 +314,9 @@ class _Config(object):
         fn = os.path.join(self._basedir, name)
         try:
             return fileutil.read(fn).strip()
-        except EnvironmentError:
+        except EnvironmentError as e:
+            if e.errno != errno.ENOENT:
+                raise  # we only care about "file doesn't exist"
             if not required:
                 return None
             raise
@@ -330,9 +336,9 @@ class _Config(object):
         privname = os.path.join(self._basedir, "private", name)
         try:
             value = fileutil.read(privname)
-        except EnvironmentError:
-            if os.path.exists(privname):
-                raise
+        except EnvironmentError as e:
+            if e.errno != errno.ENOENT:
+                raise  # we only care about "file doesn't exist"
             if default is _None:
                 raise MissingConfigEntry("The required configuration file %s is missing."
                                          % (quote_output(privname),))
@@ -361,9 +367,9 @@ class _Config(object):
         privname = os.path.join(self._basedir, "private", name)
         try:
             return fileutil.read(privname).strip()
-        except EnvironmentError:
-            if os.path.exists(privname):
-                raise
+        except EnvironmentError as e:
+            if e.errno != errno.ENOENT:
+                raise  # we only care about "file doesn't exist"
             if default is _None:
                 raise MissingConfigEntry("The required configuration file %s is missing."
                                          % (quote_output(privname),))
