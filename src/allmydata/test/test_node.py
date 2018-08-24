@@ -5,6 +5,7 @@ import sys
 import time
 import mock
 
+from unittest import skipIf
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -168,15 +169,14 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         with self.assertRaises(Exception):
             config.get_config_from_file("it_does_not_exist", required=True)
 
+    @skipIf(
+        "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower(),
+        "We don't know how to set permissions on Windows.",
+    )
     def test_private_config_unreadable(self):
         """
         Asking for inaccessible private config is an error
         """
-        if "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower():
-            # We don't know how to test that unprivileged users can't read this
-            # thing.  (Also we don't know exactly how to set the permissions so
-            # that unprivileged users can't read this thing.)
-            raise unittest.SkipTest("We don't know how to set permissions on Windows.")
         basedir = u"test_node/test_private_config_unreadable"
         create_node_dir(basedir, "testing")
         config = read_config(basedir, "portnum")
