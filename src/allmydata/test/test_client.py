@@ -228,6 +228,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_web_apiauthtoken(self):
+        """
+        Client loads the proper API auth token from disk
+        """
         basedir = u"client.Basic.test_web_apiauthtoken"
         create_node_dir(basedir, "testing")
 
@@ -259,6 +262,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_ftp_create(self):
+        """
+        configuration for sftpd results in it being started
+        """
         basedir = u"client.Basic.test_ftp_create"
         create_node_dir(basedir, "testing")
         with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
