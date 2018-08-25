@@ -29,7 +29,12 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
 
-import re, time, hashlib
+import re
+import time
+import hashlib
+import json
+from datetime import datetime
+
 from zope.interface import implementer
 from twisted.internet import defer
 from twisted.application import service
@@ -37,6 +42,7 @@ from twisted.application import service
 from foolscap.api import eventually
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32, connection_status
+from allmydata.util import keyutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
@@ -67,12 +73,14 @@ class StorageFarmBroker(service.MultiService):
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, permute_peers, tub_maker, preferred_peers=()):
+    def __init__(self, permute_peers, tub_maker, preferred_peers=(), grid_manager_keys=[], node_pubkey=None):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self._tub_maker = tub_maker
         self.preferred_peers = preferred_peers
+        self._grid_manager_keys = grid_manager_keys
+        self._node_pubkey = node_pubkey
 
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
@@ -91,7 +99,7 @@ class StorageFarmBroker(service.MultiService):
             self._static_server_ids.add(server_id)
             handler_overrides = server.get("connections", {})
             s = NativeStorageServer(server_id, server["ann"],
-                                    self._tub_maker, handler_overrides)
+                                    self._tub_maker, handler_overrides, [], self._node_pubkey)
             s.on_status_changed(lambda _: self._got_connection())
             s.setServiceParent(self)
             self.servers[server_id] = s
@@ -110,7 +118,7 @@ class StorageFarmBroker(service.MultiService):
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
-        s = NativeStorageServer(serverid, ann.copy(), self._tub_maker, {})
+        s = NativeStorageServer(serverid, ann.copy(), self._tub_maker, {}, [], self._node_pubkey)
         s.rref = rref
         s._is_connected = True
         self.servers[serverid] = s
@@ -151,7 +159,7 @@ class StorageFarmBroker(service.MultiService):
                     facility="tahoe.storage_broker", umid="AlxzqA",
                     level=log.UNUSUAL)
             return
-        s = NativeStorageServer(server_id, ann, self._tub_maker, {})
+        s = NativeStorageServer(server_id, ann, self._tub_maker, {}, self._grid_manager_keys, self._node_pubkey)
         s.on_status_changed(lambda _: self._got_connection())
         server_id = s.get_serverid()
         old = self.servers.get(server_id)
@@ -192,11 +200,26 @@ class StorageFarmBroker(service.MultiService):
         for dsc in self.servers.values():
             dsc.try_to_connect()
 
-    def get_servers_for_psi(self, peer_selection_index):
+    def get_servers_for_psi(self, peer_selection_index, for_upload=False):
+        """
+        :param for_upload: used to determine if we should include any
+        servers that are invalid according to Grid Manager
+        processing. When for_upload is True and we have any Grid
+        Manager keys configured, any storage servers with invalid or
+        missing certificates will be excluded.
+        """
         # return a list of server objects (IServers)
         assert self.permute_peers == True
         connected_servers = self.get_connected_servers()
         preferred_servers = frozenset(s for s in connected_servers if s.get_longname() in self.preferred_peers)
+        if for_upload:
+            print("upload processing: {}".format([srv.upload_permitted() for srv in connected_servers]))
+            connected_servers = [
+                srv
+                for srv in connected_servers
+                if srv.upload_permitted()
+            ]
+
         def _permuted(server):
             seed = server.get_permutation_seed()
             is_unpreferred = server not in preferred_servers
@@ -248,6 +271,38 @@ class StubServer(object):
     def get_nickname(self):
         return "?"
 
+
+def _validate_grid_manager_certificate(gm_key, alleged_cert, storage_pubkey):
+    """
+    :param gm_key: a VerifyingKey instance, a Grid Manager's public
+        key.
+
+    :param cert: dict with "certificate" and "signature" keys, where
+        "certificate" contains a JSON-serialized certificate for a Storage
+        Server (comes from a Grid Manager).
+
+    :return: False if the signature is invalid or the certificate is
+        expired.
+    """
+    try:
+        gm_key.verify(
+            alleged_cert['signature'],
+            alleged_cert['certificate'],
+        )
+    except Exception:
+        return False
+    # signature is valid; now we can load the actual data
+    cert = json.loads(alleged_cert['certificate'])
+    now = datetime.utcnow()
+    expires = datetime.fromordinal(cert['expires'])
+    cert_pubkey = keyutil.parse_pubkey(cert['public_key'])
+    if cert_pubkey != storage_pubkey:
+        return False  # certificate is for wrong server
+    if expires < now:
+        return False  # certificate is expired
+    return True
+
+
 @implementer(IServer)
 class NativeStorageServer(service.MultiService):
     """I hold information about a storage server that we want to connect to.
@@ -276,13 +331,15 @@ class NativeStorageServer(service.MultiService):
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, server_id, ann, tub_maker, handler_overrides):
+    def __init__(self, server_id, ann, tub_maker, handler_overrides, grid_manager_keys, node_pubkey):
         service.MultiService.__init__(self)
         assert isinstance(server_id, str)
         self._server_id = server_id
         self.announcement = ann
         self._tub_maker = tub_maker
         self._handler_overrides = handler_overrides
+        self._node_pubkey = node_pubkey
+        self._grid_manager_keys = grid_manager_keys
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
@@ -320,6 +377,33 @@ class NativeStorageServer(service.MultiService):
         self._reconnector = None
         self._trigger_cb = None
         self._on_status_changed = ObserverList()
+
+    def upload_permitted(self):
+        """
+        If our client is configured with Grid Manager public-keys, we will
+        only upload to storage servers that have a currently-valid
+        certificate signed by at least one of the Grid Managers we
+        accept.
+
+        :return: True if we should use this server for uploads, False
+            otherwise.
+        """
+        # if we have no Grid Manager keys configured, choice is easy
+        if not self._grid_manager_keys:
+            return True
+
+        # XXX probably want to cache the answer to this? (ignoring
+        # that for now because certificates expire, so .. slightly
+        # more complex)
+        certificates = self.announcements.get("grid-manager-certificates", None)
+        if not certificates:
+            return False
+        for gm_key in self._grid_manager_keys:
+            for cert in certificates:
+                if _validate_grid_manager_certificate(gm_key, cert, self._pubkey):
+                    return True
+        return False
+
 
     def on_status_changed(self, status_changed):
         """
