@@ -166,12 +166,14 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         with self.assertRaises(Exception):
             config.get_or_create_private_config("foo")
 
+    @skipIf(
+        "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower(),
+        "We don't know how to set permissions on Windows.",
+    )
     def test_private_config_unreadable_preexisting(self):
-        if "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower():
-            # We don't know how to test that unprivileged users can't read this
-            # thing.  (Also we don't know exactly how to set the permissions so
-            # that unprivileged users can't read this thing.)
-            raise unittest.SkipTest("We don't know how to set permissions on Windows.")
+        """
+        error if reading private config data fails
+        """
         basedir = u"test_node/test_private_config_unreadable_preexisting"
         create_node_dir(basedir, "testing")
         config = read_config(basedir, "portnum")
