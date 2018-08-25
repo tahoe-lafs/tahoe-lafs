@@ -206,24 +206,24 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         config = config_from_string("", "", basedir)
 
-        self.failUnlessEqual(config.get_private_config("already"), "secret")
-        self.failUnlessEqual(config.get_private_config("not", "default"), "default")
-        self.failUnlessRaises(MissingConfigEntry, config.get_private_config, "not")
+        self.assertEqual(config.get_private_config("already"), "secret")
+        self.assertEqual(config.get_private_config("not", "default"), "default")
+        self.assertRaises(MissingConfigEntry, config.get_private_config, "not")
         value = config.get_or_create_private_config("new", "start")
-        self.failUnlessEqual(value, "start")
-        self.failUnlessEqual(config.get_private_config("new"), "start")
+        self.assertEqual(value, "start")
+        self.assertEqual(config.get_private_config("new"), "start")
         counter = []
         def make_newer():
             counter.append("called")
             return "newer"
         value = config.get_or_create_private_config("newer", make_newer)
-        self.failUnlessEqual(len(counter), 1)
-        self.failUnlessEqual(value, "newer")
-        self.failUnlessEqual(config.get_private_config("newer"), "newer")
+        self.assertEqual(len(counter), 1)
+        self.assertEqual(value, "newer")
+        self.assertEqual(config.get_private_config("newer"), "newer")
 
         value = config.get_or_create_private_config("newer", make_newer)
-        self.failUnlessEqual(len(counter), 1) # don't call unless necessary
-        self.failUnlessEqual(value, "newer")
+        self.assertEqual(len(counter), 1) # don't call unless necessary
+        self.assertEqual(value, "newer")
 
     def test_write_config_unwritable_file(self):
         """
