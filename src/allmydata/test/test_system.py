@@ -535,6 +535,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         s.setServiceParent(self.sparent)
         return s
 
+    # @inlineCallbacks
     def _create_introducer(self):
         """
         :returns: (via Deferred) an Introducer instance
@@ -557,14 +558,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
                 f.write(SYSTEM_TEST_CERTS[0])
                 f.close()
-        self.introducer = yield create_introducer(basedir=iv_dir)
-        self.introducer.setServiceParent(self.sparent)
-        self._get_introducer_web()
-        if use_stats_gatherer:
-            yield self._set_up_stats_gatherer(None)
-        yield self._set_up_nodes_2(None)
-        if use_stats_gatherer:
-            yield self._grab_stats(None)
+        return create_introducer(basedir=iv_dir)
 
     def _get_introducer_web(self):
         with open(os.path.join(self.getdir("introducer"), "node.url"), "r") as f:
@@ -592,7 +586,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         """
         self.numclients = NUMCLIENTS
 
-        self.introducer = self.add_service(self._create_introducer())
+        self.introducer = yield self._create_introducer()
+        self.add_service(self.introducer)
         self.introweb_url = self._get_introducer_web()
 
         if use_stats_gatherer:
