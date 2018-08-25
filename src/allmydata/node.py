@@ -190,7 +190,9 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
 
 
 def config_from_string(config_str, portnumfile, basedir):
-    # load configuration from in-memory string
+    """
+    load configuration from in-memory string
+    """
     parser = ConfigParser.SafeConfigParser()
     parser.readfp(BytesIO(config_str))
     return _Config(parser, portnumfile, basedir, '<in-memory>')

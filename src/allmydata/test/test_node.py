@@ -399,7 +399,7 @@ class TestMissingPorts(unittest.TestCase):
             "[node]\n"
             "tub.port = \n"
         )
-        config = config_from_string(self.basedir, "portnum", config_data)
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with self.assertRaises(ValueError) as ctx:
             Node(config)
@@ -416,7 +416,7 @@ class TestMissingPorts(unittest.TestCase):
             "[node]\n"
             "tub.location = \n"
         )
-        config = config_from_string(self.basedir, "portnum", config_data)
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with self.assertRaises(ValueError) as ctx:
             Node(config)
@@ -434,7 +434,7 @@ class TestMissingPorts(unittest.TestCase):
             "tub.port = disabled\n"
             "tub.location = not_disabled\n"
         )
-        config = config_from_string(self.basedir, "portnum", config_data)
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with self.assertRaises(ValueError) as ctx:
             Node(config)
@@ -452,7 +452,7 @@ class TestMissingPorts(unittest.TestCase):
             "tub.port = not_disabled\n"
             "tub.location = disabled\n"
         )
-        config = config_from_string(self.basedir, "portnum", config_data)
+        config = config_from_string(config_data, "portnum", self.basedir)
 
         with self.assertRaises(ValueError) as ctx:
             Node(config)
