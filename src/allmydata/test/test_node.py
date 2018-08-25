@@ -184,6 +184,9 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             config.get_private_config("foo")
 
     def test_private_config_missing(self):
+        """
+        a missing config with no default is an error
+        """
         basedir = u"test_node/test_private_config_missing"
         create_node_dir(basedir, "testing")
         config = read_config(basedir, "portnum")
@@ -292,7 +295,10 @@ class TestMissingPorts(unittest.TestCase):
         self.basedir = self.mktemp()
         create_node_dir(self.basedir, "testing")
 
-    def test_0(self):
+    def test_parsing_tcp(self):
+        """
+        parse explicit tub.port with explicitly-default tub.location
+        """
         get_addr = mock.patch(
             "allmydata.util.iputil.get_local_addresses_sync",
             return_value=["LOCAL"],
@@ -313,7 +319,10 @@ class TestMissingPorts(unittest.TestCase):
         self.assertEqual(tubport, "tcp:777")
         self.assertEqual(tublocation, "tcp:LOCAL:777")
 
-    def test_1(self):
+    def test_parsing_defaults(self):
+        """
+        parse empty config, check defaults
+        """
         get_addr = mock.patch(
             "allmydata.util.iputil.get_local_addresses_sync",
             return_value=["LOCAL"],
@@ -334,7 +343,10 @@ class TestMissingPorts(unittest.TestCase):
         self.assertEqual(tubport, "tcp:999")
         self.assertEqual(tublocation, "tcp:LOCAL:999")
 
-    def test_2(self):
+    def test_parsing_location_complex(self):
+        """
+        location with two options (including defaults)
+        """
         get_addr = mock.patch(
             "allmydata.util.iputil.get_local_addresses_sync",
             return_value=["LOCAL"],
@@ -355,7 +367,10 @@ class TestMissingPorts(unittest.TestCase):
         self.assertEqual(tubport, "tcp:999")
         self.assertEqual(tublocation, "tcp:HOST:888,tcp:LOCAL:999")
 
-    def test_3(self):
+    def test_parsing_all_disabled(self):
+        """
+        parse config with both port + location disabled
+        """
         get_addr = mock.patch(
             "allmydata.util.iputil.get_local_addresses_sync",
             return_value=["LOCAL"],
@@ -376,12 +391,14 @@ class TestMissingPorts(unittest.TestCase):
         self.assertTrue(res is None)
 
     def test_empty_tub_port(self):
-        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
-            f.write(
-                "[node]\n"
-                "tub.port = \n"
-            )
-        config = read_config(self.basedir, "portnum")
+        """
+        port povided, but empty is an error
+        """
+        config_data = (
+            "[node]\n"
+            "tub.port = \n"
+        )
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
             Node(config)
@@ -391,12 +408,14 @@ class TestMissingPorts(unittest.TestCase):
         )
 
     def test_empty_tub_location(self):
-        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
-            f.write(
-                "[node]\n"
-                "tub.location = \n"
-            )
-        config = read_config(self.basedir, "portnum")
+        """
+        location povided, but empty is an error
+        """
+        config_data = (
+            "[node]\n"
+            "tub.location = \n"
+        )
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
             Node(config)
@@ -406,13 +425,15 @@ class TestMissingPorts(unittest.TestCase):
         )
 
     def test_disabled_port_not_tub(self):
-        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
-            f.write(
-                "[node]\n"
-                "tub.port = disabled\n"
-                "tub.location = not_disabled\n"
-            )
-        config = read_config(self.basedir, "portnum")
+        """
+        error to disable port but not location
+        """
+        config_data = (
+            "[node]\n"
+            "tub.port = disabled\n"
+            "tub.location = not_disabled\n"
+        )
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
             Node(config)
@@ -422,13 +443,15 @@ class TestMissingPorts(unittest.TestCase):
         )
 
     def test_disabled_tub_not_port(self):
-        with open(os.path.join(self.basedir, "tahoe.cfg"), "w") as f:
-            f.write(
-                "[node]\n"
-                "tub.port = not_disabled\n"
-                "tub.location = disabled\n"
-            )
-        config = read_config(self.basedir, "portnum")
+        """
+        error to disable location but not port
+        """
+        config_data = (
+            "[node]\n"
+            "tub.port = not_disabled\n"
+            "tub.location = disabled\n"
+        )
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
             Node(config)
