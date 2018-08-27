@@ -1,6 +1,8 @@
 [tool.towncrier]
-    package = "allmydata"
-    package_dir = "src"
+# towncrier requires python3.5+ but Tahoe-LAFS doesn't support that
+# so we can't import it -- must specify --version to towncrier
+#    package = "allmydata"
+#    package_dir = "src"
     filename = "NEWS.rst"
     directory = "newsfragments"
     start_string = ".. towncrier start line"
