@@ -51,17 +51,25 @@ class Util(unittest.TestCase):
 
         with patch('twisted.internet.reactor') as r:
             def call(fn, *args, **kw):
-                fn()
+                d = fn()
+                d.addErrback(lambda _: None)  # ignore the error we'll trigger
             r.callWhenRunning = call
-            r.stop = lambda: None
+            r.stop = 'foo'
             service = plug.makeService(None)
             service.parent = Mock()
-            with self.assertRaises(ValueError) as ctx:
-                service.startService()
-            self.assertIn(
-                "key-generator support removed",
-                str(ctx.exception)
-            )
+            # we'll raise ValueError because there's no key-generator
+            # .. BUT we do this in an async function called via
+            # "callWhenRunning" .. hence using a hook
+            d = service.set_hook('running')
+            service.startService()
+            def done(f):
+                self.assertIn(
+                    "key-generator support removed",
+                    str(f),
+                )
+                return None
+            d.addBoth(done)
+            return d
 
     def test_daemonize_unknown_nodetype(self):
         tmpdir = self.mktemp()

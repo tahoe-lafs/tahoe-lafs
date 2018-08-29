@@ -15,14 +15,23 @@ from foolscap.api import flushEventualQueue
 import foolscap.logging.log
 
 from twisted.application import service
-from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry, read_config, config_from_string, create_node_dir
+from allmydata.node import create_tub_options
+from allmydata.node import create_main_tub
+from allmydata.node import create_node_dir
+from allmydata.node import create_connection_handlers
+from allmydata.node import config_from_string
+from allmydata.node import read_config
+from allmydata.node import MissingConfigEntry
+from allmydata.node import _tub_portlocation
+from allmydata.node import formatTimeTahoeStyle
 from allmydata.introducer.server import create_introducer
 from allmydata import client
 
 from allmydata.util import fileutil, iputil
-from allmydata.util import i2p_provider, tor_provider
 from allmydata.util.namespace import Namespace
 from allmydata.util.configutil import UnknownConfigError
+from allmydata.util.i2p_provider import create as create_i2p_provider
+from allmydata.util.tor_provider import create as create_tor_provider
 import allmydata.test.common_util as testutil
 
 
@@ -30,15 +39,25 @@ class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
         pass
 
-class TestNode(Node):
-    CERTFILE='DEFAULT_CERTFILE_BLANK'
 
-    def __init__(self, basedir):
-        config = read_config(
-            basedir,
-            'DEFAULT_PORTNUMFILE_BLANK',
-        )
-        Node.__init__(self, config)
+def testing_tub(config_data=''):
+    from twisted.internet import reactor
+    basedir = 'dummy_basedir'
+    config = config_from_string(basedir, 'DEFAULT_PORTNUMFILE_BLANK', config_data)
+    fileutil.make_dirs(os.path.join(basedir, 'private'))
+
+    i2p_provider = create_i2p_provider(reactor, config)
+    tor_provider = create_tor_provider(reactor, config)
+    handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+    default_connection_handlers, foolscap_connection_handlers = handlers
+    tub_options = create_tub_options(config)
+
+    main_tub = create_main_tub(
+        config, tub_options, default_connection_handlers,
+        foolscap_connection_handlers, i2p_provider, tor_provider,
+        cert_filename='DEFAULT_CERTFILE_BLANK'
+    )
+    return main_tub
 
 
 class TestCase(testutil.SignalMixin, unittest.TestCase):
@@ -60,20 +79,23 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
     def _test_location(self, basedir, expected_addresses, tub_port=None, tub_location=None, local_addresses=None):
         create_node_dir(basedir, "testing")
-        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
-            f.write("[node]\n")
-            if tub_port:
-                f.write("tub.port = %d\n" % (tub_port,))
-            if tub_location is not None:
-                f.write("tub.location = %s\n" % (tub_location,))
+        config_data = "[node]\n"
+        if tub_port:
+            config_data += "tub.port = {}\n".format(tub_port)
+        if tub_location is not None:
+            config_data += "tub.location = {}\n".format(tub_location)
 
         if local_addresses:
             self.patch(iputil, 'get_local_addresses_sync',
                        lambda: local_addresses)
 
-        n = TestNode(basedir)
-        n.setServiceParent(self.parent)
-        furl = n.tub.registerReference(n)
+        tub = testing_tub(config_data)
+        tub.setServiceParent(self.parent)
+
+        class Foo(object):
+            pass
+
+        furl = tub.registerReference(Foo())
         for address in expected_addresses:
             self.failUnlessIn(address, furl)
 
@@ -196,14 +218,15 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             config.get_or_create_private_config("foo")
 
     def test_private_config(self):
-        basedir = "test_node/test_private_config"
+        basedir = u"test_node/test_private_config"
         privdir = os.path.join(basedir, "private")
         fileutil.make_dirs(privdir)
         f = open(os.path.join(privdir, 'already'), 'wt')
         f.write("secret")
         f.close()
 
-        config = config_from_string("", "", basedir)
+        basedir = fileutil.abspath_expanduser_unicode(basedir)
+        config = config_from_string(basedir, "", "")
 
         self.assertEqual(config.get_private_config("already"), "secret")
         self.assertEqual(config.get_private_config("not", "default"), "default")
@@ -232,7 +255,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         """
         basedir = "test_node/configdir"
         fileutil.make_dirs(basedir)
-        config = config_from_string("", "", basedir)
+        config = config_from_string(basedir, "", "")
         with open(os.path.join(basedir, "bad"), "w") as f:
             f.write("bad")
         os.chmod(os.path.join(basedir, "bad"), 0o000)
@@ -272,6 +295,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         bits = stat.S_IMODE(st[stat.ST_MODE])
         self.failUnless(bits & 0001 == 0, bits)
 
+    @defer.inlineCallbacks
     def test_logdir_is_str(self):
         basedir = "test_node/test_logdir_is_str"
 
@@ -283,7 +307,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.patch(foolscap.logging.log, 'setLogDir', call_setLogDir)
 
         create_node_dir(basedir, "nothing to see here")
-        TestNode(basedir)
+        yield client.create_client(basedir)
         self.failUnless(ns.called)
 
 
@@ -308,15 +332,15 @@ class TestMissingPorts(unittest.TestCase):
             "allmydata.util.iputil.allocate_tcp_port",
             return_value=999,
         )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+            "tub.port = tcp:777\n"
+            "tub.location = AUTO\n"
+        )
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
-            n = Node(config)
-            # could probably refactor this get_tub_portlocation into a
-            # bare helper instead of method.
-            cfg_tubport = "tcp:777"
-            cfg_location = "AUTO"
-            tubport, tublocation = n.get_tub_portlocation(cfg_tubport, cfg_location)
+            tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:777")
         self.assertEqual(tublocation, "tcp:LOCAL:777")
 
@@ -332,15 +356,13 @@ class TestMissingPorts(unittest.TestCase):
             "allmydata.util.iputil.allocate_tcp_port",
             return_value=999,
         )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+        )
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
-            n = Node(config)
-            # could probably refactor this get_tub_portlocation into a
-            # bare helper instead of method.
-            cfg_tubport = None
-            cfg_location = None
-            tubport, tublocation = n.get_tub_portlocation(cfg_tubport, cfg_location)
+            tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:999")
         self.assertEqual(tublocation, "tcp:LOCAL:999")
 
@@ -356,15 +378,14 @@ class TestMissingPorts(unittest.TestCase):
             "allmydata.util.iputil.allocate_tcp_port",
             return_value=999,
         )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+            "tub.location = tcp:HOST:888,AUTO\n"
+        )
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
-            n = Node(config)
-            # could probably refactor this get_tub_portlocation into a
-            # bare helper instead of method.
-            cfg_tubport = None
-            cfg_location = "tcp:HOST:888,AUTO"
-            tubport, tublocation = n.get_tub_portlocation(cfg_tubport, cfg_location)
+            tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:999")
         self.assertEqual(tublocation, "tcp:HOST:888,tcp:LOCAL:999")
 
@@ -380,15 +401,15 @@ class TestMissingPorts(unittest.TestCase):
             "allmydata.util.iputil.allocate_tcp_port",
             return_value=999,
         )
-        config = read_config(self.basedir, "portnum")
+        config_data = (
+            "[node]\n"
+            "tub.port = disabled\n"
+            "tub.location = disabled\n"
+        )
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
-            n = Node(config)
-            # could probably refactor this get_tub_portlocation into a
-            # bare helper instead of method.
-            cfg_tubport = "disabled"
-            cfg_location = "disabled"
-            res = n.get_tub_portlocation(cfg_tubport, cfg_location)
+            res = _tub_portlocation(config)
         self.assertTrue(res is None)
 
     def test_empty_tub_port(self):
@@ -399,10 +420,10 @@ class TestMissingPorts(unittest.TestCase):
             "[node]\n"
             "tub.port = \n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
-            Node(config)
+            _tub_portlocation(config)
         self.assertIn(
             "tub.port must not be empty",
             str(ctx.exception)
@@ -416,10 +437,10 @@ class TestMissingPorts(unittest.TestCase):
             "[node]\n"
             "tub.location = \n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
-            Node(config)
+            _tub_portlocation(config)
         self.assertIn(
             "tub.location must not be empty",
             str(ctx.exception)
@@ -434,10 +455,10 @@ class TestMissingPorts(unittest.TestCase):
             "tub.port = disabled\n"
             "tub.location = not_disabled\n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
-            Node(config)
+            _tub_portlocation(config)
         self.assertIn(
             "tub.port is disabled, but not tub.location",
             str(ctx.exception)
@@ -452,14 +473,15 @@ class TestMissingPorts(unittest.TestCase):
             "tub.port = not_disabled\n"
             "tub.location = disabled\n"
         )
-        config = config_from_string(config_data, "portnum", self.basedir)
+        config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
-            Node(config)
+            _tub_portlocation(config)
         self.assertIn(
             "tub.location is disabled, but not tub.port",
             str(ctx.exception)
         )
+
 
 BASE_CONFIG = """
 [client]
@@ -505,10 +527,36 @@ class FakeTub:
     def setServiceParent(self, parent): pass
 
 class Listeners(unittest.TestCase):
+
+    def test_listen_on_zero(self):
+        """
+        Trying to listen on port 0 should be an error
+        """
+        basedir = self.mktemp()
+        create_node_dir(basedir, "testing")
+        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
+            f.write(BASE_CONFIG)
+            f.write("tub.port = tcp:0\n")
+            f.write("tub.location = AUTO\n")
+
+        config = client.read_config(basedir, "client.port")
+        i2p_provider = mock.Mock()
+        tor_provider = mock.Mock()
+        dfh, fch = create_connection_handlers(None, config, i2p_provider, tor_provider)
+        tub_options = create_tub_options(config)
+        t = FakeTub()
+
+        with mock.patch("allmydata.node.Tub", return_value=t):
+            with self.assertRaises(ValueError) as ctx:
+                create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
+        self.assertIn(
+            "you must choose",
+            str(ctx.exception),
+        )
+
     def test_multiple_ports(self):
         basedir = self.mktemp()
         create_node_dir(basedir, "testing")
-
         port1 = iputil.allocate_tcp_port()
         port2 = iputil.allocate_tcp_port()
         port = ("tcp:%d:interface=127.0.0.1,tcp:%d:interface=127.0.0.1" %
@@ -519,22 +567,15 @@ class Listeners(unittest.TestCase):
             f.write("tub.port = %s\n" % port)
             f.write("tub.location = %s\n" % location)
 
-        # we're doing a lot of calling-into-setup-methods here, it might be
-        # better to just create a real Node instance, I'm not sure.
-        config = client.read_config(
-            basedir,
-            "client.port",
-        )
-        n = Node(config)
-        n.check_privacy()
-        n.services = []
-        n.create_i2p_provider()
-        n.create_tor_provider()
-        n.init_connections()
-        n.set_tub_options()
+        config = client.read_config(basedir, "client.port")
+        i2p_provider = mock.Mock()
+        tor_provider = mock.Mock()
+        dfh, fch = create_connection_handlers(None, config, i2p_provider, tor_provider)
+        tub_options = create_tub_options(config)
         t = FakeTub()
+
         with mock.patch("allmydata.node.Tub", return_value=t):
-            n.create_main_tub()
+            create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
         self.assertEqual(t.listening_ports,
                          ["tcp:%d:interface=127.0.0.1" % port1,
                           "tcp:%d:interface=127.0.0.1" % port2])
@@ -548,37 +589,25 @@ class Listeners(unittest.TestCase):
             f.write(BASE_CONFIG)
             f.write("tub.port = listen:i2p,listen:tor\n")
             f.write("tub.location = tcp:example.org:1234\n")
-        # we're doing a lot of calling-into-setup-methods here, it might be
-        # better to just create a real Node instance, I'm not sure.
-        config = client.read_config(
-            basedir,
-            "client.port",
-        )
+        config = client.read_config(basedir, "client.port")
+        tub_options = create_tub_options(config)
+        t = FakeTub()
 
-        i2p_ep = object()
-        i2p_prov = i2p_provider.Provider(config, mock.Mock())
-        i2p_prov.get_listener = mock.Mock(return_value=i2p_ep)
-        i2p_x = mock.Mock()
-        i2p_x.Provider = lambda c, r: i2p_prov
-        i2p_mock = mock.patch('allmydata.node.i2p_provider', new=i2p_x)
+        i2p_provider = mock.Mock()
+        tor_provider = mock.Mock()
+        dfh, fch = create_connection_handlers(None, config, i2p_provider, tor_provider)
 
-        tor_ep = object()
-        tor_prov = tor_provider.Provider(config, mock.Mock())
-        tor_prov.get_listener = mock.Mock(return_value=tor_ep)
-        tor_x = mock.Mock()
-        tor_x.Provider = lambda c, r: tor_prov
-        tor_mock = mock.patch('allmydata.node.tor_provider', new=tor_x)
+        with mock.patch("allmydata.node.Tub", return_value=t):
+            create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
 
-        tub_mock = mock.patch("allmydata.node.Tub", return_value=FakeTub())
-        with i2p_mock, tor_mock, tub_mock:
-            n = Node(config)
+        self.assertEqual(i2p_provider.get_listener.mock_calls, [mock.call()])
+        self.assertEqual(tor_provider.get_listener.mock_calls, [mock.call()])
+##        self.assertEqual(t.listening_ports, [i2p_ep, tor_ep])
 
-        self.assertEqual(n._i2p_provider.get_listener.mock_calls, [mock.call()])
-        self.assertEqual(n._tor_provider.get_listener.mock_calls, [mock.call()])
-        self.assertIn(i2p_ep, n.tub.listening_ports)
-        self.assertIn(tor_ep, n.tub.listening_ports)
 
 class ClientNotListening(unittest.TestCase):
+
+    @defer.inlineCallbacks
     def test_disabled(self):
         basedir = "test_node/test_disabled"
         create_node_dir(basedir, "testing")
@@ -587,7 +616,7 @@ class ClientNotListening(unittest.TestCase):
         f.write(NOLISTEN)
         f.write(DISABLE_STORAGE)
         f.close()
-        n = client.create_client(basedir)
+        n = yield client.create_client(basedir)
         self.assertEqual(n.tub.getListeners(), [])
 
     def test_disabled_but_storage(self):
