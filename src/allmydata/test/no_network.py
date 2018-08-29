@@ -187,6 +187,10 @@ class NoNetworkStorageBroker(object):
 
 # @defer.inlineCallbacks
 def create_no_network_client(basedir):
+    """
+    :return: an instance of _Client subclass which does no actual
+       networking but has the same API.
+    """
     basedir = abspath_expanduser_unicode(unicode(basedir))
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
 
@@ -209,6 +213,9 @@ def create_no_network_client(basedir):
 
 
 class _NoNetworkClient(_Client):
+    """
+    Overrides all _Client networking functionality to do nothing.
+    """
 
     def init_connections(self):
         pass

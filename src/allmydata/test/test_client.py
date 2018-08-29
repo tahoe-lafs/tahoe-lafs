@@ -40,6 +40,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_comment(self):
+        """
+        test using common comment-character in furls
+        """
         should_fail = [r"test#test", r"#testtest", r"test\\#test"]
         should_not_fail = [r"test\#test", r"test\\\#test", r"testtest"]
 
@@ -134,6 +137,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_secrets(self):
+        """
+        A new client has renewal + cancel secrets
+        """
         basedir = "test_client.Basic.test_secrets"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
@@ -148,6 +154,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_nodekey_yes_storage(self):
+        """
+        We have a nodeid if we're providing storage
+        """
         basedir = "test_client.Basic.test_nodekey_yes_storage"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
@@ -157,6 +166,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_nodekey_no_storage(self):
+        """
+        We have a nodeid if we're not providing storage
+        """
         basedir = "test_client.Basic.test_nodekey_no_storage"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
@@ -166,6 +178,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_reserved_1(self):
+        """
+        reserved_space option is propagated
+        """
         basedir = "client.Basic.test_reserved_1"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
@@ -178,6 +193,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_reserved_2(self):
+        """
+        reserved_space option understands 'K' to mean kilobytes
+        """
         basedir = "client.Basic.test_reserved_2"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),  \
@@ -190,6 +208,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_reserved_3(self):
+        """
+        reserved_space option understands 'mB' to mean megabytes
+        """
         basedir = "client.Basic.test_reserved_3"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
@@ -203,6 +224,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_reserved_4(self):
+        """
+        reserved_space option understands 'Gb' to mean gigabytes
+        """
         basedir = "client.Basic.test_reserved_4"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
@@ -216,6 +240,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_reserved_bad(self):
+        """
+        reserved_space option produces errors on non-numbers
+        """
         basedir = "client.Basic.test_reserved_bad"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
@@ -245,6 +272,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_web_staticdir(self):
+        """
+        a relative web.static dir is expanded properly
+        """
         basedir = u"client.Basic.test_web_staticdir"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
@@ -281,6 +311,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_ftp_auth_keyfile(self):
+        """
+        ftpd accounts.file is parsed properly
+        """
         basedir = u"client.Basic.test_ftp_auth_keyfile"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
@@ -296,6 +329,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_ftp_auth_url(self):
+        """
+        ftpd accounts.url is parsed properly
+        """
         basedir = u"client.Basic.test_ftp_auth_url"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
@@ -309,6 +345,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_ftp_auth_no_accountfile_or_url(self):
+        """
+        ftpd requires some way to look up accounts
+        """
         basedir = u"client.Basic.test_ftp_auth_no_accountfile_or_url"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
@@ -321,6 +360,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def _storage_dir_test(self, basedir, storage_path, expected_path):
+        """
+        generic helper for following storage_dir tests
+        """
         os.mkdir(basedir)
         cfg_path = os.path.join(basedir, "tahoe.cfg")
         fileutil.write(
@@ -430,6 +472,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_versions(self):
+        """
+        A client knows the versions of software it has
+        """
         basedir = "test_client.Basic.test_versions"
         os.mkdir(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
@@ -453,6 +498,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_helper_furl(self):
+        """
+        various helper.furl arguments are parsed correctly
+        """
         basedir = "test_client.Basic.test_helper_furl"
         os.mkdir(basedir)
 
@@ -473,6 +521,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
     @defer.inlineCallbacks
     def test_create_magic_folder_service(self):
+        """
+        providing magic-folder options actually creates a MagicFolder service
+        """
         boom = False
         class Boom(Exception):
             pass
@@ -577,6 +628,9 @@ def flush_but_dont_ignore(res):
 class IntroducerClients(unittest.TestCase):
 
     def test_invalid_introducer_furl(self):
+        """
+        An introducer.furl of 'None' is invalid
+        """
         cfg = (
             "[client]\n"
             "introducer.furl = None\n"

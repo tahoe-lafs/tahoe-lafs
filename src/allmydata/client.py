@@ -106,6 +106,10 @@ the files.   See the 'configuration.rst' documentation file for details.
 
 
 def _make_secret():
+    """
+    Returns a base32-encoded random secret of hashutil.CRYPTO_VAL_SIZE
+    bytes.
+    """
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
 
 
@@ -258,6 +262,12 @@ def create_client_from_config(config, _client_factory=None):
 
 
 def _sequencer(config):
+    """
+    :returns: a 2-tuple consisting of a new announcement
+        sequence-number and (random) nonce. Reads and re-writes
+        configuration file "announcement-seqnum", starting at 1 if that
+        file doesn't exist.
+    """
     seqnum_s = config.get_config_from_file("announcement-seqnum")
     if not seqnum_s:
         seqnum_s = "0"
@@ -270,6 +280,8 @@ def _sequencer(config):
 
 def create_introducer_clients(config, main_tub):
     """
+    Read, validate and parse any 'introducers.yaml' configuration.
+
     :returns: a list of IntroducerClient instances
     """
     # we return this list
@@ -326,8 +338,20 @@ def create_introducer_clients(config, main_tub):
 
 def create_storage_farm_broker(config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients):
     """
-    create a StorageFarmBroker object, for use by Uploader/Downloader
+    Create a StorageFarmBroker object, for use by Uploader/Downloader
     (and everybody else who wants to use storage servers)
+
+    :param config: a _Config instance
+
+    :param default_connection_handlers: default Foolscap handlers
+
+    :param foolscap_connection_handlers: available/configured Foolscap
+        handlers
+
+    :param dict tub_options: how to configure our Tub
+
+    :param list introducer_clients: IntroducerClient instances if
+        we're connecting to any
     """
     ps = config.get_config("client", "peers.preferred", "").split(",")
     preferred_peers = tuple([p.strip() for p in ps if p != ""])
