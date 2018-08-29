@@ -409,6 +409,13 @@ class _Config(object):
 
 
 def create_tub_options(config):
+    """
+    :param config: a _Config instance
+
+    :returns: dict containing all Foolscap Tub-related options,
+        overriding defaults with appropriate config from `config`
+        instance.
+    """
     # XXX this is code moved from Node -- but why are some options
     # camelCase and some snake_case? can we FIXME?
     tub_options = {
@@ -430,6 +437,9 @@ def create_tub_options(config):
 
 
 def _make_tcp_handler():
+    """
+    :returns: a Foolscap default TCP handler
+    """
     # this is always available
     from foolscap.connections.tcp import default
     return default()
@@ -488,8 +498,16 @@ def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
 
 def create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
                handler_overrides={}, **kwargs):
-    # Create a Tub with the right options and handlers. It will be
-    # ephemeral unless the caller provides certFile=
+    """
+    Create a Tub with the right options and handlers. It will be
+    ephemeral unless the caller provides certFile= in kwargs
+
+    :param handler_overrides: anything in this will override anything
+        in `default_connection_handlers` for just this call.
+
+    :param dict tub_options: every key-value pair in here will be set in
+        the new Tub via `Tub.setOption`
+    """
     tub = Tub(**kwargs)
     for (name, value) in tub_options.items():
         tub.setOption(name, value)
@@ -504,6 +522,10 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
 
 
 def _convert_tub_port(s):
+    """
+    :returns: a proper Twisted endpoint string like (`tcp:X`) is `s`
+        is a bare number, or returns `s` as-is
+    """
     if re.search(r'^\d+$', s):
         return "tcp:{}".format(int(s))
     return s
@@ -601,6 +623,26 @@ def create_main_tub(config, tub_options,
                     default_connection_handlers, foolscap_connection_handlers,
                     i2p_provider, tor_provider,
                     handler_overrides={}, cert_filename="node.pem"):
+    """
+    Creates a 'main' Foolscap Tub, typically for use as the top-level
+    access point for a running Node.
+
+    :param Config: a `_Config` instance
+
+    :param dict tub_options: any options to change in the tub
+
+    :param default_connection_handlers: default Foolscap connection
+        handlers
+
+    :param foolscap_connection_handlers: Foolscap connection
+        handlers for this tub
+
+    :param i2p_provider: None, or a _Provider instance if I2P is
+        installed.
+
+    :param tor_provider: None, or a _Provider instance if txtorcon +
+        Tor are installed.
+    """
     portlocation = _tub_portlocation(config)
 
     certfile = config.get_private_path("node.pem")  # FIXME? "node.pem" was the CERTFILE option/thing
@@ -632,8 +674,11 @@ def create_main_tub(config, tub_options,
 
 
 def create_control_tub():
-    # the control port uses a localhost-only ephemeral Tub, with no
-    # control over the listening port or location
+    """
+    Creates a Foolscap Tub for use by the control port. This is a
+    localhost-only ephemeral Tub, with no control over the listening
+    port or location
+    """
     control_tub = Tub()
     portnum = iputil.allocate_tcp_port()
     port = "tcp:%d:interface=127.0.0.1" % portnum
@@ -642,7 +687,6 @@ def create_control_tub():
     control_tub.setLocation(location)
     log.msg("Control Tub location set to %s" % (location,))
     return control_tub
-
 
 
 class Node(service.MultiService):
