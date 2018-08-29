@@ -309,11 +309,7 @@ class MagicFolder(service.MultiService):
         :param dict config: Magic-folder configuration like that in the list
             returned by ``load_magic_folders``.
         """
-        db_filename = os.path.join(
-            client_node.basedir,
-            "private",
-            "magicfolder_{}.sqlite".format(name),
-        )
+        db_filename = client_node.config.get_private_path("magicfolder_{}.sqlite".format(name))
         local_dir_config = config['directory']
         try:
             poll_interval = int(config["poll_interval"])
@@ -324,9 +320,10 @@ class MagicFolder(service.MultiService):
             client=client_node,
             upload_dircap=config["upload_dircap"],
             collective_dircap=config["collective_dircap"],
+            # XXX surely a better way for this local_path_u business
             local_path_u=abspath_expanduser_unicode(
                 local_dir_config,
-                base=client_node.basedir,
+                base=client_node.config.get_config_path(),
             ),
             dbfile=abspath_expanduser_unicode(db_filename),
             umask=config["umask"],

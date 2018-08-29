@@ -6,6 +6,7 @@ import datetime
 import os.path
 import re
 import types
+import errno
 import ConfigParser
 import tempfile
 from io import BytesIO
@@ -14,6 +15,7 @@ from base64 import b32decode, b32encode
 from twisted.internet import reactor
 from twisted.python import log as twlog
 from twisted.application import service
+from twisted.python.failure import Failure
 from foolscap.api import Tub, app_versions
 import foolscap.logging.log
 from allmydata import get_package_versions, get_package_versions_string
@@ -127,7 +129,40 @@ class PrivacyError(Exception):
     that the IP address could be revealed"""
 
 
+def create_node_dir(basedir, readme_text):
+    """
+    Create new new 'node directory' at 'basedir'. This includes a
+    'private' subdirectory. If basedir (and privdir) already exists,
+    nothing is done.
+
+    :param readme_text: text to put in <basedir>/private/README
+    """
+    if not os.path.exists(basedir):
+        fileutil.make_dirs(basedir)
+    privdir = os.path.join(basedir, "private")
+    if not os.path.exists(privdir):
+        fileutil.make_dirs(privdir, 0o700)
+        with open(os.path.join(privdir, 'README'), 'w') as f:
+            f.write(readme_text)
+
+
 def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections=None):
+    """
+    Read and validate configuration.
+
+    :param unicode basedir: directory where configuration data begins
+
+    :param unicode portnumfile: filename fragment for "port number" files
+
+    :param list generated_files: a list of automatically-generated
+        configuration files.
+
+    :param dict _valid_config_sections: (internal use, optional) a
+        dict-of-dicts structure defining valid configuration sections and
+        keys
+
+    :returns: :class:`allmydata.node._Config` instance
+    """
     basedir = abspath_expanduser_unicode(unicode(basedir))
     if _valid_config_sections is None:
         _valid_config_sections = _common_config_sections
@@ -143,17 +178,31 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
     parser = ConfigParser.SafeConfigParser()
     try:
         parser = configutil.get_config(config_fname)
-    except EnvironmentError:
-        if os.path.exists(config_fname):
+    except EnvironmentError as e:
+        if e.errno != errno.ENOENT:
             raise
+
     configutil.validate_config(config_fname, parser, _valid_config_sections())
-    return _Config(parser, portnumfile, config_fname)
+
+    # make sure we have a private configuration area
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
+    return _Config(parser, portnumfile, basedir, config_fname)
 
 
-def config_from_string(config_str, portnumfile):
+def config_from_string(config_str, portnumfile, basedir):
+    """
+    load configuration from in-memory string
+    """
     parser = ConfigParser.SafeConfigParser()
     parser.readfp(BytesIO(config_str))
-    return _Config(parser, portnumfile, '<in-memory>')
+    return _Config(parser, portnumfile, basedir, '<in-memory>')
+
+
+def get_app_versions():
+    """
+    :returns: dict of versions important to Foolscap
+    """
+    return dict(app_versions.versions)
 
 
 def _error_about_old_config_files(basedir, generated_files):
@@ -183,17 +232,30 @@ def _error_about_old_config_files(basedir, generated_files):
 
 class _Config(object):
     """
-    FIXME better name
+    Manages configuration of a Tahoe 'node directory'.
 
-    pulling out all the 'config' stuff from Node, so we can pass it in
-    as a helper instead.
+    Note: all this code and functionality was formerly in the Node
+    class; names and funtionality have been kept the same while moving
+    the code. It probably makes sense for several of these APIs to
+    have better names.
     """
 
-    def __init__(self, configparser, portnum_fname, config_fname):
-        # XXX I think this portnumfile thing is just legacy?
-        self.portnum_fname = portnum_fname
-        self._config_fname = config_fname
+    def __init__(self, configparser, portnum_fname, basedir, config_fname):
+        """
+        :param configparser: a ConfigParser instance
 
+        :param portnum_fname: filename to use for the port-number file
+           (a relative path inside basedir)
+
+        :param basedir: path to our "node directory", inside which all
+           configuration is managed
+
+        :param config_fname: the pathname actually used to create the
+            configparser (might be 'fake' if using in-memory data)
+        """
+        self.portnum_fname = portnum_fname
+        self._basedir = abspath_expanduser_unicode(unicode(basedir))
+        self._config_fname = config_fname
         self.config = configparser
 
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
@@ -203,13 +265,19 @@ class _Config(object):
     def validate(self, valid_config_sections):
         configutil.validate_config(self._config_fname, self.config, valid_config_sections)
 
-    def read_config(self):
-
+    def write_config_file(self, name, value, mode="w"):
+        """
+        writes the given 'value' into a file called 'name' in the config
+        directory
+        """
+        fn = os.path.join(self._basedir, name)
         try:
-            self.config = configutil.get_config(self.config_fname)
+            fileutil.write(fn, value, mode)
         except EnvironmentError:
-            if os.path.exists(self.config_fname):
-                raise
+            log.err(
+                Failure(),
+                "Unable to write config file '{}'".format(fn),
+            )
 
     def get_config(self, section, option, default=_None, boolean=False):
         try:
@@ -232,6 +300,94 @@ class _Config(object):
                 )
             return default
 
+    def get_config_from_file(self, name, required=False):
+        """Get the (string) contents of a config file, or None if the file
+        did not exist. If required=True, raise an exception rather than
+        returning None. Any leading or trailing whitespace will be stripped
+        from the data."""
+        fn = os.path.join(self._basedir, name)
+        try:
+            return fileutil.read(fn).strip()
+        except EnvironmentError as e:
+            if e.errno != errno.ENOENT:
+                raise  # we only care about "file doesn't exist"
+            if not required:
+                return None
+            raise
+
+    def get_or_create_private_config(self, name, default=_None):
+        """Try to get the (string) contents of a private config file (which
+        is a config file that resides within the subdirectory named
+        'private'), and return it. Any leading or trailing whitespace will be
+        stripped from the data.
+
+        If the file does not exist, and default is not given, report an error.
+        If the file does not exist and a default is specified, try to create
+        it using that default, and then return the value that was written.
+        If 'default' is a string, use it as a default value. If not, treat it
+        as a zero-argument callable that is expected to return a string.
+        """
+        privname = os.path.join(self._basedir, "private", name)
+        try:
+            value = fileutil.read(privname)
+        except EnvironmentError as e:
+            if e.errno != errno.ENOENT:
+                raise  # we only care about "file doesn't exist"
+            if default is _None:
+                raise MissingConfigEntry("The required configuration file %s is missing."
+                                         % (quote_output(privname),))
+            if isinstance(default, basestring):
+                value = default
+            else:
+                value = default()
+            fileutil.write(privname, value)
+        return value.strip()
+
+    def write_private_config(self, name, value):
+        """Write the (string) contents of a private config file (which is a
+        config file that resides within the subdirectory named 'private'), and
+        return it.
+        """
+        privname = os.path.join(self._basedir, "private", name)
+        with open(privname, "w") as f:
+            f.write(value)
+
+    def get_private_config(self, name, default=_None):
+        """Read the (string) contents of a private config file (which is a
+        config file that resides within the subdirectory named 'private'),
+        and return it. Return a default, or raise an error if one was not
+        given.
+        """
+        privname = os.path.join(self._basedir, "private", name)
+        try:
+            return fileutil.read(privname).strip()
+        except EnvironmentError as e:
+            if e.errno != errno.ENOENT:
+                raise  # we only care about "file doesn't exist"
+            if default is _None:
+                raise MissingConfigEntry("The required configuration file %s is missing."
+                                         % (quote_output(privname),))
+            return default
+
+    def get_private_path(self, *args):
+        """
+        returns an absolute path inside the 'private' directory with any
+        extra args join()-ed
+        """
+        return os.path.join(self._basedir, "private", *args)
+
+    def get_config_path(self, *args):
+        """
+        returns an absolute path inside the config directory with any
+        extra args join()-ed
+        """
+        # note: we re-expand here (_basedir already went through this
+        # expanduser function) in case the path we're being asked for
+        # has embedded ".."'s in it
+        return abspath_expanduser_unicode(
+            os.path.join(self._basedir, *args)
+        )
+
     @staticmethod
     def _contains_unescaped_hash(item):
         characters = iter(item)
@@ -253,18 +409,12 @@ class Node(service.MultiService):
     CERTFILE = "node.pem"
     GENERATED_FILES = []
 
-    def __init__(self, config, basedir=u"."):
+    def __init__(self, config):
         """
-        Initialize the node with the given configuration. It's base directory
+        Initialize the node with the given configuration. Its base directory
         is the current directory by default.
         """
         service.MultiService.__init__(self)
-        # ideally, this would only be in _Config (or otherwise abstracted)
-        self.basedir = abspath_expanduser_unicode(unicode(basedir))
-        # XXX don't write files in ctor!
-        fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
-        with open(os.path.join(self.basedir, "private", "README"), "w") as f:
-            f.write(PRIV_README)
 
         self.config = config
         self.get_config = config.get_config # XXX stopgap
@@ -292,7 +442,7 @@ class Node(service.MultiService):
         Initialize/create a directory for temporary files.
         """
         tempdir_config = self.config.get_config("node", "tempdir", "tmp").decode('utf-8')
-        tempdir = abspath_expanduser_unicode(tempdir_config, base=self.basedir)
+        tempdir = self.config.get_config_path(tempdir_config)
         if not os.path.exists(tempdir):
             fileutil.make_dirs(tempdir)
         tempfile.tempdir = tempdir
@@ -308,12 +458,12 @@ class Node(service.MultiService):
         self._reveal_ip = self.config.get_config("node", "reveal-IP-address", True,
                                                  boolean=True)
     def create_i2p_provider(self):
-        self._i2p_provider = i2p_provider.Provider(self.basedir, self.config, reactor)
+        self._i2p_provider = i2p_provider.Provider(self.config, reactor)
         self._i2p_provider.check_dest_config()
         self._i2p_provider.setServiceParent(self)
 
     def create_tor_provider(self):
-        self._tor_provider = tor_provider.Provider(self.basedir, self.config, reactor)
+        self._tor_provider = tor_provider.Provider(self.config, reactor)
         self._tor_provider.check_onion_config()
         self._tor_provider.setServiceParent(self)
 
@@ -475,11 +625,11 @@ class Node(service.MultiService):
         return tubport, location
 
     def create_main_tub(self):
-        certfile = os.path.join(self.basedir, "private", self.CERTFILE)
+        certfile = self.config.get_private_path(self.CERTFILE)
         self.tub = self._create_tub(certFile=certfile)
 
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
-        self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")
+        self.config.write_config_file("my_nodeid", b32encode(self.nodeid).lower() + "\n")
         self.short_nodeid = b32encode(self.nodeid).lower()[:8] # for printing
         cfg_tubport = self.config.get_config("node", "tub.port", None)
         cfg_location = self.config.get_config("node", "tub.location", None)
@@ -538,86 +688,6 @@ class Node(service.MultiService):
         self.log("Log Tub location set to %s" % (location,))
         self.log_tub.setServiceParent(self)
 
-    def get_app_versions(self):
-        # TODO: merge this with allmydata.get_package_versions
-        return dict(app_versions.versions)
-
-    def get_config_from_file(self, name, required=False):
-        """Get the (string) contents of a config file, or None if the file
-        did not exist. If required=True, raise an exception rather than
-        returning None. Any leading or trailing whitespace will be stripped
-        from the data."""
-        fn = os.path.join(self.basedir, name)
-        try:
-            return fileutil.read(fn).strip()
-        except EnvironmentError:
-            if not required:
-                return None
-            raise
-
-    def write_private_config(self, name, value):
-        """Write the (string) contents of a private config file (which is a
-        config file that resides within the subdirectory named 'private'), and
-        return it.
-        """
-        privname = os.path.join(self.basedir, "private", name)
-        with open(privname, "w") as f:
-            f.write(value)
-
-    def get_private_config(self, name, default=_None):
-        """Read the (string) contents of a private config file (which is a
-        config file that resides within the subdirectory named 'private'),
-        and return it. Return a default, or raise an error if one was not
-        given.
-        """
-        privname = os.path.join(self.basedir, "private", name)
-        try:
-            return fileutil.read(privname).strip()
-        except EnvironmentError:
-            if os.path.exists(privname):
-                raise
-            if default is _None:
-                raise MissingConfigEntry("The required configuration file %s is missing."
-                                         % (quote_output(privname),))
-            return default
-
-    def get_or_create_private_config(self, name, default=_None):
-        """Try to get the (string) contents of a private config file (which
-        is a config file that resides within the subdirectory named
-        'private'), and return it. Any leading or trailing whitespace will be
-        stripped from the data.
-
-        If the file does not exist, and default is not given, report an error.
-        If the file does not exist and a default is specified, try to create
-        it using that default, and then return the value that was written.
-        If 'default' is a string, use it as a default value. If not, treat it
-        as a zero-argument callable that is expected to return a string.
-        """
-        privname = os.path.join(self.basedir, "private", name)
-        try:
-            value = fileutil.read(privname)
-        except EnvironmentError:
-            if os.path.exists(privname):
-                raise
-            if default is _None:
-                raise MissingConfigEntry("The required configuration file %s is missing."
-                                         % (quote_output(privname),))
-            if isinstance(default, basestring):
-                value = default
-            else:
-                value = default()
-            fileutil.write(privname, value)
-        return value.strip()
-
-    def write_config(self, name, value, mode="w"):
-        """Write a string to a config file."""
-        fn = os.path.join(self.basedir, name)
-        try:
-            fileutil.write(fn, value, mode)
-        except EnvironmentError, e:
-            self.log("Unable to write config file '%s'" % fn)
-            self.log(e)
-
     def startService(self):
         # Note: this class can be started and stopped at most once.
         self.log("Node.startService")
@@ -658,7 +728,7 @@ class Node(service.MultiService):
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
-        lgfurl_file = os.path.join(self.basedir, "private", "logport.furl").encode(get_filesystem_encoding())
+        lgfurl_file = self.config.get_private_path("logport.furl").encode(get_filesystem_encoding())
         if os.path.exists(lgfurl_file):
             os.remove(lgfurl_file)
         self.log_tub.setOption("logport-furlfile", lgfurl_file)
@@ -667,9 +737,9 @@ class Node(service.MultiService):
             # this is in addition to the contents of log-gatherer-furlfile
             self.log_tub.setOption("log-gatherer-furl", lgfurl)
         self.log_tub.setOption("log-gatherer-furlfile",
-                               os.path.join(self.basedir, "log_gatherer.furl"))
+                               self.config.get_config_path("log_gatherer.furl"))
 
-        incident_dir = os.path.join(self.basedir, "logs", "incidents")
+        incident_dir = self.config.get_config_path("logs", "incidents")
         foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
         twlog.msg("Foolscap logging initialized")
         twlog.msg("Note to developers: twistd.log does not receive very much.")

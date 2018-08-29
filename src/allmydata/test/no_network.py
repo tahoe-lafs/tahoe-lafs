@@ -26,7 +26,8 @@ import treq
 from allmydata.util.assertutil import _assert
 
 from allmydata import uri as tahoe_uri
-from allmydata.client import _Client, _valid_config_sections
+from allmydata.client import _Client
+from allmydata.client import create_client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
@@ -184,12 +185,8 @@ class NoNetworkStorageBroker(object):
         return []  # FIXME?
 
 
-def NoNetworkClient(basedir):
-    # XXX FIXME this is just to avoid massive search-replace for now;
-    # should be create_nonetwork_client() or something...
-    from allmydata.node import read_config
-    config = read_config(basedir, u'client.port', _valid_config_sections=_valid_config_sections)
-    return _NoNetworkClient(config, basedir=basedir)
+def create_no_network_client(basedir):
+    return create_client(basedir, _client_factory=_NoNetworkClient)
 
 
 class _NoNetworkClient(_Client):
@@ -292,7 +289,7 @@ class NoNetworkGrid(service.MultiService):
             c = self.client_config_hooks[i](clientdir)
 
         if not c:
-            c = NoNetworkClient(clientdir)
+            c = create_no_network_client(clientdir)
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
         c.nodeid = clientid
@@ -400,11 +397,13 @@ class GridTestMixin:
         self.client_baseurls = [c.getServiceNamed("webish").getURL()
                                 for c in self.g.clients]
 
-    def get_clientdir(self, i=0):
-        return self.g.clients[i].basedir
+    def get_client_config(self, i=0):
+        return self.g.clients[i].config
 
-    def set_clientdir(self, basedir, i=0):
-        self.g.clients[i].basedir = basedir
+    def get_clientdir(self, i=0):
+        # ideally, use something get_client_config() only, we
+        # shouldn't need to manipulate raw paths..
+        return self.get_client_config(i).get_config_path()
 
     def get_client(self, i=0):
         return self.g.clients[i]

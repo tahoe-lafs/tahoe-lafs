@@ -2,12 +2,13 @@ import os, sys
 import twisted
 from twisted.trial import unittest
 from twisted.application import service
+import mock
 
 import allmydata
 import allmydata.frontends.magic_folder
 import allmydata.util.log
 
-from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, read_config
+from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, read_config, create_node_dir
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
@@ -212,6 +213,22 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            "reserved_space = bogus\n")
         self.failUnlessRaises(ValueError, client.create_client, basedir)
 
+    def test_web_apiauthtoken(self):
+        """
+        Client loads the proper API auth token from disk
+        """
+        basedir = u"client.Basic.test_web_apiauthtoken"
+        create_node_dir(basedir, "testing")
+
+        c = client.create_client(basedir)
+        # this must come after we create the client, as it will create
+        # a new, random authtoken itself
+        with open(os.path.join(basedir, "private", "api_auth_token"), "w") as f:
+            f.write("deadbeef")
+
+        token = c.get_auth_token()
+        self.assertEqual("deadbeef", token)
+
     def test_web_staticdir(self):
         basedir = u"client.Basic.test_web_staticdir"
         os.mkdir(basedir)
@@ -227,6 +244,24 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnlessReallyEqual(w.staticdir, expected)
 
     # TODO: also test config options for SFTP.
+
+    def test_ftp_create(self):
+        """
+        configuration for sftpd results in it being started
+        """
+        basedir = u"client.Basic.test_ftp_create"
+        create_node_dir(basedir, "testing")
+        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
+            f.write(
+                '[sftpd]\n'
+                'enabled = true\n'
+                'accounts.file = foo\n'
+                'host_pubkey_file = pubkey\n'
+                'host_privkey_file = privkey\n'
+            )
+        with mock.patch('allmydata.frontends.sftpd.SFTPServer') as p:
+            client.create_client(basedir)
+        self.assertTrue(p.called)
 
     def test_ftp_auth_keyfile(self):
         basedir = u"client.Basic.test_ftp_auth_keyfile"
