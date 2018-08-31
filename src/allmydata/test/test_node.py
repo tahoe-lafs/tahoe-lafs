@@ -41,6 +41,9 @@ class LoggingMultiService(service.MultiService):
 
 
 def testing_tub(config_data=''):
+    """
+    Creates a 'main' Tub for testing purposes, from config data
+    """
     from twisted.internet import reactor
     basedir = 'dummy_basedir'
     config = config_from_string(basedir, 'DEFAULT_PORTNUMFILE_BLANK', config_data)
