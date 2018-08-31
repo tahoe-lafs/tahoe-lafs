@@ -222,6 +222,13 @@ class INotify(PollMixin):
             self._pending_call.cancel()
             self._pending_call = None
 
+    def loseConnection(self):
+        """
+        the Twisted inotify implementation is a Protocol; imitate that
+        here.
+        """
+        pass
+
     def wait_until_stopped(self):
         try:
             fileutil.write(os.path.join(self._path.path, u".ignore-me"), "")
