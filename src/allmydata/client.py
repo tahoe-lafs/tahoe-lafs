@@ -1,6 +1,7 @@
 import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
+from errno import ENOENT
 
 from zope.interface import implementer
 from twisted.internet import reactor, defer
