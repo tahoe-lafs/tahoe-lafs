@@ -622,6 +622,7 @@ class ClientNotListening(unittest.TestCase):
         n = yield client.create_client(basedir)
         self.assertEqual(n.tub.getListeners(), [])
 
+    @defer.inlineCallbacks
     def test_disabled_but_storage(self):
         basedir = "test_node/test_disabled_but_storage"
         create_node_dir(basedir, "testing")
@@ -630,9 +631,14 @@ class ClientNotListening(unittest.TestCase):
         f.write(NOLISTEN)
         f.write(ENABLE_STORAGE)
         f.close()
-        e = self.assertRaises(ValueError, client.create_client, basedir)
-        self.assertIn("storage is enabled, but tub is not listening", str(e))
+        with self.assertRaises(ValueError) as ctx:
+            yield client.create_client(basedir)
+        self.assertIn(
+            "storage is enabled, but tub is not listening",
+            str(ctx.exception),
+        )
 
+    @defer.inlineCallbacks
     def test_disabled_but_helper(self):
         basedir = "test_node/test_disabled_but_helper"
         create_node_dir(basedir, "testing")
@@ -642,10 +648,16 @@ class ClientNotListening(unittest.TestCase):
         f.write(DISABLE_STORAGE)
         f.write(ENABLE_HELPER)
         f.close()
-        e = self.assertRaises(ValueError, client.create_client, basedir)
-        self.assertIn("helper is enabled, but tub is not listening", str(e))
+        with self.assertRaises(ValueError) as ctx:
+            yield client.create_client(basedir)
+        self.assertIn(
+            "helper is enabled, but tub is not listening",
+            str(ctx.exception),
+        )
 
 class IntroducerNotListening(unittest.TestCase):
+
+    @defer.inlineCallbacks
     def test_port_none_introducer(self):
         basedir = "test_node/test_port_none_introducer"
         create_node_dir(basedir, "testing")
@@ -653,8 +665,12 @@ class IntroducerNotListening(unittest.TestCase):
             f.write("[node]\n")
             f.write("tub.port = disabled\n")
             f.write("tub.location = disabled\n")
-        e = self.assertRaises(ValueError, create_introducer, basedir)
-        self.assertIn("we are Introducer, but tub is not listening", str(e))
+        with self.assertRaises(ValueError) as ctx:
+            yield create_introducer(basedir)
+        self.assertIn(
+            "we are Introducer, but tub is not listening",
+            str(ctx.exception),
+        )
 
 class Configuration(unittest.TestCase):
 
@@ -679,6 +695,7 @@ class Configuration(unittest.TestCase):
             str(ctx.exception),
         )
 
+    @defer.inlineCallbacks
     def test_create_client_invalid_config(self):
         with open(os.path.join(self.basedir, 'tahoe.cfg'), 'w') as f:
             f.write(
@@ -686,7 +703,7 @@ class Configuration(unittest.TestCase):
                 'foo = bar\n'
             )
         with self.assertRaises(UnknownConfigError) as ctx:
-            client.create_client(self.basedir)
+            yield client.create_client(self.basedir)
 
         self.assertIn(
             "invalid section",
