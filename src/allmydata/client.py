@@ -7,6 +7,7 @@ from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
+from twisted.python.failure import Failure
 from pycryptopp.publickey import rsa
 
 import allmydata
@@ -196,20 +197,20 @@ def create_client(basedir=u".", _client_factory=None):
         instance of :class:`allmydata.node.Node` (or a subclass). By default
         this is :class:`allmydata.client._Client`
 
-    :returns: :class:`allmydata.client._Client` instance (or whatever
-        `_client_factory` returns)
+    :returns: Deferred yielding an instance of :class:`allmydata.client._Client`
     """
-    node.create_node_dir(basedir, CLIENT_README)
-    config = read_config(basedir, u"client.port")
-    # following call is async
-    return create_client_from_config(
-        config,
-        _client_factory=_client_factory,
-    )
+    try:
+        node.create_node_dir(basedir, CLIENT_README)
+        config = read_config(basedir, u"client.port")
+        # following call is async
+        return create_client_from_config(
+            config,
+            _client_factory=_client_factory,
+        )
+    except Exception:
+        return Failure()
 
 
-# this method is async
-# @defer.inlineCallbacks
 def create_client_from_config(config, _client_factory=None):
     """
     Creates a new client instance (a subclass of Node).  Most code
@@ -223,42 +224,45 @@ def create_client_from_config(config, _client_factory=None):
     :param _client_factory: for testing; the class to instantiate
         instead of _Client
     """
-    if _client_factory is None:
-        _client_factory = _Client
+    try:
+        if _client_factory is None:
+            _client_factory = _Client
 
-    i2p_provider = create_i2p_provider(reactor, config)
-    tor_provider = create_tor_provider(reactor, config)
-    handlers = node.create_connection_handlers(reactor, config, i2p_provider, tor_provider)
-    default_connection_handlers, foolscap_connection_handlers = handlers
-    tub_options = node.create_tub_options(config)
+        i2p_provider = create_i2p_provider(reactor, config)
+        tor_provider = create_tor_provider(reactor, config)
+        handlers = node.create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+        default_connection_handlers, foolscap_connection_handlers = handlers
+        tub_options = node.create_tub_options(config)
 
-    main_tub = node.create_main_tub(
-        config, tub_options, default_connection_handlers,
-        foolscap_connection_handlers, i2p_provider, tor_provider,
-    )
-    control_tub = node.create_control_tub()
+        main_tub = node.create_main_tub(
+            config, tub_options, default_connection_handlers,
+            foolscap_connection_handlers, i2p_provider, tor_provider,
+        )
+        control_tub = node.create_control_tub()
 
-    introducer_clients = create_introducer_clients(config, main_tub)
-    storage_broker = create_storage_farm_broker(
-        config, default_connection_handlers, foolscap_connection_handlers,
-        tub_options, introducer_clients
-    )
+        introducer_clients = create_introducer_clients(config, main_tub)
+        storage_broker = create_storage_farm_broker(
+            config, default_connection_handlers, foolscap_connection_handlers,
+            tub_options, introducer_clients
+        )
 
-    client = _client_factory(
-        config,
-        main_tub,
-        control_tub,
-        i2p_provider,
-        tor_provider,
-        introducer_clients,
-        storage_broker,
-    )
-    i2p_provider.setServiceParent(client)
-    tor_provider.setServiceParent(client)
-    for ic in introducer_clients:
-        ic.setServiceParent(client)
-    storage_broker.setServiceParent(client)
-    return defer.succeed(client)
+        client = _client_factory(
+            config,
+            main_tub,
+            control_tub,
+            i2p_provider,
+            tor_provider,
+            introducer_clients,
+            storage_broker,
+        )
+        i2p_provider.setServiceParent(client)
+        tor_provider.setServiceParent(client)
+        for ic in introducer_clients:
+            ic.setServiceParent(client)
+        storage_broker.setServiceParent(client)
+        return defer.succeed(client)
+    except Exception:
+        return Failure()
 
 
 def _sequencer(config):

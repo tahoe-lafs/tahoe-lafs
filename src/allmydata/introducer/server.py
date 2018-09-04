@@ -3,6 +3,7 @@ import time, os.path, textwrap
 from zope.interface import implementer
 from twisted.application import service
 from twisted.internet import defer
+from twisted.python.failure import Failure
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
@@ -37,45 +38,49 @@ def _valid_config_sections():
 class FurlFileConflictError(Exception):
     pass
 
-# this is/can-be async
-# @defer.inlineCallbacks
 def create_introducer(basedir=u"."):
-    # ideally we would pass in reactor
-    from twisted.internet import reactor
+    """
+    :returns: a Deferred that yields a new _IntroducerNode instance
+    """
+    try:
+        # see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2946
+        from twisted.internet import reactor
 
-    if not os.path.exists(basedir):
-        create_node_dir(basedir, INTRODUCER_README)
+        if not os.path.exists(basedir):
+            create_node_dir(basedir, INTRODUCER_README)
 
-    config = read_config(
-        basedir, u"client.port",
-        generated_files=["introducer.furl"],
-        _valid_config_sections=_valid_config_sections,
-    )
+        config = read_config(
+            basedir, u"client.port",
+            generated_files=["introducer.furl"],
+            _valid_config_sections=_valid_config_sections,
+        )
 
-    i2p_provider = create_i2p_provider(reactor, config)
-    tor_provider = create_tor_provider(reactor, config)
+        i2p_provider = create_i2p_provider(reactor, config)
+        tor_provider = create_tor_provider(reactor, config)
 
-    default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
-    tub_options = create_tub_options(config)
+        default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+        tub_options = create_tub_options(config)
 
-    # we don't remember these because the Introducer doesn't make
-    # outbound connections.
-    i2p_provider = None
-    tor_provider = None
-    main_tub = create_main_tub(
-        config, tub_options, default_connection_handlers,
-        foolscap_connection_handlers, i2p_provider, tor_provider,
-    )
-    control_tub = create_control_tub()
+        # we don't remember these because the Introducer doesn't make
+        # outbound connections.
+        i2p_provider = None
+        tor_provider = None
+        main_tub = create_main_tub(
+            config, tub_options, default_connection_handlers,
+            foolscap_connection_handlers, i2p_provider, tor_provider,
+        )
+        control_tub = create_control_tub()
 
-    node = _IntroducerNode(
-        config,
-        main_tub,
-        control_tub,
-        i2p_provider,
-        tor_provider,
-    )
-    return defer.succeed(node)
+        node = _IntroducerNode(
+            config,
+            main_tub,
+            control_tub,
+            i2p_provider,
+            tor_provider,
+        )
+        return defer.succeed(node)
+    except Exception:
+        return Failure()
 
 
 class _IntroducerNode(node.Node):
