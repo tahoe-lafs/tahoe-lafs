@@ -359,12 +359,12 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     ps = config.get_config("client", "peers.preferred", "").split(",")
     preferred_peers = tuple([p.strip() for p in ps if p != ""])
 
-    def tub_creator(handler_overrides={}, **kwargs):
+    def tub_creator(handler_overrides=None, **kwargs):
         return node.create_tub(
             tub_options,
             default_connection_handlers,
             foolscap_connection_handlers,
-            handler_overrides=handler_overrides,
+            handler_overrides=handler_overrides or {},
             **kwargs
         )
 
