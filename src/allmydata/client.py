@@ -336,7 +336,6 @@ def create_introducer_clients(config, main_tub):
             introducer_cache_filepath,
         )
         introducer_clients.append(ic)
-        # introducer_furls.append(introducer['furl'])
     return introducer_clients
 
 
