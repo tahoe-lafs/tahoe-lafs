@@ -185,8 +185,6 @@ def read_config(basedir, portnumfile, generated_files=[]):
     )
 
 
-# this method is async
-# @defer.inlineCallbacks
 def create_client(basedir=u".", _client_factory=None):
     """
     Creates a new client instance (a subclass of Node).
@@ -268,13 +266,13 @@ def create_client_from_config(config, _client_factory=None):
 def _sequencer(config):
     """
     :returns: a 2-tuple consisting of a new announcement
-        sequence-number and (random) nonce. Reads and re-writes
-        configuration file "announcement-seqnum", starting at 1 if that
-        file doesn't exist.
+        sequence-number and random nonce (int, unicode). Reads and
+        re-writes configuration file "announcement-seqnum" (starting at 1
+        if that file doesn't exist).
     """
     seqnum_s = config.get_config_from_file("announcement-seqnum")
     if not seqnum_s:
-        seqnum_s = "0"
+        seqnum_s = u"0"
     seqnum = int(seqnum_s.strip())
     seqnum += 1  # increment
     config.write_config_file("announcement-seqnum", "{}\n".format(seqnum))
