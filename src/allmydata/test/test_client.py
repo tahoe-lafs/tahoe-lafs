@@ -39,6 +39,22 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         return client.create_client(basedir)
 
     @defer.inlineCallbacks
+    def test_unreadable_introducers(self):
+        """
+        An error when private/introducers.yaml is unreadable (but exists)
+        """
+        basedir = "test_client.Basic.test_unreadable_introduers"
+        os.mkdir(basedir, 0o700)
+        os.mkdir(os.path.join(basedir, 'private'), 0o700)
+        intro_fname = os.path.join(basedir, 'private', 'introducers.yaml')
+        with open(intro_fname, 'w') as f:
+            f.write("---\n")
+        os.chmod(intro_fname, 0o000)
+
+        with self.assertRaises(EnvironmentError):
+            yield client.create_client(basedir)
+
+    @defer.inlineCallbacks
     def test_comment(self):
         """
         test using common comment-character in furls
