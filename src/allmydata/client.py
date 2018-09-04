@@ -301,7 +301,9 @@ def create_introducer_clients(config, main_tub):
                     len(introducers),
                 )
             )
-    except EnvironmentError:
+    except EnvironmentError as e:
+        if e.errno != ENOENT:
+            raise
         introducers = {}
 
     if "default" in introducers.keys():
