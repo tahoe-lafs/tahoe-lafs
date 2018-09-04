@@ -416,8 +416,8 @@ def create_tub_options(config):
         overriding defaults with appropriate config from `config`
         instance.
     """
-    # XXX this is code moved from Node -- but why are some options
-    # camelCase and some snake_case? can we FIXME?
+    # We can't unify the camelCase vs. dashed-name divide here,
+    # because these are options for Foolscap
     tub_options = {
         "logLocalFailures": True,
         "logRemoteFailures": True,
