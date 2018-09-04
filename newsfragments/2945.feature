@@ -1,0 +1,1 @@
+Improve testing of magic-folders' .backup files with Hypothesis-based tests.
