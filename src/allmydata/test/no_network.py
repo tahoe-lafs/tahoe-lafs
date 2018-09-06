@@ -205,8 +205,8 @@ def create_no_network_client(basedir):
         introducer_clients=[],
         storage_farm_broker=storage_broker,
     )
-    # XXX we should probably make a way to pass this in instead of
-    # changing it later.. also, a reference-cycle (but, existed before :/)
+    # this is a (pre-existing) reference-cycle and also a bad idea, see:
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2949
     storage_broker.client = client
     return defer.succeed(client)
 
