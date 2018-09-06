@@ -59,7 +59,8 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
     @defer.inlineCallbacks
     def test_comment(self):
         """
-        test using common comment-character in furls
+        An unescaped comment character (#) in a furl results in an
+        UnescapedHashError Failure.
         """
         should_fail = [r"test#test", r"#testtest", r"test\\#test"]
         should_not_fail = [r"test\#test", r"test\\\#test", r"testtest"]
