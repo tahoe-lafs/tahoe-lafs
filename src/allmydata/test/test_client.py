@@ -41,7 +41,8 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
     @defer.inlineCallbacks
     def test_unreadable_introducers(self):
         """
-        An error when private/introducers.yaml is unreadable (but exists)
+        The Deferred from create_client fails when
+        private/introducers.yaml is unreadable (but exists)
         """
         basedir = "test_client.Basic.test_unreadable_introduers"
         os.mkdir(basedir, 0o700)
@@ -53,6 +54,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         with self.assertRaises(EnvironmentError):
             yield client.create_client(basedir)
+        os.chmod(intro_fname, 0o700)
 
     @defer.inlineCallbacks
     def test_comment(self):
