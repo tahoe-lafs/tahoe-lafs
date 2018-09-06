@@ -648,7 +648,8 @@ class IntroducerClients(unittest.TestCase):
 
     def test_invalid_introducer_furl(self):
         """
-        An introducer.furl of 'None' is invalid
+        An introducer.furl of 'None' is invalid and causes
+        create_introducer_clients to fail.
         """
         cfg = (
             "[client]\n"
