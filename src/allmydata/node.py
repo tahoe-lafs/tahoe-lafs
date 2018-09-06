@@ -721,16 +721,16 @@ class Node(service.MultiService):
 
         self.tub = main_tub
         if self.tub is not None:
-            self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
-            self.short_nodeid = b32encode(self.nodeid).lower()[:8] # for printing
+            self.nodeid = b32decode(self.tub.tubID.upper())  # binary format
+            self.short_nodeid = b32encode(self.nodeid).lower()[:8]  # for printing
             self.config.write_config_file("my_nodeid", b32encode(self.nodeid).lower() + "\n")
-            self.tub.setServiceParent(self)  # is this okay in __init__?
+            self.tub.setServiceParent(self)
         else:
             self.nodeid = self.short_nodeid = None
 
         self.control_tub = control_tub
         if self.control_tub is not None:
-            self.control_tub.setServiceParent(self)  # is this okay in __init__?
+            self.control_tub.setServiceParent(self)
 
         self.log("Node constructed. " + get_package_versions_string())
         iputil.increase_rlimits()
