@@ -365,7 +365,7 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
             tub_options,
             default_connection_handlers,
             foolscap_connection_handlers,
-            handler_overrides=handler_overrides or {},
+            handler_overrides={} if handler_overrides is None else handler_overrides,
             **kwargs
         )
 
