@@ -40,6 +40,7 @@ class LoggingMultiService(service.MultiService):
         pass
 
 
+# see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2946
 def testing_tub(config_data=''):
     """
     Creates a 'main' Tub for testing purposes, from config data
