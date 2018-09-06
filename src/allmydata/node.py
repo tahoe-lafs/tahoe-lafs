@@ -758,7 +758,8 @@ class Node(service.MultiService):
         _assert(os.path.dirname(test_name) == tempdir, test_name, tempdir)
         os.close(temp_fd)  # avoid leak of unneeded fd
 
-    # XXX probably want to pull this outside too?
+    # pull this outside of Node's __init__ too, see:
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2948
     def create_log_tub(self):
         # The logport uses a localhost-only ephemeral Tub, with no control
         # over the listening port or location. This might change if we
