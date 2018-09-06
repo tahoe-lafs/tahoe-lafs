@@ -566,7 +566,7 @@ def _tub_portlocation(config):
 
     if cfg_tubport is None:
         # For 'tub.port', tahoe.cfg overrides the individual file on
-        # disk. So only read self._portnumfile if tahoe.cfg doesn't
+        # disk. So only read config.portnum_fname if tahoe.cfg doesn't
         # provide a value.
         if os.path.exists(config.portnum_fname):
             file_tubport = fileutil.read(config.portnum_fname).strip()
