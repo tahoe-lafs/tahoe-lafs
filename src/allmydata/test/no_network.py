@@ -286,9 +286,10 @@ class NoNetworkGrid(service.MultiService):
         self.rebuild_serverlist()
 
         for i in range(num_clients):
-            c = self.make_client(i)
-            self.clients.append(c)
+            d = self.make_client(i)
+            d.addCallback(lambda c: self.clients.append(c))
 
+    @defer.inlineCallbacks
     def make_client(self, i, write_config=True):
         clientid = hashutil.tagged_hash("clientid", str(i))[:20]
         clientdir = os.path.join(self.basedir, "clients",
@@ -314,16 +315,14 @@ class NoNetworkGrid(service.MultiService):
             c = self.client_config_hooks[i](clientdir)
 
         if not c:
-            d0 = create_no_network_client(clientdir)
-            assert d0.called
-            c = d0.result
+            c = yield create_no_network_client(clientdir)
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
         c.nodeid = clientid
         c.short_nodeid = b32encode(clientid).lower()[:8]
         c._servers = self.all_servers # can be updated later
         c.setServiceParent(self)
-        return c
+        defer.returnValue(c)
 
     def make_server(self, i, readonly=False):
         serverid = hashutil.tagged_hash("serverid", str(i))[:20]
@@ -439,8 +438,10 @@ class GridTestMixin:
         client = self.g.clients[i]
         d = defer.succeed(None)
         d.addCallback(lambda ign: self.g.removeService(client))
+
+        @defer.inlineCallbacks
         def _make_client(ign):
-            c = self.g.make_client(i, write_config=False)
+            c = yield self.g.make_client(i, write_config=False)
             self.g.clients[i] = c
             self._record_webports_and_baseurls()
         d.addCallback(_make_client)
