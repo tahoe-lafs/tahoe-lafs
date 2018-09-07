@@ -296,6 +296,8 @@ def create_introducer_clients(config, main_tub):
     try:
         with introducers_filepath.open() as f:
             introducers_yaml = yamlutil.safe_load(f)
+            if introducers_yaml is None:
+                introducers_yaml = {}
             introducers = introducers_yaml.get("introducers", {})
             log.msg(
                 "found {} introducers in private/introducers.yaml".format(
