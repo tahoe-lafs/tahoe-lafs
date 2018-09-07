@@ -438,6 +438,9 @@ class Provider_CheckOnionConfig(unittest.TestCase):
             )
 
     def test_no_launch_no_control(self):
+        """
+        onion=true but no way to launch/connect to tor
+        """
         with self.assertRaises(ValueError) as ctx:
             tor_provider.create("reactor", FakeConfig(onion=True))
         self.assertEqual(
@@ -446,7 +449,10 @@ class Provider_CheckOnionConfig(unittest.TestCase):
             "launch=true nor control.port="
         )
 
-    def test_missing_keys0(self):
+    def test_onion_no_local_port(self):
+        """
+        onion=true but no local_port configured is an error
+        """
         with self.assertRaises(ValueError) as ctx:
             tor_provider.create("reactor", FakeConfig(onion=True, launch=True))
         self.assertEqual(
@@ -455,7 +461,10 @@ class Provider_CheckOnionConfig(unittest.TestCase):
             "but onion.local_port= is missing"
         )
 
-    def test_missing_keys1(self):
+    def test_onion_no_external_port(self):
+        """
+        onion=true but no external_port configured is an error
+        """
         with self.assertRaises(ValueError) as ctx:
             tor_provider.create("reactor",
                                 FakeConfig(onion=True, launch=True,
@@ -466,7 +475,10 @@ class Provider_CheckOnionConfig(unittest.TestCase):
             "[tor] onion = true, but onion.external_port= is missing"
         )
 
-    def test_missing_keys2(self):
+    def test_onion_no_private_key_file(self):
+        """
+        onion=true but no private_key_file configured is an error
+        """
         with self.assertRaises(ValueError) as ctx:
             tor_provider.create("reactor",
                                 FakeConfig(onion=True, launch=True,
@@ -486,6 +498,7 @@ class Provider_CheckOnionConfig(unittest.TestCase):
                                               "onion.private_key_file": "z",
                                            }))
         p.check_onion_config()
+
 
 class Provider_Service(unittest.TestCase):
     def test_no_onion(self):

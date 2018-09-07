@@ -535,7 +535,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         s.setServiceParent(self.sparent)
         return s
 
-    # @inlineCallbacks
     def _create_introducer(self):
         """
         :returns: (via Deferred) an Introducer instance
