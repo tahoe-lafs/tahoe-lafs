@@ -51,10 +51,10 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         with open(intro_fname, 'w') as f:
             f.write("---\n")
         os.chmod(intro_fname, 0o000)
+        self.addCleanup(lambda: os.chmod(intro_fname, 0o700))
 
         with self.assertRaises(EnvironmentError):
             yield client.create_client(basedir)
-        os.chmod(intro_fname, 0o700)
 
     @defer.inlineCallbacks
     def test_comment(self):
