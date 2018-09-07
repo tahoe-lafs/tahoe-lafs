@@ -606,7 +606,13 @@ class Listeners(unittest.TestCase):
 
         self.assertEqual(i2p_provider.get_listener.mock_calls, [mock.call()])
         self.assertEqual(tor_provider.get_listener.mock_calls, [mock.call()])
-##        self.assertEqual(t.listening_ports, [i2p_ep, tor_ep])
+        self.assertEqual(
+            t.listening_ports,
+            [
+                i2p_provider.get_listener(),
+                tor_provider.get_listener(),
+            ]
+        )
 
 
 class ClientNotListening(unittest.TestCase):
