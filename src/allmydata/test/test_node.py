@@ -15,15 +15,17 @@ from foolscap.api import flushEventualQueue
 import foolscap.logging.log
 
 from twisted.application import service
-from allmydata.node import create_tub_options
-from allmydata.node import create_main_tub
-from allmydata.node import create_node_dir
-from allmydata.node import create_connection_handlers
-from allmydata.node import config_from_string
-from allmydata.node import read_config
-from allmydata.node import MissingConfigEntry
-from allmydata.node import _tub_portlocation
-from allmydata.node import formatTimeTahoeStyle
+from allmydata.node import (
+    create_tub_options,
+    create_main_tub,
+    create_node_dir,
+    create_connection_handlers,
+    config_from_string,
+    read_config,
+    MissingConfigEntry,
+    _tub_portlocation,
+    formatTimeTahoeStyle,
+)
 from allmydata.introducer.server import create_introducer
 from allmydata import client
 
