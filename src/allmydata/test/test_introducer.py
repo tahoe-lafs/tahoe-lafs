@@ -59,13 +59,18 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
 
     def test_introducer_clients_unloadable(self):
         """
-        If introducers.yaml exists but we can't read it for some reason
-        we'll ignore it.
+        Error if introducers.yaml exists but we can't read it
         """
-        basedir = "introducer.IntroducerNode.test_introducer_clients_unloadable"
+        basedir = u"introducer.IntroducerNode.test_introducer_clients_unloadable"
         os.mkdir(basedir)
+        os.mkdir(os.path.join(basedir, u"private"))
+        yaml_fname = os.path.join(basedir, u"private", u"introducers.yaml")
+        with open(yaml_fname, 'w') as f:
+            f.write(u'---\n')
+        os.chmod(yaml_fname, 0o000)
+        self.addCleanup(lambda: os.chmod(yaml_fname, 0o700))
         # just mocking the yaml failure, as "yamlutil.safe_load" only
-        # returns None on some platforms
+        # returns None on some platforms for unreadable files
 
         with patch("allmydata.client.yamlutil") as p:
             p.safe_load = Mock(return_value=None)
@@ -73,8 +78,8 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
             fake_tub = Mock()
             config = read_config(basedir, "portnum")
 
-            ic = create_introducer_clients(config, fake_tub)
-        self.assertEqual([], ic)
+            with self.assertRaises(EnvironmentError) as ctx:
+                create_introducer_clients(config, fake_tub)
 
     @defer.inlineCallbacks
     def test_furl(self):

@@ -1,7 +1,7 @@
 import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
-from errno import ENOENT
+from errno import ENOENT, EPERM
 
 from zope.interface import implementer
 from twisted.internet import reactor, defer
@@ -297,7 +297,11 @@ def create_introducer_clients(config, main_tub):
         with introducers_filepath.open() as f:
             introducers_yaml = yamlutil.safe_load(f)
             if introducers_yaml is None:
-                introducers_yaml = {}
+                raise EnvironmentError(
+                    EPERM,
+                    "Can't read '{}'".format(introducers_yaml_filename),
+                    introducers_yaml_filename,
+                )
             introducers = introducers_yaml.get("introducers", {})
             log.msg(
                 "found {} introducers in private/introducers.yaml".format(
