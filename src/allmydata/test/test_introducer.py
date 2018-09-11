@@ -3,6 +3,7 @@ import os, re, itertools
 from base64 import b32decode
 import json
 from socket import socket, AF_INET
+from mock import Mock, patch
 
 from twisted.trial import unittest
 from twisted.internet import defer, address
@@ -20,11 +21,17 @@ from allmydata.introducer.server import IntroducerService, FurlFileConflictError
 from allmydata.introducer.common import get_tubid_string_from_ann, \
      get_tubid_string, sign_to_foolscap, unsign_from_foolscap, \
      UnknownKeyError
-from allmydata.node import create_node_dir
+from allmydata.node import (
+    create_node_dir,
+    read_config,
+)
 # the "new way" to create introducer node instance
 from allmydata.introducer.server import create_introducer
 from allmydata.web import introweb
-from allmydata.client import create_client
+from allmydata.client import (
+    create_client,
+    create_introducer_clients,
+)
 from allmydata.util import pollmixin, keyutil, idlib, fileutil, iputil, yamlutil
 import allmydata.test.common_util as testutil
 
@@ -49,6 +56,25 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         basedir = "introducer.IntroducerNode.test_create"
         yield create_introducer(basedir)
         self.assertTrue(os.path.exists(basedir))
+
+    def test_introducer_clients_unloadable(self):
+        """
+        If introducers.yaml exists but we can't read it for some reason
+        we'll ignore it.
+        """
+        basedir = "introducer.IntroducerNode.test_introducer_clients_unloadable"
+        os.mkdir(basedir)
+        # just mocking the yaml failure, as "yamlutil.safe_load" only
+        # returns None on some platforms
+
+        with patch("allmydata.client.yamlutil") as p:
+            p.safe_load = Mock(return_value=None)
+
+            fake_tub = Mock()
+            config = read_config(basedir, "portnum")
+
+            ic = create_introducer_clients(config, fake_tub)
+        self.assertEqual([], ic)
 
     @defer.inlineCallbacks
     def test_furl(self):
