@@ -78,7 +78,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
             fake_tub = Mock()
             config = read_config(basedir, "portnum")
 
-            with self.assertRaises(EnvironmentError) as ctx:
+            with self.assertRaises(EnvironmentError):
                 create_introducer_clients(config, fake_tub)
 
     @defer.inlineCallbacks
