@@ -2,14 +2,25 @@
 import time, os.path, textwrap
 from zope.interface import implementer
 from twisted.application import service
+from twisted.internet import defer
+from twisted.python.failure import Failure
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
 from allmydata.util import log, rrefutil
+from allmydata.util.i2p_provider import create as create_i2p_provider
+from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService_v2
 from allmydata.introducer.common import unsign_from_foolscap, \
      SubscriberDescriptor, AnnouncementDescriptor
+from allmydata.node import read_config
+from allmydata.node import create_node_dir
+from allmydata.node import create_connection_handlers
+from allmydata.node import create_control_tub
+from allmydata.node import create_tub_options
+from allmydata.node import create_main_tub
+
 
 # this is put into README in new node-directories
 INTRODUCER_README = """
@@ -27,40 +38,67 @@ def _valid_config_sections():
 class FurlFileConflictError(Exception):
     pass
 
-#@defer.inlineCallbacks
 def create_introducer(basedir=u"."):
-    from allmydata import node
-    if not os.path.exists(basedir):
-        node.create_node_dir(basedir, INTRODUCER_README)
+    """
+    :returns: a Deferred that yields a new _IntroducerNode instance
+    """
+    try:
+        # see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2946
+        from twisted.internet import reactor
 
-    config = node.read_config(
-        basedir, u"client.port",
-        generated_files=["introducer.furl"],
-        _valid_config_sections=_valid_config_sections,
-    )
-    #defer.returnValue(
-    return _IntroducerNode(
-            config,
+        if not os.path.exists(basedir):
+            create_node_dir(basedir, INTRODUCER_README)
+
+        config = read_config(
+            basedir, u"client.port",
+            generated_files=["introducer.furl"],
+            _valid_config_sections=_valid_config_sections,
         )
-    #)
+
+        i2p_provider = create_i2p_provider(reactor, config)
+        tor_provider = create_tor_provider(reactor, config)
+
+        default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+        tub_options = create_tub_options(config)
+
+        # we don't remember these because the Introducer doesn't make
+        # outbound connections.
+        i2p_provider = None
+        tor_provider = None
+        main_tub = create_main_tub(
+            config, tub_options, default_connection_handlers,
+            foolscap_connection_handlers, i2p_provider, tor_provider,
+        )
+        control_tub = create_control_tub()
+
+        node = _IntroducerNode(
+            config,
+            main_tub,
+            control_tub,
+            i2p_provider,
+            tor_provider,
+        )
+        return defer.succeed(node)
+    except Exception:
+        return Failure()
 
 
 class _IntroducerNode(node.Node):
     NODETYPE = "introducer"
 
-    def __init__(self, config):
-        node.Node.__init__(self, config)
+    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider):
+        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
         self.init_introducer()
         webport = self.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
 
     def init_introducer(self):
-        if not self._tub_is_listening:
+        if not self._is_tub_listening():
             raise ValueError("config error: we are Introducer, but tub "
                              "is not listening ('tub.port=' is empty)")
         introducerservice = IntroducerService()
-        self.add_service(introducerservice)
+        introducerservice.setServiceParent(self)
 
         old_public_fn = self.config.get_config_path(u"introducer.furl")
         private_fn = self.config.get_private_path(u"introducer.furl")
@@ -90,7 +128,7 @@ class _IntroducerNode(node.Node):
         config_staticdir = self.get_config("node", "web.static", "public_html").decode('utf-8')
         staticdir = self.config.get_config_path(config_staticdir)
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
-        self.add_service(ws)
+        ws.setServiceParent(self)
 
 @implementer(RIIntroducerPublisherAndSubscriberService_v2)
 class IntroducerService(service.MultiService, Referenceable):

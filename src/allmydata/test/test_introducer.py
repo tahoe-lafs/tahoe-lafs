@@ -3,6 +3,7 @@ import os, re, itertools
 from base64 import b32decode
 import json
 from socket import socket, AF_INET
+from mock import Mock, patch
 
 from twisted.trial import unittest
 from twisted.internet import defer, address
@@ -20,11 +21,17 @@ from allmydata.introducer.server import IntroducerService, FurlFileConflictError
 from allmydata.introducer.common import get_tubid_string_from_ann, \
      get_tubid_string, sign_to_foolscap, unsign_from_foolscap, \
      UnknownKeyError
-from allmydata.node import create_node_dir
+from allmydata.node import (
+    create_node_dir,
+    read_config,
+)
 # the "new way" to create introducer node instance
 from allmydata.introducer.server import create_introducer
 from allmydata.web import introweb
-from allmydata.client import create_client
+from allmydata.client import (
+    create_client,
+    create_introducer_clients,
+)
 from allmydata.util import pollmixin, keyutil, idlib, fileutil, iputil, yamlutil
 import allmydata.test.common_util as testutil
 
@@ -41,21 +48,47 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         from allmydata.introducer import IntroducerNode
         IntroducerNode  # pyflakes
 
+    @defer.inlineCallbacks
     def test_create(self):
         """
         A brand new introducer creates its config dir
         """
         basedir = "introducer.IntroducerNode.test_create"
-        create_introducer(basedir)
+        yield create_introducer(basedir)
         self.assertTrue(os.path.exists(basedir))
 
+    def test_introducer_clients_unloadable(self):
+        """
+        Error if introducers.yaml exists but we can't read it
+        """
+        basedir = u"introducer.IntroducerNode.test_introducer_clients_unloadable"
+        os.mkdir(basedir)
+        os.mkdir(os.path.join(basedir, u"private"))
+        yaml_fname = os.path.join(basedir, u"private", u"introducers.yaml")
+        with open(yaml_fname, 'w') as f:
+            f.write(u'---\n')
+        os.chmod(yaml_fname, 0o000)
+        self.addCleanup(lambda: os.chmod(yaml_fname, 0o700))
+        # just mocking the yaml failure, as "yamlutil.safe_load" only
+        # returns None on some platforms for unreadable files
+
+        with patch("allmydata.client.yamlutil") as p:
+            p.safe_load = Mock(return_value=None)
+
+            fake_tub = Mock()
+            config = read_config(basedir, "portnum")
+
+            with self.assertRaises(EnvironmentError):
+                create_introducer_clients(config, fake_tub)
+
+    @defer.inlineCallbacks
     def test_furl(self):
         basedir = "introducer.IntroducerNode.test_furl"
         create_node_dir(basedir, "testing")
         public_fn = os.path.join(basedir, "introducer.furl")
         private_fn = os.path.join(basedir, "private", "introducer.furl")
 
-        q1 = create_introducer(basedir)
+        q1 = yield create_introducer(basedir)
         del q1
         # new nodes create unguessable furls in private/introducer.furl
         ifurl = fileutil.read(private_fn)
@@ -68,20 +101,21 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(public_fn, guessable+"\n", mode="w") # text
 
         # if we see both files, throw an error
-        self.failUnlessRaises(FurlFileConflictError,
-                              create_introducer, basedir)
+        with self.assertRaises(FurlFileConflictError):
+            yield create_introducer(basedir)
 
         # when we see only the public one, move it to private/ and use
         # the existing furl instead of creating a new one
         os.unlink(private_fn)
 
-        q2 = create_introducer(basedir)
+        q2 = yield create_introducer(basedir)
         del q2
         self.failIf(os.path.exists(public_fn))
         ifurl2 = fileutil.read(private_fn)
         self.failUnless(ifurl2)
         self.failUnlessEqual(ifurl2.strip(), guessable)
 
+    @defer.inlineCallbacks
     def test_web_static(self):
         basedir = u"introducer.Node.test_web_static"
         create_node_dir(basedir, "testing")
@@ -89,7 +123,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
                        "[node]\n" +
                        "web.port = tcp:0:interface=127.0.0.1\n" +
                        "web.static = relative\n")
-        c = create_introducer(basedir)
+        c = yield create_introducer(basedir)
         w = c.getServiceNamed("webish")
         abs_basedir = fileutil.abspath_expanduser_unicode(basedir)
         expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
@@ -812,7 +846,7 @@ class Announcements(unittest.TestCase):
         f.write("enabled = false\n")
         f.close()
 
-        c = create_client(basedir)
+        c = yield create_client(basedir)
         ic = c.introducer_clients[0]
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -880,13 +914,15 @@ class Announcements(unittest.TestCase):
         self.failUnlessEqual(announcements[pub2]["anonymous-storage-FURL"],
                              furl3)
 
-        c2 = create_client(basedir)
+        c2 = yield create_client(basedir)
         c2.introducer_clients[0]._load_announcements()
         yield flushEventualQueue()
         self.assertEqual(c2.storage_broker.get_all_serverids(),
                          frozenset([pub1, pub2]))
 
 class ClientSeqnums(unittest.TestCase):
+
+    @defer.inlineCallbacks
     def test_client(self):
         basedir = "introducer/ClientSeqnums/test_client"
         fileutil.make_dirs(basedir)
@@ -901,7 +937,7 @@ class ClientSeqnums(unittest.TestCase):
         f.write("enabled = false\n")
         f.close()
 
-        c = create_client(basedir)
+        c = yield create_client(basedir)
         ic = c.introducer_clients[0]
         outbound = ic._outbound_announcements
         published = ic._published_announcements

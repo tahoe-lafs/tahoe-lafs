@@ -7,6 +7,22 @@ from twisted.internet.endpoints import clientFromString
 from twisted.internet.error import ConnectionRefusedError, ConnectError
 from twisted.application import service
 
+
+def create(reactor, config):
+    """
+    Create a new Provider service (this is an IService so must be
+    hooked up to a parent or otherwise started).
+
+    If foolscap.connections.i2p or txi2p are not installed, then
+    Provider.get_i2p_handler() will return None. If 'tahoe.cfg' wants
+    to start an I2P Destination too, then this `create()` method will
+    throw a nice error (and startService will throw an ugly error).
+    """
+    provider = _Provider(config, reactor)
+    provider.check_dest_config()
+    return provider
+
+
 def _import_i2p():
     # this exists to be overridden by unit tests
     try:
@@ -118,12 +134,8 @@ def create_config(reactor, cli_config):
 
     returnValue((tahoe_config_i2p, i2p_port, i2p_location))
 
-# we can always create a Provider. If foolscap.connections.i2p or txi2p
-# are not installed, then get_i2p_handler() will return None. If tahoe.cfg
-# wants to start an I2P Destination too, then check_dest_config() will throw
-# a nice error, and startService will throw an ugly error.
 
-class Provider(service.MultiService):
+class _Provider(service.MultiService):
     def __init__(self, config, reactor):
         service.MultiService.__init__(self)
         self._config = config
