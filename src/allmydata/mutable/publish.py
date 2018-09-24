@@ -945,6 +945,17 @@ class Publish:
             serverid = server.get_serverid()
             if server in self.bad_servers:
                 continue
+            # if we have >= 1 grid-managers, this checks that we have
+            # a valid certificate for this server
+            if not server.upload_permitted():
+                self.log(
+                    "No valid grid-manager certificates for '{}' while choosing slots for mutable".format(
+                        server.get_serverid(),
+                    ),
+                    level=log.UNUSUAL,
+                )
+                continue
+
             entry = (len(old_assignments.get(server, [])), i, serverid, server)
             serverlist.append(entry)
         serverlist.sort()
