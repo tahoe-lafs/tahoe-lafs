@@ -51,12 +51,13 @@ def validate_config(fname, cfg, valid_sections):
                     section=section,
                 )
             )
-        for option in cfg.options(section):
-            if option not in valid_in_section:
-                raise UnknownConfigError(
-                    "'{fname}' section [{section}] contains unknown option '{option}'".format(
-                        fname=fname,
-                        section=section,
-                        option=option,
+        if valid_in_section is not None:
+            for option in cfg.options(section):
+                if option not in valid_in_section:
+                    raise UnknownConfigError(
+                        "'{fname}' section [{section}] contains unknown option '{option}'".format(
+                            fname=fname,
+                            section=section,
+                            option=option,
+                        )
                     )
-                )

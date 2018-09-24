@@ -59,8 +59,8 @@ def _valid_config_sections():
             "shares.needed",
             "shares.total",
             "stats_gatherer.furl",
-            "grid_managers",
         ),
+        "grid_managers": None,  # means "any options valid"
         "drop_upload": (  # deprecated already?
             "enabled",
         ),
@@ -83,6 +83,7 @@ def _valid_config_sections():
             "readonly",
             "reserved_space",
             "storage_dir",
+            "grid_manager_certificate_files",
         ),
         "sftpd": (
             "accounts.file",
@@ -385,9 +386,9 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     # grid manager setup
 
     grid_manager_keys = []
-    gm_keydata = self.get_config('client', 'grid_manager_public_keys', '')
-    for name, gm_key in self.config.enumerate_section('grid_managers').items():
+    for name, gm_key in config.enumerate_section('grid_managers').items():
         # XXX FIXME this needs pub-v0- prefix then ...
+        print("KEY: {}".format(gm_key))
         grid_manager_keys.append(
             keyutil.parse_pubkey(gm_key)
         )
@@ -399,14 +400,13 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     # )
 
     # create the actual storage-broker
-    
+
     sb = storage_client.StorageFarmBroker(
         permute_peers=True,
         tub_maker=tub_creator,
         preferred_peers=preferred_peers,
         grid_manager_keys=grid_manager_keys,
-        node_pubkey=my_pubkey,
-        
+##        node_pubkey=my_pubkey,
     )
     for ic in introducer_clients:
         sb.use_introducer(ic)
@@ -609,7 +609,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         grid_manager_certificates = []
         cert_fnames = self.get_config("storage", "grid_manager_certificate_files", "")
         for fname in cert_fnames.split():
-            fname = abspath_expanduser_unicode(fname.decode('ascii'), base=self.basedir)
+            fname = self.config.get_config_path(fname.decode('ascii'))
             if not os.path.exists(fname):
                 raise ValueError(
                     "Grid Manager certificate file '{}' doesn't exist".format(
@@ -632,8 +632,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         # of the Grid Manager (should that go in the config too,
         # then? How to handle multiple grid-managers?)
 
-
-        furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
+        furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
         furl = self.tub.registerReference(ss, furlFile=furl_file)
         ann = {
             "anonymous-storage-FURL": furl,
