@@ -167,9 +167,9 @@ Example Setup of a New Managed Grid
 -----------------------------------
 
 We'll store our Grid Manager configuration on disk, in
-``~/grid-manager``. To initialize this directory::
+``./gm0``. To initialize this directory::
 
-    tahoe grid-manager --config ~/grid-manager create
+    tahoe grid-manager --config ./gm0 create
 
 This example creates an actual grid, but it's all just on one machine
 with different "node directories". Usually of course each storage
@@ -196,14 +196,13 @@ Next, we attach a couple of storage nodes::
 
 We can now tell the Grid Manager about our new storage servers::
 
-    tahoe grid-manager --config ~/grid-manager add storage0 $(cat storage0/node.pubkey)
-    tahoe grid-manager --config ~/grid-manager add storage1 $(cat storage1/node.pubkey)
-
+    tahoe grid-manager --config ./gm0 add storage0 $(cat storage0/node.pubkey)
+    tahoe grid-manager --config ./gm0 add storage1 $(cat storage1/node.pubkey)
 
 To produce a new certificate for each node, we do this::
 
-    tahoe grid-manager --config ~/grid-manager sign storage0 > ./storage0/gridmanager.cert
-    tahoe grid-manager --config ~/grid-manager sign storage1 > ./storage1/gridmanager.cert
+    tahoe grid-manager --config ./gm0 sign storage0 > ./storage0/gridmanager.cert
+    tahoe grid-manager --config ./gm0 sign storage1 > ./storage1/gridmanager.cert
 
 Now, we want our storage servers to actually announce these
 certificates into the grid. We do this by adding some configuration
