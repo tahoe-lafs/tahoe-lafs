@@ -236,19 +236,23 @@ grid-manager has given certificates to (``storage0`` and
 ``storage1``). We need the grid-manager's public key to put in Alice's
 configuration::
 
-    tahoe grid-manager --config ~/grid-manager public-identity
+    tahoe grid-manager --config ./gm0 public-identity
 
 Put the key printed out above into Alice's ``tahoe.cfg`` in section
 ``client``::
 
     [client]
-    grid_manager_keys = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq
+    grid_manager_public_keys = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq
 
 
 DECIDE:
  - should the grid-manager be identified by a certificate? exarkun
    points out: --name seems like the hint of the beginning of a
    use-case for certificates rather than bare public keys?).
+ - (note the "--name" thing came from a former version of this
+   proposal that used CLI commands to add the public-keys -- but the
+   point remains, if there's to be metadata associated with "grid
+   managers" maybe they should be certificates..)
 
 Now, re-start the "alice" client. Since we made Alice's parameters
 require 3 storage servers to be reachable (``--happy=3``), all their
