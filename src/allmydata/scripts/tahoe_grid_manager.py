@@ -432,9 +432,9 @@ def _list(gridoptions, options):
                 expires = datetime.fromtimestamp(cert_data['expires'])
                 delta = datetime.utcnow() - expires
                 if delta.total_seconds() < 0:
-                    print("  {}: valid until {} ({})".format(cert_count, expires, abbreviate_time(delta)))
+                    print("{}: cert {}: valid until {} ({})".format(name, cert_count, expires, abbreviate_time(delta)))
                 else:
-                    print("  {}: expired ({})".format(cert_count, abbreviate_time(delta)))
+                    print("{}: cert {}: expired ({})".format(name, cert_count, abbreviate_time(delta)))
                 cert_count += 1
 
 
