@@ -39,7 +39,7 @@ class AddOptions(BaseOptions):
     )
 
     def getSynopsis(self):
-        return "{} add NAME PUBLIC_KEY".format(BaseOptions.getSynopsis())
+        return "{} add NAME PUBLIC_KEY".format(super(AddOptions, self).getSynopsis())
 
     def parseArgs(self, *args, **kw):
         BaseOptions.parseArgs(self, **kw)
@@ -128,7 +128,13 @@ class GridManagerOptions(BaseOptions):
 
 
 def _create_gridmanager():
-    return _GridManager(ed25519.SigningKey(os.urandom(32)), {})
+    """
+    :return: an object providing the GridManager interface initialized
+        with a new random keypair
+    """
+    private_key_bytes, public_key_bytes = keyutil.make_keypair()
+    secret_key, public_key_bytes = keyutil.parse_privkey(private_key_bytes)
+    return _GridManager(secret_key, {})
 
 def _create(gridoptions, options):
     """
