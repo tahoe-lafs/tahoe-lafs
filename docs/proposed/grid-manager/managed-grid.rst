@@ -60,15 +60,11 @@ at which time you may be able to pass a directory-capability to this
 option).
 
 If you don't want to store the configuration on disk at all, you may
-use ``--config -`` (that's a dash) and write a valid JSON (YAML? I'm
-guessing JSON is easier to deal with here, more-interoperable?)
+use ``--config -`` (that's a dash) and write a valid JSON
 configuration to stdin.
 
 All commands take the ``--config`` option, and they all behave
 similarly for "data from stdin" versus "data from disk".
-
-DECIDE:
- - config is YAML or JSON?
 
 
 tahoe grid-manager create
