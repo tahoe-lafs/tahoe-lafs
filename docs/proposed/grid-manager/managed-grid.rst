@@ -111,7 +111,7 @@ Lists all storage-servers that have previously been added using
 tahoe grid-manager sign
 ```````````````````````
 
-Takes one arg: ``name``, the petname used previous in a ``tahoe
+Takes one arg: ``name``, the petname used previously in a ``tahoe
 grid-manager add`` command.
 
 Note that this mutates the state of the grid-manager if it is on disk,
