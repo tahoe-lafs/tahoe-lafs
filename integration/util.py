@@ -41,9 +41,15 @@ class _CollectOutputProtocol(ProcessProtocol):
     self.output, and callback's on done with all of it after the
     process exits (for any reason).
     """
-    def __init__(self):
+    def __init__(self, stdin=None):
         self.done = Deferred()
         self.output = StringIO()
+        self._stdin = stdin
+
+    def connectionMade(self):
+        if self._stdin is not None:
+            self.transport.write(self._stdin)
+            self.transport.closeStdin()
 
     def processEnded(self, reason):
         if not self.done.called:
@@ -383,12 +389,12 @@ def await_file_vanishes(path, timeout=10):
     raise FileShouldVanishException(path, timeout)
 
 
-def cli(request, reactor, node_dir, *argv):
+def cli(request, reactor, node_dir, *argv, stdin=None):
     """
     Run a tahoe CLI subcommand for a given node, optionally running
     under coverage if '--coverage' was supplied.
     """
-    proto = _CollectOutputProtocol()
+    proto = _CollectOutputProtocol(stdin=stdin)
     _tahoe_runner_optional_coverage(
         proto, reactor, request,
         ['--node-directory', node_dir] + list(argv),
