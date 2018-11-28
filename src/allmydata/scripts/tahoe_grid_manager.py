@@ -411,9 +411,10 @@ def _remove(gridoptions, options):
             "No storage-server called '{}' exists".format(options['name'])
         )
     cert_count = 0
-    while fp.child('{}.cert.{}'.format(options['name'], cert_count)).exists():
-        fp.child('{}.cert.{}'.format(options['name'], cert_count)).remove()
-        cert_count += 1
+    if fp is not None:
+        while fp.child('{}.cert.{}'.format(options['name'], cert_count)).exists():
+            fp.child('{}.cert.{}'.format(options['name'], cert_count)).remove()
+            cert_count += 1
 
     _save_gridmanager_config(fp, gm)
     return 0
