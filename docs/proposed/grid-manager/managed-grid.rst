@@ -126,8 +126,15 @@ printed to stdout. If you stored the config on disk, the new
 certificate will (also) be in a file named like ``alice.cert.0``.
 
 
-Enrolling a Storage Server
---------------------------
+Enrolling a Storage Server: CLI
+-------------------------------
+
+DECIDE: is a command like this best, or should you have to edit the
+        config "by hand"? (below fits into warner's philosophy that "at some
+        point" it might be best to have all config in a database or similar
+        and the only way to view/edit it is via tahoe commands...)
+        if command: write it
+        if not: delete this section
 
 tahoe admin add-grid-manager-cert
 `````````````````````````````````
@@ -142,8 +149,31 @@ your node after this. Subsequent announcements to the Introducer will
 include this certificate.
 
 
-Enrolling a Client
-------------------
+Enrolling a Storage Server: Config
+----------------------------------
+
+You may edit the ``[storage]`` section of the ``tahoe.cfg`` file to
+include an entry ``grid_manager_certificate_files = `` whose value is
+a space-separated list of paths to valid certificate files. These
+certificate files are issued by the ``tahoe grid-manager sign``
+command; these should be securely transmitted to the storage
+server. Relative paths are relative to the node directory. Example::
+
+    [storage]
+    grid_manager_certificate_files = example_grid.cert
+
+This will cause us to give this certificate to any Introducers we
+connect to (and subsequently, the Introducer will give the certificate
+out to clients).
+
+
+Enrolling a Client: CLI
+-----------------------
+
+DECIDE: is a command like this best, or should you have to edit the
+        config "by hand"? (below fits into warner's philosophy that "at some
+        point" it might be best to have all config in a database or similar
+        and the only way to view/edit it is via tahoe commands...)
 
 tahoe add-grid-manager
 ``````````````````````
@@ -157,6 +187,24 @@ has a name. If you don't supply ``--name`` then ``"default"`` is used.
 This command takes a single argument, which is the hex-encoded public
 key of the Grid Manager. The client will have to be re-started once
 this change is made.
+
+
+Enrolling a Client: Config
+--------------------------
+
+You may instruct a Tahoe client to use only storage servers from given
+Grid Managers. If there are no such keys, any servers are used. If
+there are one or more keys, the client will only upload to a storage
+server that has a valid certificate (from any of the keys).
+
+To specify public-keys, add a ``[grid_managers]`` section to the
+config. This consists of ``name = value`` pairs where ``name`` is an
+arbitrary name and ``value`` is a public-key of a Grid
+Manager. Example::
+
+    [grid_managers]
+    example_grid = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq
+
 
 
 Example Setup of a New Managed Grid
