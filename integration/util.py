@@ -37,9 +37,15 @@ class _CollectOutputProtocol(ProcessProtocol):
     self.output, and callback's on done with all of it after the
     process exits (for any reason).
     """
-    def __init__(self):
+    def __init__(self, stdin=None):
         self.done = Deferred()
         self.output = StringIO()
+        self._stdin = stdin
+
+    def connectionMade(self):
+        if self._stdin is not None:
+            self.transport.write(self._stdin)
+            self.transport.closeStdin()
 
     def processEnded(self, reason):
         if not self.done.called:
@@ -124,6 +130,19 @@ def _cleanup_twistd_process(twistd_process, exited):
         print("exited, goodbye")
     except ProcessExitedAlready:
         pass
+
+
+def run_tahoe(reactor, *args, **kwargs):
+    stdin = kwargs.get('stdin', None)
+    protocol = _CollectOutputProtocol(stdin=stdin)
+    process = reactor.spawnProcess(
+        protocol,
+        sys.executable,
+        (sys.executable, '-m', 'allmydata.scripts.runner') + args
+    )
+    process.exited = protocol.done
+
+    return protocol.done
 
 
 def _run_node(reactor, node_dir, request, magic_text):
