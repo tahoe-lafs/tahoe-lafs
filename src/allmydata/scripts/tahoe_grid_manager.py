@@ -133,8 +133,7 @@ def _create_gridmanager():
         with a new random keypair
     """
     private_key_bytes, public_key_bytes = keyutil.make_keypair()
-    secret_key, public_key_bytes = keyutil.parse_privkey(private_key_bytes)
-    return _GridManager(secret_key, {})
+    return _GridManager(private_key_bytes, {})
 
 def _create(gridoptions, options):
     """
@@ -194,10 +193,9 @@ class _GridManager(object):
                 )
             )
 
-        private_key_str = config['private_key']
+        private_key_bytes = config['private_key'].encode('ascii')
         try:
-            private_key_bytes = base32.a2b(private_key_str.encode('ascii'))
-            private_key = ed25519.SigningKey(private_key_bytes)
+            private_key, public_key_bytes = keyutil.parse_privkey(private_key_bytes)
         except Exception as e:
             raise ValueError(
                 "Invalid Grid Manager private_key: {}".format(e)
@@ -222,11 +220,12 @@ class _GridManager(object):
                     gm_version
                 )
             )
-        return _GridManager(private_key, storage_servers)
+        return _GridManager(private_key_bytes, storage_servers)
 
-    def __init__(self, private_key, storage_servers):
+    def __init__(self, private_key_bytes, storage_servers):
         self._storage_servers = dict() if storage_servers is None else storage_servers
-        self._private_key = private_key
+        self._private_key_bytes = private_key_bytes
+        self._private_key, _ = keyutil.parse_privkey(self._private_key_bytes)
         self._version = 0
 
     @property
@@ -293,7 +292,7 @@ class _GridManager(object):
     def marshal(self):
         data = {
             u"grid_manager_config_version": self._version,
-            u"private_key": base32.b2a(self._private_key.sk_and_vk[:32]),
+            u"private_key": self._private_key_bytes.decode('ascii'),
         }
         if self._storage_servers:
             data[u"storage_servers"] = {
