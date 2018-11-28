@@ -51,6 +51,35 @@ def test_remove_client(reactor):
         "alice", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdin=gm_config,
     )
+    gm_config = yield util.run_tahoe(
+        reactor, "grid-manager", "--config", "-", "add",
+        "bob", "pub-v0-kvxhb3nexybmipkrar2ztfrwp4uxxsmrjzkpzafit3ket4u5yldq",
+        stdin=gm_config,
+    )
+    assert json.loads(gm_config)['storage_servers'].has_key("alice")
+    assert json.loads(gm_config)['storage_servers'].has_key("bob")
+    return
+
+    gm_config = yield util.run_tahoe(
+        reactor, "grid-manager", "--config", "-", "remove",
+        "alice",
+        stdin=gm_config,
+    )
+    assert not json.loads(gm_config)['storage_servers'].has_key('alice')
+    assert json.loads(gm_config)['storage_servers'].has_key('bob')
+
+
+@pytest.inlineCallbacks
+def test_remove_last_client(reactor):
+    gm_config = yield util.run_tahoe(
+        reactor, "grid-manager", "--config", "-", "create",
+    )
+
+    gm_config = yield util.run_tahoe(
+        reactor, "grid-manager", "--config", "-", "add",
+        "alice", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
+        stdin=gm_config,
+    )
     assert json.loads(gm_config)['storage_servers'].has_key("alice")
 
     gm_config = yield util.cli(
