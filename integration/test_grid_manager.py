@@ -34,7 +34,8 @@ def test_create_certificate(reactor):
     alice_cert = json.loads(alice_cert_bytes)
 
     # confirm that alice's certificate is made by the Grid Manager
-    assert pubkey.verify(
+    # (.verify returns None on success, raises exception on error)
+    pubkey.verify(
         base32.a2b(alice_cert['signature'].encode('ascii')),
         alice_cert['certificate'].encode('ascii'),
     )
