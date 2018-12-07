@@ -166,6 +166,7 @@ def test_reject_storage_server(reactor, request, alice, storage_nodes):
         )
         assert False, "Should get a failure"
     except Exception as e:
-        # XXX but how to tell if we failed for the right reason?
-        # (should get UploadUnhappinessError)
-        print("failure expected: {}".format(e))
+        # depending on the full output being in the error-message
+        # here; see util.py
+        assert 'UploadUnhappinessError' in str(e)
+        print("found expected UploadUnhappinessError")

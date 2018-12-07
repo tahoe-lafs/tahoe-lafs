@@ -57,7 +57,13 @@ class _CollectOutputProtocol(ProcessProtocol):
 
     def processExited(self, reason):
         if not isinstance(reason.value, ProcessDone):
-            self.done.errback(reason)
+            #self.done.errback(reason)
+            self.done.errback(RuntimeError(
+                "Process failed: {}\nOutput:\n{}".format(
+                    reason,
+                    self.output.getvalue(),
+                )
+            ))
 
     def outReceived(self, data):
         self.output.write(data)
