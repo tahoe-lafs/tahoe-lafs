@@ -223,7 +223,7 @@ class StorageFarmBroker(service.MultiService):
         connected_servers = self.get_connected_servers()
         preferred_servers = frozenset(s for s in connected_servers if s.get_longname() in self.preferred_peers)
         if for_upload:
-            print("upload processing: {}".format([srv.upload_permitted() for srv in connected_servers]))
+            # print("upload processing: {}".format([srv.upload_permitted() for srv in connected_servers]))
             connected_servers = [
                 srv
                 for srv in connected_servers
@@ -409,26 +409,24 @@ class NativeStorageServer(service.MultiService):
         :return: True if we should use this server for uploads, False
             otherwise.
         """
-        print("upload permitted? {}".format(self._server_id))
+        # print("upload permitted? {}".format(self._server_id))
         # if we have no Grid Manager keys configured, choice is easy
         if not self._grid_manager_keys:
-            print("{} no grid manager keys at all (so yes)".format(self._server_id))
+            # print("{} no grid manager keys at all (so yes)".format(self._server_id))
             return True
 
         # XXX probably want to cache the answer to this? (ignoring
         # that for now because certificates expire, so .. slightly
         # more complex)
         if not self._grid_manager_certificates:
-            print("{} no grid-manager certificates {} (so no)".format(self._server_id, self._grid_manager_certificates))
+            # print("{} no grid-manager certificates {} (so no)".format(self._server_id, self._grid_manager_certificates))
             return False
         for gm_key in self._grid_manager_keys:
             for cert in self._grid_manager_certificates:
                 if _validate_grid_manager_certificate(gm_key, cert):
-                    print("valid: {}\n{}".format(gm_key, cert))
+                    # print("valid: {}\n{}".format(gm_key, cert))
                     return True
-                else:
-                    print("invalid: {}\n{}".format(gm_key, cert))
-        print("didn't validate {} keys".format(len(self._grid_manager_keys)))
+        # print("didn't validate {} keys".format(len(self._grid_manager_keys)))
         return False
 
 
