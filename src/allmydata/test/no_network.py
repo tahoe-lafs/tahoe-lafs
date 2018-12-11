@@ -152,6 +152,10 @@ class NoNetworkServer(object):
         return self
     def __deepcopy__(self, memodict):
         return self
+
+    def upload_permitted(self):
+        return True
+
     def get_serverid(self):
         return self.serverid
     def get_permutation_seed(self):
