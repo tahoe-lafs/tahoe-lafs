@@ -68,6 +68,9 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
     web_port = "tcp:{}:interface=localhost".format(control_port + 2000)
 
     if True:
+        if exists(node_dir):
+            print("nuking '{}'".format(node_dir))
+            shutil.rmtree(node_dir)
         print("creating", node_dir)
         mkdir(node_dir)
         proto = util._DumpOutputProtocol(None)
