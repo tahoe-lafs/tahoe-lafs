@@ -148,9 +148,7 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
         )
 
     # now only two storage-servers have certificates .. configure
-    # alice to have the grid-manager certificate
-
-    # XXX FIXME remove this cert when test ends (fail or not!)
+    # carol to have the grid-manager certificate
 
     config = configutil.get_config(join(carol._node_dir, "tahoe.cfg"))
     print(dir(config))
@@ -160,7 +158,7 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
     carol.signalProcess('TERM')
     yield carol._protocol.exited
     time.sleep(1)
-    alice = yield util._run_node(
+    carol = yield util._run_node(
         reactor, carol._node_dir, request, None,
     )
     time.sleep(5)
