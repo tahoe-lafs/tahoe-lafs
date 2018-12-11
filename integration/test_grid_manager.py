@@ -94,7 +94,7 @@ def test_remove_last_client(reactor):
 
 
 @pytest.inlineCallbacks
-def test_reject_storage_server(reactor, request, alice, storage_nodes):
+def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introducer_furl, flog_gatherer):
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "create",
     )
@@ -114,6 +114,15 @@ def test_reject_storage_server(reactor, request, alice, storage_nodes):
             stdin=gm_config,
         )
     assert sorted(json.loads(gm_config)['storage_servers'].keys()) == ['storage0', 'storage1']
+
+
+    # XXX FIXME need to shut-down and nuke carol when we're done this
+    # test (i.d. request.addfinalizer)
+    carol = yield util._create_node(
+        reactor, request, temp_dir, introducer_furl, flog_gatherer, "carol",
+        web_port="tcp:9982:interface=localhost",
+        storage=False,
+    )
 
     print("inserting certificates")
     # insert their certificates
@@ -141,26 +150,28 @@ def test_reject_storage_server(reactor, request, alice, storage_nodes):
     # now only two storage-servers have certificates .. configure
     # alice to have the grid-manager certificate
 
-    config = configutil.get_config(join(alice._node_dir, "tahoe.cfg"))
+    # XXX FIXME remove this cert when test ends (fail or not!)
+
+    config = configutil.get_config(join(carol._node_dir, "tahoe.cfg"))
     print(dir(config))
     config.add_section("grid_managers")
     config.set("grid_managers", "test", pubkey_bytes)
-    config.write(open(join(alice._node_dir, "tahoe.cfg"), "w"))
-    alice.signalProcess('TERM')
-    yield alice._protocol.exited
+    config.write(open(join(carol._node_dir, "tahoe.cfg"), "w"))
+    carol.signalProcess('TERM')
+    yield carol._protocol.exited
     time.sleep(1)
     alice = yield util._run_node(
-        reactor, alice._node_dir, request, None,
+        reactor, carol._node_dir, request, None,
     )
     time.sleep(5)
 
     # try to put something into the grid, which should fail (because
-    # alice has happy=3 but should only find storage0, storage1 to be
+    # carol has happy=3 but should only find storage0, storage1 to be
     # acceptable to upload to)
 
     try:
         yield util.run_tahoe(
-            reactor, "--node-directory", alice._node_dir,
+            reactor, "--node-directory", carol._node_dir,
             "put", "-",
             stdin="some content" * 200,
         )
