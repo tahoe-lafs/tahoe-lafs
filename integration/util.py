@@ -3,6 +3,7 @@ import time
 from os import mkdir
 from os.path import exists, join
 from StringIO import StringIO
+from shutil import rmtree
 
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
@@ -184,6 +185,9 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     if exists(node_dir):
         created_d = succeed(None)
     else:
+        if exists(node_dir):
+            print("nuking: {}".format(node_dir))
+            rmtree(node_dir)
         print("creating", node_dir)
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
