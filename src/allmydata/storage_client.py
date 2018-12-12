@@ -132,7 +132,7 @@ class StorageFarmBroker(service.MultiService):
             self._tub_maker,
             handler_overrides,
             self._grid_manager_keys,
-            self._grid_manager_certificates,
+            [],  # XXX FIXME? need grid_manager_certs too?
         )
         s.on_status_changed(lambda _: self._got_connection())
         return s
