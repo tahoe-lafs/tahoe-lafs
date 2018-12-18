@@ -129,12 +129,6 @@ certificate will (also) be in a file named like ``alice.cert.0``.
 Enrolling a Storage Server: CLI
 -------------------------------
 
-DECIDE: is a command like this best, or should you have to edit the
-        config "by hand"? (below fits into warner's philosophy that "at some
-        point" it might be best to have all config in a database or similar
-        and the only way to view/edit it is via tahoe commands...)
-        if command: write it
-        if not: delete this section
 
 tahoe admin add-grid-manager-cert
 `````````````````````````````````
@@ -147,6 +141,32 @@ Import a "version 1" storage-certificate produced by a grid-manager
 installed; for now just one is sufficient). You will have to re-start
 your node after this. Subsequent announcements to the Introducer will
 include this certificate.
+
+.. note::
+
+   This command will simply edit the `tahoe.cfg` file and direct you
+   to re-start. In the Future(tm), we should consider (in exarkun's
+   words):
+
+       "A python program you run as a new process" might not be the
+       best abstraction to layer on top of the configuration
+       persistence system, though.  It's a nice abstraction for users
+       (although most users would probably rather have a GUI) but it's
+       not a great abstraction for automation.  So at some point it
+       may be better if there is CLI -> public API -> configuration
+       persistence system.  And maybe "public API" is even a network
+       API for the storage server so it's equally easy to access from
+       an agent implemented in essentially any language and maybe if
+       the API is exposed by the storage node itself then this also
+       gives you live-configuration-updates, avoiding the need for
+       node restarts (not that this is the only way to accomplish
+       this, but I think it's a good way because it avoids the need
+       for messes like inotify and it supports the notion that the
+       storage node process is in charge of its own configuration
+       persistence system, not just one consumer among many ... which
+       has some nice things going for it ... though how this interacts
+       exactly with further node management automation might bear
+       closer scrutiny).
 
 
 Enrolling a Storage Server: Config
