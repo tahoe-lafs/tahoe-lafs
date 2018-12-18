@@ -282,7 +282,39 @@ class StubServer(object):
         return "?"
 
 
-def _validate_grid_manager_certificate(gm_key, alleged_cert):
+def parse_grid_manager_data(gm_data):
+    """
+    :param gm_data: some data that might be JSON that might be a valid
+       Grid Manager Certificate
+
+    :returns: json data of a valid Grid Manager certificate, or an
+        exception if the data is not valid.
+    """
+
+    required_keys = allowed_keys = [
+        'certificate',
+        'signature',
+    ]
+
+    js = json.loads(gm_data)
+    for k in js.keys():
+        if k not in allowed_keys:
+            raise ValueError(
+                "Grid Manager certificate JSON may not contain '{}'".format(
+                    k,
+                )
+            )
+    for k in allowed_keys:
+        if k not in js:
+            raise ValueError(
+                "Grid Manager certificate JSON must contain '{}'".format(
+                    k,
+                )
+            )
+    return js
+
+
+def validate_grid_manager_certificate(gm_key, alleged_cert):
     """
     :param gm_key: a VerifyingKey instance, a Grid Manager's public
         key.
@@ -423,7 +455,7 @@ class NativeStorageServer(service.MultiService):
             return False
         for gm_key in self._grid_manager_keys:
             for cert in self._grid_manager_certificates:
-                if _validate_grid_manager_certificate(gm_key, cert):
+                if validate_grid_manager_certificate(gm_key, cert):
                     # print("valid: {}\n{}".format(gm_key, cert))
                     return True
         # print("didn't validate {} keys".format(len(self._grid_manager_keys)))
