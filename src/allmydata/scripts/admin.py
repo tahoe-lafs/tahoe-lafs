@@ -45,6 +45,13 @@ def derive_pubkey(options):
     print("public:", pubkey_vs, file=out)
     return 0
 
+
+def add_grid_manager_cert(options):
+    """
+    Add a new Grid Manager certificate to our config
+    """
+    return 0
+
 class AdminCommand(BaseOptions):
     subCommands = [
         ("generate-keypair", None, GenerateKeypairOptions,
@@ -68,7 +75,8 @@ each subcommand.
 subDispatch = {
     "generate-keypair": print_keypair,
     "derive-pubkey": derive_pubkey,
-    }
+    "add-grid-manager-cert": add_grid_manager_cert,
+}
 
 def do_admin(options):
     so = options.subOptions
