@@ -51,6 +51,7 @@ def add_grid_manager_cert(options):
     """
     return 0
 
+
 class AdminCommand(BaseOptions):
     subCommands = [
         ("generate-keypair", None, GenerateKeypairOptions,
@@ -71,11 +72,13 @@ each subcommand.
 """
         return t
 
+
 subDispatch = {
     "generate-keypair": print_keypair,
     "derive-pubkey": derive_pubkey,
     "add-grid-manager-cert": add_grid_manager_cert,
 }
+
 
 def do_admin(options):
     so = options.subOptions
@@ -87,8 +90,8 @@ def do_admin(options):
 
 subCommands = [
     ["admin", None, AdminCommand, "admin subcommands: use 'tahoe admin' for a list"],
-    ]
+]
 
 dispatch = {
     "admin": do_admin,
-    }
+}
