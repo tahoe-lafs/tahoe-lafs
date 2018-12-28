@@ -73,6 +73,10 @@ key on this list.
   ~$1020
   1DskmM8uCvmvTKjPbeDgfmVsGifZCmxouG
 
+* Aspiration contract (first phase, 2019)
+  $300k-$350k
+  1gDXYQNH4kCJ8Dk7kgiztfjNUaA1KJcHv
+
 
 Historical Donation Addresses
 =============================
@@ -100,17 +104,17 @@ This document is signed by the Tahoe-LAFS Release-Signing Key (GPG keyid
 (https://github.com/tahoe-lafs/tahoe-lafs.git) as `docs/donations.rst`.
 Both actions require access to secrets held closely by Tahoe developers.
 
-signed: Brian Warner, 10-Nov-2016
+signed: Brian Warner, 27-Dec-2018
 
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
 
-iQEcBAEBCAAGBQJYJVQBAAoJEL3g0x1oZmp6/8gIAJ5N2jLRQgpfIQTbVvhpnnOc
-MGV/kTN5yiN88laX91BPiX8HoAYrBcrzVH/If/2qGkQOGt8RW/91XJC++85JopzN
-Gw8uoyhxFB2b4+Yw2WLBSFKx58CyNoq47ZSwLUpard7P/qNrN+Szb26X0jDLo+7V
-XL6kXphL82b775xbFxW6afSNSjFJzdbozU+imTqxCu+WqIRW8iD2vjQxx6T6SSrA
-q0aLSlZpmD2mHGG3C3K2yYnX7C0BoGR9j4HAN9HbXtTKdVxq98YZOh11jmU1RVV/
-nTncD4E1CMrv/QqmktjXw/2shiGihYX+3ZqTO5BAZerORn0MkxPOIvESSVUhHVw=
-=Oj0C
+iQEzBAEBCAAdFiEE405i0G0Oac/KQXn/veDTHWhmanoFAlwlrdsACgkQveDTHWhm
+anqEqQf/SdxMvI0+YbsZe+Gr/+lNWrNtfxAkjgLUZYRPmElZG6UKkNuPghXfsYRM
+71nRbgbn05jrke7AGlulxNplTxYP/5LQVf5K1nvTE7yPI/LBMudIpAbM3wPiLKSD
+qecrVZiqiIBPHWScyya91qirTHtJTJj39cs/N9937hD+Pm65paHWHDZhMkhStGH7
+05WtvD0G+fFuAgs04VDBz/XVQlPbngkmdKjIL06jpIAgzC3H9UGFcqe55HKY66jK
+W769TiRuGLLS07cOPqg8t2hPpE4wv9Gs02hfg1Jc656scsFuEkh5eMMj/MXcFsED
+8vwn16kjJk1fkeg+UofnXsHeHIJalQ==
+=/E+V
 -----END PGP SIGNATURE-----
