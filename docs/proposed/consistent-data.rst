@@ -52,7 +52,7 @@ For example::
       'data': File(...),
    })
 
-would represent single update with a single parent, the directory entry `0`
+would represent single update with a single parent, the directory entry ``0``
 referring to another such update recursively until initial update with no
 parents is encountered.
 This way full modification graph will be referencable by just holding the
@@ -82,7 +82,7 @@ single entry, but overlaying such model with convergent function to resolve
 conflicts
 (sometimes called *causal+ consistency*)
 and requiring that there are no rollbacks to past states
-(aka *real time causal consistency*, the strongest higly-available model)
+(aka *real time causal consistency*, the strongest highly-available model)
 allows us to arrive at the same result at each participating node without
 loosing any update.
 
@@ -105,20 +105,100 @@ both ways.
 For representing directory contents an *observed-removed map*
 (extension of OR-set)
 may be used.
+The observed-removed set and map data structures use unique tags when adding
+new entries that is used for any subsequent operation on them.
+This avoids conflicting concurrent writes to same key being conflated with each
+other and allows us to implement deterministic renaming scheme to handle such
+collisions without data loss (as opposed to last-write-wins type of structure).
+It also allows items to be added and removed arbitrary amount of times as
+opposed to grow-only or tombstone-based sets and maps.
 
-.. todo:: To be extended
+The core operations on OR-map are::
+
+   add(tag, key, value)
+   remove(tag)
+
+This alone ought to be enough to encode arbitrary changes to the map structure
+(such as renames or updates)
+given that the update operations may be batched as units to be performed at
+once (transactions).
+
+For directory operation the ``tag`` should be invisible, the ``key`` would be the
+name of directory entry and ``value`` would be a reference to *immutable* data
+(such as directory or file)
+or another CRDT
+(convergent subdirectory or, provided those will be defined, convergent file).
+
+The data update structure is identical with OR-set where the elements of the
+set are two-element tuples.
+The crucial distinction that we want to be able to alter the ``key`` part on
+conflicting ``add`` operations with different tags.
+There are several designs we may consider.
+
+Firstly there is a question on how to decide which of two concurrent updates
+should be renamed.
+Since the process needs to be deterministic we need a simple algorithm that
+uses just the operation data.
+As such, simple comparison of the two ``tag`` value can be used, which brings
+us to question of how to generate such unique tags.
+I present following options:
+
+1) random fixed-length byte string
+2) timestamp + random string (older gets renamed)
+3) timestamp + random string (newer gets renamed)
+
+The timestamp would be encoded some reasonably universal format
+(eg. tai64n or UNIX-epoch based timestamps)
+and would give us predictable behaviour given the nodes operating on the data
+have access to reasonably accurate clock.
+
+The other question is persistence of such renaming.
+Consider following sequence of operations::
+
+   1: add("t1", "parrot", "is no more")
+   2: add("t2", "parrot", "ceased to be")
+   3: remove("t2")
+
+Given that under our renaming criteria ``"t1"`` would be the one to get
+renamed, we could see following behaviours:
+
+If the implementation treated the data structure as OR-set with additional
+name-mapping layer then we would see the original ``"parrot"`` item to be
+renamed to (eg.) ``"parrot.renamed.t1"`` after completion of step 2 and then
+returning back to name of ``"parrot"`` after completion of step 3.
+
+Conversely if the renaming is made persistent, then the entry will be visible
+under the new name of ``"parrot.renamed.t1"`` even if steps 2 and 3 are
+performed as atomic operation with the value under tag ``"t2"`` never being
+visible.
 
 Providing consistency over data structure hierarchy
 ---------------------------------------------------
 
-The directory structure is of high importance for addressing individual pieces
-of data.
+The consistency of directory structure is of high importance for addressing
+individual pieces of data.
+That means that when several data items are to be updated atomically
+(eg. if we wanted atomic rename/move across directory boundaries, like most
+UNIX filesystems support)
+we need to make sure that those updates are to be distributed as one single
+update with causality relationship spanning the whole hierarchy.
+On the other hand we don't want to give up the ability to create fine-grained
+attenuated capabilities for viewing or updating parts of the hierarchy.
 
-.. todo:: To be written
+One possible way to address that is to do what snapshotting copy-on-write
+filesystems generally do: recursively create new modified copy of each parent directory for each data update.
+This should be easily encodable by making the ``value`` field of the directory
+CRDT a reference to specific data state
+(which in turn is a set of read-only directory capabilities)
+as opposed to referring to the data structure itself.
+This would have the disadvantage of significantly higher data overhead consumed
+by old and redundant metadata.
+
+.. note:: TODO: To be extended
 
 Communicating data updates
 --------------------------
 
-.. todo:: To be written
+.. note:: TODO: To be written
 
 ..  vim:  sts=3 sw=3 et tw=79
