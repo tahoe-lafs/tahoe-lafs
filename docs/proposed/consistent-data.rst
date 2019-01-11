@@ -59,7 +59,9 @@ This way full modification graph will be referencable by just holding the
 reference to the set of latest updates and periodic renewal would prevent it
 from being garbage collected.
 
-Pruning and compaction of history is possible but out of scope of this proposal.
+Pruning and compaction of history is currently not addressed by this proposal
+and would likely benefit from different encoding scheme that does not
+transitively reference whole history using directory references.
 
 Rationale for consistency level chosen
 --------------------------------------
@@ -186,18 +188,30 @@ On the other hand we don't want to give up the ability to create fine-grained
 attenuated capabilities for viewing or updating parts of the hierarchy.
 
 One possible way to address that is to do what snapshotting copy-on-write
-filesystems generally do: recursively create new modified copy of each parent directory for each data update.
+filesystems generally do: recursively create new modified copy of each parent
+directory for each data update.
 This should be easily encodable by making the ``value`` field of the directory
 CRDT a reference to specific data state
 (which in turn is a set of read-only directory capabilities)
 as opposed to referring to the data structure itself.
+
 This would have the disadvantage of significantly higher data overhead consumed
 by old and redundant metadata.
+It should also be noted that if specific subdirectories are exported as
+capabilities and then made into a filesystem hierarchy again by adding them
+to a different directory, the same consistency guarantees will not apply.
+
+Such approach would need modification to the directory CRDT; either by adding
+an ``update(tag, value)`` operation or by changing conflict resolution
+semantics for compatible types to not perform renaming but instead merge their
+values. The latter would allow for a mechanism similar to union or overlay
+filesystems if propagation of updates was restricted to one direction, with
+some caveats about absence of propagation of renames.
 
 .. note:: TODO: To be extended
 
-Communicating data updates
---------------------------
+Referring to convergent data and communicating updates
+------------------------------------------------------
 
 .. note:: TODO: To be written
 
