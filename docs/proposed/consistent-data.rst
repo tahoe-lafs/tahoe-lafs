@@ -213,6 +213,16 @@ some caveats about absence of propagation of renames.
 Referring to convergent data and communicating updates
 ------------------------------------------------------
 
-.. note:: TODO: To be written
+For nodes to be able to synchronize with each other there needs to be a
+mechanism for broadcasting the updates among the participating nodes.
+The way we may want to refer to the data structure may depend on which
+communication protocol we choose to use, but likely we will want to layer a
+capability system for attenuated revokable usage.
+Ideally we would want an end-to-end encrypted publish-subscribe protocol
+between the nodes, but if we are content with high latency of polling we may
+use one mutable directory or file per node and avoid the need for adding any
+additional or external protocol.
+
+.. note:: TODO: To be extended
 
 ..  vim:  sts=3 sw=3 et tw=79
