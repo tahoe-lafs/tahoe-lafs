@@ -218,10 +218,76 @@ mechanism for broadcasting the updates among the participating nodes.
 The way we may want to refer to the data structure may depend on which
 communication protocol we choose to use, but likely we will want to layer a
 capability system for attenuated revokable usage.
+Specifically, here are some capabilities to consider:
+
+* Create bidirectional link between nodes for purpose of updating data
+  structure both ways.
+* Create unidirectional link that allows node to observe future changes but not
+  update the data itself.
+* Get just the current state with history, but no future updates.
+
+Another need for communication would come from implementation of history
+compaction and pruning, which may be necessary for keeping the metadata
+overhead to a reasonable level.
+In that case we would need to know which updates did each node already read and
+merge into it's internal state, so they don't have to be kept from garbage
+collection anymore.
+
 Ideally we would want an end-to-end encrypted publish-subscribe protocol
 between the nodes, but if we are content with high latency of polling we may
 use one mutable directory or file per node and avoid the need for adding any
 additional or external protocol.
+Notably the requirements of end-to-end encrypted publish-subscribe system are
+those of secure group messaging software and despite recent surge in demand of
+such systems there is still significant lack of reliable open-source implementations.
+
+From the options that seem the most tenable to me there is:
+
+* Just using mutable capabilities and polling.
+* Creating a custom capability-based pub/sub protocol inside Tahoe-LAFS
+  (Worthy goal, but out of scope of this document).
+* OMEMO running over XMPP.
+* Using regular authenticated encryption channel and connecting each
+  participating node to each other, not using any way to multicast the
+  messages.
+
+Durability, latency and data locality
+-------------------------------------
+
+Literature about CRDTs and consistency of distributed systems generally assumes
+that each node retains it's own copy of all relevant data.
+This is not true in Tahoe-LAFS and sometimes not even possible for the
+workloads it's meant for, but we may want to consider this for the special case
+of filesystem metadata.
+
+Tahoe-LAFS's concept of durable uploads (servers of happiness) is not
+inherently available.
+Thus any partitions smaller than this number cannot reach full availability
+offered by the above model.
+Any upload into such partition would likewise fail to be considered durable
+though, so it's of little concern that the following metadata updates wouldn't
+upload either.
+
+Causal model maintains consistency by delaying updates until all their
+dependencies have been processed.
+Causal relationships can not be sharded and generally span across all nodes'
+data.
+This creates tradeoff where
+(for systems which maintain separate copy of relevant data per node)
+one has to choose between write throughput and visibility latency.
+Specifically to handle updates at low latency the rate of the writes may not
+exceed the capabilities of the slowest node and demands on each node grow
+linearly with number of nodes writing at a constant pace
+(that is, the total processing requirements grow quadratically with the amount
+of participating nodes).
+
+This document assumes unbounded visibility latency and does not try to address
+write saturation.
+It is expected that the amount of nodes participating in maintaining each
+consistent dataset will be fairly small - only the ones trusted to decrypt the
+data by the user.
+It is also expected that the metadata modification will come in bursts but the
+total amount of metadata updates will be dwarfed by the actual data.
 
 .. note:: TODO: To be extended
 
