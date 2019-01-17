@@ -1,12 +1,15 @@
 import sys
 import time
+import json
 import shutil
-from os import mkdir, unlink, utime
+import urllib
+from os import mkdir, unlink, listdir, utime, urandom
 from os.path import join, exists, getmtime
 
 import util
 
 import pytest_twisted
+import treq
 
 
 # tests converted from check_magicfolder_smoke.py
@@ -459,3 +462,66 @@ def test_alice_adds_files_while_bob_is_offline(reactor, request, temp_dir, magic
             in conflict_files
         ),
     )
+
+
+@pytest_twisted.inlineCallbacks
+def test_many_files_progress_api(reactor, request, magic_folder, alice, bob):
+    """
+    cypher reports that weird things happen with the status-API,
+    sometimes, when you add a magic-folder with a ton of files.
+    """
+
+    alice_magic_dir, bob_magic_dir = magic_folder
+
+    data = urandom(1024) * 1024 * 1  # 20 megabyte files
+
+    time.sleep(5)
+    for x in range(50):
+        #path = join(bob._node_dir, "file_{}".format(x))
+        path = join(bob_magic_dir, "file_{}".format(x))
+        with open(path, "wb") as f:
+            f.write(data)
+
+    with open(join(bob._node_dir, "node.url"), "r") as f:
+        bob_base_url = f.read().strip()
+
+    with open(join(bob._node_dir, u'private', u'api_auth_token'), 'rb') as f:
+        token = f.read()
+
+    status_uri = "{}magic_folder?t=json".format(bob_base_url)
+    body = urllib.urlencode({
+        "token": token,
+        "name": "default",
+    })
+
+    for _ in range(40):
+        resp = yield treq.post(status_uri, body)
+        result = yield treq.json_content(resp)
+
+        if False:
+            for x in result:
+                print(x)
+        uploads = [x for x in result if x[u'kind'] == 'upload']
+        downloads = [x for x in result if x[u'kind'] == 'download']
+        incomplete = [x for x in result if x[u'status'] != 'success']
+        print("  uploads: {}".format(len(uploads)))
+        print("downloads: {}".format(len(downloads)))
+        print("incomplete: {}\n{}".format(len(incomplete), [x['path'] for x in incomplete]))
+        print()
+
+
+        if True:
+            proto = util._CollectOutputProtocol()
+            transport = reactor.spawnProcess(
+                proto,
+                sys.executable,
+                [
+                    sys.executable, '-m', 'allmydata.scripts.runner',
+                    'magic-folder', 'status',
+                    '--basedir', bob._node_dir,
+                ]
+            )
+            yield proto.done
+            print(proto.output.getvalue())
+
+        time.sleep(2)
