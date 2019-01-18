@@ -891,7 +891,7 @@ class QueueMixin(HookMixin):
 
     :ivar _deque: IQueuedItem instances to process
 
-    :ivar _process_history: the last 20 items we processed
+    :ivar _process_history: any completed items that are younger than 30s
 
     :ivar _in_progress: current batch of items which are currently
         being processed; chunks of work are removed from _deque and
@@ -925,14 +925,21 @@ class QueueMixin(HookMixin):
         assert self._local_filepath.isdir()
 
         self._deque = deque()
-        # do we also want to bound on "maximum age"?
-        self._process_history = deque(maxlen=20)
+        # items will be removed from the history when they're >30s old
+        self._process_history = []
         self._in_progress = []
 
     def get_status(self):
         """
         Returns an iterable of instances that implement IQueuedItem
         """
+        # remove anything >30s old
+        self._trim_process_history()
+
+        # print("deque: {}".format(len(self._deque)))
+        # print("_in_progress: {}".format(len(self._in_progress)))
+        # print("_process_history: {}".format(len(self._process_history)))
+
         for item in self._deque:
             yield item
         for item in self._in_progress:
@@ -1009,6 +1016,9 @@ class QueueMixin(HookMixin):
             # Kick it off
             result.callback(None)
 
+            # remove anything >30s old
+            self._trim_process_history()
+
             # Give it back to LoopingCall so it can wait on us.
             return result
 
@@ -1049,6 +1059,22 @@ class QueueMixin(HookMixin):
                     proc = Failure()
 
                 self._call_hook(proc, 'processed')
+
+    def _trim_process_history(self):
+        """
+        Remove any history items which are 'too old' (which is currently
+        defined as more than 30s).
+        """
+        now = time.time()
+        # print("trim history: now={}".format(len(self._process_history)))
+        # for item in self._process_history:
+        #     print("  {}: {}".format(item.relpath_u, (now - item.latest_update())))
+        self._process_history = [
+            item
+            for item in self._process_history
+            if not item.latest_update() or (now - item.latest_update()) < 30.0
+        ]
+        # print("trim history: after={}".format(len(self._process_history)))
 
     def _get_relpath(self, filepath):
         segments = unicode_segments_from(filepath, self._local_filepath)
@@ -1102,6 +1128,18 @@ class QueuedItem(object):
             status=status,
         )
 
+    def latest_update(self):
+        """
+        :returns: the most-recent time this was updated (or None if it
+        hasn't gotten any updates yet).
+        """
+        if not self._status_history:
+            return None
+        return max(
+            ts
+            for ts in self._status_history.values()
+        )
+
     def status_time(self, state):
         """
         Returns None if there's no status-update for 'state', else returns
@@ -1122,6 +1160,9 @@ class QueuedItem(object):
             other.relpath_u == self.relpath_u,
             other.status_history() == self.status_history(),
         )
+
+    def __str__(self):
+        return "<QueueItem {}: {}, {}>".format(type(self), self.relpath_u, self._status_history)
 
 
 class UploadItem(QueuedItem):
