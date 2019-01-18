@@ -8,6 +8,10 @@ from os.path import join, exists, getmtime
 
 import util
 
+from twisted.internet import reactor
+from twisted.internet.defer import returnValue
+from twisted.internet.task import deferLater
+
 import pytest
 import treq
 
@@ -297,7 +301,6 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
         storage=False,
     )
 
-
     magic_folder = join(temp_dir, 'magic-edmond')
     mkdir(magic_folder)
     created = False
@@ -338,9 +341,6 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
     with open(join(magic_folder, "its_a_file"), "w") as f:
         f.write("edmond wrote this")
 
-    # fixme, do status-update attempts in a loop below
-    time.sleep(5)
-
     # let it upload; poll the HTTP magic-folder status API until it is
     # uploaded
     from allmydata.scripts.magic_folder_cli import _get_json_for_fragment
@@ -365,11 +365,13 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
                 )
             )
             for mf in magic_data:
+                print(mf)
                 if mf['status'] == u'success' and mf['path'] == u'its_a_file':
                     uploaded = True
                     break
         except Exception as e:
-            time.sleep(1)
+            print(e)
+        yield deferLater(reactor, 1.0, lambda: None)
 
     assert uploaded, "expected to upload 'its_a_file'"
 
@@ -401,7 +403,6 @@ def test_many_files_progress_api(reactor, request, magic_folder, alice, bob):
 
     data = urandom(1024) * 1024 * 1  # 20 megabyte files
 
-    time.sleep(5)
     for x in range(50):
         #path = join(bob._node_dir, "file_{}".format(x))
         path = join(bob_magic_dir, "file_{}".format(x))
@@ -420,35 +421,26 @@ def test_many_files_progress_api(reactor, request, magic_folder, alice, bob):
         "name": "default",
     })
 
-    print("DING")
-    for _ in range(40):
+
+    @pytest.inlineCallbacks
+    def get_status():
         resp = yield treq.post(status_uri, body)
         result = yield treq.json_content(resp)
 
-        if False:
-            for x in result:
-                print(x)
         uploads = [x for x in result if x[u'kind'] == 'upload']
         downloads = [x for x in result if x[u'kind'] == 'download']
         incomplete = [x for x in result if x[u'status'] != 'success']
-        print("  uploads: {}".format(len(uploads)))
-        print("downloads: {}".format(len(downloads)))
-        print("incomplete: {}\n{}".format(len(incomplete), [x['path'] for x in incomplete]))
-        print()
+        # print("  uploads: {}".format(len(uploads)))
+        # print("downloads: {}".format(len(downloads)))
+        # print("incomplete: {}\n{}".format(len(incomplete), [x['path'] for x in incomplete]))
+        returnValue(result)
 
+    before = yield get_status()
+    # all history results should expire in 30 seconds, however we also
+    # need to wait for them to upload .. so this is kind of "just to be sure"
+    print("waiting 50 seconds")
+    time.sleep(50)
+    after = yield get_status()
 
-        if True:
-            proto = util._CollectOutputProtocol()
-            transport = reactor.spawnProcess(
-                proto,
-                sys.executable,
-                [
-                    sys.executable, '-m', 'allmydata.scripts.runner',
-                    'magic-folder', 'status',
-                    '--basedir', bob._node_dir,
-                ]
-            )
-            yield proto.done
-            print(proto.output.getvalue())
-
-        time.sleep(2)
+    assert len(before) == 50, "Should have seen 50 pending/active uploads"
+    assert len(after) == 0, "All history should have expired after 50 seconds"
