@@ -262,7 +262,7 @@ jobs:
                 libffi-devel \
                 openssl-devel \
                 libyaml-devel
-            dnf install /usr/bin/virtualenv
+            yum install /usr/bin/virtualenv
 
             # XXX net-tools is actually a Tahoe-LAFS runtime dependency!
             yum install --assumeyes \
