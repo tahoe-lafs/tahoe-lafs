@@ -16,10 +16,10 @@ workflows:
           requires:
             - "ubuntu-18.04"
 
-      - "fedora-28"
-      - "fedora-27":
+      - "fedora-29"
+      - "fedora-28":
           requires:
-            - "fedora-28"
+            - "fedora-29"
 
       - "centos-7"
 
@@ -261,8 +261,8 @@ jobs:
                 python-devel \
                 libffi-devel \
                 openssl-devel \
-                libyaml-devel \
-                python-virtualenv
+                libyaml-devel
+            dnf install /usr/bin/virtualenv
 
             # XXX net-tools is actually a Tahoe-LAFS runtime dependency!
             yum install --assumeyes \
@@ -284,16 +284,16 @@ jobs:
       - run: *SUBMIT_COVERAGE
 
 
-  fedora-27:
-    <<: *RHEL_DERIV
-    docker:
-      - image: "fedora:27"
-
-
   fedora-28:
     <<: *RHEL_DERIV
     docker:
-      - image: "fedora"
+      - image: "fedora:28"
+
+
+  fedora-29:
+    <<: *RHEL_DERIV
+    docker:
+      - image: "fedora:29"
 
 
   slackware-14.2:
