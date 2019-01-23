@@ -48,9 +48,9 @@ jobs:
           command: |
             ~/.local/bin/tox -e codechecks
 
-  debian-8: &DEBIAN
+  debian-9: &DEBIAN
     docker:
-      - image: "debian:8"
+      - image: "debian:9"
 
     environment: &UTF_8_ENVIRONMENT
       # Tell Hypothesis which configuration we want it to use.
@@ -173,16 +173,14 @@ jobs:
             /tmp/tests/bin/codecov
 
 
-  debian-9:
+  debian-8:
     <<: *DEBIAN
     docker:
-      - image: "debian:9"
+      - image: "debian:8"
 
 
   c-locale:
     <<: *DEBIAN
-    docker:
-      - image: "debian:9"
 
     environment:
       <<: *UTF_8_ENVIRONMENT
@@ -191,8 +189,6 @@ jobs:
 
   deprecations:
     <<: *DEBIAN
-    docker:
-      - image: "debian:9"
 
     environment:
       <<: *UTF_8_ENVIRONMENT
