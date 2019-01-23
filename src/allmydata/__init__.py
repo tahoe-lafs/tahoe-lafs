@@ -273,10 +273,38 @@ def get_package_versions_and_locations():
     return packages, cross_check_errors
 
 
+def split_requirement(req):
+    """
+    Split up a single requirement string into the different version constraint pieces.
+
+    This is like req.split(",") except it doesn't split on , found inside [].
+
+    :return: A list of the split up pieces.
+    """
+    in_extras = False
+    pieces = []
+    chunk = ''
+    for ch in req:
+        if in_extras:
+            if ch == ']':
+                in_extras = False
+            chunk += ch
+        else:
+            if ch == '[':
+                in_extras = True
+                chunk += ch
+            elif ch == ',':
+                pieces.append(chunk)
+                chunk = ''
+            else:
+                chunk += ch
+    pieces.append(chunk)
+    return pieces
+
+
 def check_requirement(req, vers_and_locs):
     # We support only conjunctions of <=, >=, and !=
-
-    reqlist = req.split(',')
+    reqlist = split_requirement(req)
     name = reqlist[0].split('<=')[0].split('>=')[0].split('!=')[0].strip(' ').split('[')[0]
     if name not in vers_and_locs:
         raise PackagingError("no version info for %s" % (name,))
