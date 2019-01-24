@@ -1351,22 +1351,6 @@ class EqButNotIs:
         return self.x == other
 
 class DictUtil(unittest.TestCase):
-    def _help_test_empty_dict(self, klass):
-        d1 = klass()
-        d2 = klass({})
-
-        self.failUnless(d1 == d2, "d1: %r, d2: %r" % (d1, d2,))
-        self.failUnless(len(d1) == 0)
-        self.failUnless(len(d2) == 0)
-
-    def _help_test_nonempty_dict(self, klass):
-        d1 = klass({'a': 1, 'b': "eggs", 3: "spam",})
-        d2 = klass({'a': 1, 'b': "eggs", 3: "spam",})
-
-        self.failUnless(d1 == d2)
-        self.failUnless(len(d1) == 3, "%s, %s" % (len(d1), d1,))
-        self.failUnless(len(d2) == 3)
-
     def test_dict_of_sets(self):
         ds = dictutil.DictOfSets()
         ds.add(1, "a")
