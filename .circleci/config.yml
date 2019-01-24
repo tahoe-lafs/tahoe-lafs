@@ -71,6 +71,8 @@ jobs:
       TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
+      # The path in which test artifacts will be placed.
+      ARTIFACTS_OUTPUT_PATH: "/tmp/artifacts"
       # Convince all of our pip invocations to look at the cached wheelhouse
       # we maintain.
       WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
@@ -152,7 +154,7 @@ jobs:
           working_directory: "/tmp"
           command: |
             /tmp/project/.circleci/run-tests.sh \
-                /tmp/artifacts \
+                "${ARTIFACTS_OUTPUT_PATH}" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
           # trial output gets directed straight to a log.  avoid the circleci
@@ -212,6 +214,9 @@ jobs:
       <<: *UTF_8_ENVIRONMENT
       # Select the integration tests tox environments.
       TAHOE_LAFS_TOX_ENVIRONMENT: "integration"
+      # Disable artifact collection because py.test can't produce any.
+      ARTIFACTS_OUTPUT_PATH: ""
+
 
     steps:
       # DRY, YAML-style.  See the debian-9 steps.
