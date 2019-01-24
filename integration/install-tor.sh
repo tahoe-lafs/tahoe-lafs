@@ -707,5 +707,5 @@ I4Tesw==
 -----END PGP PUBLIC KEY BLOCK-----
 EOF
 
-sudo apt-get update
-sudo apt-get install tor deb.torproject.org-keyring
+sudo apt-get --quiet update
+sudo apt-get --quiet --yes install tor deb.torproject.org-keyring
