@@ -234,9 +234,6 @@ jobs:
       - save_cache: *SAVE_HTTP_CACHE
       - save_cache: *SAVE_WHEELHOUSE
       - run: *RUN_TESTS
-      - store_test_results: *STORE_TEST_LOG
-      - store_artifacts: *STORE_OTHER_ARTIFACTS
-      - run: *SUBMIT_COVERAGE
 
 
   ubuntu-16.04:
