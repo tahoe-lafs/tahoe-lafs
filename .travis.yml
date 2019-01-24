@@ -22,7 +22,6 @@ install:
   - python misc/build_helpers/show-tool-versions.py
 
 script:
-  - if [ "${T}" = "integration" ]; then /bin/bash integration/install-tor.sh; fi
   - tox -e ${T}
 
 after_success:
@@ -42,8 +41,6 @@ matrix:
   include:
   - os: linux
     env: T=coverage LANG=en_US.UTF-8
-  - os: linux
-    env: T=integration LANG=en_US.UTF-8
   - os: linux
     env: T=codechecks LANG=en_US.UTF-8
   - os: linux
