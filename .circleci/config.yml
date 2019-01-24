@@ -29,7 +29,13 @@ workflows:
       - "lint"
       - "deprecations"
       - "c-locale"
-      - "integration"
+
+      - "integration":
+          requires:
+            # If the unit test suite doesn't pass, don't bother running the
+            # integration tests.
+            - "debian-9"
+
 
 jobs:
   lint:
