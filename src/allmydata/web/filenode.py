@@ -370,7 +370,7 @@ class FileDownloader(rend.Page):
             def parse_range(r):
                 first, last = r.split('-', 1)
 
-                if first is '':
+                if first == '':
                     # suffix-byte-range-spec
                     first = filesize - long(last)
                     last = filesize - 1
@@ -381,7 +381,7 @@ class FileDownloader(rend.Page):
                     first = long(first)
 
                     # last-byte-pos
-                    if last is '':
+                    if last == '':
                         last = filesize - 1
                     else:
                         last = long(last)
