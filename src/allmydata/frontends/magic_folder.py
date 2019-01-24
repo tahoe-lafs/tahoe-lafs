@@ -7,6 +7,7 @@ from datetime import datetime
 import time
 import ConfigParser
 
+from twisted.python.monkey import MonkeyPatcher
 from twisted.internet import defer, reactor, task
 from twisted.internet.error import AlreadyCancelled
 from twisted.python.failure import Failure
@@ -48,7 +49,7 @@ class ConfigurationError(Exception):
     """
 
 
-def get_inotify_module():
+def _get_inotify_module():
     try:
         if sys.platform == "win32":
             from allmydata.windows import inotify
@@ -64,6 +65,14 @@ def get_inotify_module():
             raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
                                       "Windows support requires at least Vista, and has only been tested on Windows 7.")
         raise
+
+
+def get_inotify_module():
+    # Until Twisted #9579 is fixed, the Docker check just screws things up.
+    # Disable it.
+    monkey = MonkeyPatcher()
+    monkey.addPatch(runtime.platform, "isDocker", lambda: False)
+    return monkey.runWithPatches(_get_inotify_module)
 
 
 def is_new_file(pathinfo, db_entry):
