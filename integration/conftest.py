@@ -417,6 +417,8 @@ def chutney(reactor, temp_dir):
     # XXX yuck! should add a setup.py to chutney so we can at least
     # "pip install <path to tarball>" and/or depend on chutney in "pip
     # install -e .[dev]" (i.e. in the 'dev' extra)
+    #
+    # https://trac.torproject.org/projects/tor/ticket/20343
     proto = _DumpOutputProtocol(None)
     reactor.spawnProcess(
         proto,
