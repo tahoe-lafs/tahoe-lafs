@@ -1367,55 +1367,6 @@ class DictUtil(unittest.TestCase):
         self.failUnless(len(d1) == 3, "%s, %s" % (len(d1), d1,))
         self.failUnless(len(d2) == 3)
 
-    def _help_test_eq_but_notis(self, klass):
-        d = klass({'a': 3, 'b': EqButNotIs(3), 'c': 3})
-        d.pop('b')
-
-        d.clear()
-        d['a'] = 3
-        d['b'] = EqButNotIs(3)
-        d['c'] = 3
-        d.pop('b')
-
-        d.clear()
-        d['b'] = EqButNotIs(3)
-        d['a'] = 3
-        d['c'] = 3
-        d.pop('b')
-
-        d.clear()
-        d['a'] = EqButNotIs(3)
-        d['c'] = 3
-        d['a'] = 3
-
-        d.clear()
-        fake3 = EqButNotIs(3)
-        fake7 = EqButNotIs(7)
-        d[fake3] = fake7
-        d[3] = 7
-        d[3] = 8
-        self.failUnless(filter(lambda x: x is 8,  d.itervalues()))
-        self.failUnless(filter(lambda x: x is fake7,  d.itervalues()))
-        # The real 7 should have been ejected by the d[3] = 8.
-        self.failUnless(not filter(lambda x: x is 7,  d.itervalues()))
-        self.failUnless(filter(lambda x: x is fake3,  d.iterkeys()))
-        self.failUnless(filter(lambda x: x is 3,  d.iterkeys()))
-        d[fake3] = 8
-
-        d.clear()
-        d[3] = 7
-        fake3 = EqButNotIs(3)
-        fake7 = EqButNotIs(7)
-        d[fake3] = fake7
-        d[3] = 8
-        self.failUnless(filter(lambda x: x is 8,  d.itervalues()))
-        self.failUnless(filter(lambda x: x is fake7,  d.itervalues()))
-        # The real 7 should have been ejected by the d[3] = 8.
-        self.failUnless(not filter(lambda x: x is 7,  d.itervalues()))
-        self.failUnless(filter(lambda x: x is fake3,  d.iterkeys()))
-        self.failUnless(filter(lambda x: x is 3,  d.iterkeys()))
-        d[fake3] = 8
-
     def test_dict_of_sets(self):
         ds = dictutil.DictOfSets()
         ds.add(1, "a")
