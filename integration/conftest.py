@@ -10,7 +10,10 @@ from tempfile import mkdtemp, mktemp
 from twisted.python.procutils import which
 from twisted.internet.defer import Deferred, DeferredList
 from twisted.internet.task import deferLater
-from twisted.internet.error import ProcessExitedAlready
+from twisted.internet.error import (
+    ProcessExitedAlready,
+    ProcessTerminated,
+)
 
 import pytest
 
@@ -476,7 +479,12 @@ def tor_network(reactor, temp_dir, chutney, request):
         path=join(chutney_dir),
         env={"PYTHONPATH": join(chutney_dir, "lib")},
     )
-    pytest.blockon(proto.done)
+    try:
+        pytest.blockon(proto.done)
+    except ProcessTerminated:
+        print("Chutney.TorNet failed:")
+        print(proto.output.getvalue())
+        raise
 
     def cleanup():
         print("Tearing down Chutney Tor network")
