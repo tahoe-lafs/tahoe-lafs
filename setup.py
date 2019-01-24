@@ -256,7 +256,11 @@ setup(name="tahoe-lafs", # also set in __init__.py
       extras_require={
           ':sys_platform=="win32"': ["pypiwin32"],
           "test": [
-              "pyflakes",
+              # Pin a specific pyflakes so we don't have different folks
+              # disagreeing on what is or is not a lint issue.  We can bump
+              # this version from time to time, but we will do it
+              # intentionally.
+              "pyflakes == 2.1.0",
               "coverage",
               "mock",
               "tox",
