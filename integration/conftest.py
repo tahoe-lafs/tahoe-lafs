@@ -482,9 +482,8 @@ def tor_network(reactor, temp_dir, chutney, request):
     try:
         pytest.blockon(proto.done)
     except ProcessTerminated:
-        print("Chutney.TorNet failed:")
+        print("Chutney.TorNet status failed (continuing):")
         print(proto.output.getvalue())
-        raise
 
     def cleanup():
         print("Tearing down Chutney Tor network")
