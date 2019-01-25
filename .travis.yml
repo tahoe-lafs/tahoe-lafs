@@ -22,7 +22,7 @@ install:
   - python misc/build_helpers/show-tool-versions.py
 
 script:
-  - tox -e ${T}
+  - tox -vvvv -e ${T}
 
 after_success:
   - if [ "${T}" = "coverage" ]; then codecov; fi
