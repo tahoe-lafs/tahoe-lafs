@@ -341,7 +341,14 @@ jobs:
           name: "Install Git"
           command: |
             slackpkg update
-            slackpkg install openssh-7.4p1 git-2.14.4 </dev/null
+
+            # Be careful with slackpkg.  If the package name given doesn't
+            # match anything, slackpkg still claims to succeed but you're
+            # totally screwed.  Slackware updates versions of packaged
+            # software so including too much version prefix is a good way to
+            # have your install commands suddenly begin not installing
+            # anything.
+            slackpkg install openssh-7 git-2 </dev/null
 
       - "checkout"
 
