@@ -39,17 +39,6 @@ notifications:
 
 matrix:
   include:
-  - os: linux
-    env: T=coverage LANG=en_US.UTF-8
-  - os: linux
-    env: T=codechecks LANG=en_US.UTF-8
-  - os: linux
-    env: T=pyinstaller LANG=en_US.UTF-8
-  - os: linux
-    env: T=py27 LANG=C
-  - os: osx
-    env: T=py27 LANG=en_US.UTF-8
-    language: generic  # "python" is not available on OS-X
   - os: osx
     env: T=pyinstaller LANG=en_US.UTF-8
     language: generic  # "python" is not available on OS-X
