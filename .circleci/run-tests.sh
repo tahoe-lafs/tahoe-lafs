@@ -9,14 +9,20 @@ shift
 TAHOE_LAFS_TOX_ARGS=$1
 shift || :
 
-# Make sure we can actually write things to this directory.
-sudo --user nobody mkdir -p "${ARTIFACTS}"
+if [ -n "${ARTIFACTS}" ]; then
+    # If given an artifacts path, prepare to have some artifacts created
+    # there.  The integration tests don't produce any artifacts; that is the
+    # case where we expect not to end up here.
 
-SUBUNIT2="${ARTIFACTS}"/results.subunit2
+    # Make sure we can actually write things to this directory.
+    sudo --user nobody mkdir -p "${ARTIFACTS}"
 
-# Use an intermediate directory here because CircleCI extracts some label
-# information from its name.
-JUNITXML="${ARTIFACTS}"/junit/unittests/results.xml
+    SUBUNIT2="${ARTIFACTS}"/results.subunit2
+
+    # Use an intermediate directory here because CircleCI extracts some label
+    # information from its name.
+    JUNITXML="${ARTIFACTS}"/junit/unittests/results.xml
+fi
 
 # Run the test suite as a non-root user.  This is the expected usage some
 # small areas of the test suite assume non-root privileges (such as unreadable
@@ -40,6 +46,8 @@ sudo \
     -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
     ${TAHOE_LAFS_TOX_ARGS}
 
-# Create a junitxml results area.
-mkdir -p "$(dirname "${JUNITXML}")"
-/tmp/tests/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}"
+if [ -n "${ARTIFACTS}" ]; then
+    # Create a junitxml results area.
+    mkdir -p "$(dirname "${JUNITXML}")"
+    /tmp/tests/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}"
+fi

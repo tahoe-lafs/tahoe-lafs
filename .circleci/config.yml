@@ -30,6 +30,13 @@ workflows:
       - "deprecations"
       - "c-locale"
 
+      - "integration":
+          requires:
+            # If the unit test suite doesn't pass, don't bother running the
+            # integration tests.
+            - "debian-9"
+
+
 jobs:
   lint:
     docker:
@@ -48,9 +55,9 @@ jobs:
           command: |
             ~/.local/bin/tox -e codechecks
 
-  debian-8: &DEBIAN
+  debian-9: &DEBIAN
     docker:
-      - image: "debian:8"
+      - image: "debian:9"
 
     environment: &UTF_8_ENVIRONMENT
       # Tell Hypothesis which configuration we want it to use.
@@ -64,6 +71,8 @@ jobs:
       TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
+      # The path in which test artifacts will be placed.
+      ARTIFACTS_OUTPUT_PATH: "/tmp/artifacts"
       # Convince all of our pip invocations to look at the cached wheelhouse
       # we maintain.
       WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
@@ -145,7 +154,7 @@ jobs:
           working_directory: "/tmp"
           command: |
             /tmp/project/.circleci/run-tests.sh \
-                /tmp/artifacts \
+                "${ARTIFACTS_OUTPUT_PATH}" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
           # trial output gets directed straight to a log.  avoid the circleci
@@ -173,16 +182,14 @@ jobs:
             /tmp/tests/bin/codecov
 
 
-  debian-9:
+  debian-8:
     <<: *DEBIAN
     docker:
-      - image: "debian:9"
+      - image: "debian:8"
 
 
   c-locale:
     <<: *DEBIAN
-    docker:
-      - image: "debian:9"
 
     environment:
       <<: *UTF_8_ENVIRONMENT
@@ -191,8 +198,6 @@ jobs:
 
   deprecations:
     <<: *DEBIAN
-    docker:
-      - image: "debian:9"
 
     environment:
       <<: *UTF_8_ENVIRONMENT
@@ -200,6 +205,35 @@ jobs:
       TAHOE_LAFS_TOX_ENVIRONMENT: "deprecations,upcoming-deprecations"
       # Put the logs somewhere we can report them.
       TAHOE_LAFS_WARNINGS_LOG: "/tmp/artifacts/deprecation-warnings.log"
+
+
+  integration:
+    <<: *DEBIAN
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # Select the integration tests tox environments.
+      TAHOE_LAFS_TOX_ENVIRONMENT: "integration"
+      # Disable artifact collection because py.test can't produce any.
+      ARTIFACTS_OUTPUT_PATH: ""
+
+
+    steps:
+      # DRY, YAML-style.  See the debian-9 steps.
+      - run: *INSTALL_GIT
+      - "checkout"
+      - run: *BOOTSTRAP_TEST_ENVIRONMENT
+      - restore_cache: *RESTORE_HTTP_CACHE
+      - restore_cache: *RESTORE_WHEELHOUSE
+      - run: *SETUP_VIRTUALENV
+      - run:
+          name: "Install Tor"
+          command: |
+            # Don't forget that we moved the source tree to /tmp.
+            /tmp/project/integration/install-tor.sh
+      - save_cache: *SAVE_HTTP_CACHE
+      - save_cache: *SAVE_WHEELHOUSE
+      - run: *RUN_TESTS
 
 
   ubuntu-16.04:

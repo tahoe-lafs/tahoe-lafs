@@ -3,8 +3,8 @@
 # Script to install Tor
 
 set -ex
-echo "deb http://deb.torproject.org/torproject.org trusty main" | sudo tee -a /etc/apt/sources.list
-echo "deb-src http://deb.torproject.org/torproject.org trusty main" | sudo tee -a /etc/apt/sources.list
+echo "deb http://deb.torproject.org/torproject.org stretch main" | sudo tee -a /etc/apt/sources.list
+echo "deb-src http://deb.torproject.org/torproject.org stretch main" | sudo tee -a /etc/apt/sources.list
 
 # Install Tor repo signing key
 sudo apt-key add - <<EOF
@@ -707,5 +707,5 @@ I4Tesw==
 -----END PGP PUBLIC KEY BLOCK-----
 EOF
 
-sudo apt-get update
-sudo apt-get install tor deb.torproject.org-keyring
+sudo apt-get --quiet update
+sudo apt-get --quiet --yes install tor deb.torproject.org-keyring
