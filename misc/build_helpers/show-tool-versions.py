@@ -106,6 +106,7 @@ def print_py_pkg_ver(pkgname, modulename=None):
 print_platform()
 print
 print_python_ver()
+print_stdout(['pip', '--version'])
 print_stdout(['virtualenv', '--version'])
 print_stdout(['tox', '--version'])
 print
