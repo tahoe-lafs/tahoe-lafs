@@ -91,4 +91,3 @@ if __name__ == '__main__':
     print "Testing %s ..." % pkgs[0]
     test_osx_pkg(pkgs[0])
     print "Looks OK!"
-
