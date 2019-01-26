@@ -58,7 +58,7 @@ def test_osx_pkg(pkgfile):
     gunzip_process = subprocess.Popen(['gunzip', '-dc'],
                                       stdin=cat_process.stdout,
                                       stdout=subprocess.PIPE)
-    cpio_process = subprocess.Popen(['cpio', '-i'],
+    cpio_process = subprocess.Popen(['cpio', '-i', '--verbose'],
                                     stdin=gunzip_process.stdout,
                                     stdout=subprocess.PIPE)
     cpio_process.communicate()
