@@ -33,12 +33,14 @@ test-osx-pkg:
 	$(PYTHON) misc/build_helpers/test-osx-pkg.py
 
 upload-osx-pkg:
-	@echo "uploading to ~tahoe-tarballs/OS-X-packages/ via flappserver"
-	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then \
-	  flappclient --furlfile ~/.tahoe-osx-pkg-upload.furl upload-file tahoe-lafs-*-osx.pkg; \
-	 else \
-	  echo not uploading tahoe-lafs-osx-pkg because this is not trunk but is branch \"${BB_BRANCH}\" ; \
-	fi
+	# [Failure instance: Traceback: <class 'OpenSSL.SSL.Error'>: [('SSL routines', 'ssl3_read_bytes', 'tlsv1 alert unknown ca'), ('SSL routines', 'ssl3_write_bytes', 'ssl handshake failure')]
+	#
+	# @echo "uploading to ~tahoe-tarballs/OS-X-packages/ via flappserver"
+	# @if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then \
+	#   flappclient --furlfile ~/.tahoe-osx-pkg-upload.furl upload-file tahoe-lafs-*-osx.pkg; \
+	#  else \
+	#   echo not uploading tahoe-lafs-osx-pkg because this is not trunk but is branch \"${BB_BRANCH}\" ; \
+	# fi
 
 .PHONY: smoketest
 smoketest:

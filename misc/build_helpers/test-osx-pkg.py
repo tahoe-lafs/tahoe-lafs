@@ -31,6 +31,8 @@
 # characteristic: 14.1.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages)
 # pyasn1-modules: 0.0.5 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pyasn1_modules-0.0.5-py2.7.egg)
 
+from __future__ import print_function
+
 import os, re, shutil, subprocess, sys, tempfile
 
 def test_osx_pkg(pkgfile):
@@ -56,7 +58,7 @@ def test_osx_pkg(pkgfile):
     gunzip_process = subprocess.Popen(['gunzip', '-dc'],
                                       stdin=cat_process.stdout,
                                       stdout=subprocess.PIPE)
-    cpio_process = subprocess.Popen(['cpio', '-i'],
+    cpio_process = subprocess.Popen(['cpio', '-i', '--verbose'],
                                     stdin=gunzip_process.stdout,
                                     stdout=subprocess.PIPE)
     cpio_process.communicate()
@@ -68,6 +70,13 @@ def test_osx_pkg(pkgfile):
 
         rc = callit.wait()
         if rc != 0:
+            print(
+                "{} failed.\n"
+                "stdout: {}\n"
+                "stderr: {}\n".format(
+                    cmd, callit.stdout.read(), callit.stderr.read(),
+                ),
+            )
             raise Exception("FAIL: '%s' returned non-zero exit code: %r" % (" ".join(cmd), rc))
         stdouttxt = callit.stdout.read()
 
@@ -86,9 +95,8 @@ def test_osx_pkg(pkgfile):
 if __name__ == '__main__':
     pkgs = [fn for fn in os.listdir(".") if fn.endswith("-osx.pkg")]
     if len(pkgs) != 1:
-        print "ERR: unable to find a single .pkg file:", pkgs
+        print("ERR: unable to find a single .pkg file:", pkgs)
         sys.exit(1)
-    print "Testing %s ..." % pkgs[0]
+    print("Testing %s ..." % pkgs[0])
     test_osx_pkg(pkgs[0])
-    print "Looks OK!"
-
+    print("Looks OK!")
