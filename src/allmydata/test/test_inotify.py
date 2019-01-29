@@ -141,17 +141,6 @@ class INotifyTests(unittest.TestCase):
     test_movedTo.skip = True
 
 
-    def test_create(self):
-        """
-        Creating a file in a monitored directory sends an
-        C{inotify.IN_CREATE} event to the callback.
-        """
-        def operation(path):
-            path.open("w").close()
-
-        return self._notificationTest(inotify.IN_CREATE, operation)
-    test_create.skip = True
-
     def test_delete(self):
         """
         Deleting a file in a monitored directory sends an
