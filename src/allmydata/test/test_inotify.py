@@ -35,6 +35,7 @@ class INotifyTests(unittest.TestCase):
         self.inotify.startReading()
         self.addCleanup(self.inotify.stopReading)
 
+
     def test_initializationErrors(self):
         """
         L{inotify.INotify} emits a C{RuntimeError} when initialized
@@ -116,6 +117,7 @@ class INotifyTests(unittest.TestCase):
 
         return self._notificationTest(inotify.IN_MODIFY, operation, ignore_count=1)
 
+
     def test_attrib(self):
         """
         Changing the metadata of a file in a monitored directory
@@ -127,6 +129,7 @@ class INotifyTests(unittest.TestCase):
 
         return self._notificationTest(inotify.IN_ATTRIB, operation, ignore_count=1)
 
+
     def test_closeWrite(self):
         """
         Closing a file which was open for writing in a monitored
@@ -137,6 +140,7 @@ class INotifyTests(unittest.TestCase):
             path.open("w").close()
 
         return self._notificationTest(inotify.IN_CLOSE_WRITE, operation)
+
 
     def test_closeNoWrite(self):
         """
