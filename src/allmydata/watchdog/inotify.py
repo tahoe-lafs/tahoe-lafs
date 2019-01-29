@@ -74,6 +74,7 @@ class INotifyEventHandler(FileSystemEventHandler):
                         event_mask = event_mask | IN_CLOSE_WRITE
                         event_mask = event_mask | IN_MODIFY
                     if isinstance(event, (DirCreatedEvent, FileCreatedEvent)):
+                        # For our purposes, IN_CREATE is irrelevant.
                         event_mask = event_mask | IN_CLOSE_WRITE
                     if isinstance(event, (DirDeletedEvent, FileDeletedEvent)):
                         event_mask = event_mask | IN_DELETE
