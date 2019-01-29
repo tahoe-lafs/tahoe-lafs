@@ -166,32 +166,6 @@ class INotifyTests(unittest.TestCase):
         return notified
 
 
-    def test_deleteSelf(self):
-        """
-        Deleting the monitored directory itself sends an
-        C{inotify.IN_DELETE_SELF} event to the callback.
-        """
-        def operation(path):
-            path.remove()
-
-        return self._notificationTest(
-            inotify.IN_DELETE_SELF, operation, expectedPath=self.dirname)
-    test_deleteSelf.skip = True
-
-
-    def test_moveSelf(self):
-        """
-        Renaming the monitored directory itself sends an
-        C{inotify.IN_MOVE_SELF} event to the callback.
-        """
-        def operation(path):
-            path.moveTo(filepath.FilePath(self.mktemp()))
-
-        return self._notificationTest(
-            inotify.IN_MOVE_SELF, operation, expectedPath=self.dirname)
-    test_moveSelf.skip = True
-
-
     def test_simpleSubdirectoryAutoAdd(self):
         """
         L{inotify.INotify} when initialized with autoAdd==True adds
