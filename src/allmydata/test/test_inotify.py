@@ -166,33 +166,6 @@ class INotifyTests(unittest.TestCase):
         return notified
 
 
-    def test_simpleSubdirectoryAutoAdd(self):
-        """
-        L{inotify.INotify} when initialized with autoAdd==True adds
-        also adds the created subdirectories to the watchlist.
-        """
-        def _callback(wp, filename, mask):
-            # We are notified before we actually process new
-            # directories, so we need to defer this check.
-            def _():
-                try:
-                    self.assertTrue(self.inotify._isWatched(subdir))
-                    d.callback(None)
-                except Exception:
-                    d.errback()
-            reactor.callLater(0, _)
-
-        checkMask = inotify.IN_ISDIR | inotify.IN_CREATE
-        self.inotify.watch(
-            self.dirname, mask=checkMask, autoAdd=True,
-            callbacks=[_callback])
-        subdir = self.dirname.child('test')
-        d = defer.Deferred()
-        subdir.createDirectory()
-        return d
-    test_simpleSubdirectoryAutoAdd.skip = True
-
-
     def test_simpleDeleteDirectory(self):
         """
         L{inotify.INotify} removes a directory from the watchlist when
