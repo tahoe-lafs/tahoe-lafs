@@ -213,7 +213,6 @@ class INotifyTests(unittest.TestCase):
         self.assertEqual(
             set(inotify.humanReadableMask(checkMask)),
             set(['close_write', 'access', 'open']))
-    test_humanReadableMask.skip = True
 
 
     def test_recursiveWatch(self):
