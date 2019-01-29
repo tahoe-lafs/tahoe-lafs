@@ -124,7 +124,11 @@ class INotifyTests(unittest.TestCase):
             path.moveTo(filepath.FilePath(self.mktemp()))
 
         return self._notificationTest(inotify.IN_MOVED_FROM, operation)
-    test_movedFrom.skip = True
+    # The watchdog implementation makes it difficult to get this event.  Also,
+    # the magic-folder implementation doesn't really *need* exactly this
+    # event.  It would be nice to get some event on move, which watchdog gives
+    # us.  But this test is overly specific for our purposes.
+    test_movedFrom.skip = "not available on watchdog"
 
 
     def test_movedTo(self):
@@ -138,7 +142,8 @@ class INotifyTests(unittest.TestCase):
             p.moveTo(path)
 
         return self._notificationTest(inotify.IN_MOVED_TO, operation)
-    test_movedTo.skip = True
+    # Ditto the comment on test_movedFrom about watchdog here.
+    test_movedTo.skip = "not available on watchdog"
 
 
     def test_delete(self):
