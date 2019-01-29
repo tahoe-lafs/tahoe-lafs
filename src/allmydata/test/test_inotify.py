@@ -36,22 +36,6 @@ class INotifyTests(unittest.TestCase):
         self.addCleanup(self.inotify.stopReading)
 
 
-    def test_initializationErrors(self):
-        """
-        L{inotify.INotify} emits a C{RuntimeError} when initialized
-        in an environment that doesn't support inotify as we expect it.
-
-        We just try to raise an exception for every possible case in
-        the for loop in L{inotify.INotify._inotify__init__}.
-        """
-        class FakeINotify:
-            def init(self):
-                raise inotify.INotifyError()
-        self.patch(inotify.INotify, '_inotify', FakeINotify())
-        self.assertRaises(inotify.INotifyError, inotify.INotify)
-    test_initializationErrors.skip = True
-
-
     def _notificationTest(self, mask, operation, expectedPath=None, ignore_count=0):
         """
         Test notification from some filesystem operation.
@@ -94,18 +78,6 @@ class INotifyTests(unittest.TestCase):
         return notified
 
 
-    def test_access(self):
-        """
-        Reading from a file in a monitored directory sends an
-        C{inotify.IN_ACCESS} event to the callback.
-        """
-        def operation(path):
-            path.setContent(b"foo")
-            path.getContent()
-
-        return self._notificationTest(inotify.IN_ACCESS, operation)
-    test_access.skip = True
-
     def test_modify(self):
         """
         Writing to a file in a monitored directory sends an
@@ -140,32 +112,6 @@ class INotifyTests(unittest.TestCase):
             path.open("w").close()
 
         return self._notificationTest(inotify.IN_CLOSE_WRITE, operation)
-
-
-    def test_closeNoWrite(self):
-        """
-        Closing a file which was open for reading but not writing in a
-        monitored directory sends an C{inotify.IN_CLOSE_NOWRITE} event
-        to the callback.
-        """
-        def operation(path):
-            path.touch()
-            path.open("r").close()
-
-        return self._notificationTest(inotify.IN_CLOSE_NOWRITE, operation)
-    test_closeNoWrite.skip = True
-
-
-    def test_open(self):
-        """
-        Opening a file in a monitored directory sends an
-        C{inotify.IN_OPEN} event to the callback.
-        """
-        def operation(path):
-            path.open("w").close()
-
-        return self._notificationTest(inotify.IN_OPEN, operation)
-    test_open.skip = True
 
 
     def test_movedFrom(self):
