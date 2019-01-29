@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import os
+import time
 import urllib
 from types import NoneType
 from six.moves import cStringIO as StringIO
@@ -545,6 +546,84 @@ def status(options):
     return 0
 
 
+def rawstatus(options):
+    """
+    Dump JSON from the magic-folder status endpoint
+    """
+    nodedir = options["node-directory"]
+    stdout, stderr = options.stdout, options.stderr
+    magic_folders = load_magic_folders(os.path.join(options["node-directory"]))
+
+    with open(os.path.join(nodedir, u'private', u'api_auth_token'), 'rb') as f:
+        token = f.read()
+
+    print >>stderr, "Magic-folder status for '{}':".format(options["name"])
+
+    if options["name"] not in magic_folders:
+        raise Exception(
+            "No such magic-folder '{}'".format(options["name"])
+        )
+
+    while True:
+        try:
+            magic_data = _get_json_for_fragment(
+                options,
+                'magic_folder?t=json',
+                method='POST',
+                post_args=dict(
+                    t='json',
+                    name=options["name"],
+                    token=token,
+                )
+            )
+        except Exception as e:
+            print >>stderr, "failed to retrieve data: %s" % str(e)
+            return 2
+
+        if isinstance(magic_data, dict) and 'error' in magic_data:
+            print >>stderr, "Error from server: %s" % d['error']
+            print >>stderr, "This means we can't retrieve the remote shared directory."
+            return 3
+
+        now = datetime.now()
+        print('[')
+        for st in magic_data:
+            print('  {')
+            for k, v in st.items():
+                print('    "{}": {}'.format(k, v))
+            print('  },')
+        print(']')
+
+        if False:
+            uploads = [item for item in magic_data if item['kind'] == 'upload']
+            downloads = [item for item in magic_data if item['kind'] == 'download']
+            longest = max([len(item['path']) for item in magic_data])
+
+            # maybe gate this with --show-completed option or something?
+            uploads = [item for item in uploads if item['status'] != 'success']
+            downloads = [item for item in downloads if item['status'] != 'success']
+
+            if len(uploads):
+                print
+                print >>stdout, "Uploads:"
+                for item in uploads:
+                    _print_item_status(item, now, longest)
+
+            if len(downloads):
+                print
+                print >>stdout, "Downloads:"
+                for item in downloads:
+                    _print_item_status(item, now, longest)
+
+            for item in magic_data:
+                if item['status'] == 'failure':
+                    print >>stdout, "Failed:", item
+
+        time.sleep(0.5)
+
+    return 0
+
+
 class MagicFolderCommand(BaseOptions):
     subCommands = [
         ["create", None, CreateOptions, "Create a Magic Folder."],
@@ -552,6 +631,7 @@ class MagicFolderCommand(BaseOptions):
         ["join", None, JoinOptions, "Join a Magic Folder."],
         ["leave", None, LeaveOptions, "Leave a Magic Folder."],
         ["status", None, StatusOptions, "Display status of uploads/downloads."],
+        ["rawstatus", None, StatusOptions, "Display status of uploads/downloads in raw json."],
         ["list", None, ListOptions, "List Magic Folders configured in this client."],
     ]
     optFlags = [
@@ -569,8 +649,10 @@ class MagicFolderCommand(BaseOptions):
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a subcommand")
+
     def getSynopsis(self):
         return "Usage: tahoe [global-options] magic-folder"
+
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
         t += (
@@ -579,14 +661,17 @@ class MagicFolderCommand(BaseOptions):
         )
         return t
 
+
 subDispatch = {
     "create": create,
     "invite": invite,
     "join": join,
     "leave": leave,
     "status": status,
+    "rawstatus": rawstatus,
     "list": list_,
 }
+
 
 def do_magic_folder(options):
     so = options.subOptions
