@@ -171,41 +171,33 @@ class INotifyTests(unittest.TestCase):
         L{inotify.INotify} removes a directory from the watchlist when
         it's removed from the filesystem.
         """
-        calls = []
+        subdir = self.dirname.child('test')
+        subdir.createDirectory()
+
+        d = defer.Deferred()
+
         def _callback(wp, filename, mask):
-            # We are notified before we actually process new
-            # directories, so we need to defer this check.
+            # We are notified before the watch state is updated so we need to
+            # delay our check of that watch state a bit.
             def _():
-                try:
-                    self.assertTrue(self.inotify._isWatched(subdir))
-                    subdir.remove()
-                except Exception:
-                    d.errback()
-            def _eb():
-                # second call, we have just removed the subdir
                 try:
                     self.assertFalse(self.inotify._isWatched(subdir))
                     d.callback(None)
                 except Exception:
                     d.errback()
-
-            if not calls:
-                # first call, it's the create subdir
-                calls.append(filename)
-                reactor.callLater(0, _)
-
-            else:
-                reactor.callLater(0, _eb)
+            reactor.callLater(0, _)
 
         checkMask = inotify.IN_ISDIR | inotify.IN_CREATE
         self.inotify.watch(
-            self.dirname, mask=checkMask, autoAdd=True,
-            callbacks=[_callback])
-        subdir = self.dirname.child('test')
-        d = defer.Deferred()
-        subdir.createDirectory()
+            self.dirname,
+            mask=checkMask,
+            callbacks=[_callback],
+            recursive=True,
+        )
+        self.assertTrue(self.inotify._isWatched(subdir))
+        subdir.remove()
+
         return d
-    test_simpleDeleteDirectory.skip = True
 
 
     def test_humanReadableMask(self):
