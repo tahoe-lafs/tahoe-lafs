@@ -10,7 +10,10 @@ from tempfile import mkdtemp, mktemp
 from twisted.python.procutils import which
 from twisted.internet.defer import Deferred, DeferredList
 from twisted.internet.task import deferLater
-from twisted.internet.error import ProcessExitedAlready
+from twisted.internet.error import (
+    ProcessExitedAlready,
+    ProcessTerminated,
+)
 
 import pytest
 
@@ -414,6 +417,8 @@ def chutney(reactor, temp_dir):
     # XXX yuck! should add a setup.py to chutney so we can at least
     # "pip install <path to tarball>" and/or depend on chutney in "pip
     # install -e .[dev]" (i.e. in the 'dev' extra)
+    #
+    # https://trac.torproject.org/projects/tor/ticket/20343
     proto = _DumpOutputProtocol(None)
     reactor.spawnProcess(
         proto,
@@ -476,7 +481,11 @@ def tor_network(reactor, temp_dir, chutney, request):
         path=join(chutney_dir),
         env={"PYTHONPATH": join(chutney_dir, "lib")},
     )
-    pytest.blockon(proto.done)
+    try:
+        pytest.blockon(proto.done)
+    except ProcessTerminated:
+        print("Chutney.TorNet status failed (continuing):")
+        print(proto.output.getvalue())
 
     def cleanup():
         print("Tearing down Chutney Tor network")

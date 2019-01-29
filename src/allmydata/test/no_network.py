@@ -30,6 +30,7 @@ from allmydata.client import _Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IStorageBroker, IServer
 from .common import TEST_RSA_KEY_SIZE
 
@@ -184,15 +185,36 @@ class NoNetworkStorageBroker(object):
         return []  # FIXME?
 
 
-def NoNetworkClient(basedir):
-    # XXX FIXME this is just to avoid massive search-replace for now;
-    # should be create_nonetwork_client() or something...
-    from allmydata.node import read_config
+def create_no_network_client(basedir):
+    """
+    :return: a Deferred yielding an instance of _Client subclass which
+        does no actual networking but has the same API.
+    """
+    basedir = abspath_expanduser_unicode(unicode(basedir))
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
+
+    from allmydata.client import read_config
     config = read_config(basedir, u'client.port')
-    return _NoNetworkClient(config, basedir=basedir)
+    storage_broker = NoNetworkStorageBroker()
+    client = _NoNetworkClient(
+        config,
+        main_tub=None,
+        control_tub=None,
+        i2p_provider=None,
+        tor_provider=None,
+        introducer_clients=[],
+        storage_farm_broker=storage_broker,
+    )
+    # this is a (pre-existing) reference-cycle and also a bad idea, see:
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2949
+    storage_broker.client = client
+    return defer.succeed(client)
 
 
 class _NoNetworkClient(_Client):
+    """
+    Overrides all _Client networking functionality to do nothing.
+    """
 
     def init_connections(self):
         pass
@@ -264,9 +286,10 @@ class NoNetworkGrid(service.MultiService):
         self.rebuild_serverlist()
 
         for i in range(num_clients):
-            c = self.make_client(i)
-            self.clients.append(c)
+            d = self.make_client(i)
+            d.addCallback(lambda c: self.clients.append(c))
 
+    @defer.inlineCallbacks
     def make_client(self, i, write_config=True):
         clientid = hashutil.tagged_hash("clientid", str(i))[:20]
         clientdir = os.path.join(self.basedir, "clients",
@@ -292,14 +315,14 @@ class NoNetworkGrid(service.MultiService):
             c = self.client_config_hooks[i](clientdir)
 
         if not c:
-            c = NoNetworkClient(clientdir)
+            c = yield create_no_network_client(clientdir)
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
         c.nodeid = clientid
         c.short_nodeid = b32encode(clientid).lower()[:8]
         c._servers = self.all_servers # can be updated later
         c.setServiceParent(self)
-        return c
+        defer.returnValue(c)
 
     def make_server(self, i, readonly=False):
         serverid = hashutil.tagged_hash("serverid", str(i))[:20]
@@ -400,11 +423,13 @@ class GridTestMixin:
         self.client_baseurls = [c.getServiceNamed("webish").getURL()
                                 for c in self.g.clients]
 
-    def get_clientdir(self, i=0):
-        return self.g.clients[i].basedir
+    def get_client_config(self, i=0):
+        return self.g.clients[i].config
 
-    def set_clientdir(self, basedir, i=0):
-        self.g.clients[i].basedir = basedir
+    def get_clientdir(self, i=0):
+        # ideally, use something get_client_config() only, we
+        # shouldn't need to manipulate raw paths..
+        return self.get_client_config(i).get_config_path()
 
     def get_client(self, i=0):
         return self.g.clients[i]
@@ -413,8 +438,10 @@ class GridTestMixin:
         client = self.g.clients[i]
         d = defer.succeed(None)
         d.addCallback(lambda ign: self.g.removeService(client))
+
+        @defer.inlineCallbacks
         def _make_client(ign):
-            c = self.g.make_client(i, write_config=False)
+            c = yield self.g.make_client(i, write_config=False)
             self.g.clients[i] = c
             self._record_webports_and_baseurls()
         d.addCallback(_make_client)

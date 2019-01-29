@@ -68,9 +68,15 @@ install_requires = [
     # * Twisted-16.1.0 fixes https://twistedmatrix.com/trac/ticket/8223,
     #   which otherwise causes test_system to fail (DirtyReactorError, due to
     #   leftover timers)
-    # * Twisted-16.4.0 instroduces twisted.trial which is needed for coverage
-    #   testing
-    "Twisted[tls] >= 16.4.0",
+    # * Twisted-16.4.0 introduces `python -m twisted.trial` which is needed
+    #   for coverage testing
+
+    # * Twisted 16.6.0 drops the undesirable gmpy dependency from the conch
+    #   extra, letting us use that extra instead of trying to duplicate its
+    #   dependencies here.  Twisted[conch] >18.7 introduces a dependency on
+    #   bcrypt.  It is nice to avoid that if the user ends up with an older
+    #   version of Twisted.  That's hard to express except by using the extra.
+    "Twisted[tls,conch] >= 16.6.0",
 
     # We need Nevow >= 0.11.1 which can be installed using pip.
     "Nevow >= 0.11.1",

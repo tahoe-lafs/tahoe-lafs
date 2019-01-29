@@ -7,6 +7,7 @@ from datetime import datetime
 import time
 import ConfigParser
 
+from twisted.python.monkey import MonkeyPatcher
 from twisted.internet import defer, reactor, task
 from twisted.internet.error import AlreadyCancelled
 from twisted.python.failure import Failure
@@ -48,7 +49,7 @@ class ConfigurationError(Exception):
     """
 
 
-def get_inotify_module():
+def _get_inotify_module():
     try:
         if sys.platform == "win32":
             from allmydata.windows import inotify
@@ -66,6 +67,14 @@ def get_inotify_module():
             raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
                                       "Windows support requires at least Vista, and has only been tested on Windows 7.")
         raise
+
+
+def get_inotify_module():
+    # Until Twisted #9579 is fixed, the Docker check just screws things up.
+    # Disable it.
+    monkey = MonkeyPatcher()
+    monkey.addPatch(runtime.platform, "isDocker", lambda: False)
+    return monkey.runWithPatches(_get_inotify_module)
 
 
 def is_new_file(pathinfo, db_entry):
@@ -311,11 +320,7 @@ class MagicFolder(service.MultiService):
         :param dict config: Magic-folder configuration like that in the list
             returned by ``load_magic_folders``.
         """
-        db_filename = os.path.join(
-            client_node.basedir,
-            "private",
-            "magicfolder_{}.sqlite".format(name),
-        )
+        db_filename = client_node.config.get_private_path("magicfolder_{}.sqlite".format(name))
         local_dir_config = config['directory']
         try:
             poll_interval = int(config["poll_interval"])
@@ -326,9 +331,10 @@ class MagicFolder(service.MultiService):
             client=client_node,
             upload_dircap=config["upload_dircap"],
             collective_dircap=config["collective_dircap"],
+            # XXX surely a better way for this local_path_u business
             local_path_u=abspath_expanduser_unicode(
                 local_dir_config,
-                base=client_node.basedir,
+                base=client_node.config.get_config_path(),
             ),
             dbfile=abspath_expanduser_unicode(db_filename),
             umask=config["umask"],

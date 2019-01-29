@@ -1,80 +1,109 @@
-﻿* Tahoe Release Checklist [0/19]
-  - [ ] make sure buildbot, travis, appveyor are green
+﻿How to Make a Tahoe-LAFS Release
+
+Any developer with push priveleges can do most of these steps, but a
+"Release Maintainer" is required for some signing operations -- these
+steps are marked with (Release Maintainer). Currently, the following
+people are Release Maintainers:
+
+  - Brian Warner (https://github.com/warner)
+
+
+* select features/PRs for new release [0/2]
+  - [ ] made sure they are tagged/labeled
+  - [ ] merged all release PRs
+
+* basic quality checks [0/3]
+  - [ ] all travis CI checks pass
+  - [ ] all appveyor checks pass
+  - [ ] all buildbot workers pass their checks
+
+* freeze master branch [0/]
+  - [ ] announced the freeze of the master branch on IRC (i.e. non-release PRs won't be merged until after release)
+
+* sync documentation [0/7]
   - [ ] NEWS.rst: summarize user-visible changes, aim for one page of text
-  - [ ] update doc files
-    - NEWS.rst: Add final release name and date to top-most item in NEWS.
-    - relnotes.txt
-    - CREDITS
-    - docs/known_issues.rst
-  - [ ] change docs/INSTALL.rst to point to just the current
-    tahoe-lafs-X.Y.Z.tar.gz source code file
-  - [ ] announce the tree is locked on IRC
-  - [ ] git pull, should be empty
-  - [ ] git tag -s -u 68666A7A -m "release Tahoe-LAFS-X.Y.Z" tahoe-lafs-X.Y.Z
-    - produces a "signed tag"
-  - [ ] build locally to make sure the release is reporting itself as the
-    intended version, make tarballs too (for comparison only)
-  - [ ] push tag to trigger buildslaves. Making a code change is no longer
-    necessary (TODO: pushing just 1.12.0b2 was insufficient: travis fired,
-    but not buildbot)
-    - git push official master TAGNAME
-    - that will build tarballs
-  - [ ] make sure buildbot is green
-  - [ ] download tarballs+wheels
-  - [ ] announce tree is unlocked
-  - [ ] compare tarballs+wheels against local copies (but sign upstreams)
-  - [ ] sign each with "gpg -ba -u 68666a7a FILE"
-  - [ ] twine upload dist/*
-  - [ ] test "pip install tahoe-lafs" (from PyPI)
-  - [ ] upload *.asc to org ~source/downloads/
-  - [ ] copy the release tarball,sigs to tahoe-lafs.org: ~source/downloads/
-  - [ ] move old release out of ~source/downloads (to downloads/old/?)
-  - [ ] send out relnotes.txt:
-    - add prefix with SHA256 of tarballs, release pubkey, git revhash
-    - GPG-sign the email with release key
-    - send to tahoe-announce@tahoe-lafs.org and tahoe-dev@tahoe-lafs.org
-  - [ ] update Wiki front page: version on download link, News column
-  - [ ] update Wiki "Doc": parade of release notes (with rev of NEWS.rst)
-  - [ ] close the Milestone on the trac Roadmap
-  - [ ] tweet to @tahoelafs
-  - other stuff:
-  - [ ] update https://tahoe-lafs.org/hacktahoelafs/
-  - [ ] make an "announcement of new release" on freshmeat
+  - [ ] added final release name and date to top-most item in NEWS.rst
+  - [ ] updated relnotes.txt
+  - [ ] updated CREDITS
+  - [ ] updated docs/known_issues.rst
+  - [ ] docs/INSTALL.rst only points to current tahoe-lafs-X.Y.Z.tar.gz source code file
+  - [ ] updated https://tahoe-lafs.org/hacktahoelafs/
+
+* sign + build the tag [0/8]
+
+  - [ ] code passes all checks / tests (i.e. all CI is green)
+  - [ ] documentation is ready (see above)
+  - [ ] (Release Maintainer): git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-X.Y.Z" tahoe-lafs-X.Y.Z
+  - [ ] build code locally:
+     tox -e py27,codechecks,coverage,deprecations,docs,integration,upcoming-deprecations
+  - [ ] created tarballs (they'll be in dist/ for later comparison)
+     tox -e tarballs
+  - [ ] release version is reporting itself as intended version
+     ls dist/
+  - [ ] 'git pull' doesn't pull anything
+  - [ ] pushed tag to trigger buildslaves
+     git push official master TAGNAME
+  - [ ] confirmed Dockerhub built successfully:
+     https://hub.docker.com/r/tahoelafs/base/builds/
+
+* sign the release artifacts [0/8]
+
+  - [ ] (Release Maintainer): pushed signed tag (should trigger Buildbot builders)
+  - [ ] Buildbot workers built all artifacts successfully
+  - [ ] downloaded upstream tarballs+wheels
+  - [ ] announce on IRC that master is unlocked
+  - [ ] compared upstream tarballs+wheels against local copies
+  - [ ] (Release Maintainer): signed each upstream artifacts with "gpg -ba -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A FILE"
+  - [ ] added to relnotes.txt: [0/3]
+    - [ ] prefix with SHA256 of tarballs
+    - [ ] release pubkey
+    - [ ] git revision hash
+  - [ ] GPG-signed the release email with release key (write to
+        relnotes.txt.asc) Ideally this is a Release Maintainer, but could
+        be any developer
+
+* publish release artifacts [0/9]
+
+  - [ ] uploaded to PyPI via: twine upload dist/*
+  - [ ] uploaded *.asc to org ~source/downloads/
+  - [ ] test install works properly: pip install tahoe-lafs
+  - [ ] copied the release tarballs and signatures to tahoe-lafs.org: ~source/downloads/
+  - [ ] moved old release out of ~source/downloads (to downloads/old/?)
+  - [ ] ensured readthedocs.org updated
+  - [ ] uploaded wheels to https://tahoe-lafs.org/deps/
+  - [ ] uploaded release to https://github.com/tahoe-lafs/tahoe-lafs/releases
+
+* check release downloads [0/]
+
+  - [ ] test PyPI via: pip install tahoe-lafs
+  - [ ] https://github.com/tahoe-lafs/tahoe-lafs/releases
+  - [ ] https://tahoe-lafs.org/downloads/
+  - [ ] https://tahoe-lafs.org/deps/
+
+* document release in trac [0/]
+
+  - [ ] closed the Milestone on the trac Roadmap
+
+* unfreeze master branch [0/]
+
+  - [ ] announced on IRC that new PRs will be looked at/merged
+
+* announce new release [0/]
+
+  - [ ] sent release email and relnotes.txt.asc to tahoe-announce@tahoe-lafs.org
+  - [ ] sent release email and relnotes.txt.asc to tahoe-dev@tahoe-lafs.org
+  - [ ] updated Wiki front page: version on download link, News column
+  - [ ] updated Wiki "Doc": parade of release notes (with rev of NEWS.rst)
+  - [ ] make an "announcement of new release" on freshmeat (XXX still a thing?)
   - [ ] make an "announcement of new release" on launchpad
-  - [ ] send out relnotes.txt to:
-    - p2p-hackers@lists.zooko.com
-    - lwn@lwn.net
-    - a Google+ page
-    - cap-talk@mail.eros-os.org
-    - cryptography@metzdown.com
-    - cryptography@randombit.net
-    - twisted-python@twistedmatrix.com
-    - owncloud@kde.org
-    - liberationtech@lists.stanford.edu
-    - the "decentralization" group on groups.yahoo.com
-    - pycrypto mailing list
-    - fuse-devel@lists.sourceforge.net
-    - fuse-sshfs@lists.sourceforge.net
-    - duplicity-talk@nongnu.org
-    - news@phoronix.com
-    - python-list@python.org
-    - cygwin@cygwin.com
-    - The Boulder Linux Users' Group
-    - The Boulder Hackerspace mailing list
-    - cryptopp-users@googlegroups.com
-    - tiddlywiki
-    - hdfs-dev@hadoop.apache.org
-    - bzr
-    - mercurial
-    - http://listcultures.org/pipermail/p2presearch_listcultures.org/
-    - deltacloud
-    - libcloud
-    - swift@lists.launchpad.net
-    - stephen@fosketts.net
-    - Chris Mellor of The Register
-    - nosql@mypopescu.com
-    - The H Open
-    - fans/customers of cleversafe
-    - fans/customers of bitcasa
-    - fans/customers of wuala
-    - fans/customers of spideroak
+  - [ ] tweeted as @tahoelafs
+  - [ ] emailed relnotes.txt.asc to below listed mailing-lists/organizations
+  - [ ] also announce release to (trimmed from previous version of this doc):
+      - twisted-python@twistedmatrix.com
+      - liberationtech@lists.stanford.edu
+      - lwn@lwn.net
+      - p2p-hackers@lists.zooko.com
+      - python-list@python.org
+      - http://listcultures.org/pipermail/p2presearch_listcultures.org/
+      - cryptopp-users@googlegroups.com
+      - (others?)

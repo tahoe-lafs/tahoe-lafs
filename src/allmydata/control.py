@@ -150,7 +150,7 @@ class SpeedTest:
         self.size = size
         self.mutable_mode = mutable
         self.uris = {}
-        self.basedir = os.path.join(self.parent.basedir, "_speed_test_data")
+        self.basedir = self.parent.config.get_config_path("_speed_test_data")
 
     def run(self):
         self.create_data()

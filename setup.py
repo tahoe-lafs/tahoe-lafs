@@ -257,7 +257,11 @@ setup(name="tahoe-lafs", # also set in __init__.py
           ':sys_platform=="win32"': ["pypiwin32"],
           ':sys_platform!="win32" and sys_platform!="linux2"': ["watchdog"],  # For magic-folder on "darwin" (macOS) and the BSDs
           "test": [
-              "pyflakes",
+              # Pin a specific pyflakes so we don't have different folks
+              # disagreeing on what is or is not a lint issue.  We can bump
+              # this version from time to time, but we will do it
+              # intentionally.
+              "pyflakes == 2.1.0",
               "coverage",
               "mock",
               "tox",
@@ -269,6 +273,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "pytest-twisted",
               "hypothesis >= 3.6.1",
               "treq",
+              "towncrier",
           ],
           "tor": [
               "foolscap[tor] >= 0.12.5",
