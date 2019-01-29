@@ -941,6 +941,7 @@ class QueueMixin(HookMixin):
         # print("_process_history: {}".format(len(self._process_history)))
 
         for item in self._deque:
+            #if item.relpath_u not in self._pending:
             yield item
         for item in self._in_progress:
             yield item

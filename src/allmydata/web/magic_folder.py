@@ -34,6 +34,9 @@ class MagicFolderWebApi(TokenOnlyWebApi):
             for (status, ts) in item.status_history():
                 d[status + '_at'] = ts
             d['percent_done'] = item.progress.progress
+            if item.progress.progress > 100.0:
+                print("TOO MUCH UPLOAD PROGRESS:")
+                print(json.dumps(item))
             d['size'] = item.size
             data.append(d)
 
@@ -46,6 +49,9 @@ class MagicFolderWebApi(TokenOnlyWebApi):
             for (status, ts) in item.status_history():
                 d[status + '_at'] = ts
             d['percent_done'] = item.progress.progress
+            if item.progress.progress > 100.0:
+                print("TOO MUCH DOWNLOAD PROGRESS:")
+                print(json.dumps(item))
             d['size'] = item.size
             data.append(d)
 
