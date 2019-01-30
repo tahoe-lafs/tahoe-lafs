@@ -1448,6 +1448,9 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.local_dir = os.path.join(self.basedir, u"local_dir")
         self.mkdir_nonascii(self.local_dir)
 
+        from foolscap.eventual import flushEventualQueue
+        self.addCleanup(flushEventualQueue)
+
         d = self.create_invite_join_magic_folder(self.alice_nickname, self.local_dir)
         d.addCallback(self._restart_client)
         # note: _restart_client ultimately sets self.magicfolder to not-None
