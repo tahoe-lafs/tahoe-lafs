@@ -231,7 +231,7 @@ class _NoNetworkClient(_Client):
     def startService(self):
         service.MultiService.startService(self)
     def stopService(self):
-        service.MultiService.stopService(self)
+        return service.MultiService.stopService(self)
     def init_control(self):
         pass
     def init_helper(self):
