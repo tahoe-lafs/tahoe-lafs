@@ -145,6 +145,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless("un-corrupted2" in aliases)
             self.failUnless(aliases["un-corrupted2"].startswith("URI:DIR2:"))
         d.addCallback(_check_not_corrupted)
+        return d
 
     def test_create_unicode(self):
         self.basedir = "cli/CreateAlias/create_unicode"
