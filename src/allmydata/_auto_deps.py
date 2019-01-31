@@ -97,6 +97,9 @@ install_requires = [
 
     # for 'tahoe invite' and 'tahoe join'
     "magic-wormhole >= 0.10.2",
+
+    # for essentially all of the magic-folder functionality
+    "watchdog >= 0.9",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.
@@ -124,7 +127,8 @@ package_imports = [
     ('pycparser',        'pycparser'),
     ('PyYAML',           'yaml'),
     ('magic-wormhole',   'wormhole'),
-    ('setuptools',       'setuptools')
+    ('setuptools',       'setuptools'),
+    ('watchdog',         'watchdog'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
