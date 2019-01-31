@@ -205,5 +205,3 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
     # TODO: test list-aliases, including Unicode
-
-
