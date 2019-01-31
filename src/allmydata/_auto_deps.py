@@ -99,7 +99,10 @@ install_requires = [
     "magic-wormhole >= 0.10.2",
 
     # for essentially all of the magic-folder functionality
-    "watchdog >= 0.9",
+    #
+    # 0.9 is (presumtively) the last Python 2-supporting release so make sure
+    # that's what we get until Tahoe-LAFS itself has been ported to Python 3.
+    "watchdog >= 0.9, < 0.10",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.
