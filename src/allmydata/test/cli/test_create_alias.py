@@ -1,3 +1,4 @@
+from StringIO import StringIO
 import os.path
 from twisted.trial import unittest
 import urllib
@@ -17,7 +18,10 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         o.parseOptions(["--node-directory", self.get_clientdir(), "webopen"]
                        + list(args))
         urls = []
-        rc = cli.webopen(o, urls.append)
+        o.subOptions.stdout = StringIO()
+        o.subOptions.stderr = StringIO()
+        o.subOptions.stdin = StringIO()
+        rc = cli.webopen(o.subOptions, urls.append)
         self.failUnlessReallyEqual(rc, 0)
         self.failUnlessReallyEqual(len(urls), 1)
         self.failUnlessReallyEqual(urls[0], expected_url)
@@ -145,6 +149,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless("un-corrupted2" in aliases)
             self.failUnless(aliases["un-corrupted2"].startswith("URI:DIR2:"))
         d.addCallback(_check_not_corrupted)
+        return d
 
     def test_create_unicode(self):
         self.basedir = "cli/CreateAlias/create_unicode"
@@ -205,5 +210,3 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
     # TODO: test list-aliases, including Unicode
-
-
