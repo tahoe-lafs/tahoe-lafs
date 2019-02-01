@@ -712,6 +712,8 @@ class Uploader(QueueMixin):
             d = self._notifier.wait_until_stopped()
         else:
             d = defer.succeed(None)
+        # Speed up shutdown
+        self._processing.cancel()
         # wait for processing loop to actually exit
         d.addCallback(lambda ign: self._processing)
         return d
@@ -1198,6 +1200,10 @@ class Downloader(QueueMixin, WriteFileMixin):
     def stop(self):
         self._log("stop")
         self._stopped = True
+
+        # Speed up shutdown
+        self._processing.cancel()
+
         d = defer.succeed(None)
         # wait for processing loop to actually exit
         d.addCallback(lambda ign: self._processing)

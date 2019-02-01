@@ -33,8 +33,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d = self.do_cli("create-alias", "tahoe")
         def _done((rc,stdout,stderr)):
-            self.failUnless("Alias 'tahoe' created" in stdout)
-            self.failIf(stderr)
+            self.assertEqual(stderr, "")
+            self.assertIn("Alias 'tahoe' created", stdout)
             aliases = get_aliases(self.get_clientdir())
             self.failUnless("tahoe" in aliases)
             self.failUnless(aliases["tahoe"].startswith("URI:DIR2:"))

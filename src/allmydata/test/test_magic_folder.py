@@ -1448,6 +1448,18 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.local_dir = os.path.join(self.basedir, u"local_dir")
         self.mkdir_nonascii(self.local_dir)
 
+        # Magic-folder implementation somehow manages to leave a DelayedCall
+        # in the reactor from the eventual queue by the end of the test.  It
+        # may have something to do with the upload process but it's not
+        # entirely clear.  It's difficult to track things through the eventual
+        # queue.  It is almost certainly the case that some other Deferred
+        # involved in magic-folder that is already being waited on elsewhere
+        # *should* encompass this DelayedCall but I wasn't able to figure out
+        # where that association needs to be made.  So, as a work-around,
+        # explicitly flush the eventual queue at the end of the test, too.
+        from foolscap.eventual import flushEventualQueue
+        self.addCleanup(flushEventualQueue)
+
         d = self.create_invite_join_magic_folder(self.alice_nickname, self.local_dir)
         d.addCallback(self._restart_client)
         # note: _restart_client ultimately sets self.magicfolder to not-None
