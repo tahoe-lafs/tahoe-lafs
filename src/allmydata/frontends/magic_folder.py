@@ -1,19 +1,19 @@
 
-import sys, os
+import os
 import os.path
 from errno import EEXIST
 from collections import deque
 from datetime import datetime
 import time
 import ConfigParser
+from contextlib import contextmanager
 
-from twisted.python.monkey import MonkeyPatcher
 from twisted.internet import defer, reactor, task
 from twisted.internet.error import AlreadyCancelled
 from twisted.python.failure import Failure
-from twisted.python import runtime
 from twisted.python import log as twlog
 from twisted.application import service
+from twisted.python.filepath import FilePath
 
 from zope.interface import Interface, Attribute, implementer
 
@@ -36,6 +36,10 @@ from allmydata.util.time_format import format_time
 from allmydata.immutable.upload import FileName, Data
 from allmydata import magicfolderdb, magicpath
 
+from ._fs_observers import (
+    FileSystemMovedEvent,
+    get_observer,
+)
 
 # Mask off all non-owner permissions for magic-folders files by default.
 _DEFAULT_DOWNLOAD_UMASK = 0o077
@@ -47,32 +51,6 @@ class ConfigurationError(Exception):
     """
     There was something wrong with some magic-folder configuration.
     """
-
-
-def _get_inotify_module():
-    try:
-        if sys.platform == "win32":
-            from allmydata.windows import inotify
-        elif runtime.platform.supportsINotify():
-            from twisted.internet import inotify
-        else:
-            raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
-                                      "This currently requires Linux or Windows.")
-        return inotify
-    except (ImportError, AttributeError) as e:
-        log.msg(e)
-        if sys.platform == "win32":
-            raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
-                                      "Windows support requires at least Vista, and has only been tested on Windows 7.")
-        raise
-
-
-def get_inotify_module():
-    # Until Twisted #9579 is fixed, the Docker check just screws things up.
-    # Disable it.
-    monkey = MonkeyPatcher()
-    monkey.addPatch(runtime.platform, "isDocker", lambda: False)
-    return monkey.runWithPatches(_get_inotify_module)
 
 
 def is_new_file(pathinfo, db_entry):
@@ -448,6 +426,7 @@ class QueueMixin(HookMixin):
             'iteration': None,
             'inotify': None,
             'item_processed': None,
+            'discarded_inotify': None,
         }
         self.started_d = self.set_hook('started')
 
@@ -483,7 +462,6 @@ class QueueMixin(HookMixin):
             yield item
 
     def _get_filepath(self, relpath_u):
-        self._log("_get_filepath(%r)" % (relpath_u,))
         return extend_filepath(self._local_filepath, relpath_u.split(u"/"))
 
     def _begin_processing(self, res):
@@ -570,9 +548,7 @@ class QueueMixin(HookMixin):
             self._call_hook(proc, 'processed')
 
     def _get_relpath(self, filepath):
-        self._log("_get_relpath(%r)" % (filepath,))
         segments = unicode_segments_from(filepath, self._local_filepath)
-        self._log("segments = %r" % (segments,))
         return u"/".join(segments)
 
     def _count(self, counter_name, delta=1):
@@ -645,14 +621,53 @@ class QueuedItem(object):
         )
 
 
+class _FileSystemEventHandler(object):
+    """
+    Forward notifications from the watchdog observer in the watchdog observer
+    thread to the magic-folder notification handler in the reactor thread.
+    """
+    def __init__(self, reactor, fs_event_handler):
+        """
+        :param IReactorThreads reactor: The reactor to use to send events back to
+            the reactor thread.
+
+        :param fs_event_handler: A one-argument callable which will be invoked
+            in the reactor thread with the filesystem event as its argument.
+        """
+        self._reactor = reactor
+        self._fs_event_handler = fs_event_handler
+
+    def dispatch(self, event):
+        """
+        Implement the watchdog event handler interface.
+        """
+        self._reactor.callFromThread(self._fs_event_handler, event)
+
+
+
 class UploadItem(QueuedItem):
     """
     Represents a single item the _deque of the Uploader
     """
-    pass
+
 
 
 class Uploader(QueueMixin):
+    """
+    :ivar Observer _fs_observer: An object which can watch the filesystem for
+        changes and notify us of them.
+
+    :ivar _FileSystemEventHandler _fs_handler: An object translating between
+        the watchdog event delivery interface an magic-folder's preferred
+        interface.
+
+    :ivar ObservedWatch _fs_watch: The watchdog watch object for the local
+        directory corresponding to the magic folder.
+
+    :ivar bool _process_notifications: True if watchdog notifications are
+        currently being processed.  False if they are being dropped on the
+        floor.  Only currently used by the test suite.
+    """
 
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
         QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock)
@@ -665,34 +680,25 @@ class Uploader(QueueMixin):
             raise AssertionError("'upload_dircap' is not a writecap to a directory")
 
         self._upload_dirnode = upload_dirnode
-        self._inotify = get_inotify_module()
-        self._notifier = self._inotify.INotify()
 
         self._pending = set()  # of unicode relpaths
         self._pending_delay = pending_delay
         self._periodic_full_scan_duration = 10 * 60 # perform a full scan every 10 minutes
         self._periodic_callid = None
 
-        if hasattr(self._notifier, 'set_pending_delay'):
-            self._notifier.set_pending_delay(pending_delay)
-
-        # TODO: what about IN_MOVE_SELF and IN_UNMOUNT?
-        #
-        self.mask = ( self._inotify.IN_CREATE
-                    | self._inotify.IN_CLOSE_WRITE
-                    | self._inotify.IN_MOVED_TO
-                    | self._inotify.IN_MOVED_FROM
-                    | self._inotify.IN_DELETE
-                    | self._inotify.IN_ONLYDIR
-                    | IN_EXCL_UNLINK
-                    )
-        self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
-                             recursive=False)#True)
+        self._process_notifications = True
+        self._fs_handler = _FileSystemEventHandler(reactor, self._notify)
+        self._fs_observer = get_observer()
+        self._fs_watch = self._fs_observer.schedule(
+            self._fs_handler,
+            self._local_filepath.asTextMode().path,
+            recursive=True,
+        )
 
     def start_monitoring(self):
         self._log("start_monitoring")
         d = defer.succeed(None)
-        d.addCallback(lambda ign: self._notifier.startReading())
+        d.addCallback(lambda ign: self._fs_observer.start())
         d.addCallback(lambda ign: self._count('dirs_monitored'))
         d.addBoth(self._call_hook, 'started')
         return d
@@ -700,7 +706,9 @@ class Uploader(QueueMixin):
     def stop(self):
         self._log("stop")
         self._stopped = True
-        self._notifier.stopReading()
+        self._fs_observer.stop()
+        # TODO: Are we going to block on joining the watchdog thread?
+        self._fs_observer.join()
         self._count('dirs_monitored', -1)
         if self._periodic_callid:
             try:
@@ -708,15 +716,11 @@ class Uploader(QueueMixin):
             except AlreadyCancelled:
                 pass
 
-        if hasattr(self._notifier, 'wait_until_stopped'):
-            d = self._notifier.wait_until_stopped()
-        else:
-            d = defer.succeed(None)
         # Speed up shutdown
         self._processing.cancel()
+
         # wait for processing loop to actually exit
-        d.addCallback(lambda ign: self._processing)
-        return d
+        return self._processing
 
     def start_uploading(self):
         self._log("start_uploading")
@@ -785,39 +789,66 @@ class Uploader(QueueMixin):
     def is_pending(self, relpath_u):
         return relpath_u in self._pending
 
-    def _notify(self, opaque, path, events_mask):
-        # Twisted doesn't seem to do anything if our callback throws
-        # an error, so...
-        try:
-            return self._real_notify(opaque, path, events_mask)
-        except Exception as e:
-            self._log(u"error calling _real_notify: {}".format(e))
-            twlog.err(Failure(), "Error calling _real_notify")
+    @contextmanager
+    def ignore_notifications(self):
+        """
+        Drop filesystem event notifications on the floor for the duration of the
+        context.
+        """
+        self._process_notifications = False
+        yield
+        self._process_notifications = True
 
-    def _real_notify(self, opaque, path, events_mask):
-        self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
-        relpath_u = self._get_relpath(path)
+    def _notify(self, event):
+        """
+        Accept a filesystem event notification and consider what to do with it.
+        """
+        if self._process_notifications:
+            self._log("processing notification {}".format(event))
+            # Twisted doesn't seem to do anything if our callback throws an
+            # error, so...
+            try:
+                return self._real_notify(event)
+            except Exception as e:
+                self._log(u"error calling _real_notify: {}".format(e))
+                twlog.err(Failure(), "Error calling _real_notify")
+        else:
+            self._log("ignoring notification {}".format(event))
+            self._call_hook(event, 'discarded_inotify')
 
-        # We filter out IN_CREATE events not associated with a directory.
-        # Acting on IN_CREATE for files could cause us to read and upload
-        # a possibly-incomplete file before the application has closed it.
-        # There should always be an IN_CLOSE_WRITE after an IN_CREATE, I think.
-        # It isn't possible to avoid watching for IN_CREATE at all, because
-        # it is the only event notified for a directory creation.
+    def _real_notify(self, event):
+        """
+        Integrate the information in the given filesystem event into the magic
+        folder management behavior.
+        """
+        self._log("notify event {}".format(event))
+        self._handle_notify_path(FilePath(event.src_path))
+        if isinstance(event, FileSystemMovedEvent):
+            self._handle_notify_path(FilePath(event.dest_path))
 
-        if ((events_mask & self._inotify.IN_CREATE) != 0 and
-            (events_mask & self._inotify.IN_ISDIR) == 0):
-            self._log("ignoring event for %r (creation of non-directory)\n" % (relpath_u,))
+    def _handle_notify_path(self, notify_path):
+        """
+        React to a change to a single specific filesystem path.
+
+        :param FilePath notify_path: The absolute filesystem path at which the
+            change occurred.
+        """
+        if notify_path == self._local_filepath:
+            # The local directory itself receives events for files created,
+            # deleted, etc, within it.  None of these mean anything to us.
             return
+
+        # Determine the path relative to the local directory.  All of our
+        # bookkeeping is in terms of the relative path.
+        relpath_u = self._get_relpath(notify_path)
+
         if relpath_u in self._pending:
             self._log("not queueing %r because it is already pending" % (relpath_u,))
-            return
-        if magicpath.should_ignore_file(relpath_u):
+        elif magicpath.should_ignore_file(relpath_u):
             self._log("ignoring event for %r (ignorable path)" % (relpath_u,))
-            return
-
-        self._add_pending(relpath_u)
-        self._call_hook(path, 'inotify')
+        else:
+            self._add_pending(relpath_u)
+        self._call_hook(notify_path, 'inotify')
 
     def _process(self, item):
         """
@@ -935,9 +966,6 @@ class Uploader(QueueMixin):
                 return False
             elif pathinfo.isdir:
                 self._log("ISDIR")
-                if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
-                    self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
-
                 db_entry = self._db.get_db_entry(relpath_u)
                 self._log("isdir dbentry %r" % (db_entry,))
                 if not is_new_file(pathinfo, db_entry):
@@ -1021,7 +1049,6 @@ class Uploader(QueueMixin):
         d.addCallback(_maybe_upload)
 
         def _succeeded(res):
-            self._log("_succeeded(%r)" % (res,))
             if res:
                 self._count('objects_succeeded')
             # TODO: maybe we want the status to be 'ignored' if res is False
@@ -1204,10 +1231,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         # Speed up shutdown
         self._processing.cancel()
 
-        d = defer.succeed(None)
         # wait for processing loop to actually exit
-        d.addCallback(lambda ign: self._processing)
-        return d
+        return self._processing
 
     def _should_download(self, relpath_u, remote_version, remote_uri):
         """
@@ -1270,12 +1295,12 @@ class Downloader(QueueMixin, WriteFileMixin):
         return collective_dirmap_d
 
     def _scan_remote_dmd(self, nickname, dirnode, scan_batch):
-        self._log("_scan_remote_dmd nickname %r" % (nickname,))
+        self._log("starting _scan_remote_dmd nickname %r" % (nickname,))
         d = dirnode.list()
         def scan_listing(listing_map):
             for encoded_relpath_u in listing_map.keys():
                 relpath_u = magicpath.magic2path(encoded_relpath_u)
-                self._log("found %r" % (relpath_u,))
+                self._log("_scan_remote_dmd found %r" % (relpath_u,))
 
                 file_node, metadata = listing_map[encoded_relpath_u]
                 local_dbentry = self._get_local_latest(relpath_u)
@@ -1285,8 +1310,8 @@ class Downloader(QueueMixin, WriteFileMixin):
                 # share?
                 remote_version = metadata.get('version', None)
                 remote_uri = file_node.get_readonly_uri()
-                self._log("%r has local dbentry %r, remote version %r, remote uri %r"
-                          % (relpath_u, local_dbentry, remote_version, remote_uri))
+                self._log("_scan_remote_dmd (%r): %r has local dbentry %r, remote version %r, remote uri %r"
+                          % (nickname, relpath_u, local_dbentry, remote_version, remote_uri))
 
                 if (local_dbentry is None or remote_version is None or
                     local_dbentry.version < remote_version or
@@ -1296,13 +1321,15 @@ class Downloader(QueueMixin, WriteFileMixin):
                         scan_batch[relpath_u] += [(file_node, metadata)]
                     else:
                         scan_batch[relpath_u] = [(file_node, metadata)]
+                else:
+                    self._log("_scan_remote_dmd (%r): did not queue %r" % (nickname, relpath_u))
             self._status_reporter(
                 True, 'Magic folder is working',
                 'Last scan: %s' % self.nice_current_time(),
             )
 
         d.addCallback(scan_listing)
-        d.addBoth(self._logcb, "end of _scan_remote_dmd")
+        d.addBoth(self._logcb, "end of _scan_remote_dmd for %s" % (nickname,))
         return d
 
     def _scan_remote_collective(self, scan_self=False):
@@ -1375,8 +1402,6 @@ class Downloader(QueueMixin, WriteFileMixin):
         # Downloader
         self._log("_process(%r)" % (item,))
         now = self._clock.seconds()
-
-        self._log("started! %s" % (now,))
         item.set_status('started', now)
         fp = self._get_filepath(item.relpath_u)
         abspath_u = unicode_from_filepath(fp)
