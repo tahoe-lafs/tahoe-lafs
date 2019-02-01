@@ -143,11 +143,6 @@ class _SimplifiedInotifyEmitter(_InotifyEmitter or object):
                 return
             high_level_events = _transform_inotify_event(event)
             for event in high_level_events:
-                if isinstance(event, DirMovedInEvent):
-                    # Arrange for it to be watched as well.  Another option
-                    # would be to have the magic-folder code do this in the
-                    # `pathinfo.isdir` case of `Uploader._process`.
-                    self._inotify._inotify.add_watch(event.src_path)
                 self.queue_event(event)
 
 

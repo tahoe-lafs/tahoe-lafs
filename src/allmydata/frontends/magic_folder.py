@@ -661,8 +661,9 @@ class Uploader(QueueMixin):
         the watchdog event delivery interface an magic-folder's preferred
         interface.
 
-    :ivar ObservedWatch _fs_watch: The watchdog watch object for the local
-        directory corresponding to the magic folder.
+    :ivar dict[FilePath -> ObservedWatch] _fs_watches: The watchdog watch
+        objects for the local directories corresponding to the magic folder
+        and its children.
 
     :ivar bool _process_notifications: True if watchdog notifications are
         currently being processed.  False if they are being dropped on the
@@ -687,13 +688,18 @@ class Uploader(QueueMixin):
         self._periodic_callid = None
 
         self._process_notifications = True
+        self._fs_watches = {}
         self._fs_handler = _FileSystemEventHandler(reactor, self._notify)
         self._fs_observer = get_observer()
-        self._fs_watch = self._fs_observer.schedule(
-            self._fs_handler,
-            self._local_filepath.asTextMode().path,
-            recursive=True,
-        )
+        self._fs_watch(self._local_filepath)
+
+    def _fs_watch(self, absolute_path):
+        if absolute_path not in self._fs_watches:
+            self._fs_watches[absolute_path] = self._fs_observer.schedule(
+                self._fs_handler,
+                absolute_path.asTextMode().path,
+                recursive=True,
+            )
 
     def start_monitoring(self):
         self._log("start_monitoring")
@@ -966,6 +972,8 @@ class Uploader(QueueMixin):
                 return False
             elif pathinfo.isdir:
                 self._log("ISDIR")
+                # Make sure that this is watched, too.
+                self._fs_watch(self._get_filepath(relpath_u))
                 db_entry = self._db.get_db_entry(relpath_u)
                 self._log("isdir dbentry %r" % (db_entry,))
                 if not is_new_file(pathinfo, db_entry):
