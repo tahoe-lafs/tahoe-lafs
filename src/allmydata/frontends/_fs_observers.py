@@ -33,6 +33,7 @@ except UnsupportedLibc:
     # We must be on a platform that doesn't support inotify.
     _InotifyEmitter = None
     _InotifyConstants = None
+    _InotifyObserver = None
 else:
     # It would be nice if watchdog just parameterized event_mask.  See
     # https://github.com/gorakhargosh/watchdog/issues/520
