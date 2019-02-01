@@ -1429,10 +1429,13 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
         @defer.inlineCallbacks
         def _check_move_small_tree(res):
+            msg("creating small tree outside of local_dir")
             self.mkdir_nonascii(small_tree_dir)
             what_path = abspath_expanduser_unicode(u"what", base=small_tree_dir)
             fileutil.write(what_path, "say when")
+            msg("moving small tree into local_dir")
             yield self.fileops.move(small_tree_dir, new_small_tree_dir)
+            msg("moved it")
             upstatus = list(self.magicfolder.uploader.get_status())
             downstatus = list(self.magicfolder.downloader.get_status())
 
@@ -1453,6 +1456,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
             self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1)
             # small_tree/what and small_tree succeeded
             self.failUnlessReallyEqual(self._get_count('uploader.objects_succeeded'), 2)
+            # all the work should have been dealt with by now
             self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0)
             # small_tree was created
             self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 1)
