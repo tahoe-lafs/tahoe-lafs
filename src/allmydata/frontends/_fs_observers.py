@@ -3,7 +3,7 @@ Present a simplified layer on top of the watchdog library which makes it
 easier to use from the magic-folder implementation.
 """
 
-from __future__ import unicode_literals
+from __future__ import unicode_literals, print_function
 
 __all__ = [
     "DirMovedInEvent",
@@ -11,12 +11,23 @@ __all__ = [
     "get_observer",
 ]
 
+debug = print
+
+from unicodedata import normalize
 from os import walk
 from os.path import join
 
 from watchdog.events import (
     FileSystemEvent,
     FileSystemMovedEvent,
+    FileDeletedEvent,
+    FileModifiedEvent,
+    FileCreatedEvent,
+    FileMovedEvent,
+    DirDeletedEvent,
+    DirModifiedEvent,
+    DirCreatedEvent,
+    DirMovedEvent
 )
 from watchdog.utils import UnsupportedLibc
 from watchdog.observers.api import (
@@ -60,16 +71,24 @@ else:
         return _Inotify(path, recursive, event_mask=event_mask)
     _inotify_buffer.Inotify = BetterInotify
 
+from watchdog.utils.dirsnapshot import DirectorySnapshot
+from watchdog.observers.fsevents import (
+    FSEventsEmitter as _FSEventsEmitter,
+    FSEventsObserver as _FSEventsObserver,
+)
+import _watchdog_fsevents as _fsevents
 
 def get_observer():
     """
     Get a filesystem events observer appropriate for the runtime platform.
     """
     from watchdog.observers import Observer
+    # Substitute our slightly modified observer, if appropriate.  They are
+    # better suited to magic-folder.
     if Observer is _InotifyObserver:
-        # Substitute our slightly modified observer.  It is better suited to
-        # magic-folder.
         Observer = _SimplifiedInotifyObserver
+    elif Observer is _FSEventsObserver:
+        Observer = _ReorderedFSEventsObserver
 
     return Observer()
 
@@ -160,3 +179,88 @@ class _SimplifiedInotifyObserver(BaseObserver):
             emitter_class=_SimplifiedInotifyEmitter,
             timeout=timeout,
         )
+
+
+class _ReorderedFSEventsEmitter(_FSEventsEmitter):
+    """
+    A modified fsevents emitter which delivers all directory-type change
+    notifications before any file-type change notifications.
+
+    This is helpful because it means you see `foo` get created before
+    `foo/bar` when a directory gets moved into the observed area.  If the
+    order is reversed, it's hard to know if you should re-scan `foo/bar`
+    (rather, you have to assume you should) to determine the true state.
+    """
+    def queue_event(self, event):
+        p_u = event.src_path.decode("utf-8")
+        if normalize("NFD", p_u) != p_u:
+            # assuming NFD version of the event is going to come along
+            # shortly.
+            debug("queue_event dropping event for non-NFD path {}")
+            return
+
+        debug("queue_event({})".format(event))
+        return _FSEventsEmitter.queue_event(self, event)
+
+    def queue_events(self, timeout):
+        with self._lock:
+            debug("queue_events")
+            if not self.watch.is_recursive\
+                and self.watch.path not in self.pathnames:
+                return
+            new_snapshot = DirectorySnapshot(self.watch.path,
+                                             self.watch.is_recursive)
+            events = new_snapshot - self.snapshot
+            self.snapshot = new_snapshot
+
+            # Directories.
+            for src_path in events.dirs_deleted:
+                self.queue_event(DirDeletedEvent(src_path))
+            for src_path in events.dirs_modified:
+                self.queue_event(DirModifiedEvent(src_path))
+            for src_path in events.dirs_created:
+                self.queue_event(DirCreatedEvent(src_path))
+            for src_path, dest_path in events.dirs_moved:
+                self.queue_event(DirMovedEvent(src_path, dest_path))
+
+            # Files.
+            for src_path in events.files_deleted:
+                self.queue_event(FileDeletedEvent(src_path))
+            for src_path in events.files_modified:
+                self.queue_event(FileModifiedEvent(src_path))
+            for src_path in events.files_created:
+                self.queue_event(FileCreatedEvent(src_path))
+            for src_path, dest_path in events.files_moved:
+                self.queue_event(FileMovedEvent(src_path, dest_path))
+
+    def run(self):
+        try:
+            def callback(pathnames, flags, emitter=self):
+                debug("callback({}, {})".format(pathnames, flags))
+                emitter.queue_events(emitter.timeout)
+                debug("queue_events returned")
+
+            self.pathnames = [self.watch.path]
+            debug(
+                "add_watch({})".format(
+                    list(p.decode("utf-8") for p in self.pathnames),
+                ),
+            )
+            _fsevents.add_watch(self,
+                                self.watch,
+                                callback,
+                                self.pathnames)
+            debug("read_events")
+            import sys
+            sys.stdout.flush()
+            _fsevents.read_events(self)
+            debug("run is done")
+        except:
+            print("_ReorderedFSEventsEmitter.run failed")
+            import traceback
+            traceback.print_exc()
+
+class _ReorderedFSEventsObserver(_FSEventsObserver):
+    def __init__(self, timeout=DEFAULT_OBSERVER_TIMEOUT):
+        BaseObserver.__init__(self, emitter_class=_ReorderedFSEventsEmitter,
+                              timeout=timeout)
