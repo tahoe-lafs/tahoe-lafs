@@ -1652,6 +1652,10 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         d = defer.succeed(None)
         # Write something short enough for a LIT file.
         d.addCallback(lambda ign: self._check_file(u"short", "test"))
+        # Insert a delay because some platforms (macOS, fsevents) can't detect
+        # file modification within the same second because they use
+        # second-resolution mtime to decide if a change has been made or not.
+        d.addCallback(lambda ign: task.deferLater(reactor, 1.0, lambda: None))
         # Write to the same file again with different data.
         d.addCallback(lambda ign: self._check_file(u"short", "different"))
         d.addCallback(self._assertNoFailures)
