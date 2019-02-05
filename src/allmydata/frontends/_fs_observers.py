@@ -71,12 +71,20 @@ else:
         return _Inotify(path, recursive, event_mask=event_mask)
     _inotify_buffer.Inotify = BetterInotify
 
-from watchdog.utils.dirsnapshot import DirectorySnapshot
-from watchdog.observers.fsevents import (
-    FSEventsEmitter as _FSEventsEmitter,
-    FSEventsObserver as _FSEventsObserver,
-)
-import _watchdog_fsevents as _fsevents
+try:
+    from watchdog.utils.dirsnapshot import (
+        DirectorySnapshot as _DirectorySnapshot,
+    )
+    from watchdog.observers.fsevents import (
+        FSEventsEmitter as _FSEventsEmitter,
+        FSEventsObserver as _FSEventsObserver,
+    )
+    import _watchdog_fsevents as _fsevents
+except ImportError:
+    _DirectorySnapshot = None
+    _FSEventsEmitter = None
+    _FSEventsObserver = None
+    _fsevents = None
 
 def get_observer():
     """
@@ -181,7 +189,7 @@ class _SimplifiedInotifyObserver(BaseObserver):
         )
 
 
-class _ReorderedFSEventsEmitter(_FSEventsEmitter):
+class _ReorderedFSEventsEmitter(_FSEventsEmitter or object):
     """
     A modified fsevents emitter which delivers all directory-type change
     notifications before any file-type change notifications.
@@ -208,8 +216,8 @@ class _ReorderedFSEventsEmitter(_FSEventsEmitter):
             if not self.watch.is_recursive\
                 and self.watch.path not in self.pathnames:
                 return
-            new_snapshot = DirectorySnapshot(self.watch.path,
-                                             self.watch.is_recursive)
+            new_snapshot = _DirectorySnapshot(self.watch.path,
+                                              self.watch.is_recursive)
             events = new_snapshot - self.snapshot
             self.snapshot = new_snapshot
 
@@ -260,7 +268,7 @@ class _ReorderedFSEventsEmitter(_FSEventsEmitter):
             import traceback
             traceback.print_exc()
 
-class _ReorderedFSEventsObserver(_FSEventsObserver):
+class _ReorderedFSEventsObserver(_FSEventsObserver or object):
     def __init__(self, timeout=DEFAULT_OBSERVER_TIMEOUT):
         BaseObserver.__init__(self, emitter_class=_ReorderedFSEventsEmitter,
                               timeout=timeout)
