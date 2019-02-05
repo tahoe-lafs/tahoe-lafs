@@ -224,8 +224,6 @@ class _ReorderedFSEventsEmitter(_FSEventsEmitter or object):
             # Directories.
             for src_path in events.dirs_deleted:
                 self.queue_event(DirDeletedEvent(src_path))
-            for src_path in events.dirs_modified:
-                self.queue_event(DirModifiedEvent(src_path))
             for src_path in events.dirs_created:
                 self.queue_event(DirCreatedEvent(src_path))
             for src_path, dest_path in events.dirs_moved:
