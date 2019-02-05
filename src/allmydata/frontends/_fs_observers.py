@@ -204,7 +204,7 @@ class _ReorderedFSEventsEmitter(_FSEventsEmitter or object):
         if normalize("NFD", p_u) != p_u:
             # assuming NFD version of the event is going to come along
             # shortly.
-            debug("queue_event dropping event for non-NFD path {}")
+            debug("queue_event dropping event for non-NFD path {}".format(event))
             return
 
         debug("queue_event({})".format(event))
