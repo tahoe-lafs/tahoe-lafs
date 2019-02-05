@@ -14,7 +14,7 @@ from allmydata.util.configutil import (
     write_config,
 )
 
-import pytest
+import pytest_twisted
 
 
 class _ProcessExitedProtocol(ProcessProtocol):
@@ -127,7 +127,7 @@ def _run_node(reactor, node_dir, request, magic_text):
     def cleanup():
         try:
             process.signalProcess('TERM')
-            pytest.blockon(protocol.exited)
+            pytest_twisted.blockon(protocol.exited)
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
