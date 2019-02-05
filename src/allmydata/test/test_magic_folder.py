@@ -1153,29 +1153,35 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
         bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
 
+        msg("alice writing initial contents")
         yield self.alice_fileops.write(alice_fname, 'contents0\n')
         yield iterate(self.alice_magicfolder)  # for windows
 
+        msg("alice iterating uploader")
         yield iterate_uploader(self.alice_magicfolder)
         yield alice_proc  # alice uploads
 
+        msg("bob iterating downloader")
         yield iterate_downloader(self.bob_magicfolder)
         yield bob_proc    # bob downloads
 
         # alice creates a new change
         alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
         bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+        msg("alice writing new contents")
         yield self.alice_fileops.write(alice_fname, 'contents1\n')
-
+        msg("alice iterating")
         yield iterate(self.alice_magicfolder)  # for windows
 
         # before bob downloads, make a local change
         with open(bob_fname, "w") as f:
             f.write("bob's local change")
 
+        msg("alice iterating uploader")
         yield iterate_uploader(self.alice_magicfolder)
         yield alice_proc  # alice uploads
 
+        msg("bob iterating downloader")
         yield iterate_downloader(self.bob_magicfolder)
         yield bob_proc    # bob downloads
 
