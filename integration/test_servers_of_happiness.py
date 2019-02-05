@@ -6,10 +6,10 @@ from twisted.internet.error import ProcessTerminated
 
 import util
 
-import pytest
+import pytest_twisted
 
 
-@pytest.inlineCallbacks
+@pytest_twisted.inlineCallbacks
 def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
 
     yield util._create_node(

@@ -1,12 +1,12 @@
 import sys
 import time
 import shutil
-from os import mkdir, unlink, listdir, utime
+from os import mkdir, unlink, utime
 from os.path import join, exists, getmtime
 
 import util
 
-import pytest
+import pytest_twisted
 
 
 # tests converted from check_magicfolder_smoke.py
@@ -280,7 +280,7 @@ def _bob_conflicts_alice_await_conflicts(name, alice_dir, bob_dir):
         assert open(alice_conflict, 'r').read() == "this is bob's {}\n".format(name)
 
 
-@pytest.inlineCallbacks
+@pytest_twisted.inlineCallbacks
 def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_furl, flog_gatherer, storage_nodes):
     """
     ticket 2880: if a magic-folder client uploads something, then

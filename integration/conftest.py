@@ -16,6 +16,7 @@ from twisted.internet.error import (
 )
 
 import pytest
+import pytest_twisted
 
 from util import _CollectOutputProtocol
 from util import _MagicTextProtocol
@@ -91,7 +92,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
             gather_dir,
         )
     )
-    pytest.blockon(out_protocol.done)
+    pytest_twisted.blockon(out_protocol.done)
 
     twistd_protocol = _MagicTextProtocol("Gatherer waiting at")
     twistd_process = reactor.spawnProcess(
@@ -103,12 +104,12 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
         ),
         path=gather_dir,
     )
-    pytest.blockon(twistd_protocol.magic_seen)
+    pytest_twisted.blockon(twistd_protocol.magic_seen)
 
     def cleanup():
         try:
             twistd_process.signalProcess('TERM')
-            pytest.blockon(twistd_protocol.exited)
+            pytest_twisted.blockon(twistd_protocol.exited)
         except ProcessExitedAlready:
             pass
 
@@ -125,7 +126,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
                 'flogtool', 'dump', join(temp_dir, 'flog_gather', flogs[0])
             ),
         )
-        pytest.blockon(flog_protocol.done)
+        pytest_twisted.blockon(flog_protocol.done)
 
     request.addfinalizer(cleanup)
 
@@ -160,7 +161,7 @@ log_gatherer.furl = {log_furl}
                 intro_dir,
             ),
         )
-        pytest.blockon(done_proto.done)
+        pytest_twisted.blockon(done_proto.done)
 
     # over-write the config file with our stuff
     with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
@@ -183,12 +184,12 @@ log_gatherer.furl = {log_furl}
     def cleanup():
         try:
             process.signalProcess('TERM')
-            pytest.blockon(protocol.exited)
+            pytest_twisted.blockon(protocol.exited)
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
 
-    pytest.blockon(protocol.magic_seen)
+    pytest_twisted.blockon(protocol.magic_seen)
     return process
 
 
@@ -228,7 +229,7 @@ log_gatherer.furl = {log_furl}
                 intro_dir,
             ),
         )
-        pytest.blockon(done_proto.done)
+        pytest_twisted.blockon(done_proto.done)
 
     # over-write the config file with our stuff
     with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
@@ -251,12 +252,12 @@ log_gatherer.furl = {log_furl}
     def cleanup():
         try:
             process.signalProcess('TERM')
-            pytest.blockon(protocol.exited)
+            pytest_twisted.blockon(protocol.exited)
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
 
-    pytest.blockon(protocol.magic_seen)
+    pytest_twisted.blockon(protocol.magic_seen)
     return process
 
 
@@ -278,14 +279,14 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
         name = 'node{}'.format(x)
         # tub_port = 9900 + x
         nodes.append(
-            pytest.blockon(
+            pytest_twisted.blockon(
                 _create_node(
                     reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
                     web_port=None, storage=True,
                 )
             )
         )
-    #nodes = pytest.blockon(DeferredList(nodes))
+    #nodes = pytest_twisted.blockon(DeferredList(nodes))
     return nodes
 
 
@@ -296,7 +297,7 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
     except OSError:
         pass
 
-    process = pytest.blockon(
+    process = pytest_twisted.blockon(
         _create_node(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
             web_port="tcp:9980:interface=localhost",
@@ -313,7 +314,7 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
     except OSError:
         pass
 
-    process = pytest.blockon(
+    process = pytest_twisted.blockon(
         _create_node(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "bob",
             web_port="tcp:9981:interface=localhost",
@@ -343,7 +344,7 @@ def alice_invite(reactor, alice, temp_dir, request):
             join(temp_dir, 'magic-alice'),
         ]
     )
-    pytest.blockon(proto.done)
+    pytest_twisted.blockon(proto.done)
 
     proto = _CollectOutputProtocol()
     reactor.spawnProcess(
@@ -355,7 +356,7 @@ def alice_invite(reactor, alice, temp_dir, request):
             '--basedir', node_dir, 'magik:', 'bob',
         ]
     )
-    pytest.blockon(proto.done)
+    pytest_twisted.blockon(proto.done)
     invite = proto.output.getvalue()
     print("invite from alice", invite)
 
@@ -363,11 +364,11 @@ def alice_invite(reactor, alice, temp_dir, request):
     # crappy for the tests -- can we fix it in magic-folder?)
     try:
         alice.signalProcess('TERM')
-        pytest.blockon(alice.exited)
+        pytest_twisted.blockon(alice.exited)
     except ProcessExitedAlready:
         pass
     magic_text = 'Completed initial Magic Folder scan successfully'
-    pytest.blockon(_run_node(reactor, node_dir, request, magic_text))
+    pytest_twisted.blockon(_run_node(reactor, node_dir, request, magic_text))
     return invite
 
 
@@ -388,19 +389,19 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
             join(temp_dir, 'magic-bob'),
         ]
     )
-    pytest.blockon(proto.done)
+    pytest_twisted.blockon(proto.done)
 
     # before magic-folder works, we have to stop and restart (this is
     # crappy for the tests -- can we fix it in magic-folder?)
     try:
         print("Sending TERM to Bob")
         bob.signalProcess('TERM')
-        pytest.blockon(bob.exited)
+        pytest_twisted.blockon(bob.exited)
     except ProcessExitedAlready:
         pass
 
     magic_text = 'Completed initial Magic Folder scan successfully'
-    pytest.blockon(_run_node(reactor, bob_dir, request, magic_text))
+    pytest_twisted.blockon(_run_node(reactor, bob_dir, request, magic_text))
     return (join(temp_dir, 'magic-alice'), join(temp_dir, 'magic-bob'))
 
 
@@ -429,7 +430,7 @@ def chutney(reactor, temp_dir):
             chutney_dir,
         )
     )
-    pytest.blockon(proto.done)
+    pytest_twisted.blockon(proto.done)
     return chutney_dir
 
 
@@ -454,7 +455,7 @@ def tor_network(reactor, temp_dir, chutney, request):
         path=join(chutney_dir),
         env={"PYTHONPATH": join(chutney_dir, "lib")},
     )
-    pytest.blockon(proto.done)
+    pytest_twisted.blockon(proto.done)
 
     proto = _DumpOutputProtocol(None)
     reactor.spawnProcess(
@@ -467,7 +468,7 @@ def tor_network(reactor, temp_dir, chutney, request):
         path=join(chutney_dir),
         env={"PYTHONPATH": join(chutney_dir, "lib")},
     )
-    pytest.blockon(proto.done)
+    pytest_twisted.blockon(proto.done)
 
     # print some useful stuff
     proto = _CollectOutputProtocol()
@@ -482,7 +483,7 @@ def tor_network(reactor, temp_dir, chutney, request):
         env={"PYTHONPATH": join(chutney_dir, "lib")},
     )
     try:
-        pytest.blockon(proto.done)
+        pytest_twisted.blockon(proto.done)
     except ProcessTerminated:
         print("Chutney.TorNet status failed (continuing):")
         print(proto.output.getvalue())
@@ -500,7 +501,7 @@ def tor_network(reactor, temp_dir, chutney, request):
             path=join(chutney_dir),
             env={"PYTHONPATH": join(chutney_dir, "lib")},
         )
-        pytest.blockon(proto.done)
+        pytest_twisted.blockon(proto.done)
     request.addfinalizer(cleanup)
 
     return chut
