@@ -641,12 +641,14 @@ class FileOperationsHelper(object):
         os.rename(from_fname, to_fname)
         return d
 
+    @defer.inlineCallbacks
     def write(self, path_u, contents):
         fname = path_u
+        yield task.deferLater(reactor, 1.0, lambda: None)
         d = self._uploader.set_hook('inotify')
         with open(fname, "wb") as f:
             f.write(contents)
-        return d
+        yield d
 
     def mkdir(self, path_u):
         fname = path_u
