@@ -248,7 +248,7 @@ log_gatherer.furl = {log_furl}
 
     def cleanup():
         try:
-            process.signalProcess('TERM')
+            process.signalProcess('KILL')
             pytest_twisted.blockon(protocol.exited)
         except ProcessExitedAlready:
             pass
@@ -360,7 +360,7 @@ def alice_invite(reactor, alice, temp_dir, request):
     # before magic-folder works, we have to stop and restart (this is
     # crappy for the tests -- can we fix it in magic-folder?)
     try:
-        alice.signalProcess('TERM')
+        alice.signalProcess('KILL')
         pytest_twisted.blockon(alice.exited)
     except ProcessExitedAlready:
         pass
@@ -391,8 +391,8 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     # before magic-folder works, we have to stop and restart (this is
     # crappy for the tests -- can we fix it in magic-folder?)
     try:
-        print("Sending TERM to Bob")
-        bob.signalProcess('TERM')
+        print("Sending KILL to Bob")
+        bob.signalProcess('KILL')
         pytest_twisted.blockon(bob.exited)
     except ProcessExitedAlready:
         pass
