@@ -1172,6 +1172,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         yield self.alice_fileops.write(alice_fname, 'contents1\n')
         msg("alice iterating")
         yield iterate(self.alice_magicfolder)  # for windows
+        msg("sleeping to make sure mtime changes")
+        # macOS/fsevents cannot detect file modification within the one second
+        # resolution of mtime stored by the filesystem.
+        yield task.deferLater(reactor, 3.0, lambda: None)
 
         # before bob downloads, make a local change
         with open(bob_fname, "w") as f:
