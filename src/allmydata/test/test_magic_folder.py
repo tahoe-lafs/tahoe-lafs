@@ -832,6 +832,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         yield d0
         yield d1
 
+        # See SingleMagicFolderTestMixin.setUp
+        from foolscap.eventual import flushEventualQueue
+        yield flushEventualQueue()
+
     @defer.inlineCallbacks
     def test_alice_delete_bob_restore(self):
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
