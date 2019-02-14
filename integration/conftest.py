@@ -43,8 +43,9 @@ def pytest_addoption(parser):
 # set up the grid once, but the "con" that each test has to be a
 # little careful they're not stepping on toes etc :/
 
+scope = 'function'
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def reactor():
     # this is a fixture in case we might want to try different
     # reactors for some reason.
@@ -52,7 +53,7 @@ def reactor():
     return _reactor
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def temp_dir(request):
     """
     Invoke like 'py.test --keep-tempdir ...' to avoid deleting the temp-dir
@@ -76,12 +77,12 @@ def temp_dir(request):
     return tmp
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def flog_binary():
     return which('flogtool')[0]
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def flog_gatherer(reactor, temp_dir, flog_binary, request):
     out_protocol = _CollectOutputProtocol()
     gather_dir = join(temp_dir, 'flog_gather')
@@ -139,7 +140,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     return furl
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def introducer(reactor, temp_dir, flog_gatherer, request):
     config = '''
 [node]
@@ -190,7 +191,7 @@ log_gatherer.furl = {log_furl}
     return process
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def introducer_furl(introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer', 'private', 'introducer.furl')
     while not exists(furl_fname):
@@ -200,7 +201,7 @@ def introducer_furl(introducer, temp_dir):
     return furl
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def tor_introducer(reactor, temp_dir, flog_gatherer, request):
     config = '''
 [node]
@@ -258,7 +259,7 @@ log_gatherer.furl = {log_furl}
     return process
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def tor_introducer_furl(tor_introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer_tor', 'private', 'introducer.furl')
     while not exists(furl_fname):
@@ -268,7 +269,7 @@ def tor_introducer_furl(tor_introducer, temp_dir):
     return furl
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer, request):
     nodes = []
     # start all 5 nodes in parallel
@@ -287,7 +288,7 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
     return nodes
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
     try:
         mkdir(join(temp_dir, 'magic-alice'))
@@ -304,7 +305,7 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
     return process
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
     try:
         mkdir(join(temp_dir, 'magic-bob'))
@@ -321,7 +322,7 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
     return process
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def alice_invite(reactor, alice, temp_dir, request):
     node_dir = join(temp_dir, 'alice')
 
@@ -369,7 +370,7 @@ def alice_invite(reactor, alice, temp_dir, request):
     return invite
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     print("pairing magic-folder")
     bob_dir = join(temp_dir, 'bob')
@@ -402,7 +403,7 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     return (join(temp_dir, 'magic-alice'), join(temp_dir, 'magic-bob'))
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def chutney(reactor, temp_dir):
     chutney_dir = join(temp_dir, 'chutney')
     mkdir(chutney_dir)
@@ -431,7 +432,7 @@ def chutney(reactor, temp_dir):
     return chutney_dir
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope=scope)
 def tor_network(reactor, temp_dir, chutney, request):
     # this is the actual "chutney" script at the root of a chutney checkout
     chutney_dir = chutney
