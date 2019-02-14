@@ -235,6 +235,12 @@ class _ReorderedFSEventsEmitter(_FSEventsEmitter or object):
             for src_path in events.files_modified:
                 self.queue_event(FileModifiedEvent(src_path))
             for src_path in events.files_created:
+                if "boom" in src_path:
+                    print(
+                        "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n"
+                        "boom made it into files_created\n"
+                        "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n"
+                    )
                 self.queue_event(FileCreatedEvent(src_path))
             for src_path, dest_path in events.files_moved:
                 self.queue_event(FileMovedEvent(src_path, dest_path))
