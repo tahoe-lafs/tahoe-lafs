@@ -173,8 +173,8 @@ def test_bob_creates_alice_deletes_bob_restores(magic_folder):
         join(alice_dir, "boom"),
         "bob wrote this"
     )
-
     # alice deletes it (so bob should as well .. but keep a backup)
+    time.sleep(1)
     unlink(join(alice_dir, "boom"))
     util.await_file_vanishes(join(bob_dir, "boom"))
     assert exists(join(bob_dir, "boom.backup"))
