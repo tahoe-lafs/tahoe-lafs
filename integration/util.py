@@ -261,7 +261,7 @@ class FileShouldVanishException(Exception):
         )
 
 
-def await_file_contents(path, contents, timeout=15, error_if=None):
+def await_file_contents(path, contents, timeout=30, error_if=None):
     """
     wait up to `timeout` seconds for the file at `path` (any path-like
     object) to have the exact content `contents`.
@@ -295,7 +295,7 @@ def await_file_contents(path, contents, timeout=15, error_if=None):
     raise ExpectedFileUnfoundException(path, timeout)
 
 
-def await_files_exist(paths, timeout=15, await_all=False):
+def await_files_exist(paths, timeout=30, await_all=False):
     """
     wait up to `timeout` seconds for any of the paths to exist; when
     any exist, a list of all found filenames is returned. Otherwise,
@@ -320,7 +320,7 @@ def await_files_exist(paths, timeout=15, await_all=False):
     raise ExpectedFileUnfoundException(nice_paths, timeout)
 
 
-def await_file_vanishes(path, timeout=10):
+def await_file_vanishes(path, timeout=30):
     start_time = time.time()
     while time.time() - start_time < timeout:
         print("  waiting for '{}' to vanish".format(path))
