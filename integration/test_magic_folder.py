@@ -117,7 +117,6 @@ def test_alice_deletes(magic_folder):
     util.await_file_contents(join(bob_dir, "delfile"), "alice wrote this")
 
     # bob has the file; now alices deletes it
-    time.sleep(5)
     unlink(join(alice_dir, "delfile"))
 
     # bob should remove his copy, but preserve a backup
