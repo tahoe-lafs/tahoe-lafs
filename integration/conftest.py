@@ -55,7 +55,7 @@ def temp_dir(request):
     Invoke like 'py.test --keep-tempdir ...' to avoid deleting the temp-dir
     """
     tmp = mkdtemp(prefix="tahoe")
-    if request.config.getoption('keep', True):
+    if request.config.getoption('keep'):
         print("Will retain tempdir '{}'".format(tmp))
 
     # I'm leaving this in and always calling it so that the tempdir
