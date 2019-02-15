@@ -56,7 +56,7 @@ def temp_dir(request):
     """
     tmp = mkdtemp(prefix="tahoe")
     if request.config.getoption('keep'):
-        print("Will retain tempdir '{}'".format(tmp))
+        print("\nWill retain tempdir '{}'".format(tmp))
 
     # I'm leaving this in and always calling it so that the tempdir
     # path is (also) printed out near the end of the run
