@@ -124,7 +124,12 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
                 'flogtool', 'dump', join(temp_dir, 'flog_gather', flogs[0])
             ),
         )
-        pytest_twisted.blockon(flog_protocol.done)
+        print("Waiting for flogtool to complete")
+        try:
+            pytest_twisted.blockon(flog_protocol.done)
+        except ProcessTerminated as e:
+            print("flogtool exited unexpectedly: {}".format(str(e)))
+        print("Flogtool completed")
 
     request.addfinalizer(cleanup)
 
