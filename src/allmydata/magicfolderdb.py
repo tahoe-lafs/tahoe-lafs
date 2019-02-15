@@ -45,6 +45,15 @@ def get_magicfolderdb(dbfile, stderr=sys.stderr,
 PathEntry = namedtuple('PathEntry', 'size mtime_ns ctime_ns version last_uploaded_uri '
                                     'last_downloaded_uri last_downloaded_timestamp')
 
+class LocalPath(object):
+    @classmethod
+    def fromrow(self, row):
+        p = LocalPath()
+        p.relpath_u = row[0]
+        p.entry = PathEntry(*row[1:])
+        return p
+
+
 class MagicFolderDB(object):
     VERSION = 1
 
@@ -77,6 +86,42 @@ class MagicFolderDB(object):
                              last_uploaded_uri=last_uploaded_uri,
                              last_downloaded_uri=last_downloaded_uri,
                              last_downloaded_timestamp=last_downloaded_timestamp)
+
+    def get_direct_children(self, relpath_u):
+        """
+        Given the relative path to a directory, return ``LocalPath`` instances
+        representing all direct children of that directory.
+        """
+        # It would be great to not be interpolating data into query
+        # statements.  However, query parameters are not supported in the
+        # position where we need them.
+        sqlitesafe_relpath_u = relpath_u.replace(u"'", u"''")
+        statement = (
+            """
+            SELECT
+                path, size, mtime_ns, ctime_ns, version, last_uploaded_uri,
+                last_downloaded_uri, last_downloaded_timestamp
+            FROM
+                local_files
+            WHERE
+                -- The "_" used here ensures there is at least one character
+                -- after the /.  This prevents matching the path itself.
+                path LIKE '{path}/_%' AND
+
+                -- The "_" used here serves a similar purpose.  This allows
+                -- matching directory children but avoids matching their
+                -- children.
+                path NOT LIKE '{path}/_%/_%'
+            """
+        ).format(path=sqlitesafe_relpath_u)
+
+        self.cursor.execute(statement)
+        rows = self.cursor.fetchall()
+        return list(
+            LocalPath.fromrow(row)
+            for row
+            in rows
+        )
 
     def get_all_relpaths(self):
         """
