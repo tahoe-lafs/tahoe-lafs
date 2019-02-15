@@ -1122,7 +1122,8 @@ class Uploader(QueueMixin):
             if expected_relpath_u not in existing_relpaths_u:
                 # The database says it exists but the filesystem says it
                 # doesn't.  A deletion!
-                self._pending.add(expected_relpath_u)
+                self._log("check for missed deletions found {}".format(expected_relpath_u))
+                self._add_pending(expected_relpath_u)
 
 
 
