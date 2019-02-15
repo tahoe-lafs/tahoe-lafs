@@ -974,6 +974,8 @@ class Uploader(QueueMixin):
                 self._log("ISDIR")
                 # Make sure that this is watched, too.
                 self._fs_watch(self._get_filepath(relpath_u))
+                self._check_for_missed_deletions(fp, relpath_u)
+
                 db_entry = self._db.get_db_entry(relpath_u)
                 self._log("isdir dbentry %r" % (db_entry,))
                 if not is_new_file(pathinfo, db_entry):
@@ -1083,6 +1085,45 @@ class Uploader(QueueMixin):
         except KeyError:
             return Failure()
         return d
+
+    def _check_for_missed_deletions(self, fs_path, relpath_u):
+        # A notification on a directory could be the result of a file inside
+        # the directory being modified in some way (really, this is the most
+        # common cause for this kind of notification).  We should get a
+        # separate notification for the file contained by this directory about
+        # its changes.  However, we won't always.  If the Downloader just
+        # wrote out a file and then something deleted that file before our
+        # notification system got a chance to notice it had been written, then
+        # we'll never get a notification for that deletion.  That means that
+        # we'll miss a deletion event that we should be uploading.
+        # Fortunately, thanks to our database we know if we expected to have
+        # any particular file and we can inspect the filesystem state right
+        # here.  If the database says we should have a file and the filesystem
+        # says we don't have it, synthesize a deletion event to make sure we
+        # update our DMD to reflect what happened.
+        existing_children = fs_path.children()
+        expected_children = self._db.get_direct_children(relpath_u)
+
+        existing_relpaths_u = {
+            self._get_relpath(path)
+            for path
+            in existing_children
+        }
+
+        # Anything that exists that we didn't expect is a creation.  We could
+        # queue those up but we're supposing that we'll receive a notification
+        # about them in due course.  If this proves incorrect, perhaps we
+        # should do something with those paths.
+        #
+        # Anything that doesn't exist that we expected is a deletion.  We may
+        # eventually receive a notification about the deletion - or we may
+        # not.  We'll queue those up now just in case not.
+        for expected_relpath_u in expected_children:
+            if expected_relpath_u not in existing_relpaths_u:
+                # The database says it exists but the filesystem says it
+                # doesn't.  A deletion!
+                self._pending.add(expected_relpath_u)
+
 
 
 class WriteFileMixin(object):
