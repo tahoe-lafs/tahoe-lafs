@@ -52,7 +52,7 @@ def reactor():
 @pytest.fixture(scope='session')
 def temp_dir(request):
     """
-    Invoke like 'py.test --keep ...' to avoid deleting the temp-dir
+    Invoke like 'py.test --keep-tempdir ...' to avoid deleting the temp-dir
     """
     tmp = mkdtemp(prefix="tahoe")
     if request.config.getoption('keep', True):
