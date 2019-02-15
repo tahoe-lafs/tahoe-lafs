@@ -61,7 +61,7 @@ def temp_dir(request):
     # I'm leaving this in and always calling it so that the tempdir
     # path is (also) printed out near the end of the run
     def cleanup():
-        if request.config.getoption('keep', True):
+        if request.config.getoption('keep'):
             print("Keeping tempdir '{}'".format(tmp))
         else:
             try:
