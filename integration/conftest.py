@@ -6,6 +6,7 @@ from time import sleep
 from os import mkdir, listdir
 from os.path import join, exists
 from tempfile import mkdtemp, mktemp
+from functools import partial
 
 from twisted.python.procutils import which
 from twisted.internet.error import (
@@ -23,6 +24,7 @@ from util import (
     _ProcessExitedProtocol,
     _create_node,
     _run_node,
+    _cleanup_twistd_process,
 )
 
 
@@ -107,11 +109,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     pytest_twisted.blockon(twistd_protocol.magic_seen)
 
     def cleanup():
-        try:
-            twistd_process.signalProcess('TERM')
-            pytest_twisted.blockon(twistd_protocol.exited)
-        except ProcessExitedAlready:
-            pass
+        _cleanup_twistd_process(twistd_process, twistd_protocol.exited)
 
         flog_file = mktemp('.flog_dump')
         flog_protocol = _DumpOutputProtocol(open(flog_file, 'w'))
@@ -180,14 +178,7 @@ log_gatherer.furl = {log_furl}
             intro_dir,
         ),
     )
-
-    def cleanup():
-        try:
-            process.signalProcess('TERM')
-            pytest_twisted.blockon(protocol.exited)
-        except ProcessExitedAlready:
-            pass
-    request.addfinalizer(cleanup)
+    request.addfinalizer(partial(_cleanup_twistd_process, process, protocol.exited))
 
     pytest_twisted.blockon(protocol.magic_seen)
     return process
