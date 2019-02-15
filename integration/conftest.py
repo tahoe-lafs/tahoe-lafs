@@ -2,14 +2,12 @@ from __future__ import print_function
 
 import sys
 import shutil
-from sys import stdout as _stdout
-from os import mkdir, listdir, unlink
-from os.path import join, abspath, curdir, exists
+from time import sleep
+from os import mkdir, listdir
+from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 
 from twisted.python.procutils import which
-from twisted.internet.defer import Deferred, DeferredList
-from twisted.internet.task import deferLater
 from twisted.internet.error import (
     ProcessExitedAlready,
     ProcessTerminated,
@@ -18,12 +16,14 @@ from twisted.internet.error import (
 import pytest
 import pytest_twisted
 
-from util import _CollectOutputProtocol
-from util import _MagicTextProtocol
-from util import _DumpOutputProtocol
-from util import _ProcessExitedProtocol
-from util import _create_node
-from util import _run_node
+from util import (
+    _CollectOutputProtocol,
+    _MagicTextProtocol,
+    _DumpOutputProtocol,
+    _ProcessExitedProtocol,
+    _create_node,
+    _run_node,
+)
 
 
 # pytest customization hooks
@@ -82,7 +82,7 @@ def flog_binary():
 def flog_gatherer(reactor, temp_dir, flog_binary, request):
     out_protocol = _CollectOutputProtocol()
     gather_dir = join(temp_dir, 'flog_gather')
-    process = reactor.spawnProcess(
+    reactor.spawnProcess(
         out_protocol,
         flog_binary,
         (
@@ -198,7 +198,7 @@ def introducer_furl(introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer', 'private', 'introducer.furl')
     while not exists(furl_fname):
         print("Don't see {} yet".format(furl_fname))
-        time.sleep(.1)
+        sleep(.1)
     furl = open(furl_fname, 'r').read()
     return furl
 
@@ -266,7 +266,7 @@ def tor_introducer_furl(tor_introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer_tor', 'private', 'introducer.furl')
     while not exists(furl_fname):
         print("Don't see {} yet".format(furl_fname))
-        time.sleep(.1)
+        sleep(.1)
     furl = open(furl_fname, 'r').read()
     return furl
 
@@ -377,7 +377,7 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     print("pairing magic-folder")
     bob_dir = join(temp_dir, 'bob')
     proto = _CollectOutputProtocol()
-    transport = reactor.spawnProcess(
+    reactor.spawnProcess(
         proto,
         sys.executable,
         [
