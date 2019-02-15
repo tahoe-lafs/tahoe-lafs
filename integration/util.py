@@ -105,6 +105,26 @@ class _MagicTextProtocol(ProcessProtocol):
         sys.stdout.write(data)
 
 
+def _cleanup_twistd_process(twistd_process, exited):
+    """
+    Terminate the given process with a kill signal (SIGKILL on POSIX,
+    TerminateProcess on Windows).
+
+    :param twistd_process: The `IProcessTransport` representing the process.
+    :param exited: A `Deferred` which fires when the process has exited.
+
+    :return: After the process has exited.
+    """
+    try:
+        print("signaling {} with KILL".format(twistd_process.pid))
+        twistd_process.signalProcess('KILL')
+        print("signaled, blocking on exit")
+        pytest_twisted.blockon(exited)
+        print("exited, goodbye")
+    except ProcessExitedAlready:
+        pass
+
+
 def _run_node(reactor, node_dir, request, magic_text):
     if magic_text is None:
         magic_text = "client running"
