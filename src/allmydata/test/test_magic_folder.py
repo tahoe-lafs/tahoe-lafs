@@ -534,6 +534,53 @@ class MagicFolderDbTests(SyncTestCase):
         self.assertTrue(entry is not None)
         self.assertEqual(entry.last_downloaded_uri, content_uri)
 
+    def test_get_direct_children(self):
+        """
+        ``get_direct_children`` returns a list of ``PathEntry`` representing each
+        local file in the database which is a direct child of the given path.
+        """
+        def add_file(relpath_u):
+            self.db.did_upload_version(
+                relpath_u=relpath_u,
+                version=0,
+                last_uploaded_uri=None,
+                last_downloaded_uri=None,
+                last_downloaded_timestamp=1234,
+                pathinfo=get_pathinfo(self.temp),
+            )
+        paths = [
+            u"some_random_file",
+            u"the_target_directory_is_elsewhere",
+            u"the_target_directory_is_not_this/",
+            u"the_target_directory_is_not_this/and_not_in_here",
+            u"the_target_directory/",
+            u"the_target_directory/foo",
+            u"the_target_directory/bar",
+            u"the_target_directory/baz",
+            u"the_target_directory/quux/",
+            u"the_target_directory/quux/exclude_grandchildren",
+            u"the_target_directory/quux/and_great_grandchildren/",
+            u"the_target_directory/quux/and_great_grandchildren/foo",
+            u"the_target_directory_is_over/stuff",
+            u"please_ignore_this_for_sure",
+        ]
+        for relpath_u in paths:
+            add_file(relpath_u)
+
+        expected_paths = [
+            u"the_target_directory/foo",
+            u"the_target_directory/bar",
+            u"the_target_directory/baz",
+            u"the_target_directory/quux/",
+        ]
+
+        actual_paths = list(
+            localpath.relpath_u
+            for localpath
+            in self.db.get_direct_children(u"the_target_directory")
+        )
+        self.assertEqual(expected_paths, actual_paths)
+
 
 def iterate_downloader(magic):
     return magic.downloader._processing_iteration()
