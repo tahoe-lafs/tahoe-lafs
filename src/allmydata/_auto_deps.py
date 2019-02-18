@@ -97,6 +97,13 @@ install_requires = [
 
     # for 'tahoe invite' and 'tahoe join'
     "magic-wormhole >= 0.10.2",
+
+    # Eliot is contemplating dropping Python 2 support.  Stick to a version we
+    # know works on Python 2.7.  Because we don't have support for `==`
+    # constraints, pin 1.6.x this way.  I feel pretty safe betting that we
+    # won't end up stuck on Eliot 1.6.100 with a critical fix only present in
+    # 1.6.101.  And if we do, I know how to deal with that situation.
+    "eliot >= 1.6.0, <= 1.6.100",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.
@@ -124,7 +131,8 @@ package_imports = [
     ('pycparser',        'pycparser'),
     ('PyYAML',           'yaml'),
     ('magic-wormhole',   'wormhole'),
-    ('setuptools',       'setuptools')
+    ('setuptools',       'setuptools'),
+    ('eliot',            'eliot'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
