@@ -256,7 +256,7 @@ class FileShouldVanishException(Exception):
     timeout
     """
     def __init__(self, path, timeout):
-        super(self, FileShouldVanishException).__init__(
+        super(FileShouldVanishException, self).__init__(
             u"'{}' still exists after {}s".format(path, timeout),
         )
 
