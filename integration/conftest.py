@@ -2,14 +2,13 @@ from __future__ import print_function
 
 import sys
 import shutil
-from sys import stdout as _stdout
-from os import mkdir, listdir, unlink
-from os.path import join, abspath, curdir, exists
+from time import sleep
+from os import mkdir, listdir
+from os.path import join, exists
 from tempfile import mkdtemp, mktemp
+from functools import partial
 
 from twisted.python.procutils import which
-from twisted.internet.defer import Deferred, DeferredList
-from twisted.internet.task import deferLater
 from twisted.internet.error import (
     ProcessExitedAlready,
     ProcessTerminated,
@@ -18,12 +17,15 @@ from twisted.internet.error import (
 import pytest
 import pytest_twisted
 
-from util import _CollectOutputProtocol
-from util import _MagicTextProtocol
-from util import _DumpOutputProtocol
-from util import _ProcessExitedProtocol
-from util import _create_node
-from util import _run_node
+from util import (
+    _CollectOutputProtocol,
+    _MagicTextProtocol,
+    _DumpOutputProtocol,
+    _ProcessExitedProtocol,
+    _create_node,
+    _run_node,
+    _cleanup_twistd_process,
+)
 
 
 # pytest customization hooks
@@ -82,7 +84,7 @@ def flog_binary():
 def flog_gatherer(reactor, temp_dir, flog_binary, request):
     out_protocol = _CollectOutputProtocol()
     gather_dir = join(temp_dir, 'flog_gather')
-    process = reactor.spawnProcess(
+    reactor.spawnProcess(
         out_protocol,
         flog_binary,
         (
@@ -107,11 +109,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     pytest_twisted.blockon(twistd_protocol.magic_seen)
 
     def cleanup():
-        try:
-            twistd_process.signalProcess('TERM')
-            pytest_twisted.blockon(twistd_protocol.exited)
-        except ProcessExitedAlready:
-            pass
+        _cleanup_twistd_process(twistd_process, twistd_protocol.exited)
 
         flog_file = mktemp('.flog_dump')
         flog_protocol = _DumpOutputProtocol(open(flog_file, 'w'))
@@ -126,7 +124,12 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
                 'flogtool', 'dump', join(temp_dir, 'flog_gather', flogs[0])
             ),
         )
-        pytest_twisted.blockon(flog_protocol.done)
+        print("Waiting for flogtool to complete")
+        try:
+            pytest_twisted.blockon(flog_protocol.done)
+        except ProcessTerminated as e:
+            print("flogtool exited unexpectedly: {}".format(str(e)))
+        print("Flogtool completed")
 
     request.addfinalizer(cleanup)
 
@@ -180,14 +183,7 @@ log_gatherer.furl = {log_furl}
             intro_dir,
         ),
     )
-
-    def cleanup():
-        try:
-            process.signalProcess('TERM')
-            pytest_twisted.blockon(protocol.exited)
-        except ProcessExitedAlready:
-            pass
-    request.addfinalizer(cleanup)
+    request.addfinalizer(partial(_cleanup_twistd_process, process, protocol.exited))
 
     pytest_twisted.blockon(protocol.magic_seen)
     return process
@@ -198,7 +194,7 @@ def introducer_furl(introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer', 'private', 'introducer.furl')
     while not exists(furl_fname):
         print("Don't see {} yet".format(furl_fname))
-        time.sleep(.1)
+        sleep(.1)
     furl = open(furl_fname, 'r').read()
     return furl
 
@@ -266,7 +262,7 @@ def tor_introducer_furl(tor_introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer_tor', 'private', 'introducer.furl')
     while not exists(furl_fname):
         print("Don't see {} yet".format(furl_fname))
-        time.sleep(.1)
+        sleep(.1)
     furl = open(furl_fname, 'r').read()
     return furl
 
@@ -377,7 +373,7 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     print("pairing magic-folder")
     bob_dir = join(temp_dir, 'bob')
     proto = _CollectOutputProtocol()
-    transport = reactor.spawnProcess(
+    reactor.spawnProcess(
         proto,
         sys.executable,
         [

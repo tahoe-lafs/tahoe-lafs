@@ -3,6 +3,7 @@ import time
 from os import mkdir
 from os.path import exists, join
 from StringIO import StringIO
+from functools import partial
 
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
@@ -105,6 +106,26 @@ class _MagicTextProtocol(ProcessProtocol):
         sys.stdout.write(data)
 
 
+def _cleanup_twistd_process(twistd_process, exited):
+    """
+    Terminate the given process with a kill signal (SIGKILL on POSIX,
+    TerminateProcess on Windows).
+
+    :param twistd_process: The `IProcessTransport` representing the process.
+    :param exited: A `Deferred` which fires when the process has exited.
+
+    :return: After the process has exited.
+    """
+    try:
+        print("signaling {} with KILL".format(twistd_process.pid))
+        twistd_process.signalProcess('KILL')
+        print("signaled, blocking on exit")
+        pytest_twisted.blockon(exited)
+        print("exited, goodbye")
+    except ProcessExitedAlready:
+        pass
+
+
 def _run_node(reactor, node_dir, request, magic_text):
     if magic_text is None:
         magic_text = "client running"
@@ -124,13 +145,7 @@ def _run_node(reactor, node_dir, request, magic_text):
     )
     process.exited = protocol.exited
 
-    def cleanup():
-        try:
-            process.signalProcess('TERM')
-            pytest_twisted.blockon(protocol.exited)
-        except ProcessExitedAlready:
-            pass
-    request.addfinalizer(cleanup)
+    request.addfinalizer(partial(_cleanup_twistd_process, process, protocol.exited))
 
     # we return the 'process' ITransport instance
     # XXX abusing the Deferred; should use .when_magic_seen() or something?
