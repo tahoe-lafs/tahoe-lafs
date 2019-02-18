@@ -54,16 +54,16 @@ def reactor():
 @pytest.fixture(scope='session')
 def temp_dir(request):
     """
-    Invoke like 'py.test --keep ...' to avoid deleting the temp-dir
+    Invoke like 'py.test --keep-tempdir ...' to avoid deleting the temp-dir
     """
     tmp = mkdtemp(prefix="tahoe")
-    if request.config.getoption('keep', True):
-        print("Will retain tempdir '{}'".format(tmp))
+    if request.config.getoption('keep'):
+        print("\nWill retain tempdir '{}'".format(tmp))
 
     # I'm leaving this in and always calling it so that the tempdir
     # path is (also) printed out near the end of the run
     def cleanup():
-        if request.config.getoption('keep', True):
+        if request.config.getoption('keep'):
             print("Keeping tempdir '{}'".format(tmp))
         else:
             try:
