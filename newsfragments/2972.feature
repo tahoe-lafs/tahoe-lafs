@@ -1,0 +1,1 @@
+The Magic-Folder frontend now emits structured, causal logs.  This makes it easier for developers to make sense of its behavior and for users to submit useful debugging information alongside problem reports.
