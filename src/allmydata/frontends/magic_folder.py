@@ -7,6 +7,7 @@ from datetime import datetime
 import time
 import ConfigParser
 
+from twisted.python.filepath import FilePath
 from twisted.python.monkey import MonkeyPatcher
 from twisted.internet import defer, reactor, task
 from twisted.internet.error import AlreadyCancelled
@@ -424,7 +425,7 @@ class MagicFolder(service.MultiService):
 
 _NICKNAME = Field.for_types(
     u"nickname",
-    [unicode],
+    [unicode, bytes],
     u"A Magic-Folder participant nickname.",
 )
 
@@ -492,6 +493,81 @@ MAGIC_FOLDER_STOP = ActionType(
     [_NICKNAME],
     [],
     u"A Magic-Folder is being stopped.",
+)
+
+MAYBE_UPLOAD = MessageType(
+    u"magic-folder:maybe-upload",
+    [eliotutil.RELPATH],
+    u"A decision is being made about whether to upload a file.",
+)
+
+PENDING = Field.for_types(
+    u"pending",
+    [list],
+    u"The paths which are pending processing.",
+)
+
+REMOVE_FROM_PENDING = ActionType(
+    u"magic-folder:remove-from-pending",
+    [eliotutil.RELPATH, PENDING],
+    [],
+    u"An item being processed is being removed from the pending set.",
+)
+
+PATH = Field(
+    u"path",
+    lambda fp: quote_filepath(fp),
+    u"A local filesystem path.",
+    eliotutil.validateInstanceOf(FilePath),
+)
+
+NOTIFIED_OBJECT_DISAPPEARED = MessageType(
+    u"magic-folder:notified-object-disappeared",
+    [PATH],
+    u"A path which generated a notification was not found on the filesystem.  This is normal.",
+)
+
+NOT_UPLOADING = MessageType(
+    u"magic-folder:not-uploading",
+    [],
+    u"An item being processed is not going to be uploaded.",
+)
+
+SYMLINK = MessageType(
+    u"magic-folder:symlink",
+    [PATH],
+    u"An item being processed was a symlink and is being skipped",
+)
+
+CREATED_DIRECTORY = Field.for_types(
+    u"created_directory",
+    [unicode],
+    u"The relative path of a newly created directory in a magic-folder.",
+)
+
+PROCESS_DIRECTORY = ActionType(
+    u"magic-folder:process-directory",
+    [],
+    [CREATED_DIRECTORY],
+    u"An item being processed was a directory.",
+)
+
+NOT_NEW_DIRECTORY = MessageType(
+    u"magic-folder:not-new-directory",
+    [],
+    u"A directory item being processed was found to not be new.",
+)
+
+NOT_NEW_FILE = MessageType(
+    u"magic-folder:not-new-file",
+    [],
+    u"A file item being processed was found to not be new (or changed).",
+)
+
+SPECIAL_FILE = MessageType(
+    u"magic-folder:special-file",
+    [],
+    u"An item being processed was found to be of a special type which is not supported.",
 )
 
 class QueueMixin(HookMixin):
@@ -939,23 +1015,22 @@ class Uploader(QueueMixin):
         precondition(not relpath_u.endswith(u'/'), relpath_u)
 
         def _maybe_upload(ign, now=None):
-            self._log("_maybe_upload: relpath_u=%r, now=%r" % (relpath_u, now))
+            MAYBE_UPLOAD.log(relpath=relpath_u)
             if now is None:
                 now = time.time()
             fp = self._get_filepath(relpath_u)
             pathinfo = get_pathinfo(unicode_from_filepath(fp))
 
-            self._log("about to remove %r from pending set %r" %
-                      (relpath_u, self._pending))
             try:
-                self._pending.remove(relpath_u)
+                with REMOVE_FROM_PENDING(relpath=relpath_u, pending=list(self._pending)):
+                    self._pending.remove(relpath_u)
             except KeyError:
-                self._log("WRONG that %r wasn't in pending" % (relpath_u,))
+                pass
             encoded_path_u = magicpath.path2magic(relpath_u)
 
             if not pathinfo.exists:
                 # FIXME merge this with the 'isfile' case.
-                self._log("notified object %s disappeared (this is normal)" % quote_filepath(fp))
+                NOTIFIED_OBJECT_DISAPPEARED.log(path=fp)
                 self._count('objects_disappeared')
 
                 db_entry = self._db.get_db_entry(relpath_u)
@@ -967,7 +1042,7 @@ class Uploader(QueueMixin):
                 if is_new_file(pathinfo, db_entry):
                     new_version = db_entry.version + 1
                 else:
-                    self._log("Not uploading %r" % (relpath_u,))
+                    NOT_UPLOADING.log()
                     self._count('objects_not_uploaded')
                     return False
 
@@ -1006,12 +1081,12 @@ class Uploader(QueueMixin):
                     metadata['last_uploaded_uri'] = db_entry.last_uploaded_uri
 
                 empty_uploadable = Data("", self._client.convergence)
-                d2 = self._upload_dirnode.add_file(
+                d2 = DeferredContext(self._upload_dirnode.add_file(
                     encoded_path_u, empty_uploadable,
                     metadata=metadata,
                     overwrite=True,
                     progress=item.progress,
-                )
+                ))
 
                 def _add_db_entry(filenode):
                     filecap = filenode.get_uri()
@@ -1030,40 +1105,36 @@ class Uploader(QueueMixin):
                     self._count('files_uploaded')
                 d2.addCallback(_add_db_entry)
                 d2.addCallback(lambda ign: True)
-                return d2
+                return d2.result
             elif pathinfo.islink:
-                self.warn("WARNING: cannot upload symlink %s" % quote_filepath(fp))
+                SYMLINK.log(path=fp)
                 return False
             elif pathinfo.isdir:
-                self._log("ISDIR")
-                if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
-                    self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
+                with PROCESS_DIRECTORY().context() as action:
+                    if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
+                        self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
 
-                db_entry = self._db.get_db_entry(relpath_u)
-                self._log("isdir dbentry %r" % (db_entry,))
-                if not is_new_file(pathinfo, db_entry):
-                    self._log("NOT A NEW FILE")
-                    return False
+                    db_entry = self._db.get_db_entry(relpath_u)
+                    self._log("isdir dbentry %r" % (db_entry,))
+                    if not is_new_file(pathinfo, db_entry):
+                        NOT_NEW_DIRECTORY.log()
+                        return False
 
-                uploadable = Data("", self._client.convergence)
-                encoded_path_u += magicpath.path2magic(u"/")
-                self._log("encoded_path_u =  %r" % (encoded_path_u,))
-                upload_d = self._upload_dirnode.add_file(
-                    encoded_path_u, uploadable,
-                    metadata={"version": 0},
-                    overwrite=True,
-                    progress=item.progress,
-                )
-                def _dir_succeeded(ign):
-                    self._log("created subdirectory %r" % (relpath_u,))
-                    self._count('directories_created')
-                def _dir_failed(f):
-                    self._log("failed to create subdirectory %r" % (relpath_u,))
-                    return f
-                upload_d.addCallbacks(_dir_succeeded, _dir_failed)
-                upload_d.addCallback(lambda ign: self._scan(relpath_u))
-                upload_d.addCallback(lambda ign: True)
-                return upload_d
+                    uploadable = Data("", self._client.convergence)
+                    encoded_path_u += magicpath.path2magic(u"/")
+                    upload_d = DeferredContext(self._upload_dirnode.add_file(
+                        encoded_path_u, uploadable,
+                        metadata={"version": 0},
+                        overwrite=True,
+                        progress=item.progress,
+                    ))
+                    def _dir_succeeded(ign):
+                        action.add_success_fields(created_directory=relpath_u)
+                        self._count('directories_created')
+                    upload_d.addCallback(_dir_succeeded)
+                    upload_d.addCallback(lambda ign: self._scan(relpath_u))
+                    upload_d.addCallback(lambda ign: True)
+                    return upload_d.addActionFinish()
             elif pathinfo.isfile:
                 db_entry = self._db.get_db_entry(relpath_u)
 
@@ -1074,7 +1145,7 @@ class Uploader(QueueMixin):
                 elif is_new_file(pathinfo, db_entry):
                     new_version = db_entry.version + 1
                 else:
-                    self._log("Not uploading %r" % (relpath_u,))
+                    NOT_NEW_FILE.log()
                     self._count('objects_not_uploaded')
                     return False
 
@@ -1090,12 +1161,12 @@ class Uploader(QueueMixin):
                         metadata['last_uploaded_uri'] = db_entry.last_uploaded_uri
 
                 uploadable = FileName(unicode_from_filepath(fp), self._client.convergence)
-                d2 = self._upload_dirnode.add_file(
+                d2 = DeferredContext(self._upload_dirnode.add_file(
                     encoded_path_u, uploadable,
                     metadata=metadata,
                     overwrite=True,
                     progress=item.progress,
-                )
+                ))
 
                 def _add_db_entry(filenode):
                     filecap = filenode.get_uri()
@@ -1114,15 +1185,14 @@ class Uploader(QueueMixin):
                     self._count('files_uploaded')
                     return True
                 d2.addCallback(_add_db_entry)
-                return d2
+                return d2.addActionFinish()
             else:
-                self.warn("WARNING: cannot process special file %s" % quote_filepath(fp))
+                SPECIAL_FILE.log()
                 return False
 
         d.addCallback(_maybe_upload)
 
         def _succeeded(res):
-            self._log("_succeeded(%r)" % (res,))
             if res:
                 self._count('objects_succeeded')
             # TODO: maybe we want the status to be 'ignored' if res is False
@@ -1130,7 +1200,6 @@ class Uploader(QueueMixin):
             return res
         def _failed(f):
             self._count('objects_failed')
-            self._log("%s while processing %r" % (f, relpath_u))
             item.set_status('failure', self._clock.seconds())
             return f
         d.addCallbacks(_succeeded, _failed)
