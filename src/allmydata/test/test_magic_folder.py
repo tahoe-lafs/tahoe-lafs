@@ -1320,8 +1320,11 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             if _debug: print "Bob rewrites file2\n"
             self.file_path = abspath_expanduser_unicode(u"file2", base=self.bob_magicfolder.uploader._local_path_u)
             if _debug: print "---- bob's file is %r" % (self.file_path,)
-            yield self.bob_fileops.write(self.file_path, "roger roger. what vector?")
             yield iterate(self.bob_magicfolder)
+            yield self.bob_fileops.write(self.file_path, "roger roger. what vector?")
+            if _debug: print "---- bob rewrote file2"
+            yield iterate(self.bob_magicfolder)
+            if _debug: print "---- iterated bob's magicfolder"
         d.addCallback(lambda ign: _wait_for(None, Bob_to_rewrite_file2, alice=False))
         d.addCallback(lambda ign: self._check_version_in_dmd(self.bob_magicfolder, u"file2", 1))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 5, magic=self.bob_magicfolder))
