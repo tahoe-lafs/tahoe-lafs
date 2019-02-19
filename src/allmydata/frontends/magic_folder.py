@@ -404,7 +404,7 @@ class MagicFolder(service.MultiService):
         return self.uploader.start_monitoring()
 
     def stopService(self):
-        with MAGIC_FOLDER_STOP(name=self.name).context():
+        with MAGIC_FOLDER_STOP(nickname=self.name).context():
             d = DeferredContext(defer.gatherResults([
                 self.uploader.stop(),
                 self.downloader.stop(),
@@ -739,6 +739,23 @@ class UploadItem(QueuedItem):
     pass
 
 
+_ITEM = Field(
+    u"item",
+    lambda i: {
+        u"relpath": i.relpath_u,
+        u"size": i.size,
+    },
+    u"An item to be uploaded or downloaded.",
+    eliotutil.validateInstanceOf(QueuedItem),
+)
+
+PROCESS_ITEM = ActionType(
+    u"magic-folder:process-item",
+    [_ITEM],
+    [],
+    u"A path which was found wanting of an update is receiving an update.",
+)
+
 class Uploader(QueueMixin):
 
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
@@ -907,18 +924,19 @@ class Uploader(QueueMixin):
         process a single QueuedItem. If this returns False, the item is
         removed from _process_history
         """
+        with PROCESS_ITEM(item=item).context():
+            d = DeferredContext(defer.succeed(False))
+
         # Uploader
         relpath_u = item.relpath_u
-        self._log("_process(%r)" % (relpath_u,))
         item.set_status('started', self._clock.seconds())
 
         if relpath_u is None:
             item.set_status('invalid_path', self._clock.seconds())
-            return defer.succeed(False)
+            return d.addActionFinish()
+
         precondition(isinstance(relpath_u, unicode), relpath_u)
         precondition(not relpath_u.endswith(u'/'), relpath_u)
-
-        d = defer.succeed(False)
 
         def _maybe_upload(ign, now=None):
             self._log("_maybe_upload: relpath_u=%r, now=%r" % (relpath_u, now))
@@ -1116,7 +1134,7 @@ class Uploader(QueueMixin):
             item.set_status('failure', self._clock.seconds())
             return f
         d.addCallbacks(_succeeded, _failed)
-        return d
+        return d.addActionFinish()
 
     def _get_metadata(self, encoded_path_u):
         try:
