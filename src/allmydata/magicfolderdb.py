@@ -3,83 +3,49 @@ import sys
 from collections import namedtuple
 
 from allmydata.util.dbutil import get_db, DBError
-
-from eliot._validation import (
-    ValidationError,
+from allmydata.util.eliotutil import (
+    RELPATH,
+    VERSION,
+    LAST_UPLOADED_URI,
+    LAST_DOWNLOADED_URI,
+    LAST_DOWNLOADED_TIMESTAMP,
+    PATHINFO,
+    validateSetMembership,
+    validateInstanceOf,
 )
 from eliot import (
     Field,
     ActionType,
 )
 
-def _validateInstanceOf(t):
-    """
-    Return an Eliot validator that requires values to be instances of ``t``.
-    """
-    def validator(v):
-        if not isinstance(v, t):
-            raise ValidationError("{} not an instance of {}".format(v, t))
-    return validator
-
-def _validateSetMembership(s):
-    """
-    Return an Eliot validator that requires values to be elements of ``s``.
-    """
-    def validator(v):
-        if v not in s:
-            raise ValidationError("{} not in {}".format(v, s))
-    return validator
-
 PathEntry = namedtuple('PathEntry', 'size mtime_ns ctime_ns version last_uploaded_uri '
                                     'last_downloaded_uri last_downloaded_timestamp')
 
-_RELPATH = Field.for_types(
-    u"relpath",
-    [unicode],
-    u"The relative path of a file in a magic-folder.",
-)
-
-_VERSION = Field.for_types(
-    u"version",
-    [int, long],
-    u"The version of the file.",
-)
-
-_UPLOADED_URI = Field.for_types(
-    u"last-uploaded-uri",
-    [unicode],
-    u"The filecap to which this version of this file was uploaded.",
-)
-
-_DOWNLOADED_URI = Field.for_types(
-    u"last-downloaded-uri",
-    [unicode],
-    u"The filecap from which the previous version of this file was downloaded.",
-)
-
-_DOWNLOADED_TIMESTAMP = Field.for_types(
-    u"last-downloaded-timestamp",
-    [unicode],
-    u"(XXX probably not really, don't trust this) The timestamp of the last download of this file.",
-)
-
-_PATHINFO = Field(
-    u"pathinfo",
-    lambda v: tuple(v),
-    u"The metadata for this version of this file.",
-    _validateInstanceOf(PathEntry),
+PATHENTRY = Field(
+    u"pathentry",
+    lambda v: None if v is None else {
+        "size": v.size,
+        "mtime_ns": v.mtime_ns,
+        "ctime_ns": v.ctime_ns,
+        "version": v.version,
+        "last_uploaded_uri": v.last_uploaded_uri,
+        "last_downloaded_uri": v.last_downloaded_uri,
+        "last_downloaded_timestamp": v.last_downloaded_timestamp,
+    },
+    u"The local database state of a file.",
+    validateInstanceOf((type(None), PathEntry)),
 )
 
 _INSERT_OR_UPDATE = Field.for_types(
-    u"inserted-or-updated",
+    u"insert_or_update",
     [unicode],
     u"An indication of whether the record for this upload was new or an update to a previous entry.",
-    _validateSetMembership({u"insert", u"update"}),
+    validateSetMembership({u"insert", u"update"}),
 )
 
 DID_UPLOAD_VERSION = ActionType(
     u"magic-folder-db:did-upload-version",
-    [_RELPATH, _VERSION, _UPLOADED_URI, _DOWNLOADED_URI, _DOWNLOADED_TIMESTAMP, _PATHINFO],
+    [RELPATH, VERSION, LAST_UPLOADED_URI, LAST_DOWNLOADED_URI, LAST_DOWNLOADED_TIMESTAMP, PATHINFO],
     [_INSERT_OR_UPDATE],
     u"An file upload is being recorded in the database.",
 )
@@ -168,9 +134,9 @@ class MagicFolderDB(object):
         action = DID_UPLOAD_VERSION(
             relpath=relpath_u,
             version=version,
-            uploaded_uri=last_uploaded_uri,
-            downloaded_uri=last_downloaded_uri,
-            downloaded_timestamp=last_downloaded_timestamp,
+            last_uploaded_uri=last_uploaded_uri,
+            last_downloaded_uri=last_downloaded_uri,
+            last_downloaded_timestamp=last_downloaded_timestamp,
             pathinfo=pathinfo,
         )
         with action:
@@ -188,5 +154,5 @@ class MagicFolderDB(object):
                                     (pathinfo.size, pathinfo.mtime_ns, pathinfo.ctime_ns, version,
                                      last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp,
                                      relpath_u))
-                action.add_success_fields(inserted_or_updated=u"update")
+                action.add_success_fields(insert_or_update=u"update")
             self.connection.commit()
