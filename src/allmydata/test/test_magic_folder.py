@@ -7,6 +7,8 @@ from os.path import join, exists, isdir
 from twisted.trial import unittest
 from twisted.internet import defer, task, reactor
 
+from eliot.testing import capture_logging
+
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util.assertutil import precondition
 
@@ -399,7 +401,8 @@ class MagicFolderDbTests(unittest.TestCase):
         shutil.rmtree(self.temp)
         return super(MagicFolderDbTests, self).tearDown()
 
-    def test_create(self):
+    @capture_logging(None)
+    def test_create(self, logger):
         self.db.did_upload_version(
             relpath_u=u'fake_path',
             version=0,
@@ -712,8 +715,9 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         yield d0
         yield d1
 
+    @capture_logging(None)
     @defer.inlineCallbacks
-    def test_alice_delete_bob_restore(self):
+    def test_alice_delete_bob_restore(self, logger):
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
         bob_fname = os.path.join(self.bob_magic_dir, 'blam')
 
