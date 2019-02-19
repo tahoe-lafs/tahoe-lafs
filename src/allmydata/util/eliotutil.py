@@ -208,7 +208,7 @@ LAST_DOWNLOADED_URI = Field.for_types(
 
 LAST_DOWNLOADED_TIMESTAMP = Field.for_types(
     u"last_downloaded_timestamp",
-    [float],
+    [float, int, long],
     u"(XXX probably not really, don't trust this) The timestamp of the last download of this file.",
 )
 
