@@ -1,7 +1,9 @@
-import collections, itertools
+import collections, itertools, functools
 
 objnums = collections.defaultdict(itertools.count)
 
+
+@functools.total_ordering
 class NummedObj(object):
     """
     This is useful for nicer debug printouts.  Instead of objects of the same class being
@@ -27,22 +29,14 @@ class NummedObj(object):
         return "<%s #%d>" % (self._classname, self._objid,)
 
     def __lt__(self, other):
-        return (self._objid, self._classname,) < (other._objid, other._classname,)
-
-    def __le__(self, other):
-        return (self._objid, self._classname,) <= (other._objid, other._classname,)
+        if isinstance(other, NummedObj):
+            return (self._objid, self._classname,) < (other._objid, other._classname,)
+        return NotImplemented
 
     def __eq__(self, other):
-        return (self._objid, self._classname,) == (other._objid, other._classname,)
-
-    def __ne__(self, other):
-        return (self._objid, self._classname,) != (other._objid, other._classname,)
-
-    def __gt__(self, other):
-        return (self._objid, self._classname,) > (other._objid, other._classname,)
-
-    def __ge__(self, other):
-        return (self._objid, self._classname,) >= (other._objid, other._classname,)
+        if isinstance(other, NummedObj):
+            return (self._objid, self._classname,) == (other._objid, other._classname,)
+        return NotImplemented
 
     def __hash__(self):
         return id(self)
