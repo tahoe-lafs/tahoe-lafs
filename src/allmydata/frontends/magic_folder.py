@@ -1473,7 +1473,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
             d = DeferredContext(self._collective_dirnode.list())
             def scan_collective(dirmap):
-                d2 = defer.succeed(None)
+                d2 = DeferredContext(defer.succeed(None))
                 for dir_name in dirmap:
                     (dirnode, metadata) = dirmap[dir_name]
                     if scan_self or dirnode.get_readonly_uri() != self._upload_readonly_dircap:
@@ -1484,7 +1484,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                             # XXX what should we do to make this failure more visible to users?
                         d2.addErrback(_err)
 
-                return d2
+                return d2.result
             d.addCallback(scan_collective)
 
             def _filter_batch_to_deque(ign):
@@ -1537,7 +1537,6 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def _process(self, item):
         # Downloader
-        self._log("_process(%r)" % (item,))
         now = self._clock.seconds()
 
         self._log("started! %s" % (now,))
@@ -1547,7 +1546,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         conflict_path_u = self._get_conflicted_filename(abspath_u)
         last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
 
-        d = defer.succeed(False)
+        with PROCESS_ITEM(item=item):
+            d = DeferredContext(defer.succeed(False))
 
         def do_update_db(written_abspath_u):
             filecap = item.file_node.get_uri()
@@ -1663,7 +1663,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                         )
                     )
 
-        d.addCallbacks(do_update_db)
+        d.addCallback(do_update_db)
         d.addErrback(failed)
 
         def trap_conflicts(f):
@@ -1671,4 +1671,4 @@ class Downloader(QueueMixin, WriteFileMixin):
             self._log("IGNORE CONFLICT ERROR %r" % f)
             return False
         d.addErrback(trap_conflicts)
-        return d
+        return d.addActionFinish()
