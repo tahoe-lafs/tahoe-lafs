@@ -468,17 +468,11 @@ class MagicFolderDbTests(unittest.TestCase):
 
 
 def iterate_downloader(magic):
-    # can do either of these:
-    #d = magic.downloader._process_deque()
-    d = magic.downloader.set_hook('iteration')
-    magic.downloader._clock.advance(magic.downloader._poll_interval + 1)
-    return d
+    return magic.downloader._processing_iteration()
 
 
 def iterate_uploader(magic):
-    d = magic.uploader.set_hook('iteration')
-    magic.uploader._clock.advance(magic.uploader._pending_delay + 1)
-    return d
+    return magic.uploader._processing_iteration()
 
 @defer.inlineCallbacks
 def iterate(magic):
@@ -705,15 +699,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
     @defer.inlineCallbacks
     def tearDown(self):
         yield GridTestMixin.tearDown(self)
-        d0 = self.alice_magicfolder.finish()
-        d1 = self.bob_magicfolder.finish()
 
         for mf in [self.alice_magicfolder, self.bob_magicfolder]:
             mf.uploader._clock.advance(mf.uploader._pending_delay + 1)
             mf.downloader._clock.advance(mf.downloader._poll_interval + 1)
-
-        yield d0
-        yield d1
 
     @capture_logging(None)
     @defer.inlineCallbacks
