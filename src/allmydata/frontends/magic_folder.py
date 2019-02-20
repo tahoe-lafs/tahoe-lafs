@@ -22,6 +22,7 @@ from eliot import (
     Field,
     ActionType,
     MessageType,
+    write_failure,
 )
 from eliot.twisted import DeferredContext
 
@@ -406,14 +407,11 @@ class MagicFolder(service.MultiService):
 
     def stopService(self):
         with MAGIC_FOLDER_STOP(nickname=self.name).context():
-            d = DeferredContext(defer.gatherResults([
-                self.uploader.stop(),
-                self.downloader.stop(),
-            ]))
-            d.addBoth(
-                lambda ign: service.MultiService.stopService(self)
-            )
-            return d.addActionFinish()
+            d = DeferredContext(self._finish())
+        d.addBoth(
+            lambda ign: service.MultiService.stopService(self)
+        )
+        return d.addActionFinish()
 
     def ready(self):
         """ready is used to signal us to start
@@ -421,6 +419,14 @@ class MagicFolder(service.MultiService):
         """
         self.uploader.start_uploading()  # synchronous, returns None
         return self.downloader.start_downloading()
+
+    def _finish(self):
+        d0 = self.downloader.stop()
+        d1 = self.uploader.stop()
+        return defer.DeferredList([
+            DeferredContext(d0).addErrback(write_failure).result,
+            DeferredContext(d1).addErrback(write_failure).result,
+        ])
 
 
 _NICKNAME = Field.for_types(
