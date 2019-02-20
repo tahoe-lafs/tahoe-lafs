@@ -656,7 +656,10 @@ class QueueMixin(HookMixin):
         self._processing_loop = None
         return d
 
-    def _begin_processing(self, res):
+    def _begin_processing(self):
+        """
+        Start a loop that looks for work to do and then does it.
+        """
         self._processing_loop = task.LoopingCall(self._processing_iteration)
         self._processing_loop.clock = self._clock
         self._processing = self._processing_loop.start(self._scan_delay(), now=True)
@@ -668,8 +671,6 @@ class QueueMixin(HookMixin):
             self._log("internal error: %s" % (f.value,))
             self._log(f)
         self._processing.addErrback(fatal_error)
-
-        return res
 
     def _processing_iteration(self):
         """
@@ -915,9 +916,7 @@ class Uploader(QueueMixin):
             self._add_pending(relpath_u)
 
         self._full_scan()
-        # XXX changed this while re-basing; double check we can
-        # *really* just call this synchronously.
-        return self._begin_processing(None)
+        return self._begin_processing()
 
     def _scan_delay(self):
         return self._pending_delay
@@ -1362,8 +1361,8 @@ class Downloader(QueueMixin, WriteFileMixin):
             try:
                 data = yield self._scan_remote_collective(scan_self=True)
                 twlog.msg("Completed initial Magic Folder scan successfully ({})".format(self))
-                x = yield self._begin_processing(data)
-                defer.returnValue(x)
+                self._begin_processing()
+                defer.returnValue(data)
                 break
 
             except Exception as e:
