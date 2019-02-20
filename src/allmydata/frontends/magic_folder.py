@@ -644,12 +644,16 @@ class QueueMixin(HookMixin):
         return extend_filepath(self._local_filepath, relpath_u.split(u"/"))
 
     def stop(self):
+        """
+        Don't process queued items anymore.
+
+        :return Deferred: A ``Deferred`` that fires when processing has
+            completely stopped.
+        """
         d = self._processing
-        # Speed up shutdown
         self._processing_loop.stop()
         self._processing = None
         self._processing_loop = None
-        # wait for processing loop to actually exit
         return d
 
     def _begin_processing(self, res):
