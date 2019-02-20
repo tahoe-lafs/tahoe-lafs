@@ -423,10 +423,10 @@ class MagicFolder(service.MultiService):
     def _finish(self):
         d0 = self.downloader.stop()
         d1 = self.uploader.stop()
-        return defer.DeferredList([
-            DeferredContext(d0).addErrback(write_failure).result,
-            DeferredContext(d1).addErrback(write_failure).result,
-        ])
+        return defer.DeferredList(list(
+            DeferredContext(d).addErrback(write_failure).result
+            for d in [d0, d1]
+        ))
 
 
 _NICKNAME = Field.for_types(
