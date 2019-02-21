@@ -585,7 +585,7 @@ class QueueMixin(HookMixin):
 
     Subclasses implement _scan_delay, _perform_scan and _process
 
-    :ivar _name: Either "uploader" or "downloader".
+    :ivar unicode _name: Either "uploader" or "downloader".
 
     :ivar _deque: IQueuedItem instances to process
 
