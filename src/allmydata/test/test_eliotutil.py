@@ -12,7 +12,6 @@ from eliot.twisted import DeferredContext
 from eliot.testing import (
     capture_logging,
     assertHasAction,
-    assertContainsFields,
 )
 
 from twisted.trial.unittest import TestCase
