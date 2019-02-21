@@ -24,6 +24,9 @@ from twisted.internet import reactor
 
 from .eliotutil import (
     eliot_logged_test,
+)
+
+from ..util.eliotutil import (
     eliot_friendly_generator_function,
     inline_callbacks,
 )
