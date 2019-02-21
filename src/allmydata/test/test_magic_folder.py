@@ -39,6 +39,15 @@ _debug = False
 
 
 class TestCase(unittest.TestCase):
+    """
+    A ``TestCase`` which collects helpful behaviors for subclasses.
+
+    Those behaviors are:
+
+    * Each test method will be run in a unique Eliot action context which
+      identifies the test and collects all Eliot log messages emitted by that
+      test (including setUp and tearDown messages).
+    """
     @eliot_logged_test
     def run(self, result):
         return super(TestCase, self).run(result)
