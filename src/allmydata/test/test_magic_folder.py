@@ -30,11 +30,21 @@ from allmydata.util.fileutil import get_pathinfo
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import Data
 
-from .eliotutil import with_eliot
+from .eliotutil import (
+    eliot_logged_test,
+    inline_callbacks,
+)
 
 _debug = False
 
-class NewConfigUtilTests(unittest.TestCase):
+
+class TestCase(unittest.TestCase):
+    @eliot_logged_test
+    def run(self, result):
+        return super(TestCase, self).run(result)
+
+
+class NewConfigUtilTests(TestCase):
 
     def setUp(self):
         # some tests look at the umask of created directories or files
@@ -150,7 +160,6 @@ class NewConfigUtilTests(unittest.TestCase):
             str(ctx.exception),
         )
 
-
     def test_both_styles_of_config(self):
         os.unlink(join(self.basedir, u"private", u"magic_folders.yaml"))
         with self.assertRaises(Exception) as ctx:
@@ -243,7 +252,7 @@ class NewConfigUtilTests(unittest.TestCase):
         )
 
 
-class LegacyConfigUtilTests(unittest.TestCase):
+class LegacyConfigUtilTests(TestCase):
 
     def setUp(self):
         # create a valid 'old style' magic-folder configuration
@@ -386,7 +395,7 @@ class LegacyConfigUtilTests(unittest.TestCase):
 
 
 
-class MagicFolderDbTests(unittest.TestCase):
+class MagicFolderDbTests(TestCase):
 
     def setUp(self):
         self.temp = abspath_expanduser_unicode(unicode(self.mktemp()))
@@ -402,7 +411,6 @@ class MagicFolderDbTests(unittest.TestCase):
         shutil.rmtree(self.temp)
         return super(MagicFolderDbTests, self).tearDown()
 
-    @with_eliot
     def test_create(self):
         self.db.did_upload_version(
             relpath_u=u'fake_path',
@@ -475,7 +483,7 @@ def iterate_downloader(magic):
 def iterate_uploader(magic):
     return magic.uploader._processing_iteration()
 
-@defer.inlineCallbacks
+@inline_callbacks
 def iterate(magic):
     yield iterate_uploader(magic)
     yield iterate_downloader(magic)
@@ -648,7 +656,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         self.mkdir_nonascii(self.bob_magic_dir)
 
         # Alice creates a Magic Folder, invites herself and joins.
-        d = self.do_create_magic_folder(0)
+        d = DeferredContext(self.do_create_magic_folder(0))
         d.addCallback(lambda ign: self.do_invite(0, self.alice_nickname))
         def get_invite_code(result):
             self.invite_code = result[1].strip()
@@ -695,7 +703,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             d0.addCallback(lambda ign: result)
             return d0
         d.addCallback(get_Bob_magicfolder)
-        return d
+        return d.result
 
     @defer.inlineCallbacks
     def tearDown(self):
@@ -705,8 +713,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             mf.uploader._clock.advance(mf.uploader._pending_delay + 1)
             mf.downloader._clock.advance(mf.downloader._poll_interval + 1)
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_alice_delete_bob_restore(self):
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
         bob_fname = os.path.join(self.bob_magic_dir, 'blam')
@@ -782,8 +789,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 2)
         yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 2)
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_alice_sees_bobs_delete_with_error(self):
         # alice creates a file, bob deletes it -- and we also arrange
         # for Alice's file to have "gone missing" as well.
@@ -841,8 +847,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
         yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_alice_create_bob_update(self):
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
         bob_fname = os.path.join(self.bob_magic_dir, 'blam')
@@ -882,8 +887,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
         self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_download_retry(self):
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
         # bob_fname = os.path.join(self.bob_magic_dir, 'blam')
@@ -935,8 +939,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         )
         yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_conflict_local_change_fresh(self):
         alice_fname = os.path.join(self.alice_magic_dir, 'localchange0')
         bob_fname = os.path.join(self.bob_magic_dir, 'localchange0')
@@ -962,8 +965,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         # ...so now bob should produce a conflict
         self.assertTrue(os.path.exists(bob_fname + '.conflict'))
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_conflict_local_change_existing(self):
         alice_fname = os.path.join(self.alice_magic_dir, 'localchange1')
         bob_fname = os.path.join(self.bob_magic_dir, 'localchange1')
@@ -1001,8 +1003,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         # ...so now bob should produce a conflict
         self.assertTrue(os.path.exists(bob_fname + '.conflict'))
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_alice_delete_and_restore(self):
         alice_fname = os.path.join(self.alice_magic_dir, 'blam')
         bob_fname = os.path.join(self.bob_magic_dir, 'blam')
@@ -1124,7 +1125,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             d.addCallback(advance)
             return d
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def Alice_to_write_a_file():
             if _debug: print "Alice writes a file\n\n\n\n\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
@@ -1149,7 +1150,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
 #        d.addCallback(lambda ign: self._check_uploader_count('objects_not_uploaded', 0, magic=self.bob_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 1, magic=self.bob_magicfolder))
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def Alice_to_delete_file():
             if _debug: print "Alice deletes the file!\n\n\n\n"
             yield self.alice_fileops.delete(self.file_path)
@@ -1157,7 +1158,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             yield iterate(self.bob_magicfolder)
         d.addCallback(_wait_for, Alice_to_delete_file)
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def notify_bob_moved(ign):
             # WARNING: this is just directly notifying for the mock
             # tests, because in the Real* tests the .backup file will
@@ -1182,7 +1183,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 2))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 2, magic=self.bob_magicfolder))
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def Alice_to_rewrite_file():
             if _debug: print "Alice rewrites file\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.alice_magicfolder.uploader._local_path_u)
@@ -1237,7 +1238,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0))
 #        d.addCallback(lambda ign: self._check_uploader_count('objects_not_uploaded', 2, magic=self.bob_magicfolder))
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def Bob_to_rewrite_file():
             if _debug: print "Bob rewrites file\n"
             self.file_path = abspath_expanduser_unicode(u"file1", base=self.bob_magicfolder.uploader._local_path_u)
@@ -1287,7 +1288,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_uploader_count('objects_succeeded', 1, magic=self.bob_magicfolder))
 
         # prepare to perform another conflict test
-        @defer.inlineCallbacks
+        @inline_callbacks
         def Alice_to_write_file2():
             if _debug: print "Alice writes a file2\n"
             self.file_path = abspath_expanduser_unicode(u"file2", base=self.alice_magicfolder.uploader._local_path_u)
@@ -1315,7 +1316,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(advance)
         d.addCallback(lambda ign: self._check_version_in_local_db(self.bob_magicfolder, u"file2", 0))
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def Bob_to_rewrite_file2():
             if _debug: print "Bob rewrites file2\n"
             self.file_path = abspath_expanduser_unicode(u"file2", base=self.bob_magicfolder.uploader._local_path_u)
@@ -1396,7 +1397,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 6))
 
         # prepare to perform another conflict test
-        @defer.inlineCallbacks
+        @inline_callbacks
         def Alice_to_write_file3():
             if _debug: print "Alice writes a file\n"
             self.file_path = abspath_expanduser_unicode(u"file3", base=self.alice_magicfolder.uploader._local_path_u)
@@ -1410,7 +1411,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 1))
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def Bob_to_rewrite_file3():
             if _debug: print "Bob rewrites file3\n"
             self.file_path = abspath_expanduser_unicode(u"file3", base=self.bob_magicfolder.uploader._local_path_u)
@@ -1513,8 +1514,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         fileutil.make_dirs(self.basedir)
         self._createdb()
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_scan_once_on_startup(self):
         # What is this test? Maybe it is just a stub and needs finishing.
         self.magicfolder.uploader._clock.advance(99)
@@ -1526,7 +1526,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         yield self._check_downloader_count('objects_failed', 0, magic=self.magicfolder)
         yield self._check_downloader_count('objects_downloaded', 0, magic=self.magicfolder)
 
-    @with_eliot
     def test_db_persistence(self):
         """Test that a file upload creates an entry in the database."""
 
@@ -1574,7 +1573,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 0))
         return d
 
-    @with_eliot
     def test_move_tree(self):
         """
         create an empty directory tree and 'mv' it into the magic folder,
@@ -1595,7 +1593,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
         d = DeferredContext(defer.succeed(None))
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def _check_move_empty_tree(res):
             self.mkdir_nonascii(empty_tree_dir)
             yield self.fileops.move(empty_tree_dir, new_empty_tree_dir)
@@ -1608,7 +1606,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 1))
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def _check_move_small_tree(res):
             self.mkdir_nonascii(small_tree_dir)
             what_path = abspath_expanduser_unicode(u"what", base=small_tree_dir)
@@ -1632,7 +1630,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_queued'), 0))
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 2))
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def _check_moved_tree_is_watched(res):
             another_path = abspath_expanduser_unicode(u"another", base=new_small_tree_dir)
             yield self.fileops.write(another_path, "file")
@@ -1649,7 +1647,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         return d.result
     test_move_tree.todo = "fails on certain linux flavors: see ticket #2834"
 
-    @with_eliot
     def test_persistence(self):
         """
         Perform an upload of a given file and then stop the client.
@@ -1661,7 +1658,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
         d = DeferredContext(defer.succeed(None))
 
-        @defer.inlineCallbacks
+        @inline_callbacks
         def create_test_file(filename):
             test_file = abspath_expanduser_unicode(filename, base=self.local_dir)
             yield self.fileops.write(test_file, "meow %s" % filename)
@@ -1688,8 +1685,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
     # hard to read, keep track of, etc. Very hard to understand
     # what each test uses for setup, etc. :(
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_delete(self):
         # setup: create a file 'foo'
         path = os.path.join(self.local_dir, u'foo')
@@ -1712,8 +1708,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
         self.failUnlessEqual(metadata['version'], 1)
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_batched_process(self):
         """
         status APIs correctly function when there are 2 items queued at
@@ -1745,8 +1740,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         # should see the same status from the outside
         self.assertEqual(upstatus0, upstatus1)
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_real_notify_failure(self):
         """
         Simulate an exception from the _real_notify helper in
@@ -1785,8 +1779,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         # notification for some reason..
         self.assertTrue(len(errors) >= 1)
 
-    @with_eliot
-    @defer.inlineCallbacks
+    @inline_callbacks
     def test_delete_and_restore(self):
         # setup: create a file
         path = os.path.join(self.local_dir, u'foo')
@@ -1815,7 +1808,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
         self.failUnlessEqual(metadata['version'], 2)
 
-    @with_eliot
     def test_magic_folder(self):
         d = DeferredContext(defer.succeed(None))
         # Write something short enough for a LIT file.
@@ -1840,7 +1832,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         return d.result
 
 
-class MockTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
+class MockTestAliceBob(MagicFolderAliceBobTestMixin, TestCase):
     inject_inotify = True
 
     def setUp(self):
@@ -1850,7 +1842,7 @@ class MockTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
         return d
 
 
-class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
+class MockTest(SingleMagicFolderTestMixin, TestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
     inject_inotify = True
 
@@ -1860,7 +1852,6 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         self.patch(magic_folder, 'get_inotify_module', lambda: self.inotify)
         return d
 
-    @with_eliot
     def test_errors(self):
         self.set_up_grid(oneshare=True)
 
@@ -1899,7 +1890,6 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         d.addCallback(_check_errors)
         return d.result
 
-    @with_eliot
     def test_write_downloaded_file(self):
         workdir = fileutil.abspath_expanduser_unicode(u"cli/MagicFolder/write-downloaded-file")
         local_file = fileutil.abspath_expanduser_unicode(u"foobar", base=workdir)
@@ -1945,7 +1935,6 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         # .tmp file shouldn't exist
         self.failIf(os.path.exists(local_file + u".tmp"))
 
-    @with_eliot
     def test_periodic_full_scan(self):
         """
         Create a file in a subdir without doing a notify on it and
@@ -1974,7 +1963,6 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.files_uploaded'), 1))
         return d.result
 
-    @with_eliot
     def test_statistics(self):
         d = DeferredContext(defer.succeed(None))
         # Write something short enough for a LIT file.
@@ -2004,7 +1992,7 @@ class MockTest(SingleMagicFolderTestMixin, unittest.TestCase):
         return d.result
 
 
-class RealTest(SingleMagicFolderTestMixin, unittest.TestCase):
+class RealTest(SingleMagicFolderTestMixin, TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
     inject_inotify = False
 
@@ -2014,7 +2002,7 @@ class RealTest(SingleMagicFolderTestMixin, unittest.TestCase):
         return d
 
 
-class RealTestAliceBob(MagicFolderAliceBobTestMixin, unittest.TestCase):
+class RealTestAliceBob(MagicFolderAliceBobTestMixin, TestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
     inject_inotify = False
 
