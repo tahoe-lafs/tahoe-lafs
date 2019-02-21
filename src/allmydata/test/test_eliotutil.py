@@ -91,7 +91,6 @@ def assert_expected_action_tree(testcase, logger, expected_action_type, expected
         "Logger had messages:\n{}".format(pformat(logger.messages, indent=4)),
     )
 
-
 def assert_generator_logs_action_tree(testcase, generator_function, logger, expected_action_type, expected_type_tree):
     list(eliot_friendly_generator_function(generator_function)())
     assert_expected_action_tree(
@@ -286,6 +285,33 @@ class EliotFriendlyGeneratorFunctionTests(TestCase):
                 ]},
                 u"1-d",
                 u"2-d",
+            ],
+        )
+
+    @capture_logging(None)
+    def test_close_generator(self, logger):
+        @eliot_friendly_generator_function
+        def g():
+            Message.log(message_type=u"a")
+            try:
+                yield
+                Message.log(message_type=u"b")
+            finally:
+                Message.log(message_type=u"c")
+
+
+        with start_action(action_type=u"the-action"):
+            gen = g()
+            next(gen)
+            gen.close()
+
+        assert_expected_action_tree(
+            self,
+            logger,
+            u"the-action", [
+                u"a",
+                u"yielded",
+                u"c",
             ],
         )
 
