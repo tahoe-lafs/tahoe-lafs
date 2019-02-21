@@ -20,8 +20,11 @@ install:
 # %PYTHON% has: python.exe
 # %PYTHON%\Scripts has: pip.exe, tox.exe (and others installed by bare pip)
 
-
+# We have a custom "build" system.  We don't need MSBuild or whatever.
 build: off
+
+# Do not build feature branch with open Pull Requests
+skip_branch_with_pr: true
 
 # we run from C:\projects\tahoe-lafs
 
@@ -57,4 +60,3 @@ artifacts:
 #  You can use this step to upload your artifacts to a public website.
 #  See Appveyor's documentation for more details. Or you can simply
 #  access your wheels from the Appveyor "artifacts" tab for your build.
-  
