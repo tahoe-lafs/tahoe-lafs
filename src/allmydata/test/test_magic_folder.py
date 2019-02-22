@@ -32,6 +32,8 @@ from allmydata.immutable.upload import Data
 
 from .eliotutil import (
     eliot_logged_test,
+)
+from ..util.eliotutil import (
     inline_callbacks,
 )
 
