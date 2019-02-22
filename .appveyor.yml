@@ -20,8 +20,27 @@ install:
 # %PYTHON% has: python.exe
 # %PYTHON%\Scripts has: pip.exe, tox.exe (and others installed by bare pip)
 
-
+# We have a custom "build" system.  We don't need MSBuild or whatever.
 build: off
+
+# Do not build feature branch with open pull requests.  This is documented but
+# it's not clear it does anything.
+skip_branch_with_pr: true
+
+# This, perhaps, is effective.
+branches:
+  # whitelist
+  only:
+    - 'master'
+
+skip_commits:
+ files:
+   # The Windows builds are unaffected by news fragments.
+   - 'newsfragments/*'
+   # Also, all this build junk.
+   - '.circleci/*'
+   - '.lgtm.yml'
+   - '.travis.yml'
 
 # we run from C:\projects\tahoe-lafs
 
@@ -57,4 +76,3 @@ artifacts:
 #  You can use this step to upload your artifacts to a public website.
 #  See Appveyor's documentation for more details. Or you can simply
 #  access your wheels from the Appveyor "artifacts" tab for your build.
-  
