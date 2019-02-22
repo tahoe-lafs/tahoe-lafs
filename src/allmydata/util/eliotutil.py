@@ -81,49 +81,43 @@ def eliot_friendly_generator_function(original):
         # decorated generator is running, it might be the stack for that
         # generator.  Not our business.
         _the_generator_context.init_stack(gen)
-        try:
-            while True:
-                try:
-                    # Whichever way we invoke the generator, we will do it
-                    # with the Eliot action context stack we've saved for it.
-                    # Then the context manager will re-save it and restore the
-                    # "outside" stack for us.
-                    with _the_generator_context.context(gen):
-                        if ok:
-                            value_out = gen.send(value_in)
-                        else:
-                            value_out = gen.throw(*value_in)
-                        # We have obtained a value from the generator.  In
-                        # giving it to us, it has given up control.  Note this
-                        # fact here.  Importantly, this is within the
-                        # generator's action context so that we get a good
-                        # indication of where the yield occurred.
-                        #
-                        # This might be too noisy, consider dropping it or
-                        # making it optional.
-                        Message.log(message_type=u"yielded")
-                except StopIteration:
-                    # When the generator raises this, it is signaling
-                    # completion.  Leave the loop.
-                    break
-                else:
-                    try:
-                        # Pass the generator's result along to whoever is
-                        # driving.  Capture the result as the next value to
-                        # send inward.
-                        value_in = yield value_out
-                    except:
-                        # Or capture the exception if that's the flavor of the
-                        # next value.
-                        ok = False
-                        value_in = exc_info()
+        while True:
+            try:
+                # Whichever way we invoke the generator, we will do it
+                # with the Eliot action context stack we've saved for it.
+                # Then the context manager will re-save it and restore the
+                # "outside" stack for us.
+                with _the_generator_context.context(gen):
+                    if ok:
+                        value_out = gen.send(value_in)
                     else:
-                        ok = True
-        except GeneratorExit:
-            # Is this the right scope for handling this exception?  Something
-            # to check on.  Anyhow, if we get it, propagate it inward so the
-            # generator we're driving knows we're done with it.
-            gen.close()
+                        value_out = gen.throw(*value_in)
+                    # We have obtained a value from the generator.  In
+                    # giving it to us, it has given up control.  Note this
+                    # fact here.  Importantly, this is within the
+                    # generator's action context so that we get a good
+                    # indication of where the yield occurred.
+                    #
+                    # This might be too noisy, consider dropping it or
+                    # making it optional.
+                    Message.log(message_type=u"yielded")
+            except StopIteration:
+                # When the generator raises this, it is signaling
+                # completion.  Leave the loop.
+                break
+            else:
+                try:
+                    # Pass the generator's result along to whoever is
+                    # driving.  Capture the result as the next value to
+                    # send inward.
+                    value_in = yield value_out
+                except:
+                    # Or capture the exception if that's the flavor of the
+                    # next value.
+                    ok = False
+                    value_in = exc_info()
+                else:
+                    ok = True
 
     return wrapper
 
