@@ -24,7 +24,9 @@ from eliot import (
     MessageType,
     write_failure,
 )
-from eliot.twisted import DeferredContext
+from eliot.twisted import (
+    DeferredContext,
+)
 
 from allmydata.util import (
     fileutil,
@@ -1518,29 +1520,25 @@ class Downloader(QueueMixin, WriteFileMixin):
         d.addCallback(_filter_batch_to_deque)
         return d.addActionFinish()
 
-
     def _scan_delay(self):
         return self._poll_interval
 
+    @eliotutil.inline_callbacks
     def _perform_scan(self):
-        with PERFORM_SCAN().context():
-            d = DeferredContext(defer.maybeDeferred(self._scan_remote_collective))
-        def scanned(result):
-            self._status_reporter(
-                True, 'Magic folder is working',
-                'Last scan: %s' % self.nice_current_time(),
-            )
-            return result
-        def scan_failed(reason):
-            twlog.msg("Remote scan failed: %s" % (reason.value,))
-            self._log("_scan failed: %s" % (repr(reason.value),))
-            self._status_reporter(
-                False, 'Remote scan has failed: %s' % str(reason.value),
-                'Last attempted at %s' % self.nice_current_time(),
-            )
-            return None
-        d.addCallbacks(scanned, scan_failed)
-        return d.addActionFinish()
+        with PERFORM_SCAN():
+            try:
+                yield self._scan_remote_collective()
+                self._status_reporter(
+                    True, 'Magic folder is working',
+                    'Last scan: %s' % self.nice_current_time(),
+                )
+            except Exception as e:
+                twlog.msg("Remote scan failed: %s" % (e,))
+                self._log("_scan failed: %s" % (repr(e),))
+                self._status_reporter(
+                    False, 'Remote scan has failed: %s' % str(e),
+                    'Last attempted at %s' % self.nice_current_time(),
+                )
 
     def _process(self, item):
         # Downloader
