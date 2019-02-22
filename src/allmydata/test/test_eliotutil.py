@@ -315,6 +315,35 @@ class EliotFriendlyGeneratorFunctionTests(TestCase):
             ],
         )
 
+    @capture_logging(None)
+    def test_nested_generators(self, logger):
+        @eliot_friendly_generator_function
+        def g(recurse):
+            with start_action(action_type=u"a-recurse={}".format(recurse)):
+                Message.log(message_type=u"m-recurse={}".format(recurse))
+                if recurse:
+                    set(g(False))
+                else:
+                    yield
+
+        with start_action(action_type=u"the-action"):
+            set(g(True))
+
+        assert_expected_action_tree(
+            self,
+            logger,
+            u"the-action", [{
+                u"a-recurse=True": [
+                    u"m-recurse=True", {
+                        u"a-recurse=False": [
+                            u"m-recurse=False",
+                            u"yielded",
+                        ],
+                    },
+                ],
+            }],
+        )
+
 
 class InlineCallbacksTests(TestCase):
     # Get our custom assertion failure messages *and* the standard ones.
