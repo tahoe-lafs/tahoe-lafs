@@ -35,6 +35,9 @@ from allmydata.util import (
     yamlutil,
     eliotutil,
 )
+from allmydata.util.fake_inotify import (
+    humanReadableMask,
+)
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import (
@@ -692,6 +695,27 @@ NOTIFIED = ActionType(
     u"Magic-Folder received a notification of a local filesystem change for a certain path.",
 )
 
+_EVENTS = Field.for_types(
+    u"events",
+    [int, long],
+    u"Details about a filesystem event generating a notification event.",
+    humanReadableMask,
+)
+
+_NON_DIR_CREATED = Field.for_types(
+    u"non_dir_created",
+    [bool],
+    u"A creation event was for a non-directory and requires no further inspection.",
+)
+
+
+REACT_TO_INOTIFY = ActionType(
+    u"magic-folder:reactor-to-inotify",
+    [_EVENTS],
+    [_IGNORED, _NON_DIR_CREATED, _ALREADY_PENDING],
+    u"Magic-Folder is processing a notification from inotify(7) (or a clone) about a filesystem event.",
+)
+
 class QueueMixin(HookMixin):
     """
     A parent class for Uploader and Downloader that handles putting
@@ -1093,29 +1117,36 @@ class Uploader(QueueMixin):
                 write_traceback()
 
     def _real_notify(self, opaque, path, events_mask):
-        self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))
-        relpath_u = self._get_relpath(path)
+        action = REACT_TO_INOTIFY(
+            # We could think about logging opaque here but ... it's opaque.
+            # All can do is id() or repr() it and neither of those actually
+            # produces very illuminating results.  We drop opaque on the
+            # floor, anyway.
+            events=events_mask,
+        )
+        success_fields = dict(non_dir_created=False, already_pending=False, ignored=False)
 
-        # We filter out IN_CREATE events not associated with a directory.
-        # Acting on IN_CREATE for files could cause us to read and upload
-        # a possibly-incomplete file before the application has closed it.
-        # There should always be an IN_CLOSE_WRITE after an IN_CREATE, I think.
-        # It isn't possible to avoid watching for IN_CREATE at all, because
-        # it is the only event notified for a directory creation.
+        with action:
+            relpath_u = self._get_relpath(path)
 
-        if ((events_mask & self._inotify.IN_CREATE) != 0 and
-            (events_mask & self._inotify.IN_ISDIR) == 0):
-            self._log("ignoring event for %r (creation of non-directory)\n" % (relpath_u,))
-            return
-        if relpath_u in self._pending:
-            self._log("not queueing %r because it is already pending" % (relpath_u,))
-            return
-        if magicpath.should_ignore_file(relpath_u):
-            self._log("ignoring event for %r (ignorable path)" % (relpath_u,))
-            return
+            # We filter out IN_CREATE events not associated with a directory.
+            # Acting on IN_CREATE for files could cause us to read and upload
+            # a possibly-incomplete file before the application has closed it.
+            # There should always be an IN_CLOSE_WRITE after an IN_CREATE, I think.
+            # It isn't possible to avoid watching for IN_CREATE at all, because
+            # it is the only event notified for a directory creation.
 
-        self._add_pending(relpath_u)
-        self._call_hook(path, 'inotify')
+            if ((events_mask & self._inotify.IN_CREATE) != 0 and
+                (events_mask & self._inotify.IN_ISDIR) == 0):
+                success_fields[u"non_dir_created"] = True
+            elif relpath_u in self._pending:
+                success_fields[u"already_pending"] = True
+            elif magicpath.should_ignore_file(relpath_u):
+                success_fields[u"ignored"] = True
+            else:
+                self._add_pending(relpath_u)
+                self._call_hook(path, 'inotify')
+            action.add_success_fields(**success_fields)
 
     def _process(self, item):
         """
