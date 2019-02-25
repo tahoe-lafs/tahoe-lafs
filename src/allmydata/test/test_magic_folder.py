@@ -1482,11 +1482,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     def tearDown(self):
         d = super(SingleMagicFolderTestMixin, self).tearDown()
-        def _disable_debugging(res):
-            if self.magicfolder:
-                self.magicfolder.enable_debug_log(False)
-            return res
-        d.addBoth(_disable_debugging)
         d.addCallback(self.cleanup)
         shutil.rmtree(self.basedir, ignore_errors=True)
         return d
@@ -1593,7 +1588,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         into the magic folder, so we upload the file and record the
         directory. (XXX split to separate test)
         """
-        self.magicfolder.enable_debug_log()
         empty_tree_name = self.unicode_or_fallback(u"empty_tr\u00EAe", u"empty_tree")
         empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
         new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
