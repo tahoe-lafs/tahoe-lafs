@@ -207,7 +207,7 @@ def eliot_logging_service(reactor, destinations):
 # a same-named attribute on your Options subclass.
 def opt_eliot_destination(self, description):
     """
-    Add an Eliot logging destination.
+    Add an Eliot logging destination.  May be given more than once.
     """
     self.setdefault("destinations", []).append(
         _parse_destination_description(description)
