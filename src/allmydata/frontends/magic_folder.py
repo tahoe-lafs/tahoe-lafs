@@ -639,6 +639,13 @@ STOP_MONITORING = ActionType(
     u"Uploader is terminating filesystem monitoring operation.",
 )
 
+START_UPLOADING = ActionType(
+    u"magic-folder:start-uploading",
+    [_NICKNAME, _DIRECTION],
+    [],
+    u"Uploader is performing startup-time inspection of known files.",
+)
+
 
 class QueueMixin(HookMixin):
     """
@@ -974,17 +981,20 @@ class Uploader(QueueMixin):
             return d.addActionFinish()
 
     def start_uploading(self):
-        self._log("start_uploading")
-        self.is_ready = True
+        action = START_UPLOADING(
+            nickname=self._client.nickname,
+            direction=self._name,
+        )
+        with action:
+            self.is_ready = True
 
-        all_relpaths = self._db.get_all_relpaths()
-        self._log("all relpaths: %r" % (all_relpaths,))
+            all_relpaths = self._db.get_all_relpaths()
 
-        for relpath_u in all_relpaths:
-            self._add_pending(relpath_u)
+            for relpath_u in all_relpaths:
+                self._add_pending(relpath_u)
 
-        self._full_scan()
-        return self._begin_processing()
+            self._full_scan()
+            self._begin_processing()
 
     def _scan_delay(self):
         return self._pending_delay
