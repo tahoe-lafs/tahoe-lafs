@@ -646,6 +646,31 @@ START_UPLOADING = ActionType(
     u"Uploader is performing startup-time inspection of known files.",
 )
 
+_IGNORED = Field.for_types(
+    u"ignored",
+    [bool],
+    u"A file proposed for queueing for processing is instead being ignored by policy.",
+)
+
+_ALREADY_PENDING = Field.for_types(
+    u"already_pending",
+    [bool],
+    u"A file proposed for queueing for processing is already in the queue.",
+)
+
+_SIZE = Field.for_types(
+    u"size",
+    [int, long, type(None)],
+    u"The size of a file accepted into the processing queue.",
+)
+
+ADD_PENDING = ActionType(
+    u"magic-folder:add-pending",
+    [eliotutil.RELPATH],
+    [_IGNORED, _ALREADY_PENDING, _SIZE],
+    u"Uploader is adding a path to the processing queue.",
+)
+
 
 class QueueMixin(HookMixin):
     """
@@ -1006,24 +1031,23 @@ class Uploader(QueueMixin):
         self._scan(u"")
 
     def _add_pending(self, relpath_u):
-        self._log("add pending %r" % (relpath_u,))
-        if magicpath.should_ignore_file(relpath_u):
-            self._log("_add_pending %r but should_ignore()==True" % (relpath_u,))
-            return
-        if relpath_u in self._pending:
-            self._log("_add_pending %r but already pending" % (relpath_u,))
-            return
+        with ADD_PENDING(relpath=relpath_u) as action:
+            if magicpath.should_ignore_file(relpath_u):
+                action.add_success_fields(ignored=True, already_pending=False, size=None)
+                return
+            if relpath_u in self._pending:
+                action.add_success_fields(ignored=False, already_pending=True, size=None)
+                return
 
-        self._pending.add(relpath_u)
-        fp = self._get_filepath(relpath_u)
-        pathinfo = get_pathinfo(unicode_from_filepath(fp))
-        progress = PercentProgress()
-        self._log(u"add pending size: {}: {}".format(relpath_u, pathinfo.size))
-        item = UploadItem(relpath_u, progress, pathinfo.size)
-        item.set_status('queued', self._clock.seconds())
-        self._deque.append(item)
-        self._count('objects_queued')
-        self._log("_add_pending(%r) queued item" % (relpath_u,))
+            self._pending.add(relpath_u)
+            fp = self._get_filepath(relpath_u)
+            pathinfo = get_pathinfo(unicode_from_filepath(fp))
+            progress = PercentProgress()
+            action.add_success_fields(ignored=False, already_pending=False, size=pathinfo.size)
+            item = UploadItem(relpath_u, progress, pathinfo.size)
+            item.set_status('queued', self._clock.seconds())
+            self._deque.append(item)
+            self._count('objects_queued')
 
     def _scan(self, reldir_u):
         # Scan a directory by (synchronously) adding the paths of all its children to self._pending.
