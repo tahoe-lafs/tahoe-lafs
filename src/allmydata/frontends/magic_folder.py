@@ -678,6 +678,13 @@ FULL_SCAN = ActionType(
     u"A complete brute-force scan of the local directory is being performed.",
 )
 
+SCAN = ActionType(
+    u"magic-folder:scan",
+    [eliotutil.RELPATH],
+    [],
+    u"A brute-force scan of a subset of the local directory is being performed.",
+)
+
 
 class QueueMixin(HookMixin):
     """
@@ -1054,22 +1061,20 @@ class Uploader(QueueMixin):
     def _scan(self, reldir_u):
         # Scan a directory by (synchronously) adding the paths of all its children to self._pending.
         # Note that this doesn't add them to the deque -- that will
+        with SCAN(relpath=reldir_u):
+            fp = self._get_filepath(reldir_u)
+            try:
+                children = listdir_filepath(fp)
+            except EnvironmentError:
+                raise Exception("WARNING: magic folder: permission denied on directory %s"
+                                % quote_filepath(fp))
+            except FilenameEncodingError:
+                raise Exception("WARNING: magic folder: could not list directory %s due to a filename encoding error"
+                                % quote_filepath(fp))
 
-        self._log("SCAN '%r'" % (reldir_u,))
-        fp = self._get_filepath(reldir_u)
-        try:
-            children = listdir_filepath(fp)
-        except EnvironmentError:
-            raise Exception("WARNING: magic folder: permission denied on directory %s"
-                            % quote_filepath(fp))
-        except FilenameEncodingError:
-            raise Exception("WARNING: magic folder: could not list directory %s due to a filename encoding error"
-                            % quote_filepath(fp))
-
-        for child in children:
-            self._log("   scan; child %r" % (child,))
-            _assert(isinstance(child, unicode), child=child)
-            self._add_pending("%s/%s" % (reldir_u, child) if reldir_u != u"" else child)
+            for child in children:
+                _assert(isinstance(child, unicode), child=child)
+                self._add_pending("%s/%s" % (reldir_u, child) if reldir_u != u"" else child)
 
     def is_pending(self, relpath_u):
         return relpath_u in self._pending
