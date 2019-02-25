@@ -441,6 +441,9 @@ class InlineCallbacksTests(SyncTestCase):
 
 
 class  ParseDestinationDescriptionTests(SyncTestCase):
+    """
+    Tests for ``_parse_destination_description``.
+    """
     def test_stdout(self):
         """
         A ``file:`` description with a path of ``-`` causes logs to be written to
