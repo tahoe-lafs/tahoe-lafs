@@ -685,6 +685,12 @@ SCAN = ActionType(
     u"A brute-force scan of a subset of the local directory is being performed.",
 )
 
+NOTIFIED = ActionType(
+    u"magic-folder:notified",
+    [PATH, _NICKNAME, _DIRECTION],
+    [],
+    u"Magic-Folder received a notification of a local filesystem change for a certain path.",
+)
 
 class QueueMixin(HookMixin):
     """
@@ -1080,13 +1086,11 @@ class Uploader(QueueMixin):
         return relpath_u in self._pending
 
     def _notify(self, opaque, path, events_mask):
-        # Twisted doesn't seem to do anything if our callback throws
-        # an error, so...
-        try:
-            return self._real_notify(opaque, path, events_mask)
-        except Exception as e:
-            self._log(u"error calling _real_notify: {}".format(e))
-            twlog.err(Failure(), "Error calling _real_notify")
+        with NOTIFIED(path=path, **self._log_fields):
+            try:
+                return self._real_notify(opaque, path, events_mask)
+            except Exception:
+                write_traceback()
 
     def _real_notify(self, opaque, path, events_mask):
         self._log("inotify event %r, %r, %r\n" % (opaque, path, ', '.join(self._inotify.humanReadableMask(events_mask))))

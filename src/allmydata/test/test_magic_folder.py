@@ -1789,7 +1789,8 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         # pending callbacks including the exception are processed
         # before we flush the errors.
         yield task.deferLater(reactor, 0, lambda: None)
-        errors = self.flushLoggedErrors(BadStuff)
+
+        errors = self.eliot_logger.flushTracebacks(BadStuff)
         # it seems on Windows the "RealTest" variant only produces 1
         # notification for some reason..
         self.assertTrue(len(errors) >= 1)
