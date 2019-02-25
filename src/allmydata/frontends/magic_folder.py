@@ -938,6 +938,11 @@ class Uploader(QueueMixin):
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
         QueueMixin.__init__(self, client, local_path_u, db, u'uploader', clock)
 
+        self._log_fields = dict(
+            nickname=self._client.nickname,
+            direction=self._name,
+        )
+
         self.is_ready = False
 
         if not IDirectoryNode.providedBy(upload_dirnode):
@@ -971,10 +976,7 @@ class Uploader(QueueMixin):
                              recursive=False)#True)
 
     def start_monitoring(self):
-        action = START_MONITORING(
-            nickname=self._client.nickname,
-            direction=self._name,
-        )
+        action = START_MONITORING(**self._log_fields)
         with action.context():
             d = DeferredContext(defer.succeed(None))
 
@@ -984,10 +986,7 @@ class Uploader(QueueMixin):
         return d.addActionFinish()
 
     def stop(self):
-        action = STOP_MONITORING(
-            nickname=self._client.nickname,
-            direction=self._name,
-        )
+        action = STOP_MONITORING(**self._log_fields)
         with action.context():
             self._notifier.stopReading()
             self._count('dirs_monitored', -1)
@@ -1006,10 +1005,7 @@ class Uploader(QueueMixin):
             return d.addActionFinish()
 
     def start_uploading(self):
-        action = START_UPLOADING(
-            nickname=self._client.nickname,
-            direction=self._name,
-        )
+        action = START_UPLOADING(**self._log_fields)
         with action:
             self.is_ready = True
 
