@@ -11,13 +11,6 @@ from allmydata.scripts import debug, create_node, cli, \
     tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 
-def GROUP(s):
-    # Usage.parseOptions compares argv[1] against command[0], so it will
-    # effectively ignore any "subcommand" that starts with a newline. We use
-    # these to insert section headers into the --help output.
-    return [("\n(%s)" % s, None, None, None)]
-
-
 _default_nodedir = get_default_nodedir()
 
 NODEDIR_HELP = ("Specify which Tahoe node directory should be used. The "
@@ -40,6 +33,14 @@ _control_node_dispatch = {
     "restart": tahoe_restart.restart,
 }
 
+process_control_commands = [
+    ["daemonize", None, tahoe_daemonize.DaemonizeOptions, "run a node in the background"],
+    ["start", None, tahoe_start.StartOptions, "start a node in the background and confirm it started"],
+    ["run", None, tahoe_run.RunOptions, "run a node without daemonizing"],
+    ["stop", None, tahoe_stop.StopOptions, "stop a node"],
+    ["restart", None, tahoe_restart.RestartOptions, "restart a node"],
+]
+
 
 class Options(usage.Options):
     # unit tests can override these to point at StringIO instances
@@ -47,24 +48,13 @@ class Options(usage.Options):
     stdout = sys.stdout
     stderr = sys.stderr
 
-    subCommands = ( GROUP("Administration")
-                    +   create_node.subCommands
+    subCommands = (     create_node.subCommands
                     +   stats_gatherer.subCommands
                     +   admin.subCommands
-                    + GROUP("Controlling a node")
-                    + [
-                        ["daemonize", None, tahoe_daemonize.DaemonizeOptions, "run a node in the background"],
-                        ["start", None, tahoe_start.StartOptions, "start a node in the background and confirm it started"],
-                        ["run", None, tahoe_run.RunOptions, "run a node without daemonizing"],
-                        ["stop", None, tahoe_stop.StopOptions, "stop a node"],
-                        ["restart", None, tahoe_restart.RestartOptions, "restart a node"],
-                    ]
-                    + GROUP("Debugging")
+                    +   process_control_commands
                     +   debug.subCommands
-                    + GROUP("Using the file store")
                     +   cli.subCommands
                     +   magic_folder_cli.subCommands
-                    + GROUP("Grid Management")
                     +   tahoe_invite.subCommands
                     )
 

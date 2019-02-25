@@ -1,0 +1,1 @@
+The confusing and misplaced sub-command group headings in `tahoe --help` output have been removed.
