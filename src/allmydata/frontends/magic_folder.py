@@ -1037,7 +1037,7 @@ class Uploader(QueueMixin):
             if magicpath.should_ignore_file(relpath_u):
                 action.add_success_fields(ignored=True, already_pending=False, size=None)
                 return
-            if relpath_u in self._pending:
+            if self.is_pending(relpath_u):
                 action.add_success_fields(ignored=False, already_pending=True, size=None)
                 return
 
