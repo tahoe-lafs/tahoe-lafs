@@ -804,10 +804,6 @@ class QueueMixin(HookMixin):
             value=self._client.stats_provider.counters[ctr],
         )
 
-    def _logcb(self, res, msg):
-        self._log("%s: %r" % (msg, res))
-        return res
-
     def _log(self, msg):
         s = "Magic Folder %s %s: %s" % (quote_output(self._client.nickname), self._name, msg)
         self._client.log(s)
