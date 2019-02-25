@@ -2,6 +2,19 @@
 Tools aimed at the interaction between Tahoe-LAFS implementation and Eliot.
 """
 
+from __future__ import (
+    unicode_literals,
+    print_function,
+    absolute_import,
+    division,
+)
+
+__all__ = [
+    "use_generator_context",
+    "eliot_friendly_generator_function",
+    "inline_callbacks",
+]
+
 from sys import exc_info
 from functools import wraps
 from contextlib import contextmanager
