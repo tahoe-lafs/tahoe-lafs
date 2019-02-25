@@ -12,6 +12,7 @@ from allmydata.scripts import debug, create_node, cli, \
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 from allmydata.util.eliotutil import (
     opt_eliot_destination,
+    opt_help_eliot_destinations,
 )
 
 def GROUP(s):
@@ -93,6 +94,7 @@ class Options(usage.Options):
         self.no_command_needed = True
 
     opt_eliot_destination = opt_eliot_destination
+    opt_help_eliot_destinations = opt_help_eliot_destinations
 
     def __str__(self):
         return ("\nUsage: tahoe [global-options] <command> [command-options]\n"

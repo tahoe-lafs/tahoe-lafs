@@ -15,6 +15,7 @@ __all__ = [
     "inline_callbacks",
     "eliot_logging_service",
     "opt_eliot_destination",
+    "opt_help_eliot_destinations",
 ]
 
 from sys import (
@@ -190,11 +191,8 @@ def eliot_logging_service(reactor, destinations):
     Parse the given Eliot destination descriptions and return an ``IService``
     which will add them when started and remove them when stopped.
 
-    The following destinations are supported:
-
-    * ``file:<path>[:rotated_length=<bytes>][:max_rotated_files=<count>]``
-      Sensible defaults are supplied for rotated_length and max_rotated_files
-      if they are not given.
+    See ``--help-eliot-destinations`` for details about supported
+    destinations.
     """
     return _EliotLogging(destinations=list(
         get_destination(reactor)
@@ -213,6 +211,22 @@ def opt_eliot_destination(self, description):
         _parse_destination_description(description)
     )
 
+
+def opt_help_eliot_destinations(self):
+    """
+    Emit usage information for --eliot-destination.
+    """
+    print(
+        "Available destinations:\n"
+        # Might want to generate this from some metadata someday but we just
+        # have one hard-coded destination type now, it's easier to hard-code
+        # the help.
+        "\tfile:<path>[:rotate_length=<bytes>][:max_rotated_files=<count>]\n"
+        "\tSensible defaults are supplied for rotate_length and max_rotated_files\n"
+        "\tif they are not given.\n",
+        file=self.stdout,
+    )
+    raise SystemExit(0)
 
 
 class _EliotLogging(Service):
