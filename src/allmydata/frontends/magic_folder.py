@@ -608,7 +608,6 @@ class QueueMixin(HookMixin):
         self._db = db
         self._name = name
         self._clock = clock
-        self._logger = None
         self._hooks = {
             'processed': None,
             'started': None,
