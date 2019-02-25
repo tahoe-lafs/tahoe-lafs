@@ -625,6 +625,13 @@ COUNT_CHANGED = MessageType(
     u"The value of a counter has changed.",
 )
 
+START_MONITORING = ActionType(
+    u"magic-folder:start-monitoring",
+    [_NICKNAME, _DIRECTION],
+    [],
+    u"Uploader is beginning to monitor the filesystem for uploadable changes.",
+)
+
 
 class QueueMixin(HookMixin):
     """
@@ -925,12 +932,17 @@ class Uploader(QueueMixin):
                              recursive=False)#True)
 
     def start_monitoring(self):
-        self._log("start_monitoring")
-        d = defer.succeed(None)
+        action = START_MONITORING(
+            nickname=self._client.nickname,
+            direction=self._name,
+        )
+        with action.context():
+            d = DeferredContext(defer.succeed(None))
+
         d.addCallback(lambda ign: self._notifier.startReading())
         d.addCallback(lambda ign: self._count('dirs_monitored'))
         d.addBoth(self._call_hook, 'started')
-        return d
+        return d.addActionFinish()
 
     def stop(self):
         self._notifier.stopReading()
