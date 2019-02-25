@@ -23,6 +23,7 @@ from eliot import (
     ActionType,
     MessageType,
     write_failure,
+    write_traceback,
 )
 from eliot.twisted import (
     DeferredContext,
@@ -575,6 +576,12 @@ PROCESS_DIRECTORY = ActionType(
     u"An item being processed was a directory.",
 )
 
+DIRECTORY_PATHENTRY = MessageType(
+    u"magic-folder:directory-dbentry",
+    [magicfolderdb.PATHENTRY],
+    u"Local database state relating to an item possibly being uploaded.",
+)
+
 NOT_NEW_DIRECTORY = MessageType(
     u"magic-folder:not-new-directory",
     [],
@@ -592,6 +599,32 @@ SPECIAL_FILE = MessageType(
     [],
     u"An item being processed was found to be of a special type which is not supported.",
 )
+
+_COUNTER_NAME = Field.for_types(
+    u"counter_name",
+    # Should really only be unicode
+    [unicode, bytes],
+    u"The name of a counter.",
+)
+
+_DELTA = Field.for_types(
+    u"delta",
+    [int, long],
+    u"An amount of a specific change in a counter.",
+)
+
+_VALUE = Field.for_types(
+    u"value",
+    [int, long],
+    u"The new value of a counter after a change.",
+)
+
+COUNT_CHANGED = MessageType(
+    u"magic-folder:count",
+    [_COUNTER_NAME, _DELTA, _VALUE],
+    u"The value of a counter has changed.",
+)
+
 
 class QueueMixin(HookMixin):
     """
@@ -759,15 +792,17 @@ class QueueMixin(HookMixin):
                 self._call_hook(proc, 'processed')
 
     def _get_relpath(self, filepath):
-        self._log("_get_relpath(%r)" % (filepath,))
         segments = unicode_segments_from(filepath, self._local_filepath)
-        self._log("segments = %r" % (segments,))
         return u"/".join(segments)
 
     def _count(self, counter_name, delta=1):
         ctr = 'magic_folder.%s.%s' % (self._name, counter_name)
         self._client.stats_provider.count(ctr, delta)
-        self._log("%s += %r (now %r)" % (counter_name, delta, self._client.stats_provider.counters[ctr]))
+        COUNT_CHANGED.log(
+            counter_name=counter_name,
+            delta=delta,
+            value=self._client.stats_provider.counters[ctr],
+        )
 
     def _logcb(self, res, msg):
         self._log("%s: %r" % (msg, res))
@@ -1136,7 +1171,7 @@ class Uploader(QueueMixin):
                     self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
 
                 db_entry = self._db.get_db_entry(relpath_u)
-                self._log("isdir dbentry %r" % (db_entry,))
+                DIRECTORY_PATHENTRY.log(pathentry=db_entry)
                 if not is_new_file(pathinfo, db_entry):
                     NOT_NEW_DIRECTORY.log()
                     return False
@@ -1559,7 +1594,6 @@ class Downloader(QueueMixin, WriteFileMixin):
         # Downloader
         now = self._clock.seconds()
 
-        self._log("started! %s" % (now,))
         item.set_status('started', now)
         fp = self._get_filepath(item.relpath_u)
         abspath_u = unicode_from_filepath(fp)
