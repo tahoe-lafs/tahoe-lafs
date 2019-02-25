@@ -9,7 +9,10 @@ from twisted.internet import defer, task, reactor
 
 from eliot.twisted import DeferredContext
 
-from allmydata.interfaces import IDirectoryNode
+from allmydata.interfaces import (
+    IDirectoryNode,
+    NoSharesError,
+)
 from allmydata.util.assertutil import precondition
 
 from allmydata.util import fake_inotify, fileutil, configutil, yamlutil
@@ -927,6 +930,13 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
 
         # now let bob try to do the download
         yield iterate(self.bob_magicfolder)
+
+        logged = self.eliot_logger.flushTracebacks(NoSharesError)
+        self.assertEqual(
+            1,
+            len(logged),
+            "Got other than expected single NoSharesError: {}".format(logged),
+        )
 
         # ...however Bob shouldn't have downloaded anything
         self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
