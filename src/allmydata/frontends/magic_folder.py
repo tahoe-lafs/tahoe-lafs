@@ -439,6 +439,13 @@ _DIRECTION = Field.for_types(
     eliotutil.validateSetMembership({u"uploader", u"downloader"}),
 )
 
+PROCESSING_LOOP = ActionType(
+    u"magic-folder:processing-loop",
+    [_NICKNAME, _DIRECTION],
+    [],
+    u"A Magic-Folder processing is processing uploads or downloads.",
+)
+
 ITERATION = ActionType(
     u"magic-folder:iteration",
     [_NICKNAME, _DIRECTION],
@@ -652,17 +659,24 @@ class QueueMixin(HookMixin):
         """
         Start a loop that looks for work to do and then does it.
         """
+        action = PROCESSING_LOOP(
+            nickname=self._client.nickname,
+            direction=self._name,
+        )
+
+        # Note that we don't put the processing iterations into the logging
+        # action because we expect this loop to run for the whole lifetime of
+        # the process.  The tooling for dealing with incomplete action trees
+        # is still somewhat lacking.  Putting the iteractions into the overall
+        # loop action would hamper reading those logs for now.
         self._processing_loop = task.LoopingCall(self._processing_iteration)
         self._processing_loop.clock = self._clock
         self._processing = self._processing_loop.start(self._scan_delay(), now=True)
 
-        # if there are any errors coming out of _processing then our loop is
-        # done and we're hosed (i.e. _processing_iteration() itself has a bug
-        # in it)
-        def fatal_error(f):
-            self._log("internal error: %s" % (f.value,))
-            self._log(f)
-        self._processing.addErrback(fatal_error)
+        with action.context():
+            # We do make sure errors appear in the loop action though.
+            d = DeferredContext(self._processing)
+            d.addActionFinish()
 
     def _processing_iteration(self):
         """
