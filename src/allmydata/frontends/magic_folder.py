@@ -443,7 +443,7 @@ PROCESSING_LOOP = ActionType(
     u"magic-folder:processing-loop",
     [_NICKNAME, _DIRECTION],
     [],
-    u"A Magic-Folder processing is processing uploads or downloads.",
+    u"A Magic-Folder is processing uploads or downloads.",
 )
 
 ITERATION = ActionType(
