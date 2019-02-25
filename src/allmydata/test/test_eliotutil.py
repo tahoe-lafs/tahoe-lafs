@@ -2,10 +2,37 @@
 Tests for ``allmydata.test.eliotutil``.
 """
 
+from __future__ import (
+    unicode_literals,
+    print_function,
+    absolute_import,
+    division,
+)
+
 from pprint import pformat
+from sys import stdout
+import logging
+
+from fixtures import (
+    TempDir,
+)
+from testtools import (
+    TestCase,
+)
+from testtools.matchers import (
+    Is,
+    MatchesStructure,
+    Equals,
+    AfterPreprocessing,
+)
+from testtools.twistedsupport import (
+    has_no_result,
+    succeeded,
+)
 
 from eliot import (
     Message,
+    FileDestination,
     start_action,
 )
 from eliot.twisted import DeferredContext
@@ -14,7 +41,6 @@ from eliot.testing import (
     assertHasAction,
 )
 
-from twisted.trial.unittest import TestCase
 from twisted.internet.defer import (
     Deferred,
     succeed,
@@ -29,9 +55,15 @@ from .eliotutil import (
 from ..util.eliotutil import (
     eliot_friendly_generator_function,
     inline_callbacks,
+    _parse_destination_description,
+    _EliotLogging,
+)
+from .common import (
+    SyncTestCase,
+    AsyncTestCase,
 )
 
-class EliotLoggedTestTests(TestCase):
+class EliotLoggedTestTests(AsyncTestCase):
     @eliot_logged_test
     def test_returns_none(self):
         Message.log(hello="world")
@@ -101,7 +133,7 @@ def assert_generator_logs_action_tree(testcase, generator_function, logger, expe
     )
 
 
-class EliotFriendlyGeneratorFunctionTests(TestCase):
+class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
     # Get our custom assertion failure messages *and* the standard ones.
     longMessage = True
 
@@ -345,16 +377,13 @@ class EliotFriendlyGeneratorFunctionTests(TestCase):
         )
 
 
-class InlineCallbacksTests(TestCase):
+class InlineCallbacksTests(SyncTestCase):
     # Get our custom assertion failure messages *and* the standard ones.
     longMessage = True
 
     def _a_b_test(self, logger, g):
         with start_action(action_type=u"the-action"):
-            self.assertIs(
-                None,
-                self.successResultOf(g()),
-            )
+            self.assertThat(g(), succeeded(Is(None)))
         assert_expected_action_tree(
             self,
             logger,
@@ -397,12 +426,9 @@ class InlineCallbacksTests(TestCase):
 
         with start_action(action_type=u"the-action"):
             d = g()
-            self.assertNoResult(waiting)
+            self.assertThat(waiting, has_no_result())
             waiting.callback(None)
-            self.assertIs(
-                None,
-                self.successResultOf(d),
-            )
+            self.assertThat(d, succeeded(Is(None)))
         assert_expected_action_tree(
             self,
             logger,
@@ -411,4 +437,90 @@ class InlineCallbacksTests(TestCase):
                 u"yielded",
                 u"b",
             ],
+        )
+
+
+class  ParseDestinationDescriptionTests(SyncTestCase):
+    def test_stdout(self):
+        """
+        A ``file:`` description with a path of ``-`` causes logs to be written to
+        stdout.
+        """
+        reactor = object()
+        self.assertThat(
+            _parse_destination_description("file:-")(reactor),
+            Equals(FileDestination(stdout)),
+        )
+
+
+    def test_regular_file(self):
+        """
+        A ``file:`` description with any path other than ``-`` causes logs to be
+        written to a file with that name.
+        """
+        tempdir = TempDir()
+        self.useFixture(tempdir)
+
+        reactor = object()
+        path = tempdir.join("regular_file")
+
+        self.assertThat(
+            _parse_destination_description("file:{}".format(path))(reactor),
+            MatchesStructure(
+                file=MatchesStructure(
+                    path=Equals(path),
+                    rotateLength=AfterPreprocessing(bool, Equals(True)),
+                    maxRotatedFiles=AfterPreprocessing(bool, Equals(True)),
+                ),
+            ),
+        )
+
+
+# Opt out of the great features of common.SyncTestCase because we're
+# interacting with Eliot in a very obscure, particular, fragile way. :/
+class EliotLoggingTests(TestCase):
+    """
+    Tests for ``_EliotLogging``.
+    """
+    def test_stdlib_event_relayed(self):
+        """
+        An event logged using the stdlib logging module is delivered to the Eliot
+        destination.
+        """
+        collected = []
+        service = _EliotLogging([collected.append])
+        service.startService()
+        self.addCleanup(service.stopService)
+
+        # The first destination added to the global log destinations gets any
+        # buffered messages delivered to it.  We don't care about those.
+        # Throw them on the floor.  Sorry.
+        del collected[:]
+
+        logging.critical("oh no")
+        self.assertThat(
+            collected,
+            AfterPreprocessing(
+                len,
+                Equals(1),
+            ),
+        )
+
+    def test_twisted_event_relayed(self):
+        """
+        An event logged with a ``twisted.logger.Logger`` is delivered to the Eliot
+        destination.
+        """
+        collected = []
+        service = _EliotLogging([collected.append])
+        service.startService()
+        self.addCleanup(service.stopService)
+
+        from twisted.logger import Logger
+        Logger().critical("oh no")
+        self.assertThat(
+            collected,
+            AfterPreprocessing(
+                len, Equals(1),
+            ),
         )
