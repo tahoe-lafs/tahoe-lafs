@@ -671,6 +671,13 @@ ADD_PENDING = ActionType(
     u"Uploader is adding a path to the processing queue.",
 )
 
+FULL_SCAN = ActionType(
+    u"magic-folder:full-scan",
+    [_NICKNAME, _DIRECTION],
+    [],
+    u"A complete brute-force scan of the local directory is being performed.",
+)
+
 
 class QueueMixin(HookMixin):
     """
@@ -1021,10 +1028,9 @@ class Uploader(QueueMixin):
         return self._pending_delay
 
     def _full_scan(self):
-        self._periodic_callid = self._clock.callLater(self._periodic_full_scan_duration, self._full_scan)
-        self._log("FULL SCAN")
-        self._log("_pending %r" % (self._pending))
-        self._scan(u"")
+        with FULL_SCAN(**self._log_fields):
+            self._periodic_callid = self._clock.callLater(self._periodic_full_scan_duration, self._full_scan)
+            self._scan(u"")
 
     def _add_pending(self, relpath_u):
         with ADD_PENDING(relpath=relpath_u) as action:
