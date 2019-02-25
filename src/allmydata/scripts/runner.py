@@ -10,6 +10,9 @@ from allmydata.scripts import debug, create_node, cli, \
     stats_gatherer, admin, magic_folder_cli, tahoe_daemonize, tahoe_start, \
     tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
+from allmydata.util.eliotutil import (
+    opt_eliot_destination,
+)
 
 def GROUP(s):
     # Usage.parseOptions compares argv[1] against command[0], so it will
@@ -88,6 +91,8 @@ class Options(usage.Options):
         import allmydata
         print >>self.stdout, allmydata.get_package_versions_string(show_paths=True, debug=True)
         self.no_command_needed = True
+
+    opt_eliot_destination = opt_eliot_destination
 
     def __str__(self):
         return ("\nUsage: tahoe [global-options] <command> [command-options]\n"
