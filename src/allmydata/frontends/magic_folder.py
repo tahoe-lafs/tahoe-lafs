@@ -632,6 +632,13 @@ START_MONITORING = ActionType(
     u"Uploader is beginning to monitor the filesystem for uploadable changes.",
 )
 
+STOP_MONITORING = ActionType(
+    u"magic-folder:stop-monitoring",
+    [_NICKNAME, _DIRECTION],
+    [],
+    u"Uploader is terminating filesystem monitoring operation.",
+)
+
 
 class QueueMixin(HookMixin):
     """
@@ -945,21 +952,26 @@ class Uploader(QueueMixin):
         return d.addActionFinish()
 
     def stop(self):
-        self._notifier.stopReading()
-        self._count('dirs_monitored', -1)
-        if self._periodic_callid:
-            try:
-                self._periodic_callid.cancel()
-            except AlreadyCancelled:
-                pass
+        action = STOP_MONITORING(
+            nickname=self._client.nickname,
+            direction=self._name,
+        )
+        with action.context():
+            self._notifier.stopReading()
+            self._count('dirs_monitored', -1)
+            if self._periodic_callid:
+                try:
+                    self._periodic_callid.cancel()
+                except AlreadyCancelled:
+                    pass
 
-        if hasattr(self._notifier, 'wait_until_stopped'):
-            d = self._notifier.wait_until_stopped()
-        else:
-            d = defer.succeed(None)
+            if hasattr(self._notifier, 'wait_until_stopped'):
+                d = DeferredContext(self._notifier.wait_until_stopped())
+            else:
+                d = DeferredContext(defer.succeed(None))
 
-        d.addCallback(lambda ignored: QueueMixin.stop(self))
-        return d
+            d.addCallback(lambda ignored: QueueMixin.stop(self))
+            return d.addActionFinish()
 
     def start_uploading(self):
         self._log("start_uploading")
