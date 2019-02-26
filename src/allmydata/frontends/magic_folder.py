@@ -717,6 +717,37 @@ REACT_TO_INOTIFY = ActionType(
     u"Magic-Folder is processing a notification from inotify(7) (or a clone) about a filesystem event.",
 )
 
+_ABSPATH = Field.for_types(
+    u"abspath",
+    [unicode],
+    u"The absolute path of a file being written in a local directory.",
+)
+
+_IS_CONFLICT = Field.for_types(
+    u"is_conflict",
+    [bool],
+    u"An indication of whether a file being written in a local directory is in a conflicted state.",
+)
+
+_NOW = Field.for_types(
+    u"now",
+    [int, long, float],
+    u"The time at which a file is being written in a local directory.",
+)
+
+_MTIME = Field.for_types(
+    u"mtime",
+    [int, long, float],
+    u"A modification time to put into the metadata of a file being written in a local directory.",
+)
+
+WRITE_DOWNLOADED_FILE = ActionType(
+    u"magic-folder:write-downloaded-file",
+    [_ABSPATH, _SIZE, _IS_CONFLICT, _NOW, _MTIME],
+    [],
+    u"A downloaded file is being written to the filesystem.",
+)
+
 ALREADY_GONE = MessageType(
     u"magic-folder:rename:already-gone",
     [],
@@ -1388,17 +1419,27 @@ class WriteFileMixin(object):
 
     def _write_downloaded_file(self, local_path_u, abspath_u, file_contents,
                                is_conflict=False, now=None, mtime=None):
-        self._log(
-            ("_write_downloaded_file({abspath}, <{file_size} bytes>,"
-             " is_conflict={is_conflict}, now={now}, mtime={mtime})").format(
-                 abspath=abspath_u,
-                 file_size=len(file_contents),
-                 is_conflict=is_conflict,
-                 now=now,
-                 mtime=mtime,
-             )
+        if now is None:
+            now = time.time()
+        action = WRITE_DOWNLOADED_FILE(
+            abspath=abspath_u,
+            size=len(file_contents),
+            is_conflict=is_conflict,
+            now=now,
+            mtime=mtime,
         )
+        with action:
+            return self._write_downloaded_file_logged(
+                local_path_u,
+                abspath_u,
+                file_contents,
+                is_conflict,
+                now,
+                mtime,
+            )
 
+    def _write_downloaded_file_logged(self, local_path_u, abspath_u,
+                                      file_contents, is_conflict, now, mtime):
         # 1. Write a temporary file, say .foo.tmp.
         # 2. is_conflict determines whether this is an overwrite or a conflict.
         # 3. Set the mtime of the replacement file to be T seconds before the
@@ -1408,11 +1449,8 @@ class WriteFileMixin(object):
         #    this operation fails, reclassify as a conflict and stop.
         #
         # Returns the path of the destination file.
-
         precondition_abspath(abspath_u)
         replacement_path_u = abspath_u + u".tmp"  # FIXME more unique
-        if now is None:
-            now = time.time()
 
         initial_path_u = os.path.dirname(abspath_u)
         fileutil.make_dirs_with_absolute_mode(local_path_u, initial_path_u, (~ self._umask) & 0777)
