@@ -737,7 +737,7 @@ _NOW = Field.for_types(
 
 _MTIME = Field.for_types(
     u"mtime",
-    [int, long, float],
+    [int, long, float, type(None)],
     u"A modification time to put into the metadata of a file being written in a local directory.",
 )
 
