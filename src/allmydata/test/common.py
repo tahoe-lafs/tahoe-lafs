@@ -1,12 +1,23 @@
 import os, random, struct
 import treq
+
 from zope.interface import implementer
+
+from testtools import (
+    TestCase,
+)
+from testtools.twistedsupport import (
+    AsynchronousDeferredRunTest,
+    SynchronousDeferredRunTest,
+)
+
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.interfaces import IPullProducer
 from twisted.python import failure
 from twisted.application import service
 from twisted.web.error import Error as WebError
+
 from allmydata import uri
 from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
                                  NotEnoughSharesError, ICheckable, \
@@ -23,6 +34,11 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
 import allmydata.test.common_util as testutil
 from allmydata.immutable.upload import Uploader
+
+from .eliotutil import (
+    eliot_logged_test,
+)
+
 
 TEST_RSA_KEY_SIZE = 522
 
@@ -817,3 +833,35 @@ def _corrupt_uri_extension(data, debug=False):
         uriextlen = struct.unpack(">Q", data[0x0c+uriextoffset:0x0c+uriextoffset+8])[0]
 
     return corrupt_field(data, 0x0c+uriextoffset, uriextlen)
+
+
+class _TestCaseMixin(object):
+    """
+    A mixin for ``TestCase`` which collects helpful behaviors for subclasses.
+
+    Those behaviors are:
+
+    * All of the features of testtools TestCase.
+    * Each test method will be run in a unique Eliot action context which
+      identifies the test and collects all Eliot log messages emitted by that
+      test (including setUp and tearDown messages).
+    """
+    @eliot_logged_test
+    def run(self, result):
+        return super(TestCase, self).run(result)
+
+
+class SyncTestCase(_TestCaseMixin, TestCase):
+    """
+    A ``TestCase`` which can run tests that may return an already-fired
+    ``Deferred``.
+    """
+    run_tests_with = SynchronousDeferredRunTest
+
+
+class AsyncTestCase(_TestCaseMixin, TestCase):
+    """
+    A ``TestCase`` which can run tests that may return a Deferred that will
+    only fire if the global reactor is running.
+    """
+    run_tests_with = AsynchronousDeferredRunTest

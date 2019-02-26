@@ -168,6 +168,25 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         d.addCallback(_cb)
         return d
 
+    @inlineCallbacks
+    def test_help_eliot_destinations(self):
+        out, err, rc_or_sig = yield self.run_bintahoe(["--help-eliot-destinations"])
+        self.assertIn("\tfile:<path>", out)
+        self.assertEqual(rc_or_sig, 0)
+
+    @inlineCallbacks
+    def test_eliot_destination(self):
+        out, err, rc_or_sig = yield self.run_bintahoe([
+            # Proves little but maybe more than nothing.
+            "--eliot-destination=file:-",
+            # Throw in *some* command or the process exits with error, making
+            # it difficult for us to see if the previous arg was accepted or
+            # not.
+            "--help",
+        ])
+        self.assertEqual(rc_or_sig, 0)
+
+
 
 class CreateNode(unittest.TestCase):
     # exercise "tahoe create-node", create-introducer,
