@@ -688,11 +688,11 @@ NOTIFIED = ActionType(
     u"Magic-Folder received a notification of a local filesystem change for a certain path.",
 )
 
-_EVENTS = Field.for_types(
+_EVENTS = Field(
     u"events",
-    [int, long],
-    u"Details about a filesystem event generating a notification event.",
     humanReadableMask,
+    u"Details about a filesystem event generating a notification event.",
+    eliotutil.validateInstanceOf((int, long)),
 )
 
 _NON_DIR_CREATED = Field.for_types(
