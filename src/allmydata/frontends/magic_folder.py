@@ -51,7 +51,7 @@ from allmydata.util.deferredutil import HookMixin
 from allmydata.util.progress import PercentProgress
 from allmydata.util.encodingutil import listdir_filepath, to_filepath, \
      extend_filepath, unicode_from_filepath, unicode_segments_from, \
-     quote_filepath, quote_local_unicode_path, quote_output, FilenameEncodingError
+     quote_filepath, quote_local_unicode_path, FilenameEncodingError
 from allmydata.util.time_format import format_time
 from allmydata.immutable.upload import FileName, Data
 from allmydata import magicfolderdb, magicpath
