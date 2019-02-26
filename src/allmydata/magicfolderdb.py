@@ -3,6 +3,52 @@ import sys
 from collections import namedtuple
 
 from allmydata.util.dbutil import get_db, DBError
+from allmydata.util.eliotutil import (
+    RELPATH,
+    VERSION,
+    LAST_UPLOADED_URI,
+    LAST_DOWNLOADED_URI,
+    LAST_DOWNLOADED_TIMESTAMP,
+    PATHINFO,
+    validateSetMembership,
+    validateInstanceOf,
+)
+from eliot import (
+    Field,
+    ActionType,
+)
+
+PathEntry = namedtuple('PathEntry', 'size mtime_ns ctime_ns version last_uploaded_uri '
+                                    'last_downloaded_uri last_downloaded_timestamp')
+
+PATHENTRY = Field(
+    u"pathentry",
+    lambda v: None if v is None else {
+        "size": v.size,
+        "mtime_ns": v.mtime_ns,
+        "ctime_ns": v.ctime_ns,
+        "version": v.version,
+        "last_uploaded_uri": v.last_uploaded_uri,
+        "last_downloaded_uri": v.last_downloaded_uri,
+        "last_downloaded_timestamp": v.last_downloaded_timestamp,
+    },
+    u"The local database state of a file.",
+    validateInstanceOf((type(None), PathEntry)),
+)
+
+_INSERT_OR_UPDATE = Field.for_types(
+    u"insert_or_update",
+    [unicode],
+    u"An indication of whether the record for this upload was new or an update to a previous entry.",
+    validateSetMembership({u"insert", u"update"}),
+)
+
+DID_UPLOAD_VERSION = ActionType(
+    u"magic-folder-db:did-upload-version",
+    [RELPATH, VERSION, LAST_UPLOADED_URI, LAST_DOWNLOADED_URI, LAST_DOWNLOADED_TIMESTAMP, PATHINFO],
+    [_INSERT_OR_UPDATE],
+    u"An file upload is being recorded in the database.",
+)
 
 
 # magic-folder db schema version 1
@@ -41,9 +87,6 @@ def get_magicfolderdb(dbfile, stderr=sys.stderr,
     except DBError, e:
         print >>stderr, e
         return None
-
-PathEntry = namedtuple('PathEntry', 'size mtime_ns ctime_ns version last_uploaded_uri '
-                                    'last_downloaded_uri last_downloaded_timestamp')
 
 class MagicFolderDB(object):
     VERSION = 1
@@ -88,17 +131,28 @@ class MagicFolderDB(object):
         return set([r[0] for r in rows])
 
     def did_upload_version(self, relpath_u, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, pathinfo):
-        try:
-            self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?,?,?)",
-                                (relpath_u, pathinfo.size, pathinfo.mtime_ns, pathinfo.ctime_ns,
-                                 version, last_uploaded_uri, last_downloaded_uri,
-                                 last_downloaded_timestamp))
-        except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
-            self.cursor.execute("UPDATE local_files"
-                                " SET size=?, mtime_ns=?, ctime_ns=?, version=?, last_uploaded_uri=?,"
-                                "     last_downloaded_uri=?, last_downloaded_timestamp=?"
-                                " WHERE path=?",
-                                (pathinfo.size, pathinfo.mtime_ns, pathinfo.ctime_ns, version,
-                                 last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp,
-                                 relpath_u))
-        self.connection.commit()
+        action = DID_UPLOAD_VERSION(
+            relpath=relpath_u,
+            version=version,
+            last_uploaded_uri=last_uploaded_uri,
+            last_downloaded_uri=last_downloaded_uri,
+            last_downloaded_timestamp=last_downloaded_timestamp,
+            pathinfo=pathinfo,
+        )
+        with action:
+            try:
+                self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?,?,?,?)",
+                                    (relpath_u, pathinfo.size, pathinfo.mtime_ns, pathinfo.ctime_ns,
+                                     version, last_uploaded_uri, last_downloaded_uri,
+                                     last_downloaded_timestamp))
+                action.add_success_fields(insert_or_update=u"insert")
+            except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
+                self.cursor.execute("UPDATE local_files"
+                                    " SET size=?, mtime_ns=?, ctime_ns=?, version=?, last_uploaded_uri=?,"
+                                    "     last_downloaded_uri=?, last_downloaded_timestamp=?"
+                                    " WHERE path=?",
+                                    (pathinfo.size, pathinfo.mtime_ns, pathinfo.ctime_ns, version,
+                                     last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp,
+                                     relpath_u))
+                action.add_success_fields(insert_or_update=u"update")
+            self.connection.commit()

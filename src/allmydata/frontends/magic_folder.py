@@ -7,6 +7,7 @@ from datetime import datetime
 import time
 import ConfigParser
 
+from twisted.python.filepath import FilePath
 from twisted.python.monkey import MonkeyPatcher
 from twisted.internet import defer, reactor, task
 from twisted.internet.error import AlreadyCancelled
@@ -17,7 +18,22 @@ from twisted.application import service
 
 from zope.interface import Interface, Attribute, implementer
 
-from allmydata.util import fileutil, configutil, yamlutil
+from eliot import (
+    Field,
+    ActionType,
+    MessageType,
+    write_failure,
+)
+from eliot.twisted import (
+    DeferredContext,
+)
+
+from allmydata.util import (
+    fileutil,
+    configutil,
+    yamlutil,
+    eliotutil,
+)
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import (
@@ -392,7 +408,12 @@ class MagicFolder(service.MultiService):
         return self.uploader.start_monitoring()
 
     def stopService(self):
-        return defer.gatherResults([service.MultiService.stopService(self), self.finish()])
+        with MAGIC_FOLDER_STOP(nickname=self.name).context():
+            d = DeferredContext(self._finish())
+        d.addBoth(
+            lambda ign: service.MultiService.stopService(self)
+        )
+        return d.addActionFinish()
 
     def ready(self):
         """ready is used to signal us to start
@@ -401,18 +422,161 @@ class MagicFolder(service.MultiService):
         self.uploader.start_uploading()  # synchronous, returns None
         return self.downloader.start_downloading()
 
-    @defer.inlineCallbacks
-    def finish(self):
-        # must stop these concurrently so that the clock.advance()s
-        # work correctly in the tests. Also, it's arguably
-        # most-correct.
+    def _finish(self):
         d0 = self.downloader.stop()
         d1 = self.uploader.stop()
-        yield defer.DeferredList([d0, d1])
+        return defer.DeferredList(list(
+            DeferredContext(d).addErrback(write_failure).result
+            for d in [d0, d1]
+        ))
 
-    def remove_service(self):
-        return service.MultiService.disownServiceParent(self)
 
+_NICKNAME = Field.for_types(
+    u"nickname",
+    [unicode, bytes],
+    u"A Magic-Folder participant nickname.",
+)
+
+_DIRECTION = Field.for_types(
+    u"direction",
+    [unicode],
+    u"A synchronization direction: uploader or downloader.",
+    eliotutil.validateSetMembership({u"uploader", u"downloader"}),
+)
+
+ITERATION = ActionType(
+    u"magic-folder:iteration",
+    [_NICKNAME, _DIRECTION],
+    [],
+    u"A step towards synchronization in one direction.",
+)
+
+PERFORM_SCAN = ActionType(
+    u"magic-folder:perform-scan",
+    [],
+    [],
+    u"Remote storage is being scanned for changes which need to be synchronized.",
+)
+
+SCAN_REMOTE_COLLECTIVE = ActionType(
+    u"magic-folder:scan-remote-collective",
+    [],
+    [],
+    u"The remote collective is being scanned for peer DMDs.",
+)
+
+SCAN_REMOTE_DMD = ActionType(
+    u"magic-folder:scan-remote-dmd",
+    [_NICKNAME],
+    [],
+    u"A peer DMD is being scanned for changes.",
+)
+
+REMOTE_VERSION = Field.for_types(
+    u"remote_version",
+    [int, long],
+    u"The version of a path found in a peer DMD.",
+)
+
+REMOTE_URI = Field.for_types(
+    u"remote_uri",
+    [bytes],
+    u"The filecap of a path found in a peer DMD.",
+)
+
+REMOTE_DMD_ENTRY = MessageType(
+    u"magic-folder:remote-dmd-entry",
+    [eliotutil.RELPATH, magicfolderdb.PATHENTRY, REMOTE_VERSION, REMOTE_URI],
+    u"A single entry found by scanning a peer DMD.",
+)
+
+ADD_TO_DOWNLOAD_QUEUE = MessageType(
+    u"magic-folder:add-to-download-queue",
+    [eliotutil.RELPATH],
+    u"An entry was found to be changed and is being queued for download.",
+)
+
+MAGIC_FOLDER_STOP = ActionType(
+    u"magic-folder:stop",
+    [_NICKNAME],
+    [],
+    u"A Magic-Folder is being stopped.",
+)
+
+MAYBE_UPLOAD = MessageType(
+    u"magic-folder:maybe-upload",
+    [eliotutil.RELPATH],
+    u"A decision is being made about whether to upload a file.",
+)
+
+PENDING = Field.for_types(
+    u"pending",
+    [list],
+    u"The paths which are pending processing.",
+)
+
+REMOVE_FROM_PENDING = ActionType(
+    u"magic-folder:remove-from-pending",
+    [eliotutil.RELPATH, PENDING],
+    [],
+    u"An item being processed is being removed from the pending set.",
+)
+
+PATH = Field(
+    u"path",
+    lambda fp: quote_filepath(fp),
+    u"A local filesystem path.",
+    eliotutil.validateInstanceOf(FilePath),
+)
+
+NOTIFIED_OBJECT_DISAPPEARED = MessageType(
+    u"magic-folder:notified-object-disappeared",
+    [PATH],
+    u"A path which generated a notification was not found on the filesystem.  This is normal.",
+)
+
+NOT_UPLOADING = MessageType(
+    u"magic-folder:not-uploading",
+    [],
+    u"An item being processed is not going to be uploaded.",
+)
+
+SYMLINK = MessageType(
+    u"magic-folder:symlink",
+    [PATH],
+    u"An item being processed was a symlink and is being skipped",
+)
+
+CREATED_DIRECTORY = Field.for_types(
+    u"created_directory",
+    [unicode],
+    u"The relative path of a newly created directory in a magic-folder.",
+)
+
+PROCESS_DIRECTORY = ActionType(
+    u"magic-folder:process-directory",
+    [],
+    [CREATED_DIRECTORY],
+    u"An item being processed was a directory.",
+)
+
+NOT_NEW_DIRECTORY = MessageType(
+    u"magic-folder:not-new-directory",
+    [],
+    u"A directory item being processed was found to not be new.",
+)
+
+NOT_NEW_FILE = MessageType(
+    u"magic-folder:not-new-file",
+    [],
+    u"A file item being processed was found to not be new (or changed).",
+)
+
+SPECIAL_FILE = MessageType(
+    u"magic-folder:special-file",
+    [],
+    u"An item being processed was found to be of a special type which is not supported.",
+)
 
 class QueueMixin(HookMixin):
     """
@@ -422,6 +586,8 @@ class QueueMixin(HookMixin):
     "status" API).
 
     Subclasses implement _scan_delay, _perform_scan and _process
+
+    :ivar unicode _name: Either "uploader" or "downloader".
 
     :ivar _deque: IQueuedItem instances to process
 
@@ -460,12 +626,6 @@ class QueueMixin(HookMixin):
         # do we also want to bound on "maximum age"?
         self._process_history = deque(maxlen=20)
         self._in_progress = []
-        self._stopped = False
-
-        # a Deferred to wait for the _do_processing() loop to exit
-        # (gets set to the return from _do_processing() if we get that
-        # far)
-        self._processing = defer.succeed(None)
 
     def enable_debug_log(self, enabled=True):
         twlog.msg("queue mixin enable debug logging: %s" % enabled)
@@ -483,50 +643,66 @@ class QueueMixin(HookMixin):
             yield item
 
     def _get_filepath(self, relpath_u):
-        self._log("_get_filepath(%r)" % (relpath_u,))
         return extend_filepath(self._local_filepath, relpath_u.split(u"/"))
 
-    def _begin_processing(self, res):
-        self._log("starting processing loop")
-        self._processing = self._do_processing()
+    def stop(self):
+        """
+        Don't process queued items anymore.
 
-        # if there are any errors coming out of _do_processing then
-        # our loop is done and we're hosed (i.e. _do_processing()
-        # itself has a bug in it)
+        :return Deferred: A ``Deferred`` that fires when processing has
+            completely stopped.
+        """
+        d = self._processing
+        self._processing_loop.stop()
+        self._processing = None
+        self._processing_loop = None
+        return d
+
+    def _begin_processing(self):
+        """
+        Start a loop that looks for work to do and then does it.
+        """
+        self._processing_loop = task.LoopingCall(self._processing_iteration)
+        self._processing_loop.clock = self._clock
+        self._processing = self._processing_loop.start(self._scan_delay(), now=True)
+
+        # if there are any errors coming out of _processing then our loop is
+        # done and we're hosed (i.e. _processing_iteration() itself has a bug
+        # in it)
         def fatal_error(f):
             self._log("internal error: %s" % (f.value,))
             self._log(f)
         self._processing.addErrback(fatal_error)
-        return res
 
-    @defer.inlineCallbacks
-    def _do_processing(self):
+    def _processing_iteration(self):
         """
-        This is an infinite loop that processes things out of the _deque.
-
-        One iteration runs self._process_deque which calls
-        _perform_scan() and then completely drains the _deque
-        (processing each item). After that we yield for _turn_deque
-        seconds.
+        One iteration runs self._process_deque which calls _perform_scan() and
+        then completely drains the _deque (processing each item).
         """
-        while not self._stopped:
-            d = task.deferLater(self._clock, self._scan_delay(), lambda: None)
+        action = ITERATION(
+            nickname=self._client.nickname,
+            direction=self._name,
+        )
+        with action.context():
+            d = DeferredContext(defer.Deferred())
 
             # adds items to our deque
-            yield self._perform_scan()
+            d.addCallback(lambda ignored: self._perform_scan())
 
             # process anything in our queue
-            yield self._process_deque()
+            d.addCallback(lambda ignored: self._process_deque())
 
-            # we want to have our callLater queued in the reactor
-            # *before* we trigger the 'iteration' hook, so that hook
-            # can successfully advance the Clock and bypass the delay
-            # if required (e.g. in the tests).
-            self._call_hook(None, 'iteration')
-            if not self._stopped:
-                yield d
+            # Let the tests know we've made it this far.
+            d.addCallback(lambda ignored: self._call_hook(None, 'iteration'))
 
-        self._log("stopped")
+            # Get it out of the Eliot context
+            result = d.addActionFinish()
+
+            # Kick it off
+            result.callback(None)
+
+            # Give it back to LoopingCall so it can wait on us.
+            return result
 
     def _scan_delay(self):
         raise NotImplementedError
@@ -652,10 +828,27 @@ class UploadItem(QueuedItem):
     pass
 
 
+_ITEM = Field(
+    u"item",
+    lambda i: {
+        u"relpath": i.relpath_u,
+        u"size": i.size,
+    },
+    u"An item to be uploaded or downloaded.",
+    eliotutil.validateInstanceOf(QueuedItem),
+)
+
+PROCESS_ITEM = ActionType(
+    u"magic-folder:process-item",
+    [_ITEM],
+    [],
+    u"A path which was found wanting of an update is receiving an update.",
+)
+
 class Uploader(QueueMixin):
 
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
-        QueueMixin.__init__(self, client, local_path_u, db, 'uploader', clock)
+        QueueMixin.__init__(self, client, local_path_u, db, u'uploader', clock)
 
         self.is_ready = False
 
@@ -698,8 +891,6 @@ class Uploader(QueueMixin):
         return d
 
     def stop(self):
-        self._log("stop")
-        self._stopped = True
         self._notifier.stopReading()
         self._count('dirs_monitored', -1)
         if self._periodic_callid:
@@ -712,10 +903,8 @@ class Uploader(QueueMixin):
             d = self._notifier.wait_until_stopped()
         else:
             d = defer.succeed(None)
-        # Speed up shutdown
-        self._processing.cancel()
-        # wait for processing loop to actually exit
-        d.addCallback(lambda ign: self._processing)
+
+        d.addCallback(lambda ignored: QueueMixin.stop(self))
         return d
 
     def start_uploading(self):
@@ -729,9 +918,7 @@ class Uploader(QueueMixin):
             self._add_pending(relpath_u)
 
         self._full_scan()
-        # XXX changed this while re-basing; double check we can
-        # *really* just call this synchronously.
-        return self._begin_processing(None)
+        return self._begin_processing()
 
     def _scan_delay(self):
         return self._pending_delay
@@ -824,37 +1011,37 @@ class Uploader(QueueMixin):
         process a single QueuedItem. If this returns False, the item is
         removed from _process_history
         """
+        with PROCESS_ITEM(item=item).context():
+            d = DeferredContext(defer.succeed(False))
+
         # Uploader
         relpath_u = item.relpath_u
-        self._log("_process(%r)" % (relpath_u,))
         item.set_status('started', self._clock.seconds())
 
         if relpath_u is None:
             item.set_status('invalid_path', self._clock.seconds())
-            return defer.succeed(False)
+            return d.addActionFinish()
+
         precondition(isinstance(relpath_u, unicode), relpath_u)
         precondition(not relpath_u.endswith(u'/'), relpath_u)
 
-        d = defer.succeed(False)
-
         def _maybe_upload(ign, now=None):
-            self._log("_maybe_upload: relpath_u=%r, now=%r" % (relpath_u, now))
+            MAYBE_UPLOAD.log(relpath=relpath_u)
             if now is None:
                 now = time.time()
             fp = self._get_filepath(relpath_u)
             pathinfo = get_pathinfo(unicode_from_filepath(fp))
 
-            self._log("about to remove %r from pending set %r" %
-                      (relpath_u, self._pending))
             try:
-                self._pending.remove(relpath_u)
+                with REMOVE_FROM_PENDING(relpath=relpath_u, pending=list(self._pending)):
+                    self._pending.remove(relpath_u)
             except KeyError:
-                self._log("WRONG that %r wasn't in pending" % (relpath_u,))
+                pass
             encoded_path_u = magicpath.path2magic(relpath_u)
 
             if not pathinfo.exists:
                 # FIXME merge this with the 'isfile' case.
-                self._log("notified object %s disappeared (this is normal)" % quote_filepath(fp))
+                NOTIFIED_OBJECT_DISAPPEARED.log(path=fp)
                 self._count('objects_disappeared')
 
                 db_entry = self._db.get_db_entry(relpath_u)
@@ -866,7 +1053,7 @@ class Uploader(QueueMixin):
                 if is_new_file(pathinfo, db_entry):
                     new_version = db_entry.version + 1
                 else:
-                    self._log("Not uploading %r" % (relpath_u,))
+                    NOT_UPLOADING.log()
                     self._count('objects_not_uploaded')
                     return False
 
@@ -905,12 +1092,12 @@ class Uploader(QueueMixin):
                     metadata['last_uploaded_uri'] = db_entry.last_uploaded_uri
 
                 empty_uploadable = Data("", self._client.convergence)
-                d2 = self._upload_dirnode.add_file(
+                d2 = DeferredContext(self._upload_dirnode.add_file(
                     encoded_path_u, empty_uploadable,
                     metadata=metadata,
                     overwrite=True,
                     progress=item.progress,
-                )
+                ))
 
                 def _add_db_entry(filenode):
                     filecap = filenode.get_uri()
@@ -929,40 +1116,36 @@ class Uploader(QueueMixin):
                     self._count('files_uploaded')
                 d2.addCallback(_add_db_entry)
                 d2.addCallback(lambda ign: True)
-                return d2
+                return d2.result
             elif pathinfo.islink:
-                self.warn("WARNING: cannot upload symlink %s" % quote_filepath(fp))
+                SYMLINK.log(path=fp)
                 return False
             elif pathinfo.isdir:
-                self._log("ISDIR")
                 if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
                     self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
 
                 db_entry = self._db.get_db_entry(relpath_u)
                 self._log("isdir dbentry %r" % (db_entry,))
                 if not is_new_file(pathinfo, db_entry):
-                    self._log("NOT A NEW FILE")
+                    NOT_NEW_DIRECTORY.log()
                     return False
 
                 uploadable = Data("", self._client.convergence)
                 encoded_path_u += magicpath.path2magic(u"/")
-                self._log("encoded_path_u =  %r" % (encoded_path_u,))
-                upload_d = self._upload_dirnode.add_file(
-                    encoded_path_u, uploadable,
-                    metadata={"version": 0},
-                    overwrite=True,
-                    progress=item.progress,
-                )
+                with PROCESS_DIRECTORY().context() as action:
+                    upload_d = DeferredContext(self._upload_dirnode.add_file(
+                        encoded_path_u, uploadable,
+                        metadata={"version": 0},
+                        overwrite=True,
+                        progress=item.progress,
+                    ))
                 def _dir_succeeded(ign):
-                    self._log("created subdirectory %r" % (relpath_u,))
+                    action.add_success_fields(created_directory=relpath_u)
                     self._count('directories_created')
-                def _dir_failed(f):
-                    self._log("failed to create subdirectory %r" % (relpath_u,))
-                    return f
-                upload_d.addCallbacks(_dir_succeeded, _dir_failed)
+                upload_d.addCallback(_dir_succeeded)
                 upload_d.addCallback(lambda ign: self._scan(relpath_u))
                 upload_d.addCallback(lambda ign: True)
-                return upload_d
+                return upload_d.addActionFinish()
             elif pathinfo.isfile:
                 db_entry = self._db.get_db_entry(relpath_u)
 
@@ -973,7 +1156,7 @@ class Uploader(QueueMixin):
                 elif is_new_file(pathinfo, db_entry):
                     new_version = db_entry.version + 1
                 else:
-                    self._log("Not uploading %r" % (relpath_u,))
+                    NOT_NEW_FILE.log()
                     self._count('objects_not_uploaded')
                     return False
 
@@ -989,12 +1172,12 @@ class Uploader(QueueMixin):
                         metadata['last_uploaded_uri'] = db_entry.last_uploaded_uri
 
                 uploadable = FileName(unicode_from_filepath(fp), self._client.convergence)
-                d2 = self._upload_dirnode.add_file(
+                d2 = DeferredContext(self._upload_dirnode.add_file(
                     encoded_path_u, uploadable,
                     metadata=metadata,
                     overwrite=True,
                     progress=item.progress,
-                )
+                ))
 
                 def _add_db_entry(filenode):
                     filecap = filenode.get_uri()
@@ -1013,15 +1196,14 @@ class Uploader(QueueMixin):
                     self._count('files_uploaded')
                     return True
                 d2.addCallback(_add_db_entry)
-                return d2
+                return d2.result
             else:
-                self.warn("WARNING: cannot process special file %s" % quote_filepath(fp))
+                SPECIAL_FILE.log()
                 return False
 
         d.addCallback(_maybe_upload)
 
         def _succeeded(res):
-            self._log("_succeeded(%r)" % (res,))
             if res:
                 self._count('objects_succeeded')
             # TODO: maybe we want the status to be 'ignored' if res is False
@@ -1029,11 +1211,10 @@ class Uploader(QueueMixin):
             return res
         def _failed(f):
             self._count('objects_failed')
-            self._log("%s while processing %r" % (f, relpath_u))
             item.set_status('failure', self._clock.seconds())
             return f
         d.addCallbacks(_succeeded, _failed)
-        return d
+        return d.addActionFinish()
 
     def _get_metadata(self, encoded_path_u):
         try:
@@ -1158,7 +1339,7 @@ class Downloader(QueueMixin, WriteFileMixin):
     def __init__(self, client, local_path_u, db, collective_dirnode,
                  upload_readonly_dircap, clock, is_upload_pending, umask,
                  status_reporter, poll_interval=60):
-        QueueMixin.__init__(self, client, local_path_u, db, 'downloader', clock)
+        QueueMixin.__init__(self, client, local_path_u, db, u'downloader', clock)
 
         if not IDirectoryNode.providedBy(collective_dirnode):
             raise AssertionError("'collective_dircap' does not refer to a directory")
@@ -1182,8 +1363,8 @@ class Downloader(QueueMixin, WriteFileMixin):
             try:
                 data = yield self._scan_remote_collective(scan_self=True)
                 twlog.msg("Completed initial Magic Folder scan successfully ({})".format(self))
-                x = yield self._begin_processing(data)
-                defer.returnValue(x)
+                self._begin_processing()
+                defer.returnValue(data)
                 break
 
             except Exception as e:
@@ -1196,18 +1377,6 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     def nice_current_time(self):
         return format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
-
-    def stop(self):
-        self._log("stop")
-        self._stopped = True
-
-        # Speed up shutdown
-        self._processing.cancel()
-
-        d = defer.succeed(None)
-        # wait for processing loop to actually exit
-        d.addCallback(lambda ign: self._processing)
-        return d
 
     def _should_download(self, relpath_u, remote_version, remote_uri):
         """
@@ -1270,8 +1439,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         return collective_dirmap_d
 
     def _scan_remote_dmd(self, nickname, dirnode, scan_batch):
-        self._log("_scan_remote_dmd nickname %r" % (nickname,))
-        d = dirnode.list()
+        with SCAN_REMOTE_DMD(nickname=nickname).context():
+            d = DeferredContext(dirnode.list())
         def scan_listing(listing_map):
             for encoded_relpath_u in listing_map.keys():
                 relpath_u = magicpath.magic2path(encoded_relpath_u)
@@ -1285,13 +1454,17 @@ class Downloader(QueueMixin, WriteFileMixin):
                 # share?
                 remote_version = metadata.get('version', None)
                 remote_uri = file_node.get_readonly_uri()
-                self._log("%r has local dbentry %r, remote version %r, remote uri %r"
-                          % (relpath_u, local_dbentry, remote_version, remote_uri))
+                REMOTE_DMD_ENTRY.log(
+                    relpath=relpath_u,
+                    pathentry=local_dbentry,
+                    remote_version=remote_version,
+                    remote_uri=remote_uri,
+                )
 
                 if (local_dbentry is None or remote_version is None or
                     local_dbentry.version < remote_version or
                     (local_dbentry.version == remote_version and local_dbentry.last_downloaded_uri != remote_uri)):
-                    self._log("%r added to download queue" % (relpath_u,))
+                    ADD_TO_DOWNLOAD_QUEUE.log(relpath=relpath_u)
                     if scan_batch.has_key(relpath_u):
                         scan_batch[relpath_u] += [(file_node, metadata)]
                     else:
@@ -1302,16 +1475,14 @@ class Downloader(QueueMixin, WriteFileMixin):
             )
 
         d.addCallback(scan_listing)
-        d.addBoth(self._logcb, "end of _scan_remote_dmd")
-        return d
+        return d.addActionFinish()
 
     def _scan_remote_collective(self, scan_self=False):
-        self._log("_scan_remote_collective")
         scan_batch = {}  # path -> [(filenode, metadata)]
-
-        d = self._collective_dirnode.list()
+        with SCAN_REMOTE_COLLECTIVE().context():
+            d = DeferredContext(self._collective_dirnode.list())
         def scan_collective(dirmap):
-            d2 = defer.succeed(None)
+            d2 = DeferredContext(defer.succeed(None))
             for dir_name in dirmap:
                 (dirnode, metadata) = dirmap[dir_name]
                 if scan_self or dirnode.get_readonly_uri() != self._upload_readonly_dircap:
@@ -1322,7 +1493,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                         # XXX what should we do to make this failure more visible to users?
                     d2.addErrback(_err)
 
-            return d2
+            return d2.result
         d.addCallback(scan_collective)
 
         def _filter_batch_to_deque(ign):
@@ -1347,33 +1518,30 @@ class Downloader(QueueMixin, WriteFileMixin):
 
             self._log("deque after = %r" % (self._deque,))
         d.addCallback(_filter_batch_to_deque)
-        return d
-
+        return d.addActionFinish()
 
     def _scan_delay(self):
         return self._poll_interval
 
-    @defer.inlineCallbacks
+    @eliotutil.inline_callbacks
     def _perform_scan(self):
-        x = None
-        try:
-            x = yield self._scan_remote_collective()
-            self._status_reporter(
-                True, 'Magic folder is working',
-                'Last scan: %s' % self.nice_current_time(),
-            )
-        except Exception as e:
-            twlog.msg("Remote scan failed: %s" % (e,))
-            self._log("_scan failed: %s" % (repr(e),))
-            self._status_reporter(
-                False, 'Remote scan has failed: %s' % str(e),
-                'Last attempted at %s' % self.nice_current_time(),
-            )
-        defer.returnValue(x)
+        with PERFORM_SCAN():
+            try:
+                yield self._scan_remote_collective()
+                self._status_reporter(
+                    True, 'Magic folder is working',
+                    'Last scan: %s' % self.nice_current_time(),
+                )
+            except Exception as e:
+                twlog.msg("Remote scan failed: %s" % (e,))
+                self._log("_scan failed: %s" % (repr(e),))
+                self._status_reporter(
+                    False, 'Remote scan has failed: %s' % str(e),
+                    'Last attempted at %s' % self.nice_current_time(),
+                )
 
     def _process(self, item):
         # Downloader
-        self._log("_process(%r)" % (item,))
         now = self._clock.seconds()
 
         self._log("started! %s" % (now,))
@@ -1383,7 +1551,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         conflict_path_u = self._get_conflicted_filename(abspath_u)
         last_uploaded_uri = item.metadata.get('last_uploaded_uri', None)
 
-        d = defer.succeed(False)
+        with PROCESS_ITEM(item=item):
+            d = DeferredContext(defer.succeed(False))
 
         def do_update_db(written_abspath_u):
             filecap = item.file_node.get_uri()
@@ -1499,7 +1668,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                         )
                     )
 
-        d.addCallbacks(do_update_db)
+        d.addCallback(do_update_db)
         d.addErrback(failed)
 
         def trap_conflicts(f):
@@ -1507,4 +1676,4 @@ class Downloader(QueueMixin, WriteFileMixin):
             self._log("IGNORE CONFLICT ERROR %r" % f)
             return False
         d.addErrback(trap_conflicts)
-        return d
+        return d.addActionFinish()
