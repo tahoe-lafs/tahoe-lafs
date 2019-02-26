@@ -1690,11 +1690,8 @@ class Downloader(QueueMixin, WriteFileMixin):
                 if scan_self or dirnode.get_readonly_uri() != self._upload_readonly_dircap:
                     d2.addCallback(lambda ign, dir_name=dir_name, dirnode=dirnode:
                                    self._scan_remote_dmd(dir_name, dirnode, scan_batch))
-                    def _err(f, dir_name=dir_name):
-                        self._log("failed to scan DMD for client %r: %s" % (dir_name, f))
-                        # XXX what should we do to make this failure more visible to users?
-                    d2.addErrback(_err)
-
+                    # XXX what should we do to make this failure more visible to users?
+                    d2.addErrback(write_traceback)
             return d2.result
         d.addCallback(scan_collective)
 
