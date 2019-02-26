@@ -1773,7 +1773,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
         def failed(f):
             item.set_status('failure', self._clock.seconds())
-            self._log("download failed: %s" % (str(f),))
+            write_failure(f)
             self._count('objects_failed')
             return f
 
