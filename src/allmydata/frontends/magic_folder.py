@@ -834,6 +834,7 @@ _CONFLICT_REASON = Field.for_types(
         u"dbentry newer version",
         u"last_downloaded_uri mismatch",
         u"file appeared",
+        None,
     }),
 )
 
@@ -1894,6 +1895,7 @@ class Downloader(QueueMixin, WriteFileMixin):
             #     uploaded.
 
             with CHECKING_CONFLICTS() as action:
+                conflict_reason = None
                 if db_entry:
                     # * 2c. If any of the following are true, then classify as a conflict:
                     #   * i. there are pending notifications of changes to ``foo``;
@@ -1902,7 +1904,6 @@ class Downloader(QueueMixin, WriteFileMixin):
                     #     current statinfo;
 
                     if current_statinfo.exists:
-                        conflict_reason = None
                         if (db_entry.mtime_ns != current_statinfo.mtime_ns or \
                             db_entry.ctime_ns != current_statinfo.ctime_ns or \
                             db_entry.size != current_statinfo.size):
