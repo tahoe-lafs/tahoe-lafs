@@ -771,6 +771,20 @@ ALL_FILES = MessageType(
     u"A record of the rough state of the local database at the time of downloader start up.",
 )
 
+START_DOWNLOADING = ActionType(
+    u"magic-folder:start-downloading",
+    [_NICKNAME, _DIRECTION],
+    [],
+    u"A Magic-Folder downloader is initializing and beginning to manage downloads.",
+)
+
+PERFORM_SCAN = ActionType(
+    u"magic-folder:perform-scan",
+    [],
+    [],
+    u"Remote storage is being scanned for changes which need to be synchronized.",
+)
+
 class QueueMixin(HookMixin):
     """
     A parent class for Uploader and Downloader that handles putting
@@ -1551,24 +1565,25 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._status_reporter = status_reporter
         self._poll_interval = poll_interval
 
-    @log_call
     @eliotutil.inline_callbacks
     def start_downloading(self):
-        ALL_FILES.log(files=self._db.get_all_relpaths())
+        action = START_DOWNLOADING(**self._log_fields)
+        with action:
+            ALL_FILES.log(files=self._db.get_all_relpaths())
 
-        while True:
-            try:
-                data = yield self._scan_remote_collective(scan_self=True)
-                self._begin_processing()
-                defer.returnValue(data)
-                break
-            except Exception:
-                self._status_reporter(
-                    False, "Initial scan has failed",
-                    "Last tried at %s" % self.nice_current_time(),
-                )
-                write_traceback()
-                yield task.deferLater(self._clock, self._poll_interval, lambda: None)
+            while True:
+                try:
+                    data = yield self._scan_remote_collective(scan_self=True)
+                    self._begin_processing()
+                    defer.returnValue(data)
+                    break
+                except Exception:
+                    self._status_reporter(
+                        False, "Initial scan has failed",
+                        "Last tried at %s" % self.nice_current_time(),
+                    )
+                    write_traceback()
+                    yield task.deferLater(self._clock, self._poll_interval, lambda: None)
 
     def nice_current_time(self):
         return format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
@@ -1714,21 +1729,21 @@ class Downloader(QueueMixin, WriteFileMixin):
     def _scan_delay(self):
         return self._poll_interval
 
-    @log_call
     @eliotutil.inline_callbacks
     def _perform_scan(self):
-        try:
-            yield self._scan_remote_collective()
-            self._status_reporter(
-                True, 'Magic folder is working',
-                'Last scan: %s' % self.nice_current_time(),
-            )
-        except Exception as e:
-            write_traceback()
-            self._status_reporter(
-                False, 'Remote scan has failed: %s' % str(e),
-                'Last attempted at %s' % self.nice_current_time(),
-            )
+        with PERFORM_SCAN():
+            try:
+                yield self._scan_remote_collective()
+                self._status_reporter(
+                    True, 'Magic folder is working',
+                    'Last scan: %s' % self.nice_current_time(),
+                )
+            except Exception as e:
+                write_traceback()
+                self._status_reporter(
+                    False, 'Remote scan has failed: %s' % str(e),
+                    'Last attempted at %s' % self.nice_current_time(),
+                )
 
     def _process(self, item):
         """
