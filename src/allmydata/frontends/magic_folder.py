@@ -813,6 +813,10 @@ class QueueMixin(HookMixin):
         self._db = db
         self._name = name
         self._clock = clock
+        self._log_fields = dict(
+            nickname=self._client.nickname,
+            direction=self._name,
+        )
         self._hooks = {
             'processed': None,
             'started': None,
@@ -863,10 +867,7 @@ class QueueMixin(HookMixin):
         """
         Start a loop that looks for work to do and then does it.
         """
-        action = PROCESSING_LOOP(
-            nickname=self._client.nickname,
-            direction=self._name,
-        )
+        action = PROCESSING_LOOP(**self._log_fields)
 
         # Note that we don't put the processing iterations into the logging
         # action because we expect this loop to run for the whole lifetime of
@@ -887,10 +888,7 @@ class QueueMixin(HookMixin):
         One iteration runs self._process_deque which calls _perform_scan() and
         then completely drains the _deque (processing each item).
         """
-        action = ITERATION(
-            nickname=self._client.nickname,
-            direction=self._name,
-        )
+        action = ITERATION(**self._log_fields)
         with action.context():
             d = DeferredContext(defer.Deferred())
 
@@ -1050,11 +1048,6 @@ class Uploader(QueueMixin):
 
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
         QueueMixin.__init__(self, client, local_path_u, db, u'uploader', clock)
-
-        self._log_fields = dict(
-            nickname=self._client.nickname,
-            direction=self._name,
-        )
 
         self.is_ready = False
 
