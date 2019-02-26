@@ -703,7 +703,7 @@ _NON_DIR_CREATED = Field.for_types(
 
 
 REACT_TO_INOTIFY = ActionType(
-    u"magic-folder:reactor-to-inotify",
+    u"magic-folder:react-to-inotify",
     [_EVENTS],
     [_IGNORED, _NON_DIR_CREATED, _ALREADY_PENDING],
     u"Magic-Folder is processing a notification from inotify(7) (or a clone) about a filesystem event.",
