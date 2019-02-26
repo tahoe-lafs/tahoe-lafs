@@ -759,9 +759,9 @@ OVERWRITE_BECOMES_CONFLICT = MessageType(
     u"An attempt to overwrite an existing file failed because that file is now conflicted.",
 )
 
-_FILES = Field.for_types(
+_FILES = Field(
     u"files",
-    [list],
+    lambda file_set: list(file_set),
     u"All of the relative paths belonging to a Magic-Folder that are locally known.",
 )
 
