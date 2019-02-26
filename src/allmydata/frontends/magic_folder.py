@@ -771,6 +771,33 @@ ALL_FILES = MessageType(
     u"A record of the rough state of the local database at the time of downloader start up.",
 )
 
+_ITEMS = Field(
+    u"items",
+    lambda deque: list(deque),
+    u"Items in a processing queue.",
+)
+
+ITEM_QUEUE = MessageType(
+    u"magic-folder:item-queue",
+    [_ITEMS],
+    u"A report of the items in the processing queue at this point.",
+)
+
+_BATCH = Field(
+    u"batch",
+    # Just report the paths for now.  Perhaps something from the values would
+    # also be useful, though?  Consider it.
+    lambda batch: batch.keys(),
+    u"A batch of scanned items.",
+    eliotutil.validateInstanceOf(dict),
+)
+
+SCAN_BATCH = MessageType(
+    u"magic-folder:scan-batch",
+    [_BATCH],
+    u"Items in a batch of files which were scanned from the DMD.",
+)
+
 START_DOWNLOADING = ActionType(
     u"magic-folder:start-downloading",
     [_NICKNAME, _DIRECTION],
@@ -1700,8 +1727,14 @@ class Downloader(QueueMixin, WriteFileMixin):
             return d2.result
         d.addCallback(scan_collective)
 
+        @log_call(
+            action_type=u"magic-folder:filter-batch-to-deque",
+            include_args=[],
+            include_result=False,
+        )
         def _filter_batch_to_deque(ign):
-            self._log("deque = %r, scan_batch = %r" % (self._deque, scan_batch))
+            ITEM_QUEUE.log(items=self._deque)
+            SCAN_BATCH.log(batch=scan_batch)
             for relpath_u in scan_batch.keys():
                 file_node, metadata = max(scan_batch[relpath_u], key=lambda x: x[1]['version'])
 
