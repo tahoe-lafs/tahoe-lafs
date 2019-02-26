@@ -1499,13 +1499,19 @@ class WriteFileMixin(object):
                 OVERWRITE_BECOMES_CONFLICT.log(reason=e)
                 return self._rename_conflicted_file(abspath_u, replacement_path_u)
 
-    @log_call
+    @log_call(
+        action_type=u"magic-folder:rename-conflicted",
+        include_args=["abspath_u", "replacement_path_u"],
+    )
     def _rename_conflicted_file(self, abspath_u, replacement_path_u):
         conflict_path_u = self._get_conflicted_filename(abspath_u)
         fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
         return conflict_path_u
 
-    @log_call
+    @log_call(
+        action_type=u"magic-folder:rename-deleted",
+        include_args=["abspath_u"],
+    )
     def _rename_deleted_file(self, abspath_u):
         try:
             fileutil.rename_no_overwrite(abspath_u, abspath_u + u'.backup')
