@@ -458,13 +458,6 @@ ITERATION = ActionType(
     u"A step towards synchronization in one direction.",
 )
 
-PERFORM_SCAN = ActionType(
-    u"magic-folder:perform-scan",
-    [],
-    [],
-    u"Remote storage is being scanned for changes which need to be synchronized.",
-)
-
 _COUNT = Field.for_types(
     u"count",
     [int, long],
@@ -1722,22 +1715,21 @@ class Downloader(QueueMixin, WriteFileMixin):
     def _scan_delay(self):
         return self._poll_interval
 
+    @log_call
     @eliotutil.inline_callbacks
     def _perform_scan(self):
-        with PERFORM_SCAN():
-            try:
-                yield self._scan_remote_collective()
-                self._status_reporter(
-                    True, 'Magic folder is working',
-                    'Last scan: %s' % self.nice_current_time(),
-                )
-            except Exception as e:
-                twlog.msg("Remote scan failed: %s" % (e,))
-                self._log("_scan failed: %s" % (repr(e),))
-                self._status_reporter(
-                    False, 'Remote scan has failed: %s' % str(e),
-                    'Last attempted at %s' % self.nice_current_time(),
-                )
+        try:
+            yield self._scan_remote_collective()
+            self._status_reporter(
+                True, 'Magic folder is working',
+                'Last scan: %s' % self.nice_current_time(),
+            )
+        except Exception as e:
+            write_traceback()
+            self._status_reporter(
+                False, 'Remote scan has failed: %s' % str(e),
+                'Last attempted at %s' % self.nice_current_time(),
+            )
 
     def _process(self, item):
         """
