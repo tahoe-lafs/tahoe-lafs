@@ -13,7 +13,6 @@ from twisted.internet import defer, reactor, task
 from twisted.internet.error import AlreadyCancelled
 from twisted.python.failure import Failure
 from twisted.python import runtime
-from twisted.python import log as twlog
 from twisted.application import service
 
 from zope.interface import Interface, Attribute, implementer
