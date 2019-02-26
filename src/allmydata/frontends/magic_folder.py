@@ -1032,10 +1032,6 @@ class QueueMixin(HookMixin):
             value=self._client.stats_provider.counters[ctr],
         )
 
-    def _log(self, msg):
-        s = "Magic Folder %s %s: %s" % (quote_output(self._client.nickname), self._name, msg)
-        self._client.log(s)
-
 # this isn't in interfaces.py because it's very specific to QueueMixin
 class IQueuedItem(Interface):
     relpath_u = Attribute("The path this item represents")
