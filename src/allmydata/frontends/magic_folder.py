@@ -1287,19 +1287,19 @@ class Uploader(QueueMixin):
         Possibly upload a single QueuedItem.  If this returns False, the item is
         removed from _process_history.
         """
+        # Uploader
         with PROCESS_ITEM(item=item).context():
             d = DeferredContext(defer.succeed(False))
 
-        # Uploader
-        relpath_u = item.relpath_u
-        item.set_status('started', self._clock.seconds())
+            relpath_u = item.relpath_u
+            item.set_status('started', self._clock.seconds())
 
-        if relpath_u is None:
-            item.set_status('invalid_path', self._clock.seconds())
-            return d.addActionFinish()
+            if relpath_u is None:
+                item.set_status('invalid_path', self._clock.seconds())
+                return d.addActionFinish()
 
-        precondition(isinstance(relpath_u, unicode), relpath_u)
-        precondition(not relpath_u.endswith(u'/'), relpath_u)
+            precondition(isinstance(relpath_u, unicode), relpath_u)
+            precondition(not relpath_u.endswith(u'/'), relpath_u)
 
         def _maybe_upload(ign, now=None):
             MAYBE_UPLOAD.log(relpath=relpath_u)
