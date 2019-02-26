@@ -1972,8 +1972,8 @@ class MockTest(SingleMagicFolderTestMixin, TestCase):
             self.magicfolder.uploader._clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
             # this will have now done the full scan, so we have to do
             # an iteration to process anything from it
-            iterate_uploader(self.magicfolder)
-            return processed_d
+            iterate_d = iterate_uploader(self.magicfolder)
+            return processed_d.addCallback(lambda ignored: iterate_d)
         d.addCallback(_create_file_without_event)
         def _advance_clock(res):
             processed_d = self.magicfolder.uploader.set_hook('processed')
