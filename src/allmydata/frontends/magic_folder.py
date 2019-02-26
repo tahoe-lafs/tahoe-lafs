@@ -754,6 +754,19 @@ ALREADY_GONE = MessageType(
     u"A deleted file could not be rewritten to a backup path because it no longer exists.",
 )
 
+_REASON = Field(
+    u"reason",
+    lambda e: str(e),
+    u"An exception which may describe the form of the conflict.",
+    eliotutil.validateInstanceOf(Exception),
+)
+
+OVERWRITE_BECOMES_CONFLICT = MessageType(
+    u"magic-folder:overwrite-becomes-conflict",
+    [_REASON],
+    u"An attempt to overwrite an existing file failed because that file is now conflicted.",
+)
+
 class QueueMixin(HookMixin):
     """
     A parent class for Uploader and Downloader that handles putting
@@ -1472,7 +1485,7 @@ class WriteFileMixin(object):
                 fileutil.replace_file(abspath_u, replacement_path_u)
                 return abspath_u
             except fileutil.ConflictError as e:
-                self._log("overwrite becomes _conflict: {}".format(e))
+                OVERWRITE_BECOMES_CONFLICT.log(reason=e)
                 return self._rename_conflicted_file(abspath_u, replacement_path_u)
 
     @log_call
