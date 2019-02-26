@@ -767,6 +767,18 @@ OVERWRITE_BECOMES_CONFLICT = MessageType(
     u"An attempt to overwrite an existing file failed because that file is now conflicted.",
 )
 
+_FILES = Field.for_types(
+    u"files",
+    [list],
+    u"All of the relative paths belonging to a Magic-Folder that are locally known.",
+)
+
+ALL_FILES = MessageType(
+    u"magic-folder:all-files",
+    [_FILES],
+    u"A record of the rough state of the local database at the time of downloader start up.",
+)
+
 class QueueMixin(HookMixin):
     """
     A parent class for Uploader and Downloader that handles putting
@@ -1547,26 +1559,23 @@ class Downloader(QueueMixin, WriteFileMixin):
         self._status_reporter = status_reporter
         self._poll_interval = poll_interval
 
-    @defer.inlineCallbacks
+    @log_call
+    @eliotutil.inline_callbacks
     def start_downloading(self):
-        self._log("start_downloading")
-        files = self._db.get_all_relpaths()
-        self._log("all files %s" % files)
+        ALL_FILES.log(files=self._db.get_all_relpaths())
 
         while True:
             try:
                 data = yield self._scan_remote_collective(scan_self=True)
-                twlog.msg("Completed initial Magic Folder scan successfully ({})".format(self))
                 self._begin_processing()
                 defer.returnValue(data)
                 break
-
-            except Exception as e:
+            except Exception:
                 self._status_reporter(
                     False, "Initial scan has failed",
                     "Last tried at %s" % self.nice_current_time(),
                 )
-                twlog.msg("Magic Folder failed initial scan: %s" % (e,))
+                write_traceback()
                 yield task.deferLater(self._clock, self._poll_interval, lambda: None)
 
     def nice_current_time(self):
