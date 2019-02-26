@@ -1861,7 +1861,6 @@ class Downloader(QueueMixin, WriteFileMixin):
 
         def failed(f):
             item.set_status('failure', self._clock.seconds())
-            write_failure(f)
             self._count('objects_failed')
             return f
 
