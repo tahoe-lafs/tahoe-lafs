@@ -32,6 +32,9 @@ from allmydata import magicfolderdb, magicpath
 from allmydata.util.fileutil import get_pathinfo
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import Data
+from allmydata.mutable.common import (
+        UnrecoverableFileError,
+)
 
 from .eliotutil import (
     eliot_logged_test,
@@ -931,6 +934,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         # now let bob try to do the download
         yield iterate(self.bob_magicfolder)
 
+        self.eliot_logger.flushTracebacks(UnrecoverableFileError)
         logged = self.eliot_logger.flushTracebacks(NoSharesError)
         self.assertEqual(
             1,
