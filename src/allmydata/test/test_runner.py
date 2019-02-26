@@ -186,6 +186,30 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         ])
         self.assertEqual(rc_or_sig, 0)
 
+    @inlineCallbacks
+    def test_unknown_eliot_destination(self):
+        out, err, rc_or_sig = yield self.run_bintahoe([
+            "--eliot-destination=invalid:more",
+        ])
+        self.assertEqual(1, rc_or_sig)
+        self.assertIn("Unknown destination description", out)
+        self.assertIn("invalid:more", out)
+
+    @inlineCallbacks
+    def test_malformed_eliot_destination(self):
+        out, err, rc_or_sig = yield self.run_bintahoe([
+            "--eliot-destination=invalid",
+        ])
+        self.assertEqual(1, rc_or_sig)
+        self.assertIn("must be formatted like", out)
+
+    @inlineCallbacks
+    def test_escape_in_eliot_destination(self):
+        out, err, rc_or_sig = yield self.run_bintahoe([
+            "--eliot-destination=file:\\foo",
+        ])
+        self.assertEqual(1, rc_or_sig)
+        self.assertIn("Unsupported escape character", out)
 
 
 class CreateNode(unittest.TestCase):

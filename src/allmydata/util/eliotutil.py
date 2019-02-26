@@ -65,6 +65,9 @@ from eliot._validation import (
     ValidationError,
 )
 
+from twisted.python.usage import (
+    UsageError,
+)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -287,9 +290,12 @@ def opt_eliot_destination(self, description):
     """
     Add an Eliot logging destination.  May be given more than once.
     """
-    self.setdefault("destinations", []).append(
-        _parse_destination_description(description)
-    )
+    try:
+        destination = _parse_destination_description(description)
+    except Exception as e:
+        raise UsageError(str(e))
+    else:
+        self.setdefault("destinations", []).append(destination)
 
 
 def opt_help_eliot_destinations(self):
@@ -399,7 +405,13 @@ class _DestinationParser(object):
     def parse(self, description):
         description = description.decode(u"ascii")
 
-        kind, args = description.split(u":", 1)
+        try:
+            kind, args = description.split(u":", 1)
+        except ValueError:
+            raise ValueError(
+                u"Eliot destination description must be formatted like "
+                u"<kind>:<args>."
+            )
         try:
             parser = getattr(self, u"_parse_{}".format(kind))
         except AttributeError:
