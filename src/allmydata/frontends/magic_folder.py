@@ -24,6 +24,7 @@ from eliot import (
     MessageType,
     write_failure,
     write_traceback,
+    log_call,
 )
 from eliot.twisted import (
     DeferredContext,
@@ -714,6 +715,12 @@ REACT_TO_INOTIFY = ActionType(
     [_EVENTS],
     [_IGNORED, _NON_DIR_CREATED, _ALREADY_PENDING],
     u"Magic-Folder is processing a notification from inotify(7) (or a clone) about a filesystem event.",
+)
+
+ALREADY_GONE = MessageType(
+    u"magic-folder:rename:already-gone",
+    [],
+    u"A deleted file could not be rewritten to a backup path because it no longer exists.",
 )
 
 class QueueMixin(HookMixin):
@@ -1430,24 +1437,18 @@ class WriteFileMixin(object):
                 self._log("overwrite becomes _conflict: {}".format(e))
                 return self._rename_conflicted_file(abspath_u, replacement_path_u)
 
+    @log_call
     def _rename_conflicted_file(self, abspath_u, replacement_path_u):
-        self._log("_rename_conflicted_file(%r, %r)" % (abspath_u, replacement_path_u))
-
         conflict_path_u = self._get_conflicted_filename(abspath_u)
-        #if os.path.isfile(replacement_path_u):
-        #    print "%r exists" % (replacement_path_u,)
-        #if os.path.isfile(conflict_path_u):
-        #    print "%r exists" % (conflict_path_u,)
-
         fileutil.rename_no_overwrite(replacement_path_u, conflict_path_u)
         return conflict_path_u
 
+    @log_call
     def _rename_deleted_file(self, abspath_u):
-        self._log('renaming deleted file to backup: %s' % (abspath_u,))
         try:
             fileutil.rename_no_overwrite(abspath_u, abspath_u + u'.backup')
         except OSError:
-            self._log("Already gone: '%s'" % (abspath_u,))
+            ALREADY_GONE.log()
         return abspath_u
 
 
