@@ -57,3 +57,6 @@ import sys
 if sys.platform == "win32":
     from allmydata.windows.fixups import initialize
     initialize()
+
+from eliot import to_file
+to_file(open("eliot.log", "w"))

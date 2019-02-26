@@ -1572,10 +1572,9 @@ class Downloader(QueueMixin, WriteFileMixin):
 
             while True:
                 try:
-                    data = yield self._scan_remote_collective(scan_self=True)
+                    yield self._scan_remote_collective(scan_self=True)
                     self._begin_processing()
-                    defer.returnValue(data)
-                    break
+                    return
                 except Exception:
                     self._status_reporter(
                         False, "Initial scan has failed",
