@@ -3,8 +3,10 @@ import os, sys, time
 import stat, shutil, json
 import mock
 from os.path import join, exists, isdir
+from errno import ENOENT
 
 from twisted.internet import defer, task, reactor
+from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 
 from testtools import (
@@ -72,6 +74,37 @@ except NotImplementedError:
 else:
     support_missing = False
     support_message = None
+
+if platform.isMacOSX():
+    def modified_mtime_barrier(path):
+        """
+        macOS filesystem (HFS+) has one second resolution on filesystem
+        modification time metadata.  Make sure that code running after this
+        function which modifies the file will produce a changed mtime on that
+        file.
+        """
+        try:
+            mtime = path.getModificationTime()
+        except OSError as e:
+            if e.errno == ENOENT:
+                # If the file does not exist yet, there is no current mtime
+                # value that might match a future mtime value.  We have
+                # nothing to do.
+                return
+            # Propagate any other errors as we don't know what's going on.
+            raise
+        if int(time.time()) == int(mtime):
+            # The current time matches the file's modification time, to the
+            # resolution of the filesystem metadata.  Therefore, change the
+            # current time.
+            time.sleep(1)
+else:
+    def modified_mtime_barrier(path):
+        """
+        non-macOS platforms have sufficiently high-resolution file modification
+        time metadata that nothing in particular is required to ensure a
+        modified mtime as a result of a future write.
+        """
 
 
 class NewConfigUtilTests(SyncTestCase):
@@ -563,6 +596,7 @@ class FileOperationsHelper(object):
 
         d = notify_when_pending(self._uploader, path_u)
 
+        modified_mtime_barrier(FilePath(fname))
         with open(fname, "wb") as f:
             f.write(contents)
 
