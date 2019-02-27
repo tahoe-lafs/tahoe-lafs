@@ -3,6 +3,13 @@
 An implementation of an inotify-like interface on top of the ``watchdog`` library.
 """
 
+from __future__ import (
+    unicode_literals,
+    print_function,
+    absolute_import,
+    division,
+)
+
 __all__ = [
     "humanReadableMask", "INotify",
     "IN_WATCH_MASK", "IN_ACCESS", "IN_MODIFY", "IN_ATTRIB", "IN_CLOSE_NOWRITE",
