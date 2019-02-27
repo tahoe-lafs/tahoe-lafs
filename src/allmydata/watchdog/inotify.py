@@ -21,6 +21,7 @@ __all__ = [
 
 from watchdog.observers import Observer
 from watchdog.events import (
+    FileSystemEvent,
     FileSystemEventHandler, DirCreatedEvent, FileCreatedEvent,
     DirDeletedEvent, FileDeletedEvent, FileModifiedEvent
 )
@@ -31,7 +32,6 @@ from allmydata.util.fileutil import abspath_expanduser_unicode
 
 from eliot import (
     ActionType,
-    MessageType,
     Message,
     Field,
     preserve_context,
@@ -46,6 +46,11 @@ from allmydata.util.fake_inotify import humanReadableMask, \
     IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF, \
     IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, \
     IN_MASK_ADD, IN_ISDIR, IN_ONESHOT, IN_CLOSE, IN_MOVED, IN_CHANGED
+
+from ..util.eliotutil import (
+    INOTIFY_EVENTS,
+    validateInstanceOf,
+)
 
 TRUE  = 0
 FALSE = 1
@@ -68,15 +73,23 @@ MAYBE_NOTIFY = ActionType(
     u"An inotify event is being considered for dispatch to an application handler.",
 )
 
+_EVENT = Field(
+    u"event",
+    lambda e: e.event_type,
+    u"The watchdog event that has taken place.",
+    validateInstanceOf(FileSystemEvent),
+)
+
 ANY_INOTIFY_EVENT = ActionType(
     u"watchdog:inotify:any-event",
-    [_PATH],
+    [_PATH, _EVENT],
     [],
     u"An inotify event is being dispatched.",
 )
 
-CALLBACK = MessageType(
+CALLBACK = ActionType(
     u"watchdog:inotify:callback",
+    [INOTIFY_EVENTS],
     [],
     u"An inotify event is being dispatched to an application callback."
 )
@@ -107,7 +120,7 @@ class INotifyEventHandler(FileSystemEventHandler):
                 return
             for cb in self._callbacks:
                 try:
-                    with CALLBACK():
+                    with CALLBACK(inotify_events=event_mask):
                         cb(None, FilePath(path), event_mask)
                 except:
                     # Eliot already logged the exception for us.
@@ -129,7 +142,7 @@ class INotifyEventHandler(FileSystemEventHandler):
         )
 
     def on_any_event(self, event):
-        with ANY_INOTIFY_EVENT(path=self._path):
+        with ANY_INOTIFY_EVENT(path=self._path, event=event):
             self.process(event)
 
 
