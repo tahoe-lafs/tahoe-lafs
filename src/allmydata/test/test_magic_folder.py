@@ -1020,38 +1020,79 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         alice_fname = os.path.join(self.alice_magic_dir, 'localchange1')
         bob_fname = os.path.join(self.bob_magic_dir, 'localchange1')
 
-        # alice creates a file, bob downloads it
         alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
         bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
 
-        yield self.alice_fileops.write(alice_fname, 'contents0\n')
-        yield iterate(self.alice_magicfolder)  # for windows
+        with start_action(action_type=u"alice:create"):
+            yield self.alice_fileops.write(alice_fname, 'contents0\n')
+            yield iterate(self.alice_magicfolder)  # for windows
 
-        yield iterate_uploader(self.alice_magicfolder)
-        yield alice_proc  # alice uploads
+        with start_action(action_type=u"alice:upload"):
+            yield iterate_uploader(self.alice_magicfolder)
+            yield alice_proc  # alice uploads
+            self.assertEqual(
+                1,
+                self._get_count(
+                    'uploader.files_uploaded',
+                    client=self.alice_magicfolder._client,
+                ),
+            )
 
-        yield iterate_downloader(self.bob_magicfolder)
-        yield bob_proc    # bob downloads
+        with start_action(action_type=u"bob:download"):
+            yield iterate_downloader(self.bob_magicfolder)
+            yield bob_proc    # bob downloads
+            self.assertEqual(
+                1,
+                self._get_count(
+                    'downloader.objects_downloaded',
+                    client=self.bob_magicfolder._client,
+                ),
+            )
 
-        # alice creates a new change
         alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
         bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-        yield self.alice_fileops.write(alice_fname, 'contents1\n')
 
-        yield iterate(self.alice_magicfolder)  # for windows
+        with start_action(action_type=u"alice:rewrite"):
+            yield self.alice_fileops.write(alice_fname, 'contents1\n')
+            yield iterate(self.alice_magicfolder)  # for windows
 
-        # before bob downloads, make a local change
-        with open(bob_fname, "w") as f:
-            f.write("bob's local change")
+        with start_action(action_type=u"bob:rewrite"):
+            # before bob downloads, make a local change
+            with open(bob_fname, "w") as f:
+                f.write("bob's local change")
 
-        yield iterate_uploader(self.alice_magicfolder)
-        yield alice_proc  # alice uploads
+        with start_action(action_type=u"alice:reupload"):
+            yield iterate_uploader(self.alice_magicfolder)
+            yield alice_proc  # alice uploads
+            self.assertEqual(
+                2,
+                self._get_count(
+                    'uploader.files_uploaded',
+                    client=self.alice_magicfolder._client,
+                ),
+            )
 
-        yield iterate_downloader(self.bob_magicfolder)
-        yield bob_proc    # bob downloads
+        with start_action(action_type=u"bob:redownload-and-conflict"):
+            yield iterate_downloader(self.bob_magicfolder)
+            yield bob_proc    # bob downloads
 
-        # ...so now bob should produce a conflict
-        self.assertTrue(os.path.exists(bob_fname + '.conflict'))
+            self.assertEqual(
+                2,
+                self._get_count(
+                    'downloader.objects_downloaded',
+                    client=self.bob_magicfolder._client,
+                ),
+            )
+            self.assertEqual(
+                1,
+                self._get_count(
+                    'downloader.objects_conflicted',
+                    client=self.bob_magicfolder._client,
+                ),
+            )
+
+            # ...so now bob should produce a conflict
+            self.assertTrue(os.path.exists(bob_fname + '.conflict'))
 
     @inline_callbacks
     def test_alice_delete_and_restore(self):
