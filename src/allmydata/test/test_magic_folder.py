@@ -1208,7 +1208,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
     # the other tests in here should get their own minimal test-case.
     @skipIf(sys.platform == "win32", "Still inotify problems on Windows (FIXME)")
     def test_alice_bob(self):
-        d = defer.succeed(None)
+        d = DeferredContext(defer.succeed(None))
 
         # XXX FIXME just quickly porting this test via aliases -- the
         # "real" solution is to break out any relevant test-cases as
@@ -1555,8 +1555,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(lambda ign: self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder))
         d.addCallback(lambda ign: self._check_downloader_count('objects_downloaded', 3, magic=self.alice_magicfolder))
-
-        return d
+        return d.addActionFinish()
 
     test_alice_bob.timeout = 300
 
