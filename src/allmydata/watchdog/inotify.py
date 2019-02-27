@@ -142,7 +142,7 @@ class INotifyEventHandler(FileSystemEventHandler):
         )
 
     def on_any_event(self, event):
-        with ANY_INOTIFY_EVENT(path=self._path, event=event):
+        with ANY_INOTIFY_EVENT(path=event.src_path, event=event):
             self.process(event)
 
 
