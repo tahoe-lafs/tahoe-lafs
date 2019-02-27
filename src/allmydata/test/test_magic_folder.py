@@ -9,7 +9,10 @@ from twisted.internet import defer, task, reactor
 
 from eliot.twisted import DeferredContext
 
-from allmydata.interfaces import IDirectoryNode
+from allmydata.interfaces import (
+    IDirectoryNode,
+    NoSharesError,
+)
 from allmydata.util.assertutil import precondition
 
 from allmydata.util import fake_inotify, fileutil, configutil, yamlutil
@@ -29,6 +32,9 @@ from allmydata import magicfolderdb, magicpath
 from allmydata.util.fileutil import get_pathinfo
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import Data
+from allmydata.mutable.common import (
+        UnrecoverableFileError,
+)
 
 from .eliotutil import (
     eliot_logged_test,
@@ -928,6 +934,14 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         # now let bob try to do the download
         yield iterate(self.bob_magicfolder)
 
+        self.eliot_logger.flushTracebacks(UnrecoverableFileError)
+        logged = self.eliot_logger.flushTracebacks(NoSharesError)
+        self.assertEqual(
+            1,
+            len(logged),
+            "Got other than expected single NoSharesError: {}".format(logged),
+        )
+
         # ...however Bob shouldn't have downloaded anything
         self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
         # bob should *not* have downloaded anything, as we failed all the servers
@@ -1482,11 +1496,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     def tearDown(self):
         d = super(SingleMagicFolderTestMixin, self).tearDown()
-        def _disable_debugging(res):
-            if self.magicfolder:
-                self.magicfolder.enable_debug_log(False)
-            return res
-        d.addBoth(_disable_debugging)
         d.addCallback(self.cleanup)
         shutil.rmtree(self.basedir, ignore_errors=True)
         return d
@@ -1593,7 +1602,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         into the magic folder, so we upload the file and record the
         directory. (XXX split to separate test)
         """
-        self.magicfolder.enable_debug_log()
         empty_tree_name = self.unicode_or_fallback(u"empty_tr\u00EAe", u"empty_tree")
         empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.basedir)
         new_empty_tree_dir = abspath_expanduser_unicode(empty_tree_name, base=self.local_dir)
@@ -1785,7 +1793,8 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         # pending callbacks including the exception are processed
         # before we flush the errors.
         yield task.deferLater(reactor, 0, lambda: None)
-        errors = self.flushLoggedErrors(BadStuff)
+
+        errors = self.eliot_logger.flushTracebacks(BadStuff)
         # it seems on Windows the "RealTest" variant only produces 1
         # notification for some reason..
         self.assertTrue(len(errors) >= 1)
@@ -1963,8 +1972,8 @@ class MockTest(SingleMagicFolderTestMixin, TestCase):
             self.magicfolder.uploader._clock.advance(self.magicfolder.uploader._periodic_full_scan_duration + 1)
             # this will have now done the full scan, so we have to do
             # an iteration to process anything from it
-            iterate_uploader(self.magicfolder)
-            return processed_d
+            iterate_d = iterate_uploader(self.magicfolder)
+            return processed_d.addCallback(lambda ignored: iterate_d)
         d.addCallback(_create_file_without_event)
         def _advance_clock(res):
             processed_d = self.magicfolder.uploader.set_hook('processed')

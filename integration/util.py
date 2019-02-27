@@ -139,6 +139,7 @@ def _run_node(reactor, node_dir, request, magic_text):
         sys.executable,
         (
             sys.executable, '-m', 'allmydata.scripts.runner',
+            '--eliot-destination', 'file:{}/logs/eliot.json'.format(node_dir),
             'run',
             node_dir,
         ),

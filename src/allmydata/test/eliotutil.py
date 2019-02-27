@@ -71,6 +71,10 @@ def eliot_logged_test(f):
         def run(self, logger):
             # Record the MemoryLogger for later message extraction.
             storage.logger = logger
+            # Give the test access to the logger as well.  It would be just
+            # fine to pass this as a keyword argument to `f` but implementing
+            # that now will give me conflict headaches so I'm not doing it.
+            self.eliot_logger = logger
             return f(self, *a, **kw)
 
         # Arrange for all messages written to the memory logger that
