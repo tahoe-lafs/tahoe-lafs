@@ -1009,15 +1009,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         yield iterate_uploader(self.alice_magicfolder)
         yield alice_proc  # alice uploads
 
-        from pprint import pprint
-        def _print_state(msg):
-            print("\n################### {}: ###################".format(msg))
-            print(bob_proc)
-            print(os.path.exists(bob_fname + '.conflict'))
-            pprint(self.bob_magicfolder.downloader._hooks)
-        _print_state("before iterate_downloader()")
         yield iterate_downloader(self.bob_magicfolder)
-        _print_state("after iterate_downloader()")
         yield bob_proc    # bob downloads
 
         # ...so now bob should produce a conflict
