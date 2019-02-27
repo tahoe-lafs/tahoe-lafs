@@ -230,7 +230,7 @@ class INotifyTests(unittest.TestCase):
         self.inotify.watch(self.dirname, recursive=True)
         for d in dirs:
             self.assertTrue(self.inotify._isWatched(d))
-    test_recursiveWatch.skip = True
+    test_recursiveWatch.skip = "not relevant"
 
 
     def test_connectionLostError(self):
