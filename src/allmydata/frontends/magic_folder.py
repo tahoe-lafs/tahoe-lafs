@@ -1144,8 +1144,14 @@ class Uploader(QueueMixin):
                     | self._inotify.IN_ONLYDIR
                     | IN_EXCL_UNLINK
                     )
-        self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
-                             recursive=True)
+
+    def _add_watch(self):
+        self._notifier.watch(
+            self._local_filepath,
+            mask=self.mask,
+            callbacks=[self._notify],
+            recursive=True,
+        )
 
     def start_monitoring(self):
         action = START_MONITORING(**self._log_fields)
@@ -1153,6 +1159,7 @@ class Uploader(QueueMixin):
             d = DeferredContext(defer.succeed(None))
 
         d.addCallback(lambda ign: self._notifier.startReading())
+        d.addCallback(lambda ign: self._add_watch())
         d.addCallback(lambda ign: self._count('dirs_monitored'))
         d.addBoth(self._call_hook, 'started')
         return d.addActionFinish()
