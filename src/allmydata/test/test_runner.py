@@ -206,7 +206,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
     @inlineCallbacks
     def test_escape_in_eliot_destination(self):
         out, err, rc_or_sig = yield self.run_bintahoe([
-            "--eliot-destination=file:\\foo",
+            "--eliot-destination=file:@foo",
         ])
         self.assertEqual(1, rc_or_sig)
         self.assertIn("Unsupported escape character", out)

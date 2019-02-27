@@ -432,10 +432,15 @@ class _DestinationParser(object):
         )
 
     def _parse_file(self, kind, arg_text):
-        # Reserve the possibility of an escape character in the future.
-        if u"\\" in arg_text:
+        # Reserve the possibility of an escape character in the future.  \ is
+        # the standard choice but it's the path separator on Windows which
+        # pretty much ruins it in this context.  Most other symbols already
+        # have some shell-assigned meaning which makes them treacherous to use
+        # in a CLI interface.  Eliminating all such dangerous symbols leaves
+        # approximately @.
+        if u"@" in arg_text:
             raise ValueError(
-                u"Unsupported escape character (\\) in destination text ({!r}).".format(arg_text),
+                u"Unsupported escape character (@) in destination text ({!r}).".format(arg_text),
             )
         arg_list = arg_text.split(u":")
         path_name = arg_list.pop(0)
