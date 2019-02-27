@@ -46,3 +46,8 @@
         directory = "other"
         name = "Other Changes"
         showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "minor"
+        name = "Misc/Other"
+        showcontent = false

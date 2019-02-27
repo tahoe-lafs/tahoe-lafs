@@ -65,6 +65,9 @@ from eliot._validation import (
     ValidationError,
 )
 
+from twisted.python.usage import (
+    UsageError,
+)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -287,9 +290,12 @@ def opt_eliot_destination(self, description):
     """
     Add an Eliot logging destination.  May be given more than once.
     """
-    self.setdefault("destinations", []).append(
-        _parse_destination_description(description)
-    )
+    try:
+        destination = _parse_destination_description(description)
+    except Exception as e:
+        raise UsageError(str(e))
+    else:
+        self.setdefault("destinations", []).append(destination)
 
 
 def opt_help_eliot_destinations(self):
@@ -301,7 +307,7 @@ def opt_help_eliot_destinations(self):
         # Might want to generate this from some metadata someday but we just
         # have one hard-coded destination type now, it's easier to hard-code
         # the help.
-        "\tfile:<path>[:rotate_length=<bytes>][:max_rotated_files=<count>]\n"
+        "\tfile:<path>[,rotate_length=<bytes>][,max_rotated_files=<count>]\n"
         "\tSensible defaults are supplied for rotate_length and max_rotated_files\n"
         "\tif they are not given.\n",
         file=self.stdout,
@@ -399,7 +405,13 @@ class _DestinationParser(object):
     def parse(self, description):
         description = description.decode(u"ascii")
 
-        kind, args = description.split(u":", 1)
+        try:
+            kind, args = description.split(u":", 1)
+        except ValueError:
+            raise ValueError(
+                u"Eliot destination description must be formatted like "
+                u"<kind>:<args>."
+            )
         try:
             parser = getattr(self, u"_parse_{}".format(kind))
         except AttributeError:
@@ -420,12 +432,17 @@ class _DestinationParser(object):
         )
 
     def _parse_file(self, kind, arg_text):
-        # Reserve the possibility of an escape character in the future.
-        if u"\\" in arg_text:
+        # Reserve the possibility of an escape character in the future.  \ is
+        # the standard choice but it's the path separator on Windows which
+        # pretty much ruins it in this context.  Most other symbols already
+        # have some shell-assigned meaning which makes them treacherous to use
+        # in a CLI interface.  Eliminating all such dangerous symbols leaves
+        # approximately @.
+        if u"@" in arg_text:
             raise ValueError(
-                u"Unsupported escape character (\\) in destination text ({!r}).".format(arg_text),
+                u"Unsupported escape character (@) in destination text ({!r}).".format(arg_text),
             )
-        arg_list = arg_text.split(u":")
+        arg_list = arg_text.split(u",")
         path_name = arg_list.pop(0)
         if path_name == "-":
             get_file = lambda: stdout
