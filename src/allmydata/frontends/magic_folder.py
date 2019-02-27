@@ -1645,6 +1645,10 @@ class Downloader(QueueMixin, WriteFileMixin):
             while True:
                 try:
                     yield self._scan_remote_collective(scan_self=True)
+                    # The integration tests watch for this log message to
+                    # decide when it is safe to proceed.  Clearly, we need
+                    # better programmatic interrogation of magic-folder state.
+                    print("Completed initial Magic Folder scan successfully ({})".format(self))
                     self._begin_processing()
                     return
                 except Exception:
