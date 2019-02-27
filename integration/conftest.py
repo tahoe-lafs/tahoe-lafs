@@ -8,6 +8,12 @@ from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 from functools import partial
 
+from eliot import (
+    to_file,
+    log_call,
+    start_action,
+)
+
 from twisted.python.procutils import which
 from twisted.internet.error import (
     ProcessExitedAlready,
@@ -36,14 +42,21 @@ def pytest_addoption(parser):
         help="Keep the tmpdir with the client directories (introducer, etc)",
     )
 
+@pytest.fixture(autouse=True, scope='session')
+def eliot_logging():
+    with open("integration.eliot.json", "w") as f:
+        to_file(f)
+        yield
+
+
 # I've mostly defined these fixtures from "easiest" to "most
 # complicated", and the dependencies basically go "down the
 # page". They're all session-scoped which has the "pro" that we only
 # set up the grid once, but the "con" that each test has to be a
 # little careful they're not stepping on toes etc :/
 
-
 @pytest.fixture(scope='session')
+@log_call(action_type=u"integration:reactor", include_result=False)
 def reactor():
     # this is a fixture in case we might want to try different
     # reactors for some reason.
@@ -52,6 +65,7 @@ def reactor():
 
 
 @pytest.fixture(scope='session')
+@log_call(action_type=u"integration:temp_dir", include_args=[])
 def temp_dir(request):
     """
     Invoke like 'py.test --keep-tempdir ...' to avoid deleting the temp-dir
@@ -76,11 +90,13 @@ def temp_dir(request):
 
 
 @pytest.fixture(scope='session')
+@log_call(action_type=u"integration:flog_binary", include_args=[])
 def flog_binary():
     return which('flogtool')[0]
 
 
 @pytest.fixture(scope='session')
+@log_call(action_type=u"integration:flog_gatherer", include_args=[])
 def flog_gatherer(reactor, temp_dir, flog_binary, request):
     out_protocol = _CollectOutputProtocol()
     gather_dir = join(temp_dir, 'flog_gather')
@@ -139,6 +155,11 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
 
 
 @pytest.fixture(scope='session')
+@log_call(
+    action_type=u"integration:introducer",
+    include_args=["temp_dir", "flog_gatherer"],
+    include_result=False,
+)
 def introducer(reactor, temp_dir, flog_gatherer, request):
     config = '''
 [node]
@@ -190,6 +211,7 @@ log_gatherer.furl = {log_furl}
 
 
 @pytest.fixture(scope='session')
+@log_call(action_type=u"integration:introducer:furl", include_args=["temp_dir"])
 def introducer_furl(introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer', 'private', 'introducer.furl')
     while not exists(furl_fname):
@@ -200,6 +222,11 @@ def introducer_furl(introducer, temp_dir):
 
 
 @pytest.fixture(scope='session')
+@log_call(
+    action_type=u"integration:tor:introducer",
+    include_args=["temp_dir", "flog_gatherer"],
+    include_result=False,
+)
 def tor_introducer(reactor, temp_dir, flog_gatherer, request):
     config = '''
 [node]
@@ -268,6 +295,11 @@ def tor_introducer_furl(tor_introducer, temp_dir):
 
 
 @pytest.fixture(scope='session')
+@log_call(
+    action_type=u"integration:storage_nodes",
+    include_args=["temp_dir", "introducer_furl", "flog_gatherer"],
+    include_result=False,
+)
 def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer, request):
     nodes = []
     # start all 5 nodes in parallel
@@ -287,6 +319,7 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
 
 
 @pytest.fixture(scope='session')
+@log_call(action_type=u"integration:alice", include_args=[], include_result=False)
 def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
     try:
         mkdir(join(temp_dir, 'magic-alice'))
@@ -304,6 +337,7 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
 
 
 @pytest.fixture(scope='session')
+@log_call(action_type=u"integration:bob", include_args=[], include_result=False)
 def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
     try:
         mkdir(join(temp_dir, 'magic-bob'))
@@ -321,54 +355,63 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
 
 
 @pytest.fixture(scope='session')
+@log_call(action_type=u"integration:alice:invite", include_args=["temp_dir"])
 def alice_invite(reactor, alice, temp_dir, request):
     node_dir = join(temp_dir, 'alice')
 
-    # FIXME XXX by the time we see "client running" in the logs, the
-    # storage servers aren't "really" ready to roll yet (uploads
-    # fairly consistently fail if we don't hack in this pause...)
-    import time ; time.sleep(5)
-    proto = _CollectOutputProtocol()
-    reactor.spawnProcess(
-        proto,
-        sys.executable,
-        [
-            sys.executable, '-m', 'allmydata.scripts.runner',
-            'magic-folder', 'create',
-            '--poll-interval', '2',
-            '--basedir', node_dir, 'magik:', 'alice',
-            join(temp_dir, 'magic-alice'),
-        ]
-    )
-    pytest_twisted.blockon(proto.done)
+    with start_action(action_type=u"integration:alice:magic_folder:create"):
+        # FIXME XXX by the time we see "client running" in the logs, the
+        # storage servers aren't "really" ready to roll yet (uploads fairly
+        # consistently fail if we don't hack in this pause...)
+        import time ; time.sleep(5)
+        proto = _CollectOutputProtocol()
+        reactor.spawnProcess(
+            proto,
+            sys.executable,
+            [
+                sys.executable, '-m', 'allmydata.scripts.runner',
+                'magic-folder', 'create',
+                '--poll-interval', '2',
+                '--basedir', node_dir, 'magik:', 'alice',
+                join(temp_dir, 'magic-alice'),
+            ]
+        )
+        pytest_twisted.blockon(proto.done)
 
-    proto = _CollectOutputProtocol()
-    reactor.spawnProcess(
-        proto,
-        sys.executable,
-        [
-            sys.executable, '-m', 'allmydata.scripts.runner',
-            'magic-folder', 'invite',
-            '--basedir', node_dir, 'magik:', 'bob',
-        ]
-    )
-    pytest_twisted.blockon(proto.done)
-    invite = proto.output.getvalue()
-    print("invite from alice", invite)
+    with start_action(action_type=u"integration:alice:magic_folder:invite") as a:
+        proto = _CollectOutputProtocol()
+        reactor.spawnProcess(
+            proto,
+            sys.executable,
+            [
+                sys.executable, '-m', 'allmydata.scripts.runner',
+                'magic-folder', 'invite',
+                '--basedir', node_dir, 'magik:', 'bob',
+            ]
+        )
+        pytest_twisted.blockon(proto.done)
+        invite = proto.output.getvalue()
+        a.add_success_fields(invite=invite)
 
-    # before magic-folder works, we have to stop and restart (this is
-    # crappy for the tests -- can we fix it in magic-folder?)
-    try:
-        alice.signalProcess('TERM')
-        pytest_twisted.blockon(alice.exited)
-    except ProcessExitedAlready:
-        pass
-    magic_text = 'Completed initial Magic Folder scan successfully'
-    pytest_twisted.blockon(_run_node(reactor, node_dir, request, magic_text))
+    with start_action(action_type=u"integration:alice:magic_folder:restart"):
+        # before magic-folder works, we have to stop and restart (this is
+        # crappy for the tests -- can we fix it in magic-folder?)
+        try:
+            alice.signalProcess('TERM')
+            pytest_twisted.blockon(alice.exited)
+        except ProcessExitedAlready:
+            pass
+        with start_action(action_type=u"integration:alice:magic_folder:magic-text"):
+            magic_text = 'Completed initial Magic Folder scan successfully'
+            pytest_twisted.blockon(_run_node(reactor, node_dir, request, magic_text))
     return invite
 
 
 @pytest.fixture(scope='session')
+@log_call(
+    action_type=u"integration:magic_folder",
+    include_args=["alice_invite", "temp_dir"],
+)
 def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     print("pairing magic-folder")
     bob_dir = join(temp_dir, 'bob')
