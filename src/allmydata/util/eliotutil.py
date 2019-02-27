@@ -307,7 +307,7 @@ def opt_help_eliot_destinations(self):
         # Might want to generate this from some metadata someday but we just
         # have one hard-coded destination type now, it's easier to hard-code
         # the help.
-        "\tfile:<path>[:rotate_length=<bytes>][:max_rotated_files=<count>]\n"
+        "\tfile:<path>[,rotate_length=<bytes>][,max_rotated_files=<count>]\n"
         "\tSensible defaults are supplied for rotate_length and max_rotated_files\n"
         "\tif they are not given.\n",
         file=self.stdout,
@@ -442,7 +442,7 @@ class _DestinationParser(object):
             raise ValueError(
                 u"Unsupported escape character (@) in destination text ({!r}).".format(arg_text),
             )
-        arg_list = arg_text.split(u":")
+        arg_list = arg_text.split(u",")
         path_name = arg_list.pop(0)
         if path_name == "-":
             get_file = lambda: stdout
