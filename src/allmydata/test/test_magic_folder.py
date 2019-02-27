@@ -717,7 +717,8 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         # set_up_grid depends on self.basedir existing
-        self.set_up_grid(num_clients=2, oneshare=True)
+        with start_action(action_type=u"set_up_grid"):
+            self.set_up_grid(num_clients=2, oneshare=True)
 
         self.alice_clock = task.Clock()
         self.bob_clock = task.Clock()
