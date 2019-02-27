@@ -52,9 +52,6 @@ from ..util.eliotutil import (
     validateInstanceOf,
 )
 
-TRUE  = 0
-FALSE = 1
-
 NOT_STARTED = "NOT_STARTED"
 STARTED     = "STARTED"
 STOPPING    = "STOPPING"
@@ -210,8 +207,6 @@ class INotify(PollMixin):
         precondition(isinstance(recursive, bool), recursive=recursive)
         assert autoAdd == False
 
-        recursive = False
-        self._recursive = TRUE if recursive else FALSE
         path_u = path.path
         if not isinstance(path_u, unicode):
             path_u = path_u.decode('utf-8')
@@ -222,4 +217,5 @@ class INotify(PollMixin):
             self._watches[path_u] = self._observer.schedule(
                 INotifyEventHandler(path_u, mask, self._callbacks[path_u], self._pending_delay),
                 path=path_u,
-                recursive=recursive)
+                recursive=False,
+            )
