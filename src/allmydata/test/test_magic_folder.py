@@ -2204,6 +2204,7 @@ class RealTest(SingleMagicFolderTestMixin, AsyncTestCase):
 class RealTestAliceBob(MagicFolderAliceBobTestMixin, AsyncTestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
     inject_inotify = False
+    timeout = 15
 
     def setUp(self):
         d = super(RealTestAliceBob, self).setUp()
