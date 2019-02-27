@@ -89,6 +89,9 @@ from twisted.application.service import Service
 from .fileutil import (
     PathInfo,
 )
+from .fake_inotify import (
+    humanReadableMask,
+)
 
 class _GeneratorContext(object):
     def __init__(self, execution_context):
@@ -268,6 +271,13 @@ PATHINFO = Field(
     },
     u"The metadata for this version of this file.",
     validateInstanceOf((type(None), PathInfo)),
+)
+
+INOTIFY_EVENTS = Field(
+    u"inotify_events",
+    humanReadableMask,
+    u"Details about a filesystem event generating a notification event.",
+    validateInstanceOf((int, long)),
 )
 
 def eliot_logging_service(reactor, destinations):
