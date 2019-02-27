@@ -35,9 +35,6 @@ from allmydata.util import (
     yamlutil,
     eliotutil,
 )
-from allmydata.util.fake_inotify import (
-    humanReadableMask,
-)
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
 from allmydata.util.fileutil import (
@@ -690,13 +687,6 @@ NOTIFIED = ActionType(
     u"Magic-Folder received a notification of a local filesystem change for a certain path.",
 )
 
-_EVENTS = Field(
-    u"events",
-    humanReadableMask,
-    u"Details about a filesystem event generating a notification event.",
-    eliotutil.validateInstanceOf((int, long)),
-)
-
 _NON_DIR_CREATED = Field.for_types(
     u"non_dir_created",
     [bool],
@@ -706,7 +696,7 @@ _NON_DIR_CREATED = Field.for_types(
 
 REACT_TO_INOTIFY = ActionType(
     u"magic-folder:react-to-inotify",
-    [_EVENTS],
+    [eliotutil.INOTIFY_EVENTS],
     [_IGNORED, _NON_DIR_CREATED, _ALREADY_PENDING],
     u"Magic-Folder is processing a notification from inotify(7) (or a clone) about a filesystem event.",
 )
@@ -1260,7 +1250,7 @@ class Uploader(QueueMixin):
             # All can do is id() or repr() it and neither of those actually
             # produces very illuminating results.  We drop opaque on the
             # floor, anyway.
-            events=events_mask,
+            inotify_events=events_mask,
         )
         success_fields = dict(non_dir_created=False, already_pending=False, ignored=False)
 
