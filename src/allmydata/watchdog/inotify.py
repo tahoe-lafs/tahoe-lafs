@@ -161,7 +161,6 @@ class INotify(PollMixin):
     def __init__(self):
         self._pending_delay = 1.0
         self.recursive_includes_new_subdirectories = False
-        self._observer = Observer(timeout=self._pending_delay)
         self._callbacks = {}
         self._watches = {}
         self._state = NOT_STARTED
@@ -170,7 +169,6 @@ class INotify(PollMixin):
         Message.log(message_type=u"watchdog:inotify:set-pending-delay", delay=delay)
         assert self._state != STARTED
         self._pending_delay = delay
-        self._observer = Observer(timeout=self._pending_delay)
 
     def startReading(self):
         with start_action(action_type=u"watchdog:inotify:start-reading"):
@@ -179,6 +177,7 @@ class INotify(PollMixin):
                 # XXX twisted.internet.inotify doesn't require watches to
                 # be set before startReading is called.
                 # _assert(len(self._callbacks) != 0, "no watch set")
+                self._observer = Observer(timeout=self._pending_delay)
                 self._observer.start()
                 self._state = STARTED
             except:
