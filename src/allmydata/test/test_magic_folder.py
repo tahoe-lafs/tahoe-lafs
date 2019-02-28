@@ -900,52 +900,68 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
         bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
 
-        yield self.alice_fileops.write(alice_fname, 'contents0\n')
-        yield iterate(self.alice_magicfolder)  # for windows
+        with start_action(action_type=u"alice:create"):
+            yield self.alice_fileops.write(alice_fname, 'contents0\n')
+            yield iterate(self.alice_magicfolder)  # for windows
 
-        yield iterate_uploader(self.alice_magicfolder)
-        yield alice_proc  # alice uploads
+        with start_action(action_type=u"alice:upload"):
+            yield iterate_uploader(self.alice_magicfolder)
+            yield alice_proc  # alice uploads
 
-        yield iterate_downloader(self.bob_magicfolder)
-        yield bob_proc    # bob downloads
+        with start_action(action_type=u"bob:download"):
+            yield iterate_downloader(self.bob_magicfolder)
+            yield bob_proc    # bob downloads
 
-        yield iterate(self.alice_magicfolder)  # for windows
-        yield iterate(self.bob_magicfolder)  # for windows
+        with start_action(action_type=u"mysterious:iterate"):
+            yield iterate(self.alice_magicfolder)  # for windows
+            yield iterate(self.bob_magicfolder)  # for windows
 
         # check the state (XXX I had to switch the versions to 0; is that really right? why?)
-        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
-        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
-        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
-        self.failUnlessReallyEqual(
-            self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
-            0
-        )
-        self.failUnlessReallyEqual(
-            self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
-            1
-        )
+        with start_action(action_type=u"alice:check"):
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
 
-        # now bob deletes it (bob should upload, alice download)
+        with start_action(action_type=u"bob:check"):
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+            self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+                0
+            )
+            self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
+                1
+            )
+
         bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
         alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
-        yield self.bob_fileops.delete(bob_fname)
-        # just after notifying bob, we also delete alice's,
-        # covering the 'except' flow in _rename_deleted_file()
-        yield self.alice_fileops.delete(alice_fname)
 
-        yield iterate_uploader(self.bob_magicfolder)
-        yield bob_proc
-        yield iterate_downloader(self.alice_magicfolder)
-        yield alice_proc
+        with start_action(action_type=u"bob:delete"):
+            yield self.bob_fileops.delete(bob_fname)
+
+        with start_action(action_type=u"alice:delete"):
+            # just after notifying bob, we also delete alice's,
+            # covering the 'except' flow in _rename_deleted_file()
+            yield self.alice_fileops.delete(alice_fname)
+
+        with start_action(action_type=u"bob:upload-delete"):
+            yield iterate_uploader(self.bob_magicfolder)
+            yield bob_proc
+
+        with start_action(action_type=u"alice:download-delete"):
+            yield iterate_downloader(self.alice_magicfolder)
+            yield alice_proc
 
         # check versions
-        node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
-        self.assertTrue(metadata['deleted'])
-        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
-        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
+        with start_action(action_type=u"bob:check"):
+            node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
+            self.assertTrue(metadata['deleted'])
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
+
+        with start_action(action_type=u"alice:check"):
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
 
     @inline_callbacks
     def test_alice_create_bob_update(self):
