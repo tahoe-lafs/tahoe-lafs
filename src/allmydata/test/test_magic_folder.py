@@ -796,75 +796,98 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         bob_fname = os.path.join(self.bob_magic_dir, 'blam')
 
         alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
-        yield self.alice_fileops.write(alice_fname, 'contents0\n')
-        yield iterate(self.alice_magicfolder)  # for windows
 
-        # alice uploads
-        yield iterate_uploader(self.alice_magicfolder)
-        yield alice_proc
+        with start_action(action_type=u"alice:create"):
+            yield self.alice_fileops.write(alice_fname, 'contents0\n')
+            yield iterate(self.alice_magicfolder)  # for windows
 
-        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
+        with start_action(action_type=u"alice:upload"):
+            yield iterate_uploader(self.alice_magicfolder)
+            yield alice_proc
 
-        # bob downloads
-        yield iterate_downloader(self.bob_magicfolder)
+        with start_action(action_type=u"alice:check-upload"):
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
 
-        # check the state
-        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
-        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
-        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
-        yield self.failUnlessReallyEqual(
-            self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
-            0
-        )
-        yield self.failUnlessReallyEqual(
-            self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
-            1
-        )
+        with start_action(action_type=u"bob:download"):
+            yield iterate_downloader(self.bob_magicfolder)
 
-        yield iterate(self.bob_magicfolder)  # for windows
-        # now bob deletes it (bob should upload, alice download)
+        with start_action(action_type=u"alice:recheck-upload"):
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
+
+        with start_action(action_type=u"bob:check-download"):
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+                0
+            )
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
+                1
+            )
+
+            yield iterate(self.bob_magicfolder)  # for windows
+
+
         bob_proc = self.bob_magicfolder.uploader.set_hook('processed')
         alice_proc = self.alice_magicfolder.downloader.set_hook('processed')
-        yield self.bob_fileops.delete(bob_fname)
-        yield iterate(self.bob_magicfolder)  # for windows
 
-        yield iterate_uploader(self.bob_magicfolder)
-        yield bob_proc
-        yield iterate_downloader(self.alice_magicfolder)
-        yield alice_proc
+        with start_action(action_type=u"bob:delete"):
+            yield self.bob_fileops.delete(bob_fname)
+            yield iterate(self.bob_magicfolder)  # for windows
+
+        with start_action(action_type=u"bob:upload"):
+            yield iterate_uploader(self.bob_magicfolder)
+            yield bob_proc
+
+        with start_action(action_type=u"alice:download"):
+            yield iterate_downloader(self.alice_magicfolder)
+            yield alice_proc
 
         # check versions
-        node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
-        self.assertTrue(metadata['deleted'])
-        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
-        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
+        with start_action(action_type=u"bob:check-upload"):
+            node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
+            self.assertTrue(metadata['deleted'])
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
 
-        # not *entirely* sure why we need to iterate Alice for the
-        # real test here. But, we do.
-        yield iterate(self.alice_magicfolder)
+        with start_action(action_type=u"alice:check-download"):
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
+
+        with start_action(action_type=u"alice:mysterious-iterate"):
+            # not *entirely* sure why we need to iterate Alice for the
+            # real test here. But, we do.
+            yield iterate(self.alice_magicfolder)
 
         # now alice restores it (alice should upload, bob download)
         alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
         bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-        yield self.alice_fileops.write(alice_fname, 'new contents\n')
-        yield iterate(self.alice_magicfolder)  # for windows
 
-        yield iterate_uploader(self.alice_magicfolder)
-        yield alice_proc
-        yield iterate_downloader(self.bob_magicfolder)
-        yield bob_proc
+        with start_action(action_type=u"alice:rewrite"):
+            yield self.alice_fileops.write(alice_fname, 'new contents\n')
+            yield iterate(self.alice_magicfolder)  # for windows
+
+        with start_action(action_type=u"alice:reupload"):
+            yield iterate_uploader(self.alice_magicfolder)
+            yield alice_proc
+
+        with start_action(action_type=u"bob:redownload"):
+            yield iterate_downloader(self.bob_magicfolder)
+            yield bob_proc
 
         # check versions
-        node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
-        self.assertTrue('deleted' not in metadata or not metadata['deleted'])
-        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 2)
-        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 2)
-        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 2)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 2)
+        with start_action(action_type=u"bob:recheck-download"):
+            node, metadata = yield self.alice_magicfolder.downloader._get_collective_latest_file(u'blam')
+            self.assertTrue('deleted' not in metadata or not metadata['deleted'])
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 2)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 2)
+
+        with start_action(action_type=u"alice:final-check-upload"):
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 2)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 2)
 
     @inline_callbacks
     def test_alice_sees_bobs_delete_with_error(self):
