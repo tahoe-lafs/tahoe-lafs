@@ -132,15 +132,14 @@ class INotifyEventHandler(FileSystemEventHandler):
             # ignore events for parent directory
             return
 
-        reactor.callFromThread(
-            preserve_context(self._maybe_notify),
-            event_filepath_u,
-            event,
-        )
+        self._maybe_notify(event_filepath_u, event)
 
     def on_any_event(self, event):
         with ANY_INOTIFY_EVENT(path=event.src_path, event=event):
-            self.process(event)
+            reactor.callFromThread(
+                preserve_context(self.process),
+                event,
+            )
 
 
 class INotify(PollMixin):
