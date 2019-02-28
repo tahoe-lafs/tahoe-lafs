@@ -1492,6 +1492,7 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(check_state)
 
         # prepare to perform another conflict test
+        @log_call_deferred(action_type=u"alice:to-write:file2")
         @inline_callbacks
         def Alice_to_write_file2():
             if _debug: print "Alice writes a file2\n"
