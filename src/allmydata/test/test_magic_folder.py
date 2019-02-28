@@ -682,8 +682,17 @@ class CheckerMixin(object):
     def _check_version_in_dmd(self, magicfolder, relpath_u, expected_version):
         encoded_name_u = magicpath.path2magic(relpath_u)
         result = yield magicfolder.downloader._get_collective_latest_file(encoded_name_u)
-        self.assertTrue(result is not None)
+        self.assertIsNot(
+            result,
+            None,
+            "collective_latest_file({}) is None".format(encoded_name_u),
+        )
         node, metadata = result
+        self.assertIsNot(
+            metadata,
+            None,
+            "collective_latest_file({}) metadata is None".format(encoded_name_u),
+        )
         self.failUnlessEqual(metadata['version'], expected_version)
 
     def _check_version_in_local_db(self, magicfolder, relpath_u, expected_version):
