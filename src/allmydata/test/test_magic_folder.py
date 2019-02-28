@@ -1177,71 +1177,85 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
         bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
 
-        yield self.alice_fileops.write(alice_fname, 'contents0\n')
-        yield iterate(self.alice_magicfolder)  # for windows
+        with start_action(action_type=u"alice:create"):
+            yield self.alice_fileops.write(alice_fname, 'contents0\n')
+            yield iterate(self.alice_magicfolder)  # for windows
 
-        yield iterate_uploader(self.alice_magicfolder)
-        yield alice_proc  # alice uploads
+        with start_action(action_type=u"alice:upload"):
+            yield iterate_uploader(self.alice_magicfolder)
+            yield alice_proc  # alice uploads
 
-        yield iterate_downloader(self.bob_magicfolder)
-        yield bob_proc    # bob downloads
+        with start_action(action_type=u"bob:download"):
+            yield iterate_downloader(self.bob_magicfolder)
+            yield bob_proc    # bob downloads
 
-        # check the state
-        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
-        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
-        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
-        yield self.failUnlessReallyEqual(
-            self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
-            0
-        )
-        yield self.failUnlessReallyEqual(
-            self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
-            1
-        )
-        self.failUnless(os.path.exists(bob_fname))
-        self.failUnless(not os.path.exists(bob_fname + '.backup'))
-        self.failUnless(not os.path.exists(bob_fname + '.conflict'))
+        with start_action(action_type=u"alice:check"):
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 0)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 0)
 
-        # now alice deletes it (alice should upload, bob download)
+        with start_action(action_type=u"bob:check"):
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+                0
+            )
+            yield self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
+                1
+            )
+            self.failUnless(os.path.exists(bob_fname))
+            self.failUnless(not os.path.exists(bob_fname + '.backup'))
+            self.failUnless(not os.path.exists(bob_fname + '.conflict'))
+
         alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
         bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-        yield self.alice_fileops.delete(alice_fname)
 
-        yield iterate_uploader(self.alice_magicfolder)
-        yield alice_proc
-        yield iterate_downloader(self.bob_magicfolder)
-        yield bob_proc
+        with start_action(action_type=u"alice:delete"):
+            yield self.alice_fileops.delete(alice_fname)
+            yield iterate_uploader(self.alice_magicfolder)
+            yield alice_proc
 
-        # check the state
-        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
-        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
-        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
-        self.assertFalse(os.path.exists(bob_fname))
-        self.assertTrue(os.path.exists(bob_fname + '.backup'))
-        self.assertFalse(os.path.exists(bob_fname + '.conflict'))
+        with start_action(action_type=u"bob:redownload"):
+            yield iterate_downloader(self.bob_magicfolder)
+            yield bob_proc
 
-        # now alice restores the file (with new contents)
-        os.unlink(bob_fname + '.backup')
-        alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
-        bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
-        yield self.alice_fileops.write(alice_fname, 'alice wuz here\n')
-        yield iterate(self.alice_magicfolder)  # for windows
+        with start_action(action_type=u"bob:recheck"):
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 1)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 1)
+            self.assertFalse(os.path.exists(bob_fname))
+            self.assertTrue(os.path.exists(bob_fname + '.backup'))
+            self.assertFalse(os.path.exists(bob_fname + '.conflict'))
 
-        yield iterate_uploader(self.alice_magicfolder)
-        yield iterate_downloader(self.alice_magicfolder)  #  why?
-        yield alice_proc
-        yield iterate_downloader(self.bob_magicfolder)
-        yield iterate_uploader(self.bob_magicfolder)
-        yield bob_proc
+        with start_action(action_type=u"alice:recheck"):
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 1)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 1)
 
-        # check the state
-        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 2)
-        yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 2)
-        yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 2)
-        yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 2)
-        self.failUnless(os.path.exists(bob_fname))
+        with start_action(action_type=u"alice:restore"):
+            os.unlink(bob_fname + '.backup')
+            alice_proc = self.alice_magicfolder.uploader.set_hook('processed')
+            bob_proc = self.bob_magicfolder.downloader.set_hook('processed')
+            yield self.alice_fileops.write(alice_fname, 'alice wuz here\n')
+            yield iterate(self.alice_magicfolder)  # for windows
+
+        with start_action(action_type=u"alice:reupload"):
+            yield iterate_uploader(self.alice_magicfolder)
+            yield iterate_downloader(self.alice_magicfolder)  #  why?
+            yield alice_proc
+
+        with start_action(action_type=u"bob:final-redownload"):
+            yield iterate_downloader(self.bob_magicfolder)
+            yield iterate_uploader(self.bob_magicfolder)
+            yield bob_proc
+
+        with start_action(action_type=u"bob:final-check"):
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 2)
+            yield self._check_version_in_local_db(self.bob_magicfolder, u"blam", 2)
+            self.failUnless(os.path.exists(bob_fname))
+
+        with start_action(action_type=u"alice:final-check"):
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"blam", 2)
+            yield self._check_version_in_local_db(self.alice_magicfolder, u"blam", 2)
 
     # XXX this should be shortened -- as in, any cases not covered by
     # the other tests in here should get their own minimal test-case.
