@@ -1320,9 +1320,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             yield iterate(self.alice_magicfolder)
         d.addCallback(_wait_for, Alice_to_write_a_file)
 
-        @log_call(action_type=u"check_state", include_args=[], include_result=False)
+        @log_call_deferred(action_type=u"check_state")
+        @inline_callbacks
         def check_state(ignored):
-            self._check_version_in_dmd(self.alice_magicfolder, u"file1", 0)
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"file1", 0)
             self._check_version_in_local_db(self.alice_magicfolder, u"file1", 0)
             self._check_uploader_count('objects_failed', 0)
             self._check_uploader_count('objects_succeeded', 1)
@@ -1358,9 +1359,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             yield iterate(self.bob_magicfolder)
         d.addCallback(notify_bob_moved)
 
-        @log_call(action_type=u"check_state", include_args=[], include_result=False)
+        @log_call_deferred(action_type=u"check_state")
+        @inline_callbacks
         def check_state(ignored):
-            self._check_version_in_dmd(self.alice_magicfolder, u"file1", 1)
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"file1", 1)
             self._check_version_in_local_db(self.alice_magicfolder, u"file1", 1)
             self._check_uploader_count('objects_failed', 0)
             self._check_uploader_count('objects_succeeded', 2)
@@ -1386,9 +1388,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         d.addCallback(_wait_for, Alice_to_rewrite_file)
         d.addCallback(lambda ign: iterate(self.bob_magicfolder))
 
-        @log_call(action_type=u"check_state", include_args=[], include_result=False)
+        @log_call_deferred(action_type=u"check_state")
+        @inline_callbacks
         def check_state(ignored):
-            self._check_version_in_dmd(self.alice_magicfolder, u"file1", 2)
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"file1", 2)
             self._check_version_in_local_db(self.alice_magicfolder, u"file1", 2)
             self._check_uploader_count('objects_failed', 0)
             self._check_uploader_count('objects_succeeded', 3)
@@ -1442,9 +1445,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             yield iterate(self.bob_magicfolder)
         d.addCallback(lambda ign: _wait_for(None, Bob_to_rewrite_file, alice=False))
 
-        @log_call(action_type=u"check_state", include_args=[], include_result=False)
+        @log_call_deferred(action_type=u"check_state")
+        @inline_callbacks
         def check_state(ignored):
-            self._check_version_in_dmd(self.bob_magicfolder, u"file1", 3)
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"file1", 3)
             self._check_version_in_local_db(self.bob_magicfolder, u"file1", 3)
             self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder)
             self._check_uploader_count('objects_succeeded', 1, magic=self.bob_magicfolder)
@@ -1497,9 +1501,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             yield d
         d.addCallback(_wait_for, Alice_to_write_file2)
 
-        @log_call(action_type=u"check_state", include_args=[], include_result=False)
+        @log_call_deferred(action_type=u"check_state")
+        @inline_callbacks
         def check_state(ignored):
-            self._check_version_in_dmd(self.alice_magicfolder, u"file2", 0)
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"file2", 0)
             self._check_version_in_local_db(self.alice_magicfolder, u"file2", 0)
             self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder)
             self._check_downloader_count('objects_conflicted', 0, magic=self.alice_magicfolder)
@@ -1532,9 +1537,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             if _debug: print "---- iterated bob's magicfolder"
         d.addCallback(lambda ign: _wait_for(None, Bob_to_rewrite_file2, alice=False))
 
-        @log_call(action_type=u"check_state", include_args=[], include_result=False)
+        @log_call_deferred(action_type=u"check_state")
+        @inline_callbacks
         def check_state(ignored):
-            self._check_version_in_dmd(self.bob_magicfolder, u"file2", 1)
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"file2", 1)
             self._check_downloader_count('objects_downloaded', 5, magic=self.bob_magicfolder)
             self._check_downloader_count('objects_conflicted', 1, magic=self.bob_magicfolder)
             self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder)
@@ -1552,9 +1558,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         alice_clock.advance(6)
         bob_clock.advance(6)
 
-        @log_call(action_type=u"check_state", include_args=[], include_result=False)
+        @log_call_deferred(action_type=u"check_state")
+        @inline_callbacks
         def check_state(ignored):
-            self._check_version_in_dmd(self.bob_magicfolder, u"file2", 1)
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"file2", 1)
             self._check_downloader_count('objects_downloaded', 5)
             self._check_downloader_count('objects_conflicted', 1)
             self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder)
@@ -1584,9 +1591,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             return d2
         d.addCallback(lambda ign: Alice_conflicts_with_Bobs_last_uploaded_uri())
 
-        @log_call(action_type=u"check_state", include_args=[], include_result=False)
+        @log_call_deferred(action_type=u"check_state")
+        @inline_callbacks
         def check_state(ignored):
-            self._check_version_in_dmd(self.bob_magicfolder, u"file2", 5)
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"file2", 5)
             self._check_downloader_count('objects_downloaded', 6)
             self._check_downloader_count('objects_conflicted', 1)
             self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder)
@@ -1622,9 +1630,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             yield iterate(self.alice_magicfolder)
         d.addCallback(_wait_for, Alice_to_write_file3)
 
-        @log_call(action_type=u"check_state", include_args=[], include_result=False)
+        @log_call_deferred(action_type=u"check_state")
+        @inline_callbacks
         def check_state(ignored):
-            self._check_version_in_dmd(self.alice_magicfolder, u"file3", 0)
+            yield self._check_version_in_dmd(self.alice_magicfolder, u"file3", 0)
             self._check_downloader_count('objects_failed', 0, magic=self.alice_magicfolder)
             self._check_downloader_count('objects_downloaded', 7)
             self._check_downloader_count('objects_downloaded', 2, magic=self.alice_magicfolder)
@@ -1642,9 +1651,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             yield iterate(self.bob_magicfolder)
         d.addCallback(lambda ign: _wait_for(None, Bob_to_rewrite_file3, alice=False))
 
-        @log_call(action_type=u"check_state", include_args=[], include_result=False)
+        @log_call_deferred(action_type=u"check_state")
+        @inline_callbacks
         def check_state(ignored):
-            self._check_version_in_dmd(self.bob_magicfolder, u"file3", 1)
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"file3", 1)
             self._check_downloader_count('objects_downloaded', 7)
             self._check_downloader_count('objects_conflicted', 1)
             self._check_uploader_count('objects_failed', 0, magic=self.bob_magicfolder)
