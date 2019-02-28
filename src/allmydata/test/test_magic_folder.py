@@ -549,6 +549,16 @@ def iterate(magic):
     yield iterate_downloader(magic)
 
 
+@inline_callbacks
+def notify_when_pending(uploader, filename):
+    relpath = uploader._get_relpath(FilePath(filename))
+    print("notify-when-pending", relpath)
+    while not uploader.is_pending(relpath):
+        print("pending:", uploader._pending)
+        yield uploader.set_hook('inotify')
+    print("pending")
+
+
 class FileOperationsHelper(object):
     """
     This abstracts all file operations we might do in magic-folder unit-tests.
@@ -584,7 +594,7 @@ class FileOperationsHelper(object):
         if not os.path.exists(fname):
             self._maybe_notify(fname, self._inotify.IN_CREATE)
 
-        d = self._uploader.set_hook('inotify')
+        d = notify_when_pending(self._uploader, path_u)
 
         modified_mtime_barrier(FilePath(fname))
         with open(fname, "wb") as f:
@@ -1488,7 +1498,12 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.file_path = abspath_expanduser_unicode(u"file2", base=self.alice_magicfolder.uploader._local_path_u)
             d = self.alice_fileops.write(self.file_path, "something")
             self.bob_clock.advance(4)
+            # Wait for the inotify event for file2 being written so that we
+            # know it is going to be uploaded if we wait for the 'processed'
+            # hook.  That's exactly what _wait_for is going to do.
             yield d
+            # Make sure it's really there.
+            # assert self.alice_magicfolder.uploader.is_pending(self.file_path)
         d.addCallback(_wait_for, Alice_to_write_file2)
 
         @log_call_deferred(action_type=u"check_state")
