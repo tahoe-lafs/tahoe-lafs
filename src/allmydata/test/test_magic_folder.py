@@ -20,6 +20,7 @@ from testtools.matchers import (
 )
 
 from eliot import (
+    Message,
     start_action,
     log_call,
 )
@@ -551,12 +552,11 @@ def iterate(magic):
 
 @inline_callbacks
 def notify_when_pending(uploader, filename):
-    relpath = uploader._get_relpath(FilePath(filename))
-    print("notify-when-pending", relpath)
-    while not uploader.is_pending(relpath):
-        print("pending:", uploader._pending)
-        yield uploader.set_hook('inotify')
-    print("pending")
+    with start_action(action_type=u"notify-when-pending", filename=filename):
+        relpath = uploader._get_relpath(FilePath(filename))
+        while not uploader.is_pending(relpath):
+            Message.log(message_type=u"not-pending")
+            yield uploader.set_hook('inotify')
 
 
 class FileOperationsHelper(object):
