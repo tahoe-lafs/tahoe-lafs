@@ -1965,17 +1965,15 @@ class Downloader(QueueMixin, WriteFileMixin):
                 if item.metadata.get('deleted', False):
                     d.addCallback(lambda ign: self._rename_deleted_file(abspath_u))
                 else:
-                    @eliotutil.inline_callbacks
+                    @eliotutil.log_call_deferred(DOWNLOAD_BEST_VERSION.action_type)
                     def download_best_version(ignored):
-                        with DOWNLOAD_BEST_VERSION():
-                            contents = yield item.file_node.download_best_version(progress=item.progress)
-                            defer.returnValue(
-                                self._write_downloaded_file(
-                                    self._local_path_u, abspath_u, contents,
-                                    is_conflict=is_conflict,
-                                    mtime=item.metadata.get('user_mtime', item.metadata.get('tahoe', {}).get('linkmotime')),
-                                )
-                            )
+                        d = DeferredContext(item.file_node.download_best_version(progress=item.progress))
+                        d.addCallback(lambda contents: self._write_downloaded_file(
+                            self._local_path_u, abspath_u, contents,
+                            is_conflict=is_conflict,
+                            mtime=item.metadata.get('user_mtime', item.metadata.get('tahoe', {}).get('linkmotime')),
+                        ))
+                        return d.result
 
                     d.addCallback(download_best_version)
 
