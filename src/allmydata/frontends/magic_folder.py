@@ -1110,6 +1110,13 @@ PROCESS_ITEM = ActionType(
     u"A path which was found wanting of an update is receiving an update.",
 )
 
+DOWNLOAD_BEST_VERSION = ActionType(
+    u"magic-folder:download-best-version",
+    [],
+    [],
+    u"The content of a file in the Magic Folder is being downloaded.",
+)
+
 class Uploader(QueueMixin):
 
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
@@ -1958,14 +1965,19 @@ class Downloader(QueueMixin, WriteFileMixin):
                 if item.metadata.get('deleted', False):
                     d.addCallback(lambda ign: self._rename_deleted_file(abspath_u))
                 else:
-                    d.addCallback(lambda ign: item.file_node.download_best_version(progress=item.progress))
-                    d.addCallback(
-                        lambda contents: self._write_downloaded_file(
-                            self._local_path_u, abspath_u, contents,
-                            is_conflict=is_conflict,
-                            mtime=item.metadata.get('user_mtime', item.metadata.get('tahoe', {}).get('linkmotime')),
-                        )
-                    )
+                    @eliotutil.inline_callbacks
+                    def download_best_version(ignored):
+                        with DOWNLOAD_BEST_VERSION():
+                            contents = yield item.file_node.download_best_version(progress=item.progress)
+                            defer.returnValue(
+                                self._write_downloaded_file(
+                                    self._local_path_u, abspath_u, contents,
+                                    is_conflict=is_conflict,
+                                    mtime=item.metadata.get('user_mtime', item.metadata.get('tahoe', {}).get('linkmotime')),
+                                )
+                            )
+
+                    d.addCallback(download_best_version)
 
         d.addCallback(do_update_db)
         d.addErrback(failed)
