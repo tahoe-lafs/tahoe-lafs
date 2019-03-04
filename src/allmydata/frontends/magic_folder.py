@@ -536,7 +536,7 @@ REMOVE_FROM_PENDING = ActionType(
 
 PATH = Field(
     u"path",
-    lambda fp: quote_filepath(fp),
+    lambda fp: fp.asTextMode().path,
     u"A local filesystem path.",
     eliotutil.validateInstanceOf(FilePath),
 )
@@ -773,7 +773,7 @@ ALL_FILES = MessageType(
 
 _ITEMS = Field(
     u"items",
-    lambda deque: list(deque),
+    lambda deque: list(dict(relpath=item.relpath_u, kind=item.kind) for item in deque),
     u"Items in a processing queue.",
 )
 
@@ -1055,6 +1055,8 @@ class IQueuedItem(Interface):
 
 @implementer(IQueuedItem)
 class QueuedItem(object):
+    kind = None
+
     def __init__(self, relpath_u, progress, size):
         self.relpath_u = relpath_u
         self.progress = progress
@@ -1096,7 +1098,7 @@ class UploadItem(QueuedItem):
     """
     Represents a single item the _deque of the Uploader
     """
-    pass
+    kind = u"upload"
 
 
 _ITEM = Field(
@@ -1611,6 +1613,8 @@ class DownloadItem(QueuedItem):
     """
     Represents a single item in the _deque of the Downloader
     """
+    kind = u"download"
+
     def __init__(self, relpath_u, progress, filenode, metadata, size):
         super(DownloadItem, self).__init__(relpath_u, progress, size)
         self.file_node = filenode
