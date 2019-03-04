@@ -12,21 +12,22 @@ import sys
 
 from twisted.internet import defer, reactor
 from twisted.python import filepath, runtime
-from twisted.trial import unittest
 
 from allmydata.frontends.magic_folder import get_inotify_module
-
+from .common import (
+    AsyncTestCase,
+    skip,
+    skipIf,
+)
 inotify = get_inotify_module()
 
 
-class INotifyTests(unittest.TestCase):
+@skipIf(runtime.platformType == "win32", "inotify does not yet work on windows")
+class INotifyTests(AsyncTestCase):
     """
     Define all the tests for the basic functionality exposed by
     L{inotify.INotify}.
     """
-    if runtime.platformType == "win32":
-        skip = "inotify does not yet work on windows"
-
     def setUp(self):
         self.ignore_count = 0
         self.dirname = filepath.FilePath(self.mktemp())
@@ -34,6 +35,7 @@ class INotifyTests(unittest.TestCase):
         self.inotify = inotify.INotify()
         self.inotify.startReading()
         self.addCleanup(self.inotify.stopReading)
+        return super(INotifyTests, self).setUp()
 
 
     def _notificationTest(self, mask, operation, expectedPath=None, ignore_count=0):
@@ -215,6 +217,7 @@ class INotifyTests(unittest.TestCase):
             set(['close_write', 'access', 'open']))
 
 
+    @skip("not relevant")
     def test_recursiveWatch(self):
         """
         L{inotify.INotify.watch} with recursive==True will add all the
@@ -230,9 +233,9 @@ class INotifyTests(unittest.TestCase):
         self.inotify.watch(self.dirname, recursive=True)
         for d in dirs:
             self.assertTrue(self.inotify._isWatched(d))
-    test_recursiveWatch.skip = "not relevant"
 
 
+    @skip("Based on Twisted implementation details; not relevant")
     def test_connectionLostError(self):
         """
         L{inotify.INotify.connectionLost} if there's a problem while closing
@@ -243,7 +246,7 @@ class INotifyTests(unittest.TestCase):
         os.close(in_._fd)
         in_.loseConnection()
         self.flushLoggedErrors()
-    test_connectionLostError.skip = "Based on Twisted implementation details; not relevant"
+
 
     def test_noAutoAddSubdirectory(self):
         """
