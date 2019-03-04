@@ -9,9 +9,6 @@ from twisted.internet import defer, task, reactor
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 
-from testtools import (
-    skipIf,
-)
 from testtools.matchers import (
     Not,
     Is,
@@ -41,6 +38,7 @@ from .common import (
     ShouldFailMixin,
     SyncTestCase,
     AsyncTestCase,
+    skipIf,
 )
 from .cli.test_magic_folder import MagicFolderCLITestMixin
 
