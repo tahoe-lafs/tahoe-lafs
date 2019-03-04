@@ -12,6 +12,12 @@ import pytest_twisted
 # tests converted from check_magicfolder_smoke.py
 # see "conftest.py" for the fixtures (e.g. "magic_folder")
 
+def test_eliot_logs_are_written(temp_dir):
+    # The integration test configuration arranges for this logging
+    # configuration.  Verify it actually does what we want.
+    assert exists(join(temp_dir, "alice", "logs", "eliot.json"))
+    assert exists(join(temp_dir, "bob", "logs", "eliot.json"))
+
 
 def test_alice_writes_bob_receives(magic_folder):
     alice_dir, bob_dir = magic_folder

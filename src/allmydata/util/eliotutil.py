@@ -458,12 +458,14 @@ class _DestinationParser(object):
                 10,
                 arg_list,
             ))
-            get_file = lambda: LogFile(
-                path.basename(),
-                path.dirname(),
-                rotateLength=rotate_length,
-                maxRotatedFiles=max_rotated_files,
-            )
+            def get_file():
+                path.parent().makedirs(ignoreExistingDirectory=True)
+                return LogFile(
+                    path.basename(),
+                    path.dirname(),
+                    rotateLength=rotate_length,
+                    maxRotatedFiles=max_rotated_files,
+                )
         return lambda reactor: FileDestination(get_file())
 
 
