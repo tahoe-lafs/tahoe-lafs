@@ -57,22 +57,23 @@ def eliot_logged_test(f):
 
     @wraps(f)
     def run_and_republish(self, *a, **kw):
+        # Unfortunately the only way to get at the global/default logger...
+        # This import is delayed here so that we get the *current* default
+        # logger at the time the decorated function is run.
+        from eliot._output import _DEFAULT_LOGGER as default_logger
+
         def republish():
             # This is called as a cleanup function after capture_logging has
             # restored the global/default logger to its original state.  We
             # can now emit messages that go to whatever global destinations
             # are installed.
 
-            # Unfortunately the only way to get at the global/default
-            # logger...
-            from eliot._output import _DEFAULT_LOGGER as logger
-
             # storage.logger.serialize() seems like it would make more sense
             # than storage.logger.messages here.  However, serialize()
             # explodes, seemingly as a result of double-serializing the logged
             # messages.  I don't understand this.
             for msg in storage.logger.messages:
-                logger.write(msg)
+                default_logger.write(msg)
 
             # And now that we've re-published all of the test's messages, we
             # can finish the test's action.

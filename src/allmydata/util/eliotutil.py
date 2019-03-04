@@ -343,6 +343,7 @@ class _EliotLogging(Service):
         self.twisted_observer = _TwistedLoggerToEliotObserver()
         globalLogPublisher.addObserver(self.twisted_observer)
         add_destinations(*self.destinations)
+        return Service.startService(self)
 
 
     def stopService(self):
@@ -350,7 +351,7 @@ class _EliotLogging(Service):
             remove_destination(dest)
         globalLogPublisher.removeObserver(self.twisted_observer)
         self.stdlib_cleanup()
-
+        return Service.stopService(self)
 
 
 @implementer(ILogObserver)
