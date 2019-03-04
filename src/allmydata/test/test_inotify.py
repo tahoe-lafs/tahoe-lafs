@@ -116,6 +116,11 @@ class INotifyTests(AsyncTestCase):
         return self._notificationTest(inotify.IN_CLOSE_WRITE, operation)
 
 
+    # The watchdog implementation makes it difficult to get this event.  Also,
+    # the magic-folder implementation doesn't really *need* exactly this
+    # event.  It would be nice to get some event on move, which watchdog gives
+    # us.  But this test is overly specific for our purposes.
+    @skip("not available on watchdog")
     def test_movedFrom(self):
         """
         Moving a file out of a monitored directory sends an
@@ -126,13 +131,10 @@ class INotifyTests(AsyncTestCase):
             path.moveTo(filepath.FilePath(self.mktemp()))
 
         return self._notificationTest(inotify.IN_MOVED_FROM, operation)
-    # The watchdog implementation makes it difficult to get this event.  Also,
-    # the magic-folder implementation doesn't really *need* exactly this
-    # event.  It would be nice to get some event on move, which watchdog gives
-    # us.  But this test is overly specific for our purposes.
-    test_movedFrom.skip = "not available on watchdog"
 
 
+    # Ditto the comment on test_movedFrom about watchdog here.
+    @skip("not available on watchdog")
     def test_movedTo(self):
         """
         Moving a file into a monitored directory sends an
@@ -144,8 +146,6 @@ class INotifyTests(AsyncTestCase):
             p.moveTo(path)
 
         return self._notificationTest(inotify.IN_MOVED_TO, operation)
-    # Ditto the comment on test_movedFrom about watchdog here.
-    test_movedTo.skip = "not available on watchdog"
 
 
     def test_delete(self):
@@ -274,6 +274,7 @@ class INotifyTests(AsyncTestCase):
         return d
 
 
+    @skip("Not gonna implement autoAdd")
     def test_complexSubdirectoryAutoAdd(self):
         """
         L{inotify.INotify} with autoAdd==True for a watched path
@@ -319,4 +320,3 @@ class INotifyTests(AsyncTestCase):
             filename.setContent(
                 filename.path.encode(sys.getfilesystemencoding()))
         return d
-    test_complexSubdirectoryAutoAdd.skip = "Not gonna implement autoAdd"
