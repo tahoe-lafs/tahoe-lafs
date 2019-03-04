@@ -536,7 +536,7 @@ REMOVE_FROM_PENDING = ActionType(
 
 PATH = Field(
     u"path",
-    lambda fp: quote_filepath(fp),
+    lambda fp: fp.asTextMode().path,
     u"A local filesystem path.",
     eliotutil.validateInstanceOf(FilePath),
 )
