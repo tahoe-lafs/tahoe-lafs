@@ -183,7 +183,10 @@ class INotifyTests(AsyncTestCase):
             # delay our check of that watch state a bit.
             def _():
                 try:
-                    self.assertFalse(self.inotify._isWatched(subdir))
+                    self.assertFalse(
+                        self.inotify._isWatched(subdir),
+                        "{} not un-watched.  watches = {}".format(subdir, self.inotify._watches),
+                    )
                     d.callback(None)
                 except Exception:
                     d.errback()
@@ -196,7 +199,10 @@ class INotifyTests(AsyncTestCase):
             callbacks=[_callback],
             recursive=True,
         )
-        self.assertTrue(self.inotify._isWatched(subdir))
+        self.assertTrue(
+            self.inotify._isWatched(subdir),
+            "{} not watched.  watches = {}".format(subdir, self.inotify._watches),
+        )
         subdir.remove()
 
         return d
