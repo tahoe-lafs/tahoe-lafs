@@ -185,7 +185,7 @@ def dispatch(config,
     return d
 
 def _maybe_enable_eliot_logging(options, reactor):
-    if options["destinations"]:
+    if options.get("destinations"):
         service = eliot_logging_service(reactor, options["destinations"])
         # There is no Twisted "Application" around to hang this on so start
         # and stop it ourselves.
