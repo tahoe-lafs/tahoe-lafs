@@ -13,6 +13,7 @@ from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, 
 from allmydata.util.eliotutil import (
     opt_eliot_destination,
     opt_help_eliot_destinations,
+    eliot_logging_service,
 )
 
 def GROUP(s):
@@ -183,13 +184,28 @@ def dispatch(config,
     d.addCallback(_raise_sys_exit)
     return d
 
+def _maybe_enable_eliot_logging(options, reactor):
+    if options["destinations"]:
+        service = eliot_logging_service(reactor, options["destinations"])
+        # There is no Twisted "Application" around to hang this on so start
+        # and stop it ourselves.
+        service.startService()
+        reactor.addSystemEventTrigger("after", "shutdown", service.stopService)
+    # Pass on the options so we can dispatch the subcommand.
+    return options
+
 def run():
     assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
 
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize
         initialize()
+    # doesn't return: calls sys.exit(rc)
+    task.react(_run_with_reactor)
+
+def _run_with_reactor(reactor):
     d = defer.maybeDeferred(parse_or_exit_with_explanation, sys.argv[1:])
+    d.addCallback(_maybe_enable_eliot_logging, reactor)
     d.addCallback(dispatch)
     def _show_exception(f):
         # when task.react() notices a non-SystemExit exception, it does
@@ -201,7 +217,7 @@ def run():
         f.printTraceback(file=sys.stderr)
         sys.exit(1)
     d.addErrback(_show_exception)
-    task.react(lambda _reactor: d) # doesn't return: calls sys.exit(rc)
+    return d
 
 if __name__ == "__main__":
     run()
