@@ -35,12 +35,12 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         d = self.do_cli("magic-folder", "--debug", "create", "magic:", client_num=client_num)
         def _done((rc,stdout,stderr)):
             self.failUnlessEqual(rc, 0, stdout + stderr)
-            self.failUnlessIn("Alias 'magic' created", stdout)
+            self.assertIn("Alias 'magic' created", stdout)
 #            self.failUnlessIn("joined new magic-folder", stdout)
 #            self.failUnlessIn("Successfully created magic-folder", stdout)
             self.failUnlessEqual(stderr, "")
             aliases = get_aliases(self.get_clientdir(i=client_num))
-            self.failUnlessIn("magic", aliases)
+            self.assertIn("magic", aliases)
             self.failUnless(aliases["magic"].startswith("URI:DIR2:"))
         d.addCallback(_done)
         return d
@@ -125,8 +125,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         mf_yaml = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "private", "magic_folders.yaml"))
         local_dir_utf8 = local_dir.encode('utf-8')
         magic_folder_config = "[magic_folder]\nenabled = True"
-        self.failUnlessIn(magic_folder_config, client_config)
-        self.failUnlessIn(local_dir_utf8, mf_yaml)
+        self.assertIn(magic_folder_config, client_config)
+        self.assertIn(local_dir_utf8, mf_yaml)
 
     def create_invite_join_magic_folder(self, nickname, local_dir):
         nickname_arg = unicode_to_argv(nickname)

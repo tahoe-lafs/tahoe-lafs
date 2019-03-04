@@ -20,7 +20,11 @@ from allmydata.util.encodingutil import get_filesystem_encoding, to_filepath
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ReallyEqualMixin
-from allmydata.test.common import ShouldFailMixin
+from .common import (
+    ShouldFailMixin,
+    SyncTestCase,
+    AsyncTestCase,
+)
 from .cli.test_magic_folder import MagicFolderCLITestMixin
 
 from allmydata.frontends import magic_folder
@@ -36,9 +40,6 @@ from allmydata.mutable.common import (
         UnrecoverableFileError,
 )
 
-from .eliotutil import (
-    eliot_logged_test,
-)
 from ..util.eliotutil import (
     inline_callbacks,
     log_call_deferred,
@@ -47,22 +48,7 @@ from ..util.eliotutil import (
 _debug = False
 
 
-class TestCase(unittest.TestCase):
-    """
-    A ``TestCase`` which collects helpful behaviors for subclasses.
-
-    Those behaviors are:
-
-    * Each test method will be run in a unique Eliot action context which
-      identifies the test and collects all Eliot log messages emitted by that
-      test (including setUp and tearDown messages).
-    """
-    @eliot_logged_test
-    def run(self, result):
-        return super(TestCase, self).run(result)
-
-
-class NewConfigUtilTests(TestCase):
+class NewConfigUtilTests(SyncTestCase):
 
     def setUp(self):
         # some tests look at the umask of created directories or files
@@ -269,7 +255,7 @@ class NewConfigUtilTests(TestCase):
         )
 
 
-class LegacyConfigUtilTests(TestCase):
+class LegacyConfigUtilTests(SyncTestCase):
 
     def setUp(self):
         # create a valid 'old style' magic-folder configuration
@@ -413,7 +399,7 @@ class LegacyConfigUtilTests(TestCase):
 
 
 
-class MagicFolderDbTests(TestCase):
+class MagicFolderDbTests(SyncTestCase):
 
     def setUp(self):
         self.temp = abspath_expanduser_unicode(unicode(self.mktemp()))
@@ -1471,7 +1457,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
     """
 
     def setUp(self):
-        super(SingleMagicFolderTestMixin, self).setUp()
+        self.assertIs(None, super(SingleMagicFolderTestMixin, self).setUp())
         temp = self.mktemp()
         self.basedir = abspath_expanduser_unicode(temp.decode(get_filesystem_encoding()))
         self.magicfolder = None
@@ -1575,12 +1561,12 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         pathinfo = fileutil.get_pathinfo(path2)
         db.did_upload_version(relpath2, 0, 'URI:LIT:2', 'URI:LIT:1', 0, pathinfo)
         db_entry = db.get_db_entry(relpath2)
-        self.failUnlessFalse(magic_folder.is_new_file(pathinfo, db_entry))
+        self.assertFalse(magic_folder.is_new_file(pathinfo, db_entry))
 
         different_pathinfo = fileutil.PathInfo(isdir=False, isfile=True, islink=False,
                                                exists=True, size=0, mtime_ns=pathinfo.mtime_ns,
                                                ctime_ns=pathinfo.ctime_ns)
-        self.failUnlessTrue(magic_folder.is_new_file(different_pathinfo, db_entry))
+        self.assertTrue(magic_folder.is_new_file(different_pathinfo, db_entry))
 
     def _test_magicfolder_start_service(self):
         # what is this even testing?
@@ -1854,25 +1840,23 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         return d.result
 
 
-class MockTestAliceBob(MagicFolderAliceBobTestMixin, TestCase):
+class MockTestAliceBob(MagicFolderAliceBobTestMixin, AsyncTestCase):
     inject_inotify = True
 
     def setUp(self):
-        d = super(MockTestAliceBob, self).setUp()
         self.inotify = fake_inotify
         self.patch(magic_folder, 'get_inotify_module', lambda: self.inotify)
-        return d
+        return super(MockTestAliceBob, self).setUp()
 
 
-class MockTest(SingleMagicFolderTestMixin, TestCase):
+class MockTest(SingleMagicFolderTestMixin, AsyncTestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
     inject_inotify = True
 
     def setUp(self):
-        d = super(MockTest, self).setUp()
         self.inotify = fake_inotify
         self.patch(magic_folder, 'get_inotify_module', lambda: self.inotify)
-        return d
+        return super(MockTest, self).setUp()
 
     def test_errors(self):
         self.set_up_grid(oneshare=True)
@@ -1993,28 +1977,28 @@ class MockTest(SingleMagicFolderTestMixin, TestCase):
         # test magic-folder statistics
         d.addCallback(lambda res: self.GET("statistics"))
         def _got_stats(res):
-            self.failUnlessIn("Operational Statistics", res)
-            self.failUnlessIn("Magic Folder", res)
-            self.failUnlessIn("<li>Local Directories Monitored: 1 directories</li>", res)
-            self.failUnlessIn("<li>Files Uploaded: 1 files</li>", res)
-            self.failUnlessIn("<li>Files Queued for Upload: 0 files</li>", res)
-            self.failUnlessIn("<li>Failed Uploads: 0 files</li>", res)
-            self.failUnlessIn("<li>Files Downloaded: 0 files</li>", res)
-            self.failUnlessIn("<li>Files Queued for Download: 0 files</li>", res)
-            self.failUnlessIn("<li>Failed Downloads: 0 files</li>", res)
+            self.assertIn("Operational Statistics", res)
+            self.assertIn("Magic Folder", res)
+            self.assertIn("<li>Local Directories Monitored: 1 directories</li>", res)
+            self.assertIn("<li>Files Uploaded: 1 files</li>", res)
+            self.assertIn("<li>Files Queued for Upload: 0 files</li>", res)
+            self.assertIn("<li>Failed Uploads: 0 files</li>", res)
+            self.assertIn("<li>Files Downloaded: 0 files</li>", res)
+            self.assertIn("<li>Files Queued for Download: 0 files</li>", res)
+            self.assertIn("<li>Failed Downloads: 0 files</li>", res)
         d.addCallback(_got_stats)
         d.addCallback(lambda res: self.GET("statistics?t=json"))
         def _got_stats_json(res):
             data = json.loads(res)
-            self.failUnlessEqual(data["counters"]["magic_folder.uploader.dirs_monitored"], 1)
-            self.failUnlessEqual(data["counters"]["magic_folder.uploader.objects_succeeded"], 1)
-            self.failUnlessEqual(data["counters"]["magic_folder.uploader.files_uploaded"], 1)
-            self.failUnlessEqual(data["counters"]["magic_folder.uploader.objects_queued"], 0)
+            self.assertEqual(data["counters"]["magic_folder.uploader.dirs_monitored"], 1)
+            self.assertEqual(data["counters"]["magic_folder.uploader.objects_succeeded"], 1)
+            self.assertEqual(data["counters"]["magic_folder.uploader.files_uploaded"], 1)
+            self.assertEqual(data["counters"]["magic_folder.uploader.objects_queued"], 0)
         d.addCallback(_got_stats_json)
         return d.result
 
 
-class RealTest(SingleMagicFolderTestMixin, TestCase):
+class RealTest(SingleMagicFolderTestMixin, AsyncTestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
     inject_inotify = False
 
@@ -2024,7 +2008,7 @@ class RealTest(SingleMagicFolderTestMixin, TestCase):
         return d
 
 
-class RealTestAliceBob(MagicFolderAliceBobTestMixin, TestCase):
+class RealTestAliceBob(MagicFolderAliceBobTestMixin, AsyncTestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
     inject_inotify = False
 
