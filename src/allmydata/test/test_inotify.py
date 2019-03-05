@@ -168,7 +168,7 @@ class INotifyTests(AsyncTestCase):
         return notified
 
 
-    @skipIf("watchdog is differently recursive")
+    @skip("watchdog is differently recursive")
     def test_simpleDeleteDirectory(self):
         """
         L{inotify.INotify} removes a directory from the watchlist when
