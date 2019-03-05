@@ -73,7 +73,7 @@ MAYBE_NOTIFY = ActionType(
 
 _EVENT = Field(
     u"event",
-    lambda e: e.event_type,
+    lambda e: e.__class__.__name__,
     u"The watchdog event that has taken place.",
     validateInstanceOf(FileSystemEvent),
 )
