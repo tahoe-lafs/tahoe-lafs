@@ -1334,14 +1334,26 @@ class Uploader(QueueMixin):
             MAYBE_UPLOAD.log(relpath=relpath_u)
             if now is None:
                 now = time.time()
-            fp = self._get_filepath(relpath_u)
-            pathinfo = get_pathinfo(unicode_from_filepath(fp))
-
             try:
+                # Take this item out of the pending set before we do any
+                # I/O-based processing related to it.  If a further change
+                # takes place after we remove it from this set, we want it to
+                # end up in the set again.  If we haven't gotten around to
+                # doing the I/O-based processing yet then the worst that will
+                # happen is we'll do a little redundant processing.
+                #
+                # If we did it the other way around, the sequence of events
+                # might be something like: we do some I/O, someone else does
+                # some I/O, a notification gets discarded because the path is
+                # still in the pending set, _then_ we remove it from the
+                # pending set.  In such a circumstance, we've missed some I/O
+                # that we should have responded to.
                 with REMOVE_FROM_PENDING(relpath=relpath_u, pending=self._pending):
                     self._pending.remove(relpath_u)
             except KeyError:
                 pass
+            fp = self._get_filepath(relpath_u)
+            pathinfo = get_pathinfo(unicode_from_filepath(fp))
             encoded_path_u = magicpath.path2magic(relpath_u)
 
             if not pathinfo.exists:
