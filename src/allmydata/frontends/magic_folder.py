@@ -546,6 +546,12 @@ NOTIFIED_OBJECT_DISAPPEARED = MessageType(
     u"A path which generated a notification was not found on the filesystem.  This is normal.",
 )
 
+NO_DATABASE_ENTRY = MessageType(
+    u"magic-folder:no-database-entry",
+    [],
+    u"There is no local database entry for a particular relative path in the magic folder.",
+)
+
 NOT_UPLOADING = MessageType(
     u"magic-folder:not-uploading",
     [],
@@ -1335,6 +1341,7 @@ class Uploader(QueueMixin):
 
                 db_entry = self._db.get_db_entry(relpath_u)
                 if db_entry is None:
+                    NO_DATABASE_ENTRY.log()
                     return False
 
                 last_downloaded_timestamp = now  # is this correct?
