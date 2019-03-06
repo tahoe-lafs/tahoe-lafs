@@ -1683,6 +1683,8 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
             self.file_path = abspath_expanduser_unicode(u"file3", base=self.alice_magicfolder.uploader._local_path_u)
             yield self.alice_fileops.write(self.file_path, "something")
             yield iterate(self.alice_magicfolder)
+            # Make sure Bob gets the file before we do anything else.
+            yield iterate(self.bob_magicfolder)
         d.addCallback(_wait_for, Alice_to_write_file3)
 
         @log_call_deferred(action_type=u"check_state")
