@@ -612,8 +612,6 @@ class FileOperationsHelper(object):
     propagate. For the mock tests this is easy, since we're sending
     them sychronously. For the Real tests we have to wait for the
     actual inotify thing.
-
-    We could write this as a mixin instead; might fit existing style better?
     """
     _timeout = 5.0
 
