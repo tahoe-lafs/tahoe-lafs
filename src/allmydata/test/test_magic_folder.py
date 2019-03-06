@@ -613,6 +613,7 @@ class FileOperationsHelper(object):
     them sychronously. For the Real tests we have to wait for the
     actual inotify thing.
     """
+    _timeout = 5.0
 
     def __init__(self, uploader, inject_events=False):
         self._uploader = uploader
@@ -644,7 +645,7 @@ class FileOperationsHelper(object):
             f.write(contents)
 
         self._maybe_notify(fname, self._inotify.IN_CLOSE_WRITE)
-        return d
+        return d.addTimeout(self._timeout, reactor)
 
     @log_call_deferred(action_type=u"fileops:mkdir")
     def mkdir(self, path_u):
@@ -652,7 +653,7 @@ class FileOperationsHelper(object):
         d = self._uploader.set_hook('inotify')
         os.mkdir(fname)
         self._maybe_notify(fname, self._inotify.IN_CREATE | self._inotify.IN_ISDIR)
-        return d
+        return d.addTimeout(self._timeout, reactor)
 
     @log_call_deferred(action_type=u"fileops:delete")
     def delete(self, path_u):
