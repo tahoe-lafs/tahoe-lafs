@@ -1321,11 +1321,11 @@ class Uploader(QueueMixin):
             d = DeferredContext(defer.succeed(False))
 
             relpath_u = item.relpath_u
-            item.set_status('started', self._clock.seconds())
 
             if relpath_u is None:
                 item.set_status('invalid_path', self._clock.seconds())
                 return d.addActionFinish()
+            item.set_status('started', self._clock.seconds())
 
             precondition(isinstance(relpath_u, unicode), relpath_u)
             precondition(not relpath_u.endswith(u'/'), relpath_u)
