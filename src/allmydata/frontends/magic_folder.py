@@ -1732,12 +1732,21 @@ class Downloader(QueueMixin, WriteFileMixin):
         file node and metadata for the latest version of the file located in the
         magic-folder collective directory.
         """
-        collective_dirmap_d = self._collective_dirnode.list()
+        action = start_action(
+            action_type=u"magic-folder:downloader:get-latest-file",
+            name=filename,
+        )
+        with action.context():
+            collective_dirmap_d = DeferredContext(self._collective_dirnode.list())
         def scan_collective(result):
+            Message.log(
+                message_type=u"magic-folder:downloader:get-latest-file:collective-scan",
+                dmds=result.keys(),
+            )
             list_of_deferreds = []
             for dir_name in result.keys():
                 # XXX make sure it's a directory
-                d = defer.succeed(None)
+                d = DeferredContext(defer.succeed(None))
                 d.addCallback(lambda x, dir_name=dir_name: result[dir_name][0].get_child_and_metadata(filename))
                 list_of_deferreds.append(d)
             deferList = defer.DeferredList(list_of_deferreds, consumeErrors=True)
@@ -1749,12 +1758,18 @@ class Downloader(QueueMixin, WriteFileMixin):
             node = None
             for success, result in deferredList:
                 if success:
+                    Message.log(
+                        message_type=u"magic-folder:downloader:get-latest-file:version",
+                        version=result[1]['version'],
+                    )
                     if node is None or result[1]['version'] > max_version:
                         node, metadata = result
                         max_version = result[1]['version']
+                else:
+                    write_traceback()
             return node, metadata
         collective_dirmap_d.addCallback(highest_version)
-        return collective_dirmap_d
+        return collective_dirmap_d.addActionFinish()
 
     def _scan_remote_dmd(self, nickname, dirnode, scan_batch):
         with SCAN_REMOTE_DMD(nickname=nickname).context():
