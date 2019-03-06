@@ -522,10 +522,11 @@ MAYBE_UPLOAD = MessageType(
     u"A decision is being made about whether to upload a file.",
 )
 
-PENDING = Field.for_types(
+PENDING = Field(
     u"pending",
-    [list],
+    lambda s: list(s),
     u"The paths which are pending processing.",
+    eliotutil.validateInstanceOf(set),
 )
 
 REMOVE_FROM_PENDING = ActionType(
@@ -1337,7 +1338,7 @@ class Uploader(QueueMixin):
             pathinfo = get_pathinfo(unicode_from_filepath(fp))
 
             try:
-                with REMOVE_FROM_PENDING(relpath=relpath_u, pending=list(self._pending)):
+                with REMOVE_FROM_PENDING(relpath=relpath_u, pending=self._pending):
                     self._pending.remove(relpath_u)
             except KeyError:
                 pass
