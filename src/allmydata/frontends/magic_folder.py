@@ -1346,9 +1346,10 @@ class Uploader(QueueMixin):
                 NOTIFIED_OBJECT_DISAPPEARED.log(path=fp)
                 self._count('objects_disappeared')
 
-                with PROPAGATE_DIRECTORY_DELETION():
-                    for localpath in self._db.get_direct_children(relpath_u):
-                        self._add_pending(localpath.relpath_u)
+                if pathinfo.isdir:
+                    with PROPAGATE_DIRECTORY_DELETION():
+                        for localpath in self._db.get_direct_children(relpath_u):
+                            self._add_pending(localpath.relpath_u)
 
                 db_entry = self._db.get_db_entry(relpath_u)
                 if db_entry is None:
