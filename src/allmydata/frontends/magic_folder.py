@@ -546,6 +546,13 @@ NOTIFIED_OBJECT_DISAPPEARED = MessageType(
     u"A path which generated a notification was not found on the filesystem.  This is normal.",
 )
 
+PROPAGATE_DIRECTORY_DELETION = ActionType(
+    u"magic-folder:propagate-directory-deletion",
+    [],
+    [],
+    u"Children of a deleted directory are being queued for upload processing.",
+)
+
 NO_DATABASE_ENTRY = MessageType(
     u"magic-folder:no-database-entry",
     [],
@@ -1338,6 +1345,10 @@ class Uploader(QueueMixin):
                 # FIXME merge this with the 'isfile' case.
                 NOTIFIED_OBJECT_DISAPPEARED.log(path=fp)
                 self._count('objects_disappeared')
+
+                with PROPAGATE_DIRECTORY_DELETION():
+                    for localpath in self._db.get_direct_children(relpath_u):
+                        self._add_pending(localpath.relpath_u)
 
                 db_entry = self._db.get_db_entry(relpath_u)
                 if db_entry is None:
