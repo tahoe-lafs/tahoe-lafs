@@ -3,7 +3,7 @@ import os, sys, time
 import stat, shutil, json
 import mock
 from os.path import join, exists, isdir
-from errno import ENOENT
+from errno import ENOENT, EISDIR
 
 from twisted.internet import defer, task, reactor
 from twisted.python.runtime import platform
@@ -659,7 +659,13 @@ class FileOperationsHelper(object):
     def delete(self, path_u):
         fname = path_u
         d = self._uploader.set_hook('inotify')
-        os.unlink(fname)
+        try:
+            os.unlink(fname)
+        except OSError as e:
+            if e.errno == EISDIR:
+                os.rmdir(fname)
+            else:
+                raise
 
         self._maybe_notify(fname, self._inotify.IN_DELETE)
         return d.addTimeout(self._timeout, reactor)
