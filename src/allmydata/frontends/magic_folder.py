@@ -1377,10 +1377,10 @@ class Uploader(QueueMixin):
                     # there's nothing more to do.
                     return False
 
-                # if pathinfo.isdir:
-                #     with PROPAGATE_DIRECTORY_DELETION():
-                #         for localpath in self._db.get_direct_children(relpath_u):
-                #             self._add_pending(localpath.relpath_u)
+                if pathinfo.isdir or db_entry_is_dir:
+                    with PROPAGATE_DIRECTORY_DELETION():
+                        for localpath in self._db.get_direct_children(relpath_u):
+                            self._add_pending(localpath.relpath_u)
 
                 last_downloaded_timestamp = now  # is this correct?
 
