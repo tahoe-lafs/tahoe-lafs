@@ -751,8 +751,17 @@ class CheckerMixin(object):
         self.assertTrue(not os.path.exists(path))
 
     def _check_uploader_count(self, name, expected, magic=None):
-        self.failUnlessReallyEqual(self._get_count('uploader.'+name, client=(magic or self.alice_magicfolder)._client),
-                                   expected)
+        if magic is None:
+            magic = self.alice_magicfolder
+        self.failUnlessReallyEqual(
+            self._get_count(
+                'uploader.'+name,
+                client=magic._client,
+            ),
+            expected,
+            "Pending: {}\n"
+            "Deque:   {}\n".format(magic.uploader._pending, magic.uploader._deque),
+        )
 
     def _check_downloader_count(self, name, expected, magic=None):
         self.failUnlessReallyEqual(self._get_count('downloader.'+name, client=(magic or self.bob_magicfolder)._client),
