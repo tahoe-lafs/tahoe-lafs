@@ -1321,6 +1321,7 @@ class Uploader(QueueMixin):
             relpath_u = item.relpath_u
             precondition(isinstance(relpath_u, unicode), relpath_u)
             precondition(not relpath_u.endswith(u'/'), relpath_u)
+            encoded_path_u = magicpath.path2magic(relpath_u)
 
             d = DeferredContext(defer.succeed(False))
             if relpath_u is None:
@@ -1328,11 +1329,6 @@ class Uploader(QueueMixin):
                 return d.addActionFinish()
             item.set_status('started', self._clock.seconds())
 
-
-        def _maybe_upload(ign, now=None):
-            MAYBE_UPLOAD.log(relpath=relpath_u)
-            if now is None:
-                now = time.time()
             try:
                 # Take this item out of the pending set before we do any
                 # I/O-based processing related to it.  If a further change
@@ -1351,24 +1347,40 @@ class Uploader(QueueMixin):
                     self._pending.remove(relpath_u)
             except KeyError:
                 pass
+
             fp = self._get_filepath(relpath_u)
             pathinfo = get_pathinfo(unicode_from_filepath(fp))
-            encoded_path_u = magicpath.path2magic(relpath_u)
+
+            db_entry_is_dir = False
+            db_entry = self._db.get_db_entry(relpath_u)
+            if db_entry is None:
+                # Maybe it was a directory!
+                db_entry = self._db.get_db_entry(relpath_u + u"/")
+                if db_entry is None:
+                    NO_DATABASE_ENTRY.log()
+                else:
+                    db_entry_is_dir = True
+
+        def _maybe_upload(ign, now=None):
+            MAYBE_UPLOAD.log(relpath=relpath_u)
+            if now is None:
+                now = time.time()
 
             if not pathinfo.exists:
                 # FIXME merge this with the 'isfile' case.
                 NOTIFIED_OBJECT_DISAPPEARED.log(path=fp)
                 self._count('objects_disappeared')
 
-                if pathinfo.isdir:
-                    with PROPAGATE_DIRECTORY_DELETION():
-                        for localpath in self._db.get_direct_children(relpath_u):
-                            self._add_pending(localpath.relpath_u)
-
-                db_entry = self._db.get_db_entry(relpath_u)
                 if db_entry is None:
-                    NO_DATABASE_ENTRY.log()
+                    # If it exists neither on the filesystem nor in the
+                    # database, it's neither a creation nor a deletion and
+                    # there's nothing more to do.
                     return False
+
+                # if pathinfo.isdir:
+                #     with PROPAGATE_DIRECTORY_DELETION():
+                #         for localpath in self._db.get_direct_children(relpath_u):
+                #             self._add_pending(localpath.relpath_u)
 
                 last_downloaded_timestamp = now  # is this correct?
 
@@ -1413,9 +1425,17 @@ class Uploader(QueueMixin):
                 if db_entry.last_uploaded_uri is not None:
                     metadata['last_uploaded_uri'] = db_entry.last_uploaded_uri
 
+                if db_entry_is_dir:
+                    real_encoded_path_u = encoded_path_u + magicpath.path2magic(u"/")
+                    real_relpath_u = relpath_u + u"/"
+                else:
+                    real_encoded_path_u = encoded_path_u
+                    real_relpath_u = relpath_u
+
                 empty_uploadable = Data("", self._client.convergence)
                 d2 = DeferredContext(self._upload_dirnode.add_file(
-                    encoded_path_u, empty_uploadable,
+                    real_encoded_path_u,
+                    empty_uploadable,
                     metadata=metadata,
                     overwrite=True,
                     progress=item.progress,
@@ -1428,7 +1448,7 @@ class Uploader(QueueMixin):
                     # immediately re-download it when we start up next
                     last_downloaded_uri = metadata.get('last_downloaded_uri', filecap)
                     self._db.did_upload_version(
-                        relpath_u,
+                        real_relpath_u,
                         new_version,
                         filecap,
                         last_downloaded_uri,
@@ -1446,31 +1466,36 @@ class Uploader(QueueMixin):
                 if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
                     self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
 
-                db_entry = self._db.get_db_entry(relpath_u)
                 DIRECTORY_PATHENTRY.log(pathentry=db_entry)
                 if not is_new_file(pathinfo, db_entry):
                     NOT_NEW_DIRECTORY.log()
                     return False
 
                 uploadable = Data("", self._client.convergence)
-                encoded_path_u += magicpath.path2magic(u"/")
                 with PROCESS_DIRECTORY().context() as action:
                     upload_d = DeferredContext(self._upload_dirnode.add_file(
-                        encoded_path_u, uploadable,
+                        encoded_path_u + magicpath.path2magic(u"/"),
+                        uploadable,
                         metadata={"version": 0},
                         overwrite=True,
                         progress=item.progress,
                     ))
-                def _dir_succeeded(ign):
+                def _dir_succeeded(dirnode):
                     action.add_success_fields(created_directory=relpath_u)
                     self._count('directories_created')
+                    self._db.did_upload_version(
+                        relpath_u + u"/",
+                        version=0,
+                        last_uploaded_uri=dirnode.get_uri(),
+                        last_downloaded_uri=None,
+                        last_downloaded_timestamp=now,
+                        pathinfo=pathinfo,
+                    )
                 upload_d.addCallback(_dir_succeeded)
                 upload_d.addCallback(lambda ign: self._scan(relpath_u))
                 upload_d.addCallback(lambda ign: True)
                 return upload_d.addActionFinish()
             elif pathinfo.isfile:
-                db_entry = self._db.get_db_entry(relpath_u)
-
                 last_downloaded_timestamp = now
 
                 if db_entry is None:
