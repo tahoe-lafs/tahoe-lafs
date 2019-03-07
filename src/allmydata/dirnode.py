@@ -25,6 +25,39 @@ from allmydata.uri import wrap_dirnode_cap
 from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
 
+from eliot import (
+    ActionType,
+    Field,
+)
+from eliot.twisted import (
+    DeferredContext,
+)
+
+NAME = Field.for_types(
+    u"name",
+    [unicode],
+    u"The name linking the parent to this node.",
+)
+
+METADATA = Field.for_types(
+    u"metadata",
+    [dict],
+    u"Data about a node.",
+)
+
+OVERWRITE = Field.for_types(
+    u"overwrite",
+    [bool],
+    u"True to replace an existing file of the same name, "
+    u"false to fail with a collision error.",
+)
+
+ADD_FILE = ActionType(
+    u"dirnode:add-file",
+    [NAME, METADATA, OVERWRITE],
+    [],
+    u"Add a new file as a child of a directory.",
+)
 
 def update_metadata(metadata, new_metadata, now):
     """Updates 'metadata' in-place with the information in 'new_metadata'.
@@ -596,17 +629,20 @@ class DirectoryNode(object):
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
         the operation completes."""
-        name = normalize(namex)
-        if self.is_readonly():
-            return defer.fail(NotWriteableError())
-        # XXX should pass reactor arg
-        d = self._uploader.upload(uploadable, progress=progress)
-        d.addCallback(lambda results:
-                      self._create_and_validate_node(results.get_uri(), None,
-                                                     name))
-        d.addCallback(lambda node:
-                      self.set_node(name, node, metadata, overwrite))
-        return d
+        with ADD_FILE(name=namex, metadata=metadata, overwrite=overwrite).context():
+            name = normalize(namex)
+            if self.is_readonly():
+                d = DeferredContext(defer.fail(NotWriteableError()))
+            else:
+                # XXX should pass reactor arg
+                d = DeferredContext(self._uploader.upload(uploadable, progress=progress))
+                d.addCallback(lambda results:
+                              self._create_and_validate_node(results.get_uri(), None,
+                                                             name))
+                d.addCallback(lambda node:
+                              self.set_node(name, node, metadata, overwrite))
+
+        return d.addActionFinish()
 
     def delete(self, namex, must_exist=True, must_be_directory=False, must_be_file=False):
         """I remove the child at the specific name. I return a Deferred that
