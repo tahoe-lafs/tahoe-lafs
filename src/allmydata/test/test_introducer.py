@@ -9,7 +9,6 @@ from testtools.matchers import (
     Is,
 )
 
-from twisted.trial import unittest
 from twisted.internet import defer, address
 from twisted.python import log
 from twisted.python.filepath import FilePath
