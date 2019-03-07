@@ -66,7 +66,8 @@ class NewConfigUtilTests(TestCase):
     def setUp(self):
         # some tests look at the umask of created directories or files
         # so we set an explicit one
-        self._old_umask = os.umask(0o022)
+        old_umask = os.umask(0o022)
+        self.addCleanup(lambda: os.umask(old_umask))
         self.basedir = abspath_expanduser_unicode(unicode(self.mktemp()))
         os.mkdir(self.basedir)
         self.local_dir = abspath_expanduser_unicode(unicode(self.mktemp()))
@@ -95,9 +96,7 @@ class NewConfigUtilTests(TestCase):
         )
         # ..and the yaml
         self.write_magic_folder_config(self.basedir, self.folders)
-
-    def tearDown(self):
-        os.umask(self._old_umask)
+        return super(NewConfigUtilTests, self).setUp()
 
     def write_tahoe_config(self, basedir, tahoe_config):
         with open(join(basedir, u"tahoe.cfg"), "w") as f:
@@ -302,6 +301,7 @@ class LegacyConfigUtilTests(TestCase):
             f.write("{}\n".format(self.magic_folder_dircap))
         with open(join(privdir, "magicfolderdb.sqlite"), "w") as f:
             pass
+        return super(LegacyConfigUtilTests, self).setUp()
 
     def test_load_legacy_no_dir(self):
         expected = self.local_dir + 'foo'
@@ -417,16 +417,13 @@ class MagicFolderDbTests(TestCase):
     def setUp(self):
         self.temp = abspath_expanduser_unicode(unicode(self.mktemp()))
         os.mkdir(self.temp)
+        self.addCleanup(lambda: shutil.rmtree(self.temp))
         dbfile = abspath_expanduser_unicode(u"testdb.sqlite", base=self.temp)
         self.db = magicfolderdb.get_magicfolderdb(dbfile, create_version=(magicfolderdb.SCHEMA_v1, 1))
+        self.addCleanup(lambda: self.db.close())
         self.failUnless(self.db, "unable to create magicfolderdb from %r" % (dbfile,))
         self.failUnlessEqual(self.db.VERSION, 1)
-
-    def tearDown(self):
-        if hasattr(self, 'db'):
-            self.db.close()
-        shutil.rmtree(self.temp)
-        return super(MagicFolderDbTests, self).tearDown()
+        return super(MagicFolderDbTests, self).setUp()
 
     def test_create(self):
         self.db.did_upload_version(
