@@ -5,6 +5,10 @@ import json
 from socket import socket, AF_INET
 from mock import Mock, patch
 
+from testtools.matchers import (
+    Is,
+)
+
 from twisted.trial import unittest
 from twisted.internet import defer, address
 from twisted.python import log
@@ -34,6 +38,10 @@ from allmydata.client import (
 )
 from allmydata.util import pollmixin, keyutil, idlib, fileutil, iputil, yamlutil
 import allmydata.test.common_util as testutil
+from .common import (
+    AsyncTestCase,
+    SyncTestCase,
+)
 
 fcntl = requireModule("fcntl")
 
@@ -41,7 +49,7 @@ class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
         log.msg(msg, **kw)
 
-class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
+class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
 
     def test_backwards_compat_import(self):
         # for old introducer .tac files
@@ -143,7 +151,7 @@ class ServiceMixin(object):
         d.addCallback(flushEventualQueue)
         return d
 
-class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
+class Introducer(ServiceMixin, AsyncTestCase, pollmixin.PollMixin):
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
                               "my_version", "oldest_version", {}, fakeseq,
@@ -175,7 +183,7 @@ def make_ann_t(ic, furl, privkey, seqnum):
     ann_t = sign_to_foolscap(ann_d, privkey)
     return ann_t
 
-class Client(unittest.TestCase):
+class Client(AsyncTestCase):
     def test_duplicate_receive_v2(self):
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
@@ -284,7 +292,7 @@ class Client(unittest.TestCase):
         d.addCallback(_then5)
         return d
 
-class Server(unittest.TestCase):
+class Server(AsyncTestCase):
     def test_duplicate(self):
         i = IntroducerService()
         ic1 = IntroducerClient(None,
@@ -434,7 +442,7 @@ class SystemTestMixin(ServiceMixin, pollmixin.PollMixin):
         tub.setServiceParent(self.parent)
         self.central_portnum = listenOnUnused(tub, portnum)
 
-class Queue(SystemTestMixin, unittest.TestCase):
+class Queue(SystemTestMixin, AsyncTestCase):
     def test_queue_until_connected(self):
         self.basedir = "introducer/QueueUntilConnected/queued"
         os.makedirs(self.basedir)
@@ -484,7 +492,7 @@ class Queue(SystemTestMixin, unittest.TestCase):
         return d
 
 
-class SystemTest(SystemTestMixin, unittest.TestCase):
+class SystemTest(SystemTestMixin, AsyncTestCase):
 
     def do_system_test(self):
         self.create_tub()
@@ -779,7 +787,7 @@ class FakeRemoteReference:
     def getPeer(self): return address.IPv4Address("TCP", "remote.example.com",
                                                   3456)
 
-class ClientInfo(unittest.TestCase):
+class ClientInfo(AsyncTestCase):
     def test_client_v2(self):
         introducer = IntroducerService()
         tub = introducer_furl = None
@@ -801,7 +809,7 @@ class ClientInfo(unittest.TestCase):
         self.failUnlessEqual(s0.nickname, NICKNAME % u"v2")
         self.failUnlessEqual(s0.version, "my_version")
 
-class Announcements(unittest.TestCase):
+class Announcements(AsyncTestCase):
     def test_client_v2_signed(self):
         introducer = IntroducerService()
         tub = introducer_furl = None
@@ -818,7 +826,7 @@ class Announcements(unittest.TestCase):
         introducer.remote_publish_v2(ann_t0, canary0)
         a = introducer.get_announcements()
         self.failUnlessEqual(len(a), 1)
-        self.failUnlessIdentical(a[0].canary, canary0)
+        self.assertThat(a[0].canary, Is(canary0))
         self.failUnlessEqual(a[0].index, ("storage", pks))
         self.failUnlessEqual(a[0].announcement["app-versions"], app_versions)
         self.failUnlessEqual(a[0].nickname, u"nick-v2")
@@ -922,7 +930,7 @@ class Announcements(unittest.TestCase):
         self.assertEqual(c2.storage_broker.get_all_serverids(),
                          frozenset([pub1, pub2]))
 
-class ClientSeqnums(unittest.TestCase):
+class ClientSeqnums(AsyncTestCase):
 
     @defer.inlineCallbacks
     def test_client(self):
@@ -983,7 +991,7 @@ class TooNewServer(IntroducerService):
                 "application-version": "greetings from the crazy future",
                 }
 
-class NonV1Server(SystemTestMixin, unittest.TestCase):
+class NonV1Server(SystemTestMixin, AsyncTestCase):
     # if the client connects to a server that doesn't provide the 'v2'
     # protocol, it is supposed to provide a useful error instead of a weird
     # exception.
@@ -1022,7 +1030,7 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         d.addCallback(_done)
         return d
 
-class DecodeFurl(unittest.TestCase):
+class DecodeFurl(SyncTestCase):
     def test_decode(self):
         # make sure we have a working base64.b32decode. The one in
         # python2.4.[01] was broken.
@@ -1032,7 +1040,7 @@ class DecodeFurl(unittest.TestCase):
         nodeid = b32decode(m.group(1).upper())
         self.failUnlessEqual(nodeid, "\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d")
 
-class Signatures(unittest.TestCase):
+class Signatures(SyncTestCase):
     def test_sign(self):
         ann = {"key1": "value1"}
         sk_s,vk_s = keyutil.make_keypair()
