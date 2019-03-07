@@ -39,8 +39,9 @@ from allmydata.client import (
 from allmydata.util import pollmixin, keyutil, idlib, fileutil, iputil, yamlutil
 import allmydata.test.common_util as testutil
 from .common import (
-    AsyncTestCase,
     SyncTestCase,
+    AsyncTestCase,
+    AsyncBrokenTestCase,
 )
 
 fcntl = requireModule("fcntl")
@@ -930,7 +931,7 @@ class Announcements(AsyncTestCase):
         self.assertEqual(c2.storage_broker.get_all_serverids(),
                          frozenset([pub1, pub2]))
 
-class ClientSeqnums(AsyncTestCase):
+class ClientSeqnums(AsyncBrokenTestCase):
 
     @defer.inlineCallbacks
     def test_client(self):
