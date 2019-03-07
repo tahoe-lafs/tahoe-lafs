@@ -177,7 +177,6 @@ class TestMixin(SignalMixin):
             to without access to real randomness and real time.time from the
             code under test
         """
-        SignalMixin.setUp(self)
         self.repeatable = repeatable
         if self.repeatable:
             import repeatable_random
@@ -186,13 +185,14 @@ class TestMixin(SignalMixin):
             self.teststarttime = time.realtime()
         else:
             self.teststarttime = time.time()
+        return super(TestMixin, self).setUp()
 
     def tearDown(self):
-        SignalMixin.tearDown(self)
         if self.repeatable:
             import repeatable_random
             repeatable_random.restore_non_repeatability()
         self.clean_pending(required_to_quiesce=True)
+        return super(TestMixin, self).tearDown()
 
     def clean_pending(self, dummy=None, required_to_quiesce=True):
         """
