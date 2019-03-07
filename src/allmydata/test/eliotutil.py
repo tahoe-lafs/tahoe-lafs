@@ -2,6 +2,12 @@
 Tools aimed at the interaction between tests and Eliot.
 """
 
+__all__ = [
+    "RUN_TEST",
+    "EliotLoggedRunTest",
+    "eliot_logged_test",
+]
+
 from functools import (
     wraps,
     partial,
