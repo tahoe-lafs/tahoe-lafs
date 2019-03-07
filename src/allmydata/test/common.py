@@ -41,7 +41,7 @@ import allmydata.test.common_util as testutil
 from allmydata.immutable.upload import Uploader
 
 from .eliotutil import (
-    eliot_logged_test,
+    EliotLoggedRunTest,
 )
 
 
@@ -853,10 +853,6 @@ class _TestCaseMixin(object):
     * trial-compatible mktemp method
     * unittest2-compatible assertRaises helper
     """
-    @eliot_logged_test
-    def run(self, result):
-        return super(TestCase, self).run(result)
-
     def setUp(self):
         # Restore the original temporary directory.  Node ``init_tempdir``
         # mangles it and many tests manage to get that method called.
@@ -882,7 +878,9 @@ class SyncTestCase(_TestCaseMixin, TestCase):
     A ``TestCase`` which can run tests that may return an already-fired
     ``Deferred``.
     """
-    run_tests_with = SynchronousDeferredRunTest
+    run_tests_with = EliotLoggedRunTest.make_factory(
+        SynchronousDeferredRunTest,
+    )
 
 
 class AsyncTestCase(_TestCaseMixin, TestCase):
@@ -890,4 +888,7 @@ class AsyncTestCase(_TestCaseMixin, TestCase):
     A ``TestCase`` which can run tests that may return a Deferred that will
     only fire if the global reactor is running.
     """
-    run_tests_with = AsynchronousDeferredRunTest
+    run_tests_with = EliotLoggedRunTest.make_factory(
+        AsynchronousDeferredRunTest.make_factory(timeout=60.0),
+    )
+
