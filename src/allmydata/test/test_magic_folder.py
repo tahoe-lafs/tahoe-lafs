@@ -659,13 +659,11 @@ class FileOperationsHelper(object):
     def delete(self, path_u):
         fname = path_u
         d = self._uploader.set_hook('inotify')
-        try:
-            os.unlink(fname)
-        except OSError as e:
-            if e.errno == EISDIR:
-                os.rmdir(fname)
-            else:
-                raise
+        if os.path.isdir(fname):
+            remove = os.rmdir
+        else:
+            remove = os.unlink
+        remove(fname)
 
         self._maybe_notify(fname, self._inotify.IN_DELETE)
         return d.addTimeout(self._timeout, reactor)
