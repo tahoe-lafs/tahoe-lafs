@@ -120,7 +120,7 @@ class NonASCIIPathMixin:
         return unicode_name
 
 
-class SignalMixin:
+class SignalMixin(object):
     # This class is necessary for any code which wants to use Processes
     # outside the usual reactor.run() environment. It is copied from
     # Twisted's twisted.test.test_process . Note that Twisted-8.2.0 uses
@@ -134,10 +134,12 @@ class SignalMixin:
         if hasattr(reactor, "_handleSigchld") and hasattr(signal, "SIGCHLD"):
             self.sigchldHandler = signal.signal(signal.SIGCHLD,
                                                 reactor._handleSigchld)
+        return super(SignalMixin, self).setUp()
 
     def tearDown(self):
         if self.sigchldHandler:
             signal.signal(signal.SIGCHLD, self.sigchldHandler)
+        return super(SignalMixin, self).tearDown()
 
 class StallMixin:
     def stall(self, res=None, delay=1):
