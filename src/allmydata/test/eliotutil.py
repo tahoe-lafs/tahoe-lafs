@@ -2,7 +2,12 @@
 Tools aimed at the interaction between tests and Eliot.
 """
 
-from functools import wraps
+from functools import (
+    wraps,
+    partial,
+)
+
+import attr
 
 from eliot import (
     ActionType,
@@ -105,3 +110,37 @@ def eliot_logged_test(f):
             return d
 
     return run_and_republish
+
+
+@attr.s
+class EliotLoggedRunTest(object):
+    _run_tests_with_factory = attr.ib()
+    case = attr.ib()
+    handlers = attr.ib(default=None)
+    last_resort = attr.ib(default=None)
+
+    @classmethod
+    def make_factory(cls, delegated_run_test_factory):
+        return partial(cls, delegated_run_test_factory)
+
+    @property
+    def eliot_logger(self):
+        return self.case.eliot_logger
+
+    @eliot_logger.setter
+    def eliot_logger(self, value):
+        self.case.eliot_logger = value
+
+    def addCleanup(self, f):
+        return self.case.addCleanup(f)
+
+    def id(self):
+        return self.case.id()
+
+    @eliot_logged_test
+    def run(self, result=None):
+        return self._run_tests_with_factory(
+            self.case,
+            self.handlers,
+            self.last_resort,
+        ).run(result)
