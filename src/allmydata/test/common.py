@@ -12,8 +12,9 @@ from testtools import (
     TestCase,
 )
 from testtools.twistedsupport import (
-    AsynchronousDeferredRunTest,
     SynchronousDeferredRunTest,
+    AsynchronousDeferredRunTest,
+    AsynchronousDeferredRunTestForBrokenTwisted,
 )
 
 from twisted.internet import defer
@@ -892,3 +893,16 @@ class AsyncTestCase(_TestCaseMixin, TestCase):
         AsynchronousDeferredRunTest.make_factory(timeout=60.0),
     )
 
+
+class AsyncBrokenTestCase(_TestCaseMixin, TestCase):
+    """
+    A ``TestCase`` like ``AsyncTestCase`` but which spins the reactor a little
+    longer than apparently necessary to clean out lingering unaccounted for
+    event sources.
+
+    Tests which require this behavior are broken and should be fixed so they
+    pass with ``AsyncTestCase``.
+    """
+    run_tests_with = EliotLoggedRunTest.make_factory(
+        AsynchronousDeferredRunTestForBrokenTwisted.make_factory(timeout=60.0),
+    )
