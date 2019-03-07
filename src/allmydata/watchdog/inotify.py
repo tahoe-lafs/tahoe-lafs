@@ -53,6 +53,9 @@ from ..util.eliotutil import (
     validateInstanceOf,
 )
 
+import ._watchdog_541
+_watchdog_541.patch()
+
 NOT_STARTED = "NOT_STARTED"
 STARTED     = "STARTED"
 STOPPING    = "STOPPING"
