@@ -138,10 +138,9 @@ class ServiceMixin(object):
 
     def tearDown(self):
         log.msg("TestIntroducer.tearDown")
-        d = defer.succeed(None)
+        d = defer.maybeDeferred(super(ServiceMixin, self).tearDown)
         d.addCallback(lambda res: self.parent.stopService())
         d.addCallback(flushEventualQueue)
-        d.addCallback(lambda ignored: super(ServiceMixin, self).tearDown())
         return d
 
 class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
