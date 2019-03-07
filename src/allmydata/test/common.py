@@ -1,4 +1,9 @@
 import os, random, struct
+import tempfile
+from tempfile import mktemp
+from functools import partial
+from unittest import case as _case
+
 import treq
 
 from zope.interface import implementer
@@ -845,10 +850,31 @@ class _TestCaseMixin(object):
     * Each test method will be run in a unique Eliot action context which
       identifies the test and collects all Eliot log messages emitted by that
       test (including setUp and tearDown messages).
+    * trial-compatible mktemp method
+    * unittest2-compatible assertRaises helper
     """
     @eliot_logged_test
     def run(self, result):
         return super(TestCase, self).run(result)
+
+    def setUp(self):
+        # Restore the original temporary directory.  Node ``init_tempdir``
+        # mangles it and many tests manage to get that method called.
+        self.addCleanup(
+            partial(setattr, tempfile, "tempdir", tempfile.tempdir),
+        )
+        return super(_TestCaseMixin, self).setUp()
+
+    class _DummyCase(_case.TestCase):
+        def dummy(self):
+            pass
+    _dummyCase = _DummyCase("dummy")
+
+    def mktemp(self):
+        return mktemp()
+
+    def assertRaises(self, *a, **kw):
+        return self._dummyCase.assertRaises(*a, **kw)
 
 
 class SyncTestCase(_TestCaseMixin, TestCase):
