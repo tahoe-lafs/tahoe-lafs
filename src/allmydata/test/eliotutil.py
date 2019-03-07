@@ -120,6 +120,19 @@ def eliot_logged_test(f):
 
 @attr.s
 class EliotLoggedRunTest(object):
+    """
+    A *RunTest* implementation which surrounds test invocation with an
+    Eliot-based action.
+
+    This *RunTest* composes with another for convenience.
+
+    :ivar case: The test case to run.
+
+    :ivar handlers: Pass-through for the wrapped *RunTest*.
+    :ivar last_resort: Pass-through for the wrapped *RunTest*.
+
+    :ivar _run_tests_with_factory: A factory for the other *RunTest*.
+    """
     _run_tests_with_factory = attr.ib()
     case = attr.ib()
     handlers = attr.ib(default=None)
