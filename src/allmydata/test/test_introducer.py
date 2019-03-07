@@ -151,7 +151,7 @@ class ServiceMixin(object):
         d.addCallback(flushEventualQueue)
         return d
 
-class Introducer(ServiceMixin, AsyncTestCase, pollmixin.PollMixin):
+class Introducer(ServiceMixin, AsyncTestCase):
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
                               "my_version", "oldest_version", {}, fakeseq,
