@@ -81,6 +81,7 @@ from twisted.logger import (
 )
 from twisted.internet.defer import (
     inlineCallbacks,
+    maybeDeferred,
 )
 from twisted.application.service import Service
 
@@ -486,6 +487,7 @@ def log_call_deferred(action_type, include_args=False):
             with start_action(action_type=action_type, **action_kw).context():
                 # Use addActionFinish so that the action finishes when the
                 # Deferred fires.
-                return DeferredContext(f(*a, **kw)).addActionFinish()
+                d = maybeDeferred(f, *a, **kw)
+                return DeferredContext(d).addActionFinish()
         return logged_f
     return decorate_log_call_deferred
