@@ -2104,10 +2104,8 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.failUnlessEqual(metadata['version'], 2)
 
     def test_write_short_file(self):
-        d = DeferredContext(defer.succeed(None))
         # Write something short enough for a LIT file.
-        d.addCallback(lambda ign: self._check_file(u"short", "test"))
-        return d.result
+        return self._check_file(u"short", "test")
 
     def test_magic_folder(self):
         d = DeferredContext(defer.succeed(None))
