@@ -652,13 +652,13 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             ir = introweb.IntroducerRoot(self.parent)
             self.parent.nodeid = "NODEID"
             text = ir.renderSynchronously().decode("utf-8")
-            self.failUnlessIn(NICKNAME % "0", text) # a v2 client
-            self.failUnlessIn(NICKNAME % "1", text) # another v2 client
+            self.assertIn(NICKNAME % "0", text) # a v2 client
+            self.assertIn(NICKNAME % "1", text) # another v2 client
             for i in range(NUM_STORAGE):
-                self.failUnlessIn(printable_serverids[i], text,
+                self.assertIn(printable_serverids[i], text,
                                   (i,printable_serverids[i],text))
                 # make sure there isn't a double-base32ed string too
-                self.failIfIn(idlib.nodeid_b2a(printable_serverids[i]), text,
+                self.assertNotIn(idlib.nodeid_b2a(printable_serverids[i]), text,
                               (i,printable_serverids[i],text))
             log.msg("_check1 done")
         d.addCallback(_check1)
