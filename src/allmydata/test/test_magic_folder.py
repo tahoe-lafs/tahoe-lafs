@@ -1773,7 +1773,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
     def tearDown(self):
         d = DeferredContext(super(SingleMagicFolderTestMixin, self).tearDown())
         d.addCallback(self.cleanup)
-        shutil.rmtree(self.basedir, ignore_errors=True)
         return d.result
 
     def _createdb(self):
