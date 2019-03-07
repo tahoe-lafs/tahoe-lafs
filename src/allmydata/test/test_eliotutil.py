@@ -21,6 +21,7 @@ from testtools import (
 )
 from testtools.matchers import (
     Is,
+    IsInstance,
     MatchesStructure,
     Equals,
     AfterPreprocessing,
@@ -28,6 +29,7 @@ from testtools.matchers import (
 from testtools.twistedsupport import (
     has_no_result,
     succeeded,
+    failed,
 )
 
 from eliot import (
@@ -55,6 +57,7 @@ from .eliotutil import (
 from ..util.eliotutil import (
     eliot_friendly_generator_function,
     inline_callbacks,
+    log_call_deferred,
     _parse_destination_description,
     _EliotLogging,
 )
@@ -525,5 +528,46 @@ class EliotLoggingTests(TestCase):
             collected,
             AfterPreprocessing(
                 len, Equals(1),
+            ),
+        )
+
+class LogCallDeferredTests(TestCase):
+    """
+    Tests for ``log_call_deferred``.
+    """
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=True),
+    )
+    def test_return_value(self, logger):
+        """
+        The decorated function's return value is passed through.
+        """
+        result = object()
+        @log_call_deferred(action_type=u"the-action")
+        def f():
+            return result
+        self.assertThat(f(), succeeded(Is(result)))
+
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=False),
+    )
+    def test_raise_exception(self, logger):
+        """
+        An exception raised by the decorated function is passed through.
+        """
+        class Result(Exception):
+            pass
+        @log_call_deferred(action_type=u"the-action")
+        def f():
+            raise Result()
+        self.assertThat(
+            f(),
+            failed(
+                AfterPreprocessing(
+                    lambda f: f.value,
+                    IsInstance(Result),
+                ),
             ),
         )
