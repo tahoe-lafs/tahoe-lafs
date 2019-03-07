@@ -53,17 +53,17 @@ from attr.validators import (
 from eliot import (
     ILogger,
     Message,
+    Field,
     FileDestination,
     add_destinations,
     remove_destination,
     write_traceback,
-)
-from eliot import (
-    Field,
+    start_action,
 )
 from eliot._validation import (
     ValidationError,
 )
+from eliot.twisted import DeferredContext
 
 from twisted.python.usage import (
     UsageError,
@@ -470,3 +470,22 @@ class _DestinationParser(object):
 
 
 _parse_destination_description = _DestinationParser().parse
+
+def log_call_deferred(action_type, include_args=False):
+    """
+    Like ``eliot.log_call`` but for functions which return ``Deferred``.
+    """
+    def decorate_log_call_deferred(f):
+        @wraps(f)
+        def logged_f(*a, **kw):
+            action_kw = {}
+            if include_args:
+                action_kw = dict(a=a, kw=kw)
+            # Use the action's context method to avoid ending the action when
+            # the `with` block ends.
+            with start_action(action_type=action_type, **action_kw).context():
+                # Use addActionFinish so that the action finishes when the
+                # Deferred fires.
+                return DeferredContext(f(*a, **kw)).addActionFinish()
+        return logged_f
+    return decorate_log_call_deferred
