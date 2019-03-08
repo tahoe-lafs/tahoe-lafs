@@ -8,15 +8,12 @@ Tests for the inotify-alike implementation L{allmydata.watchdog}.
 # Note: See https://twistedmatrix.com/trac/ticket/8915 for a proposal
 # to avoid all of this duplicated code from Twisted.
 
-import sys
-
 from twisted.internet import defer, reactor
 from twisted.python import filepath, runtime
 
 from allmydata.frontends.magic_folder import get_inotify_module
 from .common import (
     AsyncTestCase,
-    skip,
     skipIf,
 )
 inotify = get_inotify_module()
@@ -116,38 +113,6 @@ class INotifyTests(AsyncTestCase):
         return self._notificationTest(inotify.IN_CLOSE_WRITE, operation)
 
 
-    # The watchdog implementation makes it difficult to get this event.  Also,
-    # the magic-folder implementation doesn't really *need* exactly this
-    # event.  It would be nice to get some event on move, which watchdog gives
-    # us.  But this test is overly specific for our purposes.
-    @skip("not available on watchdog")
-    def test_movedFrom(self):
-        """
-        Moving a file out of a monitored directory sends an
-        C{inotify.IN_MOVED_FROM} event to the callback.
-        """
-        def operation(path):
-            path.open("w").close()
-            path.moveTo(filepath.FilePath(self.mktemp()))
-
-        return self._notificationTest(inotify.IN_MOVED_FROM, operation)
-
-
-    # Ditto the comment on test_movedFrom about watchdog here.
-    @skip("not available on watchdog")
-    def test_movedTo(self):
-        """
-        Moving a file into a monitored directory sends an
-        C{inotify.IN_MOVED_TO} event to the callback.
-        """
-        def operation(path):
-            p = filepath.FilePath(self.mktemp())
-            p.touch()
-            p.moveTo(path)
-
-        return self._notificationTest(inotify.IN_MOVED_TO, operation)
-
-
     def test_delete(self):
         """
         Deleting a file in a monitored directory sends an
@@ -168,47 +133,6 @@ class INotifyTests(AsyncTestCase):
         return notified
 
 
-    @skip("watchdog is differently recursive")
-    def test_simpleDeleteDirectory(self):
-        """
-        L{inotify.INotify} removes a directory from the watchlist when
-        it's removed from the filesystem.
-        """
-        subdir = self.dirname.child('test')
-        subdir.createDirectory()
-
-        d = defer.Deferred()
-
-        def _callback(wp, filename, mask):
-            # We are notified before the watch state is updated so we need to
-            # delay our check of that watch state a bit.
-            def _():
-                try:
-                    self.assertFalse(
-                        self.inotify._isWatched(subdir),
-                        "{} not un-watched.  watches = {}".format(subdir, self.inotify._watches),
-                    )
-                    d.callback(None)
-                except Exception:
-                    d.errback()
-            reactor.callLater(0, _)
-
-        checkMask = inotify.IN_ISDIR | inotify.IN_CREATE
-        self.inotify.watch(
-            self.dirname,
-            mask=checkMask,
-            callbacks=[_callback],
-            recursive=True,
-        )
-        self.assertTrue(
-            self.inotify._isWatched(subdir),
-            "{} not watched.  watches = {}".format(subdir, self.inotify._watches),
-        )
-        subdir.remove()
-
-        return d
-
-
     def test_humanReadableMask(self):
         """
         L{inotify.humaReadableMask} translates all the possible event
@@ -222,37 +146,6 @@ class INotifyTests(AsyncTestCase):
         self.assertEqual(
             set(inotify.humanReadableMask(checkMask)),
             set(['close_write', 'access', 'open']))
-
-
-    @skip("not relevant")
-    def test_recursiveWatch(self):
-        """
-        L{inotify.INotify.watch} with recursive==True will add all the
-        subdirectories under the given path to the watchlist.
-        """
-        subdir = self.dirname.child('test')
-        subdir2 = subdir.child('test2')
-        subdir3 = subdir2.child('test3')
-        subdir3.makedirs()
-        dirs = [subdir, subdir2, subdir3]
-        self.inotify.watch(self.dirname, recursive=True)
-        # let's even call this twice so that we test that nothing breaks
-        self.inotify.watch(self.dirname, recursive=True)
-        for d in dirs:
-            self.assertTrue(self.inotify._isWatched(d))
-
-
-    @skip("Based on Twisted implementation details; not relevant")
-    def test_connectionLostError(self):
-        """
-        L{inotify.INotify.connectionLost} if there's a problem while closing
-        the fd shouldn't raise the exception but should log the error
-        """
-        import os
-        in_ = inotify.INotify()
-        os.close(in_._fd)
-        in_.loseConnection()
-        self.flushLoggedErrors()
 
 
     def test_noAutoAddSubdirectory(self):
@@ -278,52 +171,4 @@ class INotifyTests(AsyncTestCase):
         subdir = self.dirname.child('test')
         d = defer.Deferred()
         subdir.createDirectory()
-        return d
-
-
-    @skip("Not gonna implement autoAdd")
-    def test_complexSubdirectoryAutoAdd(self):
-        """
-        L{inotify.INotify} with autoAdd==True for a watched path
-        generates events for every file or directory already present
-        in a newly created subdirectory under the watched one.
-
-        This tests that we solve a race condition in inotify even though
-        we may generate duplicate events.
-        """
-        calls = set()
-        def _callback(wp, filename, mask):
-            calls.add(filename)
-            if len(calls) == 6:
-                try:
-                    self.assertTrue(self.inotify._isWatched(subdir))
-                    self.assertTrue(self.inotify._isWatched(subdir2))
-                    self.assertTrue(self.inotify._isWatched(subdir3))
-                    created = someFiles + [subdir, subdir2, subdir3]
-                    created = {f.asBytesMode() for f in created}
-                    self.assertEqual(len(calls), len(created))
-                    self.assertEqual(calls, created)
-                except Exception:
-                    d.errback()
-                else:
-                    d.callback(None)
-
-        checkMask = inotify.IN_ISDIR | inotify.IN_CREATE
-        self.inotify.watch(
-            self.dirname, mask=checkMask, autoAdd=True,
-            callbacks=[_callback])
-        subdir = self.dirname.child('test')
-        subdir2 = subdir.child('test2')
-        subdir3 = subdir2.child('test3')
-        d = defer.Deferred()
-        subdir3.makedirs()
-
-        someFiles = [subdir.child('file1.dat'),
-                     subdir2.child('file2.dat'),
-                     subdir3.child('file3.dat')]
-        # Add some files in pretty much all the directories so that we
-        # see that we process all of them.
-        for i, filename in enumerate(someFiles):
-            filename.setContent(
-                filename.path.encode(sys.getfilesystemencoding()))
         return d
