@@ -1,3 +1,9 @@
+__all__ = [
+    "SyncTestCase",
+    "AsyncTestCase",
+    "AsyncBrokenTestCase",
+]
+
 import os, random, struct
 import tempfile
 from tempfile import mktemp
