@@ -394,13 +394,17 @@ class NoNetworkGrid(service.MultiService):
                     fileutil.rm_dir(os.path.join(server.sharedir, prefixdir))
 
 
-class GridTestMixin:
+class GridTestMixin(object):
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
+        return super(GridTestMixin, self).setUp()
 
     def tearDown(self):
-        return self.s.stopService()
+        return defer.gatherResults([
+            self.s.stopService(),
+            defer.maybeDeferred(super(GridTestMixin, self).tearDown),
+        ])
 
     def set_up_grid(self, num_clients=1, num_servers=10,
                     client_config_hooks={}, oneshare=False):

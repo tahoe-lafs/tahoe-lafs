@@ -130,13 +130,15 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(w.staticdir, expected)
 
 
-class ServiceMixin:
+class ServiceMixin(object):
     def setUp(self):
         self.parent = LoggingMultiService()
         self.parent.startService()
+        return super(ServiceMixin, self).setUp()
+
     def tearDown(self):
         log.msg("TestIntroducer.tearDown")
-        d = defer.succeed(None)
+        d = defer.maybeDeferred(super(ServiceMixin, self).tearDown)
         d.addCallback(lambda res: self.parent.stopService())
         d.addCallback(flushEventualQueue)
         return d
