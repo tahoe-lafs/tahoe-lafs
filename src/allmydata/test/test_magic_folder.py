@@ -1606,6 +1606,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.dirs_monitored'), 0))
         return d
 
+    @skipIf(sys.platform == "linux2", "fails on certain linux flavors: see ticket #2834")
     def test_move_tree(self):
         """
         create an empty directory tree and 'mv' it into the magic folder,
@@ -1677,7 +1678,6 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.directories_created'), 2))
 
         return d.result
-    test_move_tree.todo = "fails on certain linux flavors: see ticket #2834"
 
     def test_persistence(self):
         """
