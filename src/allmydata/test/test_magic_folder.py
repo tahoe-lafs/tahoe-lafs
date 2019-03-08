@@ -1483,10 +1483,10 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         return d.result
 
     def tearDown(self):
-        d = super(SingleMagicFolderTestMixin, self).tearDown()
+        d = DeferredContext(super(SingleMagicFolderTestMixin, self).tearDown())
         d.addCallback(self.cleanup)
         shutil.rmtree(self.basedir, ignore_errors=True)
-        return d
+        return d.result
 
     def _createdb(self):
         dbfile = abspath_expanduser_unicode(u"magicfolder_default.sqlite", base=self.basedir)
