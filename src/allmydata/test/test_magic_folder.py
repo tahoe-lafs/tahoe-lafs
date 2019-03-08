@@ -4,7 +4,6 @@ import stat, shutil, json
 import mock
 from os.path import join, exists, isdir
 
-from twisted.trial import unittest
 from twisted.internet import defer, task, reactor
 
 from testtools import (
@@ -1109,10 +1108,8 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
 
     # XXX this should be shortened -- as in, any cases not covered by
     # the other tests in here should get their own minimal test-case.
+    @skipIf(sys.platform == "win32", "Still inotify problems on Windows (FIXME)")
     def test_alice_bob(self):
-        if sys.platform == "win32":
-            raise unittest.SkipTest("Still inotify problems on Windows (FIXME)")
-
         d = defer.succeed(None)
 
         # XXX FIXME just quickly porting this test via aliases -- the
