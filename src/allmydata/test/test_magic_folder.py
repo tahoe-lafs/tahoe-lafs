@@ -7,6 +7,10 @@ from os.path import join, exists, isdir
 from twisted.trial import unittest
 from twisted.internet import defer, task, reactor
 
+from testtools import (
+    skipIf,
+)
+
 from eliot.twisted import DeferredContext
 
 from allmydata.interfaces import (
@@ -46,6 +50,18 @@ from ..util.eliotutil import (
 )
 
 _debug = False
+
+try:
+    magic_folder.get_inotify_module()
+except NotImplementedError:
+    support_missing = True
+    support_message = (
+        "Magic Folder support can only be tested for-real on an OS that "
+        "supports inotify or equivalent."
+    )
+else:
+    support_missing = False
+    support_message = None
 
 
 class NewConfigUtilTests(SyncTestCase):
@@ -1849,6 +1865,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         return d.result
 
 
+@skipIf(support_missing, support_message)
 class MockTestAliceBob(MagicFolderAliceBobTestMixin, AsyncTestCase):
     inject_inotify = True
 
@@ -1858,6 +1875,7 @@ class MockTestAliceBob(MagicFolderAliceBobTestMixin, AsyncTestCase):
         return super(MockTestAliceBob, self).setUp()
 
 
+@skipIf(support_missing, support_message)
 class MockTest(SingleMagicFolderTestMixin, AsyncTestCase):
     """This can run on any platform, and even if twisted.internet.inotify can't be imported."""
     inject_inotify = True
@@ -2007,6 +2025,7 @@ class MockTest(SingleMagicFolderTestMixin, AsyncTestCase):
         return d.result
 
 
+@skipIf(support_missing, support_message)
 class RealTest(SingleMagicFolderTestMixin, AsyncTestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
     inject_inotify = False
@@ -2017,6 +2036,7 @@ class RealTest(SingleMagicFolderTestMixin, AsyncTestCase):
         return d
 
 
+@skipIf(support_missing, support_message)
 class RealTestAliceBob(MagicFolderAliceBobTestMixin, AsyncTestCase):
     """This is skipped unless both Twisted and the platform support inotify."""
     inject_inotify = False
@@ -2025,12 +2045,3 @@ class RealTestAliceBob(MagicFolderAliceBobTestMixin, AsyncTestCase):
         d = super(RealTestAliceBob, self).setUp()
         self.inotify = magic_folder.get_inotify_module()
         return d
-
-
-try:
-    magic_folder.get_inotify_module()
-except NotImplementedError:
-    msg = "Magic Folder support can only be tested for-real on an OS that " + \
-          "supports inotify or equivalent."
-    for klass in [RealTest, MockTest, MockTestAliceBob, RealTestAliceBob]:
-        klass.skip = msg
