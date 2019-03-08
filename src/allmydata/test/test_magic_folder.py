@@ -1477,10 +1477,10 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         from foolscap.eventual import flushEventualQueue
         self.addCleanup(flushEventualQueue)
 
-        d = self.create_invite_join_magic_folder(self.alice_nickname, self.local_dir)
+        d = DeferredContext(self.create_invite_join_magic_folder(self.alice_nickname, self.local_dir))
         d.addCallback(self._restart_client)
         # note: _restart_client ultimately sets self.magicfolder to not-None
-        return d
+        return d.result
 
     def tearDown(self):
         d = super(SingleMagicFolderTestMixin, self).tearDown()
