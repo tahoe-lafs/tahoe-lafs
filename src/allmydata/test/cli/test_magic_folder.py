@@ -6,6 +6,10 @@ import re
 import time
 from datetime import datetime
 
+from eliot.twisted import (
+    DeferredContext,
+)
+
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet import reactor
@@ -23,7 +27,9 @@ from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import unicode_to_argv
 from allmydata.frontends.magic_folder import MagicFolder
 from allmydata import uri
-
+from ...util.eliotutil import (
+    log_call_deferred,
+)
 
 class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
     def setUp(self):
@@ -146,14 +152,15 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         return d
 
     # XXX should probably just be "tearDown"...
+    @log_call_deferred(action_type=u"test:cli:magic-folder:cleanup")
     def cleanup(self, res):
-        d = defer.succeed(None)
+        d = DeferredContext(defer.succeed(None))
         def _clean(ign):
             return self.magicfolder.disownServiceParent()
 
         d.addCallback(_clean)
         d.addCallback(lambda ign: res)
-        return d
+        return d.result
 
     def init_magicfolder(self, client_num, upload_dircap, collective_dircap, local_magic_dir, clock):
         dbfile = abspath_expanduser_unicode(u"magicfolder_default.sqlite", base=self.get_clientdir(i=client_num))
