@@ -41,6 +41,7 @@ from .eliotutil import (
 )
 from ..util.eliotutil import (
     inline_callbacks,
+    log_call_deferred,
 )
 
 _debug = False
@@ -523,6 +524,7 @@ class FileOperationsHelper(object):
         self._inotify = fake_inotify  # fixme?
         self._fake_inotify = inject_events
 
+    @log_call_deferred(action_type=u"fileops:move")
     def move(self, from_path_u, to_path_u):
         from_fname = from_path_u
         to_fname = to_path_u
@@ -534,6 +536,7 @@ class FileOperationsHelper(object):
         # self._uploader._notifier.event(to_filepath(from_fname), self._inotify.IN_MOVED_FROM)
         return d
 
+    @log_call_deferred(action_type=u"fileops:write")
     def write(self, path_u, contents):
         fname = path_u
         if not os.path.exists(fname):
@@ -546,6 +549,7 @@ class FileOperationsHelper(object):
         self._maybe_notify(fname, self._inotify.IN_CLOSE_WRITE)
         return d
 
+    @log_call_deferred(action_type=u"fileops:mkdir")
     def mkdir(self, path_u):
         fname = path_u
         d = self._uploader.set_hook('inotify')
@@ -553,6 +557,7 @@ class FileOperationsHelper(object):
         self._maybe_notify(fname, self._inotify.IN_CREATE | self._inotify.IN_ISDIR)
         return d
 
+    @log_call_deferred(action_type=u"fileops:delete")
     def delete(self, path_u):
         fname = path_u
         d = self._uploader.set_hook('inotify')

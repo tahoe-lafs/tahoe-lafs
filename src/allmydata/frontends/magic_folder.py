@@ -1764,10 +1764,10 @@ class Downloader(QueueMixin, WriteFileMixin):
         d.addCallback(scan_listing)
         return d.addActionFinish()
 
+    @eliotutil.log_call_deferred(SCAN_REMOTE_COLLECTIVE.action_type)
     def _scan_remote_collective(self, scan_self=False):
         scan_batch = {}  # path -> [(filenode, metadata)]
-        with SCAN_REMOTE_COLLECTIVE().context():
-            d = DeferredContext(self._collective_dirnode.list())
+        d = DeferredContext(self._collective_dirnode.list())
         def scan_collective(dirmap):
             d2 = DeferredContext(defer.succeed(None))
             for dir_name in dirmap:
@@ -1806,26 +1806,26 @@ class Downloader(QueueMixin, WriteFileMixin):
                     self._call_hook(None, 'processed', async=True)  # await this maybe-Deferred??
 
         d.addCallback(_filter_batch_to_deque)
-        return d.addActionFinish()
+        return d.result
 
     def _scan_delay(self):
         return self._poll_interval
 
+    @eliotutil.log_call_deferred(PERFORM_SCAN.action_type)
     @eliotutil.inline_callbacks
     def _perform_scan(self):
-        with PERFORM_SCAN():
-            try:
-                yield self._scan_remote_collective()
-                self._status_reporter(
-                    True, 'Magic folder is working',
-                    'Last scan: %s' % self.nice_current_time(),
-                )
-            except Exception as e:
-                write_traceback()
-                self._status_reporter(
-                    False, 'Remote scan has failed: %s' % str(e),
-                    'Last attempted at %s' % self.nice_current_time(),
-                )
+        try:
+            yield self._scan_remote_collective()
+            self._status_reporter(
+                True, 'Magic folder is working',
+                'Last scan: %s' % self.nice_current_time(),
+            )
+        except Exception as e:
+            write_traceback()
+            self._status_reporter(
+                False, 'Remote scan has failed: %s' % str(e),
+                'Last attempted at %s' % self.nice_current_time(),
+            )
 
     def _process(self, item):
         """
