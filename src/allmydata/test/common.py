@@ -1,4 +1,9 @@
 import os, random, struct
+import tempfile
+from tempfile import mktemp
+from functools import partial
+from unittest import case as _case
+
 import treq
 
 from zope.interface import implementer
@@ -7,8 +12,9 @@ from testtools import (
     TestCase,
 )
 from testtools.twistedsupport import (
-    AsynchronousDeferredRunTest,
     SynchronousDeferredRunTest,
+    AsynchronousDeferredRunTest,
+    AsynchronousDeferredRunTestForBrokenTwisted,
 )
 
 from twisted.internet import defer
@@ -36,7 +42,7 @@ import allmydata.test.common_util as testutil
 from allmydata.immutable.upload import Uploader
 
 from .eliotutil import (
-    eliot_logged_test,
+    EliotLoggedRunTest,
 )
 
 
@@ -845,10 +851,29 @@ class _TestCaseMixin(object):
     * Each test method will be run in a unique Eliot action context which
       identifies the test and collects all Eliot log messages emitted by that
       test (including setUp and tearDown messages).
+    * trial-compatible mktemp method
+    * unittest2-compatible assertRaises helper
+    * Automatic cleanup of tempfile.tempdir mutation (pervasive through the
+      Tahoe-LAFS test suite).
     """
-    @eliot_logged_test
-    def run(self, result):
-        return super(TestCase, self).run(result)
+    def setUp(self):
+        # Restore the original temporary directory.  Node ``init_tempdir``
+        # mangles it and many tests manage to get that method called.
+        self.addCleanup(
+            partial(setattr, tempfile, "tempdir", tempfile.tempdir),
+        )
+        return super(_TestCaseMixin, self).setUp()
+
+    class _DummyCase(_case.TestCase):
+        def dummy(self):
+            pass
+    _dummyCase = _DummyCase("dummy")
+
+    def mktemp(self):
+        return mktemp()
+
+    def assertRaises(self, *a, **kw):
+        return self._dummyCase.assertRaises(*a, **kw)
 
 
 class SyncTestCase(_TestCaseMixin, TestCase):
@@ -856,7 +881,9 @@ class SyncTestCase(_TestCaseMixin, TestCase):
     A ``TestCase`` which can run tests that may return an already-fired
     ``Deferred``.
     """
-    run_tests_with = SynchronousDeferredRunTest
+    run_tests_with = EliotLoggedRunTest.make_factory(
+        SynchronousDeferredRunTest,
+    )
 
 
 class AsyncTestCase(_TestCaseMixin, TestCase):
@@ -864,4 +891,20 @@ class AsyncTestCase(_TestCaseMixin, TestCase):
     A ``TestCase`` which can run tests that may return a Deferred that will
     only fire if the global reactor is running.
     """
-    run_tests_with = AsynchronousDeferredRunTest
+    run_tests_with = EliotLoggedRunTest.make_factory(
+        AsynchronousDeferredRunTest.make_factory(timeout=60.0),
+    )
+
+
+class AsyncBrokenTestCase(_TestCaseMixin, TestCase):
+    """
+    A ``TestCase`` like ``AsyncTestCase`` but which spins the reactor a little
+    longer than apparently necessary to clean out lingering unaccounted for
+    event sources.
+
+    Tests which require this behavior are broken and should be fixed so they
+    pass with ``AsyncTestCase``.
+    """
+    run_tests_with = EliotLoggedRunTest.make_factory(
+        AsynchronousDeferredRunTestForBrokenTwisted.make_factory(timeout=60.0),
+    )
