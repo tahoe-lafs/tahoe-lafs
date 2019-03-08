@@ -3,7 +3,7 @@ import os, sys, time
 import stat, shutil, json
 import mock
 from os.path import join, exists, isdir
-from errno import ENOENT, EISDIR
+from errno import ENOENT
 
 from twisted.internet import defer, task, reactor
 from twisted.python.runtime import platform
