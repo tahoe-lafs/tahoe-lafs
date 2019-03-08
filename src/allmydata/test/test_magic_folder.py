@@ -1495,12 +1495,14 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.failUnlessEqual(mdb.VERSION, 1)
         return mdb
 
+    @log_call_deferred(action_type=u"restart-client")
     def _restart_client(self, ign):
         #print "_restart_client"
-        d = self.restart_client()
+        d = DeferredContext(self.restart_client())
         d.addCallback(self._wait_until_started)
-        return d
+        return d.result
 
+    @log_call_deferred(action_type=u"wait-until-started")
     def _wait_until_started(self, ign):
         #print "_wait_until_started"
         self.magicfolder = self.get_client().getServiceNamed('magic-folder-default')
