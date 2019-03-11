@@ -1797,7 +1797,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         def scan_collective(result):
             COLLECTIVE_SCAN.log(dmds=result)
             list_of_deferreds = []
-            for dir_name in result.keys():
+            for dir_name in result:
                 # XXX make sure it's a directory
                 d = DeferredContext(defer.succeed(None))
                 d.addCallback(lambda x, dir_name=dir_name: result[dir_name][0].get_child_and_metadata(filename))
