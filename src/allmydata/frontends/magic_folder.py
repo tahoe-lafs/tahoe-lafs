@@ -1827,6 +1827,25 @@ class Downloader(QueueMixin, WriteFileMixin):
         return collective_dirmap_d.addActionFinish()
 
     def _scan_remote_dmd(self, nickname, dirnode, scan_batch):
+        """
+        Read the contents of a single DMD into the given batch.
+
+        :param unicode nickname: The nickname for the participant owning the
+            DMD to scan.
+
+        :param IDirectoryNode dirnode: The node representing the chosen
+            participant's DMD.
+
+        :param dict scan_batch: A dictionary into which to collect the results
+            of the scan.  This is mutated to add the results in-place.  Keys
+            are the unicode relative paths of contents of the DMD.  Values are
+            a list of two-tuples.  The first element of each two-tuple is the
+            ``IFilesystemNode`` for the content.  The second element is a
+            ``dict`` of metadata.
+
+        :return Deferred: A ``Deferred`` which fires when the scan is
+            complete.
+        """
         with SCAN_REMOTE_DMD(nickname=nickname).context():
             d = DeferredContext(dirnode.list())
         def scan_listing(listing_map):
