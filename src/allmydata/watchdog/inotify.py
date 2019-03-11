@@ -165,6 +165,7 @@ class INotify(PollMixin):
         self._callbacks = {}
         self._watches = {}
         self._state = NOT_STARTED
+        self._observer = Observer(timeout=self._pending_delay)
 
     def set_pending_delay(self, delay):
         Message.log(message_type=u"watchdog:inotify:set-pending-delay", delay=delay)
@@ -178,7 +179,6 @@ class INotify(PollMixin):
                 # XXX twisted.internet.inotify doesn't require watches to
                 # be set before startReading is called.
                 # _assert(len(self._callbacks) != 0, "no watch set")
-                self._observer = Observer(timeout=self._pending_delay)
                 self._observer.start()
                 self._state = STARTED
             except:
