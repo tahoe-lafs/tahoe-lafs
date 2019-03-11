@@ -1830,7 +1830,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         with SCAN_REMOTE_DMD(nickname=nickname).context():
             d = DeferredContext(dirnode.list())
         def scan_listing(listing_map):
-            for encoded_relpath_u in listing_map.keys():
+            for encoded_relpath_u in listing_map:
                 relpath_u = magicpath.magic2path(encoded_relpath_u)
 
                 file_node, metadata = listing_map[encoded_relpath_u]
