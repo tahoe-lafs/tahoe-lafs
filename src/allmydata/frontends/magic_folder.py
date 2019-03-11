@@ -1913,8 +1913,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         def _filter_batch_to_deque(ign):
             ITEM_QUEUE.log(items=self._deque)
             SCAN_BATCH.log(batch=scan_batch)
-            for relpath_u in scan_batch:
-                file_node, metadata = max(scan_batch[relpath_u], key=lambda x: x[1]['version'])
+            for relpath_u, versions in scan_batch.iteritems():
+                file_node, metadata = max(versions, key=lambda x: x[1]['version'])
 
                 if self._should_download(relpath_u, metadata['version'], file_node.get_readonly_uri()):
                     to_dl = DownloadItem(
