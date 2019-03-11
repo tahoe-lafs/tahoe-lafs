@@ -71,6 +71,8 @@ artifacts:
   - path: 'dist\*'
   - path: trial_test_log.txt
     name: Trial test.log
+  - path: eliot.log
+    name: Eliot test log
 
 #on_success:
 #  You can use this step to upload your artifacts to a public website.
