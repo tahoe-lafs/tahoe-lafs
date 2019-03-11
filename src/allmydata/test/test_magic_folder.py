@@ -613,7 +613,7 @@ class FileOperationsHelper(object):
     them sychronously. For the Real tests we have to wait for the
     actual inotify thing.
     """
-    _timeout = 5.0
+    _timeout = 30.0
 
     def __init__(self, uploader, inject_events=False):
         self._uploader = uploader
