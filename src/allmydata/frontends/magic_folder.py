@@ -1830,10 +1830,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         with SCAN_REMOTE_DMD(nickname=nickname).context():
             d = DeferredContext(dirnode.list())
         def scan_listing(listing_map):
-            for encoded_relpath_u in listing_map:
+            for encoded_relpath_u, (file_node, metadata) in listing_map.iteritems():
                 relpath_u = magicpath.magic2path(encoded_relpath_u)
-
-                file_node, metadata = listing_map[encoded_relpath_u]
                 local_dbentry = self._get_local_latest(relpath_u)
 
                 # XXX FIXME this is *awefully* similar to
