@@ -479,6 +479,21 @@ SCAN_REMOTE_COLLECTIVE = ActionType(
     u"The remote collective is being scanned for peer DMDs.",
 )
 
+_DMDS = Field(
+    u"dmds",
+    # The children of the collective directory are the participant DMDs.  The
+    # keys in this dict give us the aliases of the participants.
+    lambda collective_directory_listing: collective_directory_listing.keys(),
+    u"The (D)istributed (M)utable (D)irectories belonging to each participant are being scanned for changes.",
+)
+
+COLLECTIVE_SCAN = MessageType(
+    u"magic-folder:downloader:get-latest-file:collective-scan",
+    [_DMDS],
+    u"Participants in the collective are being scanned.",
+)
+
+
 SCAN_REMOTE_DMD = ActionType(
     u"magic-folder:scan-remote-dmd",
     [_NICKNAME],
@@ -1780,10 +1795,7 @@ class Downloader(QueueMixin, WriteFileMixin):
         with action.context():
             collective_dirmap_d = DeferredContext(self._collective_dirnode.list())
         def scan_collective(result):
-            Message.log(
-                message_type=u"magic-folder:downloader:get-latest-file:collective-scan",
-                dmds=result.keys(),
-            )
+            COLLECTIVE_SCAN.log(dmds=result)
             list_of_deferreds = []
             for dir_name in result.keys():
                 # XXX make sure it's a directory
