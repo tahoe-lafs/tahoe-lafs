@@ -2177,7 +2177,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     @inline_callbacks
     def test_delete_file_in_sub_directory(self):
-        relpath_u = u'subdir/some-file'
+        relpath_u = join(u'subdir', u'some-file')
         content = u'some great content'
         yield self._create_directory_with_file(
             relpath_u,
