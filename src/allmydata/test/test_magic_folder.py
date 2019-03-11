@@ -2199,6 +2199,49 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.assertThat(metadata['version'], Equals(1))
         self.assertThat(metadata['deleted'], Equals(True))
 
+    def test_delete_sub_directory_containing_file(self):
+        reldir_u = u'subdir'
+        relpath_u = os.path.join(reldir_u, u'some-file')
+        content = u'some great content'
+        yield self._create_directory_with_file(
+            relpath_u,
+            content,
+        )
+        # Delete the sub-directory and the file in it. Don't wait in between
+        # because the case where all events are delivered before any
+        # processing happens is interesting.  And don't use the fileops API to
+        # delete the contained file so that we don't necessarily generate a
+        # notification for that path at all.  We require that the
+        # implementation behave correctly when receiving only the notification
+        # for the containing directory.
+        os.unlink(os.path.join(self.local_dir, relpath_u))
+        yield self.fileops.delete(os.path.join(self.local_dir, reldir_u))
+
+        # Now allow processing.
+        yield iterate(self.magicfolder)
+        # Give it some extra time because of recursive directory processing.
+        yield iterate(self.magicfolder)
+
+        # Deletion of both entities should have been uploaded.
+        downloader = self.magicfolder.downloader
+        encoded_dir_u = magicpath.path2magic(reldir_u + u"/")
+        encoded_path_u = magicpath.path2magic(relpath_u)
+
+        dir_node, dir_meta = yield downloader._get_collective_latest_file(encoded_dir_u)
+        path_node, path_meta = yield downloader._get_collective_latest_file(encoded_path_u)
+
+        self.expectThat(dir_node, Not(Is(None)), "dir node")
+        self.expectThat(dir_meta, ContainsDict({
+            "version": Equals(1),
+            "deleted": Equals(True),
+        }), "dir meta")
+
+        self.expectThat(path_node, Not(Is(None)), "path node")
+        self.expectThat(path_meta, ContainsDict({
+            "version": Equals(1),
+            "deleted": Equals(True),
+        }), "path meta")
+
 
 @skipIf(support_missing, support_message)
 class MockTestAliceBob(MagicFolderAliceBobTestMixin, AsyncTestCase):
