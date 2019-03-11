@@ -9,7 +9,16 @@ from twisted.internet import defer, task, reactor
 from testtools import (
     skipIf,
 )
+from testtools.matchers import (
+    Not,
+    Is,
+    ContainsDict,
+    Equals,
+)
 
+from eliot import (
+    start_action,
+)
 from eliot.twisted import DeferredContext
 
 from allmydata.interfaces import (
@@ -1838,6 +1847,10 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         self.assertTrue(node is not None, "Failed to find %r in DMD" % (path,))
         self.failUnlessEqual(metadata['version'], 2)
 
+    def test_write_short_file(self):
+        # Write something short enough for a LIT file.
+        return self._check_file(u"short", "test")
+
     def test_magic_folder(self):
         d = DeferredContext(defer.succeed(None))
         # Write something short enough for a LIT file.
@@ -1860,6 +1873,66 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         d.addCallback(lambda ign: self.failUnlessReallyEqual(self._get_count('uploader.objects_failed'), 0))
 
         return d.result
+
+    @inline_callbacks
+    def _create_directory_with_file(self, relpath_u, content):
+        path_f = os.path.join(self.local_dir, relpath_u)
+        path_d = os.path.dirname(path_f)
+        # Create a new directory in the monitored directory.
+        yield self.fileops.mkdir(path_d)
+        # Give the system a chance to notice and process it.
+        yield iterate(self.magicfolder)
+        # Create a new file in that new directory.
+        yield self.fileops.write(path_f, content)
+        # Another opportunity to process.
+        yield iterate(self.magicfolder)
+
+    @inline_callbacks
+    def test_create_file_in_sub_directory(self):
+        reldir_u = u'subdir'
+        relpath_u = os.path.join(reldir_u, u'some-file')
+        content = u'some great content'
+        yield self._create_directory_with_file(
+            relpath_u,
+            content,
+        )
+        # The new directory and file should have been noticed and uploaded.
+        downloader = self.magicfolder.downloader
+        encoded_dir_u = magicpath.path2magic(reldir_u + u"/")
+        encoded_path_u = magicpath.path2magic(relpath_u)
+
+        with start_action(action_type=u"retrieve-metadata"):
+            dir_node, dir_meta = yield downloader._get_collective_latest_file(
+                encoded_dir_u,
+            )
+            path_node, path_meta = yield downloader._get_collective_latest_file(
+                encoded_path_u,
+            )
+
+        self.expectThat(dir_node, Not(Is(None)), "dir node")
+        self.expectThat(dir_meta, ContainsDict({'version': Equals(0)}), "dir meta")
+        self.expectThat(path_node, Not(Is(None)), "path node")
+        self.expectThat(path_meta, ContainsDict({'version': Equals(0)}), "path meta")
+
+    @inline_callbacks
+    def test_delete_file_in_sub_directory(self):
+        relpath_u = u'subdir/some-file'
+        content = u'some great content'
+        yield self._create_directory_with_file(
+            relpath_u,
+            content,
+        )
+        # Delete the file in the sub-directory.
+        yield self.fileops.delete(os.path.join(self.local_dir, relpath_u))
+        # Let the deletion be processed.
+        yield iterate(self.magicfolder)
+        # Verify the deletion was uploaded.
+        encoded_path_u = magicpath.path2magic(relpath_u)
+        downloader = self.magicfolder.downloader
+        node, metadata = yield downloader._get_collective_latest_file(encoded_path_u)
+        self.assertThat(node, Not(Is(None)))
+        self.assertThat(metadata['version'], Equals(1))
+        self.assertThat(metadata['deleted'], Equals(True))
 
 
 @skipIf(support_missing, support_message)
