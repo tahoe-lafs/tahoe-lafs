@@ -1181,8 +1181,8 @@ class Uploader(QueueMixin):
         with action.context():
             d = DeferredContext(defer.succeed(None))
 
-        d.addCallback(lambda ign: self._notifier.startReading())
         d.addCallback(lambda ign: self._add_watch())
+        d.addCallback(lambda ign: self._notifier.startReading())
         d.addCallback(lambda ign: self._count('dirs_monitored'))
         d.addBoth(self._call_hook, 'started')
         return d.addActionFinish()
