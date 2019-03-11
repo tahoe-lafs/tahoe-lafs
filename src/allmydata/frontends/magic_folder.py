@@ -1869,9 +1869,17 @@ class Downloader(QueueMixin, WriteFileMixin):
                     local_dbentry.version < remote_version or
                     (local_dbentry.version == remote_version and local_dbentry.last_downloaded_uri != remote_uri)):
                     ADD_TO_DOWNLOAD_QUEUE.log(relpath=relpath_u)
-                    if scan_batch.has_key(relpath_u):
+
+                    # The scan_batch is shared across the scan of multiple
+                    # DMDs.  It is expected the DMDs will most often be mostly
+                    # synchronized with each other.  The common case, then, is
+                    # that there is already an entry for relpath_u.  So try to
+                    # make that the fast path: assume there is a value already
+                    # and extend it.  If there's not, we'll do an extra lookup
+                    # to initialize it.
+                    try:
                         scan_batch[relpath_u] += [(file_node, metadata)]
-                    else:
+                    except KeyError:
                         scan_batch[relpath_u] = [(file_node, metadata)]
             self._status_reporter(
                 True, 'Magic folder is working',
