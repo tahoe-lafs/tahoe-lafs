@@ -50,10 +50,6 @@ from twisted.internet.defer import (
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
-from .eliotutil import (
-    eliot_logged_test,
-)
-
 from ..util.eliotutil import (
     eliot_friendly_generator_function,
     inline_callbacks,
@@ -67,16 +63,13 @@ from .common import (
 )
 
 class EliotLoggedTestTests(AsyncTestCase):
-    @eliot_logged_test
     def test_returns_none(self):
         Message.log(hello="world")
 
-    @eliot_logged_test
     def test_returns_fired_deferred(self):
         Message.log(hello="world")
         return succeed(None)
 
-    @eliot_logged_test
     def test_returns_unfired_deferred(self):
         Message.log(hello="world")
         # @eliot_logged_test automatically gives us an action context but it's
@@ -140,8 +133,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
     # Get our custom assertion failure messages *and* the standard ones.
     longMessage = True
 
-    @capture_logging(None)
-    def test_yield_none(self, logger):
+    def test_yield_none(self):
         @eliot_friendly_generator_function
         def g():
             Message.log(message_type=u"hello")
@@ -153,13 +145,12 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
 
         assert_expected_action_tree(
             self,
-            logger,
+            self.eliot_logger,
             u"the-action",
             [u"hello", u"yielded", u"goodbye"],
         )
 
-    @capture_logging(None)
-    def test_yield_value(self, logger):
+    def test_yield_value(self):
         expected = object()
 
         @eliot_friendly_generator_function
@@ -173,13 +164,12 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
 
         assert_expected_action_tree(
             self,
-            logger,
+            self.eliot_logger,
             u"the-action",
             [u"hello", u"yielded", u"goodbye"],
         )
 
-    @capture_logging(None)
-    def test_yield_inside_another_action(self, logger):
+    def test_yield_inside_another_action(self):
         @eliot_friendly_generator_function
         def g():
             Message.log(message_type=u"a")
@@ -194,7 +184,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
 
         assert_expected_action_tree(
             self,
-            logger,
+            self.eliot_logger,
             u"the-action",
             [u"a",
              {u"confounding-factor": [u"b", u"yielded", u"c"]},
@@ -202,8 +192,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
             ],
         )
 
-    @capture_logging(None)
-    def test_yield_inside_nested_actions(self, logger):
+    def test_yield_inside_nested_actions(self):
         @eliot_friendly_generator_function
         def g():
             Message.log(message_type=u"a")
@@ -221,7 +210,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
 
         assert_expected_action_tree(
             self,
-            logger,
+            self.eliot_logger,
             u"the-action", [
                 u"a",
                 {u"confounding-factor": [
@@ -237,8 +226,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
             ],
         )
 
-    @capture_logging(None)
-    def test_generator_and_non_generator(self, logger):
+    def test_generator_and_non_generator(self):
         @eliot_friendly_generator_function
         def g():
             Message.log(message_type=u"a")
@@ -263,7 +251,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
 
         assert_expected_action_tree(
             self,
-            logger,
+            self.eliot_logger,
             u"the-action", [
                 u"a",
                 u"yielded",
@@ -282,8 +270,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
             ],
         )
 
-    @capture_logging(None)
-    def test_concurrent_generators(self, logger):
+    def test_concurrent_generators(self):
         @eliot_friendly_generator_function
         def g(which):
             Message.log(message_type=u"{}-a".format(which))
@@ -304,7 +291,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
 
         assert_expected_action_tree(
             self,
-            logger,
+            self.eliot_logger,
             u"the-action", [
                 u"1-a",
                 {u"1": [
@@ -323,8 +310,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
             ],
         )
 
-    @capture_logging(None)
-    def test_close_generator(self, logger):
+    def test_close_generator(self):
         @eliot_friendly_generator_function
         def g():
             Message.log(message_type=u"a")
@@ -342,7 +328,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
 
         assert_expected_action_tree(
             self,
-            logger,
+            self.eliot_logger,
             u"the-action", [
                 u"a",
                 u"yielded",
@@ -350,8 +336,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
             ],
         )
 
-    @capture_logging(None)
-    def test_nested_generators(self, logger):
+    def test_nested_generators(self):
         @eliot_friendly_generator_function
         def g(recurse):
             with start_action(action_type=u"a-recurse={}".format(recurse)):
@@ -366,7 +351,7 @@ class EliotFriendlyGeneratorFunctionTests(SyncTestCase):
 
         assert_expected_action_tree(
             self,
-            logger,
+            self.eliot_logger,
             u"the-action", [{
                 u"a-recurse=True": [
                     u"m-recurse=True", {
@@ -397,28 +382,25 @@ class InlineCallbacksTests(SyncTestCase):
             ],
         )
 
-    @capture_logging(None)
-    def test_yield_none(self, logger):
+    def test_yield_none(self):
         @inline_callbacks
         def g():
             Message.log(message_type=u"a")
             yield
             Message.log(message_type=u"b")
 
-        self._a_b_test(logger, g)
+        self._a_b_test(self.eliot_logger, g)
 
-    @capture_logging(None)
-    def test_yield_fired_deferred(self, logger):
+    def test_yield_fired_deferred(self):
         @inline_callbacks
         def g():
             Message.log(message_type=u"a")
             yield succeed(None)
             Message.log(message_type=u"b")
 
-        self._a_b_test(logger, g)
+        self._a_b_test(self.eliot_logger, g)
 
-    @capture_logging(None)
-    def test_yield_unfired_deferred(self, logger):
+    def test_yield_unfired_deferred(self):
         waiting = Deferred()
 
         @inline_callbacks
@@ -434,7 +416,7 @@ class InlineCallbacksTests(SyncTestCase):
             self.assertThat(d, succeeded(Is(None)))
         assert_expected_action_tree(
             self,
-            logger,
+            self.eliot_logger,
             u"the-action", [
                 u"a",
                 u"yielded",
