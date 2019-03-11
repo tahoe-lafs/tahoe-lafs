@@ -74,6 +74,12 @@ artifacts:
   - path: eliot.log
     name: Eliot test log
 
+on_failure:
+  # Artifacts are not normally uploaded when the job fails.  To get the test
+  # logs, we have to push them ourselves.
+  - ps: Push-AppveyorArtifact trial_test_log.txt -Filename trial.log
+  - ps: Push-AppveyorArtifact eliot.log -Filename eliot.log
+
 #on_success:
 #  You can use this step to upload your artifacts to a public website.
 #  See Appveyor's documentation for more details. Or you can simply
