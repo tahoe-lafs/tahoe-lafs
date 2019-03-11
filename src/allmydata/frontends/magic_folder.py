@@ -7,6 +7,7 @@ from datetime import datetime
 import time
 import ConfigParser
 
+from twisted.python.log import msg as twmsg
 from twisted.python.filepath import FilePath
 from twisted.python.monkey import MonkeyPatcher
 from twisted.internet import defer, reactor, task
@@ -1718,10 +1719,11 @@ class Downloader(QueueMixin, WriteFileMixin):
             while True:
                 try:
                     yield self._scan_remote_collective(scan_self=True)
-                    # The integration tests watch for this log message to
-                    # decide when it is safe to proceed.  Clearly, we need
-                    # better programmatic interrogation of magic-folder state.
-                    print("Completed initial Magic Folder scan successfully ({})".format(self))
+                    # The integration tests watch for this log message (in the
+                    # Twisted log) to decide when it is safe to proceed.
+                    # Clearly, we need better programmatic interrogation of
+                    # magic-folder state.
+                    twmsg("Completed initial Magic Folder scan successfully ({})".format(self))
                     self._begin_processing()
                     return
                 except Exception:
