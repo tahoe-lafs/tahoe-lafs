@@ -311,7 +311,7 @@ class INotify(PollMixin):
                     # print info
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
                     if info.action == FILE_ACTION_MODIFIED and path.isdir():
-                        # print "Filtering out %r" % (info,)
+                        print "Filtering out %r" % (info,)
                         continue
                     #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
