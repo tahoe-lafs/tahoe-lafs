@@ -4,6 +4,10 @@
 
 import os, sys
 
+from eliot import (
+    log_call,
+)
+
 from twisted.internet import reactor
 from twisted.internet.threads import deferToThread
 
@@ -22,6 +26,10 @@ from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.encodingutil import quote_output
 from allmydata.util import log, fileutil
 from allmydata.util.pollmixin import PollMixin
+from ..util.eliotutil import (
+    MAYBE_NOTIFY,
+    CALLBACK,
+)
 
 from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, create_string_buffer, \
     addressof, get_last_error
@@ -279,13 +287,20 @@ class INotify(PollMixin):
                         continue
                     #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
+                    @log_call(
+                        action_type=MAYBE_NOTIFY.action_type,
+                        include_args=[],
+                        include_result=False,
+                    )
                     def _do_pending_calls():
+                        event_mask = IN_CHANGED
                         self._pending_call = None
                         for path1 in self._pending:
                             if self._callbacks:
                                 for cb in self._callbacks:
                                     try:
-                                        cb(None, path1, IN_CHANGED)
+                                        with CALLBACK(inotify_events=event_mask):
+                                            cb(None, path1, event_mask)
                                     except Exception, e2:
                                         log.err(e2)
                         self._pending = set()
