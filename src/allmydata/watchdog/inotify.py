@@ -49,7 +49,8 @@ from allmydata.util.fake_inotify import humanReadableMask, \
     _FLAG_TO_HUMAN
 
 from ..util.eliotutil import (
-    INOTIFY_EVENTS,
+    MAYBE_NOTIFY,
+    CALLBACK,
     validateInstanceOf,
 )
 
@@ -68,13 +69,6 @@ _PATH = Field.for_types(
     u"The path an inotify event concerns.",
 )
 
-MAYBE_NOTIFY = ActionType(
-    u"watchdog:inotify:maybe-notify",
-    [],
-    [],
-    u"An inotify event is being considered for dispatch to an application handler.",
-)
-
 _EVENT = Field(
     u"event",
     lambda e: e.__class__.__name__,
@@ -87,13 +81,6 @@ ANY_INOTIFY_EVENT = ActionType(
     [_PATH, _EVENT],
     [],
     u"An inotify event is being dispatched.",
-)
-
-CALLBACK = ActionType(
-    u"watchdog:inotify:callback",
-    [INOTIFY_EVENTS],
-    [],
-    u"An inotify event is being dispatched to an application callback."
 )
 
 class INotifyEventHandler(FileSystemEventHandler):
