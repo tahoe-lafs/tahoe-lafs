@@ -154,6 +154,7 @@ class FileNotifyInformation(object):
             bytes = self._read_dword(pos+8)
             s = Event(self._read_dword(pos+4),
                       self.data[pos+12 : pos+12+bytes].decode('utf-16-le'))
+            Message.log(message_type="fni", info=repr(s))
 
             next_entry_offset = self._read_dword(pos)
             yield s
@@ -310,7 +311,6 @@ class INotify(PollMixin):
                 if self._check_stop():
                     return
                 for info in fni:
-                    # print info
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
                     if info.action == FILE_ACTION_MODIFIED and path.isdir():
                         Message.log(
