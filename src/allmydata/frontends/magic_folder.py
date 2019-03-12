@@ -1169,9 +1169,9 @@ class Uploader(QueueMixin):
                     | IN_EXCL_UNLINK
                     )
 
-    def _add_watch(self):
+    def _add_watch(self, filepath):
         self._notifier.watch(
-            self._local_filepath,
+            filepath,
             mask=self.mask,
             callbacks=[self._notify],
             recursive=True,
@@ -1182,7 +1182,7 @@ class Uploader(QueueMixin):
         with action.context():
             d = DeferredContext(defer.succeed(None))
 
-        d.addCallback(lambda ign: self._add_watch())
+        d.addCallback(lambda ign: self._add_watch(self._local_filepath))
         d.addCallback(lambda ign: self._notifier.startReading())
         d.addCallback(lambda ign: self._count('dirs_monitored'))
         d.addBoth(self._call_hook, 'started')
@@ -1465,7 +1465,7 @@ class Uploader(QueueMixin):
                 return False
             elif pathinfo.isdir:
                 if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
-                    self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
+                    self._add_watch(fp)
 
                 DIRECTORY_PATHENTRY.log(pathentry=db_entry)
                 if not is_new_file(pathinfo, db_entry):
