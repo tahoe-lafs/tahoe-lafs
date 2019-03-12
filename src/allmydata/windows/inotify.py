@@ -199,7 +199,8 @@ def simple_test():
             print info
 
 def medium_test():
-    import time
+    from twisted.python.filepath import FilePath
+
     def print_(event):
         print(event)
 
@@ -214,7 +215,7 @@ def medium_test():
             | IN_ONLYDIR
             | IN_EXCL_UNLINK
     )
-    notifier.watch(u"test", mask, callbacks=[print_], recursive=True)
+    notifier.watch(FilePath(u"test"), mask, callbacks=[print_], recursive=True)
     notifier.startReading()
     reactor.run()
 
