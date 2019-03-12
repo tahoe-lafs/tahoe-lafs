@@ -1890,7 +1890,10 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
     @inline_callbacks
     def test_create_file_in_sub_directory(self):
         reldir_u = u'subdir'
-        relpath_u = os.path.join(reldir_u, u'some-file')
+        # Intentionally avoid doing a platform-respecting directory separator
+        # here.  _create_directory_with_file can deal with any separator.
+        # _get_collective_latest_file requires exactly / as a separator.
+        relpath_u = u'/'.join((reldir_u, u'some-file'))
         content = u'some great content'
         yield self._create_directory_with_file(
             relpath_u,
