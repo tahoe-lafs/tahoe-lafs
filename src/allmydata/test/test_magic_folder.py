@@ -1890,19 +1890,19 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
     @inline_callbacks
     def test_create_file_in_sub_directory(self):
         reldir_u = u'subdir'
-        # Intentionally avoid doing a platform-respecting directory separator
-        # here.  _create_directory_with_file can deal with any separator.
-        # _get_collective_latest_file requires exactly / as a separator.
-        relpath_u = u'/'.join((reldir_u, u'some-file'))
+        # The OS and the DMD may have conflicting conventions for directory
+        # the separator.  Construct a value for each.
+        dmd_relpath_u = u'/'.join((reldir_u, u'some-file'))
+        platform_relpath_u = join(reldir_u, u'some-file')
         content = u'some great content'
         yield self._create_directory_with_file(
-            relpath_u,
+            platform_relpath_u,
             content,
         )
         # The new directory and file should have been noticed and uploaded.
         downloader = self.magicfolder.downloader
         encoded_dir_u = magicpath.path2magic(reldir_u + u"/")
-        encoded_path_u = magicpath.path2magic(relpath_u)
+        encoded_path_u = magicpath.path2magic(dmd_relpath_u)
 
         with start_action(action_type=u"retrieve-metadata"):
             dir_node, dir_meta = yield downloader._get_collective_latest_file(
