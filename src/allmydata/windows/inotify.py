@@ -201,7 +201,7 @@ def simple_test():
 def medium_test():
     from twisted.python.filepath import FilePath
 
-    def print_(event):
+    def print_(*event):
         print(event)
 
     notifier = INotify()
