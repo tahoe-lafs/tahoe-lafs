@@ -1919,18 +1919,19 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     @inline_callbacks
     def test_delete_file_in_sub_directory(self):
-        relpath_u = u'subdir/some-file'
+        dmd_relpath_u = u'/'.join((u'subdir', u'some-file'))
+        platform_relpath_u = join(u'subdir', u'some-file')
         content = u'some great content'
         yield self._create_directory_with_file(
-            relpath_u,
+            platform_relpath_u,
             content,
         )
         # Delete the file in the sub-directory.
-        yield self.fileops.delete(os.path.join(self.local_dir, relpath_u))
+        yield self.fileops.delete(os.path.join(self.local_dir, platform_relpath_u))
         # Let the deletion be processed.
         yield iterate(self.magicfolder)
         # Verify the deletion was uploaded.
-        encoded_path_u = magicpath.path2magic(relpath_u)
+        encoded_path_u = magicpath.path2magic(dmd_relpath_u)
         downloader = self.magicfolder.downloader
         node, metadata = yield downloader._get_collective_latest_file(encoded_path_u)
         self.assertThat(node, Not(Is(None)))
