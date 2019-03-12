@@ -98,8 +98,8 @@ _action_to_inotify_mask = {
 
 INVALID_HANDLE_VALUE             = 0xFFFFFFFF
 
-TRUE  = 0
-FALSE = 1
+FALSE = 0
+TRUE = 1
 
 class Event(object):
     """
