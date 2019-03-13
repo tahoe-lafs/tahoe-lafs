@@ -93,6 +93,9 @@ from twisted.application.service import Service
 from .fileutil import (
     PathInfo,
 )
+from .fake_inotify import (
+    humanReadableMask,
+)
 
 class _GeneratorContext(object):
     def __init__(self, execution_context):
