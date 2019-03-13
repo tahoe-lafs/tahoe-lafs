@@ -5,6 +5,7 @@
 import os, sys
 
 from eliot import (
+    Message,
     log_call,
 )
 
