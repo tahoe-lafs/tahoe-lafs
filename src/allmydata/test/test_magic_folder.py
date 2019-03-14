@@ -5,6 +5,7 @@ import mock
 from os.path import join, exists, isdir
 
 from twisted.internet import defer, task, reactor
+from twisted.python.filepath import FilePath
 
 from testtools import (
     skipIf,
@@ -17,6 +18,7 @@ from testtools.matchers import (
 )
 
 from eliot import (
+    Message,
     start_action,
 )
 from eliot.twisted import DeferredContext
@@ -514,6 +516,15 @@ def iterate(magic):
     yield iterate_downloader(magic)
 
 
+@inline_callbacks
+def notify_when_pending(uploader, filename):
+    with start_action(action_type=u"notify-when-pending", filename=filename):
+        relpath = uploader._get_relpath(FilePath(filename))
+        while not uploader.is_pending(relpath):
+            Message.log(message_type=u"not-pending")
+            yield uploader.set_hook('inotify')
+
+
 class FileOperationsHelper(object):
     """
     This abstracts all file operations we might do in magic-folder unit-tests.
@@ -549,7 +560,8 @@ class FileOperationsHelper(object):
         if not os.path.exists(fname):
             self._maybe_notify(fname, self._inotify.IN_CREATE)
 
-        d = self._uploader.set_hook('inotify')
+        d = notify_when_pending(self._uploader, path_u)
+
         with open(fname, "wb") as f:
             f.write(contents)
 
