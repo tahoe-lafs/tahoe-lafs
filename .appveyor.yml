@@ -63,6 +63,9 @@ after_test:
     rd /s /q _trial_temp
     %PYTHON%\python.exe setup.py bdist_wheel
     %PYTHON%\python.exe -m pip wheel -w dist .
+  - |
+  %PYTHON%\python.exe -m pip install codecov
+  codecov
 
 artifacts:
   # bdist_wheel puts your built wheel in the dist directory
