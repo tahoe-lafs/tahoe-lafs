@@ -553,7 +553,7 @@ class FileOperationsHelper(object):
         self._maybe_notify(to_fname, self._inotify.IN_MOVED_TO)
         # hmm? we weren't faking IN_MOVED_FROM previously .. but seems like we should have been?
         # self._uploader._notifier.event(to_filepath(from_fname), self._inotify.IN_MOVED_FROM)
-        return d
+        return d.addTimeout(self._timeout, reactor)
 
     @log_call_deferred(action_type=u"fileops:write")
     def write(self, path_u, contents):
@@ -575,7 +575,7 @@ class FileOperationsHelper(object):
         d = self._uploader.set_hook('inotify')
         os.mkdir(fname)
         self._maybe_notify(fname, self._inotify.IN_CREATE | self._inotify.IN_ISDIR)
-        return d
+        return d.addTimeout(self._timeout, reactor)
 
     @log_call_deferred(action_type=u"fileops:delete")
     def delete(self, path_u):
