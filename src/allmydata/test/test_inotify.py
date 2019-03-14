@@ -129,8 +129,8 @@ class INotifyTests(AsyncTestCase):
 
     def test_humanReadableMask(self):
         """
-        L{inotify.humaReadableMask} translates all the possible event
-        masks to a human readable string.
+        L{inotify.humanReadableMask} translates all the possible event masks to a
+        human readable string.
         """
         for mask, value in inotify._FLAG_TO_HUMAN:
             self.assertEqual(inotify.humanReadableMask(mask)[0], value)
