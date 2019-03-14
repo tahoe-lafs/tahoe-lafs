@@ -65,7 +65,9 @@ after_test:
     %PYTHON%\python.exe -m pip wheel -w dist .
   - |
     %PYTHON%\python.exe -m pip install codecov
-    codecov
+    coverage combine
+    coverage xml -o coverage.xml -i
+    codecov -X search -X gcov -f coverage.xml
 
 artifacts:
   # bdist_wheel puts your built wheel in the dist directory
