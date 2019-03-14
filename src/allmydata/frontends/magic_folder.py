@@ -1281,7 +1281,6 @@ class Uploader(QueueMixin):
                 success_fields[u"ignored"] = True
             else:
                 self._add_pending(relpath_u)
-                self._call_hook(path, 'inotify')
 
             # Always fire the inotify hook.  If an accident of timing causes a
             # second inotify event for a particular path before the first has
