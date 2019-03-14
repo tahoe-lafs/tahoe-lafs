@@ -1282,6 +1282,12 @@ class Uploader(QueueMixin):
             else:
                 self._add_pending(relpath_u)
                 self._call_hook(path, 'inotify')
+
+            # Always fire the inotify hook.  If an accident of timing causes a
+            # second inotify event for a particular path before the first has
+            # been processed, the expectation is still that any code that was
+            # waiting for the second inotify event should be notified.
+            self._call_hook(path, 'inotify')
             action.add_success_fields(**success_fields)
 
     def _process(self, item):
