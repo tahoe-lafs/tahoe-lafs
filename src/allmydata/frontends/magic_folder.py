@@ -1153,7 +1153,7 @@ class Uploader(QueueMixin):
                     | IN_EXCL_UNLINK
                     )
         self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
-                             recursive=False)#True)
+                             recursive=True)
 
     def start_monitoring(self):
         action = START_MONITORING(**self._log_fields)
