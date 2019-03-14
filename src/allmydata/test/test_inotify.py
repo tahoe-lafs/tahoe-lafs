@@ -90,6 +90,9 @@ class INotifyTests(AsyncTestCase):
         sends an C{inotify.IN_ATTRIB} event to the callback.
         """
         def operation(path):
+            # Create the file.
+            path.touch()
+            # Modify the file's attributes.
             path.touch()
 
         return self._notificationTest(inotify.IN_ATTRIB, operation)
