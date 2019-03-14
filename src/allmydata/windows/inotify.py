@@ -5,6 +5,7 @@
 import os, sys
 
 from eliot import (
+    start_action,
     Message,
     log_call,
 )
@@ -294,14 +295,15 @@ class INotify(PollMixin):
 
             while True:
                 self._state = STARTED
-                Message.log(
-                    message_type=u"read-changes",
+                action = start_action(
+                    action_type=u"read-changes",
                     directory=self._path.path,
                     recursive=self._recursive,
                     filter=self._filter,
                 )
                 try:
-                    fni.read_changes(self._hDirectory, self._recursive, self._filter)
+                    with action:
+                        fni.read_changes(self._hDirectory, self._recursive, self._filter)
                 except WindowsError as e:
                     self._state = STOPPING
 
