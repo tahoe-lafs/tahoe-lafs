@@ -584,7 +584,7 @@ class FileOperationsHelper(object):
         os.unlink(fname)
 
         self._maybe_notify(fname, self._inotify.IN_DELETE)
-        return d
+        return d.addTimeout(self._timeout, reactor)
 
     def _maybe_notify(self, fname, mask):
         if self._fake_inotify:
