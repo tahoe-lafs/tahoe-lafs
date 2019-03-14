@@ -313,8 +313,16 @@ class INotify(PollMixin):
                     # print info
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
                     if info.action == FILE_ACTION_MODIFIED and path.isdir():
-                        # print "Filtering out %r" % (info,)
+                        Message.log(
+                            message_type=u"filtering-out",
+                            info=repr(info),
+                        )
                         continue
+                    else:
+                        Message.log(
+                            message_type=u"processing",
+                            info=repr(info),
+                        )
                     #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
                     @log_call(
