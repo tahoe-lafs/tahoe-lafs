@@ -1808,7 +1808,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                         max_version = result[1]['version']
                 else:
                     Message.log(
-                        message_type="magic-folder:downlodaer:get-latest-file:failed",
+                        message_type="magic-folder:downloader:get-latest-file:failed",
                     )
             return node, metadata
         collective_dirmap_d.addCallback(highest_version)
