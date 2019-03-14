@@ -74,6 +74,8 @@ def humanReadableMask(mask):
     return s
 
 
+from eliot import start_action
+
 # This class is not copied from Twisted; it acts as a mock.
 class INotify(object):
     def startReading(self):
@@ -89,8 +91,9 @@ class INotify(object):
         self.callbacks = callbacks
 
     def event(self, filepath, mask):
-        for cb in self.callbacks:
-            cb(None, filepath, mask)
+        with start_action(action_type=u"fake-inotify:event", path=filepath.path, mask=mask):
+            for cb in self.callbacks:
+                cb(None, filepath, mask)
 
 
 __all__ = ["INotify", "humanReadableMask", "IN_WATCH_MASK", "IN_ACCESS",

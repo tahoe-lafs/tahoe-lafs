@@ -6,6 +6,10 @@ import re
 import time
 from datetime import datetime
 
+from eliot import (
+    log_call,
+    start_action,
+)
 from eliot.twisted import (
     DeferredContext,
 )
@@ -38,7 +42,13 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         self.bob_nickname = self.unicode_or_fallback(u"Bob\u00F8", u"Bob", io_as_well=True)
 
     def do_create_magic_folder(self, client_num):
-        d = self.do_cli("magic-folder", "--debug", "create", "magic:", client_num=client_num)
+        with start_action(action_type=u"create-magic-folder", client_num=client_num).context():
+            d = DeferredContext(
+                self.do_cli(
+                    "magic-folder", "--debug", "create", "magic:",
+                    client_num=client_num,
+                )
+            )
         def _done((rc,stdout,stderr)):
             self.failUnlessEqual(rc, 0, stdout + stderr)
             self.assertIn("Alias 'magic' created", stdout)
@@ -49,16 +59,30 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
             self.assertIn("magic", aliases)
             self.failUnless(aliases["magic"].startswith("URI:DIR2:"))
         d.addCallback(_done)
-        return d
+        return d.addActionFinish()
 
     def do_invite(self, client_num, nickname):
         nickname_arg = unicode_to_argv(nickname)
-        d = self.do_cli("magic-folder", "invite", "magic:", nickname_arg, client_num=client_num)
+        action = start_action(
+            action_type=u"invite-to-magic-folder",
+            client_num=client_num,
+            nickname=nickname,
+        )
+        with action.context():
+            d = DeferredContext(
+                self.do_cli(
+                    "magic-folder",
+                    "invite",
+                    "magic:",
+                    nickname_arg,
+                    client_num=client_num,
+                )
+            )
         def _done((rc, stdout, stderr)):
             self.failUnlessEqual(rc, 0)
             return (rc, stdout, stderr)
         d.addCallback(_done)
-        return d
+        return d.addActionFinish()
 
     def do_list(self, client_num, json=False):
         args = ("magic-folder", "list",)
@@ -81,18 +105,32 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         return d
 
     def do_join(self, client_num, local_dir, invite_code):
-        precondition(isinstance(local_dir, unicode), local_dir=local_dir)
-        precondition(isinstance(invite_code, str), invite_code=invite_code)
-
-        local_dir_arg = unicode_to_argv(local_dir)
-        d = self.do_cli("magic-folder", "join", invite_code, local_dir_arg, client_num=client_num)
+        action = start_action(
+            action_type=u"join-magic-folder",
+            client_num=client_num,
+            local_dir=local_dir,
+            invite_code=invite_code,
+        )
+        with action.context():
+            precondition(isinstance(local_dir, unicode), local_dir=local_dir)
+            precondition(isinstance(invite_code, str), invite_code=invite_code)
+            local_dir_arg = unicode_to_argv(local_dir)
+            d = DeferredContext(
+                self.do_cli(
+                    "magic-folder",
+                    "join",
+                    invite_code,
+                    local_dir_arg,
+                    client_num=client_num,
+                )
+            )
         def _done((rc, stdout, stderr)):
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(stdout, "")
             self.failUnlessEqual(stderr, "")
             return (rc, stdout, stderr)
         d.addCallback(_done)
-        return d
+        return d.addActionFinish()
 
     def do_leave(self, client_num):
         d = self.do_cli("magic-folder", "leave", client_num=client_num)
@@ -106,8 +144,16 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         """Tests that our collective directory has the readonly cap of
         our upload directory.
         """
-        collective_readonly_cap = self.get_caps_from_files(client_num)[0]
-        d = self.do_cli("ls", "--json", collective_readonly_cap, client_num=client_num)
+        action = start_action(action_type=u"check-joined-config")
+        with action.context():
+            collective_readonly_cap = self.get_caps_from_files(client_num)[0]
+            d = DeferredContext(
+                self.do_cli(
+                    "ls", "--json",
+                    collective_readonly_cap,
+                    client_num=client_num,
+                )
+            )
         def _done((rc, stdout, stderr)):
             self.failUnlessEqual(rc, 0)
             return (rc, stdout, stderr)
@@ -118,7 +164,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
             self.failUnless(s is not None)
             return None
         d.addCallback(test_joined_magic_folder)
-        return d
+        return d.addActionFinish()
 
     def get_caps_from_files(self, client_num):
         from allmydata.frontends.magic_folder import load_magic_folders
@@ -126,6 +172,7 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         mf = folders["default"]
         return mf['collective_dircap'], mf['upload_dircap']
 
+    @log_call
     def check_config(self, client_num, local_dir):
         client_config = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "tahoe.cfg"))
         mf_yaml = fileutil.read(os.path.join(self.get_clientdir(i=client_num), "private", "magic_folders.yaml"))

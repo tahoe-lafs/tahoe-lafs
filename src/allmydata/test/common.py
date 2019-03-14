@@ -2,6 +2,10 @@ __all__ = [
     "SyncTestCase",
     "AsyncTestCase",
     "AsyncBrokenTestCase",
+
+    "flush_logged_errors",
+    "skip",
+    "skipIf",
 ]
 
 import os, random, struct
@@ -16,11 +20,14 @@ from zope.interface import implementer
 
 from testtools import (
     TestCase,
+    skip,
+    skipIf,
 )
 from testtools.twistedsupport import (
     SynchronousDeferredRunTest,
     AsynchronousDeferredRunTest,
     AsynchronousDeferredRunTestForBrokenTwisted,
+    flush_logged_errors,
 )
 
 from twisted.internet import defer

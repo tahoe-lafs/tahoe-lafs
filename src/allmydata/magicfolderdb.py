@@ -43,11 +43,11 @@ _INSERT_OR_UPDATE = Field.for_types(
     validateSetMembership({u"insert", u"update"}),
 )
 
-DID_UPLOAD_VERSION = ActionType(
-    u"magic-folder-db:did-upload-version",
+UPDATE_ENTRY = ActionType(
+    u"magic-folder-db:update-entry",
     [RELPATH, VERSION, LAST_UPLOADED_URI, LAST_DOWNLOADED_URI, LAST_DOWNLOADED_TIMESTAMP, PATHINFO],
     [_INSERT_OR_UPDATE],
-    u"An file upload is being recorded in the database.",
+    u"Record some metadata about a relative path in the magic-folder.",
 )
 
 
@@ -88,6 +88,15 @@ def get_magicfolderdb(dbfile, stderr=sys.stderr,
         print >>stderr, e
         return None
 
+class LocalPath(object):
+    @classmethod
+    def fromrow(self, row):
+        p = LocalPath()
+        p.relpath_u = row[0]
+        p.entry = PathEntry(*row[1:])
+        return p
+
+
 class MagicFolderDB(object):
     VERSION = 1
 
@@ -121,6 +130,42 @@ class MagicFolderDB(object):
                              last_downloaded_uri=last_downloaded_uri,
                              last_downloaded_timestamp=last_downloaded_timestamp)
 
+    def get_direct_children(self, relpath_u):
+        """
+        Given the relative path to a directory, return ``LocalPath`` instances
+        representing all direct children of that directory.
+        """
+        # It would be great to not be interpolating data into query
+        # statements.  However, query parameters are not supported in the
+        # position where we need them.
+        sqlitesafe_relpath_u = relpath_u.replace(u"'", u"''")
+        statement = (
+            """
+            SELECT
+                path, size, mtime_ns, ctime_ns, version, last_uploaded_uri,
+                last_downloaded_uri, last_downloaded_timestamp
+            FROM
+                local_files
+            WHERE
+                -- The "_" used here ensures there is at least one character
+                -- after the /.  This prevents matching the path itself.
+                path LIKE '{path}/_%' AND
+
+                -- The "_" used here serves a similar purpose.  This allows
+                -- matching directory children but avoids matching their
+                -- children.
+                path NOT LIKE '{path}/_%/_%'
+            """
+        ).format(path=sqlitesafe_relpath_u)
+
+        self.cursor.execute(statement)
+        rows = self.cursor.fetchall()
+        return list(
+            LocalPath.fromrow(row)
+            for row
+            in rows
+        )
+
     def get_all_relpaths(self):
         """
         Retrieve a set of all relpaths of files that have had an entry in magic folder db
@@ -131,7 +176,7 @@ class MagicFolderDB(object):
         return set([r[0] for r in rows])
 
     def did_upload_version(self, relpath_u, version, last_uploaded_uri, last_downloaded_uri, last_downloaded_timestamp, pathinfo):
-        action = DID_UPLOAD_VERSION(
+        action = UPDATE_ENTRY(
             relpath=relpath_u,
             version=version,
             last_uploaded_uri=last_uploaded_uri,

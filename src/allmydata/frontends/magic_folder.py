@@ -7,6 +7,7 @@ from datetime import datetime
 import time
 import ConfigParser
 
+from twisted.python.log import msg as twmsg
 from twisted.python.filepath import FilePath
 from twisted.python.monkey import MonkeyPatcher
 from twisted.internet import defer, reactor, task
@@ -19,6 +20,8 @@ from zope.interface import Interface, Attribute, implementer
 
 from eliot import (
     Field,
+    Message,
+    start_action,
     ActionType,
     MessageType,
     write_failure,
@@ -34,9 +37,6 @@ from allmydata.util import (
     configutil,
     yamlutil,
     eliotutil,
-)
-from allmydata.util.fake_inotify import (
-    humanReadableMask,
 )
 from allmydata.interfaces import IDirectoryNode
 from allmydata.util import log
@@ -75,9 +75,11 @@ def _get_inotify_module():
             from allmydata.windows import inotify
         elif runtime.platform.supportsINotify():
             from twisted.internet import inotify
+        elif not sys.platform.startswith("linux"):
+            from allmydata.watchdog import inotify
         else:
             raise NotImplementedError("filesystem notification needed for Magic Folder is not supported.\n"
-                                      "This currently requires Linux or Windows.")
+                                      "This currently requires Linux, Windows, or macOS.")
         return inotify
     except (ImportError, AttributeError) as e:
         log.msg(e)
@@ -521,10 +523,11 @@ MAYBE_UPLOAD = MessageType(
     u"A decision is being made about whether to upload a file.",
 )
 
-PENDING = Field.for_types(
+PENDING = Field(
     u"pending",
-    [list],
+    lambda s: list(s),
     u"The paths which are pending processing.",
+    eliotutil.validateInstanceOf(set),
 )
 
 REMOVE_FROM_PENDING = ActionType(
@@ -545,6 +548,19 @@ NOTIFIED_OBJECT_DISAPPEARED = MessageType(
     u"magic-folder:notified-object-disappeared",
     [PATH],
     u"A path which generated a notification was not found on the filesystem.  This is normal.",
+)
+
+PROPAGATE_DIRECTORY_DELETION = ActionType(
+    u"magic-folder:propagate-directory-deletion",
+    [],
+    [],
+    u"Children of a deleted directory are being queued for upload processing.",
+)
+
+NO_DATABASE_ENTRY = MessageType(
+    u"magic-folder:no-database-entry",
+    [],
+    u"There is no local database entry for a particular relative path in the magic folder.",
 )
 
 NOT_UPLOADING = MessageType(
@@ -688,13 +704,6 @@ NOTIFIED = ActionType(
     u"Magic-Folder received a notification of a local filesystem change for a certain path.",
 )
 
-_EVENTS = Field(
-    u"events",
-    humanReadableMask,
-    u"Details about a filesystem event generating a notification event.",
-    eliotutil.validateInstanceOf((int, long)),
-)
-
 _NON_DIR_CREATED = Field.for_types(
     u"non_dir_created",
     [bool],
@@ -704,7 +713,7 @@ _NON_DIR_CREATED = Field.for_types(
 
 REACT_TO_INOTIFY = ActionType(
     u"magic-folder:react-to-inotify",
-    [_EVENTS],
+    [eliotutil.INOTIFY_EVENTS],
     [_IGNORED, _NON_DIR_CREATED, _ALREADY_PENDING],
     u"Magic-Folder is processing a notification from inotify(7) (or a clone) about a filesystem event.",
 )
@@ -1118,6 +1127,13 @@ PROCESS_ITEM = ActionType(
     u"A path which was found wanting of an update is receiving an update.",
 )
 
+DOWNLOAD_BEST_VERSION = ActionType(
+    u"magic-folder:download-best-version",
+    [],
+    [],
+    u"The content of a file in the Magic Folder is being downloaded.",
+)
+
 class Uploader(QueueMixin):
 
     def __init__(self, client, local_path_u, db, upload_dirnode, pending_delay, clock):
@@ -1152,14 +1168,21 @@ class Uploader(QueueMixin):
                     | self._inotify.IN_ONLYDIR
                     | IN_EXCL_UNLINK
                     )
-        self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
-                             recursive=True)
+
+    def _add_watch(self, filepath):
+        self._notifier.watch(
+            filepath,
+            mask=self.mask,
+            callbacks=[self._notify],
+            recursive=True,
+        )
 
     def start_monitoring(self):
         action = START_MONITORING(**self._log_fields)
         with action.context():
             d = DeferredContext(defer.succeed(None))
 
+        d.addCallback(lambda ign: self._add_watch(self._local_filepath))
         d.addCallback(lambda ign: self._notifier.startReading())
         d.addCallback(lambda ign: self._count('dirs_monitored'))
         d.addBoth(self._call_hook, 'started')
@@ -1258,7 +1281,7 @@ class Uploader(QueueMixin):
             # All can do is id() or repr() it and neither of those actually
             # produces very illuminating results.  We drop opaque on the
             # floor, anyway.
-            events=events_mask,
+            inotify_events=events_mask,
         )
         success_fields = dict(non_dir_created=False, already_pending=False, ignored=False)
 
@@ -1296,40 +1319,69 @@ class Uploader(QueueMixin):
         """
         # Uploader
         with PROCESS_ITEM(item=item).context():
-            d = DeferredContext(defer.succeed(False))
-
             relpath_u = item.relpath_u
-            item.set_status('started', self._clock.seconds())
+            precondition(isinstance(relpath_u, unicode), relpath_u)
+            precondition(not relpath_u.endswith(u'/'), relpath_u)
+            encoded_path_u = magicpath.path2magic(relpath_u)
 
+            d = DeferredContext(defer.succeed(False))
             if relpath_u is None:
                 item.set_status('invalid_path', self._clock.seconds())
                 return d.addActionFinish()
+            item.set_status('started', self._clock.seconds())
 
-            precondition(isinstance(relpath_u, unicode), relpath_u)
-            precondition(not relpath_u.endswith(u'/'), relpath_u)
+            try:
+                # Take this item out of the pending set before we do any
+                # I/O-based processing related to it.  If a further change
+                # takes place after we remove it from this set, we want it to
+                # end up in the set again.  If we haven't gotten around to
+                # doing the I/O-based processing yet then the worst that will
+                # happen is we'll do a little redundant processing.
+                #
+                # If we did it the other way around, the sequence of events
+                # might be something like: we do some I/O, someone else does
+                # some I/O, a notification gets discarded because the path is
+                # still in the pending set, _then_ we remove it from the
+                # pending set.  In such a circumstance, we've missed some I/O
+                # that we should have responded to.
+                with REMOVE_FROM_PENDING(relpath=relpath_u, pending=self._pending):
+                    self._pending.remove(relpath_u)
+            except KeyError:
+                pass
+
+            fp = self._get_filepath(relpath_u)
+            pathinfo = get_pathinfo(unicode_from_filepath(fp))
+
+            db_entry_is_dir = False
+            db_entry = self._db.get_db_entry(relpath_u)
+            if db_entry is None:
+                # Maybe it was a directory!
+                db_entry = self._db.get_db_entry(relpath_u + u"/")
+                if db_entry is None:
+                    NO_DATABASE_ENTRY.log()
+                else:
+                    db_entry_is_dir = True
 
         def _maybe_upload(ign, now=None):
             MAYBE_UPLOAD.log(relpath=relpath_u)
             if now is None:
                 now = time.time()
-            fp = self._get_filepath(relpath_u)
-            pathinfo = get_pathinfo(unicode_from_filepath(fp))
-
-            try:
-                with REMOVE_FROM_PENDING(relpath=relpath_u, pending=list(self._pending)):
-                    self._pending.remove(relpath_u)
-            except KeyError:
-                pass
-            encoded_path_u = magicpath.path2magic(relpath_u)
 
             if not pathinfo.exists:
                 # FIXME merge this with the 'isfile' case.
                 NOTIFIED_OBJECT_DISAPPEARED.log(path=fp)
                 self._count('objects_disappeared')
 
-                db_entry = self._db.get_db_entry(relpath_u)
                 if db_entry is None:
+                    # If it exists neither on the filesystem nor in the
+                    # database, it's neither a creation nor a deletion and
+                    # there's nothing more to do.
                     return False
+
+                if pathinfo.isdir or db_entry_is_dir:
+                    with PROPAGATE_DIRECTORY_DELETION():
+                        for localpath in self._db.get_direct_children(relpath_u):
+                            self._add_pending(localpath.relpath_u)
 
                 last_downloaded_timestamp = now  # is this correct?
 
@@ -1374,9 +1426,17 @@ class Uploader(QueueMixin):
                 if db_entry.last_uploaded_uri is not None:
                     metadata['last_uploaded_uri'] = db_entry.last_uploaded_uri
 
+                if db_entry_is_dir:
+                    real_encoded_path_u = encoded_path_u + magicpath.path2magic(u"/")
+                    real_relpath_u = relpath_u + u"/"
+                else:
+                    real_encoded_path_u = encoded_path_u
+                    real_relpath_u = relpath_u
+
                 empty_uploadable = Data("", self._client.convergence)
                 d2 = DeferredContext(self._upload_dirnode.add_file(
-                    encoded_path_u, empty_uploadable,
+                    real_encoded_path_u,
+                    empty_uploadable,
                     metadata=metadata,
                     overwrite=True,
                     progress=item.progress,
@@ -1389,7 +1449,7 @@ class Uploader(QueueMixin):
                     # immediately re-download it when we start up next
                     last_downloaded_uri = metadata.get('last_downloaded_uri', filecap)
                     self._db.did_upload_version(
-                        relpath_u,
+                        real_relpath_u,
                         new_version,
                         filecap,
                         last_downloaded_uri,
@@ -1405,33 +1465,38 @@ class Uploader(QueueMixin):
                 return False
             elif pathinfo.isdir:
                 if not getattr(self._notifier, 'recursive_includes_new_subdirectories', False):
-                    self._notifier.watch(fp, mask=self.mask, callbacks=[self._notify], recursive=True)
+                    self._add_watch(fp)
 
-                db_entry = self._db.get_db_entry(relpath_u)
                 DIRECTORY_PATHENTRY.log(pathentry=db_entry)
                 if not is_new_file(pathinfo, db_entry):
                     NOT_NEW_DIRECTORY.log()
                     return False
 
                 uploadable = Data("", self._client.convergence)
-                encoded_path_u += magicpath.path2magic(u"/")
                 with PROCESS_DIRECTORY().context() as action:
                     upload_d = DeferredContext(self._upload_dirnode.add_file(
-                        encoded_path_u, uploadable,
+                        encoded_path_u + magicpath.path2magic(u"/"),
+                        uploadable,
                         metadata={"version": 0},
                         overwrite=True,
                         progress=item.progress,
                     ))
-                def _dir_succeeded(ign):
+                def _dir_succeeded(dirnode):
                     action.add_success_fields(created_directory=relpath_u)
                     self._count('directories_created')
+                    self._db.did_upload_version(
+                        relpath_u + u"/",
+                        version=0,
+                        last_uploaded_uri=dirnode.get_uri(),
+                        last_downloaded_uri=None,
+                        last_downloaded_timestamp=now,
+                        pathinfo=pathinfo,
+                    )
                 upload_d.addCallback(_dir_succeeded)
                 upload_d.addCallback(lambda ign: self._scan(relpath_u))
                 upload_d.addCallback(lambda ign: True)
                 return upload_d.addActionFinish()
             elif pathinfo.isfile:
-                db_entry = self._db.get_db_entry(relpath_u)
-
                 last_downloaded_timestamp = now
 
                 if db_entry is None:
@@ -1654,10 +1719,11 @@ class Downloader(QueueMixin, WriteFileMixin):
             while True:
                 try:
                     yield self._scan_remote_collective(scan_self=True)
-                    # The integration tests watch for this log message to
-                    # decide when it is safe to proceed.  Clearly, we need
-                    # better programmatic interrogation of magic-folder state.
-                    print("Completed initial Magic Folder scan successfully ({})".format(self))
+                    # The integration tests watch for this log message (in the
+                    # Twisted log) to decide when it is safe to proceed.
+                    # Clearly, we need better programmatic interrogation of
+                    # magic-folder state.
+                    twmsg("Completed initial Magic Folder scan successfully ({})".format(self))
                     self._begin_processing()
                     return
                 except Exception:
@@ -1707,12 +1773,21 @@ class Downloader(QueueMixin, WriteFileMixin):
         file node and metadata for the latest version of the file located in the
         magic-folder collective directory.
         """
-        collective_dirmap_d = self._collective_dirnode.list()
+        action = start_action(
+            action_type=u"magic-folder:downloader:get-latest-file",
+            name=filename,
+        )
+        with action.context():
+            collective_dirmap_d = DeferredContext(self._collective_dirnode.list())
         def scan_collective(result):
+            Message.log(
+                message_type=u"magic-folder:downloader:get-latest-file:collective-scan",
+                dmds=result.keys(),
+            )
             list_of_deferreds = []
             for dir_name in result.keys():
                 # XXX make sure it's a directory
-                d = defer.succeed(None)
+                d = DeferredContext(defer.succeed(None))
                 d.addCallback(lambda x, dir_name=dir_name: result[dir_name][0].get_child_and_metadata(filename))
                 list_of_deferreds.append(d)
             deferList = defer.DeferredList(list_of_deferreds, consumeErrors=True)
@@ -1724,12 +1799,20 @@ class Downloader(QueueMixin, WriteFileMixin):
             node = None
             for success, result in deferredList:
                 if success:
+                    Message.log(
+                        message_type=u"magic-folder:downloader:get-latest-file:version",
+                        version=result[1]['version'],
+                    )
                     if node is None or result[1]['version'] > max_version:
                         node, metadata = result
                         max_version = result[1]['version']
+                else:
+                    Message.log(
+                        message_type="magic-folder:downloader:get-latest-file:failed",
+                    )
             return node, metadata
         collective_dirmap_d.addCallback(highest_version)
-        return collective_dirmap_d
+        return collective_dirmap_d.addActionFinish()
 
     def _scan_remote_dmd(self, nickname, dirnode, scan_batch):
         with SCAN_REMOTE_DMD(nickname=nickname).context():
@@ -1959,14 +2042,17 @@ class Downloader(QueueMixin, WriteFileMixin):
                 if item.metadata.get('deleted', False):
                     d.addCallback(lambda ign: self._rename_deleted_file(abspath_u))
                 else:
-                    d.addCallback(lambda ign: item.file_node.download_best_version(progress=item.progress))
-                    d.addCallback(
-                        lambda contents: self._write_downloaded_file(
+                    @eliotutil.log_call_deferred(DOWNLOAD_BEST_VERSION.action_type)
+                    def download_best_version(ignored):
+                        d = DeferredContext(item.file_node.download_best_version(progress=item.progress))
+                        d.addCallback(lambda contents: self._write_downloaded_file(
                             self._local_path_u, abspath_u, contents,
                             is_conflict=is_conflict,
                             mtime=item.metadata.get('user_mtime', item.metadata.get('tahoe', {}).get('linkmotime')),
-                        )
-                    )
+                        ))
+                        return d.result
+
+                    d.addCallback(download_best_version)
 
         d.addCallback(do_update_db)
         d.addErrback(failed)
