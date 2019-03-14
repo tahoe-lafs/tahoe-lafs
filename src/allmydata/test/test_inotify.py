@@ -91,7 +91,6 @@ class INotifyTests(AsyncTestCase):
         """
         def operation(path):
             path.touch()
-            path.touch()
 
         return self._notificationTest(inotify.IN_ATTRIB, operation)
 
