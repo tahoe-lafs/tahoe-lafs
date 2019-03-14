@@ -26,7 +26,6 @@ class INotifyTests(AsyncTestCase):
     L{inotify.INotify}.
     """
     def setUp(self):
-        self.ignore_count = 0
         self.dirname = filepath.FilePath(self.mktemp())
         self.dirname.createDirectory()
         self.inotify = inotify.INotify()
@@ -35,7 +34,7 @@ class INotifyTests(AsyncTestCase):
         return super(INotifyTests, self).setUp()
 
 
-    def _notificationTest(self, mask, operation, expectedPath=None, ignore_count=0):
+    def _notificationTest(self, mask, operation, expectedPath=None):
         """
         Test notification from some filesystem operation.
 
@@ -54,12 +53,8 @@ class INotifyTests(AsyncTestCase):
         @return: A L{Deferred} which fires successfully when the
             expected event has been received or fails otherwise.
         """
-        assert ignore_count >= 0
         if expectedPath is None:
             expectedPath = self.dirname.child("foo.bar")
-        if ignore_count > 0:
-            self.ignore_count -= 1
-            return
         notified = defer.Deferred()
         def cbNotified(result):
             (watch, filename, events) = result
@@ -86,7 +81,7 @@ class INotifyTests(AsyncTestCase):
             with path.open("w") as fObj:
                 fObj.write(b'foo')
 
-        return self._notificationTest(inotify.IN_MODIFY, operation, ignore_count=1)
+        return self._notificationTest(inotify.IN_MODIFY, operation)
 
 
     def test_attrib(self):
@@ -98,7 +93,7 @@ class INotifyTests(AsyncTestCase):
             path.touch()
             path.touch()
 
-        return self._notificationTest(inotify.IN_ATTRIB, operation, ignore_count=1)
+        return self._notificationTest(inotify.IN_ATTRIB, operation)
 
 
     def test_closeWrite(self):
