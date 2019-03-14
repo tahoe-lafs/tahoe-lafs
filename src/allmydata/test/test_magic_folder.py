@@ -5,6 +5,7 @@ import mock
 from os.path import join, exists, isdir
 
 from twisted.internet import defer, task, reactor
+from twisted.python.filepath import FilePath
 
 from testtools import (
     skipIf,
@@ -17,6 +18,7 @@ from testtools.matchers import (
 )
 
 from eliot import (
+    Message,
     start_action,
 )
 from eliot.twisted import DeferredContext
@@ -514,6 +516,15 @@ def iterate(magic):
     yield iterate_downloader(magic)
 
 
+@inline_callbacks
+def notify_when_pending(uploader, filename):
+    with start_action(action_type=u"notify-when-pending", filename=filename):
+        relpath = uploader._get_relpath(FilePath(filename))
+        while not uploader.is_pending(relpath):
+            Message.log(message_type=u"not-pending")
+            yield uploader.set_hook('inotify')
+
+
 class FileOperationsHelper(object):
     """
     This abstracts all file operations we might do in magic-folder unit-tests.
@@ -525,6 +536,7 @@ class FileOperationsHelper(object):
 
     We could write this as a mixin instead; might fit existing style better?
     """
+    _timeout = 5.0
 
     def __init__(self, uploader, inject_events=False):
         self._uploader = uploader
@@ -541,7 +553,7 @@ class FileOperationsHelper(object):
         self._maybe_notify(to_fname, self._inotify.IN_MOVED_TO)
         # hmm? we weren't faking IN_MOVED_FROM previously .. but seems like we should have been?
         # self._uploader._notifier.event(to_filepath(from_fname), self._inotify.IN_MOVED_FROM)
-        return d
+        return d.addTimeout(self._timeout, reactor)
 
     @log_call_deferred(action_type=u"fileops:write")
     def write(self, path_u, contents):
@@ -549,12 +561,13 @@ class FileOperationsHelper(object):
         if not os.path.exists(fname):
             self._maybe_notify(fname, self._inotify.IN_CREATE)
 
-        d = self._uploader.set_hook('inotify')
+        d = notify_when_pending(self._uploader, path_u)
+
         with open(fname, "wb") as f:
             f.write(contents)
 
         self._maybe_notify(fname, self._inotify.IN_CLOSE_WRITE)
-        return d
+        return d.addTimeout(self._timeout, reactor)
 
     @log_call_deferred(action_type=u"fileops:mkdir")
     def mkdir(self, path_u):
@@ -562,7 +575,7 @@ class FileOperationsHelper(object):
         d = self._uploader.set_hook('inotify')
         os.mkdir(fname)
         self._maybe_notify(fname, self._inotify.IN_CREATE | self._inotify.IN_ISDIR)
-        return d
+        return d.addTimeout(self._timeout, reactor)
 
     @log_call_deferred(action_type=u"fileops:delete")
     def delete(self, path_u):
@@ -571,7 +584,7 @@ class FileOperationsHelper(object):
         os.unlink(fname)
 
         self._maybe_notify(fname, self._inotify.IN_DELETE)
-        return d
+        return d.addTimeout(self._timeout, reactor)
 
     def _maybe_notify(self, fname, mask):
         if self._fake_inotify:
@@ -1890,16 +1903,19 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
     @inline_callbacks
     def test_create_file_in_sub_directory(self):
         reldir_u = u'subdir'
-        relpath_u = os.path.join(reldir_u, u'some-file')
+        # The OS and the DMD may have conflicting conventions for directory
+        # the separator.  Construct a value for each.
+        dmd_relpath_u = u'/'.join((reldir_u, u'some-file'))
+        platform_relpath_u = join(reldir_u, u'some-file')
         content = u'some great content'
         yield self._create_directory_with_file(
-            relpath_u,
+            platform_relpath_u,
             content,
         )
         # The new directory and file should have been noticed and uploaded.
         downloader = self.magicfolder.downloader
         encoded_dir_u = magicpath.path2magic(reldir_u + u"/")
-        encoded_path_u = magicpath.path2magic(relpath_u)
+        encoded_path_u = magicpath.path2magic(dmd_relpath_u)
 
         with start_action(action_type=u"retrieve-metadata"):
             dir_node, dir_meta = yield downloader._get_collective_latest_file(
@@ -1916,18 +1932,19 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     @inline_callbacks
     def test_delete_file_in_sub_directory(self):
-        relpath_u = u'subdir/some-file'
+        dmd_relpath_u = u'/'.join((u'subdir', u'some-file'))
+        platform_relpath_u = join(u'subdir', u'some-file')
         content = u'some great content'
         yield self._create_directory_with_file(
-            relpath_u,
+            platform_relpath_u,
             content,
         )
         # Delete the file in the sub-directory.
-        yield self.fileops.delete(os.path.join(self.local_dir, relpath_u))
+        yield self.fileops.delete(os.path.join(self.local_dir, platform_relpath_u))
         # Let the deletion be processed.
         yield iterate(self.magicfolder)
         # Verify the deletion was uploaded.
-        encoded_path_u = magicpath.path2magic(relpath_u)
+        encoded_path_u = magicpath.path2magic(dmd_relpath_u)
         downloader = self.magicfolder.downloader
         node, metadata = yield downloader._get_collective_latest_file(encoded_path_u)
         self.assertThat(node, Not(Is(None)))

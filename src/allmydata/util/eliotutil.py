@@ -18,6 +18,9 @@ __all__ = [
     "opt_help_eliot_destinations",
     "validateInstanceOf",
     "validateSetMembership",
+    "MAYBE_NOTIFY",
+    "CALLBACK",
+    "INOTIFY_EVENTS",
     "RELPATH",
     "VERSION",
     "LAST_UPLOADED_URI",
@@ -54,6 +57,7 @@ from eliot import (
     ILogger,
     Message,
     Field,
+    ActionType,
     FileDestination,
     add_destinations,
     remove_destination,
@@ -88,6 +92,9 @@ from twisted.application.service import Service
 
 from .fileutil import (
     PathInfo,
+)
+from .fake_inotify import (
+    humanReadableMask,
 )
 
 class _GeneratorContext(object):
@@ -268,6 +275,27 @@ PATHINFO = Field(
     },
     u"The metadata for this version of this file.",
     validateInstanceOf((type(None), PathInfo)),
+)
+
+INOTIFY_EVENTS = Field(
+    u"inotify_events",
+    humanReadableMask,
+    u"Details about a filesystem event generating a notification event.",
+    validateInstanceOf((int, long)),
+)
+
+MAYBE_NOTIFY = ActionType(
+    u"filesystem:notification:maybe-notify",
+    [],
+    [],
+    u"A filesystem event is being considered for dispatch to an application handler.",
+)
+
+CALLBACK = ActionType(
+    u"filesystem:notification:callback",
+    [INOTIFY_EVENTS],
+    [],
+    u"A filesystem event is being dispatched to an application callback."
 )
 
 def eliot_logging_service(reactor, destinations):

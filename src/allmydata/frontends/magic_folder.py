@@ -1153,7 +1153,7 @@ class Uploader(QueueMixin):
                     | IN_EXCL_UNLINK
                     )
         self._notifier.watch(self._local_filepath, mask=self.mask, callbacks=[self._notify],
-                             recursive=False)#True)
+                             recursive=True)
 
     def start_monitoring(self):
         action = START_MONITORING(**self._log_fields)
@@ -1281,7 +1281,12 @@ class Uploader(QueueMixin):
                 success_fields[u"ignored"] = True
             else:
                 self._add_pending(relpath_u)
-                self._call_hook(path, 'inotify')
+
+            # Always fire the inotify hook.  If an accident of timing causes a
+            # second inotify event for a particular path before the first has
+            # been processed, the expectation is still that any code that was
+            # waiting for the second inotify event should be notified.
+            self._call_hook(path, 'inotify')
             action.add_success_fields(**success_fields)
 
     def _process(self, item):

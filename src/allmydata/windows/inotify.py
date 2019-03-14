@@ -4,6 +4,12 @@
 
 import os, sys
 
+from eliot import (
+    start_action,
+    Message,
+    log_call,
+)
+
 from twisted.internet import reactor
 from twisted.internet.threads import deferToThread
 
@@ -22,6 +28,10 @@ from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.encodingutil import quote_output
 from allmydata.util import log, fileutil
 from allmydata.util.pollmixin import PollMixin
+from ..util.eliotutil import (
+    MAYBE_NOTIFY,
+    CALLBACK,
+)
 
 from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, create_string_buffer, \
     addressof, get_last_error
@@ -90,8 +100,8 @@ _action_to_inotify_mask = {
 
 INVALID_HANDLE_VALUE             = 0xFFFFFFFF
 
-TRUE  = 0
-FALSE = 1
+FALSE = 0
+TRUE = 1
 
 class Event(object):
     """
@@ -178,7 +188,7 @@ def _open_directory(path_u):
 def simple_test():
     path_u = u"test"
     filter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE
-    recursive = FALSE
+    recursive = TRUE
 
     hDirectory = _open_directory(path_u)
     fni = FileNotifyInformation()
@@ -188,6 +198,27 @@ def simple_test():
         print repr(fni.data)
         for info in fni:
             print info
+
+def medium_test():
+    from twisted.python.filepath import FilePath
+
+    def print_(*event):
+        print(event)
+
+    notifier = INotify()
+    notifier.set_pending_delay(1.0)
+    IN_EXCL_UNLINK = 0x04000000L
+    mask = (  IN_CREATE
+            | IN_CLOSE_WRITE
+            | IN_MOVED_TO
+            | IN_MOVED_FROM
+            | IN_DELETE
+            | IN_ONLYDIR
+            | IN_EXCL_UNLINK
+    )
+    notifier.watch(FilePath(u"test"), mask, callbacks=[print_], recursive=True)
+    notifier.startReading()
+    reactor.run()
 
 
 NOT_STARTED = "NOT_STARTED"
@@ -264,8 +295,15 @@ class INotify(PollMixin):
 
             while True:
                 self._state = STARTED
+                action = start_action(
+                    action_type=u"read-changes",
+                    directory=self._path.path,
+                    recursive=self._recursive,
+                    filter=self._filter,
+                )
                 try:
-                    fni.read_changes(self._hDirectory, self._recursive, self._filter)
+                    with action:
+                        fni.read_changes(self._hDirectory, self._recursive, self._filter)
                 except WindowsError as e:
                     self._state = STOPPING
 
@@ -275,17 +313,32 @@ class INotify(PollMixin):
                     # print info
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
                     if info.action == FILE_ACTION_MODIFIED and path.isdir():
-                        # print "Filtering out %r" % (info,)
+                        Message.log(
+                            message_type=u"filtering-out",
+                            info=repr(info),
+                        )
                         continue
+                    else:
+                        Message.log(
+                            message_type=u"processing",
+                            info=repr(info),
+                        )
                     #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
+                    @log_call(
+                        action_type=MAYBE_NOTIFY.action_type,
+                        include_args=[],
+                        include_result=False,
+                    )
                     def _do_pending_calls():
+                        event_mask = IN_CHANGED
                         self._pending_call = None
                         for path1 in self._pending:
                             if self._callbacks:
                                 for cb in self._callbacks:
                                     try:
-                                        cb(None, path1, IN_CHANGED)
+                                        with CALLBACK(inotify_events=event_mask):
+                                            cb(None, path1, event_mask)
                                     except Exception, e2:
                                         log.err(e2)
                         self._pending = set()
