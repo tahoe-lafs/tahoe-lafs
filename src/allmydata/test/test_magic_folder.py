@@ -536,6 +536,7 @@ class FileOperationsHelper(object):
 
     We could write this as a mixin instead; might fit existing style better?
     """
+    _timeout = 5.0
 
     def __init__(self, uploader, inject_events=False):
         self._uploader = uploader
@@ -566,7 +567,7 @@ class FileOperationsHelper(object):
             f.write(contents)
 
         self._maybe_notify(fname, self._inotify.IN_CLOSE_WRITE)
-        return d
+        return d.addTimeout(self._timeout, reactor)
 
     @log_call_deferred(action_type=u"fileops:mkdir")
     def mkdir(self, path_u):
