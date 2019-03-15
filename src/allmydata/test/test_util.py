@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 def foo(): pass # keep the line number constant
 
@@ -49,7 +50,7 @@ class NoArgumentException(Exception):
 class HumanReadable(unittest.TestCase):
     def test_repr(self):
         hr = humanreadable.hr
-        self.failUnlessEqual(hr(foo), "<foo() at test_util.py:2>")
+        self.failUnlessEqual(hr(foo), "<foo() at test_util.py:3>")
         self.failUnlessEqual(hr(self.test_repr),
                              "<bound method HumanReadable.test_repr of <allmydata.test.test_util.HumanReadable testMethod=test_repr>>")
         self.failUnlessEqual(hr(1L), "1")
@@ -2084,13 +2085,13 @@ class StringSpans(unittest.TestCase):
                 p_added = set(range(start, end))
                 b = base()
                 if DEBUG:
-                    print
-                    print dump(b), which
+                    print()
+                    print(dump(b), which)
                     add = klass(); add.add(start, S[start:end])
-                    print dump(add)
+                    print(dump(add))
                 b.add(start, S[start:end])
                 if DEBUG:
-                    print dump(b)
+                    print(dump(b))
                 # check that the new span is there
                 d = b.get(start, end-start)
                 self.failUnlessEqual(d, S[start:end], which)

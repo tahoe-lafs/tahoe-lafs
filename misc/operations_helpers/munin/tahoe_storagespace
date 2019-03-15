@@ -18,6 +18,8 @@
 # Allmydata-tahoe must be installed on the system where this plugin is used,
 # since it imports a utility module from allmydata.utils .
 
+from __future__ import print_function
+
 import os, sys
 import commands
 
@@ -44,7 +46,7 @@ for nodename, basedir in nodedirs:
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "config":
-        print configinfo.rstrip()
+        print(configinfo.rstrip())
         sys.exit(0)
 
 for nodename, basedir in nodedirs:
@@ -54,5 +56,5 @@ for nodename, basedir in nodedirs:
         sys.exit(rc)
     bytes, extra = out.split()
     usage = int(bytes)
-    print "%s.value %d" % (nodename, usage)
+    print("%s.value %d" % (nodename, usage))
 

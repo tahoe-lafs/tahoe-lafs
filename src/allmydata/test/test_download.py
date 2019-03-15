@@ -1,7 +1,8 @@
-
 # system-level upload+download roundtrip test, but using shares created from
 # a previous run. This asserts that the current code is capable of decoding
 # shares from a previous version.
+
+from __future__ import print_function
 
 import os
 from twisted.trial import unittest
@@ -1065,9 +1066,9 @@ class Corruption(_Base, unittest.TestCase):
         d.addCallback(_uploaded)
         def _show_results(ign):
             share_len = len(self.shares.values()[0])
-            print
-            print ("of [0:%d], corruption ignored in %s" %
-                   (share_len, undetected.dump()))
+            print()
+            print(("of [0:%d], corruption ignored in %s" %
+                   (share_len, undetected.dump())))
         if self.catalog_detection:
             d.addCallback(_show_results)
             # of [0:2070], corruption ignored in len=1133:

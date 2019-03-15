@@ -24,6 +24,7 @@ results). Each line should be in the form:
 # TODO:
 #  built-in graphs on web interface
 
+from __future__ import print_function
 
 import os.path, urllib, time
 from datetime import timedelta
@@ -82,7 +83,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
         ts.setServiceParent(self)
 
     def _upgrade_complete(self, ignored):
-        print "Axiom store upgrade complete"
+        print("Axiom store upgrade complete")
 
     def startService(self):
         service.MultiService.startService(self)
@@ -155,8 +156,8 @@ class DiskWatcher(service.MultiService, resource.Resource):
         total = data[u"stats"][u"storage_server.disk_total"]
         used = data[u"stats"][u"storage_server.disk_used"]
         avail = data[u"stats"][u"storage_server.disk_avail"]
-        print "%s : total=%s, used=%s, avail=%s" % (url,
-                                                    total, used, avail)
+        print("%s : total=%s, used=%s, avail=%s" % (url,
+                                                    total, used, avail))
         Sample(store=self.store,
                url=unicode(url), when=when, total=total, used=used, avail=avail)
 
@@ -168,7 +169,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
         pairs.sort()
         for (timespan,name) in pairs:
             growth = self.growth(timespan)
-            print name, total_avail_space, growth
+            print(name, total_avail_space, growth)
             if growth is not None:
                 timeleft = None
                 if growth > 0:
@@ -286,7 +287,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
             old = old[0]
             duration = latest.when.asPOSIXTimestamp() - old.when.asPOSIXTimestamp()
             if not duration:
-                print "only one sample from", url
+                print("only one sample from", url)
                 continue
 
             rate = float(latest.used - old.used) / duration

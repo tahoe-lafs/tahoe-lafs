@@ -1,6 +1,8 @@
 # given a PR number, get all contributers and the summary from
 # GitHub's API
 
+from __future__ import print_function
+
 import sys
 import json
 import base64
@@ -33,7 +35,7 @@ def _find_pull_request_numbers():
                 if word.startswith('PR'):
                     all_prs.add(word[2:])
             all_prs = list(all_prs)
-            print("Found {} PRs in stdin text".format(len(all_prs)))
+            print(("Found {} PRs in stdin text".format(len(all_prs))))
     else:
         all_prs = sys.argv[1:]
     return all_prs
@@ -51,7 +53,7 @@ def _read_github_token(fname='token'):
             data = f.read().strip()
             username, token = data.split('\n', 1)
     except (IOError, EnvironmentError) as e:
-        print("Couldn't open or parse 'token' file: {}".format(e))
+        print(("Couldn't open or parse 'token' file: {}".format(e)))
         raise SystemExit(1)
     except ValueError:
         print("'token' should contain two lines: username, github token")
@@ -80,10 +82,10 @@ def _report_authors(data, headers):
     authors = set()
     for commit in commits:
         if commit['author'] is None:
-            print("  {}: no author!".format(commit['sha']))
+            print(("  {}: no author!".format(commit['sha'])))
         else:
             author = commit['author']['login']
-            print("  {}: {}".format(commit['sha'], author))
+            print(("  {}: {}".format(commit['sha'], author)))
             if author not in ignore_handles:
                 authors.add(author)
     returnValue(authors)
@@ -100,7 +102,7 @@ def _report_helpers(data, headers):
         author = comment['user']['login']
         if author not in ignore_handles:
             helpers.add(author)
-        print("  {}: {}".format(author, comment['body'].replace('\n', ' ')[:60]))
+        print(("  {}: {}".format(author, comment['body'].replace('\n', ' ')[:60])))
     returnValue(helpers)
 
 @inlineCallbacks
@@ -116,7 +118,7 @@ def _request_pr_information(username, token, headers, all_prs):
     pr_info = dict()
 
     for pr in all_prs:
-        print("Fetching PR{}".format(pr))
+        print(("Fetching PR{}".format(pr)))
         resp = yield treq.get(
             base_pr_url.format(pr),
             headers=headers,
@@ -162,16 +164,16 @@ def main(reactor):
         coders = ', '.join('`{}`_'.format(c) for c in code_handles)
         helpers = ', '.join('`{}`_'.format(c) for c in help_handles)
         if helpers:
-            print("`PR{}`_: {} (with {})".format(pr, coders, helpers))
+            print(("`PR{}`_: {} (with {})".format(pr, coders, helpers)))
         else:
-            print("`PR{}`_: {}".format(pr, coders))
+            print(("`PR{}`_: {}".format(pr, coders)))
         for h in code_handles.union(help_handles):
             unique_handles.add(h)
 
     for pr in sorted(pr_info.keys()):
-        print(".. _PR{}: https://github.com/tahoe-lafs/tahoe-lafs/pull/{}".format(pr, pr))
+        print((".. _PR{}: https://github.com/tahoe-lafs/tahoe-lafs/pull/{}".format(pr, pr)))
     for h in sorted(unique_handles):
-        print(".. _{}: https://github.com/{}".format(h, h))
+        print((".. _{}: https://github.com/{}".format(h, h)))
 
 
 if __name__ == "__main__":

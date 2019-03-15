@@ -2,6 +2,8 @@
 Futz with files like a pro.
 """
 
+from __future__ import print_function
+
 import sys, exceptions, os, stat, tempfile, time, binascii
 from collections import namedtuple
 from errno import ENOENT
@@ -567,7 +569,7 @@ if sys.platform == "win32":
             abspath = abspath[4 :]
         drive = os.path.splitdrive(abspath)[0]
 
-        print "flushing %r" % (drive,)
+        print("flushing %r" % (drive,))
         hVolume = CreateFileW(u"\\\\.\\" + drive,
                               GENERIC_WRITE,
                               FILE_SHARE_READ | FILE_SHARE_WRITE,

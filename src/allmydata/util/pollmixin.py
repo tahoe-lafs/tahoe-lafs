@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import time
 from twisted.internet import task
@@ -45,6 +46,6 @@ class PollMixin:
                 if not e.check(*self._poll_should_ignore_these_errors):
                     errs.append(e)
             if errs:
-                print errs
+                print(errs)
                 self.fail("Errors snooped, terminating early")
 

@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 __all__ = [
     "SyncTestCase",
     "AsyncTestCase",
@@ -512,7 +514,7 @@ class WebErrorMixin:
         # this method as an errback handler, and it will reveal the hidden
         # message.
         f.trap(WebError)
-        print "Web Error:", f.value, ":", f.value.response
+        print("Web Error:", f.value, ":", f.value.response)
         return f
 
     def _shouldHTTPError(self, res, which, validator):
@@ -561,7 +563,7 @@ class WebErrorMixin:
 class ErrorMixin(WebErrorMixin):
     def explain_error(self, f):
         if f.check(defer.FirstError):
-            print "First Error:", f.value.subFailure
+            print("First Error:", f.value.subFailure)
         return f
 
 def corrupt_field(data, offset, size, debug=False):

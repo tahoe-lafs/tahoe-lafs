@@ -5,6 +5,8 @@
 # You can safely skip any of these tests, it'll just appear to "take
 # longer" to start the first test as the fixtures get built
 
+from __future__ import print_function
+
 
 def test_create_flogger(flog_gatherer):
     print("Created flog_gatherer")

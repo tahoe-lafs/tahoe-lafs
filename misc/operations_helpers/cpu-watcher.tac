@@ -20,6 +20,7 @@
 #  built-in graphs on web interface
 
 
+from __future__ import print_function
 
 import pickle, os.path, time, pprint
 from twisted.application import internet, service, strports
@@ -210,7 +211,7 @@ class CPUWatcher(service.MultiService, resource.Resource, Referenceable):
                 row.append(self._average_N(pid, avg))
             current.append(tuple(row))
         self.current = current
-        print current
+        print(current)
         for ob in self.observers:
             eventual.eventually(self.notify, ob)
 

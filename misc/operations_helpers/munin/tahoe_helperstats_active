@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os, sys
 import urllib
 import json
@@ -15,11 +17,10 @@ fetched.draw LINE2
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "config":
-        print configinfo.rstrip()
+        print(configinfo.rstrip())
         sys.exit(0)
 
 url = os.environ["url"]
 
 data = json.loads(urllib.urlopen(url).read())
-print "fetched.value %d" % data["chk_upload_helper.active_uploads"]
-
+print("fetched.value %d" % data["chk_upload_helper.active_uploads"])

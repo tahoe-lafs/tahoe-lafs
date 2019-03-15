@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import urllib
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
@@ -38,7 +39,7 @@ def get(options):
             outf.close()
         rc = 0
     else:
-        print >>stderr, format_http_error("Error during GET", resp)
+        print(format_http_error("Error during GET", resp), file=stderr)
         rc = 1
 
     return rc

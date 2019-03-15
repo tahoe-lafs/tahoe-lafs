@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os.path, re, urllib
 import json
 from StringIO import StringIO
@@ -611,8 +613,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                          for line in res.splitlines()
                          if line]
             except ValueError:
-                print "response is:", res
-                print "undecodeable line was '%s'" % line
+                print("response is:", res)
+                print("undecodeable line was '%s'" % line)
                 raise
             self.failUnlessReallyEqual(len(units), 5+1)
             # should be parent-first

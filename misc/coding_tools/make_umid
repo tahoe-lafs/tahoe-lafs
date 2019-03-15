@@ -35,6 +35,8 @@ The following elisp code may be useful:
 
 # '   # emacs gets confused by the odd number of single-quotes there
 
+from __future__ import print_function
+
 import os, base64, sys
 
 def make_id():
@@ -51,5 +53,5 @@ count = 1
 if len(sys.argv) > 1:
     count = int(sys.argv[1])
 for i in range(count):
-    print make_id()
+    print(make_id())
 
