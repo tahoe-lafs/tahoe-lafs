@@ -20,6 +20,7 @@ venv
 /bin/tahoe
 /bin/tahoe.pyscript
 /bin/tahoe-script.py
+dropin.cache
 
 /.built
 /src/tahoe_lafs.egg-info/
