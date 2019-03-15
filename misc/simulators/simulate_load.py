@@ -59,7 +59,6 @@ def go(permutedpeerlist):
                     server.full_at_tick = tick
                     fullservers += 1
                     if fullservers == len(servers):
-                        # print "Couldn't place share -- all servers full.  Stopping."
                         return (servers, doubled_up_shares)
 
             i += 1

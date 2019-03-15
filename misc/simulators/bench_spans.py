@@ -74,7 +74,6 @@ class B(object):
             count += 1
             inline = self.inf.readline()
 
-        # print self.stats
 
 benchutil.print_bench_footer(UNITS_PER_SECOND=1000000)
 print("(microseconds)")

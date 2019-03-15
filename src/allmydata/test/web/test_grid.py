@@ -247,7 +247,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         #
         #d.addCallback(self.CHECK, "dead", "t=check&repair=true")
         #def _got_html_dead(res):
-        #    print res
+        #    print(res)
         #    self.failUnlessIn("Healthy : healthy", res)
         #    self.failIfIn("Not Healthy", res)
         #    self.failUnlessIn("No repair necessary", res)

@@ -96,9 +96,6 @@ class Sizes:
             # means storing (and eventually transmitting) more hashes. This
             # count includes all the low-level share hashes and the root.
             hash_nodes = (num_leaves*k - 1) / (k - 1)
-            #print "hash_depth", d
-            #print "num_leaves", num_leaves
-            #print "hash_nodes", hash_nodes
             # the storage overhead is this
             self.share_storage_overhead = 32 * (hash_nodes - 1)
             # the transmission overhead is smaller: if we actually transmit

@@ -45,7 +45,6 @@ no_chance = (1-chance) ** len(node_dirs)
 # if a file has a 25% chance of not appearing in our sample, then we need to
 # raise our estimate by (1.25/1)
 correction = 1+no_chance
-#print "correction", correction
 
 files = unique_strings * (32*32/len(sections)) * correction
 print("files.value %d" % int(files))

@@ -4163,7 +4163,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def log(self, res, msg):
-        #print "MSG: %s  RES: %s" % (msg, res)
         log.msg(msg)
         return res
 

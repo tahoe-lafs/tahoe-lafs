@@ -38,22 +38,6 @@ from axiom.store import Store
 from epsilon import extime
 from diskwatcher import Sample
 
-#from axiom.item import Item
-#from axiom.attributes import text, integer, timestamp
-
-#class Sample(Item):
-#    url = text()
-#    when = timestamp()
-#    used = integer()
-#    avail = integer()
-
-#s = Store("history.axiom")
-#ns = Store("new-history.axiom")
-#for sa in s.query(Sample):
-#    diskwatcher.Sample(store=ns,
-#                       url=sa.url, when=sa.when, used=sa.used, avail=sa.avail)
-#print "done"
-
 HOUR = 3600
 DAY = 24*3600
 WEEK = 7*DAY
@@ -273,7 +257,6 @@ class DiskWatcher(service.MultiService, resource.Resource):
                                            sort=Sample.when.descending,
                                            limit=1))
             if not latest:
-                #print "no latest sample from", url
                 continue # skip this node
             latest = latest[0]
             old = list(self.store.query(Sample,
@@ -282,7 +265,6 @@ class DiskWatcher(service.MultiService, resource.Resource):
                                         sort=Sample.when.descending,
                                         limit=1))
             if not old:
-                #print "no old sample from", url
                 continue # skip this node
             old = old[0]
             duration = latest.when.asPOSIXTimestamp() - old.when.asPOSIXTimestamp()
@@ -291,7 +273,6 @@ class DiskWatcher(service.MultiService, resource.Resource):
                 continue
 
             rate = float(latest.used - old.used) / duration
-            #print url, rate
             total_growth += rate
             num_nodes += 1
 

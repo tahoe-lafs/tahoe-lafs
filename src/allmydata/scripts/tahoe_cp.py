@@ -858,7 +858,6 @@ class Copier:
 
 
     def progress(self, message):
-        #print message
         if self.progressfunc:
             self.progressfunc(message)
 

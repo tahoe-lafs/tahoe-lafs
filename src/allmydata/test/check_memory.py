@@ -115,21 +115,18 @@ class SystemFramework(pollmixin.PollMixin):
             self.failed.raiseException()
 
     def setUp(self):
-        #print "STARTING"
         self.stats = {}
         self.statsfile = open(os.path.join(self.basedir, "stats.out"), "a")
         self.make_introducer()
         d = self.start_client()
         def _record_control_furl(control_furl):
             self.control_furl = control_furl
-            #print "OBTAINING '%s'" % (control_furl,)
             return self.tub.getReference(self.control_furl)
         d.addCallback(_record_control_furl)
         def _record_control(control_rref):
             self.control_rref = control_rref
         d.addCallback(_record_control)
         def _ready(res):
-            #print "CLIENT READY"
             pass
         d.addCallback(_ready)
         return d
@@ -430,10 +427,6 @@ this file are ignored.
         return d
 
     def do_test(self):
-        #print "CLIENT STARTED"
-        #print "FURL", self.control_furl
-        #print "RREF", self.control_rref
-        #print
         kB = 1000; MB = 1000*1000
         files = {}
         uris = {}

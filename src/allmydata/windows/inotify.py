@@ -324,7 +324,6 @@ class INotify(PollMixin):
                             message_type=u"processing",
                             info=repr(info),
                         )
-                    #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
                     @log_call(
                         action_type=MAYBE_NOTIFY.action_type,
@@ -349,8 +348,6 @@ class INotify(PollMixin):
                             self._pending.add(path2)
                         if self._state not in [STOPPING, STOPPED]:
                             _do_pending_calls()
-#                        if self._pending_call is None and self._state not in [STOPPING, STOPPED]:
-#                            self._pending_call = reactor.callLater(self._pending_delay, _do_pending_calls)
 
                     reactor.callFromThread(_maybe_notify, path)
                     if self._check_stop():

@@ -110,7 +110,6 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                     for (start,end) in gotmods]
         expspans = ["%d:%d=%s" % (start,end,expected[start:end])
                     for (start,end) in expmods]
-        #print "expecting: %s" % expspans
 
         if got != expected:
             print("differences:")

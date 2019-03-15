@@ -280,6 +280,7 @@ def dump_SDMF_share(m, length, options):
     if options['offsets']:
         # NOTE: this offset-calculation code is fragile, and needs to be
         # merged with MutableShareFile's internals.
+
         print(file=out)
         print(" Section Offsets:", file=out)
         def printoffset(name, value, shift=0):
@@ -346,7 +347,6 @@ def dump_MDMF_share(m, length, options):
     print(" MDMF contents:", file=out)
     print("  seqnum: %d" % seqnum, file=out)
     print("  root_hash: %s" % base32.b2a(root_hash), file=out)
-    #print >>out, "  IV: %s" % base32.b2a(IV)
     print("  required_shares: %d" % k, file=out)
     print("  total_shares: %d" % N, file=out)
     print("  segsize: %d" % segsize, file=out)

@@ -40,10 +40,6 @@ def predict_future(past_s):
         d = rrdtool.fetch(fn, "AVERAGE", "-s", "-"+past_s, "-e", "-1hr")
         # ((start, end, step), (name1, name2, ...), [(data1, data2, ..), ...])
         (start_time, end_time ,step) = d[0]
-        #print format_time(start_time), " - ", format_time(end_time), step
-        #for points in d[2]:
-        #    point = points[0]
-        #    print point
         start_space = d[2][0][0]
         if start_space is None:
             return None
@@ -61,16 +57,11 @@ def predict_future(past_s):
     avg_start_df = sum(start_df) / len(start_df)
     avg_end_df = sum(end_df) / len(end_df)
     avg_duration = sum(durations) / len(durations)
-    #print avg_start_df, avg_end_df, avg_duration
 
     rate = (avg_end_df - avg_start_df) / avg_duration
-    #print "Rate", rate, " %/s"
-    #print "measured over", avg_duration / 86400, "days"
     remaining = 100 - avg_end_df
     remaining_seconds = remaining / rate
-    #print "remaining seconds", remaining_seconds
     remaining_days = remaining_seconds / 86400
-    #print "remaining days", remaining_days
     return remaining_days
 
 def write_to_file(samples):

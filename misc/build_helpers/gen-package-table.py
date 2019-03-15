@@ -156,6 +156,6 @@ for pkg in sorted(platform_independent_pkgs):
 print('</table>')
 
 # The document does validate, but not when it is included at the bottom of a directory listing.
-#print '<hr>'
-#print '<a href="http://validator.w3.org/check?uri=referer" target="_blank"><img border="0" src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01 Transitional" height="31" width="88"></a>'
+#print('<hr>')
+#print('<a href="http://validator.w3.org/check?uri=referer" target="_blank"><img border="0" src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01 Transitional" height="31" width="88"></a>')
 print('</body></html>')

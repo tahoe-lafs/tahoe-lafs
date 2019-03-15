@@ -692,7 +692,6 @@ class CheckerMixin(object):
     def _check_file(self, name_u, data, temporary=False, directory=False):
         precondition(not (temporary and directory), temporary=temporary, directory=directory)
 
-        # print "%r._check_file(%r, %r, temporary=%r, directory=%r)" % (self, name_u, data, temporary, directory)
         previously_uploaded = self._get_count('uploader.objects_succeeded')
         previously_disappeared = self._get_count('uploader.objects_disappeared')
 
@@ -746,7 +745,6 @@ class CheckerMixin(object):
     def _check_version_in_local_db(self, magicfolder, relpath_u, expected_version):
         db_entry = magicfolder._db.get_db_entry(relpath_u)
         if db_entry is not None:
-            #print "_check_version_in_local_db: %r has version %s" % (relpath_u, version)
             self.failUnlessEqual(db_entry.version, expected_version)
 
     def _check_file_gone(self, magicfolder, relpath_u):
@@ -1783,14 +1781,12 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
 
     @log_call_deferred(action_type=u"restart-client")
     def _restart_client(self, ign):
-        #print "_restart_client"
         d = DeferredContext(self.restart_client())
         d.addCallback(self._wait_until_started)
         return d.result
 
     @log_call_deferred(action_type=u"wait-until-started")
     def _wait_until_started(self, ign):
-        #print "_wait_until_started"
         self.magicfolder = self.get_client().getServiceNamed('magic-folder-default')
         self.fileops = FileOperationsHelper(self.magicfolder.uploader, self.inject_inotify)
         self.up_clock = task.Clock()

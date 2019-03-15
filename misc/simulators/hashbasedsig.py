@@ -146,8 +146,6 @@ def calculate(K, K1, K2, q_max, L_hash, trees):
             lg_q = lg(q_cand)
             lg_pforge = [lg_px[x] + (lg_q*x - lg_K2)*q_cand for x in xrange(1, j)]
             if max(lg_pforge) < -L_hash + lg(j) and lg_px[j-1] + 1.0 < -L_hash:
-                #print "K = %d, K1 = %d, K2 = %d, L_hash = %d, lg_K2 = %.3f, q = %d, lg_pforge_1 = %.3f, lg_pforge_2 = %.3f, lg_pforge_3 = %.3f" \
-                #      % (K, K1, K2, L_hash, lg_K2, q, lg_pforge_1, lg_pforge_2, lg_pforge_3)
                 q = q_cand
                 break
 
@@ -266,9 +264,6 @@ def search():
 
                     if y not in trees or (h, c_y, (dau, tri)) < trees[y]:
                         trees[y] = (h, c_y, (dau, tri))
-
-        #for x in xrange(1, K_max+1):
-        #    print x, trees[x]
 
         candidates = []
         progress = 0

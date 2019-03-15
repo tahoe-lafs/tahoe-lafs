@@ -89,9 +89,6 @@ def scan(root):
     num_files = 0
     num_dirs = 0
     for absroot, dirs, files in os.walk(root):
-        #print absroot
-        #print " %d files" % len(files)
-        #print " %d subdirs" % len(dirs)
         num_files += len(files)
         num_dirs += len(dirs)
         stringsize = len(''.join(files) + ''.join(dirs))

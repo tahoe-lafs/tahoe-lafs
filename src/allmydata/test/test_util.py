@@ -847,7 +847,6 @@ class DeferredUtilTests(unittest.TestCase, deferredutil.WaitForDelayedCallsMixin
         Trial would report an unclean reactor error for this test.
         """
         def _trigger():
-            #print "trigger"
             pass
         reactor.callLater(0.1, _trigger)
 
@@ -1430,8 +1429,6 @@ class Pipeline(unittest.TestCase):
         return d
 
     def failUnlessCallsAre(self, expected):
-        #print self.calls
-        #print expected
         self.failUnlessEqual(len(self.calls), len(expected), self.calls)
         for i,c in enumerate(self.calls):
             self.failUnlessEqual(c[1:], expected[i], str(i))
@@ -1833,7 +1830,6 @@ class ByteSpans(unittest.TestCase):
             subop = what[1]
             start = int(what[2:4], 16)
             length = max(1,int(what[5:6], 16))
-            #print what
             if op in "0":
                 if subop in "01234":
                     s1 = S1(); s2 = S2()
@@ -1841,34 +1837,25 @@ class ByteSpans(unittest.TestCase):
                     s1 = S1(start, length); s2 = S2(start, length)
                 else:
                     s1 = S1(s1); s2 = S2(s2)
-                #print "s2 = %s" % s2.dump()
             elif op in "123":
-                #print "s2.add(%d,%d)" % (start, length)
                 s1.add(start, length); s2.add(start, length)
             elif op in "456":
-                #print "s2.remove(%d,%d)" % (start, length)
                 s1.remove(start, length); s2.remove(start, length)
             elif op in "78":
                 ns1, ns2 = _create(what[7:11])
-                #print "s2 + %s" % ns2.dump()
                 s1 = s1 + ns1; s2 = s2 + ns2
             elif op in "9a":
                 ns1, ns2 = _create(what[7:11])
-                #print "%s - %s" % (s2.dump(), ns2.dump())
                 s1 = s1 - ns1; s2 = s2 - ns2
             elif op in "bc":
                 ns1, ns2 = _create(what[7:11])
-                #print "s2 += %s" % ns2.dump()
                 s1 += ns1; s2 += ns2
             elif op in "de":
                 ns1, ns2 = _create(what[7:11])
-                #print "%s -= %s" % (s2.dump(), ns2.dump())
                 s1 -= ns1; s2 -= ns2
             else:
                 ns1, ns2 = _create(what[7:11])
-                #print "%s &= %s" % (s2.dump(), ns2.dump())
                 s1 = s1 & ns1; s2 = s2 & ns2
-            #print "s2 now %s" % s2.dump()
             self.failUnlessEqual(list(s1.each()), list(s2.each()))
             self.failUnlessEqual(s1.len(), s2.len())
             self.failUnlessEqual(bool(s1), bool(s2))
@@ -1904,9 +1891,6 @@ class ByteSpans(unittest.TestCase):
     def _test_overlap(self, a, b, c, d):
         s1 = set(range(a,a+b))
         s2 = set(range(c,c+d))
-        #print "---"
-        #self._show_overlap(s1, "1")
-        #self._show_overlap(s2, "2")
         o = overlap(a,b,c,d)
         expected = s1.intersection(s2)
         if not expected:
@@ -2164,26 +2148,19 @@ class StringSpans(unittest.TestCase):
             subop = what[1]
             start = int(what[2:4], 16)
             length = max(1,int(what[5:6], 16))
-            #print what
             if op in "0":
                 if subop in "0123456":
                     s1 = S1(); s2 = S2()
                 else:
                     s1, s2 = _create(what[7:11])
-                #print "s2 = %s" % list(s2._dump())
             elif op in "123456":
-                #print "s2.add(%d,%d)" % (start, length)
                 s1.add(start, _randstr(length, what[7:9]));
                 s2.add(start, _randstr(length, what[7:9]))
             elif op in "789abc":
-                #print "s2.remove(%d,%d)" % (start, length)
                 s1.remove(start, length); s2.remove(start, length)
             else:
-                #print "s2.pop(%d,%d)" % (start, length)
                 d1 = s1.pop(start, length); d2 = s2.pop(start, length)
                 self.failUnlessEqual(d1, d2)
-            #print "s1 now %s" % list(s1._dump())
-            #print "s2 now %s" % list(s2._dump())
             self.failUnlessEqual(s1.len(), s2.len())
             self.failUnlessEqual(list(s1._dump()), list(s2._dump()))
             for j in range(100):
