@@ -1100,27 +1100,28 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         # now let bob try to do the download.  Reach in and call
         # _process_deque directly because we are already half-way through a
         # logical iteration thanks to the _perform_scan call above.
-        yield self.bob_magicfolder.downloader._process_deque()
+        with start_action(action_type=u"test:process-deque"):
+            yield self.bob_magicfolder.downloader._process_deque()
 
-        self.eliot_logger.flushTracebacks(UnrecoverableFileError)
-        logged = self.eliot_logger.flushTracebacks(NoSharesError)
-        self.assertEqual(
-            1,
-            len(logged),
-            "Got other than expected single NoSharesError: {}".format(logged),
-        )
+            self.eliot_logger.flushTracebacks(UnrecoverableFileError)
+            logged = self.eliot_logger.flushTracebacks(NoSharesError)
+            self.assertEqual(
+                1,
+                len(logged),
+                "Got other than expected single NoSharesError: {}".format(logged),
+            )
 
-        # ...however Bob shouldn't have downloaded anything
-        self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
-        # bob should *not* have downloaded anything, as we failed all the servers
-        self.failUnlessReallyEqual(
-            self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
-            0
-        )
-        self.failUnlessReallyEqual(
-            self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
-            1
-        )
+            # ...however Bob shouldn't have downloaded anything
+            self._check_version_in_local_db(self.bob_magicfolder, u"blam", 0)
+            # bob should *not* have downloaded anything, as we failed all the servers
+            self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
+                0
+            )
+            self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_failed', client=self.bob_magicfolder._client),
+                1
+            )
 
         # now we let Bob try again
         yield iterate(self.bob_magicfolder)
