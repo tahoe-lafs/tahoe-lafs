@@ -411,19 +411,29 @@ def test_alice_adds_files_while_bob_is_offline(reactor, request, temp_dir, magic
     yield util.cli(reactor, bob_node_dir, "stop")
 
     # Create a couple files in Alice's local directory.
-    some_files = ["foo", "bar", "baz"]
+    some_files = list(
+        (name * 3) + ".added-while-offline"
+        for name
+        in "xyz"
+    )
     for name in some_files:
         with open(join(alice_magic_dir, name), "w") as f:
             f.write(name + " some content")
 
-    while True:
+    good = False
+    for i in range(15):
         status = yield util.magic_folder_cli(reactor, alice_node_dir, "status")
-        if status.count("good, version=0") == len(some_files) * 2:
+        good = status.count(".added-while-offline (36 B): good, version=0") == len(some_files) * 2
+        if good:
             # We saw each file as having a local good state and a remote good
             # state.  That means we're ready to involve Bob.
             break
         else:
             time.sleep(1.0)
+
+    assert good, (
+        "Timed out waiting for good Alice state.  Last status:\n{}".format(status)
+    )
 
     # Start Bob up again
     magic_text = 'Completed initial Magic Folder scan successfully'
