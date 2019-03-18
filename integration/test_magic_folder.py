@@ -447,7 +447,9 @@ def test_alice_adds_files_while_bob_is_offline(reactor, request, temp_dir, magic
         ),
         await_all=True,
     )
-    # Let it settle.
+    # Let it settle.  It would be nicer to have a readable status output we
+    # could query.  Parsing the current text format is more than I want to
+    # deal with right now.
     time.sleep(1.0)
     conflict_files = list(name + ".conflict" for name in some_files)
     assert all(
