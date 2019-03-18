@@ -329,3 +329,19 @@ def await_file_vanishes(path, timeout=10):
             return
         time.sleep(1)
     raise FileShouldVanishException(path, timeout)
+
+
+def cli(reactor, node_dir, *argv):
+    proto = _CollectOutputProtocol()
+    reactor.spawnProcess(
+        proto,
+        sys.executable,
+        [
+            sys.executable, '-m', 'allmydata.scripts.runner',
+            '--node-directory', node_dir,
+        ] + list(argv),
+    )
+    return proto.done
+
+def magic_folder_cli(reactor, node_dir, *argv):
+    return cli(reactor, node_dir, "magic-folder", *argv)
