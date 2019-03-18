@@ -1084,18 +1084,17 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         # now, we ONLY want to do the scan, not a full iteration of
         # the process loop. So we do just the scan part "by hand" in
         # Bob's downloader
-
-        # break all the servers so the download fails. the count is 2
-        # because the "full iteration" will do a scan (downloading the
-        # metadata file) and then process the deque (trying to
-        # download the item we queued up already)
         with start_action(action_type=u"test:perform-scan"):
             yield self.bob_magicfolder.downloader._perform_scan()
             # while we're delving into internals, I guess we might as well
             # confirm that we did queue up an item to download
             self.assertEqual(1, len(self.bob_magicfolder.downloader._deque))
+
+        # break all the servers so the download fails.  count=1 because we
+        # only want the download attempted by _process_deque to fail.  After
+        # that, we want it to work again.
         for server_id in self.g.get_all_serverids():
-            self.g.break_server(server_id, count=2)
+            self.g.break_server(server_id, count=1)
 
         # now let bob try to do the download.  Reach in and call
         # _process_deque directly because we are already half-way through a
