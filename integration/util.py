@@ -303,7 +303,7 @@ def await_files_exist(paths, timeout=15, await_all=False):
     an Exception is raised
     """
     start_time = time.time()
-    while time.time() - start_time < 15.0:
+    while time.time() - start_time < timeout:
         print("  waiting for: {}".format(' '.join(paths)))
         found = [p for p in paths if exists(p)]
         print("found: {}".format(found))
