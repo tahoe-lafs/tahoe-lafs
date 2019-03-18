@@ -974,14 +974,13 @@ class QueueMixin(HookMixin):
             d = DeferredContext(defer.Deferred())
 
             # During startup we scanned the collective for items to download.
-            # We do not need to perform another scan before processing our
-            # work queue.  More importantly, the logic for determining which
-            # items to download is *not correct* in the case where two scans
-            # are performed with no intermediate emptying of the work queue.
-            # Therefore, skip the scan in the first processing iteration.
-            # Either there will be work in the queue from the initial scan or
-            # not.  Either way, when we get here again on the next iteration,
-            # we'll go the other way and perform a scan.
+            # If we found work to do, we do not need to perform another scan
+            # here.  More importantly, the logic for determining which items
+            # to download is *not correct* in the case where two scans are
+            # performed with no intermediate emptying of the work queue.
+            # Therefore, skip the scan any time there is queued work.  The
+            # only time we expect there to be any, though, is on the first
+            # time through this loop.
             if not self._deque:
                 # adds items to our deque
                 d.addCallback(lambda ignored: self._perform_scan())
