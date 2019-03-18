@@ -1123,15 +1123,16 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
                 1
             )
 
-        # now we let Bob try again
-        yield iterate(self.bob_magicfolder)
+        with start_action(action_type=u"test:iterate"):
+            # now we let Bob try again
+            yield iterate(self.bob_magicfolder)
 
-        # ...and he should have succeeded
-        self.failUnlessReallyEqual(
-            self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
-            1
-        )
-        yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
+            # ...and he should have succeeded
+            self.failUnlessReallyEqual(
+                self._get_count('downloader.objects_downloaded', client=self.bob_magicfolder._client),
+                1
+            )
+            yield self._check_version_in_dmd(self.bob_magicfolder, u"blam", 0)
 
     @inline_callbacks
     def test_conflict_local_change_fresh(self):
