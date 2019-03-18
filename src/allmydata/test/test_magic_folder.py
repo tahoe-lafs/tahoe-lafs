@@ -1096,8 +1096,10 @@ class MagicFolderAliceBobTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Rea
         for server_id in self.g.get_all_serverids():
             self.g.break_server(server_id, count=2)
 
-        # now let bob try to do the download
-        yield iterate(self.bob_magicfolder)
+        # now let bob try to do the download.  Reach in and call
+        # _process_deque directly because we are already half-way through a
+        # logical iteration thanks to the _perform_scan call above.
+        yield self.bob_magicfolder.downloader._process_deque()
 
         self.eliot_logger.flushTracebacks(UnrecoverableFileError)
         logged = self.eliot_logger.flushTracebacks(NoSharesError)
