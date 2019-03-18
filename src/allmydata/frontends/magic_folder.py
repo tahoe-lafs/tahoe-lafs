@@ -1732,7 +1732,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                         "Last tried at %s" % self.nice_current_time(),
                     )
                     write_traceback()
-                    yield task.deferLater(self._clock, self._poll_interval, lambda: None)
+                    yield task.deferLater(self._clock, self._scan_delay(), lambda: None)
 
     def nice_current_time(self):
         return format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
