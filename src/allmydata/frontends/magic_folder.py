@@ -973,8 +973,17 @@ class QueueMixin(HookMixin):
         with action.context():
             d = DeferredContext(defer.Deferred())
 
-            # adds items to our deque
-            d.addCallback(lambda ignored: self._perform_scan())
+            # During startup we scanned the collective for items to download.
+            # If we found work to do, we do not need to perform another scan
+            # here.  More importantly, the logic for determining which items
+            # to download is *not correct* in the case where two scans are
+            # performed with no intermediate emptying of the work queue.
+            # Therefore, skip the scan any time there is queued work.  The
+            # only time we expect there to be any, though, is on the first
+            # time through this loop.
+            if not self._deque:
+                # adds items to our deque
+                d.addCallback(lambda ignored: self._perform_scan())
 
             # process anything in our queue
             d.addCallback(lambda ignored: self._process_deque())
@@ -1732,7 +1741,7 @@ class Downloader(QueueMixin, WriteFileMixin):
                         "Last tried at %s" % self.nice_current_time(),
                     )
                     write_traceback()
-                    yield task.deferLater(self._clock, self._poll_interval, lambda: None)
+                    yield task.deferLater(self._clock, self._scan_delay(), lambda: None)
 
     def nice_current_time(self):
         return format_time(datetime.fromtimestamp(self._clock.seconds()).timetuple())
@@ -1854,6 +1863,7 @@ class Downloader(QueueMixin, WriteFileMixin):
 
     @eliotutil.log_call_deferred(SCAN_REMOTE_COLLECTIVE.action_type)
     def _scan_remote_collective(self, scan_self=False):
+        precondition(not self._deque, "Items in _deque invalidate should_download logic")
         scan_batch = {}  # path -> [(filenode, metadata)]
         d = DeferredContext(self._collective_dirnode.list())
         def scan_collective(dirmap):

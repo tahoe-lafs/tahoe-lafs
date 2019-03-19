@@ -303,7 +303,7 @@ def await_files_exist(paths, timeout=15, await_all=False):
     an Exception is raised
     """
     start_time = time.time()
-    while time.time() - start_time < 15.0:
+    while time.time() - start_time < timeout:
         print("  waiting for: {}".format(' '.join(paths)))
         found = [p for p in paths if exists(p)]
         print("found: {}".format(found))
@@ -329,3 +329,19 @@ def await_file_vanishes(path, timeout=10):
             return
         time.sleep(1)
     raise FileShouldVanishException(path, timeout)
+
+
+def cli(reactor, node_dir, *argv):
+    proto = _CollectOutputProtocol()
+    reactor.spawnProcess(
+        proto,
+        sys.executable,
+        [
+            sys.executable, '-m', 'allmydata.scripts.runner',
+            '--node-directory', node_dir,
+        ] + list(argv),
+    )
+    return proto.done
+
+def magic_folder_cli(reactor, node_dir, *argv):
+    return cli(reactor, node_dir, "magic-folder", *argv)
