@@ -479,6 +479,21 @@ SCAN_REMOTE_COLLECTIVE = ActionType(
     u"The remote collective is being scanned for peer DMDs.",
 )
 
+_DMDS = Field(
+    u"dmds",
+    # The children of the collective directory are the participant DMDs.  The
+    # keys in this dict give us the aliases of the participants.
+    lambda collective_directory_listing: collective_directory_listing.keys(),
+    u"The (D)istributed (M)utable (D)irectories belonging to each participant are being scanned for changes.",
+)
+
+COLLECTIVE_SCAN = MessageType(
+    u"magic-folder:downloader:get-latest-file:collective-scan",
+    [_DMDS],
+    u"Participants in the collective are being scanned.",
+)
+
+
 SCAN_REMOTE_DMD = ActionType(
     u"magic-folder:scan-remote-dmd",
     [_NICKNAME],
@@ -1789,12 +1804,9 @@ class Downloader(QueueMixin, WriteFileMixin):
         with action.context():
             collective_dirmap_d = DeferredContext(self._collective_dirnode.list())
         def scan_collective(result):
-            Message.log(
-                message_type=u"magic-folder:downloader:get-latest-file:collective-scan",
-                dmds=result.keys(),
-            )
+            COLLECTIVE_SCAN.log(dmds=result)
             list_of_deferreds = []
-            for dir_name in result.keys():
+            for dir_name in result:
                 # XXX make sure it's a directory
                 d = DeferredContext(defer.succeed(None))
                 d.addCallback(lambda x, dir_name=dir_name: result[dir_name][0].get_child_and_metadata(filename))
@@ -1824,13 +1836,30 @@ class Downloader(QueueMixin, WriteFileMixin):
         return collective_dirmap_d.addActionFinish()
 
     def _scan_remote_dmd(self, nickname, dirnode, scan_batch):
+        """
+        Read the contents of a single DMD into the given batch.
+
+        :param unicode nickname: The nickname for the participant owning the
+            DMD to scan.
+
+        :param IDirectoryNode dirnode: The node representing the chosen
+            participant's DMD.
+
+        :param dict scan_batch: A dictionary into which to collect the results
+            of the scan.  This is mutated to add the results in-place.  Keys
+            are the unicode relative paths of contents of the DMD.  Values are
+            a list of two-tuples.  The first element of each two-tuple is the
+            ``IFilesystemNode`` for the content.  The second element is a
+            ``dict`` of metadata.
+
+        :return Deferred: A ``Deferred`` which fires when the scan is
+            complete.
+        """
         with SCAN_REMOTE_DMD(nickname=nickname).context():
             d = DeferredContext(dirnode.list())
         def scan_listing(listing_map):
-            for encoded_relpath_u in listing_map.keys():
+            for encoded_relpath_u, (file_node, metadata) in listing_map.iteritems():
                 relpath_u = magicpath.magic2path(encoded_relpath_u)
-
-                file_node, metadata = listing_map[encoded_relpath_u]
                 local_dbentry = self._get_local_latest(relpath_u)
 
                 # XXX FIXME this is *awefully* similar to
@@ -1849,9 +1878,17 @@ class Downloader(QueueMixin, WriteFileMixin):
                     local_dbentry.version < remote_version or
                     (local_dbentry.version == remote_version and local_dbentry.last_downloaded_uri != remote_uri)):
                     ADD_TO_DOWNLOAD_QUEUE.log(relpath=relpath_u)
-                    if scan_batch.has_key(relpath_u):
+
+                    # The scan_batch is shared across the scan of multiple
+                    # DMDs.  It is expected the DMDs will most often be mostly
+                    # synchronized with each other.  The common case, then, is
+                    # that there is already an entry for relpath_u.  So try to
+                    # make that the fast path: assume there is a value already
+                    # and extend it.  If there's not, we'll do an extra lookup
+                    # to initialize it.
+                    try:
                         scan_batch[relpath_u] += [(file_node, metadata)]
-                    else:
+                    except KeyError:
                         scan_batch[relpath_u] = [(file_node, metadata)]
             self._status_reporter(
                 True, 'Magic folder is working',
@@ -1886,8 +1923,8 @@ class Downloader(QueueMixin, WriteFileMixin):
         def _filter_batch_to_deque(ign):
             ITEM_QUEUE.log(items=self._deque)
             SCAN_BATCH.log(batch=scan_batch)
-            for relpath_u in scan_batch.keys():
-                file_node, metadata = max(scan_batch[relpath_u], key=lambda x: x[1]['version'])
+            for relpath_u, versions in scan_batch.iteritems():
+                file_node, metadata = max(versions, key=lambda x: x[1]['version'])
 
                 if self._should_download(relpath_u, metadata['version'], file_node.get_readonly_uri()):
                     to_dl = DownloadItem(
