@@ -151,8 +151,8 @@ class EliotLoggedRunTest(object):
     def eliot_logger(self, value):
         self.case.eliot_logger = value
 
-    def addCleanup(self, f):
-        return self.case.addCleanup(f)
+    def addCleanup(self, *a, **kw):
+        return self.case.addCleanup(*a, **kw)
 
     def id(self):
         return self.case.id()
