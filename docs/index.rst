@@ -24,6 +24,7 @@ Contents:
    frontends/download-status
 
    known_issues
+   ../.github/CONTRIBUTING
 
    servers
    helper
@@ -64,4 +65,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

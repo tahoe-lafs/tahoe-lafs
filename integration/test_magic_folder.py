@@ -395,3 +395,67 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
         assert exists(join(magic_folder, "its_a_file"))
         assert not exists(join(magic_folder, "its_a_file.backup"))
         time.sleep(1)
+
+
+@pytest_twisted.inlineCallbacks
+def test_alice_adds_files_while_bob_is_offline(reactor, request, temp_dir, magic_folder):
+    """
+    Alice can add new files to a magic folder while Bob is offline.  When Bob
+    comes back online his copy is updated to reflect the new files.
+    """
+    alice_magic_dir, bob_magic_dir = magic_folder
+    alice_node_dir = join(temp_dir, "alice")
+    bob_node_dir = join(temp_dir, "bob")
+
+    # Take Bob offline.
+    yield util.cli(reactor, bob_node_dir, "stop")
+
+    # Create a couple files in Alice's local directory.
+    some_files = list(
+        (name * 3) + ".added-while-offline"
+        for name
+        in "xyz"
+    )
+    for name in some_files:
+        with open(join(alice_magic_dir, name), "w") as f:
+            f.write(name + " some content")
+
+    good = False
+    for i in range(15):
+        status = yield util.magic_folder_cli(reactor, alice_node_dir, "status")
+        good = status.count(".added-while-offline (36 B): good, version=0") == len(some_files) * 2
+        if good:
+            # We saw each file as having a local good state and a remote good
+            # state.  That means we're ready to involve Bob.
+            break
+        else:
+            time.sleep(1.0)
+
+    assert good, (
+        "Timed out waiting for good Alice state.  Last status:\n{}".format(status)
+    )
+
+    # Start Bob up again
+    magic_text = 'Completed initial Magic Folder scan successfully'
+    yield util._run_node(reactor, bob_node_dir, request, magic_text)
+
+    yield util.await_files_exist(
+        list(
+            join(bob_magic_dir, name)
+            for name
+            in some_files
+        ),
+        await_all=True,
+    )
+    # Let it settle.  It would be nicer to have a readable status output we
+    # could query.  Parsing the current text format is more than I want to
+    # deal with right now.
+    time.sleep(1.0)
+    conflict_files = list(name + ".conflict" for name in some_files)
+    assert all(
+        list(
+            not exists(join(bob_magic_dir, name))
+            for name
+            in conflict_files
+        ),
+    )
