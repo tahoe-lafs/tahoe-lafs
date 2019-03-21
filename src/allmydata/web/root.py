@@ -171,7 +171,10 @@ class Root(MultiFormatPage):
         self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
 
         # handler for "/logs_v1" URIs
-        # note, webport can be a bare port or a Twisted endpoint-string
+        # note, webport can be a bare port or a Twisted
+        # endpoint-string but running it through serverFromString
+        # requires the reactor and still doesn't gain us anything
+        # (there's still no public API for "what is the port")
         if webport.startswith("tcp:"):
             port = webport.split(':')[1]
         else:
