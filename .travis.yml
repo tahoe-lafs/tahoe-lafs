@@ -22,7 +22,13 @@ install:
   - python misc/build_helpers/show-tool-versions.py
 
 script:
-  - tox -e ${T}
+  - |
+    set -eo pipefail
+    if [ "${T}" = "py35" ]; then
+      cat py3_valid_syntax.txt | xargs -n 1 python3 -m py_compile
+    else
+      tox -e ${T}
+    fi
 
 after_success:
   - if [ "${T}" = "coverage" ]; then codecov; fi
@@ -40,17 +46,28 @@ notifications:
 matrix:
   include:
   - os: linux
+    python: '2.7'
     env: T=coverage LANG=en_US.UTF-8
   - os: linux
+    python: '2.7'
     env: T=codechecks LANG=en_US.UTF-8
   - os: linux
+    python: '2.7'
     env: T=pyinstaller LANG=en_US.UTF-8
   - os: linux
+    python: '2.7'
     env: T=py27 LANG=C
   - os: osx
+    python: '2.7'
     env: T=py27 LANG=en_US.UTF-8
     language: generic  # "python" is not available on OS-X
   - os: osx
+    python: '2.7'
     env: T=pyinstaller LANG=en_US.UTF-8
     language: generic  # "python" is not available on OS-X
+  # this is a "lint" job that checks for python3 compatibility
+  - os: linux
+    python: '3.5'
+    env: T=py35
+
   fast_finish: true
