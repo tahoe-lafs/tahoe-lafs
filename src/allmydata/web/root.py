@@ -1,7 +1,6 @@
 import time, os, json
 
 from twisted.web import http
-from twisted.internet import endpoints
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
