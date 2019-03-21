@@ -25,8 +25,9 @@ from allmydata.web.common import (
     render_time,
     render_time_attr,
 )
-from allmydata.web.logs import create_log_streaming_resource
-
+from allmydata.web.private import (
+    create_private_tree,
+)
 
 class URIHandler(RenderMixin, rend.Page):
     # I live at /uri . There are several operations defined on /uri itself,
@@ -169,8 +170,10 @@ class Root(MultiFormatPage):
         # handler for "/magic_folder" URIs
         self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
 
-        # handler for "/logs_v1" URIs
-        self.child_logs_v1 = create_log_streaming_resource(client)
+        # Handler for everything beneath "/private", an area of the resource
+        # hierarchy which is only accessible with the private per-node API
+        # auth token.
+        self.child_private = create_private_tree(client)
 
         self.child_file = FileHandler(client)
         self.child_named = FileHandler(client)

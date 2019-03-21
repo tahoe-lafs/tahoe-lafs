@@ -12,6 +12,9 @@ import eliot
 
 from allmydata.util.hashutil import timing_safe_compare
 from .common import humanize_failure
+from twisted.web.resource import (
+    Resource,
+)
 
 
 class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
@@ -81,3 +84,9 @@ def create_log_streaming_resource(client):
     factory.tahoe_client = client
     factory.protocol = TokenAuthenticatedWebSocketServerProtocol
     return WebSocketResource(factory)
+
+
+def create_log_resources(client):
+    logs = Resource()
+    logs.putChild(b"v1", create_log_streaming_resource(client))
+    return logs
