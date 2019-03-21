@@ -58,7 +58,7 @@ def main(reactor):
         port = webport
 
     factory = WebSocketClientFactory(
-        url=u"ws://127.0.0.1:{}/logs_v1".format(port),
+        url=u"ws://127.0.0.1:{}/private/logs/v1".format(port),
         headers={
             "Authorization": "tahoe-lafs {}".format(token),
         }
