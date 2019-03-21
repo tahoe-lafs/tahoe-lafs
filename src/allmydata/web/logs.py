@@ -1,3 +1,10 @@
+from __future__ import (
+    print_function,
+    unicode_literals,
+    absolute_import,
+    division,
+)
+
 import json
 
 from autobahn.twisted.resource import WebSocketResource
@@ -28,11 +35,11 @@ class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
         """
         WebSocket callback
         """
-        if 'authorization' in req.headers:
-            auth = req.headers['authorization'].encode('ascii').split(' ', 1)
+        if b'authorization' in req.headers:
+            auth = req.headers[b'authorization'].encode('ascii').split(b' ', 1)
             if len(auth) == 2:
                 tag, token = auth
-                if tag == "tahoe-lafs":
+                if tag == b"tahoe-lafs":
                     if timing_safe_compare(token, self.factory.tahoe_client.get_auth_token()):
                         # we don't care what WebSocket sub-protocol is
                         # negotiated, nor do we need to send headers to the
