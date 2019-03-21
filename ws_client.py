@@ -2,7 +2,6 @@ from __future__ import print_function
 
 import sys
 import json
-from os.path import join
 
 from twisted.internet.task import react
 from twisted.internet.defer import inlineCallbacks, Deferred
