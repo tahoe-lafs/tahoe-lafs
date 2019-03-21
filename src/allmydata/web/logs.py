@@ -16,9 +16,15 @@ from .common import humanize_failure
 
 class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
     """
+    A WebSocket protocol that looks for an `Authorization:` header
+    with a `tahoe-lafs` scheme and a token matching our private config
+    for `api_auth_token`.
     """
 
     def onConnect(self, req):
+        """
+        WebSocket callback
+        """
         if 'authorization' in req.headers:
             auth = req.headers['authorization'].encode('ascii').split(' ', 1)
             if len(auth) == 2:
@@ -40,18 +46,24 @@ class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
         )
 
     def _received_eliot_log(self, message):
+        """
+        While this WebSocket connection is open, this function is
+        registered as an eliot destination
+        """
         # probably want a try/except around here? what do we do if
-        # transmission fails or anything else bad?
+        # transmission fails or anything else bad happens?
         self.sendMessage(json.dumps(message))
 
     def onOpen(self):
-        # self.factory.tahoe_client.add_log_streaming_client(self)
-        # hmm, instead of something like ^ maybe we just add eliot
-        # stuff ourselves...
+        """
+        WebSocket callback
+        """
         eliot.add_destination(self._received_eliot_log)
 
     def onClose(self, wasClean, code, reason):
-        #self.factory.tahoe_client.remove_log_streaming_client(self)
+        """
+        WebSocket callback
+        """
         try:
             eliot.remove_destination(self._received_eliot_log)
         except ValueError:
@@ -69,14 +81,3 @@ def create_log_streaming_resource(client, websocket_url):
     factory.tahoe_client = client
     factory.protocol = TokenAuthenticatedWebSocketServerProtocol
     return WebSocketResource(factory)
-
-
-def _create_log_streaming_resource(client):
-    factory = WebSocketServerFactory(u"ws://127.0.0.1:6301/logs_v1")
-    factory.protocol = WebSocketServerProtocol
-    if False:
-        res = WebSocketResource(factory)
-    else:
-        res = WebSocketResource(factory)
-    return res
-
