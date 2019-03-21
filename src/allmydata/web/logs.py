@@ -8,19 +8,20 @@ from __future__ import (
 import json
 
 from autobahn.twisted.resource import WebSocketResource
-from autobahn.twisted.websocket import WebSocketServerFactory
-from autobahn.twisted.websocket import WebSocketServerProtocol
+from autobahn.twisted.websocket import (
+    WebSocketServerFactory,
+    WebSocketServerProtocol,
+)
 from autobahn.websocket.types import ConnectionDeny
-
-from twisted.web import resource, server
-from twisted.python.failure import Failure
 
 import eliot
 
-from allmydata.util.hashutil import timing_safe_compare
-from .common import humanize_failure
 from twisted.web.resource import (
     Resource,
+)
+
+from allmydata.util.hashutil import (
+    timing_safe_compare,
 )
 
 
