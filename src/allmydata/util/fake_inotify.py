@@ -91,7 +91,7 @@ class INotify(object):
         self.callbacks = callbacks
 
     def event(self, filepath, mask):
-        with start_action(action_type=u"fake-inotify:event", path=filepath.path, mask=mask):
+        with start_action(action_type=u"fake-inotify:event", path=filepath.asTextMode().path, mask=mask):
             for cb in self.callbacks:
                 cb(None, filepath, mask)
 
