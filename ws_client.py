@@ -3,8 +3,10 @@ from __future__ import print_function
 import sys
 import json
 
+from twisted.internet.error import ConnectError
 from twisted.internet.task import react
 from twisted.internet.defer import inlineCallbacks, Deferred
+from twisted.internet.endpoints import HostnameEndpoint
 
 from autobahn.twisted.websocket import (
     WebSocketClientProtocol,
@@ -65,10 +67,14 @@ def main(reactor):
     factory.on_close = Deferred()
 
     factory.protocol = TahoeLogProtocol
-    port = yield reactor.connectTCP("127.0.0.1", int(port), factory)
 
-    # okay, I give up: how do we detect that our connection was
-    # refused?
+    endpoint = HostnameEndpoint(reactor, "127.0.0.1", int(port))
+    try:
+        port = yield endpoint.connect(factory)
+    except ConnectError as e:
+        print("Connection failed: {}".format(e))
+        return
+
     print("port: {}".format(port))
     yield factory.on_open
     print("opened")
