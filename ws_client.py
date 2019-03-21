@@ -34,7 +34,7 @@ class TahoeLogProtocol(WebSocketClientProtocol):
     def onClose(self, *args):
         if not self.factory.on_open.called:
             self.factory.on_open.errback(
-                RuntimError("Failed: {}".format(args))
+                RuntimeError("Failed: {}".format(args))
             )
         self.factory.on_close.callback(self)
 
