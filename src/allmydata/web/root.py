@@ -151,7 +151,7 @@ class Root(MultiFormatPage):
         "no": "Disconnected",
         }
 
-    def __init__(self, client, clock=None, now_fn=None, webport=None):
+    def __init__(self, client, clock=None, now_fn=None):
         rend.Page.__init__(self, client)
         self.client = client
         # If set, clock is a twisted.internet.task.Clock that the tests
