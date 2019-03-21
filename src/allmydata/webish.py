@@ -161,7 +161,11 @@ class WebishServer(service.MultiService):
         # twisted.internet.task.Clock that is provided by the unit tests
         # so that they can test features that involve the passage of
         # time in a deterministic manner.
-        self.root = root.Root(client, clock, now_fn)
+
+        # beware, 'webport' can be a Twisted endpoint-string sometimes
+        # it seems
+        print("webport {}".format(webport))
+        self.root = root.Root(client, clock, now_fn, webport=webport)
         self.buildServer(webport, nodeurl_path, staticdir)
         if self.root.child_operations:
             self.site.remember(self.root.child_operations, IOpHandleTable)

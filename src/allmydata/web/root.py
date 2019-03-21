@@ -1,6 +1,7 @@
 import time, os, json
 
 from twisted.web import http
+from twisted.internet import endpoints
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
@@ -150,7 +151,7 @@ class Root(MultiFormatPage):
         "no": "Disconnected",
         }
 
-    def __init__(self, client, clock=None, now_fn=None):
+    def __init__(self, client, clock=None, now_fn=None, webport=None):
         rend.Page.__init__(self, client)
         self.client = client
         # If set, clock is a twisted.internet.task.Clock that the tests
@@ -170,7 +171,13 @@ class Root(MultiFormatPage):
         self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
 
         # handler for "/logs_v1" URIs
-        self.child_logs_v1 = create_log_streaming_resource(client)
+        # note, webport can be a bare port or a Twisted endpoint-string
+        if webport.startswith("tcp:"):
+            port = webport.split(':')[1]
+        else:
+            port = webport
+        websocket_url = u"ws://127.0.0.1:{}/logs_v1".format(port)
+        self.child_logs_v1 = create_log_streaming_resource(client, websocket_url)
 
         self.child_file = FileHandler(client)
         self.child_named = FileHandler(client)

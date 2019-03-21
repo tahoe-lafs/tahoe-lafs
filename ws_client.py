@@ -1,56 +1,63 @@
+from __future__ import print_function
+
+import json
+import sys
+
+from twisted.internet.task import react
+from twisted.internet.defer import inlineCallbacks, Deferred
+
+from autobahn.twisted.websocket import (
+    WebSocketClientProtocol,
+    WebSocketClientFactory,
+)
 
 
-
-from autobahn.twisted.websocket import WebSocketClientProtocol, \
-    WebSocketClientFactory
-
-
-class MyClientProtocol(WebSocketClientProtocol):
-
-    def onConnect(self, response):
-        print("Server connected: {0}".format(response.peer))
+class TahoeLogProtocol(WebSocketClientProtocol):
+    """
+    """
 
     def onOpen(self):
-        print("WebSocket connection open.")
-
-        def hello():
-            self.sendMessage(u"Hello, world!".encode('utf8'))
-            self.sendMessage(b"\x00\x01\x03\x04", isBinary=True)
-            self.factory.reactor.callLater(1, hello)
-
-        # start sending messages every second ..
-        hello()
+        pass#print("connected")
 
     def onMessage(self, payload, isBinary):
-        if isBinary:
-            print("Binary message received: {0} bytes".format(len(payload)))
+        if False:
+            log_data = json.loads(payload.decode('utf8'))
+            print("eliot message:")
+            for k, v in log_data.items():
+                print("  {}: {}".format(k, v))
         else:
-            print("Text message received: {0}".format(payload.decode('utf8')))
+            print(payload)
+            sys.stdout.flush()
 
-    def onClose(self, wasClean, code, reason):
-        print("WebSocket connection closed: {0}".format(reason))
+    def onClose(self, *args):
+        print("bye", args)
 
 
-if __name__ == '__main__':
+@inlineCallbacks
+def main(reactor):
 
-    import sys
-
-    from twisted.python import log
-    from twisted.internet import reactor
-
-    log.startLogging(sys.stdout)
-
-    with open("alice/private/api_auth_token", "r") as f:
+    with open("testgrid/alice/private/api_auth_token", "r") as f:
+    #with open("alice/private/api_auth_token", "r") as f:
         token = f.read().strip()
 
     factory = WebSocketClientFactory(
-        url=u"ws://127.0.0.1:6301/logs_v1",
+        url=u"ws://127.0.0.1:8890/logs_v1",
         headers={
-            "Authorization": token,
+            "Authorization": "tahoe-lafs {}".format(token),
         }
     )
-    factory.protocol = MyClientProtocol
+    factory.protocol = TahoeLogProtocol
+    port = yield reactor.connectTCP("127.0.0.1", 8890, factory)
+    if False:
+        print("port {}".format(port))
+        print(dir(port))
+        print(port.getDestination())
+        print(port.transport)
+        print(dir(port.transport))
+        print(port.transport.protocol)
+        # can we like 'listen' for this connection/etc to die?
+    yield Deferred()
 
-    reactor.connectTCP("127.0.0.1", 6301, factory)
 
-reactor.run()
+if __name__ == '__main__':
+    react(main)
