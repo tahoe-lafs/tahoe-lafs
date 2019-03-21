@@ -70,14 +70,14 @@ class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
             pass
 
 
-def create_log_streaming_resource(client, websocket_url):
+def create_log_streaming_resource(client):
     """
     Create a new resource that accepts WebSocket connections if they
     include a correct `Authorization: tahoe-lafs <api_auth_token>`
     header (where `api_auth_token` matches the private configuration
     value).
     """
-    factory = WebSocketServerFactory(websocket_url)
+    factory = WebSocketServerFactory()
     factory.tahoe_client = client
     factory.protocol = TokenAuthenticatedWebSocketServerProtocol
     return WebSocketResource(factory)
