@@ -25,6 +25,7 @@ from allmydata.web.common import (
     render_time,
     render_time_attr,
 )
+from allmydata.web.logs import create_log_streaming_resource
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -137,6 +138,7 @@ class IncidentReporter(RenderMixin, rend.Page):
 
 SPACE = u"\u00A0"*2
 
+
 class Root(MultiFormatPage):
 
     addSlash = True
@@ -166,6 +168,9 @@ class Root(MultiFormatPage):
 
         # handler for "/magic_folder" URIs
         self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
+
+        # handler for "/logs_v1" URIs
+        self.child_logs_v1 = create_log_streaming_resource(client)
 
         self.child_file = FileHandler(client)
         self.child_named = FileHandler(client)
