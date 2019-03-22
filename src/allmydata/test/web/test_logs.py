@@ -51,9 +51,9 @@ class StreamingEliotLogsTests(SyncTestCase):
 
     def test_v1(self):
         """
-        There is a resource at *logs/v1*.
+        There is a resource at *v1*.
         """
         self.assertThat(
-            self.client.head(b"http:///logs/v1"),
+            self.client.get(b"http:///v1"),
             succeeded(has_response_code(Equals(OK))),
         )
