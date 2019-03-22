@@ -121,6 +121,7 @@ def _test_streaming_logs(reactor, temp_dir, alice):
     ws_url = node_url.replace("http://", "ws://")
     log_url = ws_url + "private/logs/v1"
 
+    print("Connecting to {}".format(log_url))
     client = yield _connect_client(reactor, api_auth_token, log_url)
     client.on_close = Deferred()
     client.on_message = Deferred()
