@@ -21,7 +21,7 @@
 # Install 'click' first. I run this with py2, but py3 might work too, if the
 # wheels can be built with py3.
 
-from __future__ import print_function, unicode_literals
+from __future__ import unicode_literals, print_function
 import os, sys, subprocess, json, tempfile, zipfile, io, re, itertools
 import email.parser
 from pprint import pprint

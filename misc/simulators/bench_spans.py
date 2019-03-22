@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 """
 To use this, get a trace file such as this one:
 
@@ -68,17 +70,17 @@ class B(object):
             elif INIT_S in inline:
                 pass
             else:
-                print "Warning, didn't recognize this line: %r" % (inline,)
+                print("Warning, didn't recognize this line: %r" % (inline,))
             count += 1
             inline = self.inf.readline()
 
         # print self.stats
 
 benchutil.print_bench_footer(UNITS_PER_SECOND=1000000)
-print "(microseconds)"
+print("(microseconds)")
 
 for N in [600, 6000, 60000]:
     b = B(open(sys.argv[1], 'rU'))
-    print "%7d" % N,
+    print("%7d" % N, end=' ')
     benchutil.rep_bench(b.run, N, b.init, UNITS_PER_SECOND=1000000)
 

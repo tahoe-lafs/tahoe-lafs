@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 """
 This tool estimates how much space would be consumed by a filetree into which
 a native directory was copied.
@@ -96,10 +98,10 @@ def scan(root):
         for mode in MODES:
             total[mode] += slotsize(mode, len(files), len(dirs)) + stringsize
 
-    print "%d directories" % num_dirs
-    print "%d files" % num_files
+    print("%d directories" % num_dirs)
+    print("%d files" % num_files)
     for mode in sorted(total.keys()):
-        print "%s: %d bytes" % (mode, total[mode])
+        print("%s: %d bytes" % (mode, total[mode]))
 
 
 if __name__ == '__main__':
