@@ -65,7 +65,7 @@ class Token(object):
 
     def equals(self, valid_token):
         return timing_safe_compare(
-            valid_token.encode("ascii"),
+            valid_token,
             self.proposed_token,
         )
 
