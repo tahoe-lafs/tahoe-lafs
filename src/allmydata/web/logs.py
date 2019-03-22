@@ -12,16 +12,10 @@ from autobahn.twisted.websocket import (
     WebSocketServerFactory,
     WebSocketServerProtocol,
 )
-from autobahn.websocket.types import ConnectionDeny
-
 import eliot
 
 from twisted.web.resource import (
     Resource,
-)
-
-from allmydata.util.hashutil import (
-    timing_safe_compare,
 )
 
 
@@ -36,25 +30,12 @@ class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
         """
         WebSocket callback
         """
-        if b'authorization' in req.headers:
-            auth = req.headers[b'authorization'].encode('ascii').split(b' ', 1)
-            if len(auth) == 2:
-                tag, token = auth
-                if tag == b"tahoe-lafs":
-                    if timing_safe_compare(token, self.factory.tahoe_client.get_auth_token()):
-                        # we don't care what WebSocket sub-protocol is
-                        # negotiated, nor do we need to send headers to the
-                        # client, so we ask Autobahn to just allow this
-                        # connection with the defaults. We could return a
-                        # (headers, protocol) pair here instead if required.
-                        return None
-
-        # everything else -- i.e. no Authorization header, or it's
-        # wrong -- means we deny the websocket connection
-        raise ConnectionDeny(
-            code=ConnectionDeny.NOT_ACCEPTABLE,
-            reason=u"Invalid or missing token"
-        )
+        # we don't care what WebSocket sub-protocol is
+        # negotiated, nor do we need to send headers to the
+        # client, so we ask Autobahn to just allow this
+        # connection with the defaults. We could return a
+        # (headers, protocol) pair here instead if required.
+        return None
 
     def _received_eliot_log(self, message):
         """
@@ -81,20 +62,13 @@ class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
             pass
 
 
-def create_log_streaming_resource(client):
-    """
-    Create a new resource that accepts WebSocket connections if they
-    include a correct `Authorization: tahoe-lafs <api_auth_token>`
-    header (where `api_auth_token` matches the private configuration
-    value).
-    """
+def create_log_streaming_resource():
     factory = WebSocketServerFactory()
-    factory.tahoe_client = client
     factory.protocol = TokenAuthenticatedWebSocketServerProtocol
     return WebSocketResource(factory)
 
 
-def create_log_resources(client):
+def create_log_resources():
     logs = Resource()
-    logs.putChild(b"v1", create_log_streaming_resource(client))
+    logs.putChild(b"v1", create_log_streaming_resource())
     return logs

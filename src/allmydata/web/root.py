@@ -173,7 +173,7 @@ class Root(MultiFormatPage):
         # Handler for everything beneath "/private", an area of the resource
         # hierarchy which is only accessible with the private per-node API
         # auth token.
-        self.child_private = create_private_tree(client)
+        self.child_private = create_private_tree(client.get_auth_token)
 
         self.child_file = FileHandler(client)
         self.child_named = FileHandler(client)
