@@ -49,7 +49,7 @@ class PrivacyTests(SyncTestCase):
     Tests for the privacy features of the resources created by ``create_private_tree``.
     """
     def setUp(self):
-        self.token = u"abcdef"
+        self.token = b"abcdef"
         self.resource = create_private_tree(lambda: self.token)
         self.agent = RequestTraversalAgent(self.resource)
         self.client =  HTTPClient(self.agent)

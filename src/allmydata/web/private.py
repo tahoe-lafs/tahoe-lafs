@@ -46,6 +46,9 @@ from twisted.web.guard import (
 from ..util.hashutil import (
     timing_safe_compare,
 )
+from ..util.assertutil import (
+    precondition,
+)
 
 from .logs import (
     create_log_resources,
@@ -77,7 +80,9 @@ class TokenChecker(object):
     credentialInterfaces = [IToken]
 
     def requestAvatarId(self, credentials):
-        if credentials.equals(self.get_auth_token()):
+        required_token = self.get_auth_token()
+        precondition(isinstance(required_token, bytes))
+        if credentials.equals(required_token):
             return succeed(ANONYMOUS)
         return fail(Failure(UnauthorizedLogin()))
 
