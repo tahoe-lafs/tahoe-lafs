@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os, shutil, sys, urllib, time, stat, urlparse
 from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
@@ -24,17 +26,17 @@ class StallableHTTPGetterDiscarder(tw_client.HTTPPageGetter):
             return
         if self._bytes_so_far > 1e6+100:
             if not self.stalled:
-                print "STALLING"
+                print("STALLING")
                 self.transport.pauseProducing()
                 self.stalled = reactor.callLater(10.0, self._resume_speed)
     def _resume_speed(self):
-        print "RESUME SPEED"
+        print("RESUME SPEED")
         self.stalled = None
         self.full_speed_ahead = True
         self.transport.resumeProducing()
     def handleResponseEnd(self):
         if self.stalled:
-            print "CANCEL"
+            print("CANCEL")
             self.stalled.cancel()
             self.stalled = None
         return tw_client.HTTPPageGetter.handleResponseEnd(self)
@@ -101,7 +103,7 @@ class SystemFramework(pollmixin.PollMixin):
         def _err(err):
             self.failed = err
             log.err(err)
-            print err
+            print(err)
         d.addErrback(_err)
         def _done(res):
             reactor.stop()
@@ -133,15 +135,15 @@ class SystemFramework(pollmixin.PollMixin):
         return d
 
     def record_initial_memusage(self):
-        print
-        print "Client started (no connections yet)"
+        print()
+        print("Client started (no connections yet)")
         d = self._print_usage()
         d.addCallback(self.stash_stats, "init")
         return d
 
     def wait_for_client_connected(self):
-        print
-        print "Client connecting to other nodes.."
+        print()
+        print("Client connecting to other nodes..")
         return self.control_rref.callRemote("wait_for_client_connections",
                                             self.numnodes+1)
 
@@ -360,16 +362,16 @@ this file are ignored.
     def _print_usage(self, res=None):
         d = self.control_rref.callRemote("get_memory_usage")
         def _print(stats):
-            print "VmSize: %9d  VmPeak: %9d" % (stats["VmSize"],
-                                                stats["VmPeak"])
+            print("VmSize: %9d  VmPeak: %9d" % (stats["VmSize"],
+                                                stats["VmPeak"]))
             return stats
         d.addCallback(_print)
         return d
 
     def _do_upload(self, res, size, files, uris):
         name = '%d' % size
-        print
-        print "uploading %s" % name
+        print()
+        print("uploading %s" % name)
         if self.mode in ("upload", "upload-self"):
             d = self.control_rref.callRemote("upload_random_data_from_file",
                                              size,
@@ -400,7 +402,7 @@ this file are ignored.
             raise ValueError("unknown mode=%s" % self.mode)
         def _complete(uri):
             uris[name] = uri
-            print "uploaded %s" % name
+            print("uploaded %s" % name)
         d.addCallback(_complete)
         return d
 
@@ -408,7 +410,7 @@ this file are ignored.
         if self.mode not in ("download", "download-GET", "download-GET-slow"):
             return
         name = '%d' % size
-        print "downloading %s" % name
+        print("downloading %s" % name)
         uri = uris[name]
 
         if self.mode == "download":
@@ -422,7 +424,7 @@ this file are ignored.
             d = self.GET_discard(urllib.quote(url), stall=True)
 
         def _complete(res):
-            print "downloaded %s" % name
+            print("downloaded %s" % name)
             return res
         d.addCallback(_complete)
         return d
@@ -465,7 +467,7 @@ this file are ignored.
 
         #d.addCallback(self.stall)
         def _done(res):
-            print "FINISHING"
+            print("FINISHING")
         d.addCallback(_done)
         return d
 
@@ -478,9 +480,9 @@ this file are ignored.
 class ClientWatcher(protocol.ProcessProtocol):
     ended = False
     def outReceived(self, data):
-        print "OUT:", data
+        print("OUT:", data)
     def errReceived(self, data):
-        print "ERR:", data
+        print("ERR:", data)
     def processEnded(self, reason):
         self.ended = reason
         self.d.callback(None)
@@ -496,7 +498,7 @@ if __name__ == '__main__':
         bits = "64"
     else:
         bits = "?"
-    print "%s-bit system (sys.maxint=%d)" % (bits, sys.maxint)
+    print("%s-bit system (sys.maxint=%d)" % (bits, sys.maxint))
     # put the logfile and stats.out in _test_memory/ . These stick around.
     # put the nodes and other files in _test_memory/test/ . These are
     # removed each time we run.

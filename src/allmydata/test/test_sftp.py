@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import re, struct, traceback, time, calendar
 from stat import S_IFREG, S_IFDIR
@@ -54,7 +55,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                                            "%s was supposed to raise SFTPError(%r), not SFTPError(%r): %s" %
                                            (which, expected_code, res.value.code, res))
             else:
-                print '@' + '@'.join(s)
+                print('@' + '@'.join(s))
                 self.fail("%s was supposed to raise SFTPError(%r), not get %r" %
                           (which, expected_code, res))
         d.addBoth(_done)
