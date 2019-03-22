@@ -2,6 +2,8 @@
 
 # ./check-debugging.py src
 
+from __future__ import print_function
+
 import sys, re, os
 
 ok = True
@@ -15,8 +17,8 @@ for starting_point in sys.argv[1:]:
                 lineno = lineno+1
                 mo = re.search(r"\.setDebugging\(True\)", line)
                 if mo:
-                   print "Do not use defer.setDebugging(True) in production"
-                   print "First used here: %s:%d" % (fn, lineno)
+                   print("Do not use defer.setDebugging(True) in production")
+                   print("First used here: %s:%d" % (fn, lineno))
                    sys.exit(1)
-print "No cases of defer.setDebugging(True) were found, good!"
+print("No cases of defer.setDebugging(True) were found, good!")
 sys.exit(0)
