@@ -10,10 +10,14 @@ from __future__ import (
 )
 
 from testtools.matchers import (
-    Always,
+    Equals,
 )
 from testtools.twistedsupport import (
     succeeded,
+)
+
+from twisted.web.http import (
+    OK,
 )
 
 from treq.client import (
@@ -21,6 +25,10 @@ from treq.client import (
 )
 from treq.testing import (
     RequestTraversalAgent,
+)
+
+from .matchers import (
+    has_response_code,
 )
 
 from ..common import (
@@ -47,5 +55,5 @@ class StreamingEliotLogsTests(SyncTestCase):
         """
         self.assertThat(
             self.client.head(b"http:///logs/v1"),
-            succeeded(Always()),
+            succeeded(has_response_code(Equals(OK))),
         )
