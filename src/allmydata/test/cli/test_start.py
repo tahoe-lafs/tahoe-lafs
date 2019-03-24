@@ -4,7 +4,7 @@ import shutil
 import subprocess
 from os.path import join
 from mock import patch
-from StringIO import StringIO
+from six.moves import StringIO
 from functools import partial
 
 from twisted.trial import unittest

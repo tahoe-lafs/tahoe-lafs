@@ -25,7 +25,7 @@ from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
 from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 from happiness_upload import share_placement, calculate_happiness
 
 

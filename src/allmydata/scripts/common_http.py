@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import os
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 import urlparse, httplib
 import allmydata # for __full_version__
 

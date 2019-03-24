@@ -2,7 +2,7 @@ import os
 import mock
 import json
 import tempfile
-from StringIO import StringIO
+from six.moves import StringIO
 from os.path import join
 from UserDict import UserDict
 

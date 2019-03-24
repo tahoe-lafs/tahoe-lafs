@@ -1,7 +1,7 @@
 import os
 from os.path import dirname, join
 from mock import patch, Mock
-from StringIO import StringIO
+from six.moves import StringIO
 from sys import getfilesystemencoding
 from twisted.trial import unittest
 from allmydata.scripts import runner

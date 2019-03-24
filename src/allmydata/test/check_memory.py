@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import os, shutil, sys, urllib, time, stat, urlparse
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
 from twisted.web import client as tw_client

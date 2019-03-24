@@ -22,9 +22,10 @@
 # wheels can be built with py3.
 
 from __future__ import unicode_literals, print_function
-import os, sys, subprocess, json, tempfile, zipfile, io, re, itertools
+import os, sys, subprocess, json, tempfile, zipfile, re, itertools
 import email.parser
 from pprint import pprint
+from six.moves import StringIO
 import click
 
 all_packages = {} # name -> version
@@ -218,7 +219,7 @@ def scan(name, extra=None, path=""):
                  path=path+"->%s[%s]" % (dep_name, dep_extra))
 
 def generate_dot():
-    f = io.StringIO()
+    f = StringIO()
     f.write("digraph {\n")
     for name, extra in extras_to_show.keys():
         version = all_packages[name]

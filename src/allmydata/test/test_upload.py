@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os, shutil
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 from twisted.trial import unittest
 from twisted.python.failure import Failure
 from twisted.internet import defer, task

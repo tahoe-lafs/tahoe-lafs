@@ -1,4 +1,4 @@
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 from twisted.internet import defer, reactor
 from foolscap.api import eventually, fireEventually
 from allmydata import client

@@ -2,7 +2,7 @@ import os
 from twisted.trial import unittest
 from twisted.internet import defer, error
 from twisted.python.usage import UsageError
-from StringIO import StringIO
+from six.moves import StringIO
 import mock
 from ..util import i2p_provider
 from ..scripts import create_node, runner

@@ -1,7 +1,6 @@
 from __future__ import print_function
 
-from cStringIO import StringIO
-
+from six.moves import cStringIO as StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
 

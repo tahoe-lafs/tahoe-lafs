@@ -1,7 +1,5 @@
-
-
 import os, time
-from StringIO import StringIO
+from six.moves import cStringIO as StringIO
 from itertools import count
 from zope.interface import implementer
 from twisted.internet import defer

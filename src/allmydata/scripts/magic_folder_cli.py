@@ -3,7 +3,7 @@ from __future__ import print_function
 import os
 import urllib
 from types import NoneType
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 from datetime import datetime
 import json
 

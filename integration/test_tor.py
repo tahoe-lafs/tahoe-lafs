@@ -5,7 +5,7 @@ import time
 import shutil
 from os import mkdir, unlink, listdir
 from os.path import join, exists
-from StringIO import StringIO
+from six.moves import StringIO
 
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
