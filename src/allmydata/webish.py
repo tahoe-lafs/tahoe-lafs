@@ -162,9 +162,6 @@ class WebishServer(service.MultiService):
         # so that they can test features that involve the passage of
         # time in a deterministic manner.
 
-        # beware, 'webport' can be a Twisted endpoint-string sometimes
-        # it seems
-        print("webport {}".format(webport))
         self.root = root.Root(client, clock, now_fn)
         self.buildServer(webport, nodeurl_path, staticdir)
         if self.root.child_operations:
