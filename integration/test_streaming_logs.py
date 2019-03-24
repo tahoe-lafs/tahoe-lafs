@@ -5,6 +5,8 @@ from __future__ import (
     division,
 )
 
+import json
+
 from os.path import (
     join,
 )
@@ -20,6 +22,8 @@ from twisted.internet.defer import (
 from twisted.internet.endpoints import (
     HostnameEndpoint,
 )
+
+import treq
 
 from autobahn.twisted.websocket import (
     WebSocketClientFactory,
@@ -123,12 +127,17 @@ def _test_streaming_logs(reactor, temp_dir, alice):
 
     print("Connecting to {}".format(log_url))
     client = yield _connect_client(reactor, api_auth_token, log_url)
+    print("Connected.")
     client.on_close = Deferred()
     client.on_message = Deferred()
 
+    # Provoke _some_ log event.
+    yield treq.get(node_url)
+
     result = yield _race(client.on_close, client.on_message)
 
-    assert result == Right("some payload")
+    assert isinstance(result, Right)
+    json.loads(result.value)
 
 
 @pytest_twisted.inlineCallbacks
