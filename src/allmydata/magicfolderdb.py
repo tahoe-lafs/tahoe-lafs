@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import sys
 from collections import namedtuple
@@ -82,10 +83,10 @@ def get_magicfolderdb(dbfile, stderr=sys.stderr,
         if create_version[1] in (1, 2):
             return MagicFolderDB(sqlite3, db)
         else:
-            print >>stderr, "invalid magicfolderdb schema version specified"
+            print("invalid magicfolderdb schema version specified", file=stderr)
             return None
     except DBError, e:
-        print >>stderr, e
+        print(e, file=stderr)
         return None
 
 class LocalPath(object):
