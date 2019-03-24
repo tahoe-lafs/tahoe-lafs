@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os
 import urllib
@@ -84,7 +85,7 @@ def create(options):
     maybe_upgrade_magic_folders(options["node-directory"])
     folders = load_magic_folders(options["node-directory"])
     if options['name'] in folders:
-        print >>options.stderr, "Already have a magic-folder named '{}'".format(options['name'])
+        print("Already have a magic-folder named '{}'".format(options['name']), file=options.stderr)
         return 1
 
     # create an alias; this basically just remembers the cap for the
@@ -95,23 +96,23 @@ def create(options):
 
     rc = tahoe_add_alias.create_alias(create_alias_options)
     if rc != 0:
-        print >>options.stderr, create_alias_options.stderr.getvalue()
+        print(create_alias_options.stderr.getvalue(), file=options.stderr)
         return rc
-    print >>options.stdout, create_alias_options.stdout.getvalue()
+    print(create_alias_options.stdout.getvalue(), file=options.stdout)
 
     if options.nickname is not None:
-        print >>options.stdout, u"Inviting myself as client '{}':".format(options.nickname)
+        print(u"Inviting myself as client '{}':".format(options.nickname), file=options.stdout)
         invite_options = _delegate_options(options, InviteOptions())
         invite_options.alias = options.alias
         invite_options.nickname = options.nickname
         invite_options['name'] = options['name']
         rc = invite(invite_options)
         if rc != 0:
-            print >>options.stderr, u"magic-folder: failed to invite after create\n"
-            print >>options.stderr, invite_options.stderr.getvalue()
+            print(u"magic-folder: failed to invite after create\n", file=options.stderr)
+            print(invite_options.stderr.getvalue(), file=options.stderr)
             return rc
         invite_code = invite_options.stdout.getvalue().strip()
-        print >>options.stdout, u"  created invite code"
+        print(u"  created invite code", file=options.stdout)
         join_options = _delegate_options(options, JoinOptions())
         join_options['poll-interval'] = options['poll-interval']
         join_options.nickname = options.nickname
@@ -119,15 +120,15 @@ def create(options):
         join_options.invite_code = invite_code
         rc = join(join_options)
         if rc != 0:
-            print >>options.stderr, u"magic-folder: failed to join after create\n"
-            print >>options.stderr, join_options.stderr.getvalue()
+            print(u"magic-folder: failed to join after create\n", file=options.stderr)
+            print(join_options.stderr.getvalue(), file=options.stderr)
             return rc
-        print >>options.stdout, u"  joined new magic-folder"
-        print >>options.stdout, (
+        print(u"  joined new magic-folder", file=options.stdout)
+        print(
             u"Successfully created magic-folder '{}' with alias '{}:' "
             u"and client '{}'\nYou must re-start your node before the "
             u"magic-folder will be active."
-        ).format(options['name'], options.alias, options.nickname)
+        .format(options['name'], options.alias, options.nickname), file=options.stdout)
     return 0
 
 
@@ -158,7 +159,7 @@ def _list_json(options, folders):
         info[name] = {
             u"directory": details["directory"],
         }
-    print >>options.stdout, json.dumps(info)
+    print(json.dumps(info), file=options.stdout)
     return 0
 
 
@@ -167,13 +168,13 @@ def _list_human(options, folders):
     List our magic-folders for a human user
     """
     if folders:
-        print >>options.stdout, "This client has the following magic-folders:"
+        print("This client has the following magic-folders:", file=options.stdout)
         biggest = max([len(nm) for nm in folders.keys()])
         fmt = "  {:>%d}: {}" % (biggest, )
         for name, details in folders.items():
-            print >>options.stdout, fmt.format(name, details["directory"])
+            print(fmt.format(name, details["directory"]), file=options.stdout)
     else:
-        print >>options.stdout, "No magic-folders"
+        print("No magic-folders", file=options.stdout)
 
 
 class InviteOptions(BasedirOptions):
@@ -212,14 +213,14 @@ def invite(options):
 
     rc = tahoe_mkdir.mkdir(mkdir_options)
     if rc != 0:
-        print >>options.stderr, "magic-folder: failed to mkdir\n"
+        print("magic-folder: failed to mkdir\n", file=options.stderr)
         return rc
 
     # FIXME this assumes caps are ASCII.
     dmd_write_cap = mkdir_options.stdout.getvalue().strip()
     dmd_readonly_cap = uri.from_string(dmd_write_cap).get_readonly().to_string()
     if dmd_readonly_cap is None:
-        print >>options.stderr, "magic-folder: failed to diminish dmd write cap\n"
+        print("magic-folder: failed to diminish dmd write cap\n", file=options.stderr)
         return 1
 
     magic_write_cap = get_aliases(options["node-directory"])[options.alias]
@@ -231,12 +232,12 @@ def invite(options):
     ln_options.to_file = u"%s/%s" % (unicode(magic_write_cap, 'utf-8'), options.nickname)
     rc = tahoe_mv.mv(ln_options, mode="link")
     if rc != 0:
-        print >>options.stderr, "magic-folder: failed to create link\n"
-        print >>options.stderr, ln_options.stderr.getvalue()
+        print("magic-folder: failed to create link\n", file=options.stderr)
+        print(ln_options.stderr.getvalue(), file=options.stderr)
         return rc
 
     # FIXME: this assumes caps are ASCII.
-    print >>options.stdout, "%s%s%s" % (magic_readonly_cap, INVITE_SEPARATOR, dmd_write_cap)
+    print("%s%s%s" % (magic_readonly_cap, INVITE_SEPARATOR, dmd_write_cap), file=options.stdout)
     return 0
 
 class JoinOptions(BasedirOptions):
@@ -272,7 +273,7 @@ def join(options):
     existing_folders = load_magic_folders(options["node-directory"])
 
     if options['name'] in existing_folders:
-        print >>options.stderr, "This client already has a magic-folder named '{}'".format(options['name'])
+        print("This client already has a magic-folder named '{}'".format(options['name']), file=options.stderr)
         return 1
 
     db_fname = os.path.join(
@@ -281,7 +282,7 @@ def join(options):
         u"magicfolder_{}.sqlite".format(options['name']),
     )
     if os.path.exists(db_fname):
-        print >>options.stderr, "Database '{}' already exists; not overwriting".format(db_fname)
+        print("Database '{}' already exists; not overwriting".format(db_fname), file=options.stderr)
         return 1
 
     folder = {
@@ -309,11 +310,11 @@ def leave(options):
     existing_folders = load_magic_folders(options["node-directory"])
 
     if not existing_folders:
-        print >>options.stderr, "No magic-folders at all"
+        print("No magic-folders at all", file=options.stderr)
         return 1
 
     if options["name"] not in existing_folders:
-        print >>options.stderr, "No such magic-folder '{}'".format(options["name"])
+        print("No such magic-folder '{}'".format(options["name"]), file=options.stderr)
         return 1
 
     privdir = os.path.join(options["node-directory"], u"private")
@@ -327,8 +328,8 @@ def leave(options):
     try:
         fileutil.remove(db_fname)
     except Exception as e:
-        print >>options.stderr, ("Warning: unable to remove %s due to %s: %s"
-            % (quote_local_unicode_path(db_fname), e.__class__.__name__, str(e)))
+        print("Warning: unable to remove %s due to %s: %s"
+            % (quote_local_unicode_path(db_fname), e.__class__.__name__, str(e)), file=options.stderr)
 
     # if this was the last magic-folder, disable them entirely
     if not existing_folders:
@@ -422,7 +423,7 @@ def _print_item_status(item, now, longest):
                 prog = '%s %s' % (verb, abbreviate_time(now - when))
                 break
 
-    print "  %s: %s" % (paddedname, prog)
+    print("  %s: %s" % (paddedname, prog))
 
 
 def status(options):
@@ -433,7 +434,7 @@ def status(options):
     with open(os.path.join(nodedir, u'private', u'api_auth_token'), 'rb') as f:
         token = f.read()
 
-    print >>stdout, "Magic-folder status for '{}':".format(options["name"])
+    print("Magic-folder status for '{}':".format(options["name"]), file=stdout)
 
     if options["name"] not in magic_folders:
         raise Exception(
@@ -458,23 +459,23 @@ def status(options):
             )
         )
     except Exception as e:
-        print >>stderr, "failed to retrieve data: %s" % str(e)
+        print("failed to retrieve data: %s" % str(e), file=stderr)
         return 2
 
     for d in [dmd_data, remote_data, magic_data]:
         if isinstance(d, dict) and 'error' in d:
-            print >>stderr, "Error from server: %s" % d['error']
-            print >>stderr, "This means we can't retrieve the remote shared directory."
+            print("Error from server: %s" % d['error'], file=stderr)
+            print("This means we can't retrieve the remote shared directory.", file=stderr)
             return 3
 
     captype, dmd = dmd_data
     if captype != 'dirnode':
-        print >>stderr, "magic_folder_dircap isn't a directory capability"
+        print("magic_folder_dircap isn't a directory capability", file=stderr)
         return 2
 
     now = datetime.now()
 
-    print >>stdout, "Local files:"
+    print("Local files:", file=stdout)
     for (name, child) in dmd['children'].items():
         captype, meta = child
         status = 'good'
@@ -484,28 +485,28 @@ def status(options):
         nice_size = abbreviate_space(size)
         nice_created = abbreviate_time(now - created)
         if captype != 'filenode':
-            print >>stdout, "%20s: error, should be a filecap" % name
+            print("%20s: error, should be a filecap" % name, file=stdout)
             continue
-        print >>stdout, "  %s (%s): %s, version=%s, created %s" % (name, nice_size, status, version, nice_created)
+        print("  %s (%s): %s, version=%s, created %s" % (name, nice_size, status, version, nice_created), file=stdout)
 
-    print >>stdout
-    print >>stdout, "Remote files:"
+    print(file=stdout)
+    print("Remote files:", file=stdout)
 
     captype, collective = remote_data
     for (name, data) in collective['children'].items():
         if data[0] != 'dirnode':
-            print >>stdout, "Error: '%s': expected a dirnode, not '%s'" % (name, data[0])
-        print >>stdout, "  %s's remote:" % name
+            print("Error: '%s': expected a dirnode, not '%s'" % (name, data[0]), file=stdout)
+        print("  %s's remote:" % name, file=stdout)
         dmd = _get_json_for_cap(options, data[1]['ro_uri'])
         if isinstance(dmd, dict) and 'error' in dmd:
-            print >>stdout, "    Error: could not retrieve directory"
+            print("    Error: could not retrieve directory", file=stdout)
             continue
         if dmd[0] != 'dirnode':
-            print >>stdout, "Error: should be a dirnode"
+            print("Error: should be a dirnode", file=stdout)
             continue
         for (n, d) in dmd[1]['children'].items():
             if d[0] != 'filenode':
-                print >>stdout, "Error: expected '%s' to be a filenode." % (n,)
+                print("Error: expected '%s' to be a filenode." % (n,), file=stdout)
 
             meta = d[1]
             status = 'good'
@@ -514,7 +515,7 @@ def status(options):
             version = meta['metadata']['version']
             nice_size = abbreviate_space(size)
             nice_created = abbreviate_time(now - created)
-            print >>stdout, "    %s (%s): %s, version=%s, created %s" % (n, nice_size, status, version, nice_created)
+            print("    %s (%s): %s, version=%s, created %s" % (n, nice_size, status, version, nice_created), file=stdout)
 
     if len(magic_data):
         uploads = [item for item in magic_data if item['kind'] == 'upload']
@@ -526,20 +527,20 @@ def status(options):
         downloads = [item for item in downloads if item['status'] != 'success']
 
         if len(uploads):
-            print
-            print >>stdout, "Uploads:"
+            print()
+            print("Uploads:", file=stdout)
             for item in uploads:
                 _print_item_status(item, now, longest)
 
         if len(downloads):
-            print
-            print >>stdout, "Downloads:"
+            print()
+            print("Downloads:", file=stdout)
             for item in downloads:
                 _print_item_status(item, now, longest)
 
         for item in magic_data:
             if item['status'] == 'failure':
-                print >>stdout, "Failed:", item
+                print("Failed:", item, file=stdout)
 
     return 0
 
@@ -595,7 +596,7 @@ def do_magic_folder(options):
     try:
         return f(so)
     except Exception as e:
-        print >>options.stderr, "Error: %s" % (e,)
+        print("Error: %s" % (e,), file=options.stderr)
         if options['debug']:
             raise
 

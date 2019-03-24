@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os, sys, urllib, textwrap
 import codecs
@@ -168,7 +169,7 @@ class TahoeError(Exception):
         self.msg = msg
 
     def display(self, err):
-        print >>err, self.msg
+        print(self.msg, file=err)
 
 
 class UnknownAliasError(TahoeError):

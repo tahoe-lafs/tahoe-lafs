@@ -2,6 +2,8 @@
 # Windows near-equivalent to twisted.internet.inotify
 # This should only be imported on Windows.
 
+from __future__ import print_function
+
 import os, sys
 
 from eliot import (
@@ -193,12 +195,12 @@ def simple_test():
 
     hDirectory = _open_directory(path_u)
     fni = FileNotifyInformation()
-    print "Waiting..."
+    print("Waiting...")
     while True:
         fni.read_changes(hDirectory, recursive, filter)
-        print repr(fni.data)
+        print(repr(fni.data))
         for info in fni:
-            print info
+            print(info)
 
 def medium_test():
     from twisted.python.filepath import FilePath
