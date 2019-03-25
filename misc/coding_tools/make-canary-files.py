@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 """
 Given a list of nodeids and a 'convergence' file, create a bunch of files
 that will (when encoded at k=1,N=1) be uploaded to specific nodeids.
@@ -86,8 +88,8 @@ for line in open(opts["nodeids"], "r").readlines():
     nodes[nodeid] = nickname
 
 if opts["k"] != 3 or opts["N"] != 10:
-    print "note: using non-default k/N requires patching the Tahoe code"
-    print "src/allmydata/client.py line 55, DEFAULT_ENCODING_PARAMETERS"
+    print("note: using non-default k/N requires patching the Tahoe code")
+    print("src/allmydata/client.py line 55, DEFAULT_ENCODING_PARAMETERS")
 
 convergence_file = os.path.expanduser(opts["convergence"])
 convergence_s = open(convergence_file, "rb").read().strip()
@@ -109,7 +111,7 @@ def find_share_for_target(target):
     while True:
         attempts += 1
         suffix = base32.b2a(os.urandom(10))
-        if verbose: print " trying", suffix,
+        if verbose: print(" trying", suffix, end=' ')
         data = prefix + suffix + "\n"
         assert len(data) > 55  # no LIT files
         # now, what storage index will this get?
@@ -117,11 +119,11 @@ def find_share_for_target(target):
         eu = upload.EncryptAnUploadable(u)
         d = eu.get_storage_index() # this happens to run synchronously
         def _got_si(si, data=data):
-            if verbose: print "SI", base32.b2a(si),
+            if verbose: print("SI", base32.b2a(si), end=' ')
             peerlist = get_permuted_peers(si)
             if peerlist[0] == target:
                 # great!
-                if verbose: print "  yay!"
+                if verbose: print("  yay!")
                 fn = base32.b2a(target)
                 if nodes[target]:
                     nickname = nodes[target].replace("/", "_")
@@ -131,7 +133,7 @@ def find_share_for_target(target):
                 open(fn, "w").write(data)
                 return True
             # nope, must try again
-            if verbose: print "  boo"
+            if verbose: print("  boo")
             return False
         d.addCallback(_got_si)
         # get sneaky and look inside the Deferred for the synchronous result
@@ -142,10 +144,10 @@ os.mkdir("canaries")
 attempts = []
 for target in nodes:
     target_s = base32.b2a(target)
-    print "working on", target_s
+    print("working on", target_s)
     attempts.append(find_share_for_target(target))
-print "done"
-print "%d attempts total, avg %d per target, max %d" % \
-      (sum(attempts), 1.0* sum(attempts) / len(nodes), max(attempts))
+print("done")
+print("%d attempts total, avg %d per target, max %d" % \
+      (sum(attempts), 1.0* sum(attempts) / len(nodes), max(attempts)))
 
 

@@ -5,6 +5,8 @@
 # then extrapolate to guess how many weeks/months/years of storage space we
 # have left, and output it to another munin graph
 
+from __future__ import print_function
+
 import sys, os, time
 import rrdtool
 
@@ -82,7 +84,7 @@ def write_to_file(samples):
     os.rename(WEBFILE + ".tmp", WEBFILE)
 
 if len(sys.argv) > 1 and sys.argv[1] == "config":
-    print """\
+    print("""\
 graph_title Tahoe Remaining Space Predictor
 graph_vlabel days remaining
 graph_category tahoe
@@ -90,17 +92,17 @@ graph_info This graph shows the estimated number of days left until storage spac
 days_2wk.label days left (2wk sample)
 days_2wk.draw LINE2
 days_4wk.label days left (4wk sample)
-days_4wk.draw LINE2"""
+days_4wk.draw LINE2""")
     sys.exit(0)
 
 #rsync_rrd()
 samples = {}
 remaining_4wk = predict_future("4wk")
 if remaining_4wk is not None:
-    print "days_4wk.value", remaining_4wk
+    print("days_4wk.value", remaining_4wk)
     samples["remaining_4wk"] = remaining_4wk
 remaining_2wk = predict_future("2wk")
 if remaining_2wk is not None:
-    print "days_2wk.value", remaining_2wk
+    print("days_2wk.value", remaining_2wk)
     samples["remaining_2wk"] = remaining_2wk
 write_to_file(samples)

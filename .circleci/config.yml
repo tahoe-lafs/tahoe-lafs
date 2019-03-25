@@ -29,6 +29,8 @@ workflows:
       - "lint"
       - "deprecations"
       - "c-locale"
+      # Any locale other than C or UTF-8.
+      - "another-locale"
 
       - "integration":
           requires:
@@ -194,6 +196,15 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       LANG: "C"
+
+
+  another-locale:
+    <<: *DEBIAN
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # aka "Latin 1"
+      LANG: "en_US.ISO-8859-1"
 
 
   deprecations:
