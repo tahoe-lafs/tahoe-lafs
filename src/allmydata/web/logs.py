@@ -18,6 +18,11 @@ from twisted.web.resource import (
     Resource,
 )
 
+# Hotfix work-around https://github.com/crossbario/autobahn-python/issues/1151
+from . import _autobahn_1151
+_autobahn_1151.patch()
+del _autobahn_1151
+
 
 class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
     """
