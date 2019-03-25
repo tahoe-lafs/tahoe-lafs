@@ -36,7 +36,7 @@ fi
 # via tox and then scraping it out is hideous and failure prone.
 sudo \
     SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}" \
-    TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file" \
+    TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file --rterrors" \
     PIP_NO_INDEX="1" \
     --set-home \
     --user nobody \
