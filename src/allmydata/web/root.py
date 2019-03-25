@@ -25,7 +25,9 @@ from allmydata.web.common import (
     render_time,
     render_time_attr,
 )
-
+from allmydata.web.private import (
+    create_private_tree,
+)
 
 class URIHandler(RenderMixin, rend.Page):
     # I live at /uri . There are several operations defined on /uri itself,
@@ -137,6 +139,7 @@ class IncidentReporter(RenderMixin, rend.Page):
 
 SPACE = u"\u00A0"*2
 
+
 class Root(MultiFormatPage):
 
     addSlash = True
@@ -166,6 +169,11 @@ class Root(MultiFormatPage):
 
         # handler for "/magic_folder" URIs
         self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
+
+        # Handler for everything beneath "/private", an area of the resource
+        # hierarchy which is only accessible with the private per-node API
+        # auth token.
+        self.child_private = create_private_tree(client.get_auth_token)
 
         self.child_file = FileHandler(client)
         self.child_named = FileHandler(client)
