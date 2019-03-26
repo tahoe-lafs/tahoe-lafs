@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os.path, json
 from twisted.trial import unittest
 from twisted.python import usage
@@ -976,8 +978,8 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _dump(got):
             ok = "ok" if got == expected else "FAIL"
             printable_got = ",".join(sorted(got))
-            print "%-31s: got %-19s, want %-19s %s" % (case, printable_got,
-                                                       printable_expected, ok)
+            print("%-31s: got %-19s, want %-19s %s" % (case, printable_got,
+                                                       printable_expected, ok))
             return got
         #d.addCallback(_dump)
         def _check(got):

@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os, re, sys, time, json
 from functools import partial
@@ -1303,9 +1304,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                             base32.b2a(storage_index))
                 self.failUnless(expected in output)
             except unittest.FailTest:
-                print
-                print "dump-share output was:"
-                print output
+                print()
+                print("dump-share output was:")
+                print(output)
                 raise
         d.addCallback(_test_debug)
 
@@ -1550,9 +1551,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnless("Subscription Summary: storage: 5" in res)
                 self.failUnless("tahoe.css" in res)
             except unittest.FailTest:
-                print
-                print "GET %s output was:" % self.introweb_url
-                print res
+                print()
+                print("GET %s output was:" % self.introweb_url)
+                print(res)
                 raise
         d.addCallback(_check)
         # make sure it serves the CSS too
@@ -1566,9 +1567,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnlessEqual(data["announcement_summary"],
                                      {"storage": 5})
             except unittest.FailTest:
-                print
-                print "GET %s?t=json output was:" % self.introweb_url
-                print res
+                print()
+                print("GET %s?t=json output was:" % self.introweb_url)
+                print(res)
                 raise
         d.addCallback(_check_json)
         return d
