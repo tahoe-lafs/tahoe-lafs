@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os.path
 import time
@@ -88,7 +89,7 @@ class BackerUpper(object):
         bdbfile = abspath_expanduser_unicode(bdbfile)
         self.backupdb = backupdb.get_backupdb(bdbfile, stderr)
         if not self.backupdb:
-            print >>stderr, "ERROR: Unable to load backup db."
+            print("ERROR: Unable to load backup db.", file=stderr)
             return 1
 
         try:
@@ -110,7 +111,7 @@ class BackerUpper(object):
         if resp.status == 404:
             resp = do_http("POST", archives_url + "?t=mkdir")
             if resp.status != 200:
-                print >>stderr, format_http_error("Unable to create target directory", resp)
+                print(format_http_error("Unable to create target directory", resp), file=stderr)
                 return 1
 
         # second step: process the tree
@@ -134,11 +135,11 @@ class BackerUpper(object):
 
         put_child(archives_url, now, new_backup_dircap)
         put_child(to_url, "Latest", new_backup_dircap)
-        print >>stdout, completed.report(
+        print(completed.report(
             self.verbosity,
             self._files_checked,
             self._directories_checked,
-        )
+        ), file=stdout)
 
         # The command exits with code 2 if files or directories were skipped
         if completed.any_skips():
@@ -150,11 +151,11 @@ class BackerUpper(object):
     def verboseprint(self, msg):
         precondition(isinstance(msg, str), msg)
         if self.verbosity >= 2:
-            print >>self.options.stdout, msg
+            print(msg, file=self.options.stdout)
 
     def warn(self, msg):
         precondition(isinstance(msg, str), msg)
-        print >>self.options.stderr, msg
+        print(msg, file=self.options.stderr)
 
     def upload_directory(self, path, compare_contents, create_contents):
         must_create, r = self.check_backupdb_directory(compare_contents)
@@ -323,7 +324,7 @@ def run_backup(
         # Currently, BackupProgress is mutable, though, and everything just
         # mutates it.
         progress = target.backup(progress, upload_file, upload_directory)
-        print >>stdout, progress.report(datetime.datetime.now())
+        print(progress.report(datetime.datetime.now()), file=stdout)
     return progress.backup_finished()
 
 
