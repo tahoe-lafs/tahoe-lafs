@@ -1,4 +1,4 @@
-from allmydata.test.test_system import (
+from allmydata.test.common import (
     AdoptedServerPort,
 )
 

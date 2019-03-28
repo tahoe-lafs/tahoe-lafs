@@ -15,6 +15,12 @@ import tempfile
 from tempfile import mktemp
 from functools import partial
 from unittest import case as _case
+from socket import (
+    AF_INET,
+    SOCK_STREAM,
+    SOMAXCONN,
+    socket,
+)
 
 import treq
 
@@ -32,12 +38,19 @@ from testtools.twistedsupport import (
     flush_logged_errors,
 )
 
+from twisted.plugin import IPlugin
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.interfaces import IPullProducer
 from twisted.python import failure
+from twisted.python.filepath import FilePath
 from twisted.application import service
 from twisted.web.error import Error as WebError
+from twisted.internet.interfaces import (
+    IStreamServerEndpointStringParser,
+    IReactorSocket,
+)
+from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 
 from allmydata import uri
 from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
@@ -50,7 +63,7 @@ from allmydata.storage_client import StubServer
 from allmydata.mutable.layout import unpack_header
 from allmydata.mutable.publish import MutableData
 from allmydata.storage.mutable import MutableShareFile
-from allmydata.util import hashutil, log
+from allmydata.util import hashutil, log, iputil
 from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
 import allmydata.test.common_util as testutil
@@ -62,6 +75,104 @@ from .eliotutil import (
 
 
 TEST_RSA_KEY_SIZE = 522
+
+@implementer(IPlugin, IStreamServerEndpointStringParser)
+class AdoptedServerPort(object):
+    """
+    Parse an ``adopt-socket:<fd>`` endpoint description by adopting ``fd`` as
+    a listening TCP port.
+    """
+    prefix = "adopt-socket"
+
+    def parseStreamServer(self, reactor, fd):
+        log.msg("Adopting {}".format(fd))
+        # AdoptedStreamServerEndpoint wants to own the file descriptor.  It
+        # will duplicate it and then close the one we pass in.  This means it
+        # is really only possible to adopt a particular file descriptor once.
+        #
+        # This wouldn't matter except one of the tests wants to stop one of
+        # the nodes and start it up again.  This results in exactly an attempt
+        # to adopt a particular file descriptor twice.
+        #
+        # So we'll dup it ourselves.  AdoptedStreamServerEndpoint can do
+        # whatever it wants to the result - the original will still be valid
+        # and reusable.
+        return AdoptedStreamServerEndpoint(reactor, os.dup(int(fd)), AF_INET)
+
+
+class SameProcessStreamEndpointAssigner(object):
+    """
+    A fixture which can assign streaming server endpoints for use *in this
+    process only*.
+
+    An effort is made to avoid address collisions for this port but the logic
+    for doing so is platform-dependent (sorry, Windows).
+
+    This is more reliable than trying to listen on a hard-coded non-zero port
+    number.  It is at least as reliable as trying to listen on port number
+    zero on Windows and more reliable than doing that on other platforms.
+    """
+    def setUp(self):
+        self._cleanups = []
+
+    def tearDown(self):
+        for c in self._cleanups:
+            c()
+
+    def _patch_plugins(self):
+        """
+        Add the testing package ``plugins`` directory to the ``twisted.plugins``
+        aggregate package.  Arrange for it to be removed again when the
+        fixture is torn down.
+        """
+        import twisted.plugins
+        testplugins = FilePath(__file__).sibling("plugins")
+        twisted.plugins.__path__.insert(0, testplugins.path)
+        self._cleanups.append(lambda: twisted.plugins.__path__.remove(testplugins.path))
+
+
+    def assign(self, reactor):
+        """
+        Make a new streaming server endpoint and return its string description.
+
+        This is intended to help write config files that will then be read and
+        used in this process.
+
+        :param reactor: The reactor which will be used to listen with the
+            resulting endpoint.  If it provides ``IReactorSocket`` then
+            resulting reliability will be extremely high.  If it doesn't,
+            resulting reliability will be pretty alright.
+
+        :return: A two-tuple of (location hint, port endpoint description) as
+            strings.
+        """
+        if IReactorSocket.providedBy(reactor):
+            # On this platform, we can reliable pre-allocate a listening port.
+            # Once it is bound we know it will not fail later with EADDRINUSE.
+            s = socket(AF_INET, SOCK_STREAM)
+            # We need to keep ``s`` alive as long as the file descriptor we put in
+            # this string might still be used.  We could dup() the descriptor
+            # instead but then we've only inverted the cleanup problem: gone from
+            # don't-close-too-soon to close-just-late-enough.  So we'll leave
+            # ``s`` alive and use it as the cleanup mechanism.
+            self._cleanups.append(s.close)
+            s.setblocking(False)
+            s.bind(("127.0.0.1", 0))
+            s.listen(SOMAXCONN)
+            host, port = s.getsockname()
+            location_hint = "tcp:%s:%d" % (host, port)
+            port_endpoint = "adopt-socket:fd=%d" % (s.fileno(),)
+            # Make sure `adopt-socket` is recognized.  We do this instead of
+            # providing a dropin because we don't want to make this endpoint
+            # available to random other applications.
+            self._patch_plugins()
+        else:
+            # On other platforms, we blindly guess and hope we get lucky.
+            portnum = iputil.allocate_tcp_port()
+            location_hint = "tcp:127.0.0.1:%d" % (portnum,)
+            port_endpoint = "tcp:%d:interface=127.0.0.1" % (portnum,)
+
+        return location_hint, port_endpoint
 
 @implementer(IPullProducer)
 class DummyProducer(object):
