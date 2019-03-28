@@ -32,7 +32,10 @@ from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IStorageBroker, IServer
-from .common import TEST_RSA_KEY_SIZE
+from .common import (
+    TEST_RSA_KEY_SIZE,
+    SameProcessStreamEndpointAssigner,
+)
 
 
 class IntentionalError(Exception):
@@ -267,9 +270,10 @@ class SimpleStats:
         return ret
 
 class NoNetworkGrid(service.MultiService):
-    def __init__(self, basedir, num_clients=1, num_servers=10,
-                 client_config_hooks={}):
+    def __init__(self, basedir, num_clients, num_servers,
+                 client_config_hooks, port_assigner):
         service.MultiService.__init__(self)
+        self.port_assigner = port_assigner
         self.basedir = basedir
         fileutil.make_dirs(basedir)
 
@@ -298,10 +302,12 @@ class NoNetworkGrid(service.MultiService):
 
         tahoe_cfg_path = os.path.join(clientdir, "tahoe.cfg")
         if write_config:
+            from twisted.internet import reactor
+            _, port_endpoint = self.port_assigner.assign(reactor)
             f = open(tahoe_cfg_path, "w")
             f.write("[node]\n")
             f.write("nickname = client-%d\n" % i)
-            f.write("web.port = tcp:0:interface=127.0.0.1\n")
+            f.write("web.port = {}\n".format(port_endpoint))
             f.write("[storage]\n")
             f.write("enabled = false\n")
             f.close()
@@ -409,10 +415,15 @@ class GridTestMixin(object):
     def set_up_grid(self, num_clients=1, num_servers=10,
                     client_config_hooks={}, oneshare=False):
         # self.basedir must be set
+        port_assigner = SameProcessStreamEndpointAssigner()
+        port_assigner.setUp()
+        self.addCleanup(port_assigner.tearDown)
         self.g = NoNetworkGrid(self.basedir,
                                num_clients=num_clients,
                                num_servers=num_servers,
-                               client_config_hooks=client_config_hooks)
+                               client_config_hooks=client_config_hooks,
+                               port_assigner=port_assigner,
+        )
         self.g.setServiceParent(self.s)
         if oneshare:
             c = self.get_client(0)
