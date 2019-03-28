@@ -613,6 +613,10 @@ class _Client(node.Node, pollmixin.PollMixin):
         ss.setServiceParent(self)
 
         grid_manager_certificates = []
+
+        # XXX this is probably a bad idea for multiple fnames -- what
+        # about spaces in filenames?
+
         cert_fnames = self.get_config("storage", "grid_manager_certificate_files", "")
         for fname in cert_fnames.split():
             fname = self.config.get_config_path(fname.decode('ascii'))
