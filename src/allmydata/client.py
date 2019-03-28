@@ -761,7 +761,6 @@ class _Client(node.Node, pollmixin.PollMixin):
                 s = magic_folder.MagicFolder.from_config(self, name, mf_config)
                 self._magic_folders[name] = s
                 s.setServiceParent(self)
-                s.startService()
 
                 connected_d = self.storage_broker.when_connected_enough(threshold)
                 def connected_enough(ign, mf):
