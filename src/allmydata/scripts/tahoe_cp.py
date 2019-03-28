@@ -488,7 +488,7 @@ class Copier:
         try:
             status = self.try_copy()
             return status
-        except TahoeError, te:
+        except TahoeError as te:
             if verbosity >= 2:
                 Failure().printTraceback(self.stderr)
                 print(file=self.stderr)

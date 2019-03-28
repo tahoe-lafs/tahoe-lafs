@@ -15,7 +15,7 @@ def check_file(path):
 def check_thing(parser, thing):
     try:
         ast = parser(thing)
-    except SyntaxError, e:
+    except SyntaxError as e:
         return e
     else:
         results = []

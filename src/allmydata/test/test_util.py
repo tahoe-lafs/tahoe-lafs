@@ -66,19 +66,19 @@ class HumanReadable(unittest.TestCase):
         self.failUnlessEqual(hr({1:2}), "{1:2}")
         try:
             raise ValueError
-        except Exception, e:
+        except Exception as e:
             self.failUnless(
                 hr(e) == "<ValueError: ()>" # python-2.4
                 or hr(e) == "ValueError()") # python-2.5
         try:
             raise ValueError("oops")
-        except Exception, e:
+        except Exception as e:
             self.failUnless(
                 hr(e) == "<ValueError: 'oops'>" # python-2.4
                 or hr(e) == "ValueError('oops',)") # python-2.5
         try:
             raise NoArgumentException
-        except Exception, e:
+        except Exception as e:
             self.failUnless(
                 hr(e) == "<NoArgumentException>" # python-2.4
                 or hr(e) == "NoArgumentException()") # python-2.5
@@ -361,18 +361,18 @@ class Asserts(unittest.TestCase):
     def should_assert(self, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
-        except AssertionError, e:
+        except AssertionError as e:
             return str(e)
-        except Exception, e:
+        except Exception as e:
             self.fail("assert failed with non-AssertionError: %s" % e)
         self.fail("assert was not caught")
 
     def should_not_assert(self, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
-        except AssertionError, e:
+        except AssertionError as e:
             self.fail("assertion fired when it should not have: %s" % e)
-        except Exception, e:
+        except Exception as e:
             self.fail("assertion (which shouldn't have failed) failed with non-AssertionError: %s" % e)
         return # we're happy
 

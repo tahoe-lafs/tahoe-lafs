@@ -85,7 +85,7 @@ def get_magicfolderdb(dbfile, stderr=sys.stderr,
         else:
             print("invalid magicfolderdb schema version specified", file=stderr)
             return None
-    except DBError, e:
+    except DBError as e:
         print(e, file=stderr)
         return None
 

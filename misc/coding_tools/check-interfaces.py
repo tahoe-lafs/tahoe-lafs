@@ -46,7 +46,7 @@ def strictly_implements(*interfaces):
                 for interface in interfaces:
                     try:
                         verifyClass(interface, cls)
-                    except Exception, e:
+                    except Exception as e:
                         print("%s.%s does not correctly implement %s.%s:\n%s"
                                        % (cls.__module__, cls.__name__,
                                           interface.__module__, interface.__name__, e), file=_err)
@@ -89,7 +89,7 @@ def check():
                 module = relpath.replace(os.sep, '/').replace('/', '.')
                 try:
                     __import__(module)
-                except ImportError, e:
+                except ImportError as e:
                     if not is_windows and (' _win' in str(e) or 'win32' in str(e)):
                         print("Warning: %r imports a Windows-specific module, so we cannot check it (%s).\n"
                                        % (module, str(e)), file=_err)

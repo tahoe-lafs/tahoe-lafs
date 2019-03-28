@@ -345,7 +345,7 @@ class INotify(PollMixin):
                                     try:
                                         with CALLBACK(inotify_events=event_mask):
                                             cb(None, path1, event_mask)
-                                    except Exception, e2:
+                                    except Exception as e2:
                                         log.err(e2)
                         self._pending = set()
 
@@ -360,7 +360,7 @@ class INotify(PollMixin):
                     reactor.callFromThread(_maybe_notify, path)
                     if self._check_stop():
                         return
-        except Exception, e:
+        except Exception as e:
             log.err(e)
             self._state = STOPPED
             raise

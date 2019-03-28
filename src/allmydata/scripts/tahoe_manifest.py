@@ -30,7 +30,7 @@ class ManifestStreamer(LineOnlyReceiver):
         where = options.where
         try:
             rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
+        except UnknownAliasError as e:
             e.display(stderr)
             return 1
         if path == '/':
@@ -71,7 +71,7 @@ class ManifestStreamer(LineOnlyReceiver):
 
         try:
             d = json.loads(line.decode('utf-8'))
-        except Exception, e:
+        except Exception as e:
             print("ERROR could not decode/parse %s\nERROR  %r" % (quote_output(line), e), file=stderr)
         else:
             if d["type"] in ("file", "directory"):

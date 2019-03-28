@@ -539,7 +539,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             self.is_closed = True
             try:
                 self.f.close()
-            except Exception, e:
+            except Exception as e:
                 self.log("suppressed %r from close of temporary file %r" % (e, self.f), level=WEIRD)
         self.download_done("closed")
         return self.done_status

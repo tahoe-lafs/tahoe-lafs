@@ -19,7 +19,7 @@ def unlink(options, command="unlink"):
         nodeurl += "/"
     try:
         rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     if not path:

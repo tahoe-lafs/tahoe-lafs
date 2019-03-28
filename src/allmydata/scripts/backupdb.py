@@ -73,7 +73,7 @@ def get_backupdb(dbfile, stderr=sys.stderr,
         (sqlite3, db) = get_db(dbfile, stderr, create_version, updaters=UPDATERS,
                                just_create=just_create, dbname="backupdb")
         return BackupDB_v2(sqlite3, db)
-    except DBError, e:
+    except DBError as e:
         print(e, file=stderr)
         return None
 

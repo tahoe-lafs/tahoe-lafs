@@ -145,7 +145,7 @@ class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
                 continue
             try:
                 yield json.loads(unit)
-            except ValueError, le:
+            except ValueError as le:
                 le.args = tuple(le.args + (unit,))
                 raise
 
@@ -953,7 +953,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
             self.failUnlessEqual(cr.get_version_counter_recoverable(), 1, where)
             self.failUnlessEqual(cr.get_version_counter_unrecoverable(), 0, where)
             return cr
-        except Exception, le:
+        except Exception as le:
             le.args = tuple(le.args + (where,))
             raise
 

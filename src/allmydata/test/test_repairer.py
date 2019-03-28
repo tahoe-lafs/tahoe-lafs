@@ -117,7 +117,7 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
             self.failIfBigger(delta_reads, MAX_DELTA_READS)
             try:
                 judgement(vr)
-            except unittest.FailTest, e:
+            except unittest.FailTest as e:
                 # FailTest just uses e.args[0] == str
                 new_arg = str(e.args[0]) + "\nvr.data is: " + str(vr.as_dict())
                 e.args = (new_arg,)
