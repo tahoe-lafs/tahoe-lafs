@@ -457,10 +457,11 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         """
         iv_dir = self.getdir("introducer")
         if not os.path.isdir(iv_dir):
+            _, port_endpoint = self.port_assigner.assign(reactor)
             introducer_config = (
                 u"[node]\n"
-                u"nickname = introducer \N{BLACK SMILING FACE}\n"
-                u"web.port = tcp:0:interface=127.0.0.1\n"
+                u"nickname = introducer \N{BLACK SMILING FACE}\n" +
+                u"web.port = {}\n".format(port_endpoint)
             ).encode("utf-8")
 
             fileutil.make_dirs(iv_dir)
@@ -616,7 +617,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         setnode("tub.port", tub_port_endpoint)
         setnode("tub.location", tub_location_hint)
 
-        setnode("web.port", "tcp:0:interface=127.0.0.1")
+        _, web_port_endpoint = self.port_assigner.assign(reactor)
+        setnode("web.port", web_port_endpoint)
         setnode("timeout.keepalive", "600")
         setnode("timeout.disconnect", "1800")
 
