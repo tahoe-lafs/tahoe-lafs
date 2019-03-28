@@ -20,6 +20,10 @@ from socket import (
     SOCK_STREAM,
     SOMAXCONN,
     socket,
+    error as socket_error,
+)
+from errno import (
+    EADDRINUSE,
 )
 
 import treq
@@ -100,6 +104,23 @@ class AdoptedServerPort(object):
         return AdoptedStreamServerEndpoint(reactor, os.dup(int(fd)), AF_INET)
 
 
+def really_bind(s, addr):
+    # Arbitrarily decide we'll try 100 times.  We don't want to try forever in
+    # case this is a persistent problem.  Trying is cheap, though, so we may
+    # as well try a lot.  Hopefully the OS isn't so bad at allocating a port
+    # for us that it takes more than 2 iterations.
+    for i in range(100):
+        try:
+            s.bind(addr)
+        except socket_error as e:
+            if e.errno == EADDRINUSE:
+                continue
+            raise
+        else:
+            return
+    raise Exception("Many bind attempts failed with EADDRINUSE")
+
+
 class SameProcessStreamEndpointAssigner(object):
     """
     A fixture which can assign streaming server endpoints for use *in this
@@ -157,7 +178,7 @@ class SameProcessStreamEndpointAssigner(object):
             # ``s`` alive and use it as the cleanup mechanism.
             self._cleanups.append(s.close)
             s.setblocking(False)
-            s.bind(("127.0.0.1", 0))
+            really_bind(s, ("127.0.0.1", 0))
             s.listen(SOMAXCONN)
             host, port = s.getsockname()
             location_hint = "tcp:%s:%d" % (host, port)
