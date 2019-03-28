@@ -7,23 +7,37 @@ from allmydata.test.no_network import NoNetworkGrid
 from allmydata.immutable.upload import Data
 from allmydata.util.consumer import download_to_data
 
+from .common import (
+    SameProcessStreamEndpointAssigner,
+)
+
 class Harness(unittest.TestCase):
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
+        self.addCleanup(self.s.stopService)
+        self.port_assigner = SameProcessStreamEndpointAssigner()
+        self.port_assigner.setUp()
+        self.addCleanup(self.port_assigner.tearDown)
 
-    def tearDown(self):
-        return self.s.stopService()
+    def grid(self, basedir):
+        return NoNetworkGrid(
+            basedir,
+            num_clients=1,
+            num_servers=10,
+            client_config_hooks={},
+            port_assigner=self.port_assigner,
+        )
 
     def test_create(self):
         basedir = "no_network/Harness/create"
-        g = NoNetworkGrid(basedir)
+        g = self.grid(basedir)
         g.startService()
         return g.stopService()
 
     def test_upload(self):
         basedir = "no_network/Harness/upload"
-        g = NoNetworkGrid(basedir)
+        g = self.grid(basedir)
         g.setServiceParent(self.s)
 
         c0 = g.clients[0]
@@ -39,4 +53,3 @@ class Harness(unittest.TestCase):
         d.addCallback(_check)
 
         return d
-
