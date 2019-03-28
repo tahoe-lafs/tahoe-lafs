@@ -4,7 +4,7 @@ import os.path
 import urllib
 import json
 from collections import defaultdict
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 from twisted.python.failure import Failure
 from allmydata.scripts.common import get_alias, escape_path, \
                                      DefaultAliasMarker, TahoeError

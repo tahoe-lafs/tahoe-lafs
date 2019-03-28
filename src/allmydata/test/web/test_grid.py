@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import os.path, re, urllib
 import json
-from StringIO import StringIO
+from six.moves import StringIO
 from nevow import rend
 from twisted.trial import unittest
 from allmydata import uri, dirnode

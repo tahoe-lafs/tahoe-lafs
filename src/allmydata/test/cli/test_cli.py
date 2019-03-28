@@ -1,6 +1,6 @@
 
 import os.path
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 import urllib, sys
 import re
 from mock import patch

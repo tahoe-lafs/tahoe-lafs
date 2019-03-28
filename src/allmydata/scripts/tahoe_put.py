@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 import urllib
 
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error

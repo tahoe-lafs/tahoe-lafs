@@ -5,7 +5,7 @@ def foo(): pass # keep the line number constant
 
 import os, time, sys
 import yaml
-from StringIO import StringIO
+from six.moves import StringIO
 from datetime import timedelta
 from twisted.trial import unittest
 from twisted.internet import defer, reactor

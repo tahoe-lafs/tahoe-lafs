@@ -1,4 +1,4 @@
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 from zope.interface import implementer
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer

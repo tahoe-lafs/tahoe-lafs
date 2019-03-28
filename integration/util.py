@@ -2,7 +2,7 @@ import sys
 import time
 from os import mkdir
 from os.path import exists, join
-from StringIO import StringIO
+from six.moves import StringIO
 from functools import partial
 
 from twisted.internet.defer import Deferred, succeed

@@ -1,4 +1,4 @@
-from StringIO import StringIO
+from six.moves import StringIO
 import os.path
 from twisted.trial import unittest
 import urllib

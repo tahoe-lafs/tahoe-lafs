@@ -1,7 +1,7 @@
 import os
 from twisted.trial import unittest
 from twisted.internet import defer, error
-from StringIO import StringIO
+from six.moves import StringIO
 import mock
 from ..util import tor_provider
 from ..scripts import create_node, runner

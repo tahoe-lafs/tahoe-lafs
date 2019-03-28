@@ -1,6 +1,6 @@
 
 import os.path, time
-from StringIO import StringIO
+from six.moves import cStringIO as StringIO
 from twisted.trial import unittest
 
 from allmydata.util import fileutil

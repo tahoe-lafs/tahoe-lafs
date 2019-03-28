@@ -1,7 +1,7 @@
 import os.path
 import json
 from twisted.trial import unittest
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 
 from allmydata import uri
 from allmydata.util import base32
