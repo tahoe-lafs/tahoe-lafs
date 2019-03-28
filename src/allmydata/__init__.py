@@ -146,8 +146,8 @@ def normalized_version(verstr, what=None):
         raise
     except StandardError:
         cls, value, trace = sys.exc_info()
-        raise PackagingError, ("could not parse %s due to %s: %s"
-                               % (what or repr(verstr), cls.__name__, value)), trace
+        raise PackagingError("could not parse %s due to %s: %s"
+                               % (what or repr(verstr), cls.__name__, value)).with_traceback(trace)
 
 def get_openssl_version():
     try:
