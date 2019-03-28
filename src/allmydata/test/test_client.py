@@ -617,7 +617,8 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnlessReallyEqual(magicfolder.upload_dircap, upload_dircap)
         self.failUnlessReallyEqual(os.path.basename(magicfolder.local_dir), local_dir_u)
         self.failUnless(magicfolder.inotify is None, magicfolder.inotify)
-        self.failUnless(magicfolder.running)
+        # It doesn't start until the client starts.
+        self.assertFalse(magicfolder.running)
 
         # See above.
         boom = True
