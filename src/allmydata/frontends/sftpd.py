@@ -214,7 +214,7 @@ def _populate_attrs(childnode, metadata, size=None):
     if childnode and childnode.is_unknown():
         perms = 0
     elif childnode and IDirectoryNode.providedBy(childnode):
-        perms = S_IFDIR | 0777
+        perms = S_IFDIR | 0o777
     else:
         # For files, omit the size if we don't immediately know it.
         if childnode and size is None:
@@ -222,11 +222,11 @@ def _populate_attrs(childnode, metadata, size=None):
         if size is not None:
             _assert(isinstance(size, (int, long)) and not isinstance(size, bool), size=size)
             attrs['size'] = size
-        perms = S_IFREG | 0666
+        perms = S_IFREG | 0o666
 
     if metadata:
         if metadata.get('no-write', False):
-            perms &= S_IFDIR | S_IFREG | 0555  # clear 'w' bits
+            perms &= S_IFDIR | S_IFREG | 0o555  # clear 'w' bits
 
         # See webapi.txt for what these times mean.
         # We would prefer to omit atime, but SFTP version 3 can only

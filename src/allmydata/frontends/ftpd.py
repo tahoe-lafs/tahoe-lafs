@@ -217,7 +217,7 @@ class Handler(object):
                 # Twisted-15.0.0 expects a
                 # twisted.python.filepath.Permissions , and calls its
                 # .shorthand() method. This provides both.
-                value = IntishPermissions(0600)
+                value = IntishPermissions(0o600)
             elif key == "hardlinks":
                 value = 1
             elif key == "modified":

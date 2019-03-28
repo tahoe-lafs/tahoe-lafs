@@ -283,10 +283,10 @@ def fix_magic_folder_config(yaml_fname, name, config):
 
     # make sure directory for magic folder exists
     dir_fp = to_filepath(config['directory'])
-    umask = config.setdefault('umask', 0077)
+    umask = config.setdefault('umask', 0o077)
 
     try:
-        os.mkdir(dir_fp.path, 0777 & (~ umask))
+        os.mkdir(dir_fp.path, 0o777 & (~ umask))
     except OSError as e:
         if EEXIST != e.errno:
             # Report some unknown problem.
@@ -1645,9 +1645,9 @@ class WriteFileMixin(object):
         replacement_path_u = abspath_u + u".tmp"  # FIXME more unique
 
         initial_path_u = os.path.dirname(abspath_u)
-        fileutil.make_dirs_with_absolute_mode(local_path_u, initial_path_u, (~ self._umask) & 0777)
+        fileutil.make_dirs_with_absolute_mode(local_path_u, initial_path_u, (~ self._umask) & 0o777)
         fileutil.write(replacement_path_u, file_contents)
-        os.chmod(replacement_path_u, (~ self._umask) & 0666)
+        os.chmod(replacement_path_u, (~ self._umask) & 0o666)
 
         # FUDGE_SECONDS is used to determine if another process has
         # written to the same file concurrently. This is described in

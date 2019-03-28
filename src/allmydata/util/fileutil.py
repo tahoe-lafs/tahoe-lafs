@@ -172,7 +172,7 @@ def is_ancestor_path(parent, dirname):
             return False
     return True
 
-def make_dirs(dirname, mode=0777):
+def make_dirs(dirname, mode=0o777):
     """
     An idempotent version of os.makedirs().  If the dir already exists, do
     nothing and return without raising an exception.  If this call creates the
