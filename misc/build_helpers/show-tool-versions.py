@@ -11,6 +11,7 @@ def foldlines(s, numlines=None):
         lines = lines[:numlines]
     return " ".join(lines).replace("\r", "")
 
+
 def print_platform():
     try:
         import platform
@@ -24,16 +25,18 @@ def print_platform():
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
 
+
 def print_python_ver():
     print("python:", foldlines(sys.version))
     print('maxunicode: ' + str(sys.maxunicode))
+
 
 def print_python_encoding_settings():
     print('filesystem.encoding: ' + str(sys.getfilesystemencoding()))
     print('locale.getpreferredencoding: ' + str(locale.getpreferredencoding()))
     try:
         print('locale.defaultlocale: ' + str(locale.getdefaultlocale()))
-    except ValueError, e:
+    except ValueError as e:
         print('got exception from locale.getdefaultlocale(): ', e)
     print('locale.locale: ' + str(locale.getlocale()))
 
@@ -43,8 +46,8 @@ def print_stdout(cmdlist, label=None, numlines=None):
             label = cmdlist[0]
         res = subprocess.Popen(cmdlist, stdin=open(os.devnull),
                                stdout=subprocess.PIPE).communicate()[0]
-        print(label + ': ' + foldlines(res, numlines))
-    except EnvironmentError, e:
+        print(label + ': ' + foldlines(res.decode('utf-8'), numlines))
+    except EnvironmentError as e:
         if isinstance(e, OSError) and e.errno == 2:
             print(label + ': no such file or directory')
             return
@@ -52,20 +55,23 @@ def print_stdout(cmdlist, label=None, numlines=None):
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
 
+
 def print_as_ver():
     if os.path.exists('a.out'):
-        print("WARNING: a file named a.out exists, and getting the version of the 'as' assembler writes to that filename, so I'm not attempting to get the version of 'as'.")
+        print("WARNING: a file named a.out exists, and getting the version of the 'as' assembler "
+              "writes to that filename, so I'm not attempting to get the version of 'as'.")
         return
     try:
-        res = subprocess.Popen(['as', '-version'], stdin=open(os.devnull),
+        stdout, stderr = subprocess.Popen(['as', '-version'], stdin=open(os.devnull),
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-        print('as: ' + foldlines(res[0]+' '+res[1]))
+        print('as: ' + foldlines(stdout.decode('utf-8') + ' ' + stderr.decode('utf-8')))
         if os.path.exists('a.out'):
             os.remove('a.out')
     except EnvironmentError:
         sys.stderr.write("\nGot exception invoking '%s'. Exception follows.\n" % ('as',))
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
+
 
 def print_setuptools_ver():
     try:
@@ -78,6 +84,7 @@ def print_setuptools_ver():
         sys.stderr.flush()
     except pkg_resources.DistributionNotFound:
         print('setuptools: DistributionNotFound')
+
 
 def print_py_pkg_ver(pkgname, modulename=None):
     if modulename is None:
@@ -104,6 +111,7 @@ def print_py_pkg_ver(pkgname, modulename=None):
             print(pkgname + ' __version__: ' + str(modobj.__version__))
         except AttributeError:
             pass
+
 
 print_platform()
 print()

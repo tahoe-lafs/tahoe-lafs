@@ -539,7 +539,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         body = req.content.read()
         try:
             children = json.loads(body)
-        except ValueError, le:
+        except ValueError as le:
             le.args = tuple(le.args + (body,))
             # TODO test handling of bad JSON
             raise
@@ -1017,7 +1017,8 @@ class ManifestResults(MultiFormatPage, ReloadMixin):
     def data_items(self, ctx, data):
         return self.monitor.get_status()["manifest"]
 
-    def render_row(self, ctx, (path, cap)):
+    def render_row(self, ctx, path_cap):
+        path, cap = path_cap
         ctx.fillSlots("path", self.slashify_path(path))
         root = get_root(ctx)
         # TODO: we need a clean consistent way to get the type of a cap string
