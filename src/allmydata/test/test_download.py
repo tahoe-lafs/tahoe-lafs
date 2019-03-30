@@ -4,6 +4,7 @@ from __future__ import print_function
 # a previous run. This asserts that the current code is capable of decoding
 # shares from a previous version.
 
+import six
 import os
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
@@ -22,6 +23,9 @@ from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.immutable.downloader.fetcher import SegmentFetcher
 from allmydata.codec import CRSDecoder
 from foolscap.eventual import eventually, fireEventually, flushEventualQueue
+
+if six.PY3:
+    long = int
 
 plaintext = "This is a moderate-sized file.\n" * 10
 mutable_plaintext = "This is a moderate-sized mutable file.\n" * 10
@@ -328,7 +332,7 @@ class DownloadTest(_Base, unittest.TestCase):
         n = self.c0.create_node_from_uri(immutable_uri)
 
         c = MemoryConsumer()
-        d = n.read(c, 0L, 10L)
+        d = n.read(c, long(0), long(10))
         d.addCallback(lambda c: len("".join(c.chunks)))
         d.addCallback(lambda size: self.failUnlessEqual(size, 10))
         return d
@@ -521,8 +525,8 @@ class DownloadTest(_Base, unittest.TestCase):
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             con1 = MemoryConsumer()
             con2 = MemoryConsumer()
-            d = n.read(con1, 0L, 20)
-            d2 = n.read(con2, 140L, 20)
+            d = n.read(con1, long(0), long(20))
+            d2 = n.read(con2, long(140), long(20))
             # con2 will be cancelled, so d2 should fail with DownloadStopped
             def _con2_should_not_succeed(res):
                 self.fail("the second read should not have succeeded")
@@ -562,8 +566,8 @@ class DownloadTest(_Base, unittest.TestCase):
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             con1 = MemoryConsumer()
             con2 = MemoryConsumer()
-            d = n.read(con1, 0L, 20)
-            d2 = n.read(con2, 140L, 20)
+            d = n.read(con1, long(0), long(20))
+            d2 = n.read(con2, long(140), long(20))
             # con2 should wait for con1 to fail and then con2 should succeed.
             # In particular, we should not lose progress. If this test fails,
             # it will fail with a timeout error.

@@ -1,4 +1,4 @@
-
+import six
 import sys, os
 import os.path
 from errno import EEXIST
@@ -56,11 +56,14 @@ from allmydata.util.time_format import format_time
 from allmydata.immutable.upload import FileName, Data
 from allmydata import magicfolderdb, magicpath
 
+if six.PY3:
+    long = int
+
 
 # Mask off all non-owner permissions for magic-folders files by default.
 _DEFAULT_DOWNLOAD_UMASK = 0o077
 
-IN_EXCL_UNLINK = 0x04000000L
+IN_EXCL_UNLINK = long(0x04000000)
 
 
 class ConfigurationError(Exception):

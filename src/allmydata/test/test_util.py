@@ -3,6 +3,7 @@ from __future__ import print_function
 
 def foo(): pass # keep the line number constant
 
+import six
 import os, time, sys
 import yaml
 from six.moves import StringIO
@@ -20,6 +21,9 @@ from allmydata.util import statistics, dictutil, pipeline, yamlutil
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
 from allmydata.test.common_util import ReallyEqualMixin, TimezoneMixin
+
+if six.PY3:
+    long = int
 
 
 class Base32(unittest.TestCase):
@@ -54,7 +58,7 @@ class HumanReadable(unittest.TestCase):
         self.failUnlessEqual(hr(foo), "<foo() at test_util.py:4>")
         self.failUnlessEqual(hr(self.test_repr),
                              "<bound method HumanReadable.test_repr of <allmydata.test.test_util.HumanReadable testMethod=test_repr>>")
-        self.failUnlessEqual(hr(1L), "1")
+        self.failUnlessEqual(hr(long(1)), "1")
         self.failUnlessEqual(hr(10**40),
                              "100000000000000000...000000000000000000")
         self.failUnlessEqual(hr(self), "<allmydata.test.test_util.HumanReadable testMethod=test_repr>")
@@ -1706,7 +1710,7 @@ class ByteSpans(unittest.TestCase):
         s1 = Spans(3, 4) # 3,4,5,6
         self._check1(s1)
 
-        s1 = Spans(3L, 4L) # 3,4,5,6
+        s1 = Spans(long(3), long(4)) # 3,4,5,6
         self._check1(s1)
 
         s2 = Spans(s1)
@@ -2033,9 +2037,9 @@ class StringSpans(unittest.TestCase):
         self.failUnlessEqual(ds.get(2, 4), "fear")
 
         ds = klass()
-        ds.add(2L, "four")
-        ds.add(3L, "ea")
-        self.failUnlessEqual(ds.get(2L, 4L), "fear")
+        ds.add(long(2), "four")
+        ds.add(long(3), "ea")
+        self.failUnlessEqual(ds.get(long(2), long(4)), "fear")
 
 
     def do_scan(self, klass):
