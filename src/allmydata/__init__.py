@@ -3,6 +3,8 @@ Decentralized storage grid.
 
 community web site: U{https://tahoe-lafs.org/}
 """
+import six
+
 
 class PackagingError(EnvironmentError):
     """
@@ -146,8 +148,10 @@ def normalized_version(verstr, what=None):
         raise
     except StandardError:
         cls, value, trace = sys.exc_info()
-        raise PackagingError, ("could not parse %s due to %s: %s"
-                               % (what or repr(verstr), cls.__name__, value)), trace
+        new_exc = PackagingError("could not parse %s due to %s: %s"
+                                 % (what or repr(verstr), cls.__name__, value))
+        six.reraise(cls, new_exc, trace)
+
 
 def get_openssl_version():
     try:

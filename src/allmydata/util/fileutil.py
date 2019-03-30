@@ -5,6 +5,7 @@ Futz with files like a pro.
 """
 
 import sys, exceptions, os, stat, tempfile, time, binascii
+import six
 from collections import namedtuple
 from errno import ENOENT
 
@@ -189,7 +190,7 @@ def make_dirs(dirname, mode=0o777):
     if not os.path.isdir(dirname):
         if tx:
             raise tx
-        raise exceptions.IOError, "unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
+        raise exceptions.IOError("unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname) # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
 
 def rm_dir(dirname):
     """
@@ -222,8 +223,8 @@ def rm_dir(dirname):
         if len(excs) == 1:
             raise excs[0]
         if len(excs) == 0:
-            raise OSError, "Failed to remove dir for unknown reason."
-        raise OSError, excs
+            raise OSError("Failed to remove dir for unknown reason.")
+        raise OSError(excs)
 
 
 def remove_if_possible(f):
@@ -594,13 +595,16 @@ else:
 class ConflictError(Exception):
     pass
 
+
 class UnableToUnlinkReplacementError(Exception):
     pass
 
+
 def reraise(wrapper):
-    _, exc, tb = sys.exc_info()
-    wrapper_exc = wrapper("%s: %s" % (exc.__class__.__name__, exc))
-    raise wrapper_exc.__class__, wrapper_exc, tb
+    cls, exc, tb = sys.exc_info()
+    wrapper_exc = wrapper("%s: %s" % (cls.__name__, exc))
+    six.reraise(wrapper, wrapper_exc, tb)
+
 
 if sys.platform == "win32":
     # <https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx>
