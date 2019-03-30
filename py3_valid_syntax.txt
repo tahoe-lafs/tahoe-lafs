@@ -68,6 +68,7 @@ src/allmydata/scripts/tahoe_start.py
 src/allmydata/scripts/tahoe_status.py
 src/allmydata/stats.py
 src/allmydata/storage/
+src/allmydata/storage_client.py
 src/allmydata/test/bench_dirnode.py
 src/allmydata/test/check_grid.py
 src/allmydata/test/check_load.py
@@ -148,6 +149,7 @@ src/allmydata/test/web/test_token.py
 src/allmydata/test/web/test_util.py
 src/allmydata/unknown.py
 src/allmydata/util/abbreviate.py
+src/allmydata/util/assertutil.py
 src/allmydata/util/base32.py
 src/allmydata/util/base62.py
 src/allmydata/util/cachedir.py
@@ -176,6 +178,7 @@ src/allmydata/util/repeatable_random.py
 src/allmydata/util/rrefutil.py
 src/allmydata/util/sibpath.py
 src/allmydata/util/statistics.py
+src/allmydata/util/time_format.py
 src/allmydata/util/tor_provider.py
 src/allmydata/util/verlib.py
 src/allmydata/util/yamlutil.py
@@ -183,6 +186,7 @@ src/allmydata/_version.py
 src/allmydata/watchdog/
 src/allmydata/web/
 src/allmydata/windows/__init__.py
+src/allmydata/windows/registry.py
 src/allmydata/windows/tahoesvc.py
-static/tahoe.py
+static/
 ws_client.py
