@@ -413,7 +413,7 @@ class Asserts(unittest.TestCase):
         self.failUnlessEqual("postcondition: othermsg: 'message2' <type 'str'>", m)
 
 class FileUtil(ReallyEqualMixin, unittest.TestCase):
-    def mkdir(self, basedir, path, mode=0777):
+    def mkdir(self, basedir, path, mode=0o777):
         fn = os.path.join(basedir, path)
         fileutil.make_dirs(fn, mode)
 
@@ -433,16 +433,16 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         d = os.path.join(basedir, "doomed")
         self.mkdir(d, "a/b")
         self.touch(d, "a/b/1.txt")
-        self.touch(d, "a/b/2.txt", 0444)
+        self.touch(d, "a/b/2.txt", 0o444)
         self.touch(d, "a/b/3.txt", 0)
         self.mkdir(d, "a/c")
         self.touch(d, "a/c/1.txt")
-        self.touch(d, "a/c/2.txt", 0444)
+        self.touch(d, "a/c/2.txt", 0o444)
         self.touch(d, "a/c/3.txt", 0)
-        os.chmod(os.path.join(d, "a/c"), 0444)
+        os.chmod(os.path.join(d, "a/c"), 0o444)
         self.mkdir(d, "a/d")
         self.touch(d, "a/d/1.txt")
-        self.touch(d, "a/d/2.txt", 0444)
+        self.touch(d, "a/d/2.txt", 0o444)
         self.touch(d, "a/d/3.txt", 0)
         os.chmod(os.path.join(d, "a/d"), 0)
 
@@ -632,17 +632,17 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         workdir = fileutil.abspath_expanduser_unicode(u"test_make_dirs_with_absolute_mode")
         fileutil.make_dirs(workdir)
         abspath = fileutil.abspath_expanduser_unicode(u"a/b/c/d", base=workdir)
-        fileutil.make_dirs_with_absolute_mode(workdir, abspath, 0766)
-        new_mode = os.stat(os.path.join(workdir, "a", "b", "c", "d")).st_mode & 0777
-        self.failUnlessEqual(new_mode, 0766)
-        new_mode = os.stat(os.path.join(workdir, "a", "b", "c")).st_mode & 0777
-        self.failUnlessEqual(new_mode, 0766)
-        new_mode = os.stat(os.path.join(workdir, "a", "b")).st_mode & 0777
-        self.failUnlessEqual(new_mode, 0766)
-        new_mode = os.stat(os.path.join(workdir, "a")).st_mode & 0777
-        self.failUnlessEqual(new_mode, 0766)
-        new_mode = os.stat(workdir).st_mode & 0777
-        self.failIfEqual(new_mode, 0766)
+        fileutil.make_dirs_with_absolute_mode(workdir, abspath, 0o766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b", "c", "d")).st_mode & 0o777
+        self.failUnlessEqual(new_mode, 0o766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b", "c")).st_mode & 0o777
+        self.failUnlessEqual(new_mode, 0o766)
+        new_mode = os.stat(os.path.join(workdir, "a", "b")).st_mode & 0o777
+        self.failUnlessEqual(new_mode, 0o766)
+        new_mode = os.stat(os.path.join(workdir, "a")).st_mode & 0o777
+        self.failUnlessEqual(new_mode, 0o766)
+        new_mode = os.stat(workdir).st_mode & 0o777
+        self.failIfEqual(new_mode, 0o766)
 
     def test_create_long_path(self):
         """

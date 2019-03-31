@@ -466,7 +466,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         # This is necessary for the temp files to be correctly removed
         def _cleanup(self):
-            os.chmod(os.path.join(source, "foo.txt"), 0644)
+            os.chmod(os.path.join(source, "foo.txt"), 0o644)
         d.addCallback(_cleanup)
         d.addErrback(_cleanup)
 
@@ -501,7 +501,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         # This is necessary for the temp files to be correctly removed
         def _cleanup(self):
-            os.chmod(os.path.join(source, "test"), 0655)
+            os.chmod(os.path.join(source, "test"), 0o655)
         d.addCallback(_cleanup)
         d.addErrback(_cleanup)
         return d

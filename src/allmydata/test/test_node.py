@@ -299,7 +299,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         privdir = os.path.join(basedir, "private")
         st = os.stat(privdir)
         bits = stat.S_IMODE(st[stat.ST_MODE])
-        self.failUnless(bits & 0001 == 0, bits)
+        self.failUnless(bits & 0o001 == 0, bits)
 
     @defer.inlineCallbacks
     def test_logdir_is_str(self):

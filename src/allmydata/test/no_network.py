@@ -194,7 +194,7 @@ def create_no_network_client(basedir):
         does no actual networking but has the same API.
     """
     basedir = abspath_expanduser_unicode(unicode(basedir))
-    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
 
     from allmydata.client import read_config
     config = read_config(basedir, u'client.port')
