@@ -1,9 +1,13 @@
-import os.path, re, sys, subprocess
+
+from __future__ import (
+    absolute_import,
+)
+
+import os.path, re, sys
 
 from twisted.trial import unittest
 
 from twisted.python import usage, runtime
-from twisted.internet import threads
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from allmydata.util import fileutil, pollmixin
@@ -15,6 +19,9 @@ import allmydata
 from allmydata import __appname__
 from .common_util import parse_cli, run_cli
 
+from ._twisted_9607 import (
+    getProcessOutputAndValue,
+)
 
 timeout = 240
 
@@ -52,18 +59,19 @@ class RunBinTahoeMixin:
         returnValue(tahoe_pieces[-1].strip("()"))
 
     def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
-        command = [sys.executable] + python_options + ["-m", "allmydata.scripts.runner"] + args
+        command = sys.executable
+        argv = python_options + ["-m", "allmydata.scripts.runner"] + args
 
-        if stdin is None:
-            stdin_stream = None
-        else:
-            stdin_stream = subprocess.PIPE
+        if env is None:
+            env = os.environ
 
-        def _run():
-            p = subprocess.Popen(command, stdin=stdin_stream, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-            (out, err) = p.communicate(stdin)
-            return (out, err, p.returncode)
-        return threads.deferToThread(_run)
+        d = getProcessOutputAndValue(command, argv, env, stdinBytes=stdin)
+        def fix_signal(result):
+            # Mirror subprocess.Popen.returncode structure
+            (out, err, signal) = result
+            return (out, err, -signal)
+        d.addErrback(fix_signal)
+        return d
 
 
 class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
