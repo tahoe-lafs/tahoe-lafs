@@ -1,0 +1,1 @@
+CircleCI jobs are now faster as a result of pre-building configured Docker images for the CI jobs.
