@@ -437,6 +437,11 @@ jobs:
       - "checkout"
       - "setup_remote_docker"
       - run:
+          name: "Get openssl"
+          command: |
+            apt-get --quiet update
+            apt-get --quiet --yes install openssl
+      - run:
           name: "Build Debian 9 image"
           command: |
             docker build -t tahoe-lafs/ci-debian-9:latest -f ~/project/.circleci/Dockerfile.debian-9 .
