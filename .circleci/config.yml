@@ -439,8 +439,7 @@ jobs:
       - run:
           name: "Get openssl"
           command: |
-            apt-get --quiet update
-            apt-get --quiet --yes install openssl
+            apk add --no-cache openssl
       - run:
           name: "Build Debian 9 image"
           command: |
