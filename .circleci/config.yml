@@ -432,9 +432,6 @@ jobs:
     # https://circleci.com/blog/how-to-build-a-docker-image-on-circleci-2-0/
     docker:
       - image: "docker:17.05.0-ce-git"
-    environment:
-      TAHOELAFSCI_USERNAME: "tahoelafsci"
-      TAHOELAFSCI
 
     steps:
       - "checkout"
