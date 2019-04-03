@@ -13,6 +13,9 @@ from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
      IEncryptedUploadable, IUploadStatus, UploadUnhappinessError
 
+from ..util.eliotutil import (
+    log_call_deferred,
+)
 
 """
 The goal of the encoder is to turn the original file into a series of
@@ -100,6 +103,7 @@ class Encoder(object):
             kwargs["facility"] = "tahoe.encoder"
         return log.msg(*args, **kwargs)
 
+    @log_call_deferred(action_type=u"immutable:encode:set-encrypted-uploadable")
     def set_encrypted_uploadable(self, uploadable):
         eu = self._uploadable = IEncryptedUploadable(uploadable)
         d = eu.get_size()
@@ -205,6 +209,7 @@ class Encoder(object):
             assert isinstance(v, set)
         self.servermap = servermap.copy()
 
+    @log_call_deferred(action_type=u"immutable:encode:start")
     def start(self):
         """ Returns a Deferred that will fire with the verify cap (an instance of
         uri.CHKFileVerifierURI)."""
