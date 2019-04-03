@@ -461,7 +461,7 @@ jobs:
             # change and re-encrypt it) like just like CircleCI recovers it
             # here:
             #
-            openssl aes-256-cbc -d -md sha256 -in .circleci/secret-env-cipher -pass env:KEY >> ~/.circleci
+            openssl aes-256-cbc -d -md sha256 -in .circleci/secret-env-cipher -pass env:KEY >> ${BASH_ENV}
       - run:
           name: "Log in to Dockerhub"
           command: |
