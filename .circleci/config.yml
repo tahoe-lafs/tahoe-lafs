@@ -241,23 +241,13 @@ jobs:
   ubuntu-16.04:
     <<: *DEBIAN
     docker:
-      - image: "ubuntu:16.04"
-
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      # Necessary for en_US LANG setting.
-      EXTRA_PACKAGES: "virtualenv language-pack-en"
+      - image: "tahoelafsci/ubuntu:16.04"
 
 
   ubuntu-18.04:
     <<: *DEBIAN
     docker:
-      - image: "ubuntu:18.04"
-
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      # Necessary for automatic address detection/assignment.
-      EXTRA_PACKAGES: "virtualenv iproute2"
+      - image: "tahoelafsci/ubuntu:18.04"
 
 
   centos-7: &RHEL_DERIV
@@ -480,3 +470,15 @@ jobs:
             # Dockerhub web interface) before anything can be pushed to it.
             docker push tahoelafsci/debian:8
             docker push tahoelafsci/debian:9
+      - run:
+          name: "Build Ubuntu images"
+          command: |
+            docker build -t tahoelafsci/ubuntu:16.04 -f ~/project/.circleci/Dockerfile.ubuntu-16.04 .
+            docker build -t tahoelafsci/ubuntu:18.04 -f ~/project/.circleci/Dockerfile.ubuntu-18.04 .
+      - run:
+          name: "Push Ubuntu images"
+          command: |
+            # You have to create the ubuntu repository (presumably via the
+            # Dockerhub web interface) before anything can be pushed to it.
+            docker push tahoelafsci/ubuntu:16.04
+            docker push tahoelafsci/ubuntu:18.04
