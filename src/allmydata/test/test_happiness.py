@@ -293,7 +293,7 @@ class PlacementTests(unittest.TestCase):
         # any bias that could be built in to the placement algorithm (which
         # would cause us to get the correct answer by accident).  Hypothesis
         # will give us a different shuffle on every iteration of the test
-        # (which still making any particular shuffle that leads to failure
+        # (while still making any particular shuffle that leads to failure
         # reproducable).
         random.shuffle(preference_ranking)
 
