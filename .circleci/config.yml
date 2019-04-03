@@ -462,7 +462,7 @@ jobs:
             # then you can re-generate ``secret-env-cipher`` locally using the
             # command:
             #
-            #   openssl aes-256-cbc -e -in secret-env-plain -out .circleci/secret-env-cipher -pass env:KEY
+            #   openssl aes-256-cbc -e -md sha256 -in secret-env-plain -out .circleci/secret-env-cipher -pass env:KEY
             #
             # Make sure the key is set as the KEY environment variable in the
             # CircleCI web interface.  You can do this by visiting
@@ -475,9 +475,7 @@ jobs:
             # here:
             #
 
-            echo "Key: $KEY"
-
-            openssl aes-256-cbc -d -in .circleci/secret-env-cipher -pass env:KEY >> ~/secret-environment
+            openssl aes-256-cbc -d -md sha256 -in .circleci/secret-env-cipher -pass env:KEY >> ~/secret-environment
 
             # Now get it into the process environment.
             . ~/secret-environment
