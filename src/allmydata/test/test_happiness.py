@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from twisted.trial import unittest
-from hypothesis import given
-from hypothesis.strategies import text, sets
+from hypothesis import given, reproduce_failure
+from hypothesis.strategies import text, sets, integers, randoms
 from allmydata.immutable import happiness_upload
 
 
@@ -218,7 +218,6 @@ class Happiness(unittest.TestCase):
         places = happiness_upload.share_placement(peers, set(), shares, {})
         self.assertEqual(places, dict())
 
-
 class PlacementTests(unittest.TestCase):
 
     @given(
@@ -269,3 +268,50 @@ class PlacementTests(unittest.TestCase):
         # peers; if we have fewer shares than peers happiness is capped at
         # # of peers.
         assert happiness == min(len(peers), len(shares))
+
+    @given(
+        num_shares=integers(min_value=1, max_value=30),
+        extra_peers=integers(min_value=1, max_value=30),
+        random=randoms(),
+    )
+    def test_placement_preference(self, num_shares, extra_peers, random):
+        """
+        When there are fewer shares than peers, ``share_placement`` places shares
+        on peers that appear earlier in ``preference_ranking``.
+        """
+        num_peers = num_shares + extra_peers
+        peers = {u"peer-{}".format(n) for n in range(num_peers)}
+        readonly_peers = set()
+        shares = {u"share-{}".format(n) for n in range(num_shares)}
+        peers_to_shares = {}
+
+        # Give every peer a rank in our preference.
+        preference_ranking = list(peers)
+
+        # Make the relative preference of peers completely arbitrary.  We want
+        # to avoid accidentally expressing a preference that exactly matches
+        # any bias that could be built in to the placement algorithm (which
+        # would cause us to get the correct answer by accident).  Hypothesis
+        # will give us a different shuffle on every iteration of the test
+        # (which still making any particular shuffle that leads to failure
+        # reproducable).
+        random.shuffle(preference_ranking)
+
+        places = happiness_upload.share_placement(
+            peers,
+            readonly_peers,
+            shares,
+            peers_to_shares,
+            preference_ranking,
+        )
+        # If the server id is not in the first N preferred servers, where N is
+        # the number of shares to place, it has no business having any shares
+        # on it.  Collect all such placements and fail the test if there are
+        # any.
+        incorrect_placements = {
+            placed_shares
+            for (serverid, placed_shares)
+            in places.iteritems()
+            if serverid not in preference_ranking[:num_shares]
+        }
+        self.assertEqual(set(), incorrect_placements)

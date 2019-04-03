@@ -315,7 +315,8 @@ def _flow_network(peerIndices, shareIndices):
     graph.append([])
     return graph
 
-def share_placement(peers, readonly_peers, shares, peers_to_shares):
+def share_placement(peers, readonly_peers, shares, peers_to_shares,
+                    preference_ranking=None):
     """
     Generates the allocations the upload should based on the given
     information. We construct a dictionary of 'share_num' ->
