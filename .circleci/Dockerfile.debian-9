@@ -1,7 +1,7 @@
 FROM debian:9
 
-RUN apt-get --quiet update &&
-    apt-get --quiet --yes install git &&
+RUN apt-get --quiet update && \
+    apt-get --quiet --yes install git && \
     apt-get --quiet --yes install \
         sudo \
     	build-essential \
