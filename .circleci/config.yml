@@ -474,6 +474,9 @@ jobs:
             # change and re-encrypt it) like just like CircleCI recovers it
             # here:
             #
+
+            echo "Key: $KEY"
+
             openssl aes-256-cbc -d -in .circleci/secret-env-cipher -pass env:KEY >> ~/secret-environment
 
             # Now get it into the process environment.
