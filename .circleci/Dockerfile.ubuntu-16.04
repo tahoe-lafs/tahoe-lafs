@@ -1,0 +1,18 @@
+FROM ubuntu:16.04
+
+# language-pack-en included to support the en_US LANG setting.
+# iproute2 necessary for automatic address detection/assignment.
+
+RUN apt-get --quiet update && \
+    apt-get --quiet --yes install git && \
+    apt-get --quiet --yes install \
+        sudo \
+    	build-essential \
+	python2.7 \
+    	python2.7-dev \
+    	libffi-dev \
+    	libssl-dev \
+    	libyaml-dev \
+    	virtualenv \
+	language-pack-en \
+	iproute2
