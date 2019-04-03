@@ -1,0 +1,3 @@
+FROM debian:9
+
+RUN apt-get --quiet update && apt-get --quiet --yes install git
