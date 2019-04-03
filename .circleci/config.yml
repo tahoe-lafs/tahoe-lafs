@@ -466,8 +466,8 @@ jobs:
           name: "Log in to Dockerhub"
           command: |
             . ~/.env
-            # TAHOELAFSCI_USERNAME and TAHOELAFSCI_PASSWORD come from the secret env.
-            docker login -u ${TAHOELAFSCI_USERNAME} -p ${TAHOELAFSCI_PASSWORD}
+            # TAHOELAFSCI_PASSWORD come from the secret env.
+            docker login -u tahoelafsci -p ${TAHOELAFSCI_PASSWORD}
       - run:
           name: "Build Debian images"
           command: |
@@ -478,5 +478,5 @@ jobs:
           command: |
             # You have to create the debian repository (presumably via the
             # Dockerhub web interface) before anything can be pushed to it.
-            docker push ${TAHOELAFSCI_USERNAME}/debian:8
-            docker push ${TAHOELAFSCI_USERNAME}/debian:9
+            docker push tahoelafsci/debian:8
+            docker push tahoelafsci/debian:9
