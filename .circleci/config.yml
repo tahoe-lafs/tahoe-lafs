@@ -179,7 +179,7 @@ jobs:
   debian-8:
     <<: *DEBIAN
     docker:
-      - image: "debian:8"
+      - image: "tahoelafsci/debian:8"
 
 
   c-locale:
@@ -432,11 +432,12 @@ jobs:
           command: |
             apk add --no-cache openssl
       - run:
-          name: "Build Debian 9 image"
+          name: "Build Debian images"
           command: |
+            docker build -t tahoelafsci/debian:8 -f ~/project/.circleci/Dockerfile.debian-8 .
             docker build -t tahoelafsci/debian:9 -f ~/project/.circleci/Dockerfile.debian-9 .
       - run:
-          name: "Push Debian 9 image"
+          name: "Push Debian images"
           command: |
             # If you create an encryption key like this:
             #
@@ -478,4 +479,5 @@ jobs:
 
             # You have to create the debian repository (presumably via the
             # Dockerhub web interface) before anything can be pushed to it.
+            docker push ${TAHOELAFSCI_USERNAME}/debian:8
             docker push ${TAHOELAFSCI_USERNAME}/debian:9
