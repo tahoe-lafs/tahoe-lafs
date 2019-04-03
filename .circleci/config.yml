@@ -423,3 +423,63 @@ jobs:
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
+
+  build-images:
+    # This job builds Docker images that have as much of the setup as we can
+    # manage already done and baked in.  This cuts down on the per-job setup
+    # time the actual testing jobs have to perform - by perhaps 10% - 20%.
+    #
+    # https://circleci.com/blog/how-to-build-a-docker-image-on-circleci-2-0/
+    docker:
+      - image: "docker:17.05.0-ce-git"
+    environment:
+      TAHOELAFSCI_USERNAME: "tahoelafsci"
+      TAHOELAFSCI
+
+    steps:
+      - "checkout"
+      - "setup_remote_docker"
+      - run:
+          name: "Build Debian 9 image"
+          command: |
+            docker build -t tahoe-lafs/ci-debian-9:latest .circleci/Dockerfile.debian-9
+      - run:
+          name: "Push Debian 9 image"
+          command: |
+            # If you create an encryption key like this:
+            #
+            #   openssl enc -aes-256-cbc -k secret -P -md sha1
+
+            # From the output that looks like:
+            #
+            #  salt=...
+            #  key=...
+            #  iv =...
+            #
+            # extract just the value for ``key``.
+
+            # then you can re-generate ``secret-env-cipher`` locally using the
+            # command:
+            #
+            #   openssl aes-256-cbc -e -in secret-env-plain -out .circleci/secret-env-cipher -k $KEY
+            #
+            # Make sure the key is set as the KEY environment variable in the
+            # CircleCI web interface.  You can do this by visiting
+            # <https://circleci.com/gh/tahoe-lafs/tahoe-lafs/edit#env-vars>
+            # after logging in to CircleCI with an account in the tahoe-lafs
+            # CircleCI team.
+            #
+            # Then you can recover the environment plaintext (for example, to
+            # change and re-encrypt it) like just like CircleCI recovers it
+            # here:
+            #
+            openssl aes-256-cbc -d -in .circleci/secret-env-cipher -k $KEY >> ~/secret-environment
+
+            # Now get it into the process environment.
+            . ~/secret-environment
+
+            # And clean(-ish) it off the filesystem.
+            rm ~/secret-environment
+
+            docker login -u ${TAHOELAFSCI_USERNAME} -p ${TAHOELAFSCI_PASSWORD}
+            docker push ${TAHOELAFSCI_USERNAME}/debian:9
