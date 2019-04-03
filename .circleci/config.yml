@@ -449,7 +449,7 @@ jobs:
           command: |
             # If you create an encryption key like this:
             #
-            #   openssl enc -aes-256-cbc -k secret -P -md sha1
+            #   openssl enc -aes-256-cbc -k secret -P -md sha256
 
             # From the output that looks like:
             #
@@ -462,7 +462,7 @@ jobs:
             # then you can re-generate ``secret-env-cipher`` locally using the
             # command:
             #
-            #   openssl aes-256-cbc -e -in secret-env-plain -out .circleci/secret-env-cipher -k $KEY
+            #   openssl aes-256-cbc -e -in secret-env-plain -out .circleci/secret-env-cipher -pass env:KEY
             #
             # Make sure the key is set as the KEY environment variable in the
             # CircleCI web interface.  You can do this by visiting
@@ -474,7 +474,7 @@ jobs:
             # change and re-encrypt it) like just like CircleCI recovers it
             # here:
             #
-            openssl aes-256-cbc -d -in .circleci/secret-env-cipher -k $KEY >> ~/secret-environment
+            openssl aes-256-cbc -d -in .circleci/secret-env-cipher -pass env:KEY >> ~/secret-environment
 
             # Now get it into the process environment.
             . ~/secret-environment
