@@ -15,13 +15,3 @@ mv "${PROJECT}" /tmp/project
 
 # Python build/install toolchain wants to write to the source checkout, too.
 chown --recursive nobody:nogroup /tmp/project
-
-apt-get --quiet --yes install \
-    sudo \
-    build-essential \
-    python2.7 \
-    python2.7-dev \
-    libffi-dev \
-    libssl-dev \
-    libyaml-dev \
-    ${EXTRA_PACKAGES}

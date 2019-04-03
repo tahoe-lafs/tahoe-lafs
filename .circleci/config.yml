@@ -67,8 +67,6 @@ jobs:
       # Tell the C runtime things about character encoding (mainly to do with
       # filenames and argv).
       LANG: "en_US.UTF-8"
-      # The package name for this software varies somewhat across distros.
-      EXTRA_PACKAGES: "virtualenv"
       # Select a tox environment to run for this job.
       TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
       # Additional arguments to pass to tox.
@@ -86,7 +84,7 @@ jobs:
       - run: &BOOTSTRAP_TEST_ENVIRONMENT
           name: "Bootstrap test environment"
           command: |
-            ~/project/.circleci/bootstrap-test-environment.sh ~/project "${EXTRA_PACKAGES}"
+            ~/project/.circleci/bootstrap-test-environment.sh ~/project
 
       - restore_cache: &RESTORE_HTTP_CACHE
           name: "Restoring pip HTTP cache"
