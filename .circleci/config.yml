@@ -59,7 +59,7 @@ jobs:
 
   debian-9: &DEBIAN
     docker:
-      - image: "debian:9"
+      - image: "tahoelafsci/debian:9"
 
     environment: &UTF_8_ENVIRONMENT
       # Tell Hypothesis which configuration we want it to use.
@@ -81,12 +81,6 @@ jobs:
       PIP_FIND_LINKS: "file:///tmp/wheelhouse"
 
     steps:
-      - run: &INSTALL_GIT
-          name: "Install Git"
-          command: |
-            apt-get --quiet update
-            apt-get --quiet --yes install git
-
       - "checkout"
 
       - run: &BOOTSTRAP_TEST_ENVIRONMENT
@@ -230,9 +224,8 @@ jobs:
 
 
     steps:
-      # DRY, YAML-style.  See the debian-9 steps.
-      - run: *INSTALL_GIT
       - "checkout"
+      # DRY, YAML-style.  See the debian-9 steps.
       - run: *BOOTSTRAP_TEST_ENVIRONMENT
       - restore_cache: *RESTORE_HTTP_CACHE
       - restore_cache: *RESTORE_WHEELHOUSE
