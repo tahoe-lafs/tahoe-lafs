@@ -432,12 +432,7 @@ jobs:
           command: |
             apk add --no-cache openssl
       - run:
-          name: "Build Debian images"
-          command: |
-            docker build -t tahoelafsci/debian:8 -f ~/project/.circleci/Dockerfile.debian-8 .
-            docker build -t tahoelafsci/debian:9 -f ~/project/.circleci/Dockerfile.debian-9 .
-      - run:
-          name: "Push Debian images"
+          name: "Get Dockerhub secrets"
           command: |
             # If you create an encryption key like this:
             #
@@ -466,17 +461,20 @@ jobs:
             # change and re-encrypt it) like just like CircleCI recovers it
             # here:
             #
-
-            openssl aes-256-cbc -d -md sha256 -in .circleci/secret-env-cipher -pass env:KEY >> ~/secret-environment
-
-            # Now get it into the process environment.
-            . ~/secret-environment
-
-            # And clean(-ish) it off the filesystem.
-            rm ~/secret-environment
-
+            openssl aes-256-cbc -d -md sha256 -in .circleci/secret-env-cipher -pass env:KEY >> ~/.circleci
+      - run:
+          name: "Log in to Dockerhub"
+          command: |
+            # TAHOELAFSCI_USERNAME and TAHOELAFSCI_PASSWORD come from the secret env.
             docker login -u ${TAHOELAFSCI_USERNAME} -p ${TAHOELAFSCI_PASSWORD}
-
+      - run:
+          name: "Build Debian images"
+          command: |
+            docker build -t tahoelafsci/debian:8 -f ~/project/.circleci/Dockerfile.debian-8 .
+            docker build -t tahoelafsci/debian:9 -f ~/project/.circleci/Dockerfile.debian-9 .
+      - run:
+          name: "Push Debian images"
+          command: |
             # You have to create the debian repository (presumably via the
             # Dockerhub web interface) before anything can be pushed to it.
             docker push ${TAHOELAFSCI_USERNAME}/debian:8
