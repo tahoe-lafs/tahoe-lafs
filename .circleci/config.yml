@@ -484,4 +484,7 @@ jobs:
             rm ~/secret-environment
 
             docker login -u ${TAHOELAFSCI_USERNAME} -p ${TAHOELAFSCI_PASSWORD}
+
+            # You have to create the debian repository (presumably via the
+            # Dockerhub web interface) before anything can be pushed to it.
             docker push ${TAHOELAFSCI_USERNAME}/debian:9
