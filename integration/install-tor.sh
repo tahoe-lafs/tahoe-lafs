@@ -3,11 +3,11 @@
 # https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
 set -euxo pipefail
 
-# Script to install Tor
+CODENAME=$(lsb_release --short --codename)
 
-set -ex
-echo "deb http://deb.torproject.org/torproject.org stretch main" | sudo tee -a /etc/apt/sources.list
-echo "deb-src http://deb.torproject.org/torproject.org stretch main" | sudo tee -a /etc/apt/sources.list
+# Script to install Tor
+echo "deb http://deb.torproject.org/torproject.org ${CODENAME} main" | sudo tee -a /etc/apt/sources.list
+echo "deb-src http://deb.torproject.org/torproject.org ${CODENAME} main" | sudo tee -a /etc/apt/sources.list
 
 # Install Tor repo signing key
 sudo apt-key add - <<EOF
