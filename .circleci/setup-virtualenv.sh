@@ -1,4 +1,17 @@
-#!/bin/bash -e
+#!/bin/bash
+
+# https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
+set -euxo pipefail
+
+# The filesystem location of the root of a virtualenv we can use to get/build
+# wheels.
+BOOTSTRAP_VENV="$1"
+shift
+
+# The filesystem location of the root of the project source.  We need this to
+# know what wheels to get/build, of course.
+PROJECT_ROOT="$1"
+shift
 
 TAHOE_LAFS_TOX_ENVIRONMENT=$1
 shift
@@ -7,8 +20,8 @@ TAHOE_LAFS_TOX_ARGS=$1
 shift || :
 
 # Get everything else installed in it, too.
-/tmp/tests/bin/tox \
-     -c /tmp/project/tox.ini \
+"${BOOTSTRAP_VENV}"/bin/tox \
+     -c "${PROJECT_ROOT}"/tox.ini \
      --workdir /tmp/tahoe-lafs.tox \
      --notest \
      -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \

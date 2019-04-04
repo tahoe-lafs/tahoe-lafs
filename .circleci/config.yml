@@ -89,6 +89,8 @@ jobs:
           name: "Setup virtualenv"
           command: |
             sudo --set-home -u nobody /tmp/project/.circleci/setup-virtualenv.sh \
+                "/tmp/venv" \
+                "/tmp/project" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
 
@@ -96,6 +98,8 @@ jobs:
           name: "Run test suite"
           command: |
             /tmp/project/.circleci/run-tests.sh \
+                "/tmp/venv" \
+                "/tmp/project" \
                 "${ARTIFACTS_OUTPUT_PATH}" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
