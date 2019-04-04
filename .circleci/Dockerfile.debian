@@ -7,8 +7,9 @@ ENV VIRTUALENV_PATH /tmp/venv
 ENV BUILD_SRC_ROOT /tmp/project
 
 RUN apt-get --quiet update && \
-    apt-get --quiet --yes install git && \
     apt-get --quiet --yes install \
+    	git \
+	lsb-release \
         sudo \
     	build-essential \
 	python2.7 \
