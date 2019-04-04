@@ -2,7 +2,8 @@ FROM debian:8
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
 ENV VIRTUALENV_PATH /tmp/venv
-ENV BUILD_SRC_ROOT /tmp/image-build-time-source
+# This will get updated by the CircleCI checkout step.
+ENV BUILD_SRC_ROOT /tmp/project
 
 RUN apt-get --quiet update && \
     apt-get --quiet --yes install git && \
