@@ -400,8 +400,8 @@ jobs:
       - run:
           name: "Build Fedora images"
           command: |
-            docker build -t tahoelafsci/fedora:28 -f ~/project/.circleci/Dockerfile.fedora-28 ~/project/
-            docker build -t tahoelafsci/fedora:29 -f ~/project/.circleci/Dockerfile.fedora-29 ~/project/
+            docker build --build-arg TAG=28 -t tahoelafsci/fedora:28 -f ~/project/.circleci/Dockerfile.fedora ~/project/
+            docker build --build-arg TAG=29 -t tahoelafsci/fedora:29 -f ~/project/.circleci/Dockerfile.fedora ~/project/
       - run:
           name: "Push Fedora images"
           command: |
