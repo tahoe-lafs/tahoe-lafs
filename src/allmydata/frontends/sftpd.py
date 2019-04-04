@@ -1,4 +1,4 @@
-
+import six
 import heapq, traceback, array, stat, struct
 from types import NoneType
 from stat import S_IFREG, S_IFDIR
@@ -42,6 +42,9 @@ noisy = True
 from allmydata.util.log import NOISY, OPERATIONAL, WEIRD, \
     msg as logmsg, PrefixingLogMixin
 
+if six.PY3:
+    long = int
+
 def eventually_callback(d):
     return lambda res: eventually(d.callback, res)
 
@@ -61,7 +64,7 @@ def _to_sftp_time(t):
     """SFTP times are unsigned 32-bit integers representing UTC seconds
     (ignoring leap seconds) since the Unix epoch, January 1 1970 00:00 UTC.
     A Tahoe time is the corresponding float."""
-    return long(t) & 0xFFFFFFFFL
+    return long(t) & long(0xFFFFFFFF)
 
 
 def _convert_error(res, request):

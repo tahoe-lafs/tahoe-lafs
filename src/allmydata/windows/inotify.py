@@ -4,6 +4,7 @@
 
 from __future__ import print_function
 
+import six
 import os, sys
 
 from eliot import (
@@ -38,6 +39,9 @@ from ..util.eliotutil import (
 from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, create_string_buffer, \
     addressof, get_last_error
 from ctypes.wintypes import BOOL, HANDLE, DWORD, LPCWSTR, LPVOID
+
+if six.PY3:
+    long = int
 
 # <http://msdn.microsoft.com/en-us/library/gg258116%28v=vs.85%29.aspx>
 FILE_LIST_DIRECTORY              = 1
@@ -210,7 +214,7 @@ def medium_test():
 
     notifier = INotify()
     notifier.set_pending_delay(1.0)
-    IN_EXCL_UNLINK = 0x04000000L
+    IN_EXCL_UNLINK = long(0x04000000)
     mask = (  IN_CREATE
             | IN_CLOSE_WRITE
             | IN_MOVED_TO

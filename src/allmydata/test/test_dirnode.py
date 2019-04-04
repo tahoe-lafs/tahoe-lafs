@@ -1,5 +1,5 @@
 """Tests for the dirnode module."""
-
+import six
 import time
 import unicodedata
 from zope.interface import implementer
@@ -26,6 +26,10 @@ from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
 import allmydata.test.common_util as testutil
+
+if six.PY3:
+    long = int
+
 
 @implementer(IConsumer)
 class MemAccum(object):
@@ -1794,7 +1798,7 @@ class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
                                      (101, 316, 216),
                                      (317, 1000, 684),
                                      (1001, 3162, 99),
-                                     (3162277660169L, 10000000000000L, 1),
+                                     (long(3162277660169), long(10000000000000), 1),
                                      ])
 
 class UCWEingMutableFileNode(MutableFileNode):
