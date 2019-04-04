@@ -94,6 +94,7 @@ jobs:
             sudo --set-home -u nobody /tmp/project/.circleci/setup-virtualenv.sh \
                 "/tmp/venv" \
                 "/tmp/project" \
+                "${WHEELHOUSE_PATH}" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
 

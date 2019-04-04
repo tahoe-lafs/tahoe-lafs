@@ -13,11 +13,19 @@ shift
 PROJECT_ROOT="$1"
 shift
 
+# The filesystem location of the wheelhouse which we'll populate with wheels
+# for all of our dependencies.
+WHEELHOUSE_PATH="$1"
+shift
+
 TAHOE_LAFS_TOX_ENVIRONMENT=$1
 shift
 
 TAHOE_LAFS_TOX_ARGS=$1
 shift || :
+
+# Tell pip where it can find any existing wheels.
+export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
 
 # Get everything else installed in it, too.
 "${BOOTSTRAP_VENV}"/bin/tox \
