@@ -374,6 +374,10 @@ jobs:
                 -t tahoelafsci/${DISTRO}:${TAG} \
                 -f ~/project/.circleci/Dockerfile.${DOCKERFILE} \
                 ~/project/
+      - run:
+          name: "Push image"
+          command: |
+            docker push tahoelafsci/${DISTRO}:${TAG}
 
 
   build-image-debian-8:
