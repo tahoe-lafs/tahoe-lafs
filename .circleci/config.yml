@@ -407,7 +407,7 @@ jobs:
       DOCKERFILE: "ubuntu"
 
 
-  build-image-ubuntu.18.04:
+  build-image-ubuntu-18.04:
     <<: *BUILD_IMAGE
 
     environment:
