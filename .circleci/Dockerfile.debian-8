@@ -21,7 +21,4 @@ RUN apt-get --quiet update && \
 # cache friendly but there's no Docker layer cache on CircleCI anyway!
 COPY . ${BUILD_SRC_ROOT}
 
-RUN usermod --home /tmp/nobody nobody
-RUN chown --recursive nobody:nogroup "${BUILD_SRC_ROOT}"
-RUN sudo --set-home -u nobody "${BUILD_SRC_ROOT}"/.circleci/create-virtualenv.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}"
-RUN sudo --set-home -u nobody "${BUILD_SRC_ROOT}"/.circleci/populate-wheelhouse.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}"
+RUN "${BUILD_SRC_ROOT}"/.circleci/prepare-image.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}"
