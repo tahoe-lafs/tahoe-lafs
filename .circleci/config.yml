@@ -231,76 +231,19 @@ jobs:
 
   slackware-14.2:
     docker:
-      - image: "vbatts/slackware:14.2"
+      - image: "tahoelafsci/slackware:14.2"
+        user: "nobody"
 
     environment: *UTF_8_ENVIRONMENT
 
+    # pip cannot install packages if the working directory is not readable.
+    # We want to run a lot of steps as nobody instead of as root.
+    working_directory: "/tmp/project"
+
     steps:
-      - run:
-          name: "Install Git"
-          command: |
-            slackpkg update
-
-            # Be careful with slackpkg.  If the package name given doesn't
-            # match anything, slackpkg still claims to succeed but you're
-            # totally screwed.  Slackware updates versions of packaged
-            # software so including too much version prefix is a good way to
-            # have your install commands suddenly begin not installing
-            # anything.
-            slackpkg install openssh-7 git-2 </dev/null
-
       - "checkout"
-
-      - run:
-          name: "Bootstrap test environment"
-          working_directory: "/tmp"
-          command: |
-            # Avoid the /nonexistent home directory in nobody's /etc/passwd
-            # entry.
-            usermod --home /tmp/nobody nobody
-
-            # Grant read access to nobody, the user which will eventually try
-            # to test this checkout.
-            mv /root/project /tmp/project
-
-            # Python build/install toolchain wants to write to the source
-            # checkout, too.
-            chown --recursive nobody:nobody /tmp/project
-
-            slackpkg install \
-                ca-certificates \
-                sudo-1 \
-                make-4 \
-                automake-1 \
-                kernel-headers \
-                glibc-2 \
-                binutils-2 \
-                gcc-5 \
-                gcc-g++-5 \
-                python-2 \
-                libffi-3 \
-                libyaml-0 \
-                sqlite-3 \
-                icu4c-56 \
-                libmpc-1 </dev/null
-
-            slackpkg upgrade \
-                openssl-1 </dev/null
-
-            # neither virtualenv nor pip is packaged.
-            # do it the hard way.
-            # and it is extra hard since it is slackware.
-            slackpkg install \
-                cyrus-sasl-2 \
-                curl-7 </dev/null
-            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-            python get-pip.py
-            pip install virtualenv
-
       - run: *SETUP_VIRTUALENV
-
       - run: *RUN_TESTS
-
       - store_test_results: *STORE_TEST_RESULTS
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
@@ -441,3 +384,12 @@ jobs:
       DISTRO: "fedora"
       TAG: "29"
       DOCKERFILE: "fedora"
+
+
+  build-image-slackware-14.2:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "slackware"
+      TAG: "14.2"
+      DOCKERFILE: "slackware"
