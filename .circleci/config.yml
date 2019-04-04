@@ -129,7 +129,7 @@ jobs:
           name: "Submit coverage results"
           working_directory: "/tmp/project"
           command: |
-            /tmp/tests/bin/codecov
+            /tmp/venv/bin/codecov
 
 
   debian-8:
