@@ -1,5 +1,5 @@
 ARG TAG
-FROM slackware:${TAG}
+FROM vbatts/slackware:${TAG}
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
 ENV VIRTUALENV_PATH /tmp/venv
