@@ -166,10 +166,6 @@ jobs:
   integration:
     <<: *DEBIAN
 
-    docker:
-      - image: "tahoelafsci/debian:9-tor"
-        user: "nobody"
-
     environment:
       <<: *UTF_8_ENVIRONMENT
       # Select the integration tests tox environments.
@@ -409,11 +405,3 @@ jobs:
             # Dockerhub web interface) before anything can be pushed to it.
             docker push tahoelafsci/fedora:28
             docker push tahoelafsci/fedora:29
-      - run:
-          name: "Build Tor-enabled image"
-          command: |
-            docker build -t tahoelafsci/debian:9-tor -f ~/project/.circleci/Dockerfile.debian-9-tor ~/project/
-      - run:
-          name: "Push Tor-enabled image"
-          command: |
-            docker push tahoelafsci/debian:9-tor

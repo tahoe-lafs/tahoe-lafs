@@ -1,3 +1,0 @@
-FROM tahoelafsci/debian:9
-
-RUN ${BUILD_SRC_ROOT}/integration/install-tor.sh
