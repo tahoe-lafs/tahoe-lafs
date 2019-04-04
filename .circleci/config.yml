@@ -262,7 +262,6 @@ jobs:
     environment:
       DISTRO: "tahoelafsci/<DISTRO>:foo"
       TAG: "tahoelafsci/distro:<TAG>"
-      DOCKERFILE: ".circleci/Dockerfile.<DOCKERFILE>"
 
     steps:
       - "checkout"
@@ -315,7 +314,7 @@ jobs:
                 build \
                 --build-arg TAG=${TAG} \
                 -t tahoelafsci/${DISTRO}:${TAG} \
-                -f ~/project/.circleci/Dockerfile.${DOCKERFILE} \
+                -f ~/project/.circleci/Dockerfile.${DISTRO} \
                 ~/project/
       - run:
           name: "Push image"
@@ -329,7 +328,6 @@ jobs:
     environment:
       DISTRO: "debian"
       TAG: "8"
-      DOCKERFILE: "debian"
 
 
   build-image-debian-9:
@@ -338,7 +336,6 @@ jobs:
     environment:
       DISTRO: "debian"
       TAG: "9"
-      DOCKERFILE: "debian"
 
 
   build-image-ubuntu-16.04:
@@ -347,7 +344,6 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "16.04"
-      DOCKERFILE: "ubuntu"
 
 
   build-image-ubuntu-18.04:
@@ -356,7 +352,6 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "18.04"
-      DOCKERFILE: "ubuntu"
 
 
   build-image-centos-7:
@@ -365,7 +360,6 @@ jobs:
     environment:
       DISTRO: "centos"
       TAG: "7"
-      DOCKERFILE: "centos"
 
 
   build-image-fedora-28:
@@ -374,7 +368,6 @@ jobs:
     environment:
       DISTRO: "fedora"
       TAG: "28"
-      DOCKERFILE: "fedora"
 
 
   build-image-fedora-29:
@@ -383,7 +376,6 @@ jobs:
     environment:
       DISTRO: "fedora"
       TAG: "29"
-      DOCKERFILE: "fedora"
 
 
   build-image-slackware-14.2:
@@ -392,4 +384,3 @@ jobs:
     environment:
       DISTRO: "slackware"
       TAG: "14.2"
-      DOCKERFILE: "slackware"
