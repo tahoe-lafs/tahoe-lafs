@@ -222,13 +222,15 @@ jobs:
   fedora-28:
     <<: *RHEL_DERIV
     docker:
-      - image: "fedora:28"
+      - image: "tahoelafsci/fedora:28"
+        user: "nobody"
 
 
   fedora-29:
     <<: *RHEL_DERIV
     docker:
-      - image: "fedora:29"
+      - image: "tahoelafsci/fedora:29"
+        user: "nobody"
 
 
   slackware-14.2:
@@ -395,6 +397,18 @@ jobs:
             # You have to create the ubuntu repository (presumably via the
             # Dockerhub web interface) before anything can be pushed to it.
             docker push tahoelafsci/centos:7
+      - run:
+          name: "Build Fedora images"
+          command: |
+            docker build -t tahoelafsci/fedora:28 -f ~/project/.circleci/Dockerfile.fedora-28 ~/project/
+            docker build -t tahoelafsci/fedora:29 -f ~/project/.circleci/Dockerfile.fedora-29 ~/project/
+      - run:
+          name: "Push Fedora images"
+          command: |
+            # You have to create the ubuntu repository (presumably via the
+            # Dockerhub web interface) before anything can be pushed to it.
+            docker push tahoelafsci/fedora:28
+            docker push tahoelafsci/fedora:29
       - run:
           name: "Build Tor-enabled image"
           command: |
