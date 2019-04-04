@@ -47,13 +47,11 @@ fi
 #
 # Send the output directly to a file because transporting the binary subunit2
 # via tox and then scraping it out is hideous and failure prone.
-sudo \
-    SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}" \
-    TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file --rterrors" \
-    PIP_NO_INDEX="1" \
-    --set-home \
-    --user nobody \
-    ${BOOTSTRAP_VENV}/bin/tox \
+export SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}"
+export TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file --rterrors"
+export PIP_NO_INDEX="1"
+
+${BOOTSTRAP_VENV}/bin/tox \
     -c ${PROJECT_ROOT}/tox.ini \
     --workdir /tmp/tahoe-lafs.tox \
     -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \

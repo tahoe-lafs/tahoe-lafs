@@ -60,6 +60,7 @@ jobs:
   debian-9: &DEBIAN
     docker:
       - image: "tahoelafsci/debian:9"
+        user: "nobody"
 
     environment: &UTF_8_ENVIRONMENT
       # Tell Hypothesis which configuration we want it to use.
@@ -84,14 +85,10 @@ jobs:
 
     steps:
       - "checkout"
-      - run:
-          name: "Fix permissions"
-          command: |
-            chown --recursive nobody:nogroup /tmp/project
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
           command: |
-            sudo --set-home -u nobody /tmp/project/.circleci/setup-virtualenv.sh \
+            /tmp/project/.circleci/setup-virtualenv.sh \
                 "/tmp/venv" \
                 "/tmp/project" \
                 "${WHEELHOUSE_PATH}" \
