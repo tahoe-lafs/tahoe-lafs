@@ -36,7 +36,6 @@ from ..util.eliotutil import (
 from eliot import (
     ActionType,
     MessageType,
-    Message,
     Field,
 )
 
