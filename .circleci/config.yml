@@ -176,10 +176,6 @@ jobs:
 
     steps:
       - "checkout"
-      - run:
-          name: "Bootstrap test environment"
-          command: |
-            ~/project/.circleci/bootstrap-test-environment.sh ~/project
       # DRY, YAML-style.  See the debian-9 steps.
       - run: *SETUP_VIRTUALENV
       - run:
