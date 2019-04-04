@@ -38,6 +38,24 @@ workflows:
             # integration tests.
             - "debian-9"
 
+  images:
+    # Build the Docker images used by the ci jobs.  This makes the ci jobs
+    # faster and takes various spurious failures out of the critical path.
+    triggers:
+      # Build once a day
+      - schedule:
+          cron: "0 0 * * *"
+
+    jobs:
+      - "build-image-debian-8"
+      - "build-image-debian-9"
+      - "build-image-ubuntu-16.04"
+      - "build-image-ubuntu-18.04"
+      - "build-image-fedora-28"
+      - "build-image-fedora-29"
+      - "build-image-centos-7"
+      - "build-image-slackware-14.2"
+
 
 jobs:
   lint:
