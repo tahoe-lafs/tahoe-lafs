@@ -306,14 +306,20 @@ jobs:
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
 
-  build-images:
-    # This job builds Docker images that have as much of the setup as we can
-    # manage already done and baked in.  This cuts down on the per-job setup
-    # time the actual testing jobs have to perform - by perhaps 10% - 20%.
+  build-image: &BUILD_IMAGE
+    # This is a template for a job to build a Docker image that has as much of
+    # the setup as we can manage already done and baked in.  This cuts down on
+    # the per-job setup time the actual testing jobs have to perform - by
+    # perhaps 10% - 20%.
     #
     # https://circleci.com/blog/how-to-build-a-docker-image-on-circleci-2-0/
     docker:
       - image: "docker:17.05.0-ce-git"
+
+    environment:
+      DISTRO: "tahoelafsci/<DISTRO>:foo"
+      TAG: "tahoelafsci/distro:<TAG>"
+      DOCKERFILE: ".circleci/Dockerfile.<DOCKERFILE>"
 
     steps:
       - "checkout"
@@ -360,48 +366,74 @@ jobs:
             # TAHOELAFSCI_PASSWORD come from the secret env.
             docker login -u tahoelafsci -p ${TAHOELAFSCI_PASSWORD}
       - run:
-          name: "Build Debian images"
+          name: "Build image"
           command: |
-            docker build --build-arg TAG=8 -t tahoelafsci/debian:8 -f ~/project/.circleci/Dockerfile.debian ~/project/
-            docker build --build-arg TAG=9 -t tahoelafsci/debian:9 -f ~/project/.circleci/Dockerfile.debian ~/project/
-      - run:
-          name: "Push Debian images"
-          command: |
-            # You have to create the debian repository (presumably via the
-            # Dockerhub web interface) before anything can be pushed to it.
-            docker push tahoelafsci/debian:8
-            docker push tahoelafsci/debian:9
-      - run:
-          name: "Build Ubuntu images"
-          command: |
-            docker build --build-arg TAG=16.04 -t tahoelafsci/ubuntu:16.04 -f ~/project/.circleci/Dockerfile.ubuntu ~/project/
-            docker build --build-arg TAG=18.04 -t tahoelafsci/ubuntu:18.04 -f ~/project/.circleci/Dockerfile.ubuntu ~/project/
-      - run:
-          name: "Push Ubuntu images"
-          command: |
-            # You have to create the ubuntu repository (presumably via the
-            # Dockerhub web interface) before anything can be pushed to it.
-            docker push tahoelafsci/ubuntu:16.04
-            docker push tahoelafsci/ubuntu:18.04
-      - run:
-          name: "Build CentOS images"
-          command: |
-            docker build --build-arg TAG=7 -t tahoelafsci/centos:7 -f ~/project/.circleci/Dockerfile.centos ~/project/
-      - run:
-          name: "Push CentOS images"
-          command: |
-            # You have to create the ubuntu repository (presumably via the
-            # Dockerhub web interface) before anything can be pushed to it.
-            docker push tahoelafsci/centos:7
-      - run:
-          name: "Build Fedora images"
-          command: |
-            docker build --build-arg TAG=28 -t tahoelafsci/fedora:28 -f ~/project/.circleci/Dockerfile.fedora ~/project/
-            docker build --build-arg TAG=29 -t tahoelafsci/fedora:29 -f ~/project/.circleci/Dockerfile.fedora ~/project/
-      - run:
-          name: "Push Fedora images"
-          command: |
-            # You have to create the ubuntu repository (presumably via the
-            # Dockerhub web interface) before anything can be pushed to it.
-            docker push tahoelafsci/fedora:28
-            docker push tahoelafsci/fedora:29
+            docker \
+                build \
+                --build-arg TAG=${TAG} \
+                -t tahoelafsci/${DISTRO}:${TAG} \
+                -f ~/project/.circleci/Dockerfile.${DOCKERFILE} \
+                ~/project/
+
+
+  build-image-debian-8:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "debian"
+      TAG: "8"
+      DOCKERFILE: "debian"
+
+
+  build-image-debian-9:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "debian"
+      TAG: "9"
+      DOCKERFILE: "debian"
+
+
+  build-image-ubuntu-16.04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "16.04"
+      DOCKERFILE: "ubuntu"
+
+
+  build-image-ubuntu.18.04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "18.04"
+      DOCKERFILE: "ubuntu"
+
+
+  build-image-centos-7:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "centos"
+      TAG: "7"
+      DOCKERFILE: "centos"
+
+
+  build-image-fedora-28:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "fedora"
+      TAG: "28"
+      DOCKERFILE: "fedora"
+
+
+  build-image-fedora-29:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "fedora"
+      TAG: "29"
+      DOCKERFILE: "fedora"
