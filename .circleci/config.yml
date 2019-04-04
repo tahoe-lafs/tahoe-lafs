@@ -200,52 +200,19 @@ jobs:
 
   centos-7: &RHEL_DERIV
     docker:
-      - image: "centos:7"
+      - image: "tahoelafsci/centos:7"
+        user: "nobody"
 
     environment: *UTF_8_ENVIRONMENT
 
+    # pip cannot install packages if the working directory is not readable.
+    # We want to run a lot of steps as nobody instead of as root.
+    working_directory: "/tmp/project"
+
     steps:
-      - run:
-          name: "Install Git"
-          command: |
-            yum install --assumeyes git
-
       - "checkout"
-
-      - run:
-          name: "Bootstrap test environment"
-          working_directory: "/tmp"
-          command: |
-            # Avoid the /nonexistent home directory in nobody's /etc/passwd
-            # entry.
-            usermod --home /tmp/nobody nobody
-
-            # Grant read access to nobody, the user which will eventually try
-            # to test this checkout.
-            mv /root/project /tmp/project
-
-            # Python build/install toolchain wants to write to the source
-            # checkout, too.
-            chown --recursive nobody:nobody /tmp/project
-
-            yum install --assumeyes \
-                sudo \
-                make automake gcc gcc-c++ \
-                python \
-                python-devel \
-                libffi-devel \
-                openssl-devel \
-                libyaml-devel
-            yum install --assumeyes /usr/bin/virtualenv
-
-            # XXX net-tools is actually a Tahoe-LAFS runtime dependency!
-            yum install --assumeyes \
-                net-tools
-
       - run: *SETUP_VIRTUALENV
-
       - run: *RUN_TESTS
-
       - store_test_results: *STORE_TEST_RESULTS
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
@@ -418,6 +385,16 @@ jobs:
             # Dockerhub web interface) before anything can be pushed to it.
             docker push tahoelafsci/ubuntu:16.04
             docker push tahoelafsci/ubuntu:18.04
+      - run:
+          name: "Build CentOS images"
+          command: |
+            docker build -t tahoelafsci/centos:7 -f ~/project/.circleci/Dockerfile.centos-7 ~/project/
+      - run:
+          name: "Push CentOS images"
+          command: |
+            # You have to create the ubuntu repository (presumably via the
+            # Dockerhub web interface) before anything can be pushed to it.
+            docker push tahoelafsci/centos:7
       - run:
           name: "Build Tor-enabled image"
           command: |
