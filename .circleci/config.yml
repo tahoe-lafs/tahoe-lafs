@@ -81,19 +81,12 @@ jobs:
     steps:
       - "checkout"
 
-      - run: &BOOTSTRAP_TEST_ENVIRONMENT
-          name: "Bootstrap test environment"
-          command: |
-            ~/project/.circleci/bootstrap-test-environment.sh ~/project
-
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
           # pip cannot install packages if the working directory is not
           # readable.
           working_directory: "/tmp"
           command: |
-            sudo --set-home -u nobody /tmp/project/.circleci/create-virtualenv.sh "${WHEELHOUSE_PATH}" "/tmp/tests"
-            sudo --set-home -u nobody /tmp/project/.circleci/populate-wheelhouse.sh "${WHEELHOUSE_PATH}" "/tmp/tests" "/tmp/project"
             sudo --set-home -u nobody /tmp/project/.circleci/setup-virtualenv.sh \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
@@ -180,8 +173,11 @@ jobs:
 
     steps:
       - "checkout"
+      - run:
+          name: "Bootstrap test environment"
+          command: |
+            ~/project/.circleci/bootstrap-test-environment.sh ~/project
       # DRY, YAML-style.  See the debian-9 steps.
-      - run: *BOOTSTRAP_TEST_ENVIRONMENT
       - run: *SETUP_VIRTUALENV
       - run:
           name: "Install Tor"
