@@ -1,4 +1,5 @@
-FROM debian:8
+ARG TAG
+FROM debian:${TAG}
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
 ENV VIRTUALENV_PATH /tmp/venv

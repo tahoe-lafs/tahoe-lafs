@@ -366,8 +366,8 @@ jobs:
       - run:
           name: "Build Debian images"
           command: |
-            docker build -t tahoelafsci/debian:8 -f ~/project/.circleci/Dockerfile.debian-8 ~/project/
-            docker build -t tahoelafsci/debian:9 -f ~/project/.circleci/Dockerfile.debian-9 ~/project/
+            docker build --build-arg TAG=8 -t tahoelafsci/debian:8 -f ~/project/.circleci/Dockerfile.debian ~/project/
+            docker build --build-arg TAG=9 -t tahoelafsci/debian:9 -f ~/project/.circleci/Dockerfile.debian ~/project/
       - run:
           name: "Push Debian images"
           command: |
