@@ -402,8 +402,8 @@ jobs:
       - run:
           name: "Build Debian images"
           command: |
-            docker build -t tahoelafsci/debian:8 -f ~/project/.circleci/Dockerfile.debian-8 .
-            docker build -t tahoelafsci/debian:9 -f ~/project/.circleci/Dockerfile.debian-9 .
+            docker build -t tahoelafsci/debian:8 -f ~/project/.circleci/Dockerfile.debian-8 ~/project/
+            docker build -t tahoelafsci/debian:9 -f ~/project/.circleci/Dockerfile.debian-9 ~/project/
       - run:
           name: "Push Debian images"
           command: |
@@ -414,8 +414,8 @@ jobs:
       - run:
           name: "Build Ubuntu images"
           command: |
-            docker build -t tahoelafsci/ubuntu:16.04 -f ~/project/.circleci/Dockerfile.ubuntu-16.04 .
-            docker build -t tahoelafsci/ubuntu:18.04 -f ~/project/.circleci/Dockerfile.ubuntu-18.04 .
+            docker build -t tahoelafsci/ubuntu:16.04 -f ~/project/.circleci/Dockerfile.ubuntu-16.04 ~/project/
+            docker build -t tahoelafsci/ubuntu:18.04 -f ~/project/.circleci/Dockerfile.ubuntu-18.04 ~/project/
       - run:
           name: "Push Ubuntu images"
           command: |
