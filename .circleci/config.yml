@@ -45,6 +45,12 @@ workflows:
       # Build once a day
       - schedule:
           cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - "master"
+                # Not sure if this is meaningful
+                - "3024.faster-circleci-builds"
 
     jobs:
       - "build-image-debian-8"
