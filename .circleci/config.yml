@@ -378,8 +378,8 @@ jobs:
       - run:
           name: "Build Ubuntu images"
           command: |
-            docker build -t tahoelafsci/ubuntu:16.04 -f ~/project/.circleci/Dockerfile.ubuntu-16.04 ~/project/
-            docker build -t tahoelafsci/ubuntu:18.04 -f ~/project/.circleci/Dockerfile.ubuntu-18.04 ~/project/
+            docker build --build-arg TAG=16.04 -t tahoelafsci/ubuntu:16.04 -f ~/project/.circleci/Dockerfile.ubuntu ~/project/
+            docker build --build-arg TAG=18.04 -t tahoelafsci/ubuntu:18.04 -f ~/project/.circleci/Dockerfile.ubuntu ~/project/
       - run:
           name: "Push Ubuntu images"
           command: |
