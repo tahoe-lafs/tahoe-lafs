@@ -1,4 +1,5 @@
-FROM centos:7
+ARG TAG
+FROM centos:${TAG}
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
 ENV VIRTUALENV_PATH /tmp/venv

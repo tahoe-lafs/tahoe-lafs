@@ -390,7 +390,7 @@ jobs:
       - run:
           name: "Build CentOS images"
           command: |
-            docker build -t tahoelafsci/centos:7 -f ~/project/.circleci/Dockerfile.centos-7 ~/project/
+            docker build --build-arg TAG=7 -t tahoelafsci/centos:7 -f ~/project/.circleci/Dockerfile.centos ~/project/
       - run:
           name: "Push CentOS images"
           command: |
