@@ -28,7 +28,7 @@ def timeout_call(reactor, d, timeout):
         try:
             timer.cancel()
             timer_d.callback(x)
-        except error.AlreadyCalled, defer.AlreadyCalledError:
+        except (error.AlreadyCalled, defer.AlreadyCalledError):
             pass
         return None
 

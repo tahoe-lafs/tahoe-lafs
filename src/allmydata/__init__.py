@@ -399,7 +399,7 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                 pr_normver = normalized_version(pr_ver)
             except verlib.IrrationalVersionError:
                 continue
-            except Exception, e:
+            except Exception as e:
                 errors.append("Warning: version number %r found for dependency %r by pkg_resources could not be parsed. "
                               "The version found by import was %r from %r. "
                               "pkg_resources thought it should be found at %r. "
@@ -416,7 +416,7 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                         imp_normver = normalized_version(imp_ver)
                     except verlib.IrrationalVersionError:
                         continue
-                    except Exception, e:
+                    except Exception as e:
                         errors.append("Warning: version number %r found for dependency %r (imported from %r) could not be parsed. "
                                       "pkg_resources thought it should be version %r at %r. "
                                       "The exception was %s: %s"
@@ -470,7 +470,7 @@ def check_all_requirements():
     for requirement in install_requires:
         try:
             check_requirement(requirement, vers_and_locs)
-        except (ImportError, PackagingError), e:
+        except (ImportError, PackagingError) as e:
             fatal_errors.append("%s: %s" % (e.__class__.__name__, e))
 
     if fatal_errors:

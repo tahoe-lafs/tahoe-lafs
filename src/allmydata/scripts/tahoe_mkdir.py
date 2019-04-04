@@ -16,7 +16,7 @@ def mkdir(options):
     if where:
         try:
             rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
+        except UnknownAliasError as e:
             e.display(stderr)
             return 1
 

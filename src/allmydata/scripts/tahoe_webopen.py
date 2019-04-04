@@ -12,7 +12,7 @@ def webopen(options, opener=None):
     if where:
         try:
             rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
+        except UnknownAliasError as e:
             e.display(stderr)
             return 1
         if path == '/':

@@ -50,7 +50,7 @@ def put(options):
         else:
             try:
                 rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
-            except UnknownAliasError, e:
+            except UnknownAliasError as e:
                 e.display(stderr)
                 return 1
             if path.startswith("/"):

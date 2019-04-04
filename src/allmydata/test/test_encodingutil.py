@@ -271,7 +271,7 @@ class StdlibUnicode(unittest.TestCase):
 
         try:
             os.mkdir(lumiere_nfc)
-        except EnvironmentError, e:
+        except EnvironmentError as e:
             raise unittest.SkipTest("%r\nIt is possible that the filesystem on which this test is being run "
                                     "does not support Unicode, even though the platform does." % (e,))
 

@@ -44,7 +44,7 @@ def stop(config):
     # the user but keep waiting until they give up.
     try:
         os.kill(pid, signal.SIGKILL)
-    except OSError, oserr:
+    except OSError as oserr:
         if oserr.errno == 3:
             print(oserr.strerror)
             # the process didn't exist, so wipe the pid file

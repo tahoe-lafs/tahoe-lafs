@@ -256,9 +256,9 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             sharehashes = dict(sh)
             try:
                 self.share_hash_tree.set_hashes(sharehashes)
-            except IndexError, le:
+            except IndexError as le:
                 raise BadOrMissingHash(le)
-            except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
+            except (hashtree.BadHashError, hashtree.NotEnoughHashesError) as le:
                 raise BadOrMissingHash(le)
         d.addCallback(_got_share_hashes)
         return d
@@ -289,9 +289,9 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
 
             try:
                 self.block_hash_tree.set_hashes(bh)
-            except IndexError, le:
+            except IndexError as le:
                 raise BadOrMissingHash(le)
-            except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
+            except (hashtree.BadHashError, hashtree.NotEnoughHashesError) as le:
                 raise BadOrMissingHash(le)
         d.addCallback(_got_block_hashes)
         return d
@@ -316,9 +316,9 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             ct_hashes = dict(enumerate(hashes))
             try:
                 crypttext_hash_tree.set_hashes(ct_hashes)
-            except IndexError, le:
+            except IndexError as le:
                 raise BadOrMissingHash(le)
-            except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
+            except (hashtree.BadHashError, hashtree.NotEnoughHashesError) as le:
                 raise BadOrMissingHash(le)
         d.addCallback(_got_crypttext_hashes)
         return d
@@ -359,7 +359,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
         sharehashes, blockhashes, blockdata = results
         try:
             sharehashes = dict(sharehashes)
-        except ValueError, le:
+        except ValueError as le:
             le.args = tuple(le.args + (sharehashes,))
             raise
         blockhashes = dict(enumerate(blockhashes))
@@ -373,7 +373,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
                 # match the root node of self.share_hash_tree.
                 try:
                     self.share_hash_tree.set_hashes(sharehashes)
-                except IndexError, le:
+                except IndexError as le:
                     # Weird -- sharehashes contained index numbers outside of
                     # the range that fit into this hash tree.
                     raise BadOrMissingHash(le)
@@ -400,7 +400,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             #        (self.sharenum, blocknum, len(blockdata),
             #         blockdata[:50], blockdata[-50:], base32.b2a(blockhash)))
 
-        except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
+        except (hashtree.BadHashError, hashtree.NotEnoughHashesError) as le:
             # log.WEIRD: indicates undetected disk/network error, or more
             # likely a programming error
             self.log("hash failure in block=%d, shnum=%d on %s" %

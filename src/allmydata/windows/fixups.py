@@ -143,7 +143,7 @@ def initialize():
                     if self._hConsole is None:
                         try:
                             self._stream.flush()
-                        except Exception, e:
+                        except Exception as e:
                             _complain("%s.flush: %r from %r" % (self.name, e, self._stream))
                             raise
 
@@ -169,7 +169,7 @@ def initialize():
                                 remaining -= n.value
                                 if remaining == 0: break
                                 text = text[n.value:]
-                    except Exception, e:
+                    except Exception as e:
                         _complain("%s.write: %r" % (self.name, e))
                         raise
 
@@ -177,7 +177,7 @@ def initialize():
                     try:
                         for line in lines:
                             self.write(line)
-                    except Exception, e:
+                    except Exception as e:
                         _complain("%s.writelines: %r" % (self.name, e))
                         raise
 
@@ -190,7 +190,7 @@ def initialize():
                 sys.stderr = UnicodeOutput(hStderr, None, STDERR_FILENO, '<Unicode console stderr>')
             else:
                 sys.stderr = UnicodeOutput(None, sys.stderr, old_stderr_fileno, '<Unicode redirected stderr>')
-    except Exception, e:
+    except Exception as e:
         _complain("exception %r while fixing up sys.stdout and sys.stderr" % (e,))
 
     # This works around <http://bugs.python.org/issue2128>.
@@ -221,7 +221,7 @@ def initialize():
 
     try:
         argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in xrange(0, argc.value)]
-    except Exception, e:
+    except Exception as e:
         _complain("%s:  could not unmangle Unicode arguments.\n%r"
                   % (sys.argv[0], [argv_unicode[i] for i in xrange(0, argc.value)]))
         raise

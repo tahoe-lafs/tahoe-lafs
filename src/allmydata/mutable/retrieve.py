@@ -756,7 +756,7 @@ class Retrieve(object):
             try:
                 bht.set_hashes(blockhashes)
             except (hashtree.BadHashError, hashtree.NotEnoughHashesError, \
-                    IndexError), e:
+                    IndexError) as e:
                 raise CorruptShareError(server,
                                         reader.shnum,
                                         "block hash tree failure: %s" % e)
@@ -770,7 +770,7 @@ class Retrieve(object):
         try:
            bht.set_hashes(leaves={segnum: blockhash})
         except (hashtree.BadHashError, hashtree.NotEnoughHashesError, \
-                IndexError), e:
+                IndexError) as e:
             raise CorruptShareError(server,
                                     reader.shnum,
                                     "block hash tree failure: %s" % e)
@@ -788,7 +788,7 @@ class Retrieve(object):
             self.share_hash_tree.set_hashes(hashes=sharehashes,
                                         leaves={reader.shnum: bht[0]})
         except (hashtree.BadHashError, hashtree.NotEnoughHashesError, \
-                IndexError), e:
+                IndexError) as e:
             raise CorruptShareError(server,
                                     reader.shnum,
                                     "corrupt hashes: %s" % e)

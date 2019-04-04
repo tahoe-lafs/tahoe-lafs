@@ -24,7 +24,7 @@ def check_location(options, where):
         nodeurl += "/"
     try:
         rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     if path == '/':
@@ -285,7 +285,7 @@ class DeepCheckStreamer(LineOnlyReceiver):
 
         try:
             rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
+        except UnknownAliasError as e:
             e.display(stderr)
             return 1
         if path == '/':

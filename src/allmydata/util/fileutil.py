@@ -37,7 +37,7 @@ def rename(src, dst, tries=4, basedelay=0.1):
     for i in range(tries-1):
         try:
             return os.rename(src, dst)
-        except EnvironmentError, le:
+        except EnvironmentError as le:
             # XXX Tighten this to check if this is a permission denied error (possibly due to another Windows process having the file open and execute the superkludge only in this case.
             log.msg("XXX KLUDGE Attempting to move file %s => %s; got %s; sleeping %s seconds" % (src, dst, le, basedelay,))
             time.sleep(basedelay)
@@ -65,7 +65,7 @@ def remove(f, tries=4, basedelay=0.1):
     for i in range(tries-1):
         try:
             return os.remove(f)
-        except EnvironmentError, le:
+        except EnvironmentError as le:
             # XXX Tighten this to check if this is a permission denied error (possibly due to another Windows process having the file open and execute the superkludge only in this case.
             if not os.path.exists(f):
                 return
@@ -183,7 +183,7 @@ def make_dirs(dirname, mode=0o777):
     tx = None
     try:
         os.makedirs(dirname, mode)
-    except OSError, x:
+    except OSError as x:
         tx = x
 
     if not os.path.isdir(dirname):
@@ -210,7 +210,7 @@ def rm_dir(dirname):
             else:
                 remove(fullname)
         os.rmdir(dirname)
-    except Exception, le:
+    except Exception as le:
         # Ignore "No such file or directory"
         if (not isinstance(le, OSError)) or le.args[0] != 2:
             excs.append(le)

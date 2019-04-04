@@ -274,7 +274,7 @@ class FakeCHKFileNode:
             return self.my_uri.get_size()
         try:
             data = self.all_contents[self.my_uri.to_string()]
-        except KeyError, le:
+        except KeyError as le:
             raise NotEnoughSharesError(le, 0, 3)
         return len(data)
     def get_current_size(self):

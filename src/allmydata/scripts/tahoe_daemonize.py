@@ -206,7 +206,7 @@ def daemonize(config):
     twistd_config = MyTwistdConfig()
     try:
         twistd_config.parseOptions(twistd_args)
-    except usage.error, ue:
+    except usage.error as ue:
         # these arguments were unsuitable for 'twistd'
         print(config, file=err)
         print("tahoe %s: usage error from twistd: %s\n" % (config.subcommand_name, ue), file=err)

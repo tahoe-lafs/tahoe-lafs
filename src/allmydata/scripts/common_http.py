@@ -70,7 +70,7 @@ def do_http(method, url, body=""):
 
     try:
         c.endheaders()
-    except socket_error, err:
+    except socket_error as err:
         return BadResponse(url, err)
 
     while True:

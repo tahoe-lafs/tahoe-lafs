@@ -22,7 +22,7 @@ def mv(options, mode="move"):
         nodeurl += "/"
     try:
         rootcap, from_path = get_alias(aliases, from_file, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     from_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
@@ -40,7 +40,7 @@ def mv(options, mode="move"):
     # now get the target
     try:
         rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     to_url = nodeurl + "uri/%s" % urllib.quote(rootcap)

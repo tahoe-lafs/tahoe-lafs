@@ -42,7 +42,7 @@ class Blacklist:
                     si = base32.a2b(si_s) # must be valid base32
                     self.entries[si] = reason
                 self.last_mtime = current_mtime
-        except Exception, e:
+        except Exception as e:
             twisted_log.err(e, "unparseable blacklist file")
             raise
 

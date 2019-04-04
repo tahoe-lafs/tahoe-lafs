@@ -234,7 +234,7 @@ def dump_SDMF_share(m, length, options):
 
     try:
         pieces = unpack_share(data)
-    except NeedMoreDataError, e:
+    except NeedMoreDataError as e:
         # retry once with the larger size
         size = e.needed_bytes
         f = open(options['filename'], "rb")
@@ -726,7 +726,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
 
             try:
                 pieces = unpack_share(data)
-            except NeedMoreDataError, e:
+            except NeedMoreDataError as e:
                 # retry once with the larger size
                 size = e.needed_bytes
                 f.seek(m.DATA_OFFSET)

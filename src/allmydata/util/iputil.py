@@ -214,7 +214,7 @@ def _query(path, args, regex):
             p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
             (output, err) = p.communicate()
             break
-        except OSError, e:
+        except OSError as e:
             if e.errno == errno.EINTR and trial < TRIES-1:
                 continue
             raise

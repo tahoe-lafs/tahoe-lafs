@@ -294,7 +294,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
                 left = p["remaining-sleep-time"]
                 self.failUnless(isinstance(left, float), left)
                 self.failUnless(left > 0.0, left)
-            except Exception, e:
+            except Exception as e:
                 did_check_progress[0] = e
             else:
                 did_check_progress[0] = True

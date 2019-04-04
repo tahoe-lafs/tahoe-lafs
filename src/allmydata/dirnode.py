@@ -402,7 +402,7 @@ class DirectoryNode(object):
                     log.msg(format="mutable cap for child %(name)s unpacked from an immutable directory",
                             name=quote_output(name, encoding='utf-8'),
                             facility="tahoe.webish", level=log.UNUSUAL)
-            except CapConstraintError, e:
+            except CapConstraintError as e:
                 log.msg(format="unmet constraint on cap for child %(name)s unpacked from a directory:\n"
                                "%(message)s", message=e.args[0], name=quote_output(name, encoding='utf-8'),
                                facility="tahoe.webish", level=log.UNUSUAL)

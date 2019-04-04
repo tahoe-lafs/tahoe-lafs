@@ -20,7 +20,7 @@ def list(options):
         where = where[:-1]
     try:
         rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)
@@ -54,7 +54,7 @@ def list(options):
 
     try:
         parsed = json.loads(data)
-    except Exception, e:
+    except Exception as e:
         print("error: %s" % quote_output(e.args[0], quotemarks=False), file=stderr)
         print("Could not parse JSON response:", file=stderr)
         print(quote_output(data, quotemarks=False), file=stderr)
