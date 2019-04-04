@@ -28,7 +28,7 @@ if [ -n "${ARTIFACTS}" ]; then
     # case where we expect not to end up here.
 
     # Make sure we can actually write things to this directory.
-    sudo --user nobody mkdir -p "${ARTIFACTS}"
+    mkdir -p "${ARTIFACTS}"
 
     SUBUNIT2="${ARTIFACTS}"/results.subunit2
 
