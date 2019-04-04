@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
+set -euxo pipefail
+
 # Script to install Tor
 
 set -ex
