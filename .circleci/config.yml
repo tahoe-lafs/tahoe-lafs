@@ -166,6 +166,10 @@ jobs:
   integration:
     <<: *DEBIAN
 
+    docker:
+      - image: "tahoelafsci/debian:9-tor"
+        user: "nobody"
+
     environment:
       <<: *UTF_8_ENVIRONMENT
       # Select the integration tests tox environments.
@@ -173,16 +177,10 @@ jobs:
       # Disable artifact collection because py.test can't produce any.
       ARTIFACTS_OUTPUT_PATH: ""
 
-
     steps:
       - "checkout"
       # DRY, YAML-style.  See the debian-9 steps.
       - run: *SETUP_VIRTUALENV
-      - run:
-          name: "Install Tor"
-          command: |
-            # Don't forget that we moved the source tree to /tmp.
-            /tmp/project/integration/install-tor.sh
       - run: *RUN_TESTS
 
 
@@ -420,3 +418,11 @@ jobs:
             # Dockerhub web interface) before anything can be pushed to it.
             docker push tahoelafsci/ubuntu:16.04
             docker push tahoelafsci/ubuntu:18.04
+      - run:
+          name: "Build Tor-enabled image"
+          command: |
+            docker build -t tahoelafsci/debian:9-tor -f ~/project/.circleci/Dockerfile.debian-9-tor ~/project/
+      - run:
+          name: "Push Tor-enabled image"
+          command: |
+            docker push tahoelafsci/debian:9-tor
