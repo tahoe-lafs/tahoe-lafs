@@ -84,7 +84,10 @@ jobs:
 
     steps:
       - "checkout"
-
+      - run:
+          name: "Fix permissions"
+          command: |
+            chown --recursive nobody:nogroup /tmp/project
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
           command: |
