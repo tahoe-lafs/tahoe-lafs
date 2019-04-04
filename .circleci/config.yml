@@ -86,14 +86,15 @@ jobs:
           command: |
             ~/project/.circleci/bootstrap-test-environment.sh ~/project
 
-
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
           # pip cannot install packages if the working directory is not
           # readable.
           working_directory: "/tmp"
           command: |
-            /tmp/project/.circleci/setup-virtualenv.sh \
+            sudo --set-home -u nobody /tmp/project/.circleci/create-virtualenv.sh "${WHEELHOUSE_PATH}" "/tmp/tests"
+            sudo --set-home -u nobody /tmp/project/.circleci/populate-wheelhouse.sh "${WHEELHOUSE_PATH}" "/tmp/tests" "/tmp/project"
+            sudo --set-home -u nobody /tmp/project/.circleci/setup-virtualenv.sh \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
 
