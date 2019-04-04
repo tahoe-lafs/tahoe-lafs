@@ -23,7 +23,7 @@ usermod --home /tmp/nobody nobody
 
 # Grant read access to nobody, the user which will eventually try to test this
 # checkout.
-chown --recursive nobody:nogroup "${PROJECT_ROOT}"
+chown --recursive nobody:$(id --group nobody) "${PROJECT_ROOT}"
 
 sudo --set-home -u nobody "${PROJECT_ROOT}"/.circleci/create-virtualenv.sh "${WHEELHOUSE_PATH}" "${BOOTSTRAP_VENV}"
 sudo --set-home -u nobody "${PROJECT_ROOT}"/.circleci/populate-wheelhouse.sh "${WHEELHOUSE_PATH}" "${BOOTSTRAP_VENV}" "${PROJECT_ROOT}"
