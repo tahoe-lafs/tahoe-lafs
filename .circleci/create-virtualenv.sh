@@ -1,4 +1,7 @@
-#!/bin/bash -eo pipefail
+#!/bin/bash
+
+# https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
+set -euxo pipefail
 
 # The filesystem location of the wheelhouse which we'll populate with wheels
 # for all of our dependencies.
