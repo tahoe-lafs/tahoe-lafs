@@ -35,6 +35,9 @@ if [ -n "${ARTIFACTS}" ]; then
     # Use an intermediate directory here because CircleCI extracts some label
     # information from its name.
     JUNITXML="${ARTIFACTS}"/junit/unittests/results.xml
+else
+    SUBUNIT2=""
+    JUNITXML=""
 fi
 
 # Run the test suite as a non-root user.  This is the expected usage some
