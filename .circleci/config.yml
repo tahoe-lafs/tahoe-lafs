@@ -127,7 +127,6 @@ jobs:
 
       - run: &SUBMIT_COVERAGE
           name: "Submit coverage results"
-          working_directory: "/tmp/project"
           command: |
             /tmp/venv/bin/codecov
 
