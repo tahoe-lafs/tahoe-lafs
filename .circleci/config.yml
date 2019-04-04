@@ -80,7 +80,7 @@ jobs:
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
-    working_directory: "/tmp"
+    working_directory: "/tmp/project"
 
     steps:
       - "checkout"
