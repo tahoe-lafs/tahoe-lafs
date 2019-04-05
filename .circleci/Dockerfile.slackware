@@ -42,8 +42,8 @@ RUN slackpkg install \
     python get-pip.py && \
     pip install virtualenv
 
-# Get the project source.  Copying in the whole project source here isn't very
-# cache friendly but there's no Docker layer cache on CircleCI anyway!
+# Get the project source.  This is better than it seems.  CircleCI will
+# *update* this checkout on each job run, saving us more time per-job.
 COPY . ${BUILD_SRC_ROOT}
 
 RUN "${BUILD_SRC_ROOT}"/.circleci/prepare-image.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}"
