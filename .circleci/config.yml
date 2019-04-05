@@ -49,8 +49,6 @@ workflows:
             branches:
               only:
                 - "master"
-                # Not sure if this is meaningful
-                - "3024.faster-circleci-builds"
 
     jobs:
       - "build-image-debian-8"
