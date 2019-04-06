@@ -27,6 +27,9 @@ shift || :
 # Tell pip where it can find any existing wheels.
 export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
 
+# Don't let it look elsewhere.
+export PIP_NO_INDEX="1"
+
 # Get everything else installed in it, too.
 "${BOOTSTRAP_VENV}"/bin/tox \
      -c "${PROJECT_ROOT}"/tox.ini \
