@@ -8,15 +8,15 @@ ENV BUILD_SRC_ROOT /tmp/project
 
 RUN apt-get --quiet update && \
     apt-get --quiet --yes install \
-    	git \
+        git \
         sudo \
-    	build-essential \
-	python2.7 \
-    	python2.7-dev \
-    	libffi-dev \
-    	libssl-dev \
-    	libyaml-dev \
-    	virtualenv
+        build-essential \
+        python2.7 \
+        python2.7-dev \
+        libffi-dev \
+        libssl-dev \
+        libyaml-dev \
+        virtualenv
 
 # Get the project source.  This is better than it seems.  CircleCI will
 # *update* this checkout on each job run, saving us more time per-job.
@@ -36,12 +36,12 @@ ENV BUILD_SRC_ROOT /tmp/project
 # Install just the runtime dependencies of Tahoe-LAFS
 RUN apt-get --quiet update && \
     apt-get --quiet --yes install \
-	python2.7 \
-    	libffi6 \
-    	libssl1.1 \
-    	libyaml-0-2 \
-	virtualenv && \
         git \
+        python2.7 \
+        libffi6 \
+        libssl1.1 \
+        libyaml-0-2 \
+        virtualenv && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder ${VIRTUALENV_PATH} ${VIRTUALENV_PATH}

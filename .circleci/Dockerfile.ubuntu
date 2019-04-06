@@ -12,15 +12,15 @@ RUN apt-get --quiet update && \
     apt-get --quiet --yes install git && \
     apt-get --quiet --yes install \
         sudo \
-    	build-essential \
-	python2.7 \
-    	python2.7-dev \
-    	libffi-dev \
-    	libssl-dev \
-    	libyaml-dev \
-    	virtualenv \
-	language-pack-en \
-	iproute2
+        build-essential \
+        on2.7 \
+        python2.7-dev \
+        libffi-dev \
+        libssl-dev \
+        libyaml-dev \
+        virtualenv \
+        uage-pack-en \
+        iproute2
 
 # Get the project source.  This is better than it seems.  CircleCI will
 # *update* this checkout on each job run, saving us more time per-job.
