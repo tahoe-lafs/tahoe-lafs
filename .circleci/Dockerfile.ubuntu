@@ -19,7 +19,7 @@ RUN apt-get --quiet update && \
         libssl-dev \
         libyaml-dev \
         virtualenv \
-        uage-pack-en \
+        language-pack-en \
         iproute2
 
 # Get the project source.  This is better than it seems.  CircleCI will
