@@ -40,7 +40,7 @@ export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
 "${PIP}" \
     wheel \
     --wheel-dir "${WHEELHOUSE_PATH}" \
-    "${PROJECT_ROOT}" \
+    "${PROJECT_ROOT}"[test,tor,i2p] \
     ${BASIC_DEPS} \
     ${TEST_DEPS} \
     ${REPORTING_DEPS}
