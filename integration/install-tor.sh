@@ -5,12 +5,18 @@ set -euxo pipefail
 
 CODENAME=$(lsb_release --short --codename)
 
-# Script to install Tor
-echo "deb http://deb.torproject.org/torproject.org ${CODENAME} main" | sudo tee -a /etc/apt/sources.list
-echo "deb-src http://deb.torproject.org/torproject.org ${CODENAME} main" | sudo tee -a /etc/apt/sources.list
+if [ "$(id -u)" != "0" ]; then
+    SUDO="sudo"
+else
+    SUDO=""
+fi
 
-# Install Tor repo signing key
-sudo apt-key add - <<EOF
+# Script to install Tor
+echo "deb http://deb.torproject.org/torproject.org ${CODENAME} main" | ${SUDO} tee -a /etc/apt/sources.list
+echo "deb-src http://deb.torproject.org/torproject.org ${CODENAME} main" | ${SUDO} tee -a /etc/apt/sources.list
+
+# # Install Tor repo signing key
+${SUDO} apt-key add - <<EOF
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mQENBEqg7GsBCACsef8koRT8UyZxiv1Irke5nVpte54TDtTl1za1tOKfthmHbs2I
@@ -710,5 +716,5 @@ I4Tesw==
 -----END PGP PUBLIC KEY BLOCK-----
 EOF
 
-sudo apt-get --quiet update
-sudo apt-get --quiet --yes install tor deb.torproject.org-keyring
+${SUDO} apt-get --quiet update
+${SUDO} apt-get --quiet --yes install tor deb.torproject.org-keyring
