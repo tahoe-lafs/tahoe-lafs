@@ -1,5 +1,5 @@
 ARG TAG
-FROM debian:${TAG}
+FROM debian:${TAG} as builder
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
 ENV VIRTUALENV_PATH /tmp/venv
@@ -9,7 +9,6 @@ ENV BUILD_SRC_ROOT /tmp/project
 RUN apt-get --quiet update && \
     apt-get --quiet --yes install \
     	git \
-	lsb-release \
         sudo \
     	build-essential \
 	python2.7 \
@@ -25,7 +24,31 @@ COPY . ${BUILD_SRC_ROOT}
 
 RUN "${BUILD_SRC_ROOT}"/.circleci/prepare-image.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}"
 
+FROM debian:${TAG}
+
+# Yea, we get to specify all of these a second time!
+ENV WHEELHOUSE_PATH /tmp/wheelhouse
+ENV VIRTUALENV_PATH /tmp/venv
+ENV BUILD_SRC_ROOT /tmp/project
+
+RUN apt-get --quiet update && \
+    apt-get --quiet --yes install \
+	python2.7 \
+    	libffi6 \
+    	libssl1.1 \
+    	libyaml-0-2 \
+	virtualenv && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder ${VIRTUALENV_PATH} ${VIRTUALENV_PATH}
+COPY --from=builder ${BUILD_SRC_ROOT} ${BUILD_SRC_ROOT}
+COPY --from=builder ${WHEELHOUSE_PATH} ${WHEELHOUSE_PATH}
+
 # Only the integration tests currently need this but it doesn't hurt to always
 # have it present and it's simpler than building a whole extra image just for
 # the integration tests.
-RUN ${BUILD_SRC_ROOT}/integration/install-tor.sh
+RUN apt-get --quiet update && \
+    apt-get --yes install lsb-release gnupg2 && \
+    ${BUILD_SRC_ROOT}/integration/install-tor.sh && \
+    apt-get --yes remove lsb-release gnupg2 && \
+    rm -rf /var/lib/apt/lists/*
