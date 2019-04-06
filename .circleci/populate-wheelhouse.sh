@@ -3,6 +3,10 @@
 # https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
 set -euxo pipefail
 
+# Basic Python packages that you just need to have around to do anything,
+# practically speaking.
+BASIC_DEPS="pip wheel"
+
 # Python packages we need to support the test infrastructure.  *Not* packages
 # Tahoe-LAFS itself (implementation or test suite) need.
 TEST_DEPS="tox codecov"
@@ -37,10 +41,13 @@ export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
     wheel \
     --wheel-dir "${WHEELHOUSE_PATH}" \
     "${PROJECT_ROOT}" \
+    ${BASIC_DEPS} \
     ${TEST_DEPS} \
     ${REPORTING_DEPS}
 
-# Not strictly wheelhouse population but ...
+# Not strictly wheelhouse population but ... Note we omit basic deps here.
+# They're in the wheelhouse if Tahoe-LAFS wants to drag them in but it will
+# have to ask.
 "${PIP}" \
     install \
     ${TEST_DEPS} \
