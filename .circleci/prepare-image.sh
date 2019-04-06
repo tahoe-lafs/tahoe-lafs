@@ -18,12 +18,20 @@ shift
 PROJECT_ROOT="$1"
 shift
 
+# Most stuff is going to run as nobody.  Here's a helper to make sure nobody
+# can access necessary files.
+CHOWN_NOBODY="chown --recursive nobody:$(id --group nobody)"
+
 # Avoid the /nonexistent home directory in nobody's /etc/passwd entry.
 usermod --home /tmp/nobody nobody
 
 # Grant read access to nobody, the user which will eventually try to test this
 # checkout.
-chown --recursive nobody:$(id --group nobody) "${PROJECT_ROOT}"
+${CHOWN_NOBODY} "${PROJECT_ROOT}"
+
+# Create a place for some wheels to live.
+mkdir "${WHEELHOUSE_PATH}"
+${CHOWN_NOBODY} "${WHEELHOUSE_PATH}"
 
 sudo --set-home -u nobody "${PROJECT_ROOT}"/.circleci/create-virtualenv.sh "${WHEELHOUSE_PATH}" "${BOOTSTRAP_VENV}"
 sudo --set-home -u nobody "${PROJECT_ROOT}"/.circleci/populate-wheelhouse.sh "${WHEELHOUSE_PATH}" "${BOOTSTRAP_VENV}" "${PROJECT_ROOT}"
