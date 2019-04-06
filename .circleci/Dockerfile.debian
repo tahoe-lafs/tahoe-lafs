@@ -51,4 +51,5 @@ RUN apt-get --quiet update && \
     apt-get --yes install lsb-release gnupg2 && \
     ${BUILD_SRC_ROOT}/integration/install-tor.sh && \
     apt-get --yes remove lsb-release gnupg2 && \
+    apt-get --yes autoremove && \
     rm -rf /var/lib/apt/lists/*
