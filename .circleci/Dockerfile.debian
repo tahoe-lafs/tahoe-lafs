@@ -33,6 +33,7 @@ ENV WHEELHOUSE_PATH /tmp/wheelhouse
 ENV VIRTUALENV_PATH /tmp/venv
 ENV BUILD_SRC_ROOT /tmp/project
 
+# Install just the runtime dependencies of Tahoe-LAFS
 RUN apt-get --quiet update && \
     apt-get --quiet --yes install \
 	python2.7 \
@@ -40,6 +41,7 @@ RUN apt-get --quiet update && \
     	libssl1.1 \
     	libyaml-0-2 \
 	virtualenv && \
+        git \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder ${VIRTUALENV_PATH} ${VIRTUALENV_PATH}
