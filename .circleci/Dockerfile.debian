@@ -22,6 +22,8 @@ RUN apt-get --quiet update && \
 # *update* this checkout on each job run, saving us more time per-job.
 COPY . ${BUILD_SRC_ROOT}
 
+RUN "${BUILD_SRC_ROOT}"/.circleci/fix-permissions.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}"
+
 RUN "${BUILD_SRC_ROOT}"/.circleci/prepare-image.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}"
 
 FROM debian:${TAG}
@@ -43,6 +45,8 @@ RUN apt-get --quiet update && \
 COPY --from=builder ${VIRTUALENV_PATH} ${VIRTUALENV_PATH}
 COPY --from=builder ${BUILD_SRC_ROOT} ${BUILD_SRC_ROOT}
 COPY --from=builder ${WHEELHOUSE_PATH} ${WHEELHOUSE_PATH}
+
+RUN "${BUILD_SRC_ROOT}"/.circleci/fix-permissions.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}"
 
 # Only the integration tests currently need this but it doesn't hurt to always
 # have it present and it's simpler than building a whole extra image just for
