@@ -18,5 +18,6 @@ shift
 PROJECT_ROOT="$1"
 shift
 
+"${PROJECT_ROOT}"/.circleci/fix-permissions.sh "${WHEELHOUSE_PATH}" "${BOOTSTRAP_VENV}" "${PROJECT_ROOT}"
 sudo --set-home -u nobody "${PROJECT_ROOT}"/.circleci/create-virtualenv.sh "${WHEELHOUSE_PATH}" "${BOOTSTRAP_VENV}"
 sudo --set-home -u nobody "${PROJECT_ROOT}"/.circleci/populate-wheelhouse.sh "${WHEELHOUSE_PATH}" "${BOOTSTRAP_VENV}" "${PROJECT_ROOT}"
