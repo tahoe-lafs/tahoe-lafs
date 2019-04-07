@@ -13,7 +13,7 @@ RUN apt-get --quiet update && \
     apt-get --quiet --yes install \
         sudo \
         build-essential \
-        on2.7 \
+        python2.7 \
         python2.7-dev \
         libffi-dev \
         libssl-dev \
