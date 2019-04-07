@@ -1,5 +1,5 @@
 ARG TAG
-FROM debian:${TAG} as builder
+FROM debian:${TAG}
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
 ENV VIRTUALENV_PATH /tmp/venv
@@ -8,54 +8,24 @@ ENV BUILD_SRC_ROOT /tmp/project
 
 RUN apt-get --quiet update && \
     apt-get --quiet --yes install \
-        git \
+    	git \
+	lsb-release \
         sudo \
-        build-essential \
-        python2.7 \
-        python2.7-dev \
-        libffi-dev \
-        libssl-dev \
-        libyaml-dev \
-        virtualenv
+    	build-essential \
+	python2.7 \
+    	python2.7-dev \
+    	libffi-dev \
+    	libssl-dev \
+    	libyaml-dev \
+    	virtualenv
 
 # Get the project source.  This is better than it seems.  CircleCI will
 # *update* this checkout on each job run, saving us more time per-job.
 COPY . ${BUILD_SRC_ROOT}
 
-RUN "${BUILD_SRC_ROOT}"/.circleci/fix-permissions.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}"
-
 RUN "${BUILD_SRC_ROOT}"/.circleci/prepare-image.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}"
-
-FROM debian:${TAG}
-
-# Yea, we get to specify all of these a second time!
-ENV WHEELHOUSE_PATH /tmp/wheelhouse
-ENV VIRTUALENV_PATH /tmp/venv
-ENV BUILD_SRC_ROOT /tmp/project
-
-# Install just the runtime dependencies of Tahoe-LAFS
-RUN apt-get --quiet update && \
-    apt-get --quiet --yes install \
-        git \
-        python2.7 \
-        libffi6 \
-        libssl1.1 \
-        libyaml-0-2 \
-        virtualenv && \
-    rm -rf /var/lib/apt/lists/*
-
-COPY --from=builder ${VIRTUALENV_PATH} ${VIRTUALENV_PATH}
-COPY --from=builder ${BUILD_SRC_ROOT} ${BUILD_SRC_ROOT}
-COPY --from=builder ${WHEELHOUSE_PATH} ${WHEELHOUSE_PATH}
-
-RUN "${BUILD_SRC_ROOT}"/.circleci/fix-permissions.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}"
 
 # Only the integration tests currently need this but it doesn't hurt to always
 # have it present and it's simpler than building a whole extra image just for
 # the integration tests.
-RUN apt-get --quiet update && \
-    apt-get --yes install lsb-release gnupg2 && \
-    ${BUILD_SRC_ROOT}/integration/install-tor.sh && \
-    apt-get --yes remove lsb-release gnupg2 && \
-    apt-get --yes autoremove && \
-    rm -rf /var/lib/apt/lists/*
+RUN ${BUILD_SRC_ROOT}/integration/install-tor.sh
