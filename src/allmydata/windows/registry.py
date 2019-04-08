@@ -40,7 +40,7 @@ def get_registry_setting(key, name, _topkey=None):
         except WindowsError:
             continue
     # We didn't find the key:
-    raise KeyError, (key, name, "registry setting not found")
+    raise KeyError(key, name, "registry setting not found")
 
 def set_registry_setting(key, name, data, reg_type=_winreg.REG_SZ,
                          _topkey=_winreg.HKEY_LOCAL_MACHINE, create_key_if_missing=True):
@@ -55,7 +55,7 @@ def set_registry_setting(key, name, data, reg_type=_winreg.REG_SZ,
         if create_key_if_missing:
             regkey = _winreg.CreateKey(_topkey, key)
         else:
-            raise KeyError, (key, "registry key not found")
+            raise KeyError(key, "registry key not found")
 
     try:
         _winreg.DeleteValue(regkey, name)

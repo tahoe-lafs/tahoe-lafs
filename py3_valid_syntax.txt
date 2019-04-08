@@ -1,14 +1,6 @@
 docs/
 integration/
-misc/build_helpers/check-build.py
-misc/build_helpers/gen-package-table.py
-misc/build_helpers/run-deprecations.py
-misc/build_helpers/show-tool-versions.py
-misc/build_helpers/test-osx-pkg.py
-misc/coding_tools/
-misc/incident-gatherer/
-misc/operations_helpers/
-misc/simulators/
+misc/
 release-tools/
 setup.py
 src/allmydata/_auto_deps.py
@@ -20,6 +12,7 @@ src/allmydata/control.py
 src/allmydata/deep_stats.py
 src/allmydata/frontends/auth.py
 src/allmydata/frontends/__init__.py
+src/allmydata/frontends/magic_folder.py
 src/allmydata/hashtree.py
 src/allmydata/history.py
 src/allmydata/immutable/checker.py
@@ -35,6 +28,7 @@ src/allmydata/immutable/layout.py
 src/allmydata/immutable/literal.py
 src/allmydata/immutable/offloaded.py
 src/allmydata/immutable/repairer.py
+src/allmydata/__init__.py
 src/allmydata/interfaces.py
 src/allmydata/introducer/
 src/allmydata/magicfolderdb.py
@@ -125,6 +119,7 @@ src/allmydata/test/test_client.py
 src/allmydata/test/test_configutil.py
 src/allmydata/test/test_connections.py
 src/allmydata/test/test_crawler.py
+src/allmydata/test/test_dirnode.py
 src/allmydata/test/test_eliotutil.py
 src/allmydata/test/test_encode.py
 src/allmydata/test/test_encodingutil.py
@@ -168,6 +163,7 @@ src/allmydata/test/web/test_util.py
 src/allmydata/unknown.py
 src/allmydata/uri.py
 src/allmydata/util/abbreviate.py
+src/allmydata/util/assertutil.py
 src/allmydata/util/base32.py
 src/allmydata/util/base62.py
 src/allmydata/util/cachedir.py
@@ -178,6 +174,8 @@ src/allmydata/util/dbutil.py
 src/allmydata/util/deferredutil.py
 src/allmydata/util/dictutil.py
 src/allmydata/util/eliotutil.py
+src/allmydata/util/fake_inotify.py
+src/allmydata/util/fileutil.py
 src/allmydata/util/hashutil.py
 src/allmydata/util/i2p_provider.py
 src/allmydata/util/idlib.py
@@ -199,6 +197,7 @@ src/allmydata/util/repeatable_random.py
 src/allmydata/util/rrefutil.py
 src/allmydata/util/sibpath.py
 src/allmydata/util/statistics.py
+src/allmydata/util/time_format.py
 src/allmydata/util/tor_provider.py
 src/allmydata/util/verlib.py
 src/allmydata/util/yamlutil.py
@@ -206,7 +205,8 @@ src/allmydata/_version.py
 src/allmydata/watchdog/
 src/allmydata/web/
 src/allmydata/windows/__init__.py
+src/allmydata/windows/inotify.py
+src/allmydata/windows/registry.py
 src/allmydata/windows/tahoesvc.py
 static/
-static/tahoe.py
 ws_client.py
