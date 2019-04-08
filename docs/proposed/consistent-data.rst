@@ -27,15 +27,19 @@ Representing dependency graph
 
 Causal consistency model is a stronger form of eventual consistency that
 guarantees ordering between modifications that may have causal relationship.
-That is, writes that came after read of particular state will always be
-observed by all nodes as happening after given state.
-This model has the advantage of being very easily representable as a directed
-graph of nodes encoding events and vertices the happened-after relationship,
-which is the same model underlying commits and branches in most DVCSes such as
-git.
+That is, writes that came after reading of a particular state will always be
+observed by all nodes as happening after a given state.
+
+This model has the advantage of being very easily representable as a
+directed graph of nodes (encoding events) and vertices (encoding the
+"happened-after" relationship). This is the same model underlying
+commits and branches in most Distributed Version Control Systems
+(DVCSes) such as git.
+
 This in turn has fairly natural encoding using immutable files and directories
 in Tahoe-LAFS so the full log of events can be stored in the grid and
-deduplicated easily, or stored at each node for full availability.
+de-duplicated easily, or stored at each node for full availability.
+
 For each data update (commit) we need to store the difference to original state
 (such as the operation performed on a CRDT) and the list of previous states it
 has seen.
@@ -52,46 +56,53 @@ For example::
       'data': File(...),
    })
 
-would represent single update with a single parent, the directory entry ``0``
-referring to another such update recursively until initial update with no
-parents is encountered.
-This way full modification graph will be referencable by just holding the
+would represent a single update with a single parent, the directory
+entry ``0`` referring to another such update recursively until the
+initial update (with no parents) is encountered.
+
+This way a full modification graph will be referencable by just holding the
 reference to the set of latest updates and periodic renewal would prevent it
 from being garbage collected.
 
-Pruning and compaction of history is currently not addressed by this proposal
-and would likely benefit from different encoding scheme that does not
-transitively reference whole history using directory references.
+Pruning and compaction of history is currently not addressed by this
+proposal and would likely benefit from a different encoding scheme
+that does not transitively reference the whole history using directory
+references.
+
 
 Rationale for consistency level chosen
 --------------------------------------
 
 There are many ways in which multi-writer concurrency can be handled in a
 distributed system.
-Choosing the correct one comes down to trade-off between availability under
-partition and consistency level offered.
-One of the goals of Tahoe-LAFS is to provide storage grid that can retain data
-that is accessible even when large amount of nodes go down and is able to work
-with little to no central coordination.
-Working with data store though should come with as little surprises as possible
-and the behaviour should be predictable to humans, requiring easy to understand
-model.
 
-The causal consistency model offers for availability under partition and
+Choosing the correct one comes down to a trade-off between availability under
+partition and consistency level offered.
+
+One of the goals of Tahoe-LAFS is to provide a storage grid that can
+retain data that is accessible even when large amount of nodes go down
+and is able to work with little to no central coordination.
+
+Working with data storage should come with as few surprises as
+possible and the behaviour should be predictable to humans. This
+requires an easy-to-understand model.
+
+The causal consistency model offers availability under partition and
 generates partial order so each node can follow causal order of operations,
-resulting fairly predictable behaviour. It can't prevent concurrent updates to
-single entry, but overlaying such model with convergent function to resolve
+resulting in fairly predictable behaviour. It can't prevent concurrent updates to
+a single entry, but overlaying such a model with a convergent function to resolve
 conflicts
 (sometimes called *causal+ consistency*)
 and requiring that there are no rollbacks to past states
 (aka *real time causal consistency*, the strongest highly-available model)
 allows us to arrive at the same result at each participating node without
-loosing any update.
+losing any update.
 
 Causal model is *sticky-available* meaning it requires each client to go
 through only one node to access the data for both reads and writes. This is
-expected to be true under Tahoe-LAFS as running a node on each client to
+expected to be true under Tahoe-LAFS when running a node on each client to
 preserve the end-to-end encryption guarantees.
+
 
 Convergence for directory structures
 ------------------------------------
@@ -109,10 +120,10 @@ For representing directory contents an *observed-removed map*
 may be used.
 The observed-removed set and map data structures use unique tags when adding
 new entries that is used for any subsequent operation on them.
-This avoids conflicting concurrent writes to same key being conflated with each
+This avoids conflicting concurrent writes to the same key being conflated with each
 other and allows us to implement deterministic renaming scheme to handle such
-collisions without data loss (as opposed to last-write-wins type of structure).
-It also allows items to be added and removed arbitrary amount of times as
+collisions without data loss (as opposed to a "last write wins" type of structure).
+It also allows items to be added and removed an arbitrary amount of times as
 opposed to grow-only or tombstone-based sets and maps.
 
 The core operations on OR-map are::
@@ -174,6 +185,7 @@ under the new name of ``"parrot.renamed.t1"`` even if steps 2 and 3 are
 performed as atomic operation with the value under tag ``"t2"`` never being
 visible.
 
+
 Providing consistency over data structure hierarchy
 ---------------------------------------------------
 
@@ -230,7 +242,7 @@ Another need for communication would come from implementation of history
 compaction and pruning, which may be necessary for keeping the metadata
 overhead to a reasonable level.
 In that case we would need to know which updates did each node already read and
-merge into it's internal state, so they don't have to be kept from garbage
+merge into its internal state, so they don't have to be kept from garbage
 collection anymore.
 
 Ideally we would want an end-to-end encrypted publish-subscribe protocol
@@ -255,7 +267,7 @@ Durability, latency and data locality
 -------------------------------------
 
 Literature about CRDTs and consistency of distributed systems generally assumes
-that each node retains it's own copy of all relevant data.
+that each node retains its own copy of all relevant data.
 This is not true in Tahoe-LAFS and sometimes not even possible for the
 workloads it's meant for, but we may want to consider this for the special case
 of filesystem metadata.
