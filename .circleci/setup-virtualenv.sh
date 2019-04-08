@@ -1,4 +1,22 @@
-#!/bin/bash -e
+#!/bin/bash
+
+# https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
+set -euxo pipefail
+
+# The filesystem location of the root of a virtualenv we can use to get/build
+# wheels.
+BOOTSTRAP_VENV="$1"
+shift
+
+# The filesystem location of the root of the project source.  We need this to
+# know what wheels to get/build, of course.
+PROJECT_ROOT="$1"
+shift
+
+# The filesystem location of the wheelhouse which we'll populate with wheels
+# for all of our dependencies.
+WHEELHOUSE_PATH="$1"
+shift
 
 TAHOE_LAFS_TOX_ENVIRONMENT=$1
 shift
@@ -6,57 +24,18 @@ shift
 TAHOE_LAFS_TOX_ARGS=$1
 shift || :
 
-# Python packages we need to support the test infrastructure.  *Not* packages
-# Tahoe-LAFS itself (implementation or test suite) need.
-TEST_DEPS="tox codecov"
+# Tell pip where it can find any existing wheels.
+export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
 
-# Python packages we need to generate test reports for CI infrastructure.
-# *Not* packages Tahoe-LAFS itself (implement or test suite) need.
-REPORTING_DEPS="python-subunit junitxml subunitreporter"
-
-# Make sure the ownership of the pip cache directory is correct.  The CircleCI
-# cache management operations seem to mess it up.  The cache directory might
-# not exist if there was no matching cache to restore.
-[ -e /tmp/nobody/.cache ] && chown --recursive nobody /tmp/nobody/.cache
-
-# Set up the virtualenv as a non-root user so we can run the test suite as a
-# non-root user.  See below.
-sudo --set-home -u nobody virtualenv --python python2.7 /tmp/tests
-
-# Get "certifi" to avoid bug #2913. Basically if a `setup_requires=...` causes
-# a package to be installed (with setuptools) then it'll fail on certain
-# platforms (travis's OX-X 10.12, Slackware 14.2) because PyPI's TLS
-# requirements (TLS >= 1.2) are incompatible with the old TLS clients
-# available to those systems.  Installing it ahead of time (with pip) avoids
-# this problem.  Make sure this step comes before any other attempts to
-# install things using pip!
-sudo --set-home -u nobody \
-     PIP_FIND_LINKS="${PIP_FIND_LINKS}" \
-     /tmp/tests/bin/pip install certifi
-
-# Get a new, awesome version of pip and setuptools.  For example, the
-# distro-packaged virtualenv's pip may not know about wheels.
-sudo --set-home -u nobody \
-     PIP_FIND_LINKS="${PIP_FIND_LINKS}" \
-     /tmp/tests/bin/pip install --upgrade pip setuptools wheel
-
-# Populate the wheelhouse, if necessary.
-sudo --set-home -u nobody \
-     PIP_FIND_LINKS="${PIP_FIND_LINKS}" \
-     /tmp/tests/bin/pip \
-     wheel \
-     --wheel-dir "${WHEELHOUSE_PATH}" \
-     /tmp/project ${TEST_DEPS} ${REPORTING_DEPS}
-
-sudo --set-home -u nobody \
-     PIP_FIND_LINKS="${PIP_FIND_LINKS}" \
-     /tmp/tests/bin/pip install ${TEST_DEPS} ${REPORTING_DEPS}
+# It is tempting to also set PIP_NO_INDEX=1 but (a) that will cause problems
+# between the time dependencies change and the images are re-built and (b) the
+# upcoming-deprecations job wants to install some dependencies from github and
+# it's awkward to get that done any earlier than the tox run.  So, we don't
+# set it.
 
 # Get everything else installed in it, too.
-sudo --set-home -u nobody \
-     PIP_FIND_LINKS="${PIP_FIND_LINKS}" \
-     /tmp/tests/bin/tox \
-     -c /tmp/project/tox.ini \
+"${BOOTSTRAP_VENV}"/bin/tox \
+     -c "${PROJECT_ROOT}"/tox.ini \
      --workdir /tmp/tahoe-lafs.tox \
      --notest \
      -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \

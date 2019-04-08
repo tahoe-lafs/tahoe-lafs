@@ -44,3 +44,7 @@ zope.interface-*.egg
 /coverage.xml
 /smoke_magicfolder/
 /.hypothesis/
+
+# This is the plaintext of the private environment needed for some CircleCI
+# operations.  It's never supposed to be checked in.
+secret-env-plain
