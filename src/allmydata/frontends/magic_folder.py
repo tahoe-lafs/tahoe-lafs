@@ -1050,7 +1050,7 @@ class QueueMixin(HookMixin):
 
         with PROCESS_QUEUE(count=len(to_process)):
             for item in to_process:
-                self._process_history.appendleft(item)
+                self._process_history.append(item)
                 self._in_progress.remove(item)
                 try:
                     proc = yield self._process(item)
