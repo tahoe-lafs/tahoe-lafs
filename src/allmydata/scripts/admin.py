@@ -72,7 +72,7 @@ class AddGridManagerCertOptions(BaseOptions):
                 "Must provide --filename option"
             )
         if self['filename'] == '-':
-            print >>self.parent.parent.stderr, "reading certificate from stdin"
+            print("reading certificate from stdin", file=self.parent.parent.stderr)
             data = sys.stdin.read()
             if len(data) == 0:
                 raise usage.UsageError(
@@ -82,7 +82,7 @@ class AddGridManagerCertOptions(BaseOptions):
             try:
                 self.certificate_data = parse_grid_manager_data(data)
             except ValueError as e:
-                print >>self.parent.parent.stderr, "Error parsing certificate: {}".format(e)
+                print("Error parsing certificate: {}".format(e), file=self.parent.parent.stderr)
                 self.certificate_data = None
         else:
             with open(self['filename'], 'r') as f:
@@ -118,10 +118,10 @@ def add_grid_manager_cert(options):
     cert_fname = "{}.cert".format(options['name'])
     cert_path = config.get_config_path(cert_fname)
     cert_bytes = json.dumps(options.certificate_data, indent=4) + '\n'
-    cert_name = options['name']
+    # cert_name = options['name']
 
     if exists(cert_path):
-        print >>options.parent.parent.stderr, "Already have file '{}'".format(cert_path)
+        print("Already have file '{}'".format(cert_path), file=options.parent.parent.stderr)
         return 1
 
     cfg = config.config  # why aren't methods we call on cfg in _Config itself?
@@ -141,7 +141,7 @@ def add_grid_manager_cert(options):
         cfg.write(f)
     # print("wrote {}".format(config_fname))
 
-    print >>options.parent.parent.stderr, "There are now {} certificates".format(len(gm_certs))
+    print("There are now {} certificates".format(len(gm_certs)), file=options.parent.parent.stderr)
 
     return 0
 
