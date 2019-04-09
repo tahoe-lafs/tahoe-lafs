@@ -581,7 +581,7 @@ def rawstatus(options):
             return 2
 
         if isinstance(magic_data, dict) and 'error' in magic_data:
-            print("Error from server: %s" % d['error'], file=stderr)
+            print("Error from server: %s" % magic_data['error'], file=stderr)
             print("This means we can't retrieve the remote shared directory.", file=stderr)
             return 3
 
