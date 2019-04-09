@@ -62,7 +62,9 @@ def run_command(main):
     pp.d = defer.Deferred()
     pp.stdout = io.BytesIO()
     pp.stderr = io.BytesIO()
-    reactor.spawnProcess(pp, exe, [exe] + config["args"], env=None)
+    environ = os.environ.copy()
+    environ["PYTHONUNBUFFERED"] = "1"
+    reactor.spawnProcess(pp, exe, [exe] + config["args"], env=environ)
     (signal, rc) = yield pp.d
 
     # maintain ordering, but ignore duplicates (for some reason, either the
