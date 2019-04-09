@@ -5,6 +5,10 @@ from __future__ import (
 
 import os.path, re, sys
 
+from unittest import (
+    skipIf,
+)
+
 from twisted.trial import unittest
 
 from twisted.python import usage, runtime
@@ -41,13 +45,12 @@ def get_root_from_file(src):
 srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
 
+cannot_daemonize = False
+if runtime.platformType == "win32":
+    # twistd on windows doesn't daemonize. cygwin should work normally.
+    cannot_daemonize = "twistd does not fork under windows"
 
 class RunBinTahoeMixin:
-    def skip_if_cannot_daemonize(self):
-        if runtime.platformType == "win32":
-            # twistd on windows doesn't daemonize. cygwin should work normally.
-            raise unittest.SkipTest("twistd does not fork under windows")
-
     @inlineCallbacks
     def find_import_location(self):
         res = yield self.run_bintahoe(["--version-and-path"])
@@ -383,9 +386,8 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         fileutil.make_dirs(basedir)
         return basedir
 
+    @skipIf(cannot_daemonize, cannot_daemonize)
     def test_introducer(self):
-        self.skip_if_cannot_daemonize()
-
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
         exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
@@ -503,9 +505,8 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
     # on Francois's Lenny-armv5tel buildslave.
     test_introducer.timeout = 960
 
+    @skipIf(cannot_daemonize, cannot_daemonize)
     def test_client_no_noise(self):
-        self.skip_if_cannot_daemonize()
-
         basedir = self.workdir("test_client_no_noise")
         c1 = os.path.join(basedir, "c1")
         exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
@@ -567,9 +568,8 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addBoth(self._remove, exit_trigger_file)
         return d
 
+    @skipIf(cannot_daemonize, cannot_daemonize)
     def test_client(self):
-        self.skip_if_cannot_daemonize()
-
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
         exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
@@ -685,8 +685,8 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         fileutil.remove(file)
         return res
 
+    @skipIf(cannot_daemonize, cannot_daemonize)
     def test_baddir(self):
-        self.skip_if_cannot_daemonize()
         basedir = self.workdir("test_baddir")
         fileutil.make_dirs(basedir)
 
