@@ -174,7 +174,7 @@ Enrolling a Storage Server: Config
 
 You may edit the ``[storage]`` section of the ``tahoe.cfg`` file to
 turn on grid-management with ``grid_management = true``. You then must
-also provide a ``[grid_management_keys]]`` section in the config-file which
+also provide a ``[grid_management_keys]`` section in the config-file which
 lists ``name = path/to/certificate`` pairs.
 
 These certificate files are issued by the ``tahoe grid-manager sign``
@@ -278,7 +278,10 @@ certificates into the grid. We do this by adding some configuration
 (in ``tahoe.cfg``)::
 
     [storage]
-    grid_manager_certificate_files = gridmanager.cert
+    grid_management = true
+
+    [grid_manager_certificates]
+    default = gridmanager.cert
 
 Add the above bit to each node's ``tahoe.cfg`` and re-start the
 storage nodes.
