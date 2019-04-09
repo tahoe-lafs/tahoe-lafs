@@ -1,0 +1,1 @@
+base magic-folder status history on time, not size
