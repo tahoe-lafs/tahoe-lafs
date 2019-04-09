@@ -26,9 +26,11 @@ class RunPP(protocol.ProcessProtocol):
     def outReceived(self, data):
         self.stdout.write(data)
         sys.stdout.write(data)
+        sys.stdout.flush()
     def errReceived(self, data):
         self.stderr.write(data)
         sys.stderr.write(data)
+        sys.stderr.flush()
     def processEnded(self, reason):
         signal = reason.value.signal
         rc = reason.value.exitCode
@@ -60,7 +62,7 @@ def run_command(main):
     pp.d = defer.Deferred()
     pp.stdout = io.BytesIO()
     pp.stderr = io.BytesIO()
-    reactor.spawnProcess(pp, exe, [exe] + config["args"], env=None)
+    reactor.spawnProcess(pp, exe, [exe, "-u"] + config["args"], env=None)
     (signal, rc) = yield pp.d
 
     # maintain ordering, but ignore duplicates (for some reason, either the
