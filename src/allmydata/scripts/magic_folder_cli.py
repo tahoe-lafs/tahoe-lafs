@@ -557,7 +557,7 @@ def rawstatus(options):
     with open(os.path.join(nodedir, u'private', u'api_auth_token'), 'rb') as f:
         token = f.read()
 
-    print >>stderr, "Magic-folder status for '{}':".format(options["name"])
+    print("Magic-folder status for '{}':".format(options["name"]), file=stderr)
 
     if options["name"] not in magic_folders:
         raise Exception(
@@ -577,12 +577,12 @@ def rawstatus(options):
                 )
             )
         except Exception as e:
-            print >>stderr, "failed to retrieve data: %s" % str(e)
+            print("failed to retrieve data: %s" % str(e), file=stderr)
             return 2
 
         if isinstance(magic_data, dict) and 'error' in magic_data:
-            print >>stderr, "Error from server: %s" % d['error']
-            print >>stderr, "This means we can't retrieve the remote shared directory."
+            print("Error from server: %s" % d['error'], file=stderr)
+            print("This means we can't retrieve the remote shared directory.", file=stderr)
             return 3
 
         now = datetime.now()
@@ -605,19 +605,19 @@ def rawstatus(options):
 
             if len(uploads):
                 print
-                print >>stdout, "Uploads:"
+                print("Uploads:", file=stdout)
                 for item in uploads:
                     _print_item_status(item, now, longest)
 
             if len(downloads):
                 print
-                print >>stdout, "Downloads:"
+                print("Downloads:", file=stdout)
                 for item in downloads:
                     _print_item_status(item, now, longest)
 
             for item in magic_data:
                 if item['status'] == 'failure':
-                    print >>stdout, "Failed:", item
+                    print("Failed:", item, file=stdout)
 
         time.sleep(0.5)
 
