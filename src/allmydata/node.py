@@ -321,6 +321,21 @@ class _Config(object):
                 )
             return default
 
+    def set_config(self, section, option, value):
+        """
+        Set a config options in a section and re-write the tahoe.cfg file
+        """
+        if option.endswith(".furl") and self._contains_unescaped_hash(value):
+            raise UnescapedHashError(section, option, item)
+
+        try:
+            self.config.add_section(section)
+        except ConfigParser.DuplicateSectionError:
+            pass
+        self.config.set(section, option, value)
+        with open(self._config_fname, "w") as f:
+            self.config.write(f)
+
     def get_config_from_file(self, name, required=False):
         """Get the (string) contents of a config file, or None if the file
         did not exist. If required=True, raise an exception rather than
