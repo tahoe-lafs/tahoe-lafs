@@ -371,7 +371,7 @@ class NativeStorageServer(service.MultiService):
         }
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides, grid_manager_keys, grid_manager_certs):
-        print("CREATE {}: {}".format(server_id, grid_manager_certs))
+        # print("CREATE {}: {}".format(server_id, grid_manager_certs))
         service.MultiService.__init__(self)
         assert isinstance(server_id, str)
         self._server_id = server_id
@@ -387,11 +387,11 @@ class NativeStorageServer(service.MultiService):
         # any public-keys which the user has configured (if none, it
         # means use any storage servers)
         self._grid_manager_keys = grid_manager_keys
-        print("keys: {}".format(self._grid_manager_keys))
+        # print("keys: {}".format(self._grid_manager_keys))
         # any storage-certificates that this storage-server included
         # in its announcement
         self._grid_manager_certificates = grid_manager_certs
-        print("certs: {}".format(self._grid_manager_certificates))
+        # print("certs: {}".format(self._grid_manager_certificates))
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
