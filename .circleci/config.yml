@@ -126,9 +126,14 @@ jobs:
                 "${ARTIFACTS_OUTPUT_PATH}" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
-          # trial output gets directed straight to a log.  avoid the circleci
-          # timeout while the test suite runs.
-          no_output_timeout: "20m"
+          # By default there is a 2 minute timeout applied to each individual
+          # test.  We use a reporter that will generate some output for every
+          # test that finishes.  So we should never go more than 2 minutes
+          # without output.  Give ourselves a little wiggle room here
+          # (because, you know, clocks) but try to stick close to the per-test
+          # timeout so that if something hangs we get a prompt CircleCI
+          # hang-kill.
+          no_output_timeout: "3m"
 
       - store_test_results: &STORE_TEST_RESULTS
           path: "/tmp/artifacts/junit"
