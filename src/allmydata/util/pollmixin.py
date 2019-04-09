@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import time
 from twisted.internet import task
+from twisted.python import log
 
 class TimeoutError(Exception):
     pass
@@ -31,9 +32,12 @@ class PollMixin:
         return d
 
     def _poll(self, check_f, cutoff):
+        log.msg("Polling {}".format(check_f))
         if cutoff is not None and time.time() > cutoff:
+            log.msg("Polling timed out")
             raise TimeoutError("PollMixin never saw %s return True" % check_f)
         if check_f():
+            log.msg("Polling completed successfully")
             raise PollComplete()
         # since PollMixin is mostly used for unit tests, quit if we see any
         # logged errors. This should give us a nice fast failure, instead of
@@ -48,4 +52,3 @@ class PollMixin:
             if errs:
                 print(errs)
                 self.fail("Errors snooped, terminating early")
-
