@@ -43,7 +43,6 @@ from pycryptopp.publickey import ed25519  # perhaps NaCl instead? other code use
 
 from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32, connection_status
-from allmydata.util import keyutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
@@ -304,7 +303,7 @@ def parse_grid_manager_data(gm_data):
                     k,
                 )
             )
-    for k in allowed_keys:
+    for k in required_keys:
         if k not in js:
             raise ValueError(
                 "Grid Manager certificate JSON must contain '{}'".format(

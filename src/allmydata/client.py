@@ -31,13 +31,11 @@ from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
-from allmydata.util.base32 import a2b, b2a
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION, DEFAULT_MAX_SEGMENT_SIZE
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
-from allmydata import node
 
 
 KiB=1024
