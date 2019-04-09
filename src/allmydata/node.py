@@ -203,7 +203,13 @@ def config_from_string(basedir, portnumfile, config_str):
     # load configuration from in-memory string
     parser = ConfigParser.SafeConfigParser()
     parser.readfp(BytesIO(config_str))
-    return _Config(parser, portnumfile, basedir, '<in-memory>')
+
+    def write_new_config(cfg):
+        """
+        We throw away any attempt to persist
+        """
+        pass
+    return _Config(parser, portnumfile, basedir, '<in-memory>', write_new_config)
 
 
 def get_app_versions():
@@ -248,7 +254,8 @@ class _Config(object):
     have better names.
     """
 
-    def __init__(self, configparser, portnum_fname, basedir, config_fname):
+    def __init__(self, configparser, portnum_fname, basedir, config_fname,
+                 write_new_tahoecfg=None):
         """
         :param configparser: a ConfigParser instance
 
@@ -260,11 +267,24 @@ class _Config(object):
 
         :param config_fname: the pathname actually used to create the
             configparser (might be 'fake' if using in-memory data)
+
+        :param write_new_tahoecfg: callable taking one argument which
+            is a ConfigParser instance
         """
         self.portnum_fname = portnum_fname
         self._basedir = abspath_expanduser_unicode(unicode(basedir))
         self._config_fname = config_fname
         self.config = configparser
+
+        if write_new_tahoecfg is None:
+            def write_new_tahoecfg(config):
+                """
+                Write to the default place, <basedir>/tahoe.cfg
+                """
+                fn = os.path.join(self._basedir, "tahoe.cfg")
+                with open(fn, "w") as f:
+                    config.write(f)
+        self._write_config = write_new_tahoecfg
 
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
         self.nickname = nickname_utf8.decode("utf-8")
@@ -333,8 +353,7 @@ class _Config(object):
         except ConfigParser.DuplicateSectionError:
             pass
         self.config.set(section, option, value)
-        with open(self._config_fname, "w") as f:
-            self.config.write(f)
+        self._write_config(self.config)
 
     def get_config_from_file(self, name, required=False):
         """Get the (string) contents of a config file, or None if the file
