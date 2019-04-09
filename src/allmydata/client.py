@@ -58,6 +58,7 @@ def _valid_config_sections():
             "stats_gatherer.furl",
         ),
         "grid_managers": None,  # means "any options valid"
+        "grid_manager_certificates": None,
         "drop_upload": (  # deprecated already?
             "enabled",
         ),
@@ -80,7 +81,7 @@ def _valid_config_sections():
             "readonly",
             "reserved_space",
             "storage_dir",
-            "grid_manager_certificate_files",
+            "grid_management",
         ),
         "sftpd": (
             "accounts.file",
@@ -407,6 +408,34 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     return sb
 
 
+def _load_grid_manager_certificates(config):
+    """
+    Load all Grid Manager certificates in the config in a list. An
+    empty list is returned if there are none.
+    """
+    grid_manager_certificates = []
+
+    cert_fnames = list(config.enumerate_section("grid_manager_certificates").values())
+    for fname in cert_fnames:
+        fname = config.get_config_path(fname.decode('ascii'))
+        if not os.path.exists(fname):
+            raise ValueError(
+                "Grid Manager certificate file '{}' doesn't exist".format(
+                    fname
+                )
+            )
+        with open(fname, 'r') as f:
+            cert = json.load(f)
+        if set(cert.keys()) != {"certificate", "signature"}:
+            raise ValueError(
+                "Unknown key in Grid Manager certificate '{}'".format(
+                    fname
+                )
+            )
+        grid_manager_certificates.append(cert)
+    return grid_manager_certificates
+
+
 @implementer(IStatsProducer)
 class _Client(node.Node, pollmixin.PollMixin):
 
@@ -612,27 +641,8 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         grid_manager_certificates = []
 
-        # XXX this is probably a bad idea for multiple fnames -- what
-        # about spaces in filenames?
-
-        cert_fnames = self.get_config("storage", "grid_manager_certificate_files", "")
-        for fname in cert_fnames.split():
-            fname = self.config.get_config_path(fname.decode('ascii'))
-            if not os.path.exists(fname):
-                raise ValueError(
-                    "Grid Manager certificate file '{}' doesn't exist".format(
-                        fname
-                    )
-                )
-            with open(fname, 'r') as f:
-                cert = json.load(f)
-            if set(cert.keys()) != {"certificate", "signature"}:
-                raise ValueError(
-                    "Unknown key in Grid Manager certificate '{}'".format(
-                        fname
-                    )
-                )
-            grid_manager_certificates.append(cert)
+        if self.config.get_config("storage", "grid_management", default=False, boolean=True):
+            grid_manager_certificates = _load_grid_manager_certificates(self.config)
 
         # XXX we should probably verify that the certificates are
         # valid and not expired, as that could be confusing for the

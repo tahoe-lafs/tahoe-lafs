@@ -118,18 +118,15 @@ def add_grid_manager_cert(options):
     cert_fname = "{}.cert".format(options['name'])
     cert_path = config.get_config_path(cert_fname)
     cert_bytes = json.dumps(options.certificate_data, indent=4) + '\n'
-    # cert_name = options['name']
+    cert_name = options['name']
 
     if exists(cert_path):
         print("Already have file '{}'".format(cert_path), file=options.parent.parent.stderr)
         return 1
 
-    gm_certs = config.get_config("storage", "grid_manager_certificate_files", "").split()
-    if cert_fname not in gm_certs:
-        gm_certs.append(cert_fname)
-    config.set_config("storage", "grid_manager_certificate_files", " ".join(gm_certs))
-
-    # print("grid_manager_certificate_files in {}: {}".format(config_path, len(gm_certs)))
+    config.set_config("storage", "grid_management", "True")
+    config.add_section("grid_manager_certificates")
+    config.set_config("grid_manager_certificates", cert_name, cert_fname)
 
     # write all the data out
 

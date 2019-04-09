@@ -115,7 +115,6 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
         )
     assert sorted(json.loads(gm_config)['storage_servers'].keys()) == ['storage0', 'storage1']
 
-
     # XXX FIXME need to shut-down and nuke carol when we're done this
     # test (i.d. request.addfinalizer)
     carol = yield util._create_node(
@@ -136,7 +135,9 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
         with open(join(storage._node_dir, "gridmanager.cert"), "w") as f:
             f.write(cert)
         config = configutil.get_config(join(storage._node_dir, "tahoe.cfg"))
-        config.set("storage", "grid_manager_certificate_files", "gridmanager.cert")
+        config.set("storage", "grid_management", "True")
+        config.add_section("grid_manager_certificates")
+        config.set("grid_manager_certificates", "default", "gridmanager.cert")
         config.write(open(join(storage._node_dir, "tahoe.cfg"), "w"))
 
         # re-start this storage server
