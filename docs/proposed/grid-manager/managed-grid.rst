@@ -173,14 +173,19 @@ Enrolling a Storage Server: Config
 ----------------------------------
 
 You may edit the ``[storage]`` section of the ``tahoe.cfg`` file to
-include an entry ``grid_manager_certificate_files = `` whose value is
-a space-separated list of paths to valid certificate files. These
-certificate files are issued by the ``tahoe grid-manager sign``
-command; these should be securely transmitted to the storage
-server. Relative paths are relative to the node directory. Example::
+turn on grid-management with ``grid_management = true``. You then must
+also provide a ``[grid_management_keys]]`` section in the config-file which
+lists ``name = path/to/certificate`` pairs.
+
+These certificate files are issued by the ``tahoe grid-manager sign``
+command; these should be **securely transmitted** to the storage
+server. Relative paths are based from the node directory. Example::
 
     [storage]
-    grid_manager_certificate_files = example_grid.cert
+    grid_management = true
+
+    [grid_management_keys]
+    default = example_grid.cert
 
 This will cause us to give this certificate to any Introducers we
 connect to (and subsequently, the Introducer will give the certificate
