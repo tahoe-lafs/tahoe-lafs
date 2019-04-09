@@ -8,3 +8,7 @@ source =
 omit =
      */allmydata/test/*
      */allmydata/_version.py
+
+# when doing integration tests, we want separate .coverage* files for
+# each process we've launched
+parallel = True

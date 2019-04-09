@@ -3,8 +3,9 @@ from __future__ import print_function
 import sys
 import shutil
 from time import sleep
-from os import mkdir, listdir
-from os.path import join, exists
+from os import mkdir, listdir, walk, environ
+from os.path import join, exists, abspath
+from copy import copy
 from tempfile import mkdtemp, mktemp
 from functools import partial
 
@@ -36,10 +37,20 @@ from util import (
 
 # pytest customization hooks
 
+
 def pytest_addoption(parser):
+    """
+    pytest custom option hook
+    """
     parser.addoption(
         "--keep-tempdir", action="store_true", dest="keep",
         help="Keep the tmpdir with the client directories (introducer, etc)",
+    )
+
+    # if this is here at all we turn on coverage tracing
+    parser.addoption(
+        "--coverage", action="store_true", dest="coverage",
+        help="Turn on coverage tracing."
     )
 
 @pytest.fixture(autouse=True, scope='session')
@@ -58,8 +69,10 @@ def eliot_logging():
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:reactor", include_result=False)
 def reactor():
-    # this is a fixture in case we might want to try different
-    # reactors for some reason.
+    """
+    this is a fixture in case we might want to try different
+    reactors for some reason.
+    """
     from twisted.internet import reactor as _reactor
     return _reactor
 
@@ -73,6 +86,20 @@ def temp_dir(request):
     tmp = mkdtemp(prefix="tahoe")
     if request.config.getoption('keep'):
         print("\nWill retain tempdir '{}'".format(tmp))
+
+
+    @request.addfinalizer
+    def cleanup():
+        """
+        collect all .coverage files
+        """
+        if request.config.getoption('coverage', False):
+            for (pth, dirs, files) in walk(tmp):
+                for f in files:
+                    if f.startswith('.coverage'):
+                        p = path.join(pth, f)
+                        print('   saved "{}" to "{}".'.format(p, path.curdir))
+                        shutil.move(p, path.curdir)
 
     # I'm leaving this in and always calling it so that the tempdir
     # path is (also) printed out near the end of the run
@@ -195,14 +222,22 @@ log_gatherer.furl = {log_furl}
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
     protocol = _MagicTextProtocol('introducer running')
+    env = copy(environ)
+    env['COVERAGE_PROCESS_START'] = ".coveragerc"
+    exe = sys.executable
+    args = (exe, )
+    if request.config.getoption("coverage"):
+        exe = abspath(join(sys.executable, "..", "coverage"))
+        args = (exe, 'run')
     process = reactor.spawnProcess(
         protocol,
-        sys.executable,
-        (
-            sys.executable, '-m', 'allmydata.scripts.runner',
+        exe,
+        args + (
+            '-m', 'allmydata.scripts.runner',
             'run',
             intro_dir,
         ),
+        env=env,
     )
     request.addfinalizer(partial(_cleanup_twistd_process, process, protocol.exited))
 
@@ -262,14 +297,22 @@ log_gatherer.furl = {log_furl}
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
     protocol = _MagicTextProtocol('introducer running')
+    env = copy(environ)
+    env['COVERAGE_PROCESS_START'] = ".coveragerc"
+    exe = sys.executable
+    args = (exe,)
+    if request.config.getoption("coverage"):
+        exe = abspath(join(sys.executable, "..", "coverage"))
+        args = (exe, 'run')
     process = reactor.spawnProcess(
         protocol,
-        sys.executable,
-        (
-            sys.executable, '-m', 'allmydata.scripts.runner',
+        exe,
+        args + (
+            '-m', 'allmydata.scripts.runner',
             'run',
             intro_dir,
         ),
+        env=env,
     )
 
     def cleanup():
@@ -365,29 +408,45 @@ def alice_invite(reactor, alice, temp_dir, request):
         # consistently fail if we don't hack in this pause...)
         import time ; time.sleep(5)
         proto = _CollectOutputProtocol()
+        env = copy(environ)
+        env['COVERAGE_PROCESS_START'] = ".coveragerc"
+        exe = sys.executable
+        args = (exe,)
+        if request.config.getoption("coverage"):
+            exe = abspath(join(sys.executable, "..", "coverage"))
+            args = (exe, 'run')
         reactor.spawnProcess(
             proto,
-            sys.executable,
-            [
-                sys.executable, '-m', 'allmydata.scripts.runner',
+            exe,
+            args + (
+                '-m', 'allmydata.scripts.runner',
                 'magic-folder', 'create',
                 '--poll-interval', '2',
                 '--basedir', node_dir, 'magik:', 'alice',
                 join(temp_dir, 'magic-alice'),
-            ]
+            ),
+            env=env,
         )
         pytest_twisted.blockon(proto.done)
 
     with start_action(action_type=u"integration:alice:magic_folder:invite") as a:
         proto = _CollectOutputProtocol()
+        env = copy(environ)
+        env['COVERAGE_PROCESS_START'] = ".coveragerc"
+        exe = sys.executable
+        args = (exe,)
+        if request.config.getoption("coverage"):
+            exe = abspath(join(sys.executable, "..", "coverage"))
+            args = (exe, 'run')
         reactor.spawnProcess(
             proto,
-            sys.executable,
-            [
-                sys.executable, '-m', 'allmydata.scripts.runner',
+            exe,
+            args + (
+                '-m', 'allmydata.scripts.runner',
                 'magic-folder', 'invite',
                 '--basedir', node_dir, 'magik:', 'bob',
-            ]
+            ),
+            env=env,
         )
         pytest_twisted.blockon(proto.done)
         invite = proto.output.getvalue()
@@ -416,17 +475,25 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     print("pairing magic-folder")
     bob_dir = join(temp_dir, 'bob')
     proto = _CollectOutputProtocol()
+    env = copy(environ)
+    env['COVERAGE_PROCESS_START'] = ".coveragerc"
+    exe = sys.executable
+    args = (exe,)
+    if request.config.getoption("coverage"):
+        exe = abspath(join(sys.executable, "..", "coverage"))
+        args = (exe, 'run')
     reactor.spawnProcess(
         proto,
-        sys.executable,
-        [
-            sys.executable, '-m', 'allmydata.scripts.runner',
+        exe,
+        args + (
+            '-m', 'allmydata.scripts.runner',
             'magic-folder', 'join',
             '--poll-interval', '2',
             '--basedir', bob_dir,
             alice_invite,
             join(temp_dir, 'magic-bob'),
-        ]
+        ),
+        env=env,
     )
     pytest_twisted.blockon(proto.done)
 
@@ -460,6 +527,8 @@ def chutney(reactor, temp_dir):
     #
     # https://trac.torproject.org/projects/tor/ticket/20343
     proto = _DumpOutputProtocol(None)
+    env = copy(environ)
+    env['COVERAGE_PROCESS_START'] = ".coveragerc"
     reactor.spawnProcess(
         proto,
         '/usr/bin/git',
@@ -467,7 +536,8 @@ def chutney(reactor, temp_dir):
             '/usr/bin/git', 'clone', '--depth=1',
             'https://git.torproject.org/chutney.git',
             chutney_dir,
-        )
+        ),
+        env=env,
     )
     pytest_twisted.blockon(proto.done)
     return chutney_dir
@@ -492,7 +562,9 @@ def tor_network(reactor, temp_dir, chutney, request):
             join(chutney_dir, 'networks', 'basic'),
         ),
         path=join(chutney_dir),
-        env={"PYTHONPATH": join(chutney_dir, "lib")},
+        env={
+            "PYTHONPATH": join(chutney_dir, "lib"),
+        },
     )
     pytest_twisted.blockon(proto.done)
 
@@ -505,7 +577,9 @@ def tor_network(reactor, temp_dir, chutney, request):
             join(chutney_dir, 'networks', 'basic'),
         ),
         path=join(chutney_dir),
-        env={"PYTHONPATH": join(chutney_dir, "lib")},
+        env={
+            "PYTHONPATH": join(chutney_dir, "lib"),
+        },
     )
     pytest_twisted.blockon(proto.done)
 
@@ -519,7 +593,9 @@ def tor_network(reactor, temp_dir, chutney, request):
             join(chutney_dir, 'networks', 'basic'),
         ),
         path=join(chutney_dir),
-        env={"PYTHONPATH": join(chutney_dir, "lib")},
+        env={
+            "PYTHONPATH": join(chutney_dir, "lib"),
+        },
     )
     try:
         pytest_twisted.blockon(proto.done)
