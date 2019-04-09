@@ -124,12 +124,10 @@ def add_grid_manager_cert(options):
         print("Already have file '{}'".format(cert_path), file=options.parent.parent.stderr)
         return 1
 
-    cfg = config.config  # why aren't methods we call on cfg in _Config itself?
-
     gm_certs = config.get_config("storage", "grid_manager_certificate_files", "").split()
     if cert_fname not in gm_certs:
         gm_certs.append(cert_fname)
-    cfg.set("storage", "grid_manager_certificate_files", " ".join(gm_certs))
+    config.set_config("storage", "grid_manager_certificate_files", " ".join(gm_certs))
 
     # print("grid_manager_certificate_files in {}: {}".format(config_path, len(gm_certs)))
 
