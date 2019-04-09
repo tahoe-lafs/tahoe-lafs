@@ -326,7 +326,7 @@ class _Config(object):
         Set a config options in a section and re-write the tahoe.cfg file
         """
         if option.endswith(".furl") and self._contains_unescaped_hash(value):
-            raise UnescapedHashError(section, option, item)
+            raise UnescapedHashError(section, option, value)
 
         try:
             self.config.add_section(section)
