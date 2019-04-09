@@ -506,7 +506,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def debug_dump_for_timeout(reason):
             reason.trap(pollmixin.TimeoutError)
-
             log.msg("Timed out")
             with open(twistd_log_file) as twistd_log:
                 log.msg(twistd_log.read())
@@ -565,7 +564,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _node_has_started():
             return os.path.exists(node_url_file)
-        d.addCallback(lambda res: self.poll(_node_has_started))
+        d.addCallback(lambda res: self.poll(_node_has_started, timeout=30))
 
         # now we can kill it. TODO: On a slow machine, the node might kill
         # itself before we get a chance to, especially if spawning the
@@ -630,7 +629,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _node_has_started():
             return os.path.exists(node_url_file)
-        d.addCallback(lambda res: self.poll(_node_has_started))
+        d.addCallback(lambda res: self.poll(_node_has_started, timeout=30))
 
         def _started(res):
             # read the storage.furl file so we can check that its contents
@@ -657,7 +656,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         # again, the second incarnation of the node might not be ready yet,
         # so poll until it is
-        d.addCallback(lambda res: self.poll(_node_has_started))
+        d.addCallback(lambda res: self.poll(_node_has_started, timeout=30))
 
         def _check_same_furl(res):
             self.failUnlessEqual(self.storage_furl,
