@@ -390,6 +390,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         c1 = os.path.join(basedir, "c1")
         exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
         twistd_pid_file = os.path.join(c1, "twistd.pid")
+        twistd_log_file = os.path.join(c1, "logs", "twistd.log")
         introducer_furl_file = os.path.join(c1, "private", "introducer.furl")
         node_url_file = os.path.join(c1, "node.url")
         config_file = os.path.join(c1, "tahoe.cfg")
@@ -439,7 +440,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _node_has_started():
             return os.path.exists(introducer_furl_file)
-        d.addCallback(lambda res: self.poll(_node_has_started))
+        d.addCallback(lambda res: self.poll(_node_has_started, timeout=30))
 
         def _started(res):
             # read the introducer.furl file so we can check that the contents
@@ -470,7 +471,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # exists, so we check for the existence of node_url_file instead.
         def _node_has_restarted():
             return os.path.exists(node_url_file)
-        d.addCallback(lambda res: self.poll(_node_has_restarted))
+        d.addCallback(lambda res: self.poll(_node_has_restarted, timeout=30))
 
         def _check_same_furl(res):
             self.failUnless(os.path.exists(introducer_furl_file))
@@ -502,6 +503,16 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             self.failIf(os.path.exists(twistd_pid_file))
         d.addCallback(_after_stopping)
         d.addBoth(self._remove, exit_trigger_file)
+
+        def debug_dump_for_timeout(reason):
+            reason.trap(pollmixin.TimeoutError)
+
+            log.msg("Timed out")
+            with open(twistd_log_file) as twistd_log:
+                log.msg(twistd_log.read())
+            return reason
+
+        d.addErrback(debug_dump_for_timeout)
         return d
 
     @skipIf(cannot_daemonize, cannot_daemonize)
