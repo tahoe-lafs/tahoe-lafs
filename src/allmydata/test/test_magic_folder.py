@@ -2033,14 +2033,7 @@ class SingleMagicFolderTestMixin(MagicFolderCLITestMixin, ShouldFailMixin, Reall
         one_d.addCallbacks(one_item, self.fail)
 
         yield iterate_uploader(self.magicfolder)
-#        yield iterate_uploader(self.magicfolder)  # req'd for windows; not sure why?
-
-        print("upstatus0:")
-        for x in upstatus0:
-            print("  {}".format(x))
-        print("upstatus1:")
-        for x in upstatus1:
-            print("  {}".format(x))
+        yield iterate_uploader(self.magicfolder)  # req'd for windows; not sure why?
 
         # no matter which part of the queue the items are in, we
         # should see the same status from the outside
