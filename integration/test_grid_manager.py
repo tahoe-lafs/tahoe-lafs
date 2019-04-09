@@ -11,10 +11,10 @@ from allmydata.util import configutil
 
 import util
 
-import pytest
+import pytest_twisted
 
 
-@pytest.inlineCallbacks
+@pytest_twisted.inlineCallbacks
 def test_create_certificate(reactor):
     gm_config = yield util.cli(
         reactor, "grid-manager", "--config", "-", "create",
@@ -42,7 +42,7 @@ def test_create_certificate(reactor):
     )
 
 
-@pytest.inlineCallbacks
+@pytest_twisted.inlineCallbacks
 def test_remove_client(reactor):
     gm_config = yield util.cli(
         reactor, "grid-manager", "--config", "-", "create",
@@ -71,7 +71,7 @@ def test_remove_client(reactor):
     assert json.loads(gm_config)['storage_servers'].has_key('bob')
 
 
-@pytest.inlineCallbacks
+@pytest_twisted.inlineCallbacks
 def test_remove_last_client(reactor):
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "create",
@@ -93,7 +93,7 @@ def test_remove_last_client(reactor):
     assert not json.loads(gm_config).has_key('storage_servers')
 
 
-@pytest.inlineCallbacks
+@pytest_twisted.inlineCallbacks
 def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introducer_furl, flog_gatherer):
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "create",
