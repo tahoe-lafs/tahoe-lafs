@@ -70,14 +70,7 @@ from ..util.eliotutil import (
     log_call_deferred,
 )
 
-
 _debug = False
-
-
-@implementer(IMutableFileVersion)
-class FakeMutableFileVersion(object):
-    def overwrite(self, contents):
-        self._contents = contents
 
 
 try:
