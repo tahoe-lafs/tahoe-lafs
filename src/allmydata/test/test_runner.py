@@ -66,12 +66,20 @@ class RunBinTahoeMixin:
         if env is None:
             env = os.environ
 
+        log.msg("Running {}".format(args))
         d = getProcessOutputAndValue(command, argv, env, stdinBytes=stdin)
+
         def fix_signal(result):
             # Mirror subprocess.Popen.returncode structure
             (out, err, signal) = result
             return (out, err, -signal)
         d.addErrback(fix_signal)
+
+        def log_result(result):
+            log.msg("{}: {}".format(args, result))
+            return result
+        d.addBoth(log_result)
+
         return d
 
 
@@ -397,7 +405,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         d = self.run_bintahoe(["--quiet", "create-introducer", "--basedir", c1, "--hostname", "localhost"])
         def _cb(res):
-            log.msg("create-introducer: {}".format(res))
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
 
@@ -419,7 +426,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_then_start_the_node)
 
         def _cb2(res):
-            log.msg("start: {}".format(res))
             out, err, rc_or_sig = res
 
             fileutil.write(exit_trigger_file, "")
@@ -457,7 +463,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_started)
 
         def _then(res):
-            log.msg("restart: {}".format(res))
             out, err, rc_or_sig = res
             fileutil.write(exit_trigger_file, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
@@ -489,7 +494,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_stop)
 
         def _after_stopping(res):
-            log.msg("stop: {}".format(res))
             out, err, rc_or_sig = res
             fileutil.write(exit_trigger_file, "")
             # the parent has exited by now
