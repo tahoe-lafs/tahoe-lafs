@@ -27,6 +27,7 @@ Twisted-*.egg
 zope.interface-*.egg
 .pc
 
+/src/allmydata/test/plugins/dropin.cache
 /_trial_temp*
 /_test_memory/
 /tmp*
