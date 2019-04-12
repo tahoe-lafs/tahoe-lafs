@@ -119,7 +119,7 @@ class MutableFileNode(object):
 
         return self
 
-    def create_with_keys(self, (pubkey, privkey), contents,
+    def create_with_keys(self, keypair, contents,
                          version=SDMF_VERSION):
         """Call this to create a brand-new mutable file. It will create the
         shares, find homes for them, and upload the initial contents (created
@@ -127,6 +127,7 @@ class MutableFileNode(object):
         Deferred that fires (with the MutableFileNode instance you should
         use) when it completes.
         """
+        (pubkey, privkey) = keypair
         self._pubkey, self._privkey = pubkey, privkey
         pubkey_s = self._pubkey.serialize()
         privkey_s = self._privkey.serialize()
@@ -338,7 +339,8 @@ class MutableFileNode(object):
         representing the best recoverable version of the file.
         """
         d = self._get_version_from_servermap(MODE_READ, servermap, version)
-        def _build_version((servermap, their_version)):
+        def _build_version(servermap_and_their_version):
+            (servermap, their_version) = servermap_and_their_version
             assert their_version in servermap.recoverable_versions()
             assert their_version in servermap.make_versionmap()
 
@@ -490,8 +492,9 @@ class MutableFileNode(object):
         # get_mutable_version => write intent, so we require that the
         # servermap is updated in MODE_WRITE
         d = self._get_version_from_servermap(MODE_WRITE, servermap, version)
-        def _build_version((servermap, smap_version)):
+        def _build_version(servermap_and_smap_version):
             # these should have been set by the servermap update.
+            (servermap, smap_version) = servermap_and_smap_version
             assert self._secret_holder
             assert self._writekey
 

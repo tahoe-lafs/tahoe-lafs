@@ -78,7 +78,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
 
         d.addCallback(lambda res: do_backup(True))
-        def _check0((rc, out, err)):
+        def _check0(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             (
@@ -134,7 +135,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(_check0)
 
         d.addCallback(lambda res: self.do_cli("ls", "--uri", "tahoe:backups"))
-        def _check1((rc, out, err)):
+        def _check1(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.split("\n")
@@ -145,25 +147,29 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessReallyEqual(sorted(childnames), ["Archives", "Latest"])
         d.addCallback(_check1)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest"))
-        def _check2((rc, out, err)):
+        def _check2(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(sorted(out.split()), ["empty", "parent"])
         d.addCallback(_check2)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest/empty"))
-        def _check2a((rc, out, err)):
+        def _check2a(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(out.strip(), "")
         d.addCallback(_check2a)
         d.addCallback(lambda res: self.do_cli("get", "tahoe:backups/Latest/parent/subdir/foo.txt"))
-        def _check3((rc, out, err)):
+        def _check3(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(out, "foo")
         d.addCallback(_check3)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
-        def _check4((rc, out, err)):
+        def _check4(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.old_archives = out.split()
@@ -173,9 +179,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         d.addCallback(self.stall, 1.1)
         d.addCallback(lambda res: do_backup())
-        def _check4a((rc, out, err)):
+        def _check4a(args):
             # second backup should reuse everything, if the backupdb is
             # available
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
@@ -203,10 +210,11 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         d.addCallback(self.stall, 1.1)
         d.addCallback(lambda res: do_backup(verbose=True))
-        def _check4b((rc, out, err)):
+        def _check4b(args):
             # we should check all files, and re-use all of them. None of
             # the directories should have been changed, so we should
             # re-use all of them too.
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
@@ -222,7 +230,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(_check4b)
 
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
-        def _check5((rc, out, err)):
+        def _check5(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.new_archives = out.split()
@@ -246,9 +255,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.writeto("empty", "imagine nothing being here")
             return do_backup()
         d.addCallback(_modify)
-        def _check5a((rc, out, err)):
+        def _check5a(args):
             # second backup should reuse bar.txt (if backupdb is available),
             # and upload the rest. None of the directories can be reused.
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
@@ -263,7 +273,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessReallyEqual(ds, 0)
         d.addCallback(_check5a)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
-        def _check6((rc, out, err)):
+        def _check6(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.new_archives = out.split()
@@ -272,14 +283,16 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
                                  self.old_archives[0])
         d.addCallback(_check6)
         d.addCallback(lambda res: self.do_cli("get", "tahoe:backups/Latest/parent/subdir/foo.txt"))
-        def _check7((rc, out, err)):
+        def _check7(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(out, "FOOF!")
             # the old snapshot should not be modified
             return self.do_cli("get", "tahoe:backups/Archives/%s/parent/subdir/foo.txt" % self.old_archives[0])
         d.addCallback(_check7)
-        def _check8((rc, out, err)):
+        def _check8(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(out, "foo")
@@ -418,7 +431,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("backup", "--verbose", source, "tahoe:test"))
 
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 2)
             foo2 = os.path.join(source, "foo2.txt")
             self.failUnlessIn("WARNING: cannot backup symlink ", err)
@@ -449,7 +463,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:test"))
 
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 2)
             self.failUnlessReallyEqual(err, "WARNING: permission denied on file %s\n" % os.path.join(source, "foo.txt"))
 
@@ -484,7 +499,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:test"))
 
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 2)
             self.failUnlessReallyEqual(err, "WARNING: permission denied on directory %s\n" % os.path.join(source, "test"))
 
@@ -513,7 +529,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self.set_up_grid(oneshare=True)
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli('backup', source, source)
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -527,7 +544,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self.set_up_grid(oneshare=True)
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli("backup", source, "nonexistent:" + source)
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)

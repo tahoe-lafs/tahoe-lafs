@@ -49,7 +49,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
                     client_num=client_num,
                 )
             )
-        def _done((rc,stdout,stderr)):
+        def _done(args):
+            (rc, stdout, stderr) = args
             self.failUnlessEqual(rc, 0, stdout + stderr)
             self.assertIn("Alias 'magic' created", stdout)
 #            self.failUnlessIn("joined new magic-folder", stdout)
@@ -78,7 +79,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
                     client_num=client_num,
                 )
             )
-        def _done((rc, stdout, stderr)):
+        def _done(args):
+            (rc, stdout, stderr) = args
             self.failUnlessEqual(rc, 0)
             return (rc, stdout, stderr)
         d.addCallback(_done)
@@ -89,7 +91,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         if json:
             args = args + ("--json",)
         d = self.do_cli(*args, client_num=client_num)
-        def _done((rc, stdout, stderr)):
+        def _done(args):
+            (rc, stdout, stderr) = args
             return (rc, stdout, stderr)
         d.addCallback(_done)
         return d
@@ -99,7 +102,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         if name is not None:
             args = args + ("--name", name)
         d = self.do_cli(*args, client_num=client_num)
-        def _done((rc, stdout, stderr)):
+        def _done(args):
+            (rc, stdout, stderr) = args
             return (rc, stdout, stderr)
         d.addCallback(_done)
         return d
@@ -124,7 +128,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
                     client_num=client_num,
                 )
             )
-        def _done((rc, stdout, stderr)):
+        def _done(args):
+            (rc, stdout, stderr) = args
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(stdout, "")
             self.failUnlessEqual(stderr, "")
@@ -134,7 +139,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
 
     def do_leave(self, client_num):
         d = self.do_cli("magic-folder", "leave", client_num=client_num)
-        def _done((rc, stdout, stderr)):
+        def _done(args):
+            (rc, stdout, stderr) = args
             self.failUnlessEqual(rc, 0)
             return (rc, stdout, stderr)
         d.addCallback(_done)
@@ -154,11 +160,13 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
                     client_num=client_num,
                 )
             )
-        def _done((rc, stdout, stderr)):
+        def _done(args):
+            (rc, stdout, stderr) = args
             self.failUnlessEqual(rc, 0)
             return (rc, stdout, stderr)
         d.addCallback(_done)
-        def test_joined_magic_folder((rc,stdout,stderr)):
+        def test_joined_magic_folder(args):
+            (rc, stdout, stderr) = args
             readonly_cap = unicode(uri.from_string(upload_dircap).get_readonly().to_string(), 'utf-8')
             s = re.search(readonly_cap, stdout)
             self.failUnless(s is not None)
@@ -186,7 +194,8 @@ class MagicFolderCLITestMixin(CLITestMixin, GridTestMixin, NonASCIIPathMixin):
         local_dir_arg = unicode_to_argv(local_dir)
         # the --debug means we get real exceptions on failures
         d = self.do_cli("magic-folder", "--debug", "create", "magic:", nickname_arg, local_dir_arg)
-        def _done((rc, stdout, stderr)):
+        def _done(args):
+            (rc, stdout, stderr) = args
             self.failUnlessEqual(rc, 0, stdout + stderr)
 
             client = self.get_client()
@@ -487,7 +496,8 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
         d = self.do_create_magic_folder(0)
         d.addCallback(lambda ign: self.do_invite(0, self.alice_nickname))
-        def get_invite_code_and_join((rc, stdout, stderr)):
+        def get_invite_code_and_join(args):
+            (rc, stdout, stderr) = args
             invite_code = stdout.strip()
             return self.do_join(0, unicode(local_dir), invite_code)
         d.addCallback(get_invite_code_and_join)
@@ -503,7 +513,8 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         self.set_up_grid(oneshare=True)
 
         d = self.do_cli("magic-folder", "create", "m a g i c:", client_num=0)
-        def _done((rc, stdout, stderr)):
+        def _done(args):
+            (rc, stdout, stderr) = args
             self.failIfEqual(rc, 0)
             self.failUnlessIn("Alias names cannot contain spaces.", stderr)
         d.addCallback(_done)
@@ -604,7 +615,8 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         abs_local_dir_u = abspath_expanduser_unicode(unicode(local_dir), long_path=False)
 
         d = self.do_cli("magic-folder", "create", "magic:", "Alice", local_dir)
-        def _done((rc, stdout, stderr)):
+        def _done(args):
+            (rc, stdout, stderr) = args
             self.failUnlessEqual(rc, 0)
             self.collective_dircap, self.upload_dircap = self.get_caps_from_files(0)
         d.addCallback(_done)
@@ -657,7 +669,8 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
 
         d = self.do_create_magic_folder(0)
         d.addCallback(lambda ign: self.do_invite(0, self.alice_nickname))
-        def get_invite_code_and_join((rc, stdout, stderr)):
+        def get_invite_code_and_join(args):
+            (rc, stdout, stderr) = args
             self.invite_code = stdout.strip()
             return self.do_join(0, unicode(local_dir), self.invite_code)
         d.addCallback(get_invite_code_and_join)
@@ -687,7 +700,8 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         self.invite_code = None
         d = self.do_create_magic_folder(0)
         d.addCallback(lambda ign: self.do_invite(0, self.alice_nickname))
-        def get_invite_code_and_join((rc, stdout, stderr)):
+        def get_invite_code_and_join(args):
+            (rc, stdout, stderr) = args
             self.failUnlessEqual(rc, 0)
             self.invite_code = stdout.strip()
             return self.do_join(0, unicode(local_dir), self.invite_code)
@@ -719,7 +733,8 @@ class CreateMagicFolder(MagicFolderCLITestMixin, unittest.TestCase):
         self.invite_code = None
         d = self.do_create_magic_folder(0)
         d.addCallback(lambda ign: self.do_invite(0, self.alice_nickname))
-        def get_invite_code_and_join((rc, stdout, stderr)):
+        def get_invite_code_and_join(args):
+            (rc, stdout, stderr) = args
             self.failUnlessEqual(rc, 0)
             self.invite_code = stdout.strip()
             return self.do_join(0, unicode(local_dir), self.invite_code)

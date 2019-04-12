@@ -960,7 +960,8 @@ def trial(config):
     print("'tahoe debug trial' is obsolete. Please run 'tox', or use 'trial' in a virtualenv.", file=config.stderr)
     return 1
 
-def fixOptionsClass( (subcmd, shortcut, OptionsClass, desc) ):
+def fixOptionsClass(args):
+    (subcmd, shortcut, OptionsClass, desc) = args
     class FixedOptionsClass(OptionsClass):
         def getSynopsis(self):
             t = OptionsClass.getSynopsis(self)

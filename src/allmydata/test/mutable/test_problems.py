@@ -208,7 +208,8 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # the choice of server for share[0].
 
         d = nm.key_generator.generate(TEST_RSA_KEY_SIZE)
-        def _got_key( (pubkey, privkey) ):
+        def _got_key(keypair):
+            (pubkey, privkey) = keypair
             nm.key_generator = SameKeyGenerator(pubkey, privkey)
             pubkey_s = pubkey.serialize()
             privkey_s = privkey.serialize()

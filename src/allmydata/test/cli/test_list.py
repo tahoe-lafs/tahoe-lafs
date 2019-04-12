@@ -47,7 +47,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.do_cli("add-alias", "tahoe", self.rooturi))
         d.addCallback(lambda ign: self.do_cli("ls"))
-        def _check1((rc,out,err)):
+        def _check1(args):
+            (rc, out, err) = args
             if good_out is None:
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessIn("files whose names could not be converted", err)
@@ -59,13 +60,15 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share", good_out]))
         d.addCallback(_check1)
         d.addCallback(lambda ign: self.do_cli("ls", "missing"))
-        def _check2((rc,out,err)):
+        def _check2(args):
+            (rc, out, err) = args
             self.failIfEqual(rc, 0)
             self.failUnlessReallyEqual(err.strip(), "No such file or directory")
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_check2)
         d.addCallback(lambda ign: self.do_cli("ls", "1share"))
-        def _check3((rc,out,err)):
+        def _check3(args):
+            (rc, out, err) = args
             self.failIfEqual(rc, 0)
             self.failUnlessIn("Error during GET: 410 Gone", err)
             self.failUnlessIn("UnrecoverableFileError:", err)
@@ -75,7 +78,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check3)
         d.addCallback(lambda ign: self.do_cli("ls", "0share"))
         d.addCallback(_check3)
-        def _check4((rc, out, err)):
+        def _check4(args):
+            (rc, out, err) = args
             if good_out is None:
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessIn("files whose names could not be converted", err)
@@ -99,9 +103,10 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + ":./" + good_arg))
             d.addCallback(_check4)
 
-        def _check5((rc, out, err)):
+        def _check5(args):
             # listing a raw filecap should not explode, but it will have no
             # metadata, just the size
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual("-r-- %d -" % len(small), out.strip())
         d.addCallback(lambda ign: self.do_cli("ls", "-l", self.goodcap))
@@ -112,14 +117,16 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.rootnode.move_child_to(u"g\u00F6\u00F6d", self.rootnode, u"good"))
 
         d.addCallback(lambda ign: self.do_cli("ls"))
-        def _check1_ascii((rc,out,err)):
+        def _check1_ascii(args):
+            (rc,out,err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share", "good"]))
         d.addCallback(_check1_ascii)
-        def _check4_ascii((rc, out, err)):
+        def _check4_ascii(args):
             # listing a file (as dir/filename) should have the edge metadata,
             # including the filename
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessIn("good", out)
             self.failIfIn("-r-- %d -" % len(small), out,
@@ -141,19 +148,21 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             return self.rootnode.create_subdirectory(u"unknown", initial_children=kids,
                                                      mutable=False)
         d.addCallback(_create_unknown)
-        def _check6((rc, out, err)):
+        def _check6(args):
             # listing a directory referencing an unknown object should print
             # an extra message to stderr
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessIn("?r-- ? - unknownchild-imm\n", out)
             self.failUnlessIn("included unknown objects", err)
         d.addCallback(lambda ign: self.do_cli("ls", "-l", "unknown"))
         d.addCallback(_check6)
-        def _check7((rc, out, err)):
+        def _check7(args):
             # listing an unknown cap directly should print an extra message
             # to stderr (currently this only works if the URI starts with 'URI:'
             # after any 'ro.' or 'imm.' prefix, otherwise it will be confused
             # with an alias).
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessIn("?r-- ? -\n", out)
             self.failUnlessIn("included unknown objects", err)
@@ -167,7 +176,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/List/list_without_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("ls")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -180,7 +190,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/List/list_with_nonexistent_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("ls", "nonexistent:")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -231,7 +242,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             d3 = n.add_file(u"immutable", immutable_data)
             ds = [d1, d2, d3]
             dl = defer.DeferredList(ds)
-            def _made_files((r1, r2, r3)):
+            def _made_files(args):
+                (r1, r2, r3) = args
                 self.failUnless(r1[0])
                 self.failUnless(r2[0])
                 self.failUnless(r3[0])
@@ -263,7 +275,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self._create_directory_structure()
         d.addCallback(lambda ignored:
             self.do_cli("ls", self._dircap))
-        def _got_ls((rc, out, err)):
+        def _got_ls(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(err, "")
             self.failUnlessIn("immutable", out)
@@ -280,7 +293,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self._create_directory_structure()
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", self._dircap))
-        def _got_json((rc, out, err)):
+        def _got_json(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(err, "")
             self.failUnlessIn(self._mdmf_uri, out)

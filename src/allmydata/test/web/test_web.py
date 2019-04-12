@@ -1161,7 +1161,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         headers = {"range": "bytes=1-10"}
         d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(res_and_status_and_headers):
+            (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(int(status), 206)
             self.failUnless(headers.hasHeader("content-range"))
             self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
@@ -1175,7 +1176,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         length  = len(self.BAR_CONTENTS)
         d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(res_and_status_and_headers):
+            (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(int(status), 206)
             self.failUnless(headers.hasHeader("content-range"))
             self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
@@ -1189,7 +1191,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         length  = len(self.BAR_CONTENTS)
         d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(res_and_status_and_headers):
+            (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(int(status), 206)
             self.failUnless(headers.hasHeader("content-range"))
             self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
@@ -1211,7 +1214,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         headers = {"range": "bytes=1-10"}
         d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(res_and_status_and_headers):
+            (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(res, "")
             self.failUnlessReallyEqual(int(status), 206)
             self.failUnless(headers.hasHeader("content-range"))
@@ -1225,7 +1229,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         length  = len(self.BAR_CONTENTS)
         d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(res_and_status_and_headers):
+            (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(int(status), 206)
             self.failUnless(headers.hasHeader("content-range"))
             self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
@@ -1238,7 +1243,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         length  = len(self.BAR_CONTENTS)
         d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(res_and_status_and_headers):
+            (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(int(status), 206)
             self.failUnless(headers.hasHeader("content-range"))
             self.failUnlessReallyEqual(headers.getRawHeaders("content-range")[0],
@@ -1259,7 +1265,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         headers = {"range": "BOGUS=fizbop-quarnak"}
         d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(res_and_status_and_headers):
+            (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(int(status), 200)
             self.failUnless(not headers.hasHeader("content-range"))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS)
@@ -1268,7 +1275,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_HEAD_FILEURL(self):
         d = self.HEAD(self.public_url + "/foo/bar.txt", return_response=True)
-        def _got((res, status, headers)):
+        def _got(res_and_status_and_headers):
+            (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(res, "")
             self.failUnlessReallyEqual(headers.getRawHeaders("content-length")[0],
                                        str(len(self.BAR_CONTENTS)))
@@ -1477,29 +1485,29 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             uri = "/uri/%s" % self._bar_txt_uri
             d = self.GET(uri, return_response=True)
             # extract the ETag
-            d.addCallback(lambda (data, code, headers):
-                          headers.getRawHeaders('etag')[0])
+            d.addCallback(lambda data_code_headers:
+                          data_code_headers[2].getRawHeaders('etag')[0])
             # do a GET that's supposed to match the ETag
             d.addCallback(lambda etag:
                           self.GET(uri, return_response=True,
                                    headers={"If-None-Match": etag}))
             # make sure it short-circuited (304 instead of 200)
-            d.addCallback(lambda (data, code, headers):
-                          self.failUnlessEqual(int(code), http.NOT_MODIFIED))
+            d.addCallback(lambda data_code_headers:
+                          self.failUnlessEqual(int(data_code_headers[1]), http.NOT_MODIFIED))
             return d
         d.addCallback(_check_match)
 
         def _no_etag(uri, t):
             target = "/uri/%s?t=%s" % (uri, t)
             d = self.GET(target, return_response=True, followRedirect=True)
-            d.addCallback(lambda (data, code, headers):
-                          self.failIf(headers.hasHeader("etag"), target))
+            d.addCallback(lambda data_code_headers:
+                          self.failIf(data_code_headers[2].hasHeader("etag"), target))
             return d
         def _yes_etag(uri, t):
             target = "/uri/%s?t=%s" % (uri, t)
             d = self.GET(target, return_response=True, followRedirect=True)
-            d.addCallback(lambda (data, code, headers):
-                          self.failUnless(headers.hasHeader("etag"), target))
+            d.addCallback(lambda data_code_headers:
+                          self.failUnless(data_code_headers[2].hasHeader("etag"), target))
             return d
 
         d.addCallback(lambda ign: _yes_etag(self._bar_txt_uri, ""))
@@ -1521,7 +1529,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_FILEURL_save(self):
         d = self.GET(self.public_url + "/foo/bar.txt?filename=bar.txt&save=true",
                      return_response=True)
-        def _got((res, statuscode, headers)):
+        def _got(res_and_status_and_headers):
+            (res, statuscode, headers) = res_and_status_and_headers
             content_disposition = headers.getRawHeaders("content-disposition")[0]
             self.failUnless(content_disposition == 'attachment; filename="bar.txt"', content_disposition)
             self.failUnlessIsBarDotTxt(res)
@@ -2852,7 +2861,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.HEAD(self.public_url + "/foo/new.txt",
                                 return_response=True))
-        def _got_headers((res, status, headers)):
+        def _got_headers(res_and_status_and_headers):
+            (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(res, "")
             self.failUnlessReallyEqual(headers.getRawHeaders("content-length")[0],
                                        str(len(NEW2_CONTENTS)))

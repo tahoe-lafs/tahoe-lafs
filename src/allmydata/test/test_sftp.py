@@ -1348,7 +1348,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self.handler.makeDirectory("newdir", {'ext_foo': 'bar', 'ctime': 42}))
 
         d.addCallback(lambda ign: self.root.get_child_and_metadata(u"newdir"))
-        def _got( (child, metadata) ):
+        def _got(child_and_metadata):
+            (child, metadata) = child_and_metadata
             self.failUnless(IDirectoryNode.providedBy(child))
             self.failUnless(child.is_mutable())
             # FIXME
