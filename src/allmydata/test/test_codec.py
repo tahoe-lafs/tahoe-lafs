@@ -15,7 +15,8 @@ class T(unittest.TestCase):
         assert params == (size, required_shares, max_shares)
         log.msg("params: %s" % (params,))
         d = enc.encode(data0s)
-        def _done_encoding_all((shares, shareids)):
+        def _done_encoding_all(shares_and_shareids):
+            (shares, shareids) = shares_and_shareids
             self.failUnlessEqual(len(shares), max_shares)
             self.shares = shares
             self.shareids = shareids
@@ -24,11 +25,13 @@ class T(unittest.TestCase):
             # also validate that the desired_shareids= parameter works
             desired_shareids = random.sample(range(max_shares), fewer_shares)
             d.addCallback(lambda res: enc.encode(data0s, desired_shareids))
-            def _check_fewer_shares((some_shares, their_shareids)):
+            def _check_fewer_shares(some_shares_and_their_shareids):
+                (some_shares, their_shareids) = some_shares_and_their_shareids
                 self.failUnlessEqual(tuple(their_shareids), tuple(desired_shareids))
             d.addCallback(_check_fewer_shares)
 
-        def _decode((shares, shareids)):
+        def _decode(shares_and_shareids):
+            (shares, shareids) = shares_and_shareids
             dec = CRSDecoder()
             dec.set_params(*params)
             d1 = dec.decode(shares, shareids)

@@ -193,7 +193,8 @@ class Spans:
         not_other = bounds - other
         return self - not_other
 
-    def __contains__(self, (start,length)):
+    def __contains__(self, start_and_length):
+        (start, length) = start_and_length
         for span_start,span_length in self._spans:
             o = overlap(start, length, span_start, span_length)
             if o:

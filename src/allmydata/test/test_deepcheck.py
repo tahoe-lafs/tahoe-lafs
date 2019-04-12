@@ -131,7 +131,8 @@ class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
         d.addCallback(self.decode_json)
         return d
 
-    def decode_json(self, (s,url)):
+    def decode_json(self, args):
+        (s, url) = args
         try:
             data = json.loads(s)
         except ValueError:
@@ -357,8 +358,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_web_stream_manifest(self, ignored):
         d = self.web(self.root, method="POST", t="stream-manifest")
-        d.addCallback(lambda (output,url):
-                      self._check_streamed_manifest(output))
+        d.addCallback(lambda output_and_url:
+                      self._check_streamed_manifest(output_and_url[0]))
         return d
 
     def _check_streamed_manifest(self, output):
@@ -733,7 +734,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream1(self):
         d = self.do_cli("manifest", self.root_uri)
-        def _check((rc,out,err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 8)
@@ -758,7 +760,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream2(self):
         d = self.do_cli("manifest", "--raw", self.root_uri)
-        def _check((rc,out,err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(err, "")
             # this should be the same as the POST t=stream-manifest output
             self._check_streamed_manifest(out)
@@ -767,7 +770,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream3(self):
         d = self.do_cli("manifest", "--storage-index", self.root_uri)
-        def _check((rc,out,err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(err, "")
             self._check_manifest_storage_index(out)
         d.addCallback(_check)
@@ -775,7 +779,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream4(self):
         d = self.do_cli("manifest", "--verify-cap", self.root_uri)
-        def _check((rc,out,err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 3)
@@ -787,7 +792,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream5(self):
         d = self.do_cli("manifest", "--repair-cap", self.root_uri)
-        def _check((rc,out,err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 3)
@@ -799,7 +805,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_stats1(self):
         d = self.do_cli("stats", self.root_uri)
-        def _check3((rc,out,err)):
+        def _check3(args):
+            (rc, out, err) = args
             lines = [l.strip() for l in out.split("\n") if l]
             self.failUnless("count-immutable-files: 1" in lines)
             self.failUnless("count-mutable-files: 1" in lines)
@@ -816,7 +823,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_stats2(self):
         d = self.do_cli("stats", "--raw", self.root_uri)
-        def _check4((rc,out,err)):
+        def _check4(args):
+            (rc, out, err) = args
             data = json.loads(out)
             self.failUnlessEqual(data["count-immutable-files"], 1)
             self.failUnlessEqual(data["count-immutable-files"], 1)
@@ -1189,7 +1197,8 @@ class Large(DeepCheckBase, unittest.TestCase):
         def _start_deepcheck(ignored):
             return self.web(self.root, method="POST", t="stream-deep-check")
         d.addCallback(_start_deepcheck)
-        def _check( (output, url) ):
+        def _check(output_and_url):
+            (output, url) = output_and_url
             units = list(self.parse_streamed_json(output))
             self.failUnlessEqual(len(units), 2+COUNT+1)
         d.addCallback(_check)

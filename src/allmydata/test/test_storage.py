@@ -1620,7 +1620,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         # Check that every method equals what we expect it to.
         d = defer.succeed(None)
-        def _check_block_and_salt((block, salt)):
+        def _check_block_and_salt(block_and_salt):
+            (block, salt) = block_and_salt
             self.failUnlessEqual(block, self.block)
             self.failUnlessEqual(salt, self.salt)
 
@@ -1671,7 +1672,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
         d.addCallback(lambda ignored:
             mr.get_encoding_parameters())
-        def _check_encoding_parameters((k, n, segsize, datalen)):
+        def _check_encoding_parameters(args):
+            (k, n, segsize, datalen) = args
             self.failUnlessEqual(k, 3)
             self.failUnlessEqual(n, 10)
             self.failUnlessEqual(segsize, 6)
@@ -1712,7 +1714,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         d = mr.get_encoding_parameters()
-        def _check_encoding_parameters((k, n, segment_size, datalen)):
+        def _check_encoding_parameters(args):
+            (k, n, segment_size, datalen) = args
             self.failUnlessEqual(k, 3)
             self.failUnlessEqual(n, 10)
             self.failUnlessEqual(segment_size, 6)
@@ -2260,7 +2263,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             mw.finish_publishing())
 
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
-        def _check_block_and_salt((block, salt)):
+        def _check_block_and_salt(block_and_salt):
+            (block, salt) = block_and_salt
             self.failUnlessEqual(block, self.block)
             self.failUnlessEqual(salt, self.salt)
 
@@ -2306,7 +2310,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
         d.addCallback(lambda ignored:
             mr.get_encoding_parameters())
-        def _check_encoding_parameters((k, n, segsize, datalen)):
+        def _check_encoding_parameters(args):
+            (k, n, segsize, datalen) = args
             self.failUnlessEqual(k, 3)
             self.failUnlessEqual(n, 10)
             self.failUnlessEqual(segsize, 6)
@@ -2473,7 +2478,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_make_mr, 123)
         d.addCallback(lambda mr:
             mr.get_block_and_salt(0))
-        def _check_block_and_salt((block, salt)):
+        def _check_block_and_salt(block_and_salt):
+            (block, salt) = block_and_salt
             self.failUnlessEqual(block, self.block)
             self.failUnlessEqual(salt, self.salt)
             self.failUnlessEqual(self.rref.read_count, 1)
@@ -2534,7 +2540,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_make_mr, 123)
         d.addCallback(lambda mr:
             mr.get_block_and_salt(0))
-        def _check_block_and_salt((block, salt)):
+        def _check_block_and_salt(block_and_salt):
+            (block, salt) = block_and_salt
             self.failUnlessEqual(block, self.block * 6)
             self.failUnlessEqual(salt, self.salt)
             # TODO: Fix the read routine so that it reads only the data

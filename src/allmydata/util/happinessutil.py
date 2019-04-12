@@ -156,8 +156,7 @@ def servers_of_happiness(sharemap):
         # is the amount of unused capacity on that edge. Taking the
         # minimum of a list of those values for each edge in the
         # augmenting path gives us our delta.
-        delta = min(map(lambda (u, v), rf=residual_function: rf[u][v],
-                        path))
+        delta = min(residual_function[u][v] for (u, v) in path)
         for (u, v) in path:
             flow_function[u][v] += delta
             flow_function[v][u] -= delta

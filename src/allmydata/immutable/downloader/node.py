@@ -473,7 +473,8 @@ class DownloadNode:
         d.addCallback(_process)
         return d
 
-    def _check_ciphertext_hash(self, (segment, decodetime), segnum):
+    def _check_ciphertext_hash(self, segment_and_decodetime, segnum):
+        (segment, decodetime) = segment_and_decodetime
         start = now()
         assert self._active_segment.segnum == segnum
         assert self.segment_size is not None

@@ -1346,7 +1346,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         d = delay or defer.succeed(None)
         d.addCallback(lambda ign: self._get_root(path))
-        def _got_root( (root, path) ):
+        def _got_root(root_and_path):
+            (root, path) = root_and_path
             if root.is_unknown():
                 raise SFTPError(FX_PERMISSION_DENIED,
                                 "cannot open an unknown cap (or child of an unknown object). "
@@ -1424,7 +1425,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         if noisy: self.log("%r.get_child_and_metadata(%r)" % (parent, childname), level=NOISY)
                         d3.addCallback(lambda ign: parent.get_child_and_metadata(childname))
 
-                    def _got_child( (filenode, current_metadata) ):
+                    def _got_child(filenode_and_current_metadata):
+                        (filenode, current_metadata) = filenode_and_current_metadata
                         if noisy: self.log("_got_child( (%r, %r) )" % (filenode, current_metadata), level=NOISY)
 
                         metadata = update_metadata(current_metadata, desired_metadata, time())
@@ -1485,7 +1487,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # the target directory must already exist
         d = deferredutil.gatherResults([self._get_parent_or_node(from_path),
                                         self._get_parent_or_node(to_path)])
-        def _got( (from_pair, to_pair) ):
+        def _got(from_pair_and_to_pair):
+            (from_pair, to_pair) = from_pair_and_to_pair
             if noisy: self.log("_got( (%r, %r) ) in .renameFile(%r, %r, overwrite=%r)" %
                                (from_pair, to_pair, from_pathstring, to_pathstring, overwrite), level=NOISY)
             (from_parent, from_childname) = from_pair
@@ -1556,8 +1559,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             return defer.execute(_denied)
 
         d = self._get_root(path)
-        d.addCallback(lambda (root, path):
-                      self._get_or_create_directories(root, path, metadata))
+        d.addCallback(lambda root_and_path:
+                      self._get_or_create_directories(root_and_path[0], root_and_path[1], metadata))
         d.addBoth(_convert_error, request)
         return d
 
@@ -1599,7 +1602,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _remove_object(self, path, must_be_directory=False, must_be_file=False):
         userpath = self._path_to_utf8(path)
         d = self._get_parent_or_node(path)
-        def _got_parent( (parent, childname) ):
+        def _got_parent(parent_and_childname):
+            (parent, childname) = parent_and_childname
             if childname is None:
                 raise SFTPError(FX_NO_SUCH_FILE, "cannot remove an object specified by URI")
 
@@ -1621,7 +1625,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         path = self._path_from_string(pathstring)
         d = self._get_parent_or_node(path)
-        def _got_parent_or_node( (parent_or_node, childname) ):
+        def _got_parent_or_node(parent_or_node__and__childname):
+            (parent_or_node, childname) = parent_or_node__and__childname
             if noisy: self.log("_got_parent_or_node( (%r, %r) ) in openDirectory(%r)" %
                                (parent_or_node, childname, pathstring), level=NOISY)
             if childname is None:
@@ -1668,7 +1673,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         path = self._path_from_string(pathstring)
         userpath = self._path_to_utf8(path)
         d = self._get_parent_or_node(path)
-        def _got_parent_or_node( (parent_or_node, childname) ):
+        def _got_parent_or_node(parent_or_node__and__childname):
+            (parent_or_node, childname) = parent_or_node__and__childname
             if noisy: self.log("_got_parent_or_node( (%r, %r) )" % (parent_or_node, childname), level=NOISY)
 
             # Some clients will incorrectly try to get the attributes
@@ -1688,7 +1694,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             else:
                 parent = parent_or_node
                 d2.addCallback(lambda ign: parent.get_child_and_metadata_at_path([childname]))
-                def _got( (child, metadata) ):
+                def _got(child_and_metadata):
+                    (child, metadata) = child_and_metadata
                     if noisy: self.log("_got( (%r, %r) )" % (child, metadata), level=NOISY)
                     _assert(IDirectoryNode.providedBy(parent), parent=parent)
                     metadata['no-write'] = _no_write(parent.is_readonly(), child, metadata)
@@ -1726,7 +1733,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         path = self._path_from_string(pathstring)
         userpath = self._path_to_utf8(path)
         d = self._get_parent_or_node(path)
-        def _got_parent_or_node( (parent_or_node, childname) ):
+        def _got_parent_or_node(parent_or_node__and__childname):
+            (parent_or_node, childname) = parent_or_node__and__childname
             if noisy: self.log("_got_parent_or_node( (%r, %r) )" % (parent_or_node, childname), level=NOISY)
 
             direntry = _direntry_for(parent_or_node, childname)
@@ -1871,7 +1879,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _get_parent_or_node(self, path):
         # return Deferred (parent, childname) or (node, None)
         d = self._get_root(path)
-        def _got_root( (root, remaining_path) ):
+        def _got_root(root_and_remaining_path):
+            (root, remaining_path) = root_and_remaining_path
             if not remaining_path:
                 return (root, None)
             else:

@@ -276,8 +276,9 @@ class ServerTracker(object):
         rref = self._server.get_rref()
         return rref.callRemote("get_buckets", self.storage_index)
 
-    def _buckets_allocated(self, (alreadygot, buckets)):
+    def _buckets_allocated(self, alreadygot_and_buckets):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
+        (alreadygot, buckets) = alreadygot_and_buckets
         b = {}
         for sharenum, rref in buckets.iteritems():
             bp = self.wbp_class(rref, self._server, self.sharesize,
@@ -1536,7 +1537,8 @@ class AssistedUploader:
         d.addCallback(self._contacted_helper)
         return d
 
-    def _contacted_helper(self, (helper_upload_results, upload_helper)):
+    def _contacted_helper(self, helper_upload_results_and_upload_helper):
+        (helper_upload_results, upload_helper) = helper_upload_results_and_upload_helper
         now = time.time()
         elapsed = now - self._time_contacting_helper_start
         self._elapsed_time_contacting_helper = elapsed
