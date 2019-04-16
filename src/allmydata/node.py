@@ -763,12 +763,8 @@ class Node(service.MultiService):
         # to use "flogtool tail" against a remote server), but for now I
         # think we can live without it.
         self.log_tub = Tub()
-        portnum = iputil.allocate_tcp_port()
-        port = "tcp:%d:interface=127.0.0.1" % portnum
-        location = "tcp:127.0.0.1:%d" % portnum
-        self.log_tub.listenOn(port)
-        self.log_tub.setLocation(location)
-        self.log("Log Tub location set to %s" % (location,))
+        portnum = iputil.listenOnUnused(self.log_tub)
+        self.log("Log Tub location set to 127.0.0.1:%s" % (portnum,))
         self.log_tub.setServiceParent(self)
 
     def startService(self):
