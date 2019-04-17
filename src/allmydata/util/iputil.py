@@ -1,14 +1,18 @@
 # from the Python Standard Library
 import os, re, socket, subprocess, errno
-
 from sys import platform
 
 # from Twisted
+from twisted.python.reflect import requireModule
 from twisted.internet import defer, threads, reactor
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet.error import CannotListenError
 from twisted.python.procutils import which
 from twisted.python import log
+from twisted.internet.endpoints import AdoptedStreamServerEndpoint
+from twisted.internet.interfaces import IReactorSocket
+
+fcntl = requireModule("fcntl")
 
 from foolscap.util import allocate_tcp_port # re-exported
 
@@ -238,6 +242,67 @@ def _cygwin_hack_find_addresses():
             addresses.append(addr)
 
     return defer.succeed(addresses)
+
+
+def _foolscapEndpointForPortNumber(portnum):
+    """
+    Create an endpoint that can be passed to ``Tub.listen``.
+
+    :param portnum: Either an integer port number indicating which TCP/IPv4
+        port number the endpoint should bind or ``None`` to automatically
+        allocate such a port number.
+
+    :return: A two-tuple of the integer port number allocated and a
+        Foolscap-compatible endpoint object.
+    """
+    if portnum is None:
+        # Bury this reactor import here to minimize the chances of it having
+        # the effect of installing the default reactor.
+        from twisted.internet import reactor
+        if fcntl is not None and IReactorSocket.providedBy(reactor):
+            # On POSIX we can take this very safe approach of binding the
+            # actual socket to an address.  Once the bind succeeds here, we're
+            # no longer subject to any future EADDRINUSE problems.
+            s = socket.socket()
+            try:
+                s.bind(('', 0))
+                portnum = s.getsockname()[1]
+                s.listen(1)
+                fd = os.dup(s.fileno())
+                flags = fcntl.fcntl(fd, fcntl.F_GETFD)
+                flags = flags | os.O_NONBLOCK | fcntl.FD_CLOEXEC
+                fcntl.fcntl(fd, fcntl.F_SETFD, flags)
+                return (
+                    portnum,
+                    AdoptedStreamServerEndpoint(reactor, fd, socket.AF_INET),
+                )
+            finally:
+                s.close()
+        else:
+            # Get a random port number and fall through.  This is necessary on
+            # Windows where Twisted doesn't offer IReactorSocket.  This
+            # approach is error prone for the reasons described on
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2787
+            portnum = allocate_tcp_port()
+    return (portnum, "tcp:%d" % (portnum,))
+
+
+def listenOnUnused(tub, portnum=None):
+    """
+    Start listening on an unused TCP port number with the given tub.
+
+    :param portnum: Either an integer port number indicating which TCP/IPv4
+        port number the endpoint should bind or ``None`` to automatically
+        allocate such a port number.
+
+    :return: An integer indicating the TCP port number on which the tub is now
+        listening.
+    """
+    portnum, endpoint = _foolscapEndpointForPortNumber(portnum)
+    tub.listenOn(endpoint)
+    tub.setLocation("localhost:%d" % (portnum,))
+    return portnum
+
 
 __all__ = ["allocate_tcp_port",
            "increase_rlimits",

@@ -2,7 +2,6 @@
 import os, re, itertools
 from base64 import b32decode
 import json
-from socket import socket, AF_INET
 from mock import Mock, patch
 
 from testtools.matchers import (
@@ -12,9 +11,6 @@ from testtools.matchers import (
 from twisted.internet import defer, address
 from twisted.python import log
 from twisted.python.filepath import FilePath
-from twisted.python.reflect import requireModule
-from twisted.internet.endpoints import AdoptedStreamServerEndpoint
-from twisted.internet.interfaces import IReactorSocket
 
 from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
@@ -35,15 +31,16 @@ from allmydata.client import (
     create_client,
     create_introducer_clients,
 )
-from allmydata.util import pollmixin, keyutil, idlib, fileutil, iputil, yamlutil
+from allmydata.util import pollmixin, keyutil, idlib, fileutil, yamlutil
+from allmydata.util.iputil import (
+    listenOnUnused,
+)
 import allmydata.test.common_util as testutil
 from .common import (
     SyncTestCase,
     AsyncTestCase,
     AsyncBrokenTestCase,
 )
-
-fcntl = requireModule("fcntl")
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
@@ -372,64 +369,6 @@ class Server(AsyncTestCase):
 
 
 NICKNAME = u"n\u00EDickname-%s" # LATIN SMALL LETTER I WITH ACUTE
-
-def foolscapEndpointForPortNumber(portnum):
-    """
-    Create an endpoint that can be passed to ``Tub.listen``.
-
-    :param portnum: Either an integer port number indicating which TCP/IPv4
-        port number the endpoint should bind or ``None`` to automatically
-        allocate such a port number.
-
-    :return: A two-tuple of the integer port number allocated and a
-        Foolscap-compatible endpoint object.
-    """
-    if portnum is None:
-        # Bury this reactor import here to minimize the chances of it having
-        # the effect of installing the default reactor.
-        from twisted.internet import reactor
-        if fcntl is not None and IReactorSocket.providedBy(reactor):
-            # On POSIX we can take this very safe approach of binding the
-            # actual socket to an address.  Once the bind succeeds here, we're
-            # no longer subject to any future EADDRINUSE problems.
-            s = socket()
-            try:
-                s.bind(('', 0))
-                portnum = s.getsockname()[1]
-                s.listen(1)
-                fd = os.dup(s.fileno())
-                flags = fcntl.fcntl(fd, fcntl.F_GETFD)
-                flags = flags | os.O_NONBLOCK | fcntl.FD_CLOEXEC
-                fcntl.fcntl(fd, fcntl.F_SETFD, flags)
-                return (
-                    portnum,
-                    AdoptedStreamServerEndpoint(reactor, fd, AF_INET),
-                )
-            finally:
-                s.close()
-        else:
-            # Get a random port number and fall through.  This is necessary on
-            # Windows where Twisted doesn't offer IReactorSocket.  This
-            # approach is error prone for the reasons described on
-            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2787
-            portnum = iputil.allocate_tcp_port()
-    return (portnum, "tcp:%d" % (portnum,))
-
-def listenOnUnused(tub, portnum=None):
-    """
-    Start listening on an unused TCP port number with the given tub.
-
-    :param portnum: Either an integer port number indicating which TCP/IPv4
-        port number the endpoint should bind or ``None`` to automatically
-        allocate such a port number.
-
-    :return: An integer indicating the TCP port number on which the tub is now
-        listening.
-    """
-    portnum, endpoint = foolscapEndpointForPortNumber(portnum)
-    tub.listenOn(endpoint)
-    tub.setLocation("localhost:%d" % (portnum,))
-    return portnum
 
 class SystemTestMixin(ServiceMixin, pollmixin.PollMixin):
 
