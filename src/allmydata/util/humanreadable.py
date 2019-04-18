@@ -26,7 +26,7 @@ class BetterRepr(Repr):
             return '<' + obj.im_class.__name__ + '.' + obj.im_func.__name__ + '() at (builtin)'
 
     def repr_long(self, obj, level):
-        s = `obj` # XXX Hope this isn't too slow...
+        s = repr(obj) # XXX Hope this isn't too slow...
         if len(s) > self.maxlong:
             i = max(0, (self.maxlong-3)/2)
             j = max(0, self.maxlong-3-i)
