@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import os, sys
+import six
 from six.moves import StringIO
 
 from twisted.python import usage
@@ -186,7 +187,7 @@ def _maybe_enable_eliot_logging(options, reactor):
     return options
 
 def run():
-    assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
+    assert sys.version_info < (3,), six.u("Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x.")
 
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize

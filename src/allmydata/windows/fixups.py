@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+import six
+
 done = False
 
 def initialize():
@@ -217,7 +219,7 @@ def initialize():
     # Instead it "mangles" or escapes them using \x7F as an escape character, which we
     # unescape here.
     def unmangle(s):
-        return re.sub(ur'\x7F[0-9a-fA-F]*\;', lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
+        return re.sub(six.u(r'\x7F[0-9a-fA-F]*\;'), lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
 
     try:
         argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in xrange(0, argc.value)]

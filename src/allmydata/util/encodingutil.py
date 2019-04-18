@@ -4,6 +4,7 @@ unicode and back.
 """
 
 import sys, os, re, locale
+import six
 from types import NoneType
 
 from allmydata.util.assertutil import precondition, _assert
@@ -118,7 +119,7 @@ def unicode_to_argv(s, mangle=False):
 
     if mangle and sys.platform == "win32":
         # This must be the same as 'mangle' in bin/tahoe-script.template.
-        return str(re.sub(ur'[^\x20-\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
+        return str(re.sub(six.u(r'[^\x20-\x7F]'), lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
     else:
         return s.encode(io_encoding)
 
@@ -196,12 +197,12 @@ def _str_escape(m, quote_newlines):
     else:
         return '\\x%02x' % (ord(c),)
 
-MUST_DOUBLE_QUOTE_NL = re.compile(ur'[^\x20-\x26\x28-\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]', re.DOTALL)
-MUST_DOUBLE_QUOTE    = re.compile(ur'[^\n\x20-\x26\x28-\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]', re.DOTALL)
+MUST_DOUBLE_QUOTE_NL = re.compile(six.u(r'[^\x20-\x26\x28-\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]'), re.DOTALL)
+MUST_DOUBLE_QUOTE    = re.compile(six.u(r'[^\n\x20-\x26\x28-\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]'), re.DOTALL)
 
 # if we must double-quote, then we have to escape ", $ and `, but need not escape '
-ESCAPABLE_UNICODE = re.compile(ur'([\uD800-\uDBFF][\uDC00-\uDFFF])|'  # valid surrogate pairs
-                               ur'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]',
+ESCAPABLE_UNICODE = re.compile(six.u(r'([\uD800-\uDBFF][\uDC00-\uDFFF])|'  # valid surrogate pairs
+                                     r'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]'),
                                re.DOTALL)
 
 ESCAPABLE_8BIT    = re.compile( r'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E]', re.DOTALL)
