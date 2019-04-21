@@ -365,7 +365,7 @@ class DirectoryTarget(object):
 
 
 class _ErrorTarget(object):
-    def __init__(self, path, isdir):
+    def __init__(self, path, isdir=False):
         self._path = path
         self._quoted_path = quote_local_unicode_path(path)
         self._isdir = isdir
