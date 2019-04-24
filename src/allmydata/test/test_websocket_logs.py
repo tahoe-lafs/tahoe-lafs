@@ -26,20 +26,9 @@ class TestStreamingLogs(unittest.TestCase):
     @inlineCallbacks
     def test_one_log(self):
 
-        class TestClient(WebSocketClientProtocol):
-            def onOpen(self):
-                print("opened")
-
-            def onMessage(self, msg, is_binary=False):
-                print("msg {}".format(msg))
-
-            def onClose(self, *args):
-                print("close: {}".format(args))
-
         proto = yield self.agent.open(
             transport_config=u"ws://localhost:1234/ws",
             options={},
-            protocol_class=None,
         )
 
         messages = []
