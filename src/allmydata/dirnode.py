@@ -532,7 +532,7 @@ class DirectoryNode(object):
         path-name elements.
         """
         d = self.get_child_and_metadata_at_path(pathx)
-        d.addCallback(lambda (node, metadata): node)
+        d.addCallback(lambda node_and_metadata: node_and_metadata[0])
         return d
 
     def get_child_and_metadata_at_path(self, pathx):
@@ -709,7 +709,8 @@ class DirectoryNode(object):
             return defer.succeed("redundant rename/relink")
 
         d = self.get_child_and_metadata(current_child_name)
-        def _got_child( (child, metadata) ):
+        def _got_child(child_and_metadata):
+            (child, metadata) = child_and_metadata
             return new_parent.set_node(new_child_name, child, metadata,
                                        overwrite=overwrite)
         d.addCallback(_got_child)

@@ -1,0 +1,1 @@
+Removed tuple unpacking from function and lambda definitions for Python3 compatibility.

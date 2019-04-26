@@ -28,7 +28,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_uri)
 
         d.addCallback(lambda ign: self.do_cli("check", self.uri))
-        def _check1((rc, out, err)):
+        def _check1(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -37,7 +38,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check1)
 
         d.addCallback(lambda ign: self.do_cli("check", "--raw", self.uri))
-        def _check2((rc, out, err)):
+        def _check2(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             data = json.loads(out)
@@ -51,7 +53,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_lit_uri)
 
         d.addCallback(lambda ign: self.do_cli("check", self.lit_uri))
-        def _check_lit((rc, out, err)):
+        def _check_lit(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -59,7 +62,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_lit)
 
         d.addCallback(lambda ign: self.do_cli("check", "--raw", self.lit_uri))
-        def _check_lit_raw((rc, out, err)):
+        def _check_lit_raw(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             data = json.loads(out)
@@ -94,7 +98,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_clobber_shares)
 
         d.addCallback(lambda ign: self.do_cli("check", "--verify", self.uri))
-        def _check3((rc, out, err)):
+        def _check3(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -107,7 +112,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check3)
 
         d.addCallback(lambda ign: self.do_cli("check", "--verify", "--raw", self.uri))
-        def _check3_raw((rc, out, err)):
+        def _check3_raw(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             data = json.loads(out)
@@ -120,7 +126,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign:
                       self.do_cli("check", "--verify", "--repair", self.uri))
-        def _check4((rc, out, err)):
+        def _check4(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -133,7 +140,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign:
                       self.do_cli("check", "--verify", "--repair", self.uri))
-        def _check5((rc, out, err)):
+        def _check5(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -174,7 +182,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_uri, "mutable")
 
         d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
-        def _check1((rc, out, err)):
+        def _check1(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -189,7 +198,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign: self.do_cli("deep-check", "--verbose",
                                               self.rooturi))
-        def _check2((rc, out, err)):
+        def _check2(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -202,7 +212,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check2)
 
         d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
-        def _check_stats((rc, out, err)):
+        def _check_stats(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -240,7 +251,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign:
                       self.do_cli("deep-check", "--verbose", self.rooturi))
-        def _check3((rc, out, err)):
+        def _check3(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -256,7 +268,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.do_cli("deep-check", "--verbose", "--verify",
                                   self.rooturi))
-        def _check4((rc, out, err)):
+        def _check4(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -274,7 +287,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.do_cli("deep-check", "--raw",
                                   self.rooturi))
-        def _check5((rc, out, err)):
+        def _check5(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -287,7 +301,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("deep-check",
                                   "--verbose", "--verify", "--repair",
                                   self.rooturi))
-        def _check6((rc, out, err)):
+        def _check6(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -322,7 +337,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         # root/subfile
 
         d.addCallback(lambda ign: self.do_cli("manifest", self.rooturi))
-        def _manifest_failed((rc, out, err)):
+        def _manifest_failed(args):
+            (rc, out, err) = args
             self.failIfEqual(rc, 0)
             self.failUnlessIn("ERROR: UnrecoverableFileError", err)
             # the fatal directory should still show up, as the last line
@@ -330,7 +346,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_manifest_failed)
 
         d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
-        def _deep_check_failed((rc, out, err)):
+        def _deep_check_failed(args):
+            (rc, out, err) = args
             self.failIfEqual(rc, 0)
             self.failUnlessIn("ERROR: UnrecoverableFileError", err)
             # we want to make sure that the error indication is the last
@@ -360,7 +377,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Check/check_without_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("check")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -375,7 +393,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Check/check_with_nonexistent_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("check", "nonexistent:")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -396,7 +415,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_uri)
 
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], self.uriList[1]))
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             #Ensure healthy appears for each uri
@@ -405,7 +425,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
 
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], "nonexistent:"))
-        def _check2((rc, out, err)):
+        def _check2(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("Healthy", out)
             self.failUnlessIn("error:", err)

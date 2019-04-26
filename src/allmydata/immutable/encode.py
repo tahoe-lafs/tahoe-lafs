@@ -425,12 +425,13 @@ class Encoder(object):
         d.addCallback(_got)
         return d
 
-    def _send_segment(self, (shares, shareids), segnum):
+    def _send_segment(self, shares_and_shareids, segnum):
         # To generate the URI, we must generate the roothash, so we must
         # generate all shares, even if we aren't actually giving them to
         # anybody. This means that the set of shares we create will be equal
         # to or larger than the set of landlords. If we have any landlord who
         # *doesn't* have a share, that's an error.
+        (shares, shareids) = shares_and_shareids
         _assert(set(self.landlords.keys()).issubset(set(shareids)),
                 shareids=shareids, landlords=self.landlords)
         start = time.time()

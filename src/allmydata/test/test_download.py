@@ -621,7 +621,8 @@ class DownloadTest(_Base, unittest.TestCase):
         n = self.c0.create_node_from_uri(immutable_uri)
         cn = n._cnode
         (d,c) = cn.get_segment(0)
-        def _got_segment((offset,data,decodetime)):
+        def _got_segment(offset_and_data_and_decodetime):
+            (offset, data, decodetime) = offset_and_data_and_decodetime
             self.failUnlessEqual(offset, 0)
             self.failUnlessEqual(len(data), len(plaintext))
         d.addCallback(_got_segment)

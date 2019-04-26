@@ -1693,7 +1693,8 @@ class SimpleSpans:
                 s.add(i, 1)
         return s
 
-    def __contains__(self, (start,length)):
+    def __contains__(self, start_and_length):
+        (start, length) = start_and_length
         for i in range(start, start+length):
             if i not in self._have:
                 return False

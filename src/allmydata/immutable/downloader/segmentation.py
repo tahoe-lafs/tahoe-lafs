@@ -90,7 +90,8 @@ class Segmentation(object):
         self._cancel_segment_request = None
         return res
 
-    def _got_segment(self, (segment_start,segment,decodetime), wanted_segnum):
+    def _got_segment(self, segment_args, wanted_segnum):
+        (segment_start, segment, decodetime) = segment_args
         self._cancel_segment_request = None
         # we got file[segment_start:segment_start+len(segment)]
         # we want file[self._offset:self._offset+self._size]

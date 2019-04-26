@@ -83,8 +83,8 @@ class Handler(object):
 
     def makeDirectory(self, path):
         d = self._get_root(path)
-        d.addCallback(lambda (root,path):
-                      self._get_or_create_directories(root, path))
+        d.addCallback(lambda root_and_path:
+                      self._get_or_create_directories(root_and_path[0], root_and_path[1]))
         return d
 
     def _get_or_create_directories(self, node, path):
@@ -110,7 +110,8 @@ class Handler(object):
             raise NoParentError
         childname = path[-1]
         d = self._get_root(path)
-        def _got_root((root, path)):
+        def _got_root(root_and_path):
+            (root, path) = root_and_path
             if not path:
                 raise NoParentError
             return root.get_child_at_path(path[:-1])
@@ -126,7 +127,8 @@ class Handler(object):
             f.trap(NoParentError)
             raise ftp.PermissionDeniedError("cannot delete root directory")
         d.addErrback(_convert_error)
-        def _got_parent( (parent, childname) ):
+        def _got_parent(parent_and_childname):
+            (parent, childname) = parent_and_childname
             d = parent.get(childname)
             def _got_child(child):
                 if must_be_directory and not IDirectoryNode.providedBy(child):
@@ -149,11 +151,12 @@ class Handler(object):
     def rename(self, fromPath, toPath):
         # the target directory must already exist
         d = self._get_parent(fromPath)
-        def _got_from_parent( (fromparent, childname) ):
+        def _got_from_parent(fromparent_and_childname):
+            (fromparent, childname) = fromparent_and_childname
             d = self._get_parent(toPath)
-            d.addCallback(lambda (toparent, tochildname):
+            d.addCallback(lambda toparent_and_tochildname:
                           fromparent.move_child_to(childname,
-                                                   toparent, tochildname,
+                                                   toparent_and_tochildname[0], toparent_and_tochildname[1],
                                                    overwrite=False))
             return d
         d.addCallback(_got_from_parent)
@@ -192,7 +195,8 @@ class Handler(object):
 
     def _get_node_and_metadata_for_path(self, path):
         d = self._get_root(path)
-        def _got_root((root,path)):
+        def _got_root(root_and_path):
+            (root,path) = root_and_path
             if path:
                 return root.get_child_and_metadata_at_path(path)
             else:
@@ -200,7 +204,8 @@ class Handler(object):
         d.addCallback(_got_root)
         return d
 
-    def _populate_row(self, keys, (childnode, metadata)):
+    def _populate_row(self, keys, childnode_and_metadata):
+        (childnode, metadata) = childnode_and_metadata
         values = []
         isdir = bool(IDirectoryNode.providedBy(childnode))
         for key in keys:
@@ -238,7 +243,8 @@ class Handler(object):
     def stat(self, path, keys=()):
         # for files only, I think
         d = self._get_node_and_metadata_for_path(path)
-        def _render((node,metadata)):
+        def _render(node_and_metadata):
+            (node, metadata) = node_and_metadata
             assert not IDirectoryNode.providedBy(node)
             return self._populate_row(keys, (node,metadata))
         d.addCallback(_render)
@@ -249,7 +255,8 @@ class Handler(object):
         # the interface claims that path is a list of unicodes, but in
         # practice it is not
         d = self._get_node_and_metadata_for_path(path)
-        def _list((node, metadata)):
+        def _list(node_and_metadata):
+            (node, metadata) = node_and_metadata
             if IDirectoryNode.providedBy(node):
                 return node.list()
             return { path[-1]: (node, metadata) } # need last-edge metadata
@@ -269,7 +276,7 @@ class Handler(object):
 
     def openForReading(self, path):
         d = self._get_node_and_metadata_for_path(path)
-        d.addCallback(lambda (node,metadata): ReadFile(node))
+        d.addCallback(lambda node_and_metadata: ReadFile(node_and_metadata[0]))
         d.addErrback(self._convert_error)
         return d
 
@@ -279,7 +286,8 @@ class Handler(object):
             raise ftp.PermissionDeniedError("cannot STOR to root directory")
         childname = path[-1]
         d = self._get_root(path)
-        def _got_root((root, path)):
+        def _got_root(root_and_path):
+            (root, path) = root_and_path
             if not path:
                 raise ftp.PermissionDeniedError("cannot STOR to root directory")
             return root.get_child_at_path(path[:-1])

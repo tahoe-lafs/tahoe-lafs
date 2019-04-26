@@ -448,7 +448,9 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
         d = self.shouldFail(UploadUnhappinessError, "first_error_all",
                             "server selection failed",
                             upload_data, self.u, DATA)
-        def _check((f,)):
+        def _check(f):
+            # for some reason this is passed as a 1-tuple
+            (f,) = f
             self.failUnlessIn("placed 0 shares out of 100 total", str(f.value))
             # there should also be a 'last failure was' message
             self.failUnlessIn("ServerError", str(f.value))
@@ -460,7 +462,9 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
         d = self.shouldFail(UploadUnhappinessError, "second_error_all",
                             "server selection failed",
                             upload_data, self.u, DATA)
-        def _check((f,)):
+        def _check(f):
+            # for some reason this is passed as a 1-tuple
+            (f,) = f
             self.failUnlessIn("shares could be placed or found on only 10 server(s)", str(f.value))
         d.addCallback(_check)
         return d
@@ -482,7 +486,9 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
         d = self.shouldFail(UploadUnhappinessError, "second_error_some",
                             "server selection failed",
                             upload_data, self.u, DATA)
-        def _check((f,)):
+        def _check(f):
+            # for some reason this is passed as a 1-tuple
+            (f,) = f
             self.failUnlessIn("shares could be placed on only 5 server(s)", str(f.value))
         d.addCallback(_check)
         return d
@@ -509,7 +515,9 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
         d = self.shouldFail(UploadUnhappinessError, "second_error_some",
                             "server selection failed",
                             upload_data, self.u, DATA)
-        def _check((f,)):
+        def _check(f):
+            # for some reason this is passed as a 1-tuple
+            (f,) = f
             self.failUnlessIn("shares could be placed on only 6 server(s)", str(f.value))
         d.addCallback(_check)
         return d
@@ -536,7 +544,9 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
         d = self.shouldFail(UploadUnhappinessError, "good_servers_stay_writable",
                             "server selection failed",
                             upload_data, self.u, DATA)
-        def _check((f,)):
+        def _check(f):
+            # for some reason this is passed as a 1-tuple
+            (f,) = f
             self.failUnlessIn("shares could be placed on only 5 server(s)", str(f.value))
         d.addCallback(_check)
         return d
@@ -918,7 +928,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d = selector.get_shareholders(broker, sh, storage_index,
                                       share_size, block_size, num_segments,
                                       10, 3, 4)
-        def _have_shareholders((upload_trackers, already_servers)):
+        def _have_shareholders(upload_trackers_and_already_servers):
+            (upload_trackers, already_servers) = upload_trackers_and_already_servers
             assert servers_to_break <= len(upload_trackers)
             for index in xrange(servers_to_break):
                 tracker = list(upload_trackers)[index]
