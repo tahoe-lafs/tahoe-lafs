@@ -1,14 +1,13 @@
-
 import re
 import os.path
 
 from allmydata.util.assertutil import precondition, _assert
 
 def path2magic(path):
-    return re.sub(ur'[/@]',  lambda m: {u'/': u'@_', u'@': u'@@'}[m.group(0)], path)
+    return re.sub(u'[/@]',  lambda m: {u'/': u'@_', u'@': u'@@'}[m.group(0)], path)
 
 def magic2path(path):
-    return re.sub(ur'@[_@]', lambda m: {u'@_': u'/', u'@@': u'@'}[m.group(0)], path)
+    return re.sub(u'@[_@]', lambda m: {u'@_': u'/', u'@@': u'@'}[m.group(0)], path)
 
 
 IGNORE_SUFFIXES = [u'.backup', u'.tmp', u'.conflict']
