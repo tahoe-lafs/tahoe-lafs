@@ -715,8 +715,6 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
         self.basedir = "introducer/SystemTest/system_v2_server"
         os.makedirs(self.basedir)
         return self.do_system_test()
-    test_system_v2_server.timeout = 480
-    # occasionally takes longer than 350s on "draco"
 
 class FakeRemoteReference:
     def notifyOnDisconnect(self, *args, **kwargs): pass

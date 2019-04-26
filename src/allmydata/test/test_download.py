@@ -194,7 +194,6 @@ class _Base(GridTestMixin, ShouldFailMixin):
         return d
 
 class DownloadTest(_Base, unittest.TestCase):
-    timeout = 2400 # It takes longer than 240 seconds on Zandr's ARM box.
     def test_download(self):
         self.basedir = self.mktemp()
         self.set_up_grid()
