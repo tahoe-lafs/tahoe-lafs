@@ -14,9 +14,19 @@ from allmydata.util.namespace import Namespace
 from allmydata.scripts import cli, backupdb
 from ..common_util import StallMixin
 from ..no_network import GridTestMixin
-from .common import CLITestMixin, parse_options
+from .common import (
+    CLITestMixin,
+    parse_options,
+)
+from ..common import (
+    skipIf,
+)
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
+
+def _unsupported(what):
+    return "{} are not supported by Python on this platform.".format(what)
+
 
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
@@ -418,15 +428,63 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self.failUnless(ns.called)
 
     def test_ignore_symlinks(self):
+        """
+        A symlink encountered in the backed-up directory is skipped with a
+        warning.
+        """
         if not hasattr(os, 'symlink'):
-            raise unittest.SkipTest("Symlinks are not supported by Python on this platform.")
+            raise unittest.SkipTest(_unsupported("Symlinks"))
 
+        def make_symlink(path):
+            self.writeto("foo.txt", "foo")
+            os.symlink(
+                os.path.join(
+                    os.path.dirname(path),
+                    "foo.txt",
+                ),
+                path,
+            )
+
+        return self._ignore_something_test(u"Symlink", make_symlink)
+
+    @skipIf(getattr(os, "mkfifo", None) is None, _unsupported("FIFOs"))
+    def test_ignore_fifo(self):
+        """
+        A FIFO encountered in the backed-up directory is skipped with a warning.
+        """
+        def make_fifo(path):
+            # Create the thing to ignore
+            os.makedirs(os.path.dirname(path))
+            os.mkfifo(path)
+            # Also create anothing thing so the counts end up the same as
+            # those in the symlink test and it's easier to re-use the testing
+            # helper.
+            self.writeto("count-dummy.txt", "foo")
+
+        return self._ignore_something_test(u"special", make_fifo)
+
+    def _ignore_something_test(self, kind_of_thing, make_something_to_ignore):
+        """
+        Assert that when a a certain kind of file is encountered in the backed-up
+        directory a warning that it is not supported is emitted and the backup
+        proceeds to other files with no other error.
+
+        :param unicode kind_of_thing: The name of the kind of file that will
+            be ignored.  This is expected to appear in the warning.
+
+        :param make_something_to_ignore: A one-argument callable which creates
+            the file that is expected to be ignored.  It is called with the
+            path at which the file must be created.
+
+        :return Deferred: A ``Deferred`` that fires when the assertion has
+            been made.
+        """
         self.basedir = os.path.dirname(self.mktemp())
         self.set_up_grid(oneshare=True)
 
         source = os.path.join(self.basedir, "home")
-        self.writeto("foo.txt", "foo")
-        os.symlink(os.path.join(source, "foo.txt"), os.path.join(source, "foo2.txt"))
+        ignored_path = os.path.join(source, "foo2.txt")
+        make_something_to_ignore(ignored_path)
 
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("backup", "--verbose", source, "tahoe:test"))
@@ -434,9 +492,11 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         def _check(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 2)
-            foo2 = os.path.join(source, "foo2.txt")
-            self.failUnlessIn("WARNING: cannot backup symlink ", err)
-            self.failUnlessIn(foo2, err)
+            self.assertIn(
+                "WARNING: cannot backup {} ".format(kind_of_thing.lower()),
+                err,
+            )
+            self.assertIn(ignored_path, err)
 
             fu, fr, fs, dc, dr, ds = self.count_output(out)
             # foo.txt
