@@ -19,6 +19,10 @@ from twisted.internet.interfaces import (
     IStreamServerEndpoint,
 )
 
+from .gcutil import (
+    fileDescriptorResource,
+)
+
 fcntl = requireModule("fcntl")
 
 from foolscap.util import allocate_tcp_port # re-exported
@@ -275,6 +279,17 @@ def _foolscapEndpointForPortNumber(portnum):
                 s.bind(('', 0))
                 portnum = s.getsockname()[1]
                 s.listen(1)
+                # File descriptors are a relatively scarce resource.  The
+                # cleanup process for the file descriptor we're about to dup
+                # is unfortunately complicated.  In particular, it involves
+                # the Python garbage collector.  See CleanupEndpoint for
+                # details of that.  Here, we need to make sure the garbage
+                # collector actually runs frequently enough to make a
+                # difference.  Normally, the garbage collector is triggered by
+                # allocations.  It doesn't know about *file descriptor*
+                # allocation though.  So ... we'll "teach" it about those,
+                # here.
+                fileDescriptorResource.allocate()
                 fd = os.dup(s.fileno())
                 flags = fcntl.fcntl(fd, fcntl.F_GETFD)
                 flags = flags | os.O_NONBLOCK | fcntl.FD_CLOEXEC
@@ -295,6 +310,19 @@ def _foolscapEndpointForPortNumber(portnum):
 @implementer(IStreamServerEndpoint)
 @attr.s
 class CleanupEndpoint(object):
+    """
+    An ``IStreamServerEndpoint`` wrapper which closes a file descriptor if the
+    wrapped endpoint is never used.
+
+    :ivar IStreamServerEndpoint _wrapped: The wrapped endpoint.  The
+        ``listen`` implementation is delegated to this object.
+
+    :ivar int _fd: The file descriptor to close if ``listen`` is never called
+        by the time this object is garbage collected.
+
+    :ivar bool _listened: A flag recording whether or not ``listen`` has been
+        called.
+    """
     _wrapped = attr.ib()
     _fd = attr.ib()
     _listened = attr.ib(default=False)
@@ -304,8 +332,12 @@ class CleanupEndpoint(object):
         return self._wrapped.listen(protocolFactory)
 
     def __del__(self):
+        """
+        If ``listen`` was never called then close the file descriptor.
+        """
         if not self._listened:
             os.close(self._fd)
+            fileDescriptorResource.release()
 
 
 def listenOnUnused(tub, portnum=None):
