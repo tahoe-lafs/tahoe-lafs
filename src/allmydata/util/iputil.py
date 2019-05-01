@@ -2,6 +2,10 @@
 import os, re, socket, subprocess, errno
 from sys import platform
 
+from zope.interface import implementer
+
+import attr
+
 # from Twisted
 from twisted.python.reflect import requireModule
 from twisted.internet import defer, threads, reactor
@@ -10,7 +14,10 @@ from twisted.internet.error import CannotListenError
 from twisted.python.procutils import which
 from twisted.python import log
 from twisted.internet.endpoints import AdoptedStreamServerEndpoint
-from twisted.internet.interfaces import IReactorSocket
+from twisted.internet.interfaces import (
+    IReactorSocket,
+    IStreamServerEndpoint,
+)
 
 fcntl = requireModule("fcntl")
 
@@ -272,10 +279,8 @@ def _foolscapEndpointForPortNumber(portnum):
                 flags = fcntl.fcntl(fd, fcntl.F_GETFD)
                 flags = flags | os.O_NONBLOCK | fcntl.FD_CLOEXEC
                 fcntl.fcntl(fd, fcntl.F_SETFD, flags)
-                return (
-                    portnum,
-                    AdoptedStreamServerEndpoint(reactor, fd, socket.AF_INET),
-                )
+                endpoint = AdoptedStreamServerEndpoint(reactor, fd, socket.AF_INET)
+                return (portnum, CleanupEndpoint(endpoint, fd))
             finally:
                 s.close()
         else:
@@ -285,6 +290,22 @@ def _foolscapEndpointForPortNumber(portnum):
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2787
             portnum = allocate_tcp_port()
     return (portnum, "tcp:%d" % (portnum,))
+
+
+@implementer(IStreamServerEndpoint)
+@attr.s
+class CleanupEndpoint(object):
+    _wrapped = attr.ib()
+    _fd = attr.ib()
+    _listened = attr.ib(default=False)
+
+    def listen(self, protocolFactory):
+        self._listened = True
+        return self._wrapped.listen(protocolFactory)
+
+    def __del__(self):
+        if not self._listened:
+            os.close(self._fd)
 
 
 def listenOnUnused(tub, portnum=None):
