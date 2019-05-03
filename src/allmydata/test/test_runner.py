@@ -41,9 +41,6 @@ from ._twisted_9607 import (
 from ..util.eliotutil import (
     inline_callbacks,
 )
-from ..scripts.tahoe_stop import (
-    COULD_NOT_STOP,
-)
 
 timeout = 240
 
@@ -614,18 +611,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         tahoe = CLINodeAPI(reactor, FilePath(c1))
         # Set this up right now so we don't forget later.
-        self.addCleanup(
-            lambda: stop_and_wait(tahoe).addErrback(
-                # Let it fail because the process has already exited.
-                lambda err: (
-                    err.trap(ProcessTerminated)
-                    and self.assertEqual(
-                        err.value.exitCode,
-                        COULD_NOT_STOP,
-                    )
-                )
-            )
-        )
+        self.addCleanup(tahoe.cleanup)
 
         out, err, rc_or_sig = yield self.run_bintahoe([
             "--quiet", "create-node", "--basedir", c1,

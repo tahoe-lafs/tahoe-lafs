@@ -26,7 +26,12 @@ from twisted.internet.defer import (
     succeed,
 )
 
-from allmydata.client import _Client
+from ..client import (
+    _Client,
+)
+from ..scripts.tahoe_stop import (
+    COULD_NOT_STOP,
+)
 
 class Expect(Protocol):
     def __init__(self):
@@ -133,6 +138,20 @@ class CLINodeAPI(object):
         # exit. This ensures that even if the 'stop' command doesn't work (and
         # the test fails), the client should still terminate.
         self.exit_trigger_file.touch()
+
+    def cleanup(self):
+        stopping = stop_and_wait(tahoe)
+        stopping.addErrback(
+            # Let it fail because the process has already exited.
+            lambda err: (
+                err.trap(ProcessTerminated)
+                and self.assertEqual(
+                    err.value.exitCode,
+                    COULD_NOT_STOP,
+                )
+            )
+        )
+        return stopping
 
 
 class _WaitForEnd(ProcessProtocol):
