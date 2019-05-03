@@ -4,18 +4,12 @@ from __future__ import (
 )
 
 import os.path, re, sys
-
-from unittest import (
-    skipIf,
-)
-
-import attr
 from os import linesep
 
 from twisted.trial import unittest
 
 from twisted.internet import reactor
-from twisted.python import usage, runtime
+from twisted.python import usage
 from twisted.internet.defer import (
     inlineCallbacks,
     returnValue,
@@ -26,7 +20,6 @@ from twisted.python.filepath import FilePath
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, \
     get_filesystem_encoding
-from allmydata.client import _Client
 from allmydata.test import common_util
 import allmydata
 from allmydata import __appname__
@@ -36,8 +29,6 @@ from .cli_node_api import (
     Expect,
     on_stdout,
     on_stdout_and_stderr,
-    on_different,
-    wait_for_exit,
 )
 from ._twisted_9607 import (
     getProcessOutputAndValue,
@@ -63,11 +54,6 @@ def get_root_from_file(src):
 
 srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
-
-cannot_daemonize = False
-if runtime.platformType == "win32":
-    # twistd on windows doesn't daemonize. cygwin should work normally.
-    cannot_daemonize = "twistd does not fork under windows"
 
 class RunBinTahoeMixin:
     @inlineCallbacks
