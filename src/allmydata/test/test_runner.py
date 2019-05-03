@@ -10,6 +10,7 @@ from unittest import (
 )
 
 import attr
+from os import linesep
 
 from twisted.trial import unittest
 
@@ -429,10 +430,13 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # This makes sure that node.url is written, which allows us to
         # detect when the introducer restarts in _node_has_restarted below.
         config = fileutil.read(tahoe.config_file.path)
-        self.assertIn('\nweb.port = \n', config)
+        self.assertIn('{}web.port = {}'.format(linesep, linesep), config)
         fileutil.write(
             tahoe.config_file.path,
-            config.replace('\nweb.port = \n', '\nweb.port = 0\n'),
+            config.replace(
+                '{}web.port = {}'.format(linesep, linesep),
+                '{}web.port = 0{}'.format(linesep, linesep),
+            )
         )
 
         p = Expect()
@@ -502,7 +506,10 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         # Check that the --webport option worked.
         config = fileutil.read(tahoe.config_file.path)
-        self.assertIn('\nweb.port = 0\n', config)
+        self.assertIn(
+            '{}web.port = 0{}'.format(linesep, linesep),
+            config,
+        )
 
         # After this it's safe to start the node
         tahoe.active()
