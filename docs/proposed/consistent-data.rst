@@ -84,8 +84,8 @@ retain data that is accessible even when large amount of nodes go down
 and is able to work with little to no central coordination.
 
 Working with data storage should come with as few surprises as
-possible and the behaviour should be predictable to humans. This
-requires an easy-to-understand model.
+possible and the behaviour should be predictable to humans.
+This requires an easy-to-understand model.
 
 The causal consistency model offers availability under partition and
 generates partial order so each node can follow causal order of operations,
