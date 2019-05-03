@@ -4,6 +4,7 @@ __all__ = [
     "Expect",
     "on_stdout",
     "on_stdout_and_stderr",
+    "on_different",
     "wait_for_exit",
 ]
 
@@ -16,6 +17,9 @@ import attr
 from twisted.internet.error import (
     ProcessDone,
     ProcessTerminated,
+)
+from twisted.internet.interfaces import (
+    IProcessProtocol,
 )
 from twisted.python.filepath import (
     FilePath,
@@ -67,27 +71,37 @@ class Expect(Protocol):
 
 
 class _ProcessProtocolAdapter(ProcessProtocol):
-    def __init__(self, stdout_protocol, fds):
-        self._stdout_protocol = stdout_protocol
+    def __init__(self, fds):
         self._fds = fds
 
     def connectionMade(self):
-        self._stdout_protocol.makeConnection(self.transport)
+        for proto in self._fds.values():
+            proto.makeConnection(self.transport)
 
     def childDataReceived(self, childFD, data):
-        if childFD in self._fds:
-            self._stdout_protocol.dataReceived(data)
+        try:
+            proto = self._fds[childFD]
+        except KeyError:
+            pass
+        else:
+            proto.dataReceived(data)
 
     def processEnded(self, reason):
-        self._stdout_protocol.connectionLost(reason)
+        notified = set()
+        for proto in self._fds.values():
+            if proto not in notified:
+                proto.connectionLost(reason)
+                notified.add(proto)
 
 
 def on_stdout(protocol):
-    return _ProcessProtocolAdapter(protocol, {1})
+    return _ProcessProtocolAdapter({1: protocol})
 
 def on_stdout_and_stderr(protocol):
-    return _ProcessProtocolAdapter(protocol, {1, 2})
+    return _ProcessProtocolAdapter({1: protocol, 2: protocol})
 
+def on_different(fd_mapping):
+    return _ProcessProtocolAdapter(fd_mapping)
 
 @attr.s
 class CLINodeAPI(object):
@@ -105,6 +119,10 @@ class CLINodeAPI(object):
     @property
     def storage_furl_file(self):
         return self.basedir.child(u"private").child(u"storage.furl")
+
+    @property
+    def introducer_furl_file(self):
+        return self.basedir.child(u"private").child(u"introducer.furl")
 
     @property
     def config_file(self):
@@ -128,16 +146,18 @@ class CLINodeAPI(object):
             env=os.environ,
         )
 
-    def run(self, protocol):
+    def run(self, protocol, extra_tahoe_args=()):
         """
         Start the node running.
 
-        :param ProcessProtocol protocol: This protocol will be hooked up to
+        :param IProcessProtocol protocol: This protocol will be hooked up to
             the node process and can handle output or generate input.
         """
+        if not IProcessProtocol.providedBy(protocol):
+            raise TypeError("run requires process protocol, got {}".format(protocol))
         self.process = self._execute(
             protocol,
-            [u"run", self.basedir.asTextMode().path],
+            list(extra_tahoe_args) + [u"run", self.basedir.asTextMode().path],
         )
         # Don't let the process run away forever.
         try:

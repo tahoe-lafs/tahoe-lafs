@@ -35,6 +35,7 @@ from .cli_node_api import (
     Expect,
     on_stdout,
     on_stdout_and_stderr,
+    on_different,
     wait_for_exit,
 )
 from ._twisted_9607 import (
@@ -406,187 +407,69 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         fileutil.make_dirs(basedir)
         return basedir
 
-    @skipIf(cannot_daemonize, cannot_daemonize)
+    @inline_callbacks
     def test_introducer(self):
+        """
+        The introducer furl is stable across restarts.
+        """
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
-        twistd_pid_file = os.path.join(c1, "twistd.pid")
-        introducer_furl_file = os.path.join(c1, "private", "introducer.furl")
-        node_url_file = os.path.join(c1, "node.url")
-        config_file = os.path.join(c1, "tahoe.cfg")
+        tahoe = CLINodeAPI(reactor, FilePath(c1))
+        self.addCleanup(tahoe.stop_and_wait)
 
-        d = self.run_bintahoe(["--quiet", "create-introducer", "--basedir", c1, "--hostname", "localhost"])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0)
+        out, err, rc_or_sig = yield self.run_bintahoe([
+            "--quiet",
+            "create-introducer",
+            "--basedir", c1,
+            "--hostname", "127.0.0.1",
+        ])
 
-            # This makes sure that node.url is written, which allows us to
-            # detect when the introducer restarts in _node_has_restarted below.
-            config = fileutil.read(config_file)
-            self.failUnlessIn('\nweb.port = \n', config)
-            fileutil.write(config_file, config.replace('\nweb.port = \n', '\nweb.port = 0\n'))
+        self.assertEqual(rc_or_sig, 0)
 
-            # by writing this file, we get ten seconds before the node will
-            # exit. This insures that even if the test fails (and the 'stop'
-            # command doesn't work), the client should still terminate.
-            fileutil.write(exit_trigger_file, "")
-            # now it's safe to start the node
-        d.addCallback(_cb)
+        # This makes sure that node.url is written, which allows us to
+        # detect when the introducer restarts in _node_has_restarted below.
+        config = fileutil.read(tahoe.config_file.path)
+        self.assertIn('\nweb.port = \n', config)
+        fileutil.write(
+            tahoe.config_file.path,
+            config.replace('\nweb.port = \n', '\nweb.port = 0\n'),
+        )
 
-        def _then_start_the_node(res):
-            return self.run_bintahoe(["--quiet", "start", c1])
-        d.addCallback(_then_start_the_node)
+        p = Expect()
+        tahoe.run(on_stdout(p))
+        yield p.expect("introducer running")
+        tahoe.active()
 
-        def _cb2(res):
-            out, err, rc_or_sig = res
+        yield self.poll(tahoe.introducer_furl_file.exists)
 
-            fileutil.write(exit_trigger_file, "")
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
+        # read the introducer.furl file so we can check that the contents
+        # don't change on restart
+        furl = fileutil.read(tahoe.introducer_furl_file.path)
 
-            # the parent (twistd) has exited. However, twistd writes the pid
-            # from the child, not the parent, so we can't expect twistd.pid
-            # to exist quite yet.
+        tahoe.active()
 
-            # the node is running, but it might not have made it past the
-            # first reactor turn yet, and if we kill it too early, it won't
-            # remove the twistd.pid file. So wait until it does something
-            # that we know it won't do until after the first turn.
-        d.addCallback(_cb2)
+        self.assertTrue(tahoe.twistd_pid_file.exists())
+        self.assertTrue(tahoe.node_url_file.exists())
 
-        def _node_has_started():
-            return os.path.exists(introducer_furl_file)
-        d.addCallback(lambda res: self.poll(_node_has_started))
+        # rm this so we can detect when the second incarnation is ready
+        tahoe.node_url_file.remove()
 
-        def _started(res):
-            # read the introducer.furl file so we can check that the contents
-            # don't change on restart
-            self.furl = fileutil.read(introducer_furl_file)
+        yield tahoe.stop_and_wait()
 
-            fileutil.write(exit_trigger_file, "")
-            self.failUnless(os.path.exists(twistd_pid_file))
-            self.failUnless(os.path.exists(node_url_file))
+        p = Expect()
+        tahoe.run(on_stdout(p))
+        yield p.expect("introducer running")
 
-            # rm this so we can detect when the second incarnation is ready
-            os.unlink(node_url_file)
-            return self.run_bintahoe(["--quiet", "restart", c1])
-        d.addCallback(_started)
+        # Again, the second incarnation of the node might not be ready yet, so
+        # poll until it is. This time introducer_furl_file already exists, so
+        # we check for the existence of node_url_file instead.
+        yield self.poll(tahoe.node_url_file.exists)
 
-        def _then(res):
-            out, err, rc_or_sig = res
-            fileutil.write(exit_trigger_file, "")
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-        d.addCallback(_then)
-
-        # Again, the second incarnation of the node might not be ready yet,
-        # so poll until it is. This time introducer_furl_file already
-        # exists, so we check for the existence of node_url_file instead.
-        def _node_has_restarted():
-            return os.path.exists(node_url_file)
-        d.addCallback(lambda res: self.poll(_node_has_restarted))
-
-        def _check_same_furl(res):
-            self.failUnless(os.path.exists(introducer_furl_file))
-            self.failUnlessEqual(self.furl, fileutil.read(introducer_furl_file))
-        d.addCallback(_check_same_furl)
-
-        # Now we can kill it. TODO: On a slow machine, the node might kill
-        # itself before we get a chance to, especially if spawning the
-        # 'tahoe stop' command takes a while.
-        def _stop(res):
-            fileutil.write(exit_trigger_file, "")
-            self.failUnless(os.path.exists(twistd_pid_file))
-
-            return self.run_bintahoe(["--quiet", "stop", c1])
-        d.addCallback(_stop)
-
-        def _after_stopping(res):
-            out, err, rc_or_sig = res
-            fileutil.write(exit_trigger_file, "")
-            # the parent has exited by now
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-            # the parent was supposed to poll and wait until it sees
-            # twistd.pid go away before it exits, so twistd.pid should be
-            # gone by now.
-            self.failIf(os.path.exists(twistd_pid_file))
-        d.addCallback(_after_stopping)
-        d.addBoth(self._remove, exit_trigger_file)
-        return d
-    # This test has hit a 240-second timeout on our feisty2.5 buildslave, and a 480-second timeout
-    # on Francois's Lenny-armv5tel buildslave.
-    test_introducer.timeout = 960
-
-    @skipIf(cannot_daemonize, cannot_daemonize)
-    def test_client_no_noise(self):
-        basedir = self.workdir("test_client_no_noise")
-        c1 = os.path.join(basedir, "c1")
-        exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
-        twistd_pid_file = os.path.join(c1, "twistd.pid")
-        node_url_file = os.path.join(c1, "node.url")
-
-        d = self.run_bintahoe(["--quiet", "create-client", "--basedir", c1, "--webport", "0"])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            assert rc_or_sig == 0, errstr
-            self.failUnlessEqual(rc_or_sig, 0)
-
-            # By writing this file, we get two minutes before the client will exit. This ensures
-            # that even if the 'stop' command doesn't work (and the test fails), the client should
-            # still terminate.
-            fileutil.write(exit_trigger_file, "")
-            # now it's safe to start the node
-        d.addCallback(_cb)
-
-        def _start(res):
-            return self.run_bintahoe(["--quiet", "start", c1])
-        d.addCallback(_start)
-
-        def _cb2(res):
-            out, err, rc_or_sig = res
-            errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            fileutil.write(exit_trigger_file, "")
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr) # If you emit noise, you fail this test.
-            errlines = err.split("\n")
-            self.failIf([True for line in errlines if (line != "" and "UserWarning: Unbuilt egg for setuptools" not in line
-                                                                  and "from pkg_resources import load_entry_point" not in line)], errstr)
-            if err != "":
-                raise unittest.SkipTest("This test is known not to pass on Ubuntu Lucid; see #1235.")
-
-            # the parent (twistd) has exited. However, twistd writes the pid
-            # from the child, not the parent, so we can't expect twistd.pid
-            # to exist quite yet.
-
-            # the node is running, but it might not have made it past the
-            # first reactor turn yet, and if we kill it too early, it won't
-            # remove the twistd.pid file. So wait until it does something
-            # that we know it won't do until after the first turn.
-        d.addCallback(_cb2)
-
-        def _node_has_started():
-            return os.path.exists(node_url_file)
-        d.addCallback(lambda res: self.poll(_node_has_started))
-
-        # now we can kill it. TODO: On a slow machine, the node might kill
-        # itself before we get a chance to, especially if spawning the
-        # 'tahoe stop' command takes a while.
-        def _stop(res):
-            self.failUnless(os.path.exists(twistd_pid_file),
-                            (twistd_pid_file, os.listdir(os.path.dirname(twistd_pid_file))))
-            return self.run_bintahoe(["--quiet", "stop", c1])
-        d.addCallback(_stop)
-        d.addBoth(self._remove, exit_trigger_file)
-        return d
+        # The point of this test!  After starting the second time the
+        # introducer furl file must exist and contain the same contents as it
+        # did before.
+        self.assertTrue(tahoe.introducer_furl_file.exists())
+        self.assertEqual(furl, fileutil.read(tahoe.introducer_furl_file.path))
 
     @inline_callbacks
     def test_client(self):
