@@ -13,12 +13,13 @@ import attr
 
 from twisted.trial import unittest
 
-from twisted.internet.error import (
-    ProcessTerminated,
-)
 from twisted.internet import reactor
 from twisted.python import usage, runtime
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import (
+    inlineCallbacks,
+    returnValue,
+    DeferredList,
+)
 from twisted.python.filepath import FilePath
 
 from allmydata.util import fileutil, pollmixin
@@ -33,6 +34,7 @@ from .cli_node_api import (
     CLINodeAPI,
     Expect,
     on_stdout,
+    on_stdout_and_stderr,
     wait_for_exit,
 )
 from ._twisted_9607 import (
@@ -604,11 +606,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
 
-        def stop_and_wait(tahoe):
-            p, d = wait_for_exit()
-            tahoe.stop(p)
-            return d
-
         tahoe = CLINodeAPI(reactor, FilePath(c1))
         # Set this up right now so we don't forget later.
         self.addCleanup(tahoe.cleanup)
@@ -641,7 +638,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         # rm this so we can detect when the second incarnation is ready
         tahoe.node_url_file.remove()
-        yield stop_and_wait(tahoe)
+        yield tahoe.stop_and_wait()
 
         p = Expect()
         # We don't have to add another cleanup for this one, the one from
@@ -662,7 +659,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
                 tahoe.twistd_pid_file.parent().listdir(),
             ),
         )
-        yield stop_and_wait(tahoe)
+        yield tahoe.stop_and_wait()
 
         # twistd.pid should be gone by now.
         self.assertFalse(tahoe.twistd_pid_file.exists())
@@ -672,36 +669,102 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         fileutil.remove(file)
         return res
 
-    @skipIf(cannot_daemonize, cannot_daemonize)
-    def test_baddir(self):
-        basedir = self.workdir("test_baddir")
+    def test_run_bad_directory(self):
+        """
+        If ``tahoe run`` is pointed at a non-node directory, it reports an error
+        and exits.
+        """
+        return self._bad_directory_test(
+            u"test_run_bad_directory",
+            "tahoe run",
+            lambda tahoe, p: tahoe.run(p),
+            "is not a recognizable node directory",
+        )
+
+    def test_run_bogus_directory(self):
+        """
+        If ``tahoe run`` is pointed at a non-directory, it reports an error and
+        exits.
+        """
+        return self._bad_directory_test(
+            u"test_run_bogus_directory",
+            "tahoe run",
+            lambda tahoe, p: CLINodeAPI(
+                tahoe.reactor,
+                tahoe.basedir.sibling(u"bogus"),
+            ).run(p),
+            "does not look like a directory at all"
+        )
+
+    def test_stop_bad_directory(self):
+        """
+        If ``tahoe run`` is pointed at a directory where no node is running, it
+        reports an error and exits.
+        """
+        return self._bad_directory_test(
+            u"test_stop_bad_directory",
+            "tahoe stop",
+            lambda tahoe, p: tahoe.stop(p),
+            "does not look like a running node directory",
+        )
+
+    @inline_callbacks
+    def _bad_directory_test(self, workdir, description, operation, expected_message):
+        """
+        Verify that a certain ``tahoe`` CLI operation produces a certain expected
+        message and then exits.
+
+        :param unicode workdir: A distinct path name for this test to operate
+            on.
+
+        :param unicode description: A description of the operation being
+            performed.
+
+        :param operation: A two-argument callable implementing the operation.
+            The first argument is a ``CLINodeAPI`` instance to use to perform
+            the operation.  The second argument is an ``IProcessProtocol`` to
+            which the operations output must be delivered.
+
+        :param unicode expected_message: Some text that is expected in the
+            stdout or stderr of the operation in the successful case.
+
+        :return: A ``Deferred`` that fires when the assertions have been made.
+        """
+        basedir = self.workdir(workdir)
         fileutil.make_dirs(basedir)
 
-        d = self.run_bintahoe(["--quiet", "start", "--basedir", basedir])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnless("is not a recognizable node directory" in err, err)
-        d.addCallback(_cb)
+        tahoe = CLINodeAPI(reactor, FilePath(basedir))
+        # If tahoe ends up thinking it should keep running, make sure it stops
+        # promptly when the test is done.
+        self.addCleanup(tahoe.cleanup)
 
-        def _then_stop_it(res):
-            return self.run_bintahoe(["--quiet", "stop", "--basedir", basedir])
-        d.addCallback(_then_stop_it)
+        p = Expect()
+        operation(tahoe, on_stdout_and_stderr(p))
 
-        def _cb2(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 2)
-            self.failUnless("does not look like a running node directory" in err)
-        d.addCallback(_cb2)
+        client_running = p.expect(b"client running")
 
-        def _then_start_in_bogus_basedir(res):
-            not_a_dir = os.path.join(basedir, "bogus")
-            return self.run_bintahoe(["--quiet", "start", "--basedir", not_a_dir])
-        d.addCallback(_then_start_in_bogus_basedir)
+        result, index = yield DeferredList([
+            p.expect(expected_message),
+            client_running,
+        ], fireOnOneCallback=True, consumeErrors=True,
+        )
 
-        def _cb3(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnlessIn("does not look like a directory at all", err)
-        d.addCallback(_cb3)
-        return d
+        self.assertEqual(
+            index,
+            0,
+            "Expected error message from '{}', got something else: {}".format(
+                description,
+                p.get_buffered_output(),
+            ),
+        )
+
+        # It should not be running.
+        self.assertFalse(tahoe.twistd_pid_file.exists())
+
+        # Wait for the operation to *complete*.  If we got this far it's
+        # because we got the expected message so we can expect the "tahoe ..."
+        # child process to exit very soon.  This other Deferred will fail when
+        # it eventually does but DeferredList above will consume the error.
+        # What's left is a perfect indicator that the process has exited and
+        # we won't get blamed for leaving the reactor dirty.
+        yield client_running

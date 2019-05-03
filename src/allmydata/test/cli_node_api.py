@@ -3,16 +3,19 @@ __all__ = [
     "CLINodeAPI",
     "Expect",
     "on_stdout",
+    "on_stdout_and_stderr",
     "wait_for_exit",
 ]
 
 import os
 import sys
+from errno import ENOENT
 
 import attr
 
 from twisted.internet.error import (
     ProcessDone,
+    ProcessTerminated,
 )
 from twisted.python.filepath import (
     FilePath,
@@ -37,6 +40,9 @@ class Expect(Protocol):
     def __init__(self):
         self._expectations = []
 
+    def get_buffered_output(self):
+        return self._buffer
+
     def expect(self, expectation):
         if expectation in self._buffer:
             return succeed(None)
@@ -55,23 +61,32 @@ class Expect(Protocol):
                 del self._expectations[i]
                 d.callback(None)
 
+    def connectionLost(self, reason):
+        for ignored, d in self._expectations:
+            d.errback(reason)
 
-class _Stdout(ProcessProtocol):
-    def __init__(self, stdout_protocol):
+
+class _ProcessProtocolAdapter(ProcessProtocol):
+    def __init__(self, stdout_protocol, fds):
         self._stdout_protocol = stdout_protocol
+        self._fds = fds
 
     def connectionMade(self):
         self._stdout_protocol.makeConnection(self.transport)
 
-    def outReceived(self, data):
-        self._stdout_protocol.dataReceived(data)
+    def childDataReceived(self, childFD, data):
+        if childFD in self._fds:
+            self._stdout_protocol.dataReceived(data)
 
     def processEnded(self, reason):
         self._stdout_protocol.connectionLost(reason)
 
 
 def on_stdout(protocol):
-    return _Stdout(protocol)
+    return _ProcessProtocolAdapter(protocol, {1})
+
+def on_stdout_and_stderr(protocol):
+    return _ProcessProtocolAdapter(protocol, {1, 2})
 
 
 @attr.s
@@ -125,7 +140,11 @@ class CLINodeAPI(object):
             [u"run", self.basedir.asTextMode().path],
         )
         # Don't let the process run away forever.
-        self.active()
+        try:
+            self.active()
+        except OSError as e:
+            if ENOENT != e.errno:
+                raise
 
     def stop(self, protocol):
         self._execute(
@@ -133,24 +152,27 @@ class CLINodeAPI(object):
             [u"stop", self.basedir.asTextMode().path],
         )
 
+    def stop_and_wait(self):
+        protocol, ended = wait_for_exit()
+        self.stop(protocol)
+        return ended
+
     def active(self):
         # By writing this file, we get two minutes before the client will
         # exit. This ensures that even if the 'stop' command doesn't work (and
         # the test fails), the client should still terminate.
         self.exit_trigger_file.touch()
 
+    def _check_cleanup_reason(self, reason):
+        # Let it fail because the process has already exited.
+        reason.trap(ProcessTerminated)
+        if reason.value.exitCode != COULD_NOT_STOP:
+            return reason
+        return None
+
     def cleanup(self):
-        stopping = stop_and_wait(tahoe)
-        stopping.addErrback(
-            # Let it fail because the process has already exited.
-            lambda err: (
-                err.trap(ProcessTerminated)
-                and self.assertEqual(
-                    err.value.exitCode,
-                    COULD_NOT_STOP,
-                )
-            )
-        )
+        stopping = self.stop_and_wait()
+        stopping.addErrback(self._check_cleanup_reason)
         return stopping
 
 
