@@ -10,7 +10,7 @@ from autobahn.twisted.websocket import WebSocketServerProtocol
 from autobahn.twisted.websocket import WebSocketClientProtocol
 
 from allmydata.web.logs import TokenAuthenticatedWebSocketServerProtocol
-#_StreamingLogClientProtocol
+
 
 class TestStreamingLogs(unittest.TestCase):
     """
