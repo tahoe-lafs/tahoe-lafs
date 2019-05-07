@@ -1,13 +1,11 @@
 import json
 
 from twisted.trial import unittest
-from twisted.internet.defer import inlineCallbacks, Deferred
+from twisted.internet.defer import inlineCallbacks
 
 from eliot import log_call
 
 from autobahn.twisted.testing import create_memory_agent, MemoryReactorClockResolver, create_pumper
-from autobahn.twisted.websocket import WebSocketServerProtocol
-from autobahn.twisted.websocket import WebSocketClientProtocol
 
 from allmydata.web.logs import TokenAuthenticatedWebSocketServerProtocol
 
