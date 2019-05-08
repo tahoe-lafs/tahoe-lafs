@@ -18,9 +18,6 @@ from .common import (
     CLITestMixin,
     parse_options,
 )
-from ..common import (
-    skipIf,
-)
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
@@ -447,11 +444,13 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         return self._ignore_something_test(u"Symlink", make_symlink)
 
-    @skipIf(getattr(os, "mkfifo", None) is None, _unsupported("FIFOs"))
     def test_ignore_fifo(self):
         """
         A FIFO encountered in the backed-up directory is skipped with a warning.
         """
+        if getattr(os, "mkfifo", None) is None:
+            raise unittest.SkipTest(_unsupported("FIFOs"))
+
         def make_fifo(path):
             # Create the thing to ignore
             os.makedirs(os.path.dirname(path))
