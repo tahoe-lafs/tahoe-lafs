@@ -28,7 +28,7 @@ from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.stats import StatsProvider
 from allmydata.history import History
-from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
+from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION, DEFAULT_MAX_SEGMENT_SIZE
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata import node
@@ -404,7 +404,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     DEFAULT_ENCODING_PARAMETERS = {"k": 3,
                                    "happy": 7,
                                    "n": 10,
-                                   "max_segment_size": 128*KiB,
+                                   "max_segment_size": DEFAULT_MAX_SEGMENT_SIZE,
                                    }
 
     def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients,
