@@ -35,8 +35,6 @@ from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common import ShouldFailMixin
 from allmydata.test.common_util import ReallyEqualMixin
 
-timeout = 240
-
 class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCase):
     """This is a no-network unit test of the SFTPUserHandler and the abstractions it uses."""
 

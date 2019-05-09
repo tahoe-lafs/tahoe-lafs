@@ -163,7 +163,6 @@ def make_data(length):
     return data[:length]
 
 class ValidatedExtendedURIProxy(unittest.TestCase):
-    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     K = 4
     M = 10
     SIZE = 200
@@ -260,8 +259,6 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
         return defer.DeferredList(dl)
 
 class Encode(unittest.TestCase):
-    timeout = 2400 # It takes longer than 240 seconds on Zandr's ARM box.
-
     def do_encode(self, max_segment_size, datalen, NUM_SHARES, NUM_SEGMENTS,
                   expected_block_hashes, expected_share_hashes):
         data = make_data(datalen)

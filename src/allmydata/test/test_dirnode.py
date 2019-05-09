@@ -63,7 +63,6 @@ one_nfd = u"one\u0304"
 
 class Dirnode(GridTestMixin, unittest.TestCase,
               testutil.ReallyEqualMixin, testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
-    timeout = 480 # It occasionally takes longer than 240 seconds on Francois's arm box.
 
     def _do_create_test(self, mdmf=False):
         c = self.g.clients[0]
@@ -1758,7 +1757,6 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
 
 
 class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
-    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def test_stats(self):
         ds = dirnode.DeepStats(None)
         ds.add("count-files")
@@ -1823,7 +1821,6 @@ class UCWEingNodeMaker(NodeMaker):
 
 
 class Deleter(GridTestMixin, testutil.ReallyEqualMixin, unittest.TestCase):
-    timeout = 3600 # It takes longer than 433 seconds on Zandr's ARM box.
     def test_retry(self):
         # ticket #550, a dirnode.delete which experiences an
         # UncoordinatedWriteError will fail with an incorrect "you're

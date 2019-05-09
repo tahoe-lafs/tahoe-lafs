@@ -23,8 +23,6 @@ from ._twisted_9607 import (
     getProcessOutputAndValue,
 )
 
-timeout = 240
-
 def get_root_from_file(src):
     srcdir = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(src))))
 
@@ -499,9 +497,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_after_stopping)
         d.addBoth(self._remove, exit_trigger_file)
         return d
-    # This test has hit a 240-second timeout on our feisty2.5 buildslave, and a 480-second timeout
-    # on Francois's Lenny-armv5tel buildslave.
-    test_introducer.timeout = 960
 
     def test_client_no_noise(self):
         self.skip_if_cannot_daemonize()
