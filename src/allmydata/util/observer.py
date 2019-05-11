@@ -10,13 +10,19 @@ something happens.  The way this is typically implemented is that the observed
 has an ObserverList whose when_fired method is called in the observed's
 'when_something'."""
 
-class OneShotObserverList:
+class OneShotObserverList(object):
     """A one-shot event distributor."""
     def __init__(self):
         self._fired = False
         self._result = None
         self._watchers = []
         self.__repr__ = self._unfired_repr
+
+    def __repr__(self):
+        """string representation of the OneshotObserverList"""
+        if self._fired:
+            return self._fired_repr()
+        return self._unfired_repr()
 
     def _unfired_repr(self):
         return "<OneShotObserverList [%s]>" % (self._watchers, )
