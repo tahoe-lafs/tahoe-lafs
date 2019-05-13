@@ -18,11 +18,7 @@ from .common import (
     CLITestMixin,
     parse_options,
 )
-from ..common import (
-    skipIf,
-)
 
-timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
 def _unsupported(what):
     return "{} are not supported by Python on this platform.".format(what)
@@ -310,13 +306,6 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         return d
 
-    # on our old dapper buildslave, this test takes a long time (usually
-    # 130s), so we have to bump up the default 120s timeout. The create-alias
-    # and initial backup alone take 60s, probably because of the handful of
-    # dirnodes being created (RSA key generation). The backup between check4
-    # and check4a takes 6s, as does the backup before check4b.
-    test_backup.timeout = 3000
-
     def _check_filtering(self, filtered, all, included, excluded):
         filtered = set(filtered)
         all = set(all)
@@ -447,11 +436,13 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         return self._ignore_something_test(u"Symlink", make_symlink)
 
-    @skipIf(getattr(os, "mkfifo", None) is None, _unsupported("FIFOs"))
     def test_ignore_fifo(self):
         """
         A FIFO encountered in the backed-up directory is skipped with a warning.
         """
+        if getattr(os, "mkfifo", None) is None:
+            raise unittest.SkipTest(_unsupported("FIFOs"))
+
         def make_fifo(path):
             # Create the thing to ignore
             os.makedirs(os.path.dirname(path))

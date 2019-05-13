@@ -39,8 +39,6 @@ from ..util.eliotutil import (
     inline_callbacks,
 )
 
-timeout = 240
-
 def get_root_from_file(src):
     srcdir = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(src))))
 

@@ -16,8 +16,6 @@ from .. import common_util as testutil
 SEGSIZE = 128*1024
 
 class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
-    timeout = 400 # these tests are too big, 120s is not enough on slow
-                  # platforms
     def setUp(self):
         GridTestMixin.setUp(self)
         self.basedir = self.mktemp()

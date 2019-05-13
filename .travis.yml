@@ -25,7 +25,7 @@ script:
   - |
     set -eo pipefail
     if [ "${T}" = "py35" ]; then
-      cat py3_valid_syntax.txt | xargs python3 -m compileall -f
+      python3 -m compileall -f .
     else
       tox -e ${T}
     fi

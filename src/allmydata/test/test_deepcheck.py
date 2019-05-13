@@ -20,8 +20,6 @@ from .common_web import do_http
 from allmydata.test.no_network import GridTestMixin
 from .cli.common import CLITestMixin
 
-timeout = 2400 # One of these took 1046.091s on Zandr's ARM box.
-
 class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
     def test_good(self):
         self.basedir = "deepcheck/MutableChecker/good"

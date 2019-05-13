@@ -5,8 +5,6 @@ from ..no_network import GridTestMixin
 from allmydata.scripts import tahoe_mv
 from .common import CLITestMixin
 
-timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
-
 class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_mv_behavior(self):
         self.basedir = "cli/Mv/mv_behavior"

@@ -9,8 +9,6 @@ from ..no_network import GridTestMixin
 from allmydata.util.encodingutil import quote_output, get_io_encoding
 from .common import CLITestMixin
 
-timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
-
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def _test_webopen(self, args, expected_url):
