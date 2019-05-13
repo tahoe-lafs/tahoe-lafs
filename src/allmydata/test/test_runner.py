@@ -16,7 +16,9 @@ from twisted.internet.defer import (
     DeferredList,
 )
 from twisted.python.filepath import FilePath
-
+from twisted.python.runtime import (
+    platform,
+)
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, \
     get_filesystem_encoding
@@ -437,7 +439,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         tahoe.active()
 
-        self.assertTrue(tahoe.twistd_pid_file.exists())
+        # We don't keep track of PIDs in files on Windows.
+        if not platform.isWindows():
+            self.assertTrue(tahoe.twistd_pid_file.exists())
         self.assertTrue(tahoe.node_url_file.exists())
 
         # rm this so we can detect when the second incarnation is ready
@@ -468,12 +472,12 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         0) Verify that "tahoe create-node" takes a --webport option and writes
            the value to the configuration file.
 
-        1) Verify that "tahoe run" writes a pid file and a node url file.
+        1) Verify that "tahoe run" writes a pid file and a node url file (on POSIX).
 
         2) Verify that the storage furl file has a stable value across a
            "tahoe run" / "tahoe stop" / "tahoe run" sequence.
 
-        3) Verify that the pid file is removed after "tahoe stop" succeeds.
+        3) Verify that the pid file is removed after "tahoe stop" succeeds (on POSIX).
         """
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
@@ -509,7 +513,10 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # read the storage.furl file so we can check that its contents don't
         # change on restart
         storage_furl = fileutil.read(tahoe.storage_furl_file.path)
-        self.assertTrue(tahoe.twistd_pid_file.exists())
+
+        # We don't keep track of PIDs in files on Windows.
+        if not platform.isWindows():
+            self.assertTrue(tahoe.twistd_pid_file.exists())
 
         # rm this so we can detect when the second incarnation is ready
         tahoe.node_url_file.remove()
@@ -527,17 +534,20 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             fileutil.read(tahoe.storage_furl_file.path),
         )
 
-        self.assertTrue(
-            tahoe.twistd_pid_file.exists(),
-            "PID file ({}) didn't exist when we expected it to.  These exist: {}".format(
-                tahoe.twistd_pid_file,
-                tahoe.twistd_pid_file.parent().listdir(),
-            ),
-        )
+        if not platform.isWindows():
+            self.assertTrue(
+                tahoe.twistd_pid_file.exists(),
+                "PID file ({}) didn't exist when we expected it to.  "
+                "These exist: {}".format(
+                    tahoe.twistd_pid_file,
+                    tahoe.twistd_pid_file.parent().listdir(),
+                ),
+            )
         yield tahoe.stop_and_wait()
 
-        # twistd.pid should be gone by now.
-        self.assertFalse(tahoe.twistd_pid_file.exists())
+        if not platform.isWindows():
+            # twistd.pid should be gone by now.
+            self.assertFalse(tahoe.twistd_pid_file.exists())
 
 
     def _remove(self, res, file):
@@ -633,8 +643,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             ),
         )
 
-        # It should not be running.
-        self.assertFalse(tahoe.twistd_pid_file.exists())
+        if not platform.isWindows():
+            # It should not be running.
+            self.assertFalse(tahoe.twistd_pid_file.exists())
 
         # Wait for the operation to *complete*.  If we got this far it's
         # because we got the expected message so we can expect the "tahoe ..."
