@@ -17,6 +17,7 @@ import attr
 from twisted.internet.error import (
     ProcessDone,
     ProcessTerminated,
+    ProcessExitedAlready,
 )
 from twisted.internet.interfaces import (
     IProcessProtocol,
@@ -32,12 +33,17 @@ from twisted.internet.defer import (
     Deferred,
     succeed,
 )
-
+from twisted.internet.task import (
+    deferLater,
+)
 from ..client import (
     _Client,
 )
 from ..scripts.tahoe_stop import (
     COULD_NOT_STOP,
+)
+from ..util.eliotutil import (
+    inline_callbacks,
 )
 
 class Expect(Protocol):
@@ -107,6 +113,7 @@ def on_different(fd_mapping):
 class CLINodeAPI(object):
     reactor = attr.ib()
     basedir = attr.ib(type=FilePath)
+    process = attr.ib(default=None)
 
     @property
     def twistd_pid_file(self):
@@ -172,10 +179,22 @@ class CLINodeAPI(object):
             [u"stop", self.basedir.asTextMode().path],
         )
 
+    @inline_callbacks
     def stop_and_wait(self):
-        protocol, ended = wait_for_exit()
-        self.stop(protocol)
-        return ended
+        if platform.isWindows():
+            # On Windows there is no PID file and no "tahoe stop".
+            if self.process is not None:
+                while True:
+                    try:
+                        self.process.signalProcess("TERM")
+                    except ProcessExitedAlready:
+                        break
+                    else:
+                        yield deferLater(self.reactor, 0.1, lambda: None)
+        else:
+            protocol, ended = wait_for_exit()
+            self.stop(protocol)
+            yield ended
 
     def active(self):
         # By writing this file, we get two minutes before the client will
