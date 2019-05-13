@@ -50,7 +50,7 @@ test_script:
   # the interpreter you're using - Appveyor does not do anything special
   # to put the Python version you want to use on PATH.
   - |
-    %PYTHON%\Scripts\tox.exe -e coverage
+    %PYTHON%\Scripts\tox.exe -vvv -e coverage
 
 after_test:
   # This builds the main tahoe wheel, and wheels for all dependencies.
