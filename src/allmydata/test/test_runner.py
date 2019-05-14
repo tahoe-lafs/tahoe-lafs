@@ -4,23 +4,39 @@ from __future__ import (
 )
 
 import os.path, re, sys
+from os import linesep
 
 from twisted.trial import unittest
 
-from twisted.python import usage, runtime
-from twisted.internet.defer import inlineCallbacks, returnValue
-
+from twisted.internet import reactor
+from twisted.python import usage
+from twisted.internet.defer import (
+    inlineCallbacks,
+    returnValue,
+    DeferredList,
+)
+from twisted.python.filepath import FilePath
+from twisted.python.runtime import (
+    platform,
+)
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, \
     get_filesystem_encoding
-from allmydata.client import _Client
 from allmydata.test import common_util
 import allmydata
 from allmydata import __appname__
 from .common_util import parse_cli, run_cli
-
+from .cli_node_api import (
+    CLINodeAPI,
+    Expect,
+    on_stdout,
+    on_stdout_and_stderr,
+)
 from ._twisted_9607 import (
     getProcessOutputAndValue,
+)
+from ..util.eliotutil import (
+    inline_callbacks,
 )
 
 def get_root_from_file(src):
@@ -39,13 +55,7 @@ def get_root_from_file(src):
 srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
 
-
 class RunBinTahoeMixin:
-    def skip_if_cannot_daemonize(self):
-        if runtime.platformType == "win32":
-            # twistd on windows doesn't daemonize. cygwin should work normally.
-            raise unittest.SkipTest("twistd does not fork under windows")
-
     @inlineCallbacks
     def find_import_location(self):
         res = yield self.run_bintahoe(["--version-and-path"])
@@ -362,354 +372,283 @@ class CreateNode(unittest.TestCase):
         # can't provide all three
         _test("create-stats-gatherer --hostname=foo --location=foo --port=foo D")
 
+
 class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
               RunBinTahoeMixin):
-    # exercise "tahoe start", for both introducer, client node, and
-    # key-generator, by spawning "tahoe start" as a subprocess. This doesn't
-    # get us figleaf-based line-level coverage, but it does a better job of
-    # confirming that the user can actually run "./bin/tahoe start" and
-    # expect it to work. This verifies that bin/tahoe sets up PYTHONPATH and
-    # the like correctly.
+    """
+    exercise "tahoe run" for both introducer, client node, and key-generator,
+    by spawning "tahoe run" (or "tahoe start") as a subprocess. This doesn't
+    get us line-level coverage, but it does a better job of confirming that
+    the user can actually run "./bin/tahoe run" and expect it to work. This
+    verifies that bin/tahoe sets up PYTHONPATH and the like correctly.
 
-    # This doesn't work on cygwin (it hangs forever), so we skip this test
-    # when we're on cygwin. It is likely that "tahoe start" itself doesn't
-    # work on cygwin: twisted seems unable to provide a version of
-    # spawnProcess which really works there.
+    This doesn't work on cygwin (it hangs forever), so we skip this test
+    when we're on cygwin. It is likely that "tahoe start" itself doesn't
+    work on cygwin: twisted seems unable to provide a version of
+    spawnProcess which really works there.
+    """
 
     def workdir(self, name):
         basedir = os.path.join("test_runner", "RunNode", name)
         fileutil.make_dirs(basedir)
         return basedir
 
+    @inline_callbacks
     def test_introducer(self):
-        self.skip_if_cannot_daemonize()
-
+        """
+        The introducer furl is stable across restarts.
+        """
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
-        twistd_pid_file = os.path.join(c1, "twistd.pid")
-        introducer_furl_file = os.path.join(c1, "private", "introducer.furl")
-        node_url_file = os.path.join(c1, "node.url")
-        config_file = os.path.join(c1, "tahoe.cfg")
+        tahoe = CLINodeAPI(reactor, FilePath(c1))
+        self.addCleanup(tahoe.stop_and_wait)
 
-        d = self.run_bintahoe(["--quiet", "create-introducer", "--basedir", c1, "--hostname", "localhost"])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0)
+        out, err, rc_or_sig = yield self.run_bintahoe([
+            "--quiet",
+            "create-introducer",
+            "--basedir", c1,
+            "--hostname", "127.0.0.1",
+        ])
 
-            # This makes sure that node.url is written, which allows us to
-            # detect when the introducer restarts in _node_has_restarted below.
-            config = fileutil.read(config_file)
-            self.failUnlessIn('\nweb.port = \n', config)
-            fileutil.write(config_file, config.replace('\nweb.port = \n', '\nweb.port = 0\n'))
+        self.assertEqual(rc_or_sig, 0)
 
-            # by writing this file, we get ten seconds before the node will
-            # exit. This insures that even if the test fails (and the 'stop'
-            # command doesn't work), the client should still terminate.
-            fileutil.write(exit_trigger_file, "")
-            # now it's safe to start the node
-        d.addCallback(_cb)
+        # This makes sure that node.url is written, which allows us to
+        # detect when the introducer restarts in _node_has_restarted below.
+        config = fileutil.read(tahoe.config_file.path)
+        self.assertIn('{}web.port = {}'.format(linesep, linesep), config)
+        fileutil.write(
+            tahoe.config_file.path,
+            config.replace(
+                '{}web.port = {}'.format(linesep, linesep),
+                '{}web.port = 0{}'.format(linesep, linesep),
+            )
+        )
 
-        def _then_start_the_node(res):
-            return self.run_bintahoe(["--quiet", "start", c1])
-        d.addCallback(_then_start_the_node)
+        p = Expect()
+        tahoe.run(on_stdout(p))
+        yield p.expect("introducer running")
+        tahoe.active()
 
-        def _cb2(res):
-            out, err, rc_or_sig = res
+        yield self.poll(tahoe.introducer_furl_file.exists)
 
-            fileutil.write(exit_trigger_file, "")
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
+        # read the introducer.furl file so we can check that the contents
+        # don't change on restart
+        furl = fileutil.read(tahoe.introducer_furl_file.path)
 
-            # the parent (twistd) has exited. However, twistd writes the pid
-            # from the child, not the parent, so we can't expect twistd.pid
-            # to exist quite yet.
+        tahoe.active()
 
-            # the node is running, but it might not have made it past the
-            # first reactor turn yet, and if we kill it too early, it won't
-            # remove the twistd.pid file. So wait until it does something
-            # that we know it won't do until after the first turn.
-        d.addCallback(_cb2)
+        # We don't keep track of PIDs in files on Windows.
+        if not platform.isWindows():
+            self.assertTrue(tahoe.twistd_pid_file.exists())
+        self.assertTrue(tahoe.node_url_file.exists())
 
-        def _node_has_started():
-            return os.path.exists(introducer_furl_file)
-        d.addCallback(lambda res: self.poll(_node_has_started))
+        # rm this so we can detect when the second incarnation is ready
+        tahoe.node_url_file.remove()
 
-        def _started(res):
-            # read the introducer.furl file so we can check that the contents
-            # don't change on restart
-            self.furl = fileutil.read(introducer_furl_file)
+        yield tahoe.stop_and_wait()
 
-            fileutil.write(exit_trigger_file, "")
-            self.failUnless(os.path.exists(twistd_pid_file))
-            self.failUnless(os.path.exists(node_url_file))
+        p = Expect()
+        tahoe.run(on_stdout(p))
+        yield p.expect("introducer running")
 
-            # rm this so we can detect when the second incarnation is ready
-            os.unlink(node_url_file)
-            return self.run_bintahoe(["--quiet", "restart", c1])
-        d.addCallback(_started)
+        # Again, the second incarnation of the node might not be ready yet, so
+        # poll until it is. This time introducer_furl_file already exists, so
+        # we check for the existence of node_url_file instead.
+        yield self.poll(tahoe.node_url_file.exists)
 
-        def _then(res):
-            out, err, rc_or_sig = res
-            fileutil.write(exit_trigger_file, "")
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-        d.addCallback(_then)
+        # The point of this test!  After starting the second time the
+        # introducer furl file must exist and contain the same contents as it
+        # did before.
+        self.assertTrue(tahoe.introducer_furl_file.exists())
+        self.assertEqual(furl, fileutil.read(tahoe.introducer_furl_file.path))
 
-        # Again, the second incarnation of the node might not be ready yet,
-        # so poll until it is. This time introducer_furl_file already
-        # exists, so we check for the existence of node_url_file instead.
-        def _node_has_restarted():
-            return os.path.exists(node_url_file)
-        d.addCallback(lambda res: self.poll(_node_has_restarted))
-
-        def _check_same_furl(res):
-            self.failUnless(os.path.exists(introducer_furl_file))
-            self.failUnlessEqual(self.furl, fileutil.read(introducer_furl_file))
-        d.addCallback(_check_same_furl)
-
-        # Now we can kill it. TODO: On a slow machine, the node might kill
-        # itself before we get a chance to, especially if spawning the
-        # 'tahoe stop' command takes a while.
-        def _stop(res):
-            fileutil.write(exit_trigger_file, "")
-            self.failUnless(os.path.exists(twistd_pid_file))
-
-            return self.run_bintahoe(["--quiet", "stop", c1])
-        d.addCallback(_stop)
-
-        def _after_stopping(res):
-            out, err, rc_or_sig = res
-            fileutil.write(exit_trigger_file, "")
-            # the parent has exited by now
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-            # the parent was supposed to poll and wait until it sees
-            # twistd.pid go away before it exits, so twistd.pid should be
-            # gone by now.
-            self.failIf(os.path.exists(twistd_pid_file))
-        d.addCallback(_after_stopping)
-        d.addBoth(self._remove, exit_trigger_file)
-        return d
-
-    def test_client_no_noise(self):
-        self.skip_if_cannot_daemonize()
-
-        basedir = self.workdir("test_client_no_noise")
-        c1 = os.path.join(basedir, "c1")
-        exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
-        twistd_pid_file = os.path.join(c1, "twistd.pid")
-        node_url_file = os.path.join(c1, "node.url")
-
-        d = self.run_bintahoe(["--quiet", "create-client", "--basedir", c1, "--webport", "0"])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            assert rc_or_sig == 0, errstr
-            self.failUnlessEqual(rc_or_sig, 0)
-
-            # By writing this file, we get two minutes before the client will exit. This ensures
-            # that even if the 'stop' command doesn't work (and the test fails), the client should
-            # still terminate.
-            fileutil.write(exit_trigger_file, "")
-            # now it's safe to start the node
-        d.addCallback(_cb)
-
-        def _start(res):
-            return self.run_bintahoe(["--quiet", "start", c1])
-        d.addCallback(_start)
-
-        def _cb2(res):
-            out, err, rc_or_sig = res
-            errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            fileutil.write(exit_trigger_file, "")
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr) # If you emit noise, you fail this test.
-            errlines = err.split("\n")
-            self.failIf([True for line in errlines if (line != "" and "UserWarning: Unbuilt egg for setuptools" not in line
-                                                                  and "from pkg_resources import load_entry_point" not in line)], errstr)
-            if err != "":
-                raise unittest.SkipTest("This test is known not to pass on Ubuntu Lucid; see #1235.")
-
-            # the parent (twistd) has exited. However, twistd writes the pid
-            # from the child, not the parent, so we can't expect twistd.pid
-            # to exist quite yet.
-
-            # the node is running, but it might not have made it past the
-            # first reactor turn yet, and if we kill it too early, it won't
-            # remove the twistd.pid file. So wait until it does something
-            # that we know it won't do until after the first turn.
-        d.addCallback(_cb2)
-
-        def _node_has_started():
-            return os.path.exists(node_url_file)
-        d.addCallback(lambda res: self.poll(_node_has_started))
-
-        # now we can kill it. TODO: On a slow machine, the node might kill
-        # itself before we get a chance to, especially if spawning the
-        # 'tahoe stop' command takes a while.
-        def _stop(res):
-            self.failUnless(os.path.exists(twistd_pid_file),
-                            (twistd_pid_file, os.listdir(os.path.dirname(twistd_pid_file))))
-            return self.run_bintahoe(["--quiet", "stop", c1])
-        d.addCallback(_stop)
-        d.addBoth(self._remove, exit_trigger_file)
-        return d
-
+    @inline_callbacks
     def test_client(self):
-        self.skip_if_cannot_daemonize()
+        """
+        Test many things.
 
+        0) Verify that "tahoe create-node" takes a --webport option and writes
+           the value to the configuration file.
+
+        1) Verify that "tahoe run" writes a pid file and a node url file (on POSIX).
+
+        2) Verify that the storage furl file has a stable value across a
+           "tahoe run" / "tahoe stop" / "tahoe run" sequence.
+
+        3) Verify that the pid file is removed after "tahoe stop" succeeds (on POSIX).
+        """
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        exit_trigger_file = os.path.join(c1, _Client.EXIT_TRIGGER_FILE)
-        twistd_pid_file = os.path.join(c1, "twistd.pid")
-        node_url_file = os.path.join(c1, "node.url")
-        storage_furl_file = os.path.join(c1, "private", "storage.furl")
-        config_file = os.path.join(c1, "tahoe.cfg")
 
-        d = self.run_bintahoe(["--quiet", "create-node", "--basedir", c1,
-                               "--webport", "0",
-                               "--hostname", "localhost"])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0)
+        tahoe = CLINodeAPI(reactor, FilePath(c1))
+        # Set this up right now so we don't forget later.
+        self.addCleanup(tahoe.cleanup)
 
-            # Check that the --webport option worked.
-            config = fileutil.read(config_file)
-            self.failUnlessIn('\nweb.port = 0\n', config)
+        out, err, rc_or_sig = yield self.run_bintahoe([
+            "--quiet", "create-node", "--basedir", c1,
+            "--webport", "0",
+            "--hostname", "localhost",
+        ])
+        self.failUnlessEqual(rc_or_sig, 0)
 
-            # By writing this file, we get two minutes before the client will
-            # exit. This ensures that even if the 'stop' command doesn't work
-            # (and the test fails), the client should still terminate.
-            fileutil.write(exit_trigger_file, "")
-            # now it's safe to start the node
-        d.addCallback(_cb)
+        # Check that the --webport option worked.
+        config = fileutil.read(tahoe.config_file.path)
+        self.assertIn(
+            '{}web.port = 0{}'.format(linesep, linesep),
+            config,
+        )
 
-        def _start(res):
-            return self.run_bintahoe(["--quiet", "start", c1])
-        d.addCallback(_start)
+        # After this it's safe to start the node
+        tahoe.active()
 
-        def _cb2(res):
-            out, err, rc_or_sig = res
-            fileutil.write(exit_trigger_file, "")
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
+        p = Expect()
+        # This will run until we stop it.
+        tahoe.run(on_stdout(p))
+        # Wait for startup to have proceeded to a reasonable point.
+        yield p.expect("client running")
+        tahoe.active()
 
-            # the parent (twistd) has exited. However, twistd writes the pid
-            # from the child, not the parent, so we can't expect twistd.pid
-            # to exist quite yet.
+        # read the storage.furl file so we can check that its contents don't
+        # change on restart
+        storage_furl = fileutil.read(tahoe.storage_furl_file.path)
 
-            # the node is running, but it might not have made it past the
-            # first reactor turn yet, and if we kill it too early, it won't
-            # remove the twistd.pid file. So wait until it does something
-            # that we know it won't do until after the first turn.
-        d.addCallback(_cb2)
+        # We don't keep track of PIDs in files on Windows.
+        if not platform.isWindows():
+            self.assertTrue(tahoe.twistd_pid_file.exists())
 
-        def _node_has_started():
-            return os.path.exists(node_url_file)
-        d.addCallback(lambda res: self.poll(_node_has_started))
+        # rm this so we can detect when the second incarnation is ready
+        tahoe.node_url_file.remove()
+        yield tahoe.stop_and_wait()
 
-        def _started(res):
-            # read the storage.furl file so we can check that its contents
-            # don't change on restart
-            self.storage_furl = fileutil.read(storage_furl_file)
+        p = Expect()
+        # We don't have to add another cleanup for this one, the one from
+        # above is still registered.
+        tahoe.run(on_stdout(p))
+        yield p.expect("client running")
+        tahoe.active()
 
-            fileutil.write(exit_trigger_file, "")
-            self.failUnless(os.path.exists(twistd_pid_file))
+        self.assertEqual(
+            storage_furl,
+            fileutil.read(tahoe.storage_furl_file.path),
+        )
 
-            # rm this so we can detect when the second incarnation is ready
-            os.unlink(node_url_file)
-            return self.run_bintahoe(["--quiet", "restart", c1])
-        d.addCallback(_started)
+        if not platform.isWindows():
+            self.assertTrue(
+                tahoe.twistd_pid_file.exists(),
+                "PID file ({}) didn't exist when we expected it to.  "
+                "These exist: {}".format(
+                    tahoe.twistd_pid_file,
+                    tahoe.twistd_pid_file.parent().listdir(),
+                ),
+            )
+        yield tahoe.stop_and_wait()
 
-        def _cb3(res):
-            out, err, rc_or_sig = res
+        if not platform.isWindows():
+            # twistd.pid should be gone by now.
+            self.assertFalse(tahoe.twistd_pid_file.exists())
 
-            fileutil.write(exit_trigger_file, "")
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-        d.addCallback(_cb3)
-
-        # again, the second incarnation of the node might not be ready yet,
-        # so poll until it is
-        d.addCallback(lambda res: self.poll(_node_has_started))
-
-        def _check_same_furl(res):
-            self.failUnlessEqual(self.storage_furl,
-                                 fileutil.read(storage_furl_file))
-        d.addCallback(_check_same_furl)
-
-        # now we can kill it. TODO: On a slow machine, the node might kill
-        # itself before we get a chance to, especially if spawning the
-        # 'tahoe stop' command takes a while.
-        def _stop(res):
-            fileutil.write(exit_trigger_file, "")
-            self.failUnless(os.path.exists(twistd_pid_file),
-                            (twistd_pid_file, os.listdir(os.path.dirname(twistd_pid_file))))
-            return self.run_bintahoe(["--quiet", "stop", c1])
-        d.addCallback(_stop)
-
-        def _cb4(res):
-            out, err, rc_or_sig = res
-
-            fileutil.write(exit_trigger_file, "")
-            # the parent has exited by now
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            self.failUnlessEqual(rc_or_sig, 0, errstr)
-            self.failUnlessEqual(out, "", errstr)
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-            # the parent was supposed to poll and wait until it sees
-            # twistd.pid go away before it exits, so twistd.pid should be
-            # gone by now.
-            self.failIf(os.path.exists(twistd_pid_file))
-        d.addCallback(_cb4)
-        d.addBoth(self._remove, exit_trigger_file)
-        return d
 
     def _remove(self, res, file):
         fileutil.remove(file)
         return res
 
-    def test_baddir(self):
-        self.skip_if_cannot_daemonize()
-        basedir = self.workdir("test_baddir")
+    def test_run_bad_directory(self):
+        """
+        If ``tahoe run`` is pointed at a non-node directory, it reports an error
+        and exits.
+        """
+        return self._bad_directory_test(
+            u"test_run_bad_directory",
+            "tahoe run",
+            lambda tahoe, p: tahoe.run(p),
+            "is not a recognizable node directory",
+        )
+
+    def test_run_bogus_directory(self):
+        """
+        If ``tahoe run`` is pointed at a non-directory, it reports an error and
+        exits.
+        """
+        return self._bad_directory_test(
+            u"test_run_bogus_directory",
+            "tahoe run",
+            lambda tahoe, p: CLINodeAPI(
+                tahoe.reactor,
+                tahoe.basedir.sibling(u"bogus"),
+            ).run(p),
+            "does not look like a directory at all"
+        )
+
+    def test_stop_bad_directory(self):
+        """
+        If ``tahoe run`` is pointed at a directory where no node is running, it
+        reports an error and exits.
+        """
+        return self._bad_directory_test(
+            u"test_stop_bad_directory",
+            "tahoe stop",
+            lambda tahoe, p: tahoe.stop(p),
+            "does not look like a running node directory",
+        )
+
+    @inline_callbacks
+    def _bad_directory_test(self, workdir, description, operation, expected_message):
+        """
+        Verify that a certain ``tahoe`` CLI operation produces a certain expected
+        message and then exits.
+
+        :param unicode workdir: A distinct path name for this test to operate
+            on.
+
+        :param unicode description: A description of the operation being
+            performed.
+
+        :param operation: A two-argument callable implementing the operation.
+            The first argument is a ``CLINodeAPI`` instance to use to perform
+            the operation.  The second argument is an ``IProcessProtocol`` to
+            which the operations output must be delivered.
+
+        :param unicode expected_message: Some text that is expected in the
+            stdout or stderr of the operation in the successful case.
+
+        :return: A ``Deferred`` that fires when the assertions have been made.
+        """
+        basedir = self.workdir(workdir)
         fileutil.make_dirs(basedir)
 
-        d = self.run_bintahoe(["--quiet", "start", "--basedir", basedir])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnless("is not a recognizable node directory" in err, err)
-        d.addCallback(_cb)
+        tahoe = CLINodeAPI(reactor, FilePath(basedir))
+        # If tahoe ends up thinking it should keep running, make sure it stops
+        # promptly when the test is done.
+        self.addCleanup(tahoe.cleanup)
 
-        def _then_stop_it(res):
-            return self.run_bintahoe(["--quiet", "stop", "--basedir", basedir])
-        d.addCallback(_then_stop_it)
+        p = Expect()
+        operation(tahoe, on_stdout_and_stderr(p))
 
-        def _cb2(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 2)
-            self.failUnless("does not look like a running node directory" in err)
-        d.addCallback(_cb2)
+        client_running = p.expect(b"client running")
 
-        def _then_start_in_bogus_basedir(res):
-            not_a_dir = os.path.join(basedir, "bogus")
-            return self.run_bintahoe(["--quiet", "start", "--basedir", not_a_dir])
-        d.addCallback(_then_start_in_bogus_basedir)
+        result, index = yield DeferredList([
+            p.expect(expected_message),
+            client_running,
+        ], fireOnOneCallback=True, consumeErrors=True,
+        )
 
-        def _cb3(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnlessIn("does not look like a directory at all", err)
-        d.addCallback(_cb3)
-        return d
+        self.assertEqual(
+            index,
+            0,
+            "Expected error message from '{}', got something else: {}".format(
+                description,
+                p.get_buffered_output(),
+            ),
+        )
+
+        if not platform.isWindows():
+            # It should not be running.
+            self.assertFalse(tahoe.twistd_pid_file.exists())
+
+        # Wait for the operation to *complete*.  If we got this far it's
+        # because we got the expected message so we can expect the "tahoe ..."
+        # child process to exit very soon.  This other Deferred will fail when
+        # it eventually does but DeferredList above will consume the error.
+        # What's left is a perfect indicator that the process has exited and
+        # we won't get blamed for leaving the reactor dirty.
+        yield client_running
