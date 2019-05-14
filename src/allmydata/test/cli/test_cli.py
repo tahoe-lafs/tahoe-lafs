@@ -43,8 +43,6 @@ from twisted.python import usage
 
 from allmydata.util.encodingutil import listdir_unicode, get_io_encoding
 
-timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
-
 class CLI(CLITestMixin, unittest.TestCase):
     def _dump_cap(self, *args):
         config = debug.DumpCapOptions()

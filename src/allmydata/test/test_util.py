@@ -1060,7 +1060,6 @@ class Abbreviate(unittest.TestCase):
         self.failUnlessIn("fhtagn", str(e))
 
 class Limiter(unittest.TestCase):
-    timeout = 480 # This takes longer than 240 seconds on Francois's arm box.
 
     def job(self, i, foo):
         self.calls.append( (i, foo) )

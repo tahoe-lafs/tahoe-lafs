@@ -421,12 +421,6 @@ def _render_section_values(values):
 
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
-    # SystemTestMixin tests tend to be a lot of work, and we have a few
-    # buildslaves that are pretty slow, and every once in a while these tests
-    # run up against the default 120 second timeout. So increase the default
-    # timeout. Individual test cases can override this, of course.
-    timeout = 300
-
     def setUp(self):
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
@@ -752,7 +746,6 @@ class CountingDataUploadable(upload.Data):
         return upload.Data.read(self, length)
 
 class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
-    timeout = 3600 # It takes longer than 960 seconds on Zandr's ARM box.
 
     def test_connections(self):
         self.basedir = "system/SystemTest/test_connections"

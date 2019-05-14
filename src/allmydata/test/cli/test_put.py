@@ -11,8 +11,6 @@ from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from .common import CLITestMixin
 
-timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
-
 class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_unlinked_immutable_stdin(self):
@@ -471,4 +469,3 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.failUnlessReallyEqual(rc_out_err[1], DATA))
 
         return d
-

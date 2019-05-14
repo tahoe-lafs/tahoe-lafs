@@ -14,8 +14,6 @@ from ..no_network import GridTestMixin
 from .common import CLITestMixin
 from ..common_util import skip_if_cannot_represent_filename
 
-timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
-
 class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_not_enough_args(self):

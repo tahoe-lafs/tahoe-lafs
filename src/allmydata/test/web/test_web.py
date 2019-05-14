@@ -57,8 +57,6 @@ from ..status import FakeStatus
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
-timeout = 480 # Most of these take longer than 240 seconds on Francois's arm box.
-
 class FakeStatsProvider:
     def get_stats(self):
         stats = {'stats': {}, 'counters': {}}
