@@ -313,8 +313,8 @@ configuration::
 Put the key printed out above into Alice's ``tahoe.cfg`` in section
 ``client``::
 
-    [client]
-    grid_manager_public_keys = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq
+    [grid_managers]
+    example_name = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq
 
 
 DECIDE:
