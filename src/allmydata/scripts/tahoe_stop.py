@@ -32,12 +32,12 @@ def stop(config):
         print("%s does not look like a running node directory (no twistd.pid)" % quoted_basedir, file=err)
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
-        return 2
+        return COULD_NOT_STOP
     elif pid == -1:
         print("%s contains an invalid PID file" % basedir, file=err)
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
-        return 2
+        return COULD_NOT_STOP
 
     # kill it hard (SIGKILL), delete the twistd.pid file, then wait for the
     # process itself to go away. If it hasn't gone away after 20 seconds, warn
