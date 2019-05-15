@@ -100,7 +100,7 @@ class PublishStatus(object):
 class LoopLimitExceededError(Exception):
     pass
 
-class Publish:
+class Publish(object):
     """I represent a single act of publishing the mutable file to the grid. I
     will only publish my data if the servermap I am using still represents
     the current state of the world.

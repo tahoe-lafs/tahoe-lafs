@@ -66,7 +66,7 @@ class ExpandableDeferredList(defer.Deferred):
         return f
 
 
-class Pipeline:
+class Pipeline(object):
     """I manage a size-limited pipeline of Deferred operations, usually
     callRemote() messages."""
 

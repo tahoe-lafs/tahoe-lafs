@@ -77,7 +77,7 @@ class LazyOneShotObserverList(OneShotObserverList):
         if self._watchers: # if not, don't call result_producer
             self._fire(self._get_result())
 
-class ObserverList:
+class ObserverList(object):
     """A simple class to distribute events to a number of subscribers."""
 
     def __init__(self):
@@ -93,7 +93,7 @@ class ObserverList:
         for o in self._watchers:
             eventually(o, *args, **kwargs)
 
-class EventStreamObserver:
+class EventStreamObserver(object):
     """A simple class to distribute multiple events to a single subscriber.
     It accepts arbitrary kwargs, but no posargs."""
     def __init__(self):

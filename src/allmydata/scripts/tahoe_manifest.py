@@ -9,7 +9,7 @@ from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
 from allmydata.scripts.common_http import do_http, format_http_error
 from allmydata.util.encodingutil import quote_output, quote_path
 
-class FakeTransport:
+class FakeTransport(object):
     disconnecting = False
 
 class ManifestStreamer(LineOnlyReceiver):

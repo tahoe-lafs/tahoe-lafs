@@ -1287,11 +1287,12 @@ def make_servers(clientids):
         servers[clientid] = make_server(clientid)
     return servers
 
-class MyShare:
+class MyShare(object):
     def __init__(self, shnum, server, rtt):
         self._shnum = shnum
         self._server = server
         self._dyhb_rtt = rtt
+
     def __repr__(self):
         return "sh%d-on-%s" % (self._shnum, self._server.get_name())
 
@@ -1302,20 +1303,25 @@ class MySegmentFetcher(SegmentFetcher):
     def _start_share(self, share, shnum):
         self._test_start_shares.append(share)
 
-class FakeNode:
+class FakeNode(object):
     def __init__(self):
         self.want_more = 0
         self.failed = None
         self.processed = None
         self._si_prefix = "si_prefix"
+
     def want_more_shares(self):
         self.want_more += 1
+
     def fetch_failed(self, fetcher, f):
         self.failed = f
+
     def process_blocks(self, segnum, blocks):
         self.processed = (segnum, blocks)
+
     def get_num_segments(self):
         return 1, True
+
 
 class Selection(unittest.TestCase):
     def test_no_shares(self):

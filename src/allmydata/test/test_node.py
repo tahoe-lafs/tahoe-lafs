@@ -520,7 +520,7 @@ ENABLE_HELPER = """
 enabled = true
 """
 
-class FakeTub:
+class FakeTub(object):
     def __init__(self):
         self.tubID = base64.b32encode("foo")
         self.listening_ports = []

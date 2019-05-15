@@ -23,7 +23,7 @@ from allmydata.web.check_results import CheckResultsRenderer, \
      CheckAndRepairResultsRenderer, LiteralCheckResultsRenderer
 from allmydata.web.info import MoreInfo
 
-class ReplaceMeMixin:
+class ReplaceMeMixin(object):
     def replace_me_with_a_child(self, req, client, replace):
         # a new file is being uploaded in our place.
         file_format = get_format(req, "CHK")

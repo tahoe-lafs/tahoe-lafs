@@ -120,7 +120,7 @@ class OphandleTable(rend.Page, service.Service):
         self.timers.pop(ophandle, None)
         self.handles.pop(ophandle, None)
 
-class ReloadMixin:
+class ReloadMixin(object):
     REFRESH_TIME = 1*MINUTE
 
     def render_refresh(self, ctx, data):

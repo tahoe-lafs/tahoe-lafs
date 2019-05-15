@@ -86,7 +86,7 @@ class Uploadable(unittest.TestCase):
 class ServerError(Exception):
     pass
 
-class SetDEPMixin:
+class SetDEPMixin(object):
     def set_encoding_parameters(self, k, happy, n, max_segsize=1*MiB):
         p = {"k": k,
              "happy": happy,
@@ -95,7 +95,7 @@ class SetDEPMixin:
              }
         self.node.encoding_params = p
 
-class FakeStorageServer:
+class FakeStorageServer(object):
     def __init__(self, mode, reactor=None):
         self.mode = mode
         self.allocated = []
@@ -162,7 +162,7 @@ class FakeStorageServer:
 
 
 
-class FakeBucketWriter:
+class FakeBucketWriter(object):
     # a diagnostic version of storageserver.BucketWriter
     def __init__(self, size):
         self.data = StringIO()
@@ -856,7 +856,7 @@ def is_happy_enough(servertoshnums, h, k):
                 return False
     return True
 
-class FakeServerTracker:
+class FakeServerTracker(object):
     def __init__(self, serverid, buckets):
         self._serverid = serverid
         self.buckets = buckets

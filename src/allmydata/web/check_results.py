@@ -63,7 +63,7 @@ def json_check_and_repair_results(r):
     data["post-repair-results"] = json_check_results(post)
     return data
 
-class ResultsBase:
+class ResultsBase(object):
     # self.client must point to the Client, so we can get nicknames and
     # determine the permuted peer order
 
@@ -205,7 +205,7 @@ class LiteralCheckResultsRenderer(rend.Page, ResultsBase):
             return T.div[T.a(href=return_to)["Return to file."]]
         return ""
 
-class CheckerBase:
+class CheckerBase(object):
 
     def renderHTTP(self, ctx):
         if self.want_json(ctx):

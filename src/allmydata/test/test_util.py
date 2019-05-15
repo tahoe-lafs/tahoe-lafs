@@ -1333,7 +1333,7 @@ class CacheDir(unittest.TestCase):
         del b2
 
 ctr = [0]
-class EqButNotIs:
+class EqButNotIs(object):
     def __init__(self, x):
         self.x = x
         self.hash = ctr[0]
@@ -1615,7 +1615,7 @@ class Log(unittest.TestCase):
         self.flushLoggedErrors(SampleError)
 
 
-class SimpleSpans:
+class SimpleSpans(object):
     # this is a simple+inefficient form of util.spans.Spans . We compare the
     # behavior of this reference model against the real (efficient) form.
 
@@ -1943,7 +1943,7 @@ def replace(s, start, data):
     assert len(s) >= start+len(data)
     return s[:start] + data + s[start+len(data):]
 
-class SimpleDataSpans:
+class SimpleDataSpans(object):
     def __init__(self, other=None):
         self.missing = "" # "1" where missing, "0" where found
         self.data = ""

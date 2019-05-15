@@ -716,7 +716,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
         os.makedirs(self.basedir)
         return self.do_system_test()
 
-class FakeRemoteReference:
+class FakeRemoteReference(object):
     def notifyOnDisconnect(self, *args, **kwargs): pass
     def getRemoteTubID(self): return "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
     def getLocationHints(self): return ["tcp:here.example.com:1234",

@@ -111,7 +111,7 @@ def normalize(namex):
 # contents and end by repacking them. It might be better to apply them to
 # the unpacked contents.
 
-class Deleter:
+class Deleter(object):
     def __init__(self, node, namex, must_exist=True, must_be_directory=False, must_be_file=False):
         self.node = node
         self.name = normalize(namex)
@@ -139,7 +139,7 @@ class Deleter:
         return new_contents
 
 
-class MetadataSetter:
+class MetadataSetter(object):
     def __init__(self, node, namex, metadata, create_readonly_node=None):
         self.node = node
         self.name = normalize(namex)
@@ -164,7 +164,7 @@ class MetadataSetter:
         return new_contents
 
 
-class Adder:
+class Adder(object):
     def __init__(self, node, entries=None, overwrite=True, create_readonly_node=None):
         self.node = node
         if entries is None:
@@ -861,7 +861,7 @@ class ManifestWalker(DeepStats):
                 }
 
 
-class DeepChecker:
+class DeepChecker(object):
     def __init__(self, root, verify, repair, add_lease):
         root_si = root.get_storage_index()
         if root_si:

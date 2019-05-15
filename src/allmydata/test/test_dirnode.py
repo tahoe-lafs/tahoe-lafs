@@ -1380,7 +1380,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.set_up_grid(oneshare=True)
         return self._do_initial_children_test(mdmf=True)
 
-class MinimalFakeMutableFile:
+class MinimalFakeMutableFile(object):
     def get_writekey(self):
         return "writekey"
 

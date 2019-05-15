@@ -15,7 +15,7 @@ from allmydata.immutable.upload import Data
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.mutable.publish import MutableData
 
-class FakeClient:
+class FakeClient(object):
     def get_storage_broker(self):
         return self.storage_broker
 

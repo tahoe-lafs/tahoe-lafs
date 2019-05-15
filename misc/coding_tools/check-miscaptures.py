@@ -138,7 +138,7 @@ def report(out, path, results):
         print(path + (":%r %s captures %r assigned at line %d" % r), file=out)
 
 def check(sources, out):
-    class Counts:
+    class Counts(object):
         n = 0
         processed_files = 0
         suspect_files = 0

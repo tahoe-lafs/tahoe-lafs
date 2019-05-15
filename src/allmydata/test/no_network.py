@@ -41,10 +41,10 @@ from .common import (
 class IntentionalError(Exception):
     pass
 
-class Marker:
+class Marker(object):
     pass
 
-class LocalWrapper:
+class LocalWrapper(object):
     def __init__(self, original):
         self.original = original
         self.broken = False
@@ -250,7 +250,7 @@ class _NoNetworkClient(_Client):
         pass
     #._servers will be set by the NoNetworkGrid which creates us
 
-class SimpleStats:
+class SimpleStats(object):
     def __init__(self):
         self.counters = {}
         self.stats_producers = []

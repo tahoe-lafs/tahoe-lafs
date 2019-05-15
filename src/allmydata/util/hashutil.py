@@ -14,7 +14,7 @@ from allmydata.util.netstring import netstring
 # kinds.
 CRYPTO_VAL_SIZE=32
 
-class _SHA256d_Hasher:
+class _SHA256d_Hasher(object):
     # use SHA-256d, as defined by Ferguson and Schneier: hash the output
     # again to prevent length-extension attacks
     def __init__(self, truncate_to=None):

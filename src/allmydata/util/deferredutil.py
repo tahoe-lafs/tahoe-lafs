@@ -102,7 +102,7 @@ def eventual_chain(source, target):
     source.addCallbacks(eventually_callback(target), eventually_errback(target))
 
 
-class HookMixin:
+class HookMixin(object):
     """
     I am a helper mixin that maintains a collection of named hooks, primarily
     for use in tests. Each hook is set to an unfired Deferred using 'set_hook',

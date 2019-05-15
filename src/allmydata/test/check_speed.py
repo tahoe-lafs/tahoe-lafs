@@ -8,7 +8,7 @@ from foolscap.api import Tub, fireEventually
 
 MB = 1000000
 
-class SpeedTest:
+class SpeedTest(object):
     DO_IMMUTABLE = True
     DO_MUTABLE_CREATE = True
     DO_MUTABLE = True

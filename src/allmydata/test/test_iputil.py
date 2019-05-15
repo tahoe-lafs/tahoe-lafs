@@ -86,7 +86,7 @@ WINDOWS_TEST_ADDRESSES = set(["127.0.0.1", "10.0.2.15", "192.168.0.10"])
 CYGWIN_TEST_ADDRESSES = set(["127.0.0.1", "192.168.0.10"])
 
 
-class FakeProcess:
+class FakeProcess(object):
     def __init__(self, output, err):
         self.output = output
         self.err = err

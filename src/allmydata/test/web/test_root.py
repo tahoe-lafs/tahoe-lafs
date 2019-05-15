@@ -10,7 +10,7 @@ class FakeRoot(Root):
     def now_fn(self):
         return 0
 
-class FakeContext:
+class FakeContext(object):
     def __init__(self):
         self.slots = {}
         self.tag = self

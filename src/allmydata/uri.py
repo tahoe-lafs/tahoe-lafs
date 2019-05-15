@@ -707,7 +707,7 @@ class ImmutableDirectoryURIVerifier(DirectoryURIVerifier):
     INNER_URI_CLASS=CHKFileVerifierURI
 
 
-class UnknownURI:
+class UnknownURI(object):
     def __init__(self, uri, error=None):
         self._uri = uri
         self._error = error

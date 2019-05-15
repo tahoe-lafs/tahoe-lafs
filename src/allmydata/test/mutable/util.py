@@ -21,7 +21,7 @@ def eventuaaaaaly(res=None):
 # network connections, both to speed up the tests and to reduce the amount of
 # non-mutable.py code being exercised.
 
-class FakeStorage:
+class FakeStorage(object):
     # this class replaces the collection of storage servers, allowing the
     # tests to examine and manipulate the published shares. It also lets us
     # control the order in which read queries are answered, to exercise more
@@ -78,11 +78,13 @@ class FakeStorage:
         shares[shnum] = f.getvalue()
 
 
-class FakeStorageServer:
+class FakeStorageServer(object):
+
     def __init__(self, peerid, storage):
         self.peerid = peerid
         self.storage = storage
         self.queries = 0
+
     def callRemote(self, methname, *args, **kwargs):
         self.queries += 1
         def _call():
@@ -221,7 +223,7 @@ def make_nodemaker(s=None, num_peers=10, keysize=TEST_RSA_KEY_SIZE):
                           {"k": 3, "n": 10}, SDMF_VERSION, keygen)
     return nodemaker
 
-class PublishMixin:
+class PublishMixin(object):
     def publish_one(self):
         # publish a file and create shares, which can then be manipulated
         # later.
@@ -331,7 +333,7 @@ class PublishMixin:
                     index = versionmap[shnum]
                     shares[peerid][shnum] = oldshares[index][peerid][shnum]
 
-class CheckerMixin:
+class CheckerMixin(object):
     def check_good(self, r, where):
         self.failUnless(r.is_healthy(), where)
         return r

@@ -20,11 +20,11 @@ def incidentally(res, f, *args, **kwargs):
     f(*args, **kwargs)
     return res
 
-class RequestToken:
+class RequestToken(object):
     def __init__(self, server):
         self.server = server
 
-class ShareFinder:
+class ShareFinder(object):
     OVERDUE_TIMEOUT = 10.0
 
     def __init__(self, storage_broker, verifycap, node, download_status,

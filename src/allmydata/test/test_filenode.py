@@ -8,10 +8,10 @@ from allmydata.mutable.filenode import MutableFileNode
 from allmydata.util import hashutil
 from allmydata.util.consumer import download_to_data
 
-class NotANode:
+class NotANode(object):
     pass
 
-class FakeClient:
+class FakeClient(object):
     # just enough to let the node acquire a downloader (which it won't use),
     # and to get default encoding parameters
     def getServiceNamed(self, name):

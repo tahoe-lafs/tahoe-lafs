@@ -52,7 +52,7 @@ def eliot_logged_test(f):
     """
     # A convenient, mutable container into which nested functions can write
     # state to be shared among them.
-    class storage:
+    class storage(object):
         pass
 
     @wraps(f)

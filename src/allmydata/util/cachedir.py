@@ -35,7 +35,7 @@ class CacheDirectoryManager(service.MultiService):
             if now - mtime > self.old:
                 os.remove(absfn)
 
-class CacheFile:
+class CacheFile(object):
     def __init__(self, absfn):
         self.filename = absfn
 
