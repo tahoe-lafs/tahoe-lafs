@@ -78,7 +78,7 @@ Dependencies
 ------------
 
 Tahoe-LAFS depends upon several packages that use compiled C code, such as
-zfec, pycryptopp, and others. This code must be built separately for each
+zfec, and others. This code must be built separately for each
 platform (Windows, OS-X, and different flavors of Linux).
 
 Pre-compiled "wheels" of all Tahoe's dependencies are hosted on the

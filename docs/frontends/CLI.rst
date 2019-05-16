@@ -44,7 +44,7 @@ arguments. "``tahoe --help``" might also provide something useful.
 Running "``tahoe --version``" will display a list of version strings, starting
 with the "allmydata" module (which contains the majority of the Tahoe-LAFS
 functionality) and including versions for a number of dependent libraries,
-like Twisted, Foolscap, pycryptopp, and zfec. "``tahoe --version-and-path``"
+like Twisted, Foolscap, and zfec. "``tahoe --version-and-path``"
 will also show the path from which each library was imported.
 
 On Unix systems, the shell expands filename wildcards (``'*'`` and ``'?'``)
