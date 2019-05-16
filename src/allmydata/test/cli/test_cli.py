@@ -1,4 +1,3 @@
-
 import os.path
 from six.moves import cStringIO as StringIO
 import urllib, sys
@@ -11,6 +10,7 @@ from twisted.internet import task
 from twisted.python.filepath import FilePath
 
 import allmydata
+from allmydata.crypto import ed25519
 from allmydata.util import fileutil, hashutil, base32, keyutil
 from allmydata.util.namespace import Namespace
 from allmydata import uri
@@ -18,7 +18,6 @@ from allmydata.immutable import upload
 from allmydata.dirnode import normalize
 from allmydata.scripts.common_http import socket_error
 import allmydata.scripts.common_http
-from pycryptopp.publickey import ed25519
 
 # Test that the scripts can be imported.
 from allmydata.scripts import create_node, debug, tahoe_start, tahoe_restart, \
@@ -735,9 +734,9 @@ class Admin(unittest.TestCase):
             self.failUnless(privkey_bits[1].startswith("priv-v0-"), lines[0])
             self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
             sk_bytes = base32.a2b(keyutil.remove_prefix(privkey_bits[1], "priv-v0-"))
-            sk = ed25519.SigningKey(sk_bytes)
+            sk = ed25519.SigningKey.from_private_bytes(sk_bytes)
             vk_bytes = base32.a2b(keyutil.remove_prefix(pubkey_bits[1], "pub-v0-"))
-            self.failUnlessEqual(sk.get_verifying_key_bytes(), vk_bytes)
+            self.failUnlessEqual(sk.public_key().public_bytes(), vk_bytes)
         d.addCallback(_done)
         return d
 
