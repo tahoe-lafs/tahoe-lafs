@@ -45,6 +45,9 @@ install_requires = [
     # pycryptopp-0.6.0 includes ed25519
     "pycryptopp >= 0.6.0",
 
+    # cryptography>2.3 because of CVE-2018-10903
+    'cryptography >= 2.3',
+
     "service-identity",         # this is needed to suppress complaints about being unable to verify certs
     "characteristic >= 14.0.0", # latest service-identity depends on this version
     "pyasn1 >= 0.1.8",          # latest pyasn1-modules depends on this version
@@ -115,6 +118,7 @@ package_imports = [
     # package name       module name
     ('foolscap',         'foolscap'),
     ('pycryptopp',       'pycryptopp'),
+    ('cryptography',     'cryptography'),
     ('zfec',             'zfec'),
     ('Twisted',          'twisted'),
     ('Nevow',            'nevow'),
