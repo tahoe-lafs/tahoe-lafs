@@ -215,11 +215,6 @@ separately: debian puts it in the "python-twisted-conch" package. Conch
 requires the "pycrypto" package, which is a Python+C implementation of many
 cryptographic functions (the debian package is named "python-crypto").
 
-Note that "pycrypto" is different than the "pycryptopp" package that
-Tahoe-LAFS uses (which is a Python wrapper around the C++ -based Crypto++
-library, a library that is frequently installed as /usr/lib/libcryptopp.a, to
-avoid problems with non-alphanumerics in filenames).
-
 Immutable and Mutable Files
 ===========================
 

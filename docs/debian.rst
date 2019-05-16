@@ -43,7 +43,6 @@ dependencies as of the 1.9 release:
 
 * python
 * python-zfec
-* python-pycryptopp
 * python-foolscap
 * python-openssl (needed by foolscap)
 * python-twisted
