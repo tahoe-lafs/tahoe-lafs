@@ -1,5 +1,5 @@
-
 import time
+
 from itertools import count
 from zope.interface import implementer
 from twisted.internet import defer
@@ -8,6 +8,7 @@ from twisted.internet.interfaces import IPushProducer, IConsumer
 from foolscap.api import eventually, fireEventually, DeadReferenceError, \
      RemoteException
 
+from allmydata.crypto.aes import AES
 from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError, \
      DownloadStopped, MDMF_VERSION, SDMF_VERSION
 from allmydata.util.assertutil import _assert, precondition
@@ -15,7 +16,7 @@ from allmydata.util import hashutil, log, mathutil, deferredutil
 from allmydata.util.dictutil import DictOfSets
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
-from pycryptopp.cipher.aes import AES
+
 from pycryptopp.publickey import rsa
 
 from allmydata.mutable.common import CorruptShareError, BadShareError, \

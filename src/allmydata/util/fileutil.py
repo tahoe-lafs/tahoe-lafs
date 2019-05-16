@@ -16,8 +16,7 @@ if sys.platform == "win32":
 
 from twisted.python import log
 
-from pycryptopp.cipher.aes import AES
-
+from allmydata.crypto.aes import AES
 from allmydata.util.assertutil import _assert
 
 
