@@ -1,9 +1,10 @@
-
 import random
 
 from zope.interface import implementer
 from twisted.internet import defer, reactor
 from foolscap.api import eventually
+
+from allmydata.crypto.aes import AES
 from allmydata.interfaces import IMutableFileNode, ICheckable, ICheckResults, \
      NotEnoughSharesError, MDMF_VERSION, SDMF_VERSION, IMutableUploadable, \
      IMutableFileVersion, IWriteable
@@ -12,8 +13,6 @@ from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI, ReadonlySSKFileURI, \
                           WriteableMDMFFileURI, ReadonlyMDMFFileURI
 from allmydata.monitor import Monitor
-from pycryptopp.cipher.aes import AES
-
 from allmydata.mutable.publish import Publish, MutableData,\
                                       TransformingUploadable
 from allmydata.mutable.common import MODE_READ, MODE_WRITE, MODE_CHECK, UnrecoverableFileError, \

@@ -6,6 +6,7 @@ from twisted.internet import defer
 from foolscap.api import fireEventually
 import json
 
+from allmydata.crypto.aes import AES
 from allmydata.deep_stats import DeepStats
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable.filenode import MutableFileNode
@@ -22,7 +23,6 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
 from allmydata.util.consumer import download_to_data
 from allmydata.uri import wrap_dirnode_cap
-from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
 
 from eliot import (

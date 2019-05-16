@@ -5,12 +5,12 @@ from twisted.application import service
 
 from foolscap.api import Tub, fireEventually, flushEventualQueue
 
+from allmydata.crypto.aes import AES
 from allmydata.storage.server import si_b2a
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.immutable import offloaded, upload
 from allmydata import uri, client
 from allmydata.util import hashutil, fileutil, mathutil
-from pycryptopp.cipher.aes import AES
 
 MiB = 1024*1024
 

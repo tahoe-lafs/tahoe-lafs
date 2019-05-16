@@ -5,6 +5,7 @@ from twisted.internet import defer
 from twisted.application import service
 from foolscap.api import Referenceable, Copyable, RemoteCopy, fireEventually
 
+from allmydata.crypto.aes import AES
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
@@ -23,7 +24,6 @@ from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      NoServersError, InsufficientVersionError, UploadUnhappinessError, \
      DEFAULT_MAX_SEGMENT_SIZE, IProgress, IPeerSelector
 from allmydata.immutable import layout
-from pycryptopp.cipher.aes import AES
 
 from six.moves import cStringIO as StringIO
 from happiness_upload import share_placement, calculate_happiness
@@ -1063,8 +1063,8 @@ class EncryptAnUploadable(object):
             self._plaintext_hasher.update(chunk)
             self._update_segment_hash(chunk)
             # TODO: we have to encrypt the data (even if hash_only==True)
-            # because pycryptopp's AES-CTR implementation doesn't offer a
-            # way to change the counter value. Once pycryptopp acquires
+            # because the AES-CTR implementation doesn't offer a
+            # way to change the counter value. Once it acquires
             # this ability, change this to simply update the counter
             # before each call to (hash_only==False) _encryptor.process()
             ciphertext = self._encryptor.process(chunk)
