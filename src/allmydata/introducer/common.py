@@ -19,7 +19,7 @@ def sign_to_foolscap(ann, sk):
     # pubkey:v0-b64(pubkey)}) .
     msg = json.dumps(ann).encode("utf-8")
     sig = "v0-"+base32.b2a(sk.sign(msg))
-    vk_bytes = sk.get_verifying_key_bytes()
+    vk_bytes = sk.public_key().public_bytes()
     ann_t = (msg, sig, "v0-"+base32.b2a(vk_bytes))
     return ann_t
 

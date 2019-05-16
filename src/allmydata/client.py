@@ -489,7 +489,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def get_long_nodeid(self):
         # this matches what IServer.get_longname() says about us elsewhere
-        vk_bytes = self._node_key.get_verifying_key_bytes()
+        vk_bytes = self._node_key.public_key().public_bytes()
         return "v0-"+base32.b2a(vk_bytes)
 
     def get_long_tubid(self):
@@ -511,7 +511,7 @@ class _Client(node.Node, pollmixin.PollMixin):
             else:
                 # otherwise, we're free to use the more natural seed of our
                 # pubkey-based serverid
-                vk_bytes = self._node_key.get_verifying_key_bytes()
+                vk_bytes = self._node_key.public_key().public_bytes()
                 seed = base32.b2a(vk_bytes)
             self.config.write_config_file("permutation-seed", seed+"\n")
         return seed.strip()
