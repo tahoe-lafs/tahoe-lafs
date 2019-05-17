@@ -1,7 +1,9 @@
-
 import re
 import json
-from allmydata.util import keyutil, base32, rrefutil
+from allmydata import crypto
+from allmydata.crypto.ed25519 import VerifyingKey
+from allmydata.util import base32, rrefutil
+
 
 def get_tubid_string_from_ann(ann):
     return get_tubid_string(str(ann.get("anonymous-storage-FURL")
@@ -23,8 +25,10 @@ def sign_to_foolscap(ann, sk):
     ann_t = (msg, sig, "v0-"+base32.b2a(vk_bytes))
     return ann_t
 
+
 class UnknownKeyError(Exception):
     pass
+
 
 def unsign_from_foolscap(ann_t):
     (msg, sig_vs, claimed_key_vs) = ann_t
@@ -34,12 +38,14 @@ def unsign_from_foolscap(ann_t):
         raise UnknownKeyError("only v0- signatures recognized")
     if not claimed_key_vs.startswith("v0-"):
         raise UnknownKeyError("only v0- keys recognized")
-    claimed_key = keyutil.parse_pubkey("pub-"+claimed_key_vs)
-    sig_bytes = base32.a2b(keyutil.remove_prefix(sig_vs, "v0-"))
+
+    claimed_key = VerifyingKey.parse_encoded_key("pub-" + claimed_key_vs)
+    sig_bytes = base32.a2b(crypto.remove_prefix(sig_vs, "v0-"))
     claimed_key.verify(sig_bytes, msg)
     key_vs = claimed_key_vs
     ann = json.loads(msg.decode("utf-8"))
     return (ann, key_vs)
+
 
 class SubscriberDescriptor:
     """This describes a subscriber, for status display purposes. It contains
@@ -64,6 +70,7 @@ class SubscriberDescriptor:
         self.app_versions = app_versions
         self.remote_address = remote_address
         self.tubid = tubid
+
 
 class AnnouncementDescriptor:
     """This describes an announcement, for status display purposes. It

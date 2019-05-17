@@ -12,14 +12,14 @@ from twisted.python.failure import Failure
 from pycryptopp.publickey import rsa
 
 import allmydata
+from allmydata.crypto.ed25519 import SigningKey
 from allmydata.storage.server import StorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
-                            yamlutil)
+from allmydata.util import (hashutil, base32, pollmixin, log, idlib, yamlutil)
 from allmydata.util.encodingutil import (get_filesystem_encoding,
                                          from_utf8_or_none)
 from allmydata.util.abbreviate import parse_abbreviated_size
@@ -480,12 +480,14 @@ class _Client(node.Node, pollmixin.PollMixin):
         # we only create the key once. On all subsequent runs, we re-use the
         # existing key
         def _make_key():
-            sk_vs,vk_vs = keyutil.make_keypair()
-            return sk_vs+"\n"
-        sk_vs = self.config.get_or_create_private_config("node.privkey", _make_key)
-        sk,vk_vs = keyutil.parse_privkey(sk_vs.strip())
-        self.config.write_config_file("node.pubkey", vk_vs+"\n")
-        self._node_key = sk
+            priv_key = SigningKey.generate()
+            return priv_key.encoded_key() + "\n"
+
+        priv_key_str = self.config.get_or_create_private_config("node.privkey", _make_key)
+        priv_key = SigningKey.parse_encoded_key(priv_key_str)
+        pub_key_str = priv_key.public_key().encoded_key()
+        self.config.write_config_file("node.pubkey", pub_key_str + "\n")
+        self._node_key = priv_key
 
     def get_long_nodeid(self):
         # this matches what IServer.get_longname() says about us elsewhere
