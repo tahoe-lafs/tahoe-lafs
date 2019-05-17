@@ -9,10 +9,12 @@ from allmydata.web.common import (
 from allmydata.util.abbreviate import abbreviate_space
 from allmydata.util import time_format, idlib
 
+
 def remove_prefix(s, prefix):
     if not s.startswith(prefix):
         return None
     return s[len(prefix):]
+
 
 class StorageStatus(MultiFormatPage):
     docFactory = getxmlfile("storage_status.xhtml")
