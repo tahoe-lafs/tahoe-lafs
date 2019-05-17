@@ -1,4 +1,3 @@
-
 import time
 from zope.interface import implementer
 from twisted.application import service
@@ -10,7 +9,7 @@ from allmydata.introducer.common import sign_to_foolscap, unsign_from_foolscap,\
      get_tubid_string_from_ann
 from allmydata.util import log, yamlutil, connection_status
 from allmydata.util.rrefutil import add_version_to_remote_reference
-from allmydata.util.keyutil import BadSignatureError
+from allmydata.crypto.ed25519 import BadSignatureError
 from allmydata.util.assertutil import precondition
 
 class InvalidCacheError(Exception):

@@ -28,20 +28,11 @@ from cryptography.exceptions import InvalidSignature
 BadSignatureError = InvalidSignature
 del InvalidSignature
 
+from allmydata.crypto import remove_prefix
 from allmydata.util.base32 import a2b, b2a
 
 _PRIV_PREFIX = 'priv-v0-'
 _PUB_PREFIX = 'pub-v0-'
-
-
-class BadPrefixError(Exception):
-    pass
-
-
-def _remove_prefix(s_bytes, prefix):
-    if not s_bytes.startswith(prefix):
-        raise BadPrefixError("did not see expected '%s' prefix" % (prefix,))
-    return s_bytes[len(prefix):]
 
 
 class SigningKey:
@@ -79,11 +70,11 @@ class SigningKey:
     @classmethod
     def parse_encoded_key(cls, priv_str):
         global _PRIV_PREFIX
-        return cls.from_private_bytes(a2b(_remove_prefix(priv_str, _PRIV_PREFIX)))
+        return cls.from_private_bytes(a2b(remove_prefix(priv_str, _PRIV_PREFIX)))
 
     def encoded_key(self):
         global _PRIV_PREFIX
-        return _PRIV_PREFIX + a2b(self.private_bytes())
+        return _PRIV_PREFIX + b2a(self.private_bytes())
 
     def __eq__(self, other):
         if isinstance(other, type(self)):
@@ -123,11 +114,11 @@ class VerifyingKey:
     @classmethod
     def parse_encoded_key(cls, pub_str):
         global _PUB_PREFIX
-        return cls.from_public_bytes(a2b(_remove_prefix(pub_str, _PUB_PREFIX)))
+        return cls.from_public_bytes(a2b(remove_prefix(pub_str, _PUB_PREFIX)))
 
     def encoded_key(self):
         global _PUB_PREFIX
-        return _PUB_PREFIX + a2b(self.public_bytes())
+        return _PUB_PREFIX + b2a(self.public_bytes())
 
     def __eq__(self, other):
         if isinstance(other, type(self)):

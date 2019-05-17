@@ -174,3 +174,31 @@ class TestRegression(unittest.TestCase):
         self.failUnlessEqual(new_sig, sig)
 
         pub_key.verify(new_sig, test_data)
+
+
+class TestEd25519(unittest.TestCase):
+
+    def test_keys(self):
+        priv_key = SigningKey.generate()
+        priv_key_str = priv_key.encoded_key()
+
+        self.assertIsInstance(priv_key_str, six.string_types)
+        self.assertIsInstance(priv_key.private_bytes(), six.binary_type)
+
+        priv_key2 = SigningKey.parse_encoded_key(priv_key_str)
+
+        self.failUnlessEqual(priv_key, priv_key2)
+
+        pub_key = priv_key.public_key()
+        pub_key2 = priv_key2.public_key()
+
+        self.failUnlessEqual(pub_key, pub_key2)
+
+        pub_key_str = pub_key.encoded_key()
+
+        self.assertIsInstance(pub_key_str, six.string_types)
+        self.assertIsInstance(pub_key.public_bytes(), six.binary_type)
+
+        pub_key2 = VerifyingKey.parse_encoded_key(pub_key_str)
+
+        self.failUnlessEqual(pub_key, pub_key2)
