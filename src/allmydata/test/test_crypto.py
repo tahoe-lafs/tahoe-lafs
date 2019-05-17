@@ -4,6 +4,7 @@ import unittest
 from binascii import a2b_hex, b2a_hex
 
 from allmydata.crypto.aes import AES
+from allmydata.crypto.ed25519 import SigningKey, VerifyingKey
 
 
 class TestRegression(unittest.TestCase):
@@ -141,3 +142,35 @@ class TestRegression(unittest.TestCase):
         ciphertext = aes.process(plaintext)
 
         self.failUnlessEqual(ciphertext, expected_ciphertext)
+
+    def test_decode_ed15519_keypair(self):
+        '''
+        Created using the old code:
+
+            from allmydata.util.keyutil import make_keypair, parse_privkey, parse_pubkey
+            test_data = b'test'
+            priv_str, pub_str = make_keypair()
+            priv, _ = parse_privkey(priv_str)
+            pub = parse_pubkey(pub_str)
+            sig = priv.sign(test_data)
+            pub.verify(sig, test_data)
+
+        This simply checks that keys and signatures generated using the old code are still valid
+        using the new code.
+        '''
+        priv_str = 'priv-v0-lqcj746bqa4npkb6zpyc6esd74x3bl6mbcjgqend7cvtgmcpawhq'
+        pub_str = 'pub-v0-yzpqin3of3ep363lwzxwpvgai3ps43dao46k2jds5kw5ohhpcwhq'
+        test_data = b'test'
+        sig = (b'\xde\x0e\xd6\xe2\xf5\x03]8\xfe\xa71\xad\xb4g\x03\x11\x81\x8b\x08\xffz\xf4K\xa0'
+               b'\x86 ier!\xe8\xe5#*\x9d\x8c\x0bI\x02\xd90\x0e7\xbeW\xbf\xa3\xfe\xc1\x1c\xf5+\xe9)'
+               b'\xa3\xde\xc9\xc6s\xc9\x90\xf7x\x08')
+
+        priv_key = SigningKey.parse_encoded_key(priv_str)
+        pub_key = VerifyingKey.parse_encoded_key(pub_str)
+
+        self.failUnlessEqual(priv_key.public_key(), pub_key)
+
+        new_sig = priv_key.sign(test_data)
+        self.failUnlessEqual(new_sig, sig)
+
+        pub_key.verify(new_sig, test_data)
