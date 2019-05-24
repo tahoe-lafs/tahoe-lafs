@@ -42,9 +42,6 @@ install_requires = [
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     "foolscap >= 0.12.6",
 
-    # pycryptopp-0.6.0 includes ed25519
-    "pycryptopp >= 0.6.0",
-
     # cryptography>2.3 because of CVE-2018-10903
     'cryptography >= 2.3',
 
@@ -120,8 +117,6 @@ install_requires = [
 package_imports = [
     # package name       module name
     ('foolscap',         'foolscap'),
-    ('pycryptopp',       'pycryptopp'),
-    ('cryptography',     'cryptography'),
     ('zfec',             'zfec'),
     ('Twisted',          'twisted'),
     ('Nevow',            'nevow'),
