@@ -229,7 +229,7 @@ class IntroducerService(service.MultiService, Referenceable):
         self._debug_counts["inbound_message"] += 1
         self.log("introducer: announcement published: %s" % (ann_t,),
                  umid="wKHgCw")
-        ann, key = unsign_from_foolscap(ann_t) # might raise BadSignatureError
+        ann, key = unsign_from_foolscap(ann_t) # might raise BadSignature
         service_name = str(ann["service-name"])
 
         index = (service_name, key)

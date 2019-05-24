@@ -1,10 +1,14 @@
 import six
 import unittest
 
+from base64 import b64decode
 from binascii import a2b_hex, b2a_hex
+from os import path
 
 from allmydata.crypto.aes import AES
-from allmydata.crypto.ed25519 import SigningKey, VerifyingKey
+from allmydata.crypto import ed25519, rsa
+
+RESOURCE_DIR = path.join(path.dirname(__file__), 'data')
 
 
 class TestRegression(unittest.TestCase):
@@ -14,8 +18,34 @@ class TestRegression(unittest.TestCase):
     keys.
     '''
 
-    KEY = b'My\x9c\xc0f\xd3\x03\x9a1\x8f\xbd\x17W_\x1f2'
+    AES_KEY = b'My\x9c\xc0f\xd3\x03\x9a1\x8f\xbd\x17W_\x1f2'
     IV = b'\x96\x1c\xa0\xbcUj\x89\xc1\x85J\x1f\xeb=\x17\x04\xca'
+
+    with open(path.join(RESOURCE_DIR, 'pycryptopp-rsa-2048-priv.txt')) as f:
+        '''
+        Created using `pycryptopp`:
+
+            from base64 import b64encode
+            from pycryptopp.publickey import rsa
+            priv = rsa.generate(2048)
+            priv_str = b64encode(priv.serialize())
+            pub_str = b64encode(priv.get_verifying_key().serialize())
+        '''
+        RSA_2048_PRIV_KEY = six.b(b64decode(f.read().strip()))
+
+    with open(path.join(RESOURCE_DIR, 'pycryptopp-rsa-2048-sig.txt')) as f:
+        '''
+        Signature created using `RSA_2048_PRIV_KEY` via:
+
+            sig = priv.sign(b'test')
+        '''
+        RSA_2048_SIG = six.b(b64decode(f.read().strip()))
+
+    with open(path.join(RESOURCE_DIR, 'pycryptopp-rsa-2048-pub.txt')) as f:
+        '''
+        The public key corresponding to `RSA_2048_PRIV_KEY`.
+        '''
+        RSA_2048_PUB_KEY = six.b(b64decode(f.read().strip()))
 
     def test_old_start_up_test(self):
         """
@@ -74,7 +104,7 @@ class TestRegression(unittest.TestCase):
         plaintext = b'test'
         expected_ciphertext = b'\x7fEK\\'
 
-        aes = AES(self.KEY)
+        aes = AES(self.AES_KEY)
         ciphertext = aes.process(plaintext)
 
         self.failUnlessEqual(ciphertext, expected_ciphertext)
@@ -96,7 +126,7 @@ class TestRegression(unittest.TestCase):
             b'\x1f\xa1|\xd2$E\xb5\xe7\x9d\xae\xd1\x1f)\xe4\xc7\x83\xb8\xd5|dHhU\xc8\x9a\xb1\x10\xed'
             b'\xd1\xe7|\xd1')
 
-        aes = AES(self.KEY)
+        aes = AES(self.AES_KEY)
         ciphertext = aes.process(plaintext)
 
         self.failUnlessEqual(ciphertext, expected_ciphertext)
@@ -115,7 +145,7 @@ class TestRegression(unittest.TestCase):
         plaintext = b'test'
         expected_ciphertext = b'\x82\x0e\rt'
 
-        aes = AES(self.KEY, iv=self.IV)
+        aes = AES(self.AES_KEY, iv=self.IV)
         ciphertext = aes.process(plaintext)
 
         self.failUnlessEqual(ciphertext, expected_ciphertext)
@@ -137,8 +167,7 @@ class TestRegression(unittest.TestCase):
             b'\x97a\xdc\x100?\xf5L\x9f\xd9\xeeO\x98\xda\xf5g\x93\xa7q\xe1\xb1~\xf8\x1b\xe8[\\s'
             b'\x144$\x86\xeaC^f')
 
-
-        aes = AES(self.KEY, iv=self.IV)
+        aes = AES(self.AES_KEY, iv=self.IV)
         ciphertext = aes.process(plaintext)
 
         self.failUnlessEqual(ciphertext, expected_ciphertext)
@@ -165,8 +194,8 @@ class TestRegression(unittest.TestCase):
                b'\x86 ier!\xe8\xe5#*\x9d\x8c\x0bI\x02\xd90\x0e7\xbeW\xbf\xa3\xfe\xc1\x1c\xf5+\xe9)'
                b'\xa3\xde\xc9\xc6s\xc9\x90\xf7x\x08')
 
-        priv_key = SigningKey.parse_encoded_key(priv_str)
-        pub_key = VerifyingKey.parse_encoded_key(pub_str)
+        priv_key = ed25519.SigningKey.parse_encoded_key(priv_str)
+        pub_key = ed25519.VerifyingKey.parse_encoded_key(pub_str)
 
         self.failUnlessEqual(priv_key.public_key(), pub_key)
 
@@ -175,17 +204,30 @@ class TestRegression(unittest.TestCase):
 
         pub_key.verify(new_sig, test_data)
 
+    def test_decode_rsa_keypair(self):
+        '''
+        This simply checks that keys and signatures generated using the old code are still valid
+        using the new code.
+        '''
+        priv_key = rsa.PrivateKey.parse_string(self.RSA_2048_PRIV_KEY)
+        pub_key = priv_key.public_key()
+
+        parsed_pub_key = rsa.PublicKey.parse_string(self.RSA_2048_PUB_KEY)
+        self.failUnlessEqual(pub_key, parsed_pub_key)
+
+        pub_key.verify(self.RSA_2048_SIG, b'test')
+
 
 class TestEd25519(unittest.TestCase):
 
     def test_keys(self):
-        priv_key = SigningKey.generate()
+        priv_key = ed25519.SigningKey.generate()
         priv_key_str = priv_key.encoded_key()
 
         self.assertIsInstance(priv_key_str, six.string_types)
         self.assertIsInstance(priv_key.private_bytes(), six.binary_type)
 
-        priv_key2 = SigningKey.parse_encoded_key(priv_key_str)
+        priv_key2 = ed25519.SigningKey.parse_encoded_key(priv_key_str)
 
         self.failUnlessEqual(priv_key, priv_key2)
 
@@ -199,6 +241,32 @@ class TestEd25519(unittest.TestCase):
         self.assertIsInstance(pub_key_str, six.string_types)
         self.assertIsInstance(pub_key.public_bytes(), six.binary_type)
 
-        pub_key2 = VerifyingKey.parse_encoded_key(pub_key_str)
+        pub_key2 = ed25519.VerifyingKey.parse_encoded_key(pub_key_str)
+
+        self.failUnlessEqual(pub_key, pub_key2)
+
+
+class TestRsa(unittest.TestCase):
+
+    def test_keys(self):
+        priv_key = rsa.PrivateKey.generate(2048)
+        priv_key_str = priv_key.serialize()
+
+        self.assertIsInstance(priv_key_str, six.string_types)
+
+        priv_key2 = rsa.PrivateKey.parse_string(priv_key_str)
+
+        self.failUnlessEqual(priv_key, priv_key2)
+
+        pub_key = priv_key.public_key()
+        pub_key2 = priv_key2.public_key()
+
+        self.failUnlessEqual(pub_key, pub_key2)
+
+        pub_key_str = pub_key.serialize()
+
+        self.assertIsInstance(pub_key_str, six.string_types)
+
+        pub_key2 = rsa.PublicKey.parse_string(pub_key_str)
 
         self.failUnlessEqual(pub_key, pub_key2)
