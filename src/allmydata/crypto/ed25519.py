@@ -17,18 +17,12 @@ base32.
 
 import six
 
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption, \
     PublicFormat
 
-# When we were still using `pycryptopp`, BadSignatureError was the name of the exception, and now
-# that we've switched to `cryptography`, we are importing and "re-exporting" this to keep the name
-# the same (for now).
-from cryptography.exceptions import InvalidSignature
-BadSignatureError = InvalidSignature
-del InvalidSignature
-
-from allmydata.crypto import remove_prefix
+from allmydata.crypto import remove_prefix, BadSignature
 from allmydata.util.base32 import a2b, b2a
 
 _PRIV_PREFIX = 'priv-v0-'
@@ -109,7 +103,10 @@ class VerifyingKey:
         if not isinstance(data, six.binary_type):
             raise ValueError('data must be bytes')
 
-        self._pub_key.verify(signature, data)
+        try:
+            self._pub_key.verify(signature, data)
+        except InvalidSignature:
+            raise BadSignature
 
     @classmethod
     def parse_encoded_key(cls, pub_str):

@@ -1,3 +1,7 @@
+class BadSignature(Exception):
+    pass
+
+
 class BadPrefixError(Exception):
     pass
 
