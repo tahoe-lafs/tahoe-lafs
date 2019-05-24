@@ -1006,7 +1006,7 @@ class Signatures(SyncTestCase):
         # bad signature
         bad_ann = {"key1": "value2"}
         bad_msg = json.dumps(bad_ann).encode("utf-8")
-        self.failUnlessRaises(ed25519.BadSignatureError,
+        self.failUnlessRaises(crypto.BadSignature,
                               unsign_from_foolscap, (bad_msg, sig, key))
 
         # unrecognized signatures
