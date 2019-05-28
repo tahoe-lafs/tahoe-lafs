@@ -845,7 +845,7 @@ class ServermapUpdater(object):
             # against the public key before keeping track of it.
             assert self._node.get_pubkey()
             try:
-                self._node.get_pubkey().verify(prefix, signature[1])
+                self._node.get_pubkey().verify(signature[1], prefix)
             except BadSignature:
                 raise CorruptShareError(server, shnum,
                                         "signature is invalid")
