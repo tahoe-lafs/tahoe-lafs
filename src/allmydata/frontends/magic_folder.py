@@ -931,6 +931,7 @@ class QueueMixin(HookMixin):
         # do we also want to bound on "maximum age"?
         self._process_history = deque(maxlen=20)
         self._in_progress = []
+        self._processing = None
 
     def get_status(self):
         """
@@ -953,10 +954,14 @@ class QueueMixin(HookMixin):
         :return Deferred: A ``Deferred`` that fires when processing has
             completely stopped.
         """
-        d = self._processing
-        self._processing_loop.stop()
-        self._processing = None
-        self._processing_loop = None
+        if self._processing is not None:
+            d = self._processing
+            self._processing_loop.stop()
+            self._processing = None
+            self._processing_loop = None
+            return d
+        d = defer.Deferred()
+        d.callback(None)
         return d
 
     def _begin_processing(self):
