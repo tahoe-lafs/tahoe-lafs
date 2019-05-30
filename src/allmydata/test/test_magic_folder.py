@@ -61,7 +61,8 @@ from zope.interface import implementer
 
 from hypothesis.stateful import RuleBasedStateMachine, rule
 from hypothesis.stateful import run_state_machine_as_test
-from hypothesis.strategies import sampled_from, assume
+from hypothesis.strategies import sampled_from
+from hypothesis import assume
 from hypothesis import settings
 
 from ..util.eliotutil import (
