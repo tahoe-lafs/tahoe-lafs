@@ -55,7 +55,9 @@ def get_root_from_file(src):
 srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
 
-class RunBinTahoeMixin:
+
+class RunBinTahoeMixin(object):
+
     @inlineCallbacks
     def find_import_location(self):
         res = yield self.run_bintahoe(["--version-and-path"])

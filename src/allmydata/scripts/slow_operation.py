@@ -9,7 +9,7 @@ from allmydata.util.encodingutil import quote_output, is_printable_ascii
 import urllib
 import json
 
-class SlowOperationRunner:
+class SlowOperationRunner(object):
 
     def run(self, options):
         stderr = options.stderr

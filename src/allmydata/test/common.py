@@ -201,7 +201,7 @@ class DummyProducer(object):
         pass
 
 @implementer(IImmutableFileNode)
-class FakeCHKFileNode:
+class FakeCHKFileNode(object):
     """I provide IImmutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -339,7 +339,7 @@ def create_chk_filenode(contents, all_contents):
 
 
 @implementer(IMutableFileNode, ICheckable)
-class FakeMutableFileNode:
+class FakeMutableFileNode(object):
     """I provide IMutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -597,7 +597,7 @@ class LoggingServiceParent(service.MultiService):
 
 TEST_DATA="\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
-class ShouldFailMixin:
+class ShouldFailMixin(object):
     def shouldFail(self, expected_failure, which, substring,
                    callable, *args, **kwargs):
         """Assert that a function call raises some exception. This is a
@@ -638,7 +638,7 @@ class ShouldFailMixin:
         d.addBoth(done)
         return d
 
-class WebErrorMixin:
+class WebErrorMixin(object):
     def explain_web_error(self, f):
         # an error on the server side causes the client-side getPage() to
         # return a failure(t.web.error.Error), and its str() doesn't show the

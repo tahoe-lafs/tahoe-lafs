@@ -16,7 +16,7 @@ class NotEnoughWritersError(Exception):
     pass
 
 
-class CHKCheckerAndUEBFetcher:
+class CHKCheckerAndUEBFetcher(object):
     """I check to see if a file is already present in the grid. I also fetch
     the URI Extension Block, which is useful for an uploading client who
     wants to avoid the work of encryption and encoding.
@@ -244,7 +244,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._helper.upload_finished(self._storage_index, 0)
         del self._reader
 
-class AskUntilSuccessMixin:
+class AskUntilSuccessMixin(object):
     # create me with a _reader array
     _last_failure = None
 

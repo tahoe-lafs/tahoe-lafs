@@ -24,7 +24,7 @@ from allmydata.mutable.checker import MutableChecker, MutableCheckAndRepairer
 from allmydata.mutable.repairer import Repairer
 
 
-class BackoffAgent:
+class BackoffAgent(object):
     # these parameters are copied from foolscap.reconnector, which gets them
     # from twisted.internet.protocol.ReconnectingClientFactory
     initialDelay = 1.0

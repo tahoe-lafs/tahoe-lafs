@@ -16,7 +16,7 @@ class NeedRootcapLookupScheme(Exception):
     mechanism to translate name+passwd pairs into a rootcap, either a file of
     name/passwd/rootcap tuples, or a server to do the translation."""
 
-class FTPAvatarID:
+class FTPAvatarID(object):
     def __init__(self, username, rootcap):
         self.username = username
         self.rootcap = rootcap

@@ -115,7 +115,7 @@ def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
 
 
-class SecretHolder:
+class SecretHolder(object):
     def __init__(self, lease_secret, convergence_secret):
         self._lease_secret = lease_secret
         self._convergence_secret = convergence_secret
@@ -129,7 +129,7 @@ class SecretHolder:
     def get_convergence_secret(self):
         return self._convergence_secret
 
-class KeyGenerator:
+class KeyGenerator(object):
     """I create RSA keys for mutable files. Each call to generate() returns a
     single keypair. The keysize is specified first by the keysize= argument
     to generate(), then with a default set by set_default_keysize(), then

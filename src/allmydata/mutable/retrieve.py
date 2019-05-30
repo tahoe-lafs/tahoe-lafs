@@ -89,7 +89,7 @@ class RetrieveStatus(object):
         serverid = server.get_serverid()
         self._problems[serverid] = f
 
-class Marker:
+class Marker(object):
     pass
 
 @implementer(IPushProducer)

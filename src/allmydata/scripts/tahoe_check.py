@@ -8,7 +8,7 @@ from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
 from allmydata.scripts.common_http import do_http, format_http_error
 from allmydata.util.encodingutil import quote_output, quote_path
 
-class Checker:
+class Checker(object):
     pass
 
 def _quote_serverid_index_share(serverid, storage_index, sharenum):
@@ -111,7 +111,7 @@ def check(options):
             return errno
     return 0
 
-class FakeTransport:
+class FakeTransport(object):
     disconnecting = False
 
 class DeepCheckOutput(LineOnlyReceiver):

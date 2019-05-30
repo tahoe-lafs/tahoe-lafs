@@ -36,7 +36,7 @@ from allmydata.storage.common import UnknownImmutableContainerVersionError, \
 # then the value stored in this field will be the actual share data length
 # modulo 2**32.
 
-class ShareFile:
+class ShareFile(object):
     LEASE_SIZE = struct.calcsize(">L32s32sL")
     sharetype = "immutable"
 

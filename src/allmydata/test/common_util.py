@@ -83,13 +83,13 @@ def flip_one_bit(s, offset=0, size=None):
     return result
 
 
-class ReallyEqualMixin:
+class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
         self.assertEqual(type(a), type(b), "a :: %r, b :: %r, %r" % (a, b, msg))
 
 
-class NonASCIIPathMixin:
+class NonASCIIPathMixin(object):
     def mkdir_nonascii(self, dirpath):
         # Kludge to work around the fact that buildbot can't remove a directory tree that has
         # any non-ASCII directory names on Windows. (#1472)
@@ -143,13 +143,13 @@ class SignalMixin(object):
             signal.signal(signal.SIGCHLD, self.sigchldHandler)
         return super(SignalMixin, self).tearDown()
 
-class StallMixin:
+class StallMixin(object):
     def stall(self, res=None, delay=1):
         d = defer.Deferred()
         reactor.callLater(delay, d.callback, res)
         return d
 
-class ShouldFailMixin:
+class ShouldFailMixin(object):
 
     def shouldFail(self, expected_failure, which, substring,
                    callable, *args, **kwargs):

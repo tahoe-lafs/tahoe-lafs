@@ -75,7 +75,7 @@ def remove(f, tries=4, basedelay=0.1):
             basedelay *= 2
     return os.remove(f) # The last try.
 
-class ReopenableNamedTemporaryFile:
+class ReopenableNamedTemporaryFile(object):
     """
     This uses tempfile.mkstemp() to generate a secure temp file.  It then closes
     the file, leaving a zero-length file as a placeholder.  You can get the
@@ -99,7 +99,7 @@ class ReopenableNamedTemporaryFile:
     def shutdown(self):
         remove(self.name)
 
-class EncryptedTemporaryFile:
+class EncryptedTemporaryFile(object):
     # not implemented: next, readline, readlines, xreadlines, writelines
 
     def __init__(self):

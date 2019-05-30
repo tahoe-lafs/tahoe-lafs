@@ -29,11 +29,11 @@ class ContainerNode(object):
     def is_mutable(self):
         return True
 
-class FakeNode:
+class FakeNode(object):
     def raise_error(self):
         return None
 
-class FakeNodeMaker:
+class FakeNodeMaker(object):
     def create_from_cap(self, writecap, readcap=None, deep_immutable=False, name=''):
         return FakeNode()
 

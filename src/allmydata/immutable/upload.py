@@ -1355,7 +1355,7 @@ def read_this_many_bytes(uploadable, size, prepend_data=[]):
     d.addCallback(_got)
     return d
 
-class LiteralUploader:
+class LiteralUploader(object):
 
     def __init__(self, progress=None):
         self._status = s = UploadStatus()
@@ -1477,7 +1477,7 @@ class RemoteEncryptedUploadable(Referenceable):
         return self._eu.close()
 
 
-class AssistedUploader:
+class AssistedUploader(object):
 
     def __init__(self, helper, storage_broker):
         self._helper = helper
@@ -1632,7 +1632,7 @@ class AssistedUploader:
     def get_upload_status(self):
         return self._upload_status
 
-class BaseUploadable:
+class BaseUploadable(object):
     # this is overridden by max_segment_size
     default_max_segment_size = DEFAULT_MAX_SEGMENT_SIZE
     default_params_set = False

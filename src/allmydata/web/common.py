@@ -371,7 +371,7 @@ class NeedOperationHandleError(WebError):
     pass
 
 
-class RenderMixin:
+class RenderMixin(object):
 
     def renderHTTP(self, ctx):
         request = IRequest(ctx)

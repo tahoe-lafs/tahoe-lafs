@@ -17,7 +17,7 @@ from allmydata.web.common import (
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus, IServermapUpdaterStatus
 
-class RateAndTimeMixin:
+class RateAndTimeMixin(object):
 
     def render_time(self, ctx, data):
         return abbreviate_time(data)

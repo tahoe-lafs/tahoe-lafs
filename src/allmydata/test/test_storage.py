@@ -33,9 +33,10 @@ from allmydata.test.common_web import WebRenderingMixin
 from allmydata.test.no_network import NoNetworkServer
 from allmydata.web.storage import StorageStatus, remove_prefix
 
-class Marker:
+class Marker(object):
     pass
-class FakeCanary:
+
+class FakeCanary(object):
     def __init__(self, ignore_disconnectors=False):
         self.ignore = ignore_disconnectors
         self.disconnectors = {}
@@ -50,7 +51,7 @@ class FakeCanary:
             return
         del self.disconnectors[marker]
 
-class FakeStatsProvider:
+class FakeStatsProvider(object):
     def count(self, name, delta=1):
         pass
     def register_producer(self, producer):
@@ -159,7 +160,7 @@ class Bucket(unittest.TestCase):
         result_of_read = br.remote_read(0, len(share_data)+1)
         self.failUnlessEqual(result_of_read, share_data)
 
-class RemoteBucket:
+class RemoteBucket(object):
 
     def __init__(self):
         self.read_count = 0
@@ -3052,8 +3053,9 @@ class InstrumentedLeaseCheckingCrawler(LeaseCheckingCrawler):
         if not self.stop_after_first_bucket:
             self.cpu_slice = 500
 
-class BrokenStatResults:
+class BrokenStatResults(object):
     pass
+
 class No_ST_BLOCKS_LeaseCheckingCrawler(LeaseCheckingCrawler):
     def stat(self, fn):
         s = os.stat(fn)

@@ -78,7 +78,7 @@ def get_backupdb(dbfile, stderr=sys.stderr,
         return None
 
 
-class FileResult:
+class FileResult(object):
     def __init__(self, bdb, filecap, should_check,
                  path, mtime, ctime, size):
         self.bdb = bdb
@@ -106,7 +106,7 @@ class FileResult:
         self.bdb.did_check_file_healthy(self.filecap, results)
 
 
-class DirectoryResult:
+class DirectoryResult(object):
     def __init__(self, bdb, dirhash, dircap, should_check):
         self.bdb = bdb
         self.dircap = dircap
@@ -128,7 +128,7 @@ class DirectoryResult:
         self.bdb.did_check_directory_healthy(self.dircap, results)
 
 
-class BackupDB_v2:
+class BackupDB_v2(object):
     VERSION = 2
     NO_CHECK_BEFORE = 1*MONTH
     ALWAYS_CHECK_AFTER = 2*MONTH

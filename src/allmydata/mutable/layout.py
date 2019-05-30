@@ -1180,7 +1180,7 @@ def _handle_bad_struct(f):
     f.trap(struct.error)
     raise BadShareError(f.value.args[0])
 
-class MDMFSlotReadProxy:
+class MDMFSlotReadProxy(object):
     """
     I read from a mutable slot filled with data written in the MDMF data
     format (which is described above).

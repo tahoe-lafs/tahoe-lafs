@@ -57,7 +57,7 @@ from ..status import FakeStatus
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
-class FakeStatsProvider:
+class FakeStatsProvider(object):
     def get_stats(self):
         stats = {'stats': {}, 'counters': {}}
         return stats
@@ -179,7 +179,7 @@ def build_one_ds():
 
     return ds
 
-class FakeHistory:
+class FakeHistory(object):
     _all_upload_status = [upload.UploadStatus()]
     _all_download_status = [build_one_ds()]
     _all_mapupdate_statuses = [servermap.UpdateStatus()]

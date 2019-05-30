@@ -8,7 +8,7 @@ DAY=24*60*60
 MONTH=31*DAY
 YEAR=365*DAY
 
-class ReliabilityModel:
+class ReliabilityModel(object):
     """Generate a model of system-wide reliability, given several input
     parameters.
 
@@ -207,7 +207,7 @@ class ReliabilityModel:
         repair = matrix(new_repair_rows)
         return repair
 
-class ReliabilityReport:
+class ReliabilityReport(object):
     def __init__(self):
         self.samples = []
 
