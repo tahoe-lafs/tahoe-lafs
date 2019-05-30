@@ -10,6 +10,7 @@ from twisted.internet import defer, task, reactor
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.python import log
+from twisted.trial.unittest import TestCase as TrialTestCase
 
 from testtools.matchers import (
     Not,
@@ -64,6 +65,8 @@ from hypothesis.stateful import run_state_machine_as_test
 from hypothesis.strategies import sampled_from
 from hypothesis import assume
 from hypothesis import settings
+from hypothesis import reproduce_failure
+from hypothesis import HealthCheck
 
 from ..util.eliotutil import (
     inline_callbacks,
@@ -499,12 +502,13 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
 
 
 
-class HypothesisTests(SyncTestCase):
+class HypothesisTests(SyncTestCase, TrialTestCase):
 
     def test_convergence(self):
         s = settings(
 #            stateful_step_count=1,  # only thing below looks at
 #            verbosity=Verbosity.verbose,
+            suppress_health_check=[HealthCheck.filter_too_much],
         )
         run_state_machine_as_test(
             self._machine,
