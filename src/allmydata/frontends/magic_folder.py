@@ -46,7 +46,6 @@ from allmydata.util.fileutil import (
     ConflictError,
     abspath_expanduser_unicode,
 )
-from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.progress import PercentProgress

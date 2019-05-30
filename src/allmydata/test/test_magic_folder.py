@@ -56,7 +56,6 @@ from allmydata.immutable.upload import Data
 from allmydata.mutable.common import (
         UnrecoverableFileError,
 )
-from allmydata.interfaces import IMutableFileVersion
 
 from zope.interface import implementer
 
@@ -499,7 +498,7 @@ class UnconflictedMagicFolder(RuleBasedStateMachine):
 
 
 
-class HypothesisTests(unittest.TestCase):
+class HypothesisTests(SyncTestCase):
 
     def test_convergence(self):
         s = settings(
@@ -515,7 +514,7 @@ class HypothesisTests(unittest.TestCase):
         return UnconflictedMagicFolder(self)
 
 
-class NewConfigUtilTests(unittest.TestCase):
+class NewConfigUtilTests(SyncTestCase):
 
     def setUp(self):
         # some tests look at the umask of created directories or files
