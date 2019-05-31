@@ -309,7 +309,7 @@ class Retrieve(object):
             if key in self.servermap.proxies:
                 reader = self.servermap.proxies[key]
             else:
-                reader = MDMFSlotReadProxy(server.get_rref(),
+                reader = MDMFSlotReadProxy(server.get_storage_server(),
                                            self._storage_index, shnum, None)
             reader.server = server
             self.readers[shnum] = reader
@@ -906,9 +906,13 @@ class Retrieve(object):
 
 
     def notify_server_corruption(self, server, shnum, reason):
-        rref = server.get_rref()
-        rref.callRemoteOnly("advise_corrupt_share",
-                            "mutable", self._storage_index, shnum, reason)
+        storage_server = server.get_storage_server()
+        storage_server.advise_corrupt_share(
+            "mutable",
+            self._storage_index,
+            shnum,
+            reason,
+        )
 
 
     def _try_to_validate_privkey(self, enc_privkey, reader, server):

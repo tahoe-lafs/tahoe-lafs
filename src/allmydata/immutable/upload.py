@@ -261,20 +261,21 @@ class ServerTracker(object):
         return self._server.get_name()
 
     def query(self, sharenums):
-        rref = self._server.get_rref()
-        d = rref.callRemote("allocate_buckets",
-                            self.storage_index,
-                            self.renew_secret,
-                            self.cancel_secret,
-                            sharenums,
-                            self.allocated_size,
-                            canary=Referenceable())
+        storage_server = self._server.get_storage_server()
+        d = storage_server.allocate_buckets(
+            self.storage_index,
+            self.renew_secret,
+            self.cancel_secret,
+            sharenums,
+            self.allocated_size,
+            canary=Referenceable(),
+        )
         d.addCallback(self._buckets_allocated)
         return d
 
     def ask_about_existing_shares(self):
-        rref = self._server.get_rref()
-        return rref.callRemote("get_buckets", self.storage_index)
+        storage_server = self._server.get_storage_server()
+        return storage_server.get_buckets(self.storage_index)
 
     def _buckets_allocated(self, alreadygot_and_buckets):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
@@ -415,7 +416,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # field) from getting large shares (for files larger than about
         # 12GiB). See #439 for details.
         def _get_maxsize(server):
-            v0 = server.get_rref().version
+            v0 = server.get_version()
             v1 = v0["http://allmydata.org/tahoe/protocols/storage/v1"]
             return v1["maximum-immutable-share-size"]
 

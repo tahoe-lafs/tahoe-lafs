@@ -54,7 +54,7 @@ class CHKCheckerAndUEBFetcher(object):
     def _get_all_shareholders(self, storage_index):
         dl = []
         for s in self._peer_getter(storage_index):
-            d = s.get_rref().callRemote("get_buckets", storage_index)
+            d = s.get_storage_server().get_buckets(storage_index)
             d.addCallbacks(self._got_response, self._got_error,
                            callbackArgs=(s,))
             dl.append(d)
