@@ -2936,3 +2936,68 @@ class IConnectionStatus(Interface):
         (pending, connected, refused, or other errors).
         """)
 
+
+class ITahoeUsagePolicy(Interface):
+    """
+    Callbacks in this interface are called by core Tahoe-LAFS APIs,
+    thus controlling whether particular API calls are allowed or not.
+
+    There should be enough information and hook points to support at
+    least these use-cases:
+
+      - anonymous, everything allowed (current default)
+      - "storage club" / "friend-net" (possibly identity based?)
+      - cryptocurrencies (ideally, paying for each API call?)
+      - anonymous tokens (payment for service, but without identities)
+    """
+
+    @property
+    def name():
+        """
+        How this policy shall be referred to (e.g. in Storage Server
+        announcements, to users, etc). Ideally limit yourself to
+        lowercase letters, numbers (but not a leading number) and
+        underscores.
+        """
+
+    # XXX what sort of information should we pass in here? the "Node"
+    # (subclass) instance perhaps (should be able to get to everything
+    # possible from there?) as a worst case (worst case, because then
+    # plugin authors are exposed to the core of the beast)...but it
+    # needs at least the config (but probably some other things?) if
+    # e.g. there's different keys or something per-storage-server
+    def announcement_data(node_config, ...):
+        """
+        :returns: a dict containing only other dicts, lists, strings or
+            numbers (i.e. JSON-serializable) describing any data that
+            shall be announced alongside this storage server. It will be
+            included in the 'policy' for this storage-server and given
+            back to the plugin when .allow_api_call() is used.
+        """
+
+    # note that on a storage-server, announcement_data() is called on
+    # the plugin -- but in a client, it wouldn't be .. but the data
+    # for each storage-server would be retrieved from the
+    # announcement.
+    # XXX check: do 'static server lists' already include announcement stuff?
+
+    # so, e.g.:
+    # allow_api_call(
+    #     {...},  # this is whatever announcement_data(..) returned, ultimately
+    #     "allocate_buckets",
+    #     (storage_idx, renew_secret, cancel_secret, sharenums, allocated_size, canary),
+    #     {"owner_num": 0},
+    # )
+    def allow_api_call(announced_data, api_name, api_policy_data):
+        """
+        :param announced_data: whatever the storage-server announced for this policy plugin
+
+        :param api_name: the name of the Tahoe API being called
+
+        :param api_policy_data: data from the call for this plugin
+
+        :returns: a bool, indicating if this API call should proceed or
+            not.
+        """
+        # XXX maybe it could return (bool, new_args, new_kwargs) ..?
+        # but also, why should these plugins get to alter args?

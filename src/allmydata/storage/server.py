@@ -331,7 +331,31 @@ class StorageServer(service.MultiService, Referenceable):
             yield sf
 
     def remote_add_lease(self, storage_index, renew_secret, cancel_secret,
-                         owner_num=1):
+                         owner_num=1, policy=None):
+
+        if self._policy is not None:
+            if policy is None:
+                raise ValueError(
+                    "Storage Server configured with a policy, but no "
+                    "policy= kwarg was passed."
+                )
+            # XXX policy will be a dict, with one key per policy plugin
+            policy_data = policy.get(self._policy.name, None)
+            if policy_data is None:
+                raise ValueError(
+                    "Storage Server configured with a policy, but "
+                    "policy= doesn't contain '{name}'.".format(
+                        name=self._policy.name,
+                    )
+                )
+            # maybe allow_api_call should return an error-message for
+            # 'disallow' instead?
+            if not self._policy.allow_api_call(ann, "add_lease", policy_data):
+                raise RuntimeError(
+                    "Storage Server disallowed API call"
+                )
+            # okay, we've burned a token and can go ahead with the call...
+
         start = time.time()
         self.count("add-lease")
         new_expire_time = time.time() + 31*24*60*60
