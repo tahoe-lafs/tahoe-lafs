@@ -2511,9 +2511,9 @@ class Connections(SystemTestMixin, unittest.TestCase):
             self.failUnlessEqual(len(nonclients), 1)
 
             self.s1 = nonclients[0]  # s1 is the server, not c0
-            self.s1_rref = self.s1.get_rref()
-            self.failIfEqual(self.s1_rref, None)
-            self.failUnless(self.s1.is_connected())
+            self.s1_storage_server = self.s1.get_storage_server()
+            self.assertIsNot(self.s1_storage_server, None)
+            self.assertTrue(self.s1.is_connected())
         d.addCallback(_start)
 
         # now shut down the server
@@ -2524,9 +2524,9 @@ class Connections(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.poll(_poll))
 
         def _down(ign):
-            self.failIf(self.s1.is_connected())
-            rref = self.s1.get_rref()
-            self.failUnless(rref)
-            self.failUnlessIdentical(rref, self.s1_rref)
+            self.assertFalse(self.s1.is_connected())
+            storage_server = self.s1.get_storage_server()
+            self.assertIsNot(storage_server, None)
+            self.assertEqual(storage_server, self.s1_storage_server)
         d.addCallback(_down)
         return d

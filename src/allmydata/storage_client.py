@@ -437,7 +437,7 @@ class NativeStorageServer(service.MultiService):
         # attribute may change over time as connections are lost and
         # re-established.  The _StorageServer should always be able to get the
         # most up-to-date value.
-        return _StorageServer(get_rref=lambda: self._rref)
+        return _StorageServer(get_rref=self.get_rref)
 
     def _lost(self):
         log.msg(format="lost connection to %(name)s", name=self.get_name(),
