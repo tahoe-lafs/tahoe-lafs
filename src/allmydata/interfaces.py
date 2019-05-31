@@ -291,6 +291,81 @@ class RIStorageServer(RemoteInterface):
         """
 
 
+class IStorageServer(Interface):
+    """
+    An object capable of storing shares for a storage client.
+    """
+    def get_version():
+        """
+        :see: ``RIStorageServer.get_version``
+        """
+
+    def allocate_buckets(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+    ):
+        """
+        :see: ``RIStorageServer.allocate_buckets``
+        """
+
+    def add_lease(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+    ):
+        """
+        :see: ``RIStorageServer.add_lease``
+        """
+
+    def renew_lease(
+            storage_index,
+            renew_secret,
+    ):
+        """
+        :see: ``RIStorageServer.renew_lease``
+        """
+
+    def get_buckets(
+            storage_index,
+    ):
+        """
+        :see: ``RIStorageServer.get_buckets``
+        """
+
+    def slot_readv(
+            storage_index,
+            shares,
+            readv,
+    ):
+        """
+        :see: ``RIStorageServer.slot_readv``
+        """
+
+    def slot_testv_and_readv_and_writev(
+            storage_index,
+            secrets,
+            tw_vectors,
+            r_vector,
+    ):
+        """
+        :see: ``RIStorageServer.slot_testv_readv_and_writev``
+        """
+
+    def advise_corrupt_share(
+            share_type,
+            storage_index,
+            shnum,
+            reason,
+    ):
+        """
+        :see: ``RIStorageServer.advise_corrupt_share``
+        """
+
+
 class IStorageBucketWriter(Interface):
     """
     Objects of this kind live on the client side.
@@ -469,6 +544,17 @@ class IServer(IDisplayableServer):
         Note that the rref I return will start producing DeadReferenceErrors
         once the connection is lost.
         """
+
+    def get_storage_server():
+        """
+        Once a server is connected, I return an ``IStorageServer``.
+        Before a server is connected for the first time, I return None.
+
+        Note that the ``IStorageServer`` I return will start producing
+        DeadReferenceErrors once the connection is lost.
+        """
+
+
 
 
 class IMutableSlotWriter(Interface):
@@ -2935,4 +3021,3 @@ class IConnectionStatus(Interface):
         connection hint and the handler it is using) to the status string
         (pending, connected, refused, or other errors).
         """)
-
