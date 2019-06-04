@@ -538,7 +538,9 @@ class IServer(IDisplayableServer):
         pass
 
     def get_rref():
-        """Once a server is connected, I return a RemoteReference.
+        """Obsolete.  Use ``get_storage_server`` instead.
+
+        Once a server is connected, I return a RemoteReference.
         Before a server is connected for the first time, I return None.
 
         Note that the rref I return will start producing DeadReferenceErrors
