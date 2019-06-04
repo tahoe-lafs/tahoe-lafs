@@ -372,7 +372,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.nodemaker.create_mutable_file(upload,
                                                version=MDMF_VERSION)
         def _check_server_write_counts(ignored):
-            sb = self.nodemaker.storage_broker
             for peer in self._peers:
                 # There were enough servers for each to only get a single
                 # share.
