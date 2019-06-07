@@ -270,6 +270,18 @@ class IntroducerClient(service.Service, Referenceable):
         if "anonymous-storage-FURL" in ann:
             tubid_s = get_tubid_string_from_ann(ann)
             desc_bits.append("tubid=" + tubid_s[:8])
+
+        # no matter how we "do" storage-plugins, the plugins have to
+        # get shoved in here somewhere...so "the plugin" gives us some
+        # Referenceable (probably "based on" RIStorageServer for now /
+        # for many of them) and we put it in here depending on your
+        # config.
+        #
+        # So, then IPlugin's for this look like:
+        #   get_human_name()  # "hopefull" unique
+        #   get_id()  # globally-unique
+        #   get_foolscap_somethingsomething(
+
         description = "/".join(desc_bits)
 
         # the index is used to track duplicates

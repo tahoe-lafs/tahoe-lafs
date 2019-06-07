@@ -32,6 +32,86 @@ from allmydata.storage.expirer import LeaseCheckingCrawler
 NUM_RE=re.compile("^[0-9]+$")
 
 
+# XXX NB: jp is thinking of this as each plugin writes their OWN
+# RIStorageServer (i.e. get to decide All The Things)
+
+# we COUlD still have plugins too/later: a "simple" one with just the
+# arg, and "complex" ones that do all the things.
+
+# insticts aside, it's most flexibel to have "all args" available
+
+# what about a totally different storage-server interface (part of the
+# struggle here is that RIStorageServer interface is "very complex")
+@implementer(RIStorageServer)
+class EconomicStorageServer(Referenceable):
+    """
+    A wrapper around another RIStorageServer which accepts extra
+    arguments
+    """
+
+    def __init__(self, wrapped_storage_server, plugin):
+        self._storage = wrapped_storage_server
+        self._plugin = plugin
+        # XXX could support multiple arguments?
+        self._plugin_arg = plugin.get_argument_name()
+
+    def get_version():
+        return self._storage.get_version()
+
+    def allocate_buckets(self, storage_index=StorageIndex,
+                         renew_secret=LeaseRenewSecret,
+                         cancel_secret=LeaseCancelSecret,
+                         sharenums=SetOf(int, maxLength=MAX_BUCKETS),
+                         allocated_size=Offset, canary=Referenceable,
+                         **kwargs):
+        plugin_arg = kwargs.get(plugin_arg_name, None)
+        # does the plugin NEED its arg?
+
+        # XXX does it get the other args?
+        # (to do complex things like "bill by bytes" then yes
+        if self._plugin.allow_api_call(
+                'allocate_buckets',
+                plugin_arg,
+                **all_the_args):  # i.e. give access to ALL args in this API call
+            return self._storage.allocate_buckets(
+                storage_index=storage_index,
+                renew_secret=renew_secret,
+                cancel_secret=cancel_secret,
+                sharenums=sharenums,
+                allocated_size=allocated_size,
+                canary=canary,
+            )
+        else:
+            return None  # XXX actually, raise error?
+
+    def add_lease(storage_index=StorageIndex,
+                  renew_secret=LeaseRenewSecret,
+                  cancel_secret=LeaseCancelSecret):
+        pass
+
+    def renew_lease(storage_index=StorageIndex, renew_secret=LeaseRenewSecret):
+        pass
+
+    def get_buckets(storage_index=StorageIndex):
+        pass
+
+    def slot_readv(storage_index=StorageIndex,
+                   shares=ListOf(int), readv=ReadVector):
+        pass
+
+    def slot_testv_and_readv_and_writev(storage_index=StorageIndex,
+                                        secrets=TupleOf(WriteEnablerSecret,
+                                                        LeaseRenewSecret,
+                                                        LeaseCancelSecret),
+                                        tw_vectors=TestAndWriteVectorsForShares,
+                                        r_vector=ReadVector,
+                                        ):
+        pass
+
+    def advise_corrupt_share(share_type=str, storage_index=StorageIndex,
+                             shnum=int, reason=str):
+        pass
+
 
 @implementer(RIStorageServer, IStatsProducer)
 class StorageServer(service.MultiService, Referenceable):
