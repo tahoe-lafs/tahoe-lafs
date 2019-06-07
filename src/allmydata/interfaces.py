@@ -84,6 +84,28 @@ ReadData = ListOf(ShareData)
 # returns data[offset:offset+length] for each element of TestVector
 
 
+class ITahoeStoragePlugin(IPlugin):
+    """
+    XXX entry point for an 'economic' plugin
+    """
+
+    # XXX could be an Attribute ..?
+    def get_human_name():
+        pass
+
+    def get_server_interfaces(configuration):
+        """
+        can return any remote-referencable?
+        """
+        pass
+
+    def get_storage_server_for_client(announcement_details):
+        """
+        knows how to talk to the remote-referencable / Foolscap instance
+        from get_server_interfaces()?
+        """
+
+
 class RIStorageServer(RemoteInterface):
     __remote_name__ = "RIStorageServer.tahoe.allmydata.com"
 

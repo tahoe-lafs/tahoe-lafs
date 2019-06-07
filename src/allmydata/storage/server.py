@@ -32,86 +32,135 @@ from allmydata.storage.expirer import LeaseCheckingCrawler
 NUM_RE=re.compile("^[0-9]+$")
 
 
-# XXX NB: jp is thinking of this as each plugin writes their OWN
-# RIStorageServer (i.e. get to decide All The Things)
+# XXX meejah: converted notes from exarkun and I's devchat into this
 
-# we COUlD still have plugins too/later: a "simple" one with just the
-# arg, and "complex" ones that do all the things.
+# XXX this is a method Node (or Client?) uses to create local
+# interface instances from announcements
+def get_istorageserver_for_announcement(configuration, announcement):
+    plugins = ....
+    plugin, announcement_details = find_matching(plugins, announcements, configuration["storageserver-preferences"])
+    return plugin.get_storage_server_for_client(configuration, announcement_details)
 
-# insticts aside, it's most flexibel to have "all args" available
 
-# what about a totally different storage-server interface (part of the
-# struggle here is that RIStorageServer interface is "very complex")
-@implementer(RIStorageServer)
-class EconomicStorageServer(Referenceable):
-    """
-    A wrapper around another RIStorageServer which accepts extra
-    arguments
-    """
+@implementer(ITahoeStoragePlugin)  # see interfaces.py
+class Plugin(object):
+    def get_human_name(self):
+        return "privacypass"
 
-    def __init__(self, wrapped_storage_server, plugin):
-        self._storage = wrapped_storage_server
-        self._plugin = plugin
-        # XXX could support multiple arguments?
-        self._plugin_arg = plugin.get_argument_name()
+    def get_interfaces(self, configuration, real_storage_server):
+        # this is how e.g. we'd maybe get "a Foolscap thing" as well
+        # as "a HTTP/REST/WebSockets thing"
+        return [
+            PrivacyPassTokenStorageServerReferenceable(stuff_from_configuration),
+            PrivacyPassTokenStorageServerResource(stuff_from_configuration),
+        ]
 
-    def get_version():
-        return self._storage.get_version()
+@implementer(RIStorageServerWithTokens)
+class PrivacyPassTokenStorageServer(object):
 
-    def allocate_buckets(self, storage_index=StorageIndex,
+    def __init__(self, some_ri_storage_server):
+        self._storage_server = some_ri_storage_server
+
+    def allocate_buckets(self, tokens, *a, **kw):
+        if tokens_are_good(tokens, kw["allocated_size"], len(kw["sharenums"])):
+            return self._storage_server.allocate_buckets(*a, **kw)
+        raise No()
+
+    # etc, etc .. has other RIStorageServer methods .. but they all
+    # take some "tokens" or similar arg.
+
+
+
+## XXX on the client side, this might look something like this:
+
+MAX_SHARE_SIZE = 1024 * 1024 * 1024 * 50
+TOKEN_BYTES = 1024 * 128
+MAX_TOKENS = MAX_SHARE_SIZE / TOKEN_BYTES
+
+Token = StringConstraint(minLength=32, maxLength=32)
+Tokens = ListOf(Token, maxLength=MAX_TOKENS)
+
+class RISignedTokenController(RemoteInterface):
+    def allocate_buckets(tokens=Tokens,
+                         storage_index=StorageIndex,
                          renew_secret=LeaseRenewSecret,
                          cancel_secret=LeaseCancelSecret,
                          sharenums=SetOf(int, maxLength=MAX_BUCKETS),
-                         allocated_size=Offset, canary=Referenceable,
-                         **kwargs):
-        plugin_arg = kwargs.get(plugin_arg_name, None)
-        # does the plugin NEED its arg?
-
-        # XXX does it get the other args?
-        # (to do complex things like "bill by bytes" then yes
-        if self._plugin.allow_api_call(
-                'allocate_buckets',
-                plugin_arg,
-                **all_the_args):  # i.e. give access to ALL args in this API call
-            return self._storage.allocate_buckets(
-                storage_index=storage_index,
-                renew_secret=renew_secret,
-                cancel_secret=cancel_secret,
-                sharenums=sharenums,
-                allocated_size=allocated_size,
-                canary=canary,
-            )
-        else:
-            return None  # XXX actually, raise error?
-
-    def add_lease(storage_index=StorageIndex,
-                  renew_secret=LeaseRenewSecret,
-                  cancel_secret=LeaseCancelSecret):
+                         allocated_size=Offset, canary=Referenceable):
         pass
 
-    def renew_lease(storage_index=StorageIndex, renew_secret=LeaseRenewSecret):
-        pass
 
-    def get_buckets(storage_index=StorageIndex):
-        pass
+@implementer(IStorageServer)
+@attr.s
+class SignedTokenStorageServer(object):
+    _remote_reference = attr.ib()
+    _token_source = attr.ib()
 
-    def slot_readv(storage_index=StorageIndex,
-                   shares=ListOf(int), readv=ReadVector):
-        pass
+    @inline_callbacks
+    def allocate_buckets(
+            self,
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+    ):
+        num_tokens = allocated_size * len(sharenums) / TOKEN_BYTES
+        tokens = self._token_source.acquire(num_tokens)
+        already_got, allocated = yield self._remote_reference.callRemote(
+            "allocate_buckets",
+            tokens,
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+        )
+        # Only tokens for allocated buckets were really burned.  Give back
+        burned_tokens = allocated_size * len(allocated) / TOKEN_BYTES
+        self._token_source.restore(tokens[burned_tokens:])
+        returnValue((already_got, allocated))
 
-    def slot_testv_and_readv_and_writev(storage_index=StorageIndex,
-                                        secrets=TupleOf(WriteEnablerSecret,
-                                                        LeaseRenewSecret,
-                                                        LeaseCancelSecret),
-                                        tw_vectors=TestAndWriteVectorsForShares,
-                                        r_vector=ReadVector,
-                                        ):
-        pass
+ @implementer(RIStorageServerWIthIdentity)
+ class IdentityStorageServer(object):
+     def allocate_buckets(self, public_key, signature, *a, **kw):
+         if signature_is_good(public_key, signature, kw["storage_index"], kw["allocated_size"], len(kw["sharenums"])):
+             return self._storage_server.allocate_buckets(*a, **kw)
+         raise No()
 
-    def advise_corrupt_share(share_type=str, storage_index=StorageIndex,
-                             shnum=int, reason=str):
-        pass
+@implementer(IStorageServer)
+@attr.s
+class IdentityStorageServer(object):
+    _remote_reference = attr.ib()
+    _private_key = attr.ib()
+    _public_key = attr.ib()
 
+    @inline_callbacks
+    def allocate_buckets(
+            self,
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+    ):
+        signature = self._private_key.sign(storage_index, sharenums, allocated_size)
+        returnValue((yield self._remote_reference.callRemote(
+            "allocate_buckets",
+            public_key,
+            signature,
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+        )))
+
+## XXX // done with "notes"
 
 @implementer(RIStorageServer, IStatsProducer)
 class StorageServer(service.MultiService, Referenceable):
