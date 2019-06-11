@@ -2995,7 +2995,7 @@ class IFoolscapStoragePlugin(IPlugin):
                  u"expiration_mode": u"age",
                  u"expiration_override_lease_duration": None,
                  u"expiration_cutoff_date": None,
-                 u"expiration_sharetypes": ("mutable, "immutable"),
+                 u"expiration_sharetypes": (u"mutable, u"immutable"),
                 }
 
         :param get_anonymous_storage_server: A no-argument callable which
