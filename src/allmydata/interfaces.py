@@ -1,5 +1,8 @@
 
 from zope.interface import Interface, Attribute
+from twisted.plugin import (
+    IPlugin,
+)
 from foolscap.api import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
      ChoiceOf, IntegerConstraint, Any, RemoteInterface, Referenceable
 
@@ -3023,3 +3026,125 @@ class IConnectionStatus(Interface):
         connection hint and the handler it is using) to the status string
         (pending, connected, refused, or other errors).
         """)
+
+
+
+class IFoolscapStoragePlugin(IPlugin):
+    """
+    An ``IStoragePlugin`` provides client- and server-side implementations of
+    a Foolscap-based protocol which can be used to store and retrieve data.
+
+    Implementations are free to apply access control or authorization policies
+    to this storage service and doing so is a large part of the motivation for
+    providing this point of pluggability.
+
+    There should be enough information and hook points to support at
+    least these use-cases:
+
+      - anonymous, everything allowed (current default)
+      - "storage club" / "friend-net" (possibly identity based)
+      - cryptocurrencies (ideally, paying for each API call)
+      - anonymous tokens (payment for service, but without identities)
+    """
+    human_name = Attribute(
+        """
+        How this plugin shall be referred to (e.g. in Storage Server
+        announcements, to users, etc). This is intended as a mostly unique,
+        human-facing identifier for the plugin.
+
+        :type: ``unicode``
+        """
+    )
+
+    id = Attribute(
+        """
+
+        A globally unique identifier for this specific storage plugin.
+        Identifiers are represented as URLs.  The domain portion of the URL
+        provides a self-organization hierarchy for avoid collisions between
+        plugins maintained by different agencies.  A recommended structure for
+        such URLs is::
+
+            https://example.org/tahoe-lafs/storage/foobar/v1
+
+        :type: ``hyperlink.URL``
+        """
+    )
+
+    def get_storage_server(configuration, get_anonymous_storage_server):
+        """
+        Get an ``IAnnounceableStorageServer`` provider that gives an announcement
+        for and an implementation of the server side of the storage protocol.
+        This will be exposed and offered to clients in the storage server's
+        announcement.
+
+        :param dict configuration: Any configuration given in the section for
+            this plugin in the node's configuration file.  As an example, the
+            configuration for the original anonymous-access filesystem-based
+            storage server might look like::
+
+                {u"storedir": u"/foo/bar/storage",
+                 u"nodeid": u"abcdefg...",
+                 u"reserved_space": 0,
+                 u"discard_storage": False,
+                 u"readonly_storage": False,
+                 u"expiration_enabled": False,
+                 u"expiration_mode": u"age",
+                 u"expiration_override_lease_duration": None,
+                 u"expiration_cutoff_date": None,
+                 u"expiration_sharetypes": ("mutable, "immutable"),
+                }
+
+        :param get_anonymous_storage_server: A no-argument callable which
+            returns a single instance of the original, anonymous-access
+            storage server.  This may be helpful in providing actual storage
+            implementation behavior for a wrapper-style plugin.  This is also
+            provided to keep the Python API offered by Tahoe-LAFS to plugin
+            developers narrow (do not try to find and instantiate the original
+            storage server yourself; if you want it, call this).
+
+        :rtype: ``Deferred`` firing with ``IAnnounceableStorageServer``
+        """
+
+    def get_storage_client(configuration, announcement):
+        """
+        Get an ``IStorageServer`` provider that implements the client side of the
+        storage protocol.
+
+        :param dict configuration: Any configuration given in the section for
+            this plugin in the node's configuration file.
+
+        :param dict announcement: The announcement for the corresponding
+            server portion of this plugin received from a storage server which
+            is offering it.
+
+        :rtype: ``Deferred`` firing with ``IStorageServer``
+        """
+
+
+class IAnnounceableStorageServer(Interface):
+    announcement = Attribute(
+        """
+        Data for an announcement for the associated storage server.
+
+        :note: This does not include the storage server nickname nor Foolscap
+            fURL.  These will be added to the announcement automatically.  It
+            may be usual for this announcement to contain no information.
+            Once the client connects to this server it can use other methods
+            to query for additional information (eg, in the manner of
+            ``RIStorageServer.remote_get_version``).  The announcement only
+            needs to contain information to help the client determine how to
+            connect.
+
+        :type: ``dict`` of JSON-serializable types
+        """
+    )
+
+    storage_server = Attribute(
+        """
+        A Foolscap referenceable object implementing the server side of the
+        storage protocol.
+
+        :type: ``IReferenceable`` provider
+        """
+    )
