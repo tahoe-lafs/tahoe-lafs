@@ -428,10 +428,10 @@ class NativeStorageServer(service.MultiService):
         return self._rref
 
     def get_storage_server(self):
+        """
+        See ``IServer.get_storage_server``.
+        """
         if self._rref is None:
-            # Somewhat questionable to create a third state (never connected,
-            # connected, disconnected) but it mirrors the get_rref behavior so
-            # we'll keep it for now.
             return None
         # Pass in an accessor for our _rref attribute.  The value of the
         # attribute may change over time as connections are lost and
