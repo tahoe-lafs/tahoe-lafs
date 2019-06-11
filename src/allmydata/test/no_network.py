@@ -32,6 +32,9 @@ from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IStorageBroker, IServer
+from allmydata.storage_client import (
+    _StorageServer,
+)
 from .common import (
     TEST_RSA_KEY_SIZE,
     SameProcessStreamEndpointAssigner,
@@ -166,6 +169,10 @@ class NoNetworkServer(object):
         return "nickname"
     def get_rref(self):
         return self.rref
+    def get_storage_server(self):
+        if self.rref is None:
+            return None
+        return _StorageServer(lambda: self.rref)
     def get_version(self):
         return self.rref.version
 
