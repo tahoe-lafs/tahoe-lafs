@@ -3046,28 +3046,19 @@ class IFoolscapStoragePlugin(IPlugin):
       - cryptocurrencies (ideally, paying for each API call)
       - anonymous tokens (payment for service, but without identities)
     """
-    human_name = Attribute(
+    name = Attribute(
         """
-        How this plugin shall be referred to (e.g. in Storage Server
-        announcements, to users, etc). This is intended as a mostly unique,
-        human-facing identifier for the plugin.
+        A name for referring to this plugin.  This name is both user-facing
+        (for example, it is written in configuration files) and machine-facing
+        (for example, it may be used to construct URLs).  It should be unique
+        across all plugins for this interface.  Two plugins with the same name
+        cannot be used in one client.
+
+        Because it is used to construct URLs, it is constrained to URL safe
+        characters (it must be a *segment* as defined by RFC 3986, section
+        3.3).
 
         :type: ``unicode``
-        """
-    )
-
-    id = Attribute(
-        """
-
-        A globally unique identifier for this specific storage plugin.
-        Identifiers are represented as URLs.  The domain portion of the URL
-        provides a self-organization hierarchy for avoid collisions between
-        plugins maintained by different agencies.  A recommended structure for
-        such URLs is::
-
-            https://example.org/tahoe-lafs/storage/foobar/v1
-
-        :type: ``hyperlink.URL``
         """
     )
 
