@@ -757,6 +757,40 @@ class StorageClients(SyncTestCase):
             ),
         )
 
+    def test_invalid_static_server(self):
+        """
+        An invalid announcement for a static server does not prevent other static
+        servers from being loaded.
+        """
+        # Some good details
+        serverid = u"v0-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        announcement = {
+            u"nickname": u"some-storage-server",
+            u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
+        }
+        basedir = FilePath(self.mktemp())
+        static_servers = self.useFixture(
+            StaticServers(
+                basedir,
+                [(serverid, announcement),
+                 # Alongside some bad details
+                 (u"v0-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  {u"nickname": u"another-storage-server",
+                   u"anonymous-storage-FURL": None,
+                  }),
+                ],
+            ),
+        )
+        self.assertThat(
+            client.create_client(basedir.asTextMode().path),
+            succeeded(
+                AfterPreprocessing(
+                    get_known_server_details,
+                    # It should have the good server details.
+                    Equals([(serverid, announcement)]),
+                ),
+            ),
+        )
 
 
 class Run(unittest.TestCase, testutil.StallMixin):
