@@ -38,7 +38,7 @@ generate-keypair, derive the public key and print it to stdout.
 
 def derive_pubkey(options):
     out = options.stdout
-    from allmydata.crypto.ed25519 import SigningKey 
+    from allmydata.crypto.ed25519 import SigningKey
     privkey_vs = options.privkey
     priv_key = SigningKey.parse_encoded_key(privkey_vs)
     print("private:", priv_key.encoded_key(), file=out)
