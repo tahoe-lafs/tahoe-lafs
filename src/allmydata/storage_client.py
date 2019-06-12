@@ -30,12 +30,18 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 
 
 import re, time, hashlib
+import attr
 from zope.interface import implementer
 from twisted.internet import defer
 from twisted.application import service
 
 from foolscap.api import eventually
-from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
+from allmydata.interfaces import (
+    IStorageBroker,
+    IDisplayableServer,
+    IServer,
+    IStorageServer,
+)
 from allmydata.util import log, base32, connection_status
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
@@ -111,7 +117,7 @@ class StorageFarmBroker(service.MultiService):
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
         s = NativeStorageServer(serverid, ann.copy(), self._tub_maker, {})
-        s.rref = rref
+        s._rref = rref
         s._is_connected = True
         self.servers[serverid] = s
 
@@ -315,7 +321,7 @@ class NativeStorageServer(service.MultiService):
         self.last_connect_time = None
         self.last_loss_time = None
         self.remote_host = None
-        self.rref = None
+        self._rref = None
         self._is_connected = False
         self._reconnector = None
         self._trigger_cb = None
@@ -344,8 +350,8 @@ class NativeStorageServer(service.MultiService):
     def get_permutation_seed(self):
         return self._permutation_seed
     def get_version(self):
-        if self.rref:
-            return self.rref.version
+        if self._rref:
+            return self._rref.version
         return None
     def get_name(self): # keep methodname short
         # TODO: decide who adds [] in the short description. It should
@@ -367,8 +373,8 @@ class NativeStorageServer(service.MultiService):
 
     def get_connection_status(self):
         last_received = None
-        if self.rref:
-            last_received = self.rref.getDataLastReceivedAt()
+        if self._rref:
+            last_received = self._rref.getDataLastReceivedAt()
         return connection_status.from_foolscap_reconnector(self._reconnector,
                                                            last_received)
 
@@ -414,18 +420,30 @@ class NativeStorageServer(service.MultiService):
 
         self.last_connect_time = time.time()
         self.remote_host = rref.getLocationHints()
-        self.rref = rref
+        self._rref = rref
         self._is_connected = True
         rref.notifyOnDisconnect(self._lost)
 
     def get_rref(self):
-        return self.rref
+        return self._rref
+
+    def get_storage_server(self):
+        """
+        See ``IServer.get_storage_server``.
+        """
+        if self._rref is None:
+            return None
+        # Pass in an accessor for our _rref attribute.  The value of the
+        # attribute may change over time as connections are lost and
+        # re-established.  The _StorageServer should always be able to get the
+        # most up-to-date value.
+        return _StorageServer(get_rref=self.get_rref)
 
     def _lost(self):
         log.msg(format="lost connection to %(name)s", name=self.get_name(),
                 facility="tahoe.storage_broker", umid="zbRllw")
         self.last_loss_time = time.time()
-        # self.rref is now stale: all callRemote()s will get a
+        # self._rref is now stale: all callRemote()s will get a
         # DeadReferenceError. We leave the stale reference in place so that
         # uploader/downloader code (which received this IServer through
         # get_connected_servers() or get_servers_for_psi()) can continue to
@@ -443,3 +461,117 @@ class NativeStorageServer(service.MultiService):
 
 class UnknownServerTypeError(Exception):
     pass
+
+
+@implementer(IStorageServer)
+@attr.s
+class _StorageServer(object):
+    """
+    ``_StorageServer`` is a direct pass-through to an ``RIStorageServer`` via
+    a ``RemoteReference``.
+    """
+    _get_rref = attr.ib()
+
+    @property
+    def _rref(self):
+        return self._get_rref()
+
+    def get_version(self):
+        return self._rref.callRemote(
+            "get_version",
+        )
+
+    def allocate_buckets(
+            self,
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+    ):
+        return self._rref.callRemote(
+            "allocate_buckets",
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+        )
+
+    def add_lease(
+            self,
+            storage_index,
+            renew_secret,
+            cancel_secret,
+    ):
+        return self._rref.callRemote(
+            "add_lease",
+            storage_index,
+            renew_secret,
+            cancel_secret,
+        )
+
+    def renew_lease(
+            self,
+            storage_index,
+            renew_secret,
+    ):
+        return self._rref.callRemote(
+            "renew_lease",
+            storage_index,
+            renew_secret,
+        )
+
+    def get_buckets(
+            self,
+            storage_index,
+    ):
+        return self._rref.callRemote(
+            "get_buckets",
+            storage_index,
+        )
+
+    def slot_readv(
+            self,
+            storage_index,
+            shares,
+            readv,
+    ):
+        return self._rref.callRemote(
+            "slot_readv",
+            storage_index,
+            shares,
+            readv,
+        )
+
+    def slot_testv_and_readv_and_writev(
+            self,
+            storage_index,
+            secrets,
+            tw_vectors,
+            r_vector,
+    ):
+        return self._rref.callRemote(
+            "slot_testv_and_readv_and_writev",
+            storage_index,
+            secrets,
+            tw_vectors,
+            r_vector,
+        )
+
+    def advise_corrupt_share(
+            self,
+            share_type,
+            storage_index,
+            shnum,
+            reason,
+    ):
+        return self._rref.callRemoteOnly(
+            "advise_corrupt_share",
+            share_type,
+            storage_index,
+            shnum,
+            reason,
+        )

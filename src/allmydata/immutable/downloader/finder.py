@@ -139,7 +139,7 @@ class ShareFinder(object):
         # TODO: get the timer from a Server object, it knows best
         self.overdue_timers[req] = reactor.callLater(self.OVERDUE_TIMEOUT,
                                                      self.overdue, req)
-        d = server.get_rref().callRemote("get_buckets", self._storage_index)
+        d = server.get_storage_server().get_buckets(self._storage_index)
         d.addBoth(incidentally, self._request_retired, req)
         d.addCallbacks(self._got_response, self._got_error,
                        callbackArgs=(server, req, d_ev, time_sent, lp),
@@ -221,5 +221,3 @@ class ShareFinder(object):
         self.log(format="got error from [%(name)s]",
                  name=server.get_name(), failure=f,
                  level=log.UNUSUAL, parent=lp, umid="zUKdCw")
-
-

@@ -123,9 +123,9 @@ class ControlServer(Referenceable, service.Service):
             return results
         server = everyone_left.pop(0)
         server_name = server.get_longname()
-        connection = server.get_rref()
+        storage_server = server.get_storage_server()
         start = time.time()
-        d = connection.callRemote("get_buckets", "\x00"*16)
+        d = storage_server.get_buckets("\x00" * 16)
         def _done(ignored):
             stop = time.time()
             elapsed = stop - start

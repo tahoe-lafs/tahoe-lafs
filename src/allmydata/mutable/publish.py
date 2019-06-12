@@ -269,7 +269,7 @@ class Publish(object):
             secrets = (write_enabler, renew_secret, cancel_secret)
 
             writer = writer_class(shnum,
-                                  server.get_rref(),
+                                  server.get_storage_server(),
                                   self._storage_index,
                                   secrets,
                                   self._new_seqnum,
@@ -471,7 +471,7 @@ class Publish(object):
             secrets = (write_enabler, renew_secret, cancel_secret)
 
             writer =  writer_class(shnum,
-                                   server.get_rref(),
+                                   server.get_storage_server(),
                                    self._storage_index,
                                    secrets,
                                    self._new_seqnum,

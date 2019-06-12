@@ -601,8 +601,8 @@ class DownloadTest(_Base, unittest.TestCase):
         # that they're old and can't handle reads that overrun the length of
         # the share. This exercises a different code path.
         for s in self.c0.storage_broker.get_connected_servers():
-            rref = s.get_rref()
-            v1 = rref.version["http://allmydata.org/tahoe/protocols/storage/v1"]
+            v = s.get_version()
+            v1 = v["http://allmydata.org/tahoe/protocols/storage/v1"]
             v1["tolerates-immutable-read-overrun"] = False
 
         n = self.c0.create_node_from_uri(immutable_uri)
@@ -1178,8 +1178,8 @@ class DownloadV2(_Base, unittest.TestCase):
         # that they're old and can't handle reads that overrun the length of
         # the share. This exercises a different code path.
         for s in self.c0.storage_broker.get_connected_servers():
-            rref = s.get_rref()
-            v1 = rref.version["http://allmydata.org/tahoe/protocols/storage/v1"]
+            v = s.get_version()
+            v1 = v["http://allmydata.org/tahoe/protocols/storage/v1"]
             v1["tolerates-immutable-read-overrun"] = False
 
         # upload a file
@@ -1198,8 +1198,8 @@ class DownloadV2(_Base, unittest.TestCase):
         self.c0 = self.g.clients[0]
 
         for s in self.c0.storage_broker.get_connected_servers():
-            rref = s.get_rref()
-            v1 = rref.version["http://allmydata.org/tahoe/protocols/storage/v1"]
+            v = s.get_version()
+            v1 = v["http://allmydata.org/tahoe/protocols/storage/v1"]
             v1["tolerates-immutable-read-overrun"] = False
 
         # upload a file

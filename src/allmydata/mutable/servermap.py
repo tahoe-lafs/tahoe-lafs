@@ -592,7 +592,7 @@ class ServermapUpdater(object):
         return d
 
     def _do_read(self, server, storage_index, shnums, readv):
-        ss = server.get_rref()
+        ss = server.get_storage_server()
         if self._add_lease:
             # send an add-lease message in parallel. The results are handled
             # separately. This is sent before the slot_readv() so that we can
@@ -601,11 +601,14 @@ class ServermapUpdater(object):
             # add_lease is synchronous).
             renew_secret = self._node.get_renewal_secret(server)
             cancel_secret = self._node.get_cancel_secret(server)
-            d2 = ss.callRemote("add_lease", storage_index,
-                               renew_secret, cancel_secret)
+            d2 = ss.add_lease(
+                storage_index,
+                renew_secret,
+                cancel_secret,
+            )
             # we ignore success
             d2.addErrback(self._add_lease_failed, server, storage_index)
-        d = ss.callRemote("slot_readv", storage_index, shnums, readv)
+        d = ss.slot_readv(storage_index, shnums, readv)
         return d
 
 
@@ -638,7 +641,7 @@ class ServermapUpdater(object):
         lp = self.log(format="got result from [%(name)s], %(numshares)d shares",
                       name=server.get_name(),
                       numshares=len(datavs))
-        ss = server.get_rref()
+        ss = server.get_storage_server()
         now = time.time()
         elapsed = now - started
         def _done_processing(ignored=None):
@@ -796,9 +799,13 @@ class ServermapUpdater(object):
 
 
     def notify_server_corruption(self, server, shnum, reason):
-        rref = server.get_rref()
-        rref.callRemoteOnly("advise_corrupt_share",
-                            "mutable", self._storage_index, shnum, reason)
+        ss = server.get_storage_server()
+        ss.advise_corrupt_share(
+            "mutable",
+            self._storage_index,
+            shnum,
+            reason,
+        )
 
 
     def _got_signature_one_share(self, results, shnum, server, lp):
@@ -1220,5 +1227,3 @@ class ServermapUpdater(object):
     def _fatal_error(self, f):
         self.log("fatal error", failure=f, level=log.WEIRD, umid="1cNvlw")
         self._done_deferred.errback(f)
-
-
