@@ -8,7 +8,6 @@ from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
-from twisted.python.failure import Failure
 from pycryptopp.publickey import rsa
 
 import allmydata
@@ -207,7 +206,7 @@ def create_client(basedir=u".", _client_factory=None):
             _client_factory=_client_factory,
         )
     except Exception:
-        return Failure()
+        return defer.fail()
 
 
 def create_client_from_config(config, _client_factory=None):
@@ -261,7 +260,7 @@ def create_client_from_config(config, _client_factory=None):
         storage_broker.setServiceParent(client)
         return defer.succeed(client)
     except Exception:
-        return Failure()
+        return defer.fail()
 
 
 def _sequencer(config):

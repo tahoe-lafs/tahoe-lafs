@@ -1,9 +1,22 @@
 import os, sys
 import mock
 import twisted
+from yaml import (
+    safe_dump,
+)
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import defer
+from twisted.python.filepath import (
+    FilePath,
+)
+from testtools.matchers import (
+    Equals,
+    AfterPreprocessing,
+)
+from testtools.twistedsupport import (
+    succeeded,
+)
 
 import allmydata
 import allmydata.frontends.magic_folder
@@ -20,6 +33,9 @@ from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
+from allmydata.test.common import (
+    SyncTestCase,
+)
 
 
 BASECONFIG = ("[client]\n"
@@ -664,6 +680,49 @@ class IntroducerClients(unittest.TestCase):
             "invalid 'introducer.furl = None'",
             str(ctx.exception)
         )
+
+
+class StorageClients(SyncTestCase):
+    """
+    Tests for storage-related behavior of ``_Client``.
+    """
+    def test_static_servers(self):
+        """
+        Storage servers defined in ``private/servers.yaml`` are loaded into the
+        storage broker.
+        """
+        serverid = u"v0-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        announcement = {
+            u"nickname": 'some-storage-server',
+            u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
+        }
+        basedir = FilePath(self.mktemp())
+        private = basedir.child(u"private")
+        private.makedirs()
+        servers = private.child(u"servers.yaml")
+        servers.setContent(safe_dump({
+            u"storage": {
+                serverid: {
+                    u"ann": announcement,
+                },
+            },
+        }))
+        def get_known_server_details(a_client):
+            return list(
+                (s.get_serverid(), s.get_announcement())
+                for s
+                in a_client.storage_broker.get_known_servers()
+            )
+        self.assertThat(
+            client.create_client(basedir.asTextMode().path),
+            succeeded(
+                AfterPreprocessing(
+                    get_known_server_details,
+                    Equals([(serverid, announcement)]),
+                ),
+            ),
+        )
+
 
 
 class Run(unittest.TestCase, testutil.StallMixin):
