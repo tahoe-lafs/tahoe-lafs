@@ -4,6 +4,9 @@ import twisted
 from yaml import (
     safe_dump,
 )
+from fixtures import (
+    Fixture,
+)
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import defer
@@ -682,6 +685,47 @@ class IntroducerClients(unittest.TestCase):
         )
 
 
+def get_known_server_details(a_client):
+    """
+    Get some details about known storage servers from a client.
+
+    :param _Client a_client: The client to inspect.
+
+    :return: A ``list`` of two-tuples.  Each element of the list corresponds
+        to a "known server".  The first element of each tuple is a server id.
+        The second is the server's announcement.
+    """
+    return list(
+        (s.get_serverid(), s.get_announcement())
+        for s
+        in a_client.storage_broker.get_known_servers()
+    )
+
+
+class StaticServers(Fixture):
+    """
+    Create a ``servers.yaml`` file.
+    """
+    def __init__(self, basedir, server_details):
+        super(StaticServers, self).__init__()
+        self._basedir = basedir
+        self._server_details = server_details
+
+    def _setUp(self):
+        private = self._basedir.child(u"private")
+        private.makedirs()
+        servers = private.child(u"servers.yaml")
+        servers.setContent(safe_dump({
+            u"storage": {
+                serverid: {
+                    u"ann": announcement,
+                }
+                for (serverid, announcement)
+                in self._server_details
+            },
+        }))
+
+
 class StorageClients(SyncTestCase):
     """
     Tests for storage-related behavior of ``_Client``.
@@ -697,22 +741,12 @@ class StorageClients(SyncTestCase):
             u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
         }
         basedir = FilePath(self.mktemp())
-        private = basedir.child(u"private")
-        private.makedirs()
-        servers = private.child(u"servers.yaml")
-        servers.setContent(safe_dump({
-            u"storage": {
-                serverid: {
-                    u"ann": announcement,
-                },
-            },
-        }))
-        def get_known_server_details(a_client):
-            return list(
-                (s.get_serverid(), s.get_announcement())
-                for s
-                in a_client.storage_broker.get_known_servers()
-            )
+        static_servers = self.useFixture(
+            StaticServers(
+                basedir,
+                [(serverid, announcement)],
+            ),
+        )
         self.assertThat(
             client.create_client(basedir.asTextMode().path),
             succeeded(
