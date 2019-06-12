@@ -9,7 +9,7 @@ from twisted.python import failure
 from foolscap.api import DeadReferenceError, RemoteException, eventually, \
                          fireEventually
 from allmydata.crypto import BadSignature
-from allmydata.crypto.rsa import PublicKey, PrivateKey
+from allmydata.crypto import rsa
 from allmydata.util import base32, hashutil, log, deferredutil
 from allmydata.util.dictutil import DictOfSets
 from allmydata.storage.server import si_b2a
@@ -838,7 +838,7 @@ class ServermapUpdater(object):
             # against the public key before keeping track of it.
             assert self._node.get_pubkey()
             try:
-                self._node.get_pubkey().verify(signature[1], prefix)
+                rsa.verify_signature(self._node.get_pubkey(), signature[1], prefix)
             except BadSignature:
                 raise CorruptShareError(server, shnum,
                                         "signature is invalid")
@@ -909,7 +909,7 @@ class ServermapUpdater(object):
                                                               update_data)
 
     def _deserialize_pubkey(self, pubkey_s):
-        verifier = PublicKey.parse_string(pubkey_s)
+        verifier = rsa.create_verifying_key_from_string(pubkey_s)
         return verifier
 
     def _try_to_validate_privkey(self, enc_privkey, server, shnum, lp):
@@ -930,7 +930,7 @@ class ServermapUpdater(object):
         self.log("got valid privkey from shnum %d on serverid %s" %
                  (shnum, server.get_name()),
                  parent=lp)
-        privkey = PrivateKey.parse_string(alleged_privkey_s)
+        privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
         self._node._populate_encprivkey(enc_privkey)
         self._node._populate_privkey(privkey)
         self._need_privkey = False
