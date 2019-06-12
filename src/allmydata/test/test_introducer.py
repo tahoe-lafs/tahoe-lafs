@@ -15,7 +15,6 @@ from twisted.python.filepath import FilePath
 from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
 from allmydata import crypto
-from allmydata.crypto import ed25519
 from allmydata.crypto.ed25519 import SigningKey
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.client import IntroducerClient

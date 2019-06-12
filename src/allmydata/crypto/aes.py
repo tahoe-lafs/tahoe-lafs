@@ -1,4 +1,3 @@
-import os
 import six
 
 from cryptography.hazmat.backends import default_backend

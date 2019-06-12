@@ -19,19 +19,6 @@ signatures to fail to validate.
 RSA_PSS_SALT_LENGTH = 32
 
 
-def create_verifying_key_from_string(public_key_der):
-    """
-    Create an RSA verifying key from a previously serialized public key.
-
-    :returns: public key
-    """
-    pub_key = load_der_public_key(
-        public_key_der,
-        backend=default_backend(),
-    )
-    return pub_key
-
-
 def create_signing_keypair(key_size):
     """
     Create a new RSA signing keypair from scratch. Can be used with
@@ -88,7 +75,7 @@ def der_string_from_verifying_key(public_key):
 
 def create_verifying_key_from_string(public_key_der):
     """
-    Create an RSA signing key from a previously serialized public key
+    Create an RSA verifying key from a previously serialized public key
     """
     pub_key = load_der_public_key(
         public_key_der,
