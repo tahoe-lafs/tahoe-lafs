@@ -6,6 +6,7 @@ from twisted.internet import defer
 from twisted.python import failure
 
 from allmydata.crypto.aes import AES
+from allmydata.crypto import rsa
 from allmydata.interfaces import IPublishStatus, SDMF_VERSION, MDMF_VERSION, \
                                  IMutableUploadable
 from allmydata.util import base32, hashutil, mathutil, log
@@ -849,7 +850,7 @@ class Publish(object):
         started = time.time()
         self._status.set_status("Signing prefix")
         signable = self._get_some_writer().get_signable()
-        self.signature = self._privkey.sign(signable)
+        self.signature = rsa.sign_data(self._privkey, signable)
 
         for (shnum, writers) in self.writers.iteritems():
             for writer in writers:
@@ -864,7 +865,7 @@ class Publish(object):
         self._status.set_status("Pushing shares")
         self._started_pushing = started
         ds = []
-        verification_key = self._pubkey.serialize()
+        verification_key = rsa.der_string_from_verifying_key(self._pubkey)
 
         for (shnum, writers) in self.writers.copy().iteritems():
             for writer in writers:

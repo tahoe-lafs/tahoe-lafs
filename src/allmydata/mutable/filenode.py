@@ -5,6 +5,7 @@ from twisted.internet import defer, reactor
 from foolscap.api import eventually
 
 from allmydata.crypto.aes import AES
+from allmydata.crypto import rsa
 from allmydata.interfaces import IMutableFileNode, ICheckable, ICheckResults, \
      NotEnoughSharesError, MDMF_VERSION, SDMF_VERSION, IMutableUploadable, \
      IMutableFileVersion, IWriteable
@@ -128,8 +129,8 @@ class MutableFileNode(object):
         """
         (pubkey, privkey) = keypair
         self._pubkey, self._privkey = pubkey, privkey
-        pubkey_s = self._pubkey.serialize()
-        privkey_s = self._privkey.serialize()
+        pubkey_s = rsa.der_string_from_verifying_key(self._pubkey)
+        privkey_s = rsa.der_string_from_signing_key(self._privkey)
         self._writekey = hashutil.ssk_writekey_hash(privkey_s)
         self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
         self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)

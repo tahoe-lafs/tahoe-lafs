@@ -12,7 +12,7 @@ from twisted.python.failure import Failure
 
 import allmydata
 from allmydata.crypto.ed25519 import SigningKey
-from allmydata.crypto.rsa import PrivateKey
+from allmydata.crypto import rsa
 from allmydata.storage.server import StorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
@@ -156,8 +156,7 @@ class KeyGenerator(object):
         keysize = keysize or self.default_keysize
         # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
         # secs
-        signer = PrivateKey.generate(keysize)
-        verifier = signer.public_key()
+        signer, verifier = rsa.create_signing_keypair(keysize)
         return defer.succeed( (verifier, signer) )
 
 class Terminator(service.Service):

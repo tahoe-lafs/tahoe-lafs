@@ -9,7 +9,7 @@ from foolscap.api import eventually, fireEventually, DeadReferenceError, \
      RemoteException
 
 from allmydata.crypto.aes import AES
-from allmydata.crypto.rsa import PrivateKey
+from allmydata.crypto import rsa
 from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError, \
      DownloadStopped, MDMF_VERSION, SDMF_VERSION
 from allmydata.util.assertutil import _assert, precondition
@@ -935,7 +935,7 @@ class Retrieve(object):
         # it's good
         self.log("got valid privkey from shnum %d on reader %s" %
                  (reader.shnum, reader))
-        privkey = PrivateKey.parse_string(alleged_privkey_s)
+        privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
         self._node._populate_encprivkey(enc_privkey)
         self._node._populate_privkey(privkey)
         self._need_privkey = False
