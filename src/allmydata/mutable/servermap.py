@@ -81,7 +81,7 @@ class UpdateStatus(object):
     def set_finished(self, when):
         self.finished = when
 
-class ServerMap:
+class ServerMap(object):
     """I record the placement of mutable shares.
 
     This object records which shares (of various versions) are located on
@@ -379,7 +379,7 @@ class ServerMap:
         self.update_data.setdefault(shnum , []).append((verinfo, data))
 
 
-class ServermapUpdater:
+class ServermapUpdater(object):
     def __init__(self, filenode, storage_broker, monitor, servermap,
                  mode=MODE_READ, add_lease=False, update_range=None):
         """I update a servermap, locating a sufficient number of useful
