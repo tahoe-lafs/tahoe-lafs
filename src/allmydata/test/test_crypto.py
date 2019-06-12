@@ -209,13 +209,8 @@ class TestRegression(unittest.TestCase):
         This simply checks that keys and signatures generated using the old code are still valid
         using the new code.
         '''
-        priv_key = rsa.PrivateKey.parse_string(self.RSA_2048_PRIV_KEY)
-        pub_key = priv_key.public_key()
-
-        parsed_pub_key = rsa.PublicKey.parse_string(self.RSA_2048_PUB_KEY)
-        self.failUnlessEqual(pub_key, parsed_pub_key)
-
-        pub_key.verify(self.RSA_2048_SIG, b'test')
+        priv_key, pub_key = rsa.create_signing_keypair_from_string(self.RSA_2048_PRIV_KEY)
+        rsa.verify_signature(pub_key, self.RSA_2048_SIG, b'test')
 
 
 class TestEd25519(unittest.TestCase):
@@ -249,24 +244,26 @@ class TestEd25519(unittest.TestCase):
 class TestRsa(unittest.TestCase):
 
     def test_keys(self):
-        priv_key = rsa.PrivateKey.generate(2048)
-        priv_key_str = priv_key.serialize()
+        priv_key, pub_key = rsa.create_signing_keypair(2048)
+        priv_key_str = rsa.der_string_from_signing_key(priv_key)
 
         self.assertIsInstance(priv_key_str, six.string_types)
 
-        priv_key2 = rsa.PrivateKey.parse_string(priv_key_str)
+        priv_key2, pub_key2 = rsa.create_signing_keypair_from_string(priv_key_str)
 
-        self.failUnlessEqual(priv_key, priv_key2)
+        # instead of asking "are these two keys equal", we can instead
+        # test their function: can the second key verify a signature
+        # produced by the first (and FAIL a signature with different
+        # data)
 
-        pub_key = priv_key.public_key()
-        pub_key2 = priv_key2.public_key()
+        data_to_sign = b"test data"
+        sig0 = rsa.sign_data(priv_key, data_to_sign)
+        rsa.verify_signature(pub_key2, sig0, data_to_sign)
 
-        self.failUnlessEqual(pub_key, pub_key2)
+        # ..and the other way
+        sig1 = rsa.sign_data(priv_key2, data_to_sign)
+        rsa.verify_signature(pub_key, sig1, data_to_sign)
 
-        pub_key_str = pub_key.serialize()
-
-        self.assertIsInstance(pub_key_str, six.string_types)
-
-        pub_key2 = rsa.PublicKey.parse_string(pub_key_str)
-
-        self.failUnlessEqual(pub_key, pub_key2)
+        # ..and a failed way
+        with self.assertRaises(rsa.BadSignature):
+            rsa.verify_signature(pub_key, sig1, data_to_sign + b"more")
