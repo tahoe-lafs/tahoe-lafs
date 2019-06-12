@@ -737,7 +737,7 @@ class StorageClients(SyncTestCase):
         """
         serverid = u"v0-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         announcement = {
-            u"nickname": 'some-storage-server',
+            u"nickname": u"some-storage-server",
             u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
         }
         basedir = FilePath(self.mktemp())
