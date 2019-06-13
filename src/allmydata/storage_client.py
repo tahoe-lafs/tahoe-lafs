@@ -34,7 +34,9 @@ import attr
 from zope.interface import implementer
 from twisted.internet import defer
 from twisted.application import service
-
+from eliot import (
+    log_call,
+)
 from foolscap.api import eventually
 from allmydata.interfaces import (
     IStorageBroker,
@@ -90,18 +92,32 @@ class StorageFarmBroker(service.MultiService):
         self._threshold_listeners = [] # tuples of (threshold, Deferred)
         self._connected_high_water_mark = 0
 
+    @log_call(action_type=u"storage-client:broker:set-static-servers")
     def set_static_servers(self, servers):
         for (server_id, server) in servers.items():
-            assert isinstance(server_id, unicode) # from YAML
-            server_id = server_id.encode("ascii")
-            self._static_server_ids.add(server_id)
-            handler_overrides = server.get("connections", {})
-            s = NativeStorageServer(server_id, server["ann"],
-                                    self._tub_maker, handler_overrides)
-            s.on_status_changed(lambda _: self._got_connection())
-            s.setServiceParent(self)
-            self.servers[server_id] = s
-            s.start_connecting(self._trigger_connections)
+            try:
+                storage_server = self._make_storage_server(server_id, server)
+            except Exception:
+                pass
+            else:
+                self._static_server_ids.add(server_id)
+                self.servers[server_id] = storage_server
+                storage_server.setServiceParent(self)
+                storage_server.start_connecting(self._trigger_connections)
+
+    @log_call(
+        action_type=u"storage-client:broker:make-storage-server",
+        include_args=["server_id"],
+        include_result=False,
+    )
+    def _make_storage_server(self, server_id, server):
+        assert isinstance(server_id, unicode) # from YAML
+        server_id = server_id.encode("ascii")
+        handler_overrides = server.get("connections", {})
+        s = NativeStorageServer(server_id, server["ann"],
+                                self._tub_maker, handler_overrides)
+        s.on_status_changed(lambda _: self._got_connection())
+        return s
 
     def when_connected_enough(self, threshold):
         """
@@ -253,6 +269,7 @@ class StubServer(object):
         return base32.b2a(self.serverid)
     def get_nickname(self):
         return "?"
+
 
 @implementer(IServer)
 class NativeStorageServer(service.MultiService):
