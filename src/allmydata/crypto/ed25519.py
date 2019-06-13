@@ -17,16 +17,31 @@ base32.
 
 import six
 
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
-from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption, \
-    PublicFormat
+from cryptography.exceptions import (
+    InvalidSignature,
+)
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+    Ed25519PrivateKey,
+    Ed25519PublicKey,
+)
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    PrivateFormat,
+    NoEncryption,
+    PublicFormat,
+)
 
-from allmydata.crypto import remove_prefix, BadSignature
-from allmydata.util.base32 import a2b, b2a
+from allmydata.crypto import (
+    remove_prefix,
+    BadSignature,
+)
+from allmydata.util.base32 import (
+    a2b,
+    b2a,
+)
 
-_PRIV_PREFIX = 'priv-v0-'
-_PUB_PREFIX = 'pub-v0-'
+PRIVATE_KEY_PREFIX = 'priv-v0-'
+PUBLIC_KEY_PREFIX = 'pub-v0-'
 
 
 class SigningKey:
@@ -63,12 +78,10 @@ class SigningKey:
 
     @classmethod
     def parse_encoded_key(cls, priv_str):
-        global _PRIV_PREFIX
-        return cls.from_private_bytes(a2b(remove_prefix(priv_str, _PRIV_PREFIX)))
+        return cls.from_private_bytes(a2b(remove_prefix(priv_str, PRIVATE_KEY_PREFIX)))
 
     def encoded_key(self):
-        global _PRIV_PREFIX
-        return _PRIV_PREFIX + b2a(self.private_bytes())
+        return PRIVATE_KEY_PREFIX + b2a(self.private_bytes())
 
     def __eq__(self, other):
         if isinstance(other, type(self)):
@@ -110,12 +123,10 @@ class VerifyingKey:
 
     @classmethod
     def parse_encoded_key(cls, pub_str):
-        global _PUB_PREFIX
-        return cls.from_public_bytes(a2b(remove_prefix(pub_str, _PUB_PREFIX)))
+        return cls.from_public_bytes(a2b(remove_prefix(pub_str, PUBLIC_KEY_PREFIX)))
 
     def encoded_key(self):
-        global _PUB_PREFIX
-        return _PUB_PREFIX + b2a(self.public_bytes())
+        return PUBLIC_KEY_PREFIX + b2a(self.public_bytes())
 
     def __eq__(self, other):
         if isinstance(other, type(self)):
