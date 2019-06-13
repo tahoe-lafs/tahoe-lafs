@@ -6,6 +6,11 @@ from yaml import (
 )
 from fixtures import (
     Fixture,
+    TempDir,
+)
+from eliot.testing import (
+    capture_logging,
+    assertHasAction,
 )
 from twisted.trial import unittest
 from twisted.application import service
@@ -730,6 +735,19 @@ class StorageClients(SyncTestCase):
     """
     Tests for storage-related behavior of ``_Client``.
     """
+    def setUp(self):
+        super(StorageClients, self).setUp()
+        # Some other tests create Nodes and Node mutates tempfile.tempdir and
+        # that screws us up because we're *not* making a Node.  "Fix" it.  See
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3052 for the real fix,
+        # though.
+        import tempfile
+        tempfile.tempdir = None
+
+        tempdir = TempDir()
+        self.useFixture(tempdir)
+        self.basedir = FilePath(tempdir.path)
+
     def test_static_servers(self):
         """
         Storage servers defined in ``private/servers.yaml`` are loaded into the
@@ -740,15 +758,14 @@ class StorageClients(SyncTestCase):
             u"nickname": u"some-storage-server",
             u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
         }
-        basedir = FilePath(self.mktemp())
         static_servers = self.useFixture(
             StaticServers(
-                basedir,
+                self.basedir,
                 [(serverid, announcement)],
             ),
         )
         self.assertThat(
-            client.create_client(basedir.asTextMode().path),
+            client.create_client(self.basedir.asTextMode().path),
             succeeded(
                 AfterPreprocessing(
                     get_known_server_details,
@@ -768,10 +785,9 @@ class StorageClients(SyncTestCase):
             u"nickname": u"some-storage-server",
             u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
         }
-        basedir = FilePath(self.mktemp())
         static_servers = self.useFixture(
             StaticServers(
-                basedir,
+                self.basedir,
                 [(serverid, announcement),
                  # Alongside some bad details
                  (u"v0-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -782,7 +798,7 @@ class StorageClients(SyncTestCase):
             ),
         )
         self.assertThat(
-            client.create_client(basedir.asTextMode().path),
+            client.create_client(self.basedir.asTextMode().path),
             succeeded(
                 AfterPreprocessing(
                     get_known_server_details,
