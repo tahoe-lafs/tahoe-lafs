@@ -748,7 +748,15 @@ class StorageClients(SyncTestCase):
         self.useFixture(tempdir)
         self.basedir = FilePath(tempdir.path)
 
-    def test_static_servers(self):
+    @capture_logging(
+        lambda case, logger: assertHasAction(
+            case,
+            logger,
+            actionType=u"storage-client:broker:set-static-servers",
+            succeeded=True,
+        ),
+    )
+    def test_static_servers(self, logger):
         """
         Storage servers defined in ``private/servers.yaml`` are loaded into the
         storage broker.
@@ -774,13 +782,21 @@ class StorageClients(SyncTestCase):
             ),
         )
 
-    def test_invalid_static_server(self):
+    @capture_logging(
+        lambda case, logger: assertHasAction(
+            case,
+            logger,
+            actionType=u"storage-client:broker:make-storage-server",
+            succeeded=False,
+        ),
+    )
+    def test_invalid_static_server(self, logger):
         """
         An invalid announcement for a static server does not prevent other static
         servers from being loaded.
         """
         # Some good details
-        serverid = u"v0-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        serverid = u"v1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         announcement = {
             u"nickname": u"some-storage-server",
             u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
@@ -789,7 +805,9 @@ class StorageClients(SyncTestCase):
             StaticServers(
                 self.basedir,
                 [(serverid, announcement),
-                 # Alongside some bad details
+                 # Along with a "bad" server announcement.  Order in this list
+                 # doesn't matter, yaml serializer and Python dicts are going
+                 # to shuffle everything around kind of randomly.
                  (u"v0-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                   {u"nickname": u"another-storage-server",
                    u"anonymous-storage-FURL": None,
