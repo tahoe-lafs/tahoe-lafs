@@ -1,5 +1,8 @@
 import os, sys
 import mock
+
+import attr
+
 import twisted
 from yaml import (
     safe_dump,
@@ -21,6 +24,7 @@ from twisted.python.filepath import (
 from testtools.matchers import (
     Equals,
     AfterPreprocessing,
+    MatchesListwise,
 )
 from testtools.twistedsupport import (
     succeeded,
@@ -41,10 +45,12 @@ from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
-from allmydata.test.common import (
+from .common import (
     SyncTestCase,
 )
-
+from .matchers import (
+    matches_anonymous_storage_announcement,
+)
 
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
@@ -980,3 +986,143 @@ class NodeMaker(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(n.get_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_write_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_readonly_uri(), "ro." + unknown_ro)
+
+
+
+@attr.s
+class MemoryIntroducerClient(object):
+    """
+    A model-only (no behavior) stand-in for ``IntroducerClient``.
+    """
+    tub = attr.ib()
+    introducer_furl = attr.ib()
+    nickname = attr.ib()
+    my_version = attr.ib()
+    oldest_supported = attr.ib()
+    app_versions = attr.ib()
+    sequencer = attr.ib()
+    cache_filepath = attr.ib()
+
+    subscribed_to = attr.ib(default=attr.Factory(list))
+    published_announcements = attr.ib(default=attr.Factory(list))
+
+
+    def setServiceParent(self, parent):
+        pass
+
+
+    def subscribe_to(self, service_name, cb, *args, **kwargs):
+        self.subscribed_to.append(Subscription(service_name, cb, args, kwargs))
+
+
+    def publish(self, service_name, ann, signing_key):
+        self.published_announcements.append(Announcement(service_name, ann, signing_key))
+
+
+
+@attr.s
+class Subscription(object):
+    """
+    A model of an introducer subscription.
+    """
+    service_name = attr.ib()
+    cb = attr.ib()
+    args = attr.ib()
+    kwargs = attr.ib()
+
+
+
+@attr.s
+class Announcement(object):
+    """
+    A model of an introducer announcement.
+    """
+    service_name = attr.ib()
+    ann = attr.ib()
+    signing_key = attr.ib()
+
+
+
+def get_published_announcements(client):
+    """
+    Get a flattened list of all announcements sent using all introducer
+    clients.
+    """
+    return list(
+        announcement
+        for introducer_client
+        in client.introducer_clients
+        for announcement
+        in introducer_client.published_announcements
+    )
+
+
+
+class StorageAnnouncementTests(SyncTestCase):
+    """
+    Tests for the storage announcement published by the client.
+    """
+    def setUp(self):
+        super(StorageAnnouncementTests, self).setUp()
+        self.basedir = self.useFixture(TempDir()).path
+        create_node_dir(self.basedir, u"")
+
+
+    def get_config(self, storage_enabled):
+        return b"""
+[node]
+tub.location = tcp:192.0.2.0:1234
+
+[storage]
+enabled = {storage_enabled}
+
+[client]
+introducer.furl = pb://abcde@nowhere/fake
+""".format(storage_enabled=storage_enabled)
+
+
+    def test_no_announcement(self):
+        """
+        No storage announcement is published if storage is not enabled.
+        """
+        config = config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(storage_enabled=False),
+        )
+        self.assertThat(
+            client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
+            succeeded(AfterPreprocessing(
+                get_published_announcements,
+                Equals([]),
+            )),
+        )
+
+
+    def test_anonymous_storage_announcement(self):
+        """
+        A storage announcement with the anonymous storage fURL is published when
+        storage is enabled.
+        """
+        config = config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(storage_enabled=True),
+        )
+        client_deferred = client.create_client_from_config(
+            config,
+            introducer_factory=MemoryIntroducerClient,
+        )
+        self.assertThat(
+            client_deferred,
+            # The Deferred succeeds
+            succeeded(AfterPreprocessing(
+                # The announcements published by the client should ...
+                get_published_announcements,
+                # Match the following list (of one element) ...
+                MatchesListwise([
+                    # The only element in the list ...
+                    matches_anonymous_storage_announcement(),
+                ]),
+            )),
+        )
