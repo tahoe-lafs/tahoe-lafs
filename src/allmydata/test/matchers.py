@@ -77,3 +77,14 @@ def matches_base32():
     Match any base32 encoded byte string.
     """
     return AfterPreprocessing(base32.a2b, Always())
+
+
+
+class MatchesSameElements(object):
+    """
+    Match if the two-tuple value given contains two elements that are equal to
+    each other.
+    """
+    def match(self, value):
+        left, right = value
+        return Equals(left).match(right)

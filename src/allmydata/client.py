@@ -3,7 +3,11 @@ from base64 import urlsafe_b64encode
 from functools import partial
 from errno import ENOENT, EPERM
 
+import attr
 from zope.interface import implementer
+from twisted.plugin import (
+    getPlugins,
+)
 from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
@@ -30,7 +34,14 @@ from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.stats import StatsProvider
 from allmydata.history import History
-from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION, DEFAULT_MAX_SEGMENT_SIZE
+from allmydata.interfaces import (
+    IStatsProducer,
+    SDMF_VERSION,
+    MDMF_VERSION,
+    DEFAULT_MAX_SEGMENT_SIZE,
+    IFoolscapStoragePlugin,
+    IAnnounceableStorageServer,
+)
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata import node
@@ -394,6 +405,15 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     return sb
 
 
+
+@implementer(IAnnounceableStorageServer)
+@attr.s
+class AnnounceableStorageServer(object):
+    announcement = attr.ib()
+    storage_server = attr.ib()
+
+
+
 @implementer(IStatsProducer)
 class _Client(node.Node, pollmixin.PollMixin):
 
@@ -596,6 +616,117 @@ class _Client(node.Node, pollmixin.PollMixin):
                }
         for ic in self.introducer_clients:
             ic.publish("storage", ann, self._node_private_key)
+
+        self._init_storage_plugins()
+
+
+    def _init_storage_plugins(self):
+        """
+        Load, register, and announce any configured storage plugins.
+        """
+        storage_plugin_names = self._get_enabled_storage_plugin_names()
+        plugins = list(self._collect_storage_plugins(storage_plugin_names))
+        # TODO What if some names aren't found?
+        announceable_storage_servers = self._create_plugin_storage_servers(plugins)
+        self._enable_storage_servers(announceable_storage_servers)
+
+
+    def _get_enabled_storage_plugin_names(self):
+        """
+        Get the names of storage plugins that are enabled in the configuration.
+        """
+        return {
+            self.config.get_config(
+                "storage", "plugins", b""
+            ).decode("ascii")
+        }
+
+
+    def _collect_storage_plugins(self, storage_plugin_names):
+        """
+        Get the storage plugins with names matching those given.
+        """
+        return list(
+            plugin
+            for plugin
+            in getPlugins(IFoolscapStoragePlugin)
+            if plugin.name in storage_plugin_names
+        )
+
+
+    def _create_plugin_storage_servers(self, plugins):
+        """
+        Cause each storage plugin to instantiate its storage server and return
+        them all.
+        """
+        return list(
+            self._add_to_announcement(
+                {u"name": plugin.name},
+                plugin.get_storage_server(
+                    self._get_storage_plugin_configuration(plugin.name),
+                    lambda: self.getServiceNamed(StorageServer.name)
+                ),
+            )
+            for plugin
+            in plugins
+        )
+
+
+    def _add_to_announcement(self, information, announceable_storage_server):
+        """
+        Create a new ``AnnounceableStorageServer`` based on
+        ``announceable_storage_server`` with ``information`` added to its
+        ``announcement``.
+        """
+        updated_announcement = announceable_storage_server.announcement.copy()
+        updated_announcement.update(information)
+        return AnnounceableStorageServer(
+            updated_announcement,
+            announceable_storage_server.storage_server,
+        )
+
+
+    def _get_storage_plugin_configuration(self, storage_plugin_name):
+        return dict(
+            # Need to reach past the Tahoe-LAFS-supplied wrapper around the
+            # underlying ConfigParser...
+            self.config.config.items("storageserver.plugins." + storage_plugin_name)
+        )
+
+
+    def _enable_storage_servers(self, announceable_storage_servers):
+        """
+        Register and announce the given storage servers.
+        """
+        for announceable in announceable_storage_servers:
+            self._enable_storage_server(announceable)
+
+
+    def _enable_storage_server(self, announceable_storage_server):
+        """
+        Register and announce a storage server.
+        """
+        furl_file = self.config.get_private_path(
+            "storage-plugin.{}.furl".format(
+                # Oops, why don't I have a better handle on this value?
+                announceable_storage_server.announcement[u"name"],
+            ),
+        )
+        furl = self.tub.registerReference(
+            announceable_storage_server.storage_server,
+            furlFile=furl_file.encode(get_filesystem_encoding()),
+        )
+        announceable_storage_server = self._add_to_announcement(
+            {u"storage-server-FURL": furl},
+            announceable_storage_server,
+        )
+        for ic in self.introducer_clients:
+            ic.publish(
+                "storage",
+                announceable_storage_server.announcement,
+                self._node_key,
+            )
+
 
     def init_client(self):
         helper_furl = self.config.get_config("client", "helper.furl", None)
