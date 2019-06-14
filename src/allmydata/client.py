@@ -629,11 +629,11 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         Get the names of storage plugins that are enabled in the configuration.
         """
-        return {
+        return set(
             self.config.get_config(
                 "storage", "plugins", b""
-            ).decode("ascii")
-        }
+            ).decode("ascii").split(u",")
+        )
 
 
     def _collect_storage_plugins(self, storage_plugin_names):
@@ -662,7 +662,11 @@ class _Client(node.Node, pollmixin.PollMixin):
                 ),
             )
             for plugin
-            in plugins
+            # The order is fairly arbitrary and it is not meant to convey
+            # anything but providing *some* stable ordering makes the data a
+            # little easier to deal with (mainly in tests and when manually
+            # inspecting it).
+            in sorted(plugins, key=lambda p: p.name)
         )
 
 
