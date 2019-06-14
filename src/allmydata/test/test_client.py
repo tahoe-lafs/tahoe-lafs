@@ -1187,6 +1187,52 @@ introducer.furl = pb://abcde@nowhere/fake
         )
 
 
+    def test_multiple_storage_plugin_announcements(self):
+        """
+        The announcements from several enabled storage plugins are published when
+        storage is enabled.
+        """
+        self.useFixture(UseTestPlugins())
+
+        config = config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-v1,tahoe-lafs-dummy-v2",
+                more_sections=(
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    b"some = thing-1\n"
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v2]\n"
+                    b"some = thing-2\n"
+                ),
+            ),
+        )
+        def matches_dummy_announcement(v):
+            return MatchesStructure(
+                service_name=Equals("storage"),
+                ann=MatchesDict({
+                    # Everyone gets a name and a fURL added to their announcement.
+                    u"name": Equals(u"tahoe-lafs-dummy-v{}".format(v)),
+                    u"storage-server-FURL": matches_furl(),
+                    # The plugin can contribute things, too.
+                    u"value": Equals(u"thing-{}".format(v)),
+                }),
+                signing_key=MatchesNodePublicKey(self.basedir),
+            )
+        self.assertThat(
+            client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
+            succeeded(AfterPreprocessing(
+                get_published_announcements,
+                MatchesListwise([
+                    matches_anonymous_storage_announcement(self.basedir),
+                    matches_dummy_announcement(b"1"),
+                    matches_dummy_announcement(b"2"),
+                ]),
+            )),
+        )
+
+
     def test_stable_storage_server_furl(self):
         """
         The value for the ``storage-server-FURL`` item in the announcement for a

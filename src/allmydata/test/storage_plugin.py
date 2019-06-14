@@ -33,8 +33,9 @@ class RIDummy(RemoteInterface):
 
 
 @implementer(IFoolscapStoragePlugin)
+@attr.s
 class DummyStorage(object):
-    name = u"tahoe-lafs-dummy-v1"
+    name = attr.ib()
 
     def get_storage_server(self, configuration, get_anonymous_storage_server):
         return AnnounceableStorageServer(

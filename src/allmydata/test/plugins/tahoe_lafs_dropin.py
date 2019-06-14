@@ -8,4 +8,5 @@ from allmydata.test.storage_plugin import (
 
 adoptedEndpointParser = AdoptedServerPort()
 
-dummyStorage = DummyStorage()
+dummyStoragev1 = DummyStorage(u"tahoe-lafs-dummy-v1")
+dummyStoragev2 = DummyStorage(u"tahoe-lafs-dummy-v2")
