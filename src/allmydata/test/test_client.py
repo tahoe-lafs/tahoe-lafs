@@ -1122,7 +1122,7 @@ introducer.furl = pb://abcde@nowhere/fake
                 # Match the following list (of one element) ...
                 MatchesListwise([
                     # The only element in the list ...
-                    matches_anonymous_storage_announcement(),
+                    matches_anonymous_storage_announcement(self.basedir),
                 ]),
             )),
         )
