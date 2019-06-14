@@ -1068,6 +1068,34 @@ def get_published_announcements(client):
 
 
 
+def matches_dummy_announcement(basedir, name, value):
+    """
+    Matches the announcement for the ``DummyStorage`` storage server plugin.
+
+    :param str basedir: The path to the node the storage server plugin is
+        loaded into.
+
+    :param unicode name: The name of the dummy plugin.
+
+    :param unicode value: The arbitrary value in the dummy plugin
+        announcement.
+
+    :return: a testtools-style matcher
+    """
+    return MatchesStructure(
+        service_name=Equals("storage"),
+        ann=MatchesDict({
+            # Everyone gets a name and a fURL added to their announcement.
+            u"name": Equals(name),
+            u"storage-server-FURL": matches_furl(),
+            # The plugin can contribute things, too.
+            u"value": Equals(value),
+        }),
+        signing_key=MatchesNodePublicKey(basedir),
+    )
+
+
+
 class StorageAnnouncementTests(SyncTestCase):
     """
     Tests for the storage announcement published by the client.
@@ -1152,6 +1180,7 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         self.useFixture(UseTestPlugins())
 
+        value = u"thing"
         config = config_from_string(
             self.basedir,
             u"tub.port",
@@ -1160,20 +1189,9 @@ introducer.furl = pb://abcde@nowhere/fake
                 more_storage=b"plugins=tahoe-lafs-dummy-v1",
                 more_sections=(
                     b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
-                    b"some = thing\n"
+                    b"some = {}\n".format(value)
                 ),
             ),
-        )
-        matches_dummy_announcement = MatchesStructure(
-            service_name=Equals("storage"),
-            ann=MatchesDict({
-                # Everyone gets a name and a fURL added to their announcement.
-                u"name": Equals(u"tahoe-lafs-dummy-v1"),
-                u"storage-server-FURL": matches_furl(),
-                # The plugin can contribute things, too.
-                u"value": Equals(u"thing"),
-            }),
-            signing_key=MatchesNodePublicKey(self.basedir),
         )
         self.assertThat(
             client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
@@ -1181,7 +1199,11 @@ introducer.furl = pb://abcde@nowhere/fake
                 get_published_announcements,
                 MatchesListwise([
                     matches_anonymous_storage_announcement(self.basedir),
-                    matches_dummy_announcement,
+                    matches_dummy_announcement(
+                        self.basedir,
+                        u"tahoe-lafs-dummy-v1",
+                        value,
+                    ),
                 ]),
             )),
         )
@@ -1208,26 +1230,22 @@ introducer.furl = pb://abcde@nowhere/fake
                 ),
             ),
         )
-        def matches_dummy_announcement(v):
-            return MatchesStructure(
-                service_name=Equals("storage"),
-                ann=MatchesDict({
-                    # Everyone gets a name and a fURL added to their announcement.
-                    u"name": Equals(u"tahoe-lafs-dummy-v{}".format(v)),
-                    u"storage-server-FURL": matches_furl(),
-                    # The plugin can contribute things, too.
-                    u"value": Equals(u"thing-{}".format(v)),
-                }),
-                signing_key=MatchesNodePublicKey(self.basedir),
-            )
         self.assertThat(
             client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
             succeeded(AfterPreprocessing(
                 get_published_announcements,
                 MatchesListwise([
                     matches_anonymous_storage_announcement(self.basedir),
-                    matches_dummy_announcement(b"1"),
-                    matches_dummy_announcement(b"2"),
+                    matches_dummy_announcement(
+                        self.basedir,
+                        u"tahoe-lafs-dummy-v1",
+                        u"thing-1",
+                    ),
+                    matches_dummy_announcement(
+                        self.basedir,
+                        u"tahoe-lafs-dummy-v2",
+                        u"thing-2",
+                    ),
                 ]),
             )),
         )
@@ -1270,5 +1288,35 @@ introducer.furl = pb://abcde@nowhere/fake
                     get_published_announcements(b),
                 ),
                 MatchesSameElements(),
+            )),
+        )
+
+
+    def test_storage_plugin_without_configuration(self):
+        """
+        A storage plugin with no configuration is loaded and announced.
+        """
+        self.useFixture(UseTestPlugins())
+
+        config = config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+            ),
+        )
+        self.assertThat(
+            client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
+            succeeded(AfterPreprocessing(
+                get_published_announcements,
+                MatchesListwise([
+                    matches_anonymous_storage_announcement(self.basedir),
+                    matches_dummy_announcement(
+                        self.basedir,
+                        u"tahoe-lafs-dummy-v1",
+                        u"default-value",
+                    ),
+                ]),
             )),
         )

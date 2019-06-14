@@ -2,6 +2,7 @@ import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
 from errno import ENOENT, EPERM
+from ConfigParser import NoSectionError
 
 import attr
 from zope.interface import implementer
@@ -691,11 +692,20 @@ class _Client(node.Node, pollmixin.PollMixin):
 
 
     def _get_storage_plugin_configuration(self, storage_plugin_name):
-        return dict(
+        """
+        Load the configuration for a storage server plugin with the given name.
+
+        :return dict: The matching configuration.
+        """
+        try:
             # Need to reach past the Tahoe-LAFS-supplied wrapper around the
             # underlying ConfigParser...
-            self.config.config.items("storageserver.plugins." + storage_plugin_name)
-        )
+            config = self.config.config.items(
+                "storageserver.plugins." + storage_plugin_name,
+            )
+        except NoSectionError:
+            config = []
+        return dict(config)
 
 
     def _enable_storage_servers(self, announceable_storage_servers):
