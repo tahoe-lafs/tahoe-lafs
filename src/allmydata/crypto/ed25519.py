@@ -44,95 +44,185 @@ PRIVATE_KEY_PREFIX = 'priv-v0-'
 PUBLIC_KEY_PREFIX = 'pub-v0-'
 
 
-class SigningKey:
+def create_signing_keypair():
+    """
+    Creates a new ed25519 keypair.
 
-    def __init__(self, priv_key):
-        if not isinstance(priv_key, Ed25519PrivateKey):
-            raise ValueError('priv_key must be an Ed25519PrivateKey')
-        self._priv_key = priv_key
-
-    @classmethod
-    def generate(cls):
-        return cls(Ed25519PrivateKey.generate())
-
-    @classmethod
-    def from_private_bytes(cls, priv_bytes):
-        if not isinstance(priv_bytes, six.binary_type):
-            raise ValueError('priv_bytes must be bytes')
-        return SigningKey(Ed25519PrivateKey.from_private_bytes(priv_bytes))
-
-    def private_bytes(self):
-        return self._priv_key.private_bytes(
-            Encoding.Raw,
-            PrivateFormat.Raw,
-            NoEncryption(),
-        )
-
-    def public_key(self):
-        return VerifyingKey(self._priv_key.public_key())
-
-    def sign(self, data):
-        if not isinstance(data, six.binary_type):
-            raise ValueError('data must be bytes')
-        return self._priv_key.sign(data)
-
-    @classmethod
-    def parse_encoded_key(cls, priv_str):
-        return cls.from_private_bytes(a2b(remove_prefix(priv_str, PRIVATE_KEY_PREFIX)))
-
-    def encoded_key(self):
-        return PRIVATE_KEY_PREFIX + b2a(self.private_bytes())
-
-    def __eq__(self, other):
-        if isinstance(other, type(self)):
-            return self.private_bytes() == other.private_bytes()
-        else:
-            return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+    :returns: 2-tuple of (private_key, public_key)
+    """
+    private_key = Ed25519PrivateKey.generate()
+    return private_key, private_key.public_key()
 
 
-class VerifyingKey:
+def signing_keypair_from_bytes(private_bytes):
+    """
+    Creates a ed25519 keypair from serialized bytes
 
-    def __init__(self, pub_key):
-        if not isinstance(pub_key, Ed25519PublicKey):
-            raise ValueError('pub_key must be an Ed25519PublicKey')
-        self._pub_key = pub_key
+    :returns: 2-tuple of (private_key, public_key)
+    """
 
-    @classmethod
-    def from_public_bytes(cls, pub_bytes):
-        if not isinstance(pub_bytes, six.binary_type):
-            raise ValueError('pub_bytes must be bytes')
-        return cls(Ed25519PublicKey.from_public_bytes(pub_bytes))
+    if not isinstance(private_bytes, six.binary_type):
+        raise ValueError('private_bytes must be bytes')
+    private_key = Ed25519PrivateKey.from_private_bytes(private_bytes)
+    return private_key, private_key.public_key()
 
-    def public_bytes(self):
-        return self._pub_key.public_bytes(Encoding.Raw, PublicFormat.Raw)
 
-    def verify(self, signature, data):
-        if not isinstance(signature, six.binary_type):
-            raise ValueError('signature must be bytes')
+def bytes_from_signing_key(private_key):
+    """
+    Turn a private signing key into serialized bytes
+    """
+    _validate_private_key(private_key)
+    return private_key.private_bytes(
+        Encoding.Raw,
+        PrivateFormat.Raw,
+        NoEncryption(),
+    )
 
-        if not isinstance(data, six.binary_type):
-            raise ValueError('data must be bytes')
 
-        try:
-            self._pub_key.verify(signature, data)
-        except InvalidSignature:
-            raise BadSignature
+def verifying_key_from_signing_key(private_key):
+    """
+    :returns: the public key associated to the given `private_key`
+    """
+    _validate_private_key(private_key)
+    return private_key.public_key()
 
-    @classmethod
-    def parse_encoded_key(cls, pub_str):
-        return cls.from_public_bytes(a2b(remove_prefix(pub_str, PUBLIC_KEY_PREFIX)))
 
-    def encoded_key(self):
-        return PUBLIC_KEY_PREFIX + b2a(self.public_bytes())
+def sign_data(private_key, data):
+    """
+    Sign the given data using the given private key
 
-    def __eq__(self, other):
-        if isinstance(other, type(self)):
-            return self.public_bytes() == other.public_bytes()
-        else:
-            return False
+    :param private_key: the private part returned from
+        `create_signing_keypair` or from
+        `signing_keypair_from_bytes`
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
+    :param bytes data: the data to sign
+
+    :returns: bytes representing the signature
+    """
+
+    _validate_private_key(private_key)
+    if not isinstance(data, six.binary_type):
+        raise ValueError('data must be bytes')
+    return private_key.sign(data)
+
+
+def string_from_signing_key(private_key):
+    """
+    Encode a private key to a string
+
+    :param private_key: the private part returned from
+        `create_signing_keypair` or from
+        `signing_keypair_from_bytes`
+
+    :returns: string representing this key
+    """
+    _validate_private_key(private_key)
+    return PRIVATE_KEY_PREFIX + b2a(bytes_from_signing_key(private_key))
+
+
+def signing_keypair_from_string(private_key_str):
+    """
+    Load a signing keypair from a string
+
+    :returns: a 2-tuple of (private_key, public_key)
+    """
+
+    return signing_keypair_from_bytes(
+        a2b(remove_prefix(private_key_str, PRIVATE_KEY_PREFIX))
+    )
+
+
+def verifying_key_from_string(public_key_str):
+    """
+    Load a verifying key from a string
+
+    :returns: a public_key
+    """
+
+
+def verifying_key_from_bytes(public_key_bytes):
+    """
+    Load a verifying key from bytes
+
+    :returns: a public_key
+    """
+    if not isinstance(public_key_bytes, six.binary_type):
+        raise ValueError('public_key_bytes must be bytes')
+    return Ed25519PublicKey.from_public_bytes(public_key_bytes)
+
+
+def bytes_from_verifying_key(public_key):
+    """
+    Encode a verifying key to bytes.
+
+    :param public_key: the public part of a key returned from
+        `create_signing_keypair` or from
+        `signing_keypair_from_bytes`
+
+    :returns: bytes representing this key
+    """
+    _validate_public_key(public_key)
+    return public_key.public_bytes(
+        Encoding.Raw,
+        PublicFormat.Raw,
+    )
+
+
+def verify_signature(public_key, alleged_signature, data):
+    """
+    :param public_key: a verifying key
+
+    :param bytes alleged_signature: the bytes of the alleged signature
+
+    :param bytes data: the data which was allegedly signed
+
+    :returns: None, or raises an exception if the signature is bad.
+    """
+
+    if not isinstance(alleged_signature, six.binary_type):
+        raise ValueError('alleged_signature must be bytes')
+
+    if not isinstance(data, six.binary_type):
+        raise ValueError('data must be bytes')
+
+    _validate_public_key(public_key)
+    try:
+        public_key.verify(alleged_signature, data)
+    except InvalidSignature:
+        raise BadSignature
+
+
+def verifying_key_from_string(public_key_str):
+    return verifying_key_from_bytes(
+        a2b(remove_prefix(public_key_str, PUBLIC_KEY_PREFIX))
+    )
+
+
+def string_from_verifying_key(public_key):
+    """
+    Encode a public key to a string
+
+    :param public_key: the public part of a keypair
+
+    :returns: string representing this key
+    """
+    _validate_public_key(public_key)
+    return PUBLIC_KEY_PREFIX + b2a(bytes_from_verifying_key(public_key))
+
+
+def _validate_public_key(public_key):
+    """
+    Internal helper. Verify that `public_key` is an appropriate object
+    """
+    if not isinstance(public_key, Ed25519PublicKey):
+        raise ValueError('public_key must be an Ed25519PublicKey')
+    return None
+
+
+def _validate_private_key(private_key):
+    """
+    Internal helper. Verify that `private_key` is an appropriate object
+    """
+    if not isinstance(private_key, Ed25519PrivateKey):
+        raise ValueError('private_key must be an Ed25519PrivateKey')
+    return None

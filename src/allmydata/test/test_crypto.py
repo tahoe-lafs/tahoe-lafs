@@ -194,15 +194,21 @@ class TestRegression(unittest.TestCase):
                b'\x86 ier!\xe8\xe5#*\x9d\x8c\x0bI\x02\xd90\x0e7\xbeW\xbf\xa3\xfe\xc1\x1c\xf5+\xe9)'
                b'\xa3\xde\xc9\xc6s\xc9\x90\xf7x\x08')
 
-        priv_key = ed25519.SigningKey.parse_encoded_key(priv_str)
-        pub_key = ed25519.VerifyingKey.parse_encoded_key(pub_str)
+        private_key, derived_public_key = ed25519.signing_keypair_from_string(priv_str)
+        public_key = ed25519.verifying_key_from_string(pub_str)
 
-        self.failUnlessEqual(priv_key.public_key(), pub_key)
+        self.failUnlessEqual(
+            ed25519.bytes_from_verifying_key(public_key),
+            ed25519.bytes_from_verifying_key(derived_public_key),
+        )
 
-        new_sig = priv_key.sign(test_data)
+        new_sig = ed25519.sign_data(private_key, test_data)
         self.failUnlessEqual(new_sig, sig)
 
-        pub_key.verify(new_sig, test_data)
+        ed25519.verify_signature(public_key, new_sig, test_data)
+        ed25519.verify_signature(derived_public_key, new_sig, test_data)
+        ed25519.verify_signature(public_key, sig, test_data)
+        ed25519.verify_signature(derived_public_key, sig, test_data)
 
     def test_decode_rsa_keypair(self):
         '''
@@ -216,29 +222,34 @@ class TestRegression(unittest.TestCase):
 class TestEd25519(unittest.TestCase):
 
     def test_keys(self):
-        priv_key = ed25519.SigningKey.generate()
-        priv_key_str = priv_key.encoded_key()
+        private_key, public_key = ed25519.create_signing_keypair()
+        private_key_str = ed25519.string_from_signing_key(private_key)
 
-        self.assertIsInstance(priv_key_str, six.string_types)
-        self.assertIsInstance(priv_key.private_bytes(), six.binary_type)
+        self.assertIsInstance(private_key_str, six.string_types)
 
-        priv_key2 = ed25519.SigningKey.parse_encoded_key(priv_key_str)
+        private_key2, public_key2 = ed25519.signing_keypair_from_string(private_key_str)
 
-        self.failUnlessEqual(priv_key, priv_key2)
+        self.failUnlessEqual(
+            ed25519.bytes_from_signing_key(private_key),
+            ed25519.bytes_from_signing_key(private_key2),
+        )
+        self.failUnlessEqual(
+            ed25519.bytes_from_verifying_key(public_key),
+            ed25519.bytes_from_verifying_key(public_key2),
+        )
 
-        pub_key = priv_key.public_key()
-        pub_key2 = priv_key2.public_key()
+        public_key_str = ed25519.string_from_verifying_key(public_key)
+        public_key_bytes = ed25519.bytes_from_verifying_key(public_key)
 
-        self.failUnlessEqual(pub_key, pub_key2)
+        self.assertIsInstance(public_key_str, six.string_types)
+        self.assertIsInstance(public_key_bytes, six.binary_type)
 
-        pub_key_str = pub_key.encoded_key()
+        public_key2 = ed25519.verifying_key_from_string(public_key_str)
 
-        self.assertIsInstance(pub_key_str, six.string_types)
-        self.assertIsInstance(pub_key.public_bytes(), six.binary_type)
-
-        pub_key2 = ed25519.VerifyingKey.parse_encoded_key(pub_key_str)
-
-        self.failUnlessEqual(pub_key, pub_key2)
+        self.failUnlessEqual(
+            ed25519.bytes_from_verifying_key(public_key),
+            ed25519.bytes_from_verifying_key(public_key2),
+        )
 
 
 class TestRsa(unittest.TestCase):
