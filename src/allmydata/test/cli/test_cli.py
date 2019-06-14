@@ -735,16 +735,19 @@ class Admin(unittest.TestCase):
             self.failUnless(privkey_bits[1].startswith("priv-v0-"), lines[0])
             self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
             sk_bytes = base32.a2b(crypto.remove_prefix(privkey_bits[1], "priv-v0-"))
-            sk = ed25519.SigningKey.from_private_bytes(sk_bytes)
+            sk, pk = ed25519.signing_keypair_from_bytes(sk_bytes)
             vk_bytes = base32.a2b(crypto.remove_prefix(pubkey_bits[1], "pub-v0-"))
-            self.failUnlessEqual(sk.public_key().public_bytes(), vk_bytes)
+            self.failUnlessEqual(
+                ed25519.bytes_from_verifying_key(pk),
+                vk_bytes,
+            )
         d.addCallback(_done)
         return d
 
     def test_derive_pubkey(self):
-        priv_key = ed25519.SigningKey.generate()
-        priv_key_str = priv_key.encoded_key()
-        pub_key_str = priv_key.public_key().encoded_key()
+        priv_key, pub_key = ed25519.create_signing_keypair()
+        priv_key_str = ed25519.string_from_signing_key(priv_key)
+        pub_key_str = ed25519.string_from_verifying_key(pub_key)
         d = run_cli("admin", "derive-pubkey", priv_key_str)
         def _done(args):
             (rc, stdout, stderr) = args

@@ -11,8 +11,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 
 import allmydata
-from allmydata.crypto.ed25519 import SigningKey
-from allmydata.crypto import rsa
+from allmydata.crypto import rsa, ed25519
 from allmydata.storage.server import StorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
@@ -479,19 +478,20 @@ class _Client(node.Node, pollmixin.PollMixin):
         # we only create the key once. On all subsequent runs, we re-use the
         # existing key
         def _make_key():
-            priv_key = SigningKey.generate()
-            return priv_key.encoded_key() + "\n"
+            private_key, _ = ed25519.create_signing_keypair()
+            return ed25519.string_from_signing_key(private_key) + "\n"
 
-        priv_key_str = self.config.get_or_create_private_config("node.privkey", _make_key)
-        priv_key = SigningKey.parse_encoded_key(priv_key_str)
-        pub_key_str = priv_key.public_key().encoded_key()
-        self.config.write_config_file("node.pubkey", pub_key_str + "\n")
-        self._node_key = priv_key
+        private_key_str = self.config.get_or_create_private_config("node.privkey", _make_key)
+        private_key, public_key = ed25519.signing_keypair_from_string(private_key_str)
+        public_key_str = ed25519.string_from_verifying_key(public_key)
+        self.config.write_config_file("node.pubkey", public_key_str + "\n")
+        self._node_private_key = private_key
+        self._node_public_key = public_key
 
     def get_long_nodeid(self):
         # this matches what IServer.get_longname() says about us elsewhere
-        vk_bytes = self._node_key.public_key().public_bytes()
-        return "v0-"+base32.b2a(vk_bytes)
+        vk_bytes = ed25519.bytes_from_verifying_key(self._node_public_key)
+        return "v0-" + base32.b2a(vk_bytes)
 
     def get_long_tubid(self):
         return idlib.nodeid_b2a(self.nodeid)
@@ -512,7 +512,7 @@ class _Client(node.Node, pollmixin.PollMixin):
             else:
                 # otherwise, we're free to use the more natural seed of our
                 # pubkey-based serverid
-                vk_bytes = self._node_key.public_key().public_bytes()
+                vk_bytes = ed25519.bytes_from_verifying_key(self._node_public_key)
                 seed = base32.b2a(vk_bytes)
             self.config.write_config_file("permutation-seed", seed+"\n")
         return seed.strip()
@@ -583,7 +583,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                "permutation-seed-base32": self._init_permutation_seed(ss),
                }
         for ic in self.introducer_clients:
-            ic.publish("storage", ann, self._node_key)
+            ic.publish("storage", ann, self._node_private_key)
 
     def init_client(self):
         helper_furl = self.config.get_config("client", "helper.furl", None)

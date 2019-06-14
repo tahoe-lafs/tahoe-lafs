@@ -15,7 +15,7 @@ from twisted.python.filepath import FilePath
 from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
 from allmydata import crypto
-from allmydata.crypto.ed25519 import SigningKey
+from allmydata.crypto import ed25519
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.client import IntroducerClient
 from allmydata.introducer.server import IntroducerService, FurlFileConflictError
@@ -202,21 +202,21 @@ class Client(AsyncTestCase):
         furl1a = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:7777/gydnp"
         furl2 = "pb://ttwwooyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/ttwwoo"
 
-        priv_key = SigningKey.generate()
-        pub_key_str = priv_key.public_key().encoded_key()
-        pubkey_s = crypto.remove_prefix(pub_key_str, "pub-")
+        private_key, public_key = ed25519.create_signing_keypair()
+        public_key_str = ed25519.string_from_verifying_key(public_key)
+        pubkey_s = crypto.remove_prefix(public_key_str, "pub-")
 
         # ann1: ic1, furl1
         # ann1a: ic1, furl1a (same SturdyRef, different connection hints)
         # ann1b: ic2, furl1
         # ann2: ic2, furl2
 
-        self.ann1 = make_ann_t(ic1, furl1, priv_key, seqnum=10)
-        self.ann1old = make_ann_t(ic1, furl1, priv_key, seqnum=9)
-        self.ann1noseqnum = make_ann_t(ic1, furl1, priv_key, seqnum=None)
-        self.ann1b = make_ann_t(ic2, furl1, priv_key, seqnum=11)
-        self.ann1a = make_ann_t(ic1, furl1a, priv_key, seqnum=12)
-        self.ann2 = make_ann_t(ic2, furl2, priv_key, seqnum=13)
+        self.ann1 = make_ann_t(ic1, furl1, private_key, seqnum=10)
+        self.ann1old = make_ann_t(ic1, furl1, private_key, seqnum=9)
+        self.ann1noseqnum = make_ann_t(ic1, furl1, private_key, seqnum=None)
+        self.ann1b = make_ann_t(ic2, furl1, private_key, seqnum=11)
+        self.ann1a = make_ann_t(ic1, furl1a, private_key, seqnum=12)
+        self.ann2 = make_ann_t(ic2, furl2, private_key, seqnum=13)
 
         ic1.remote_announce_v2([self.ann1]) # queues eventual-send
         d = fireEventually()
@@ -300,13 +300,13 @@ class Server(AsyncTestCase):
                                FilePath(self.mktemp()))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
 
-        priv_key = SigningKey.generate()
+        private_key, _ = ed25519.create_signing_keypair()
 
-        ann1 = make_ann_t(ic1, furl1, priv_key, seqnum=10)
-        ann1_old = make_ann_t(ic1, furl1, priv_key, seqnum=9)
-        ann1_new = make_ann_t(ic1, furl1, priv_key, seqnum=11)
-        ann1_noseqnum = make_ann_t(ic1, furl1, priv_key, seqnum=None)
-        ann1_badseqnum = make_ann_t(ic1, furl1, priv_key, seqnum="not an int")
+        ann1 = make_ann_t(ic1, furl1, private_key, seqnum=10)
+        ann1_old = make_ann_t(ic1, furl1, private_key, seqnum=9)
+        ann1_new = make_ann_t(ic1, furl1, private_key, seqnum=11)
+        ann1_noseqnum = make_ann_t(ic1, furl1, private_key, seqnum=None)
+        ann1_badseqnum = make_ann_t(ic1, furl1, private_key, seqnum="not an int")
 
         i.remote_publish_v2(ann1, None)
         all = i.get_announcements()
@@ -397,7 +397,7 @@ class Queue(SystemTestMixin, AsyncTestCase):
                              u"nickname", "version", "oldest", {}, fakeseq,
                              FilePath(self.mktemp()))
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
-        priv_key = SigningKey.generate()
+        private_key, _ = ed25519.create_signing_keypair()
 
         d = introducer.disownServiceParent()
 
@@ -405,7 +405,7 @@ class Queue(SystemTestMixin, AsyncTestCase):
             # now that the introducer server is offline, create a client and
             # publish some messages
             c.setServiceParent(self.parent) # this starts the reconnector
-            c.publish("storage", make_ann(furl1), priv_key)
+            c.publish("storage", make_ann(furl1), private_key)
 
             introducer.setServiceParent(self.parent) # restart the server
             # now wait for the messages to be delivered
@@ -486,16 +486,16 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             expected_announcements[i] += 1 # all expect a 'storage' announcement
 
             node_furl = tub.registerReference(Referenceable())
-            priv_key = SigningKey.generate()
-            pub_key_str = priv_key.public_key().encoded_key()
-            privkeys[i] = priv_key
-            pubkeys[i] = pub_key_str
+            private_key, public_key = ed25519.create_signing_keypair()
+            public_key_str = ed25519.string_from_verifying_key(public_key)
+            privkeys[i] = private_key
+            pubkeys[i] = public_key_str
 
             if i < NUM_STORAGE:
                 # sign all announcements
-                c.publish("storage", make_ann(node_furl), priv_key)
-                assert pub_key_str.startswith("pub-")
-                printable_serverids[i] = pub_key_str[len("pub-"):]
+                c.publish("storage", make_ann(node_furl), private_key)
+                assert public_key_str.startswith("pub-")
+                printable_serverids[i] = public_key_str[len("pub-"):]
                 publishing_clients.append(c)
             else:
                 # the last one does not publish anything
@@ -504,7 +504,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             if i == 2:
                 # also publish something that nobody cares about
                 boring_furl = tub.registerReference(Referenceable())
-                c.publish("boring", make_ann(boring_furl), priv_key)
+                c.publish("boring", make_ann(boring_furl), private_key)
 
             c.setServiceParent(self.parent)
             clients.append(c)
@@ -760,17 +760,16 @@ class Announcements(AsyncTestCase):
                                      fakeseq, FilePath(self.mktemp()))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
 
-        priv_key = SigningKey.generate()
-        pub_key = priv_key.public_key()
-        pks = crypto.remove_prefix(pub_key.encoded_key(), "pub-")
+        private_key, public_key = ed25519.create_signing_keypair()
+        public_key_str = crypto.remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
 
-        ann_t0 = make_ann_t(client_v2, furl1, priv_key, 10)
+        ann_t0 = make_ann_t(client_v2, furl1, private_key, 10)
         canary0 = Referenceable()
         introducer.remote_publish_v2(ann_t0, canary0)
         a = introducer.get_announcements()
         self.failUnlessEqual(len(a), 1)
         self.assertThat(a[0].canary, Is(canary0))
-        self.failUnlessEqual(a[0].index, ("storage", pks))
+        self.failUnlessEqual(a[0].index, ("storage", public_key_str))
         self.failUnlessEqual(a[0].announcement["app-versions"], app_versions)
         self.failUnlessEqual(a[0].nickname, u"nick-v2")
         self.failUnlessEqual(a[0].service_name, "storage")
@@ -800,11 +799,10 @@ class Announcements(AsyncTestCase):
 
         c = yield create_client(basedir)
         ic = c.introducer_clients[0]
-        priv_key = SigningKey.generate()
-        pub_key = priv_key.public_key()
-        pub_key_str = crypto.remove_prefix(pub_key.encoded_key(), "pub-")
+        private_key, public_key = ed25519.create_signing_keypair()
+        public_key_str = crypto.remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
-        ann_t = make_ann_t(ic, furl1, priv_key, 1)
+        ann_t = make_ann_t(ic, furl1, private_key, 1)
 
         ic.got_announcements([ann_t])
         yield flushEventualQueue()
@@ -812,7 +810,7 @@ class Announcements(AsyncTestCase):
         # check the cache for the announcement
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 1)
-        self.failUnlessEqual(announcements[0]['key_s'], pub_key_str)
+        self.failUnlessEqual(announcements[0]['key_s'], public_key_str)
         ann = announcements[0]["ann"]
         self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
         self.failUnlessEqual(ann["seqnum"], 1)
@@ -820,29 +818,28 @@ class Announcements(AsyncTestCase):
         # a new announcement that replaces the first should replace the
         # cached entry, not duplicate it
         furl2 = furl1 + "er"
-        ann_t2 = make_ann_t(ic, furl2, priv_key, 2)
+        ann_t2 = make_ann_t(ic, furl2, private_key, 2)
         ic.got_announcements([ann_t2])
         yield flushEventualQueue()
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 1)
-        self.failUnlessEqual(announcements[0]['key_s'], pub_key_str)
+        self.failUnlessEqual(announcements[0]['key_s'], public_key_str)
         ann = announcements[0]["ann"]
         self.failUnlessEqual(ann["anonymous-storage-FURL"], furl2)
         self.failUnlessEqual(ann["seqnum"], 2)
 
         # but a third announcement with a different key should add to the
         # cache
-        priv_key2 = SigningKey.generate()
-        pub_key2 = priv_key2.public_key()
-        pub_key_str2 = crypto.remove_prefix(pub_key2.encoded_key(), "pub-")
+        private_key2, public_key2 = ed25519.create_signing_keypair()
+        public_key_str2 = crypto.remove_prefix(ed25519.string_from_verifying_key(public_key2), "pub-")
         furl3 = "pb://onug64tu@127.0.0.1:456/short"
-        ann_t3 = make_ann_t(ic, furl3, priv_key2, 1)
+        ann_t3 = make_ann_t(ic, furl3, private_key2, 1)
         ic.got_announcements([ann_t3])
         yield flushEventualQueue()
 
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 2)
-        self.failUnlessEqual(set([pub_key_str, pub_key_str2]),
+        self.failUnlessEqual(set([public_key_str, public_key_str2]),
                              set([a["key_s"] for a in announcements]))
         self.failUnlessEqual(set([furl2, furl3]),
                              set([a["ann"]["anonymous-storage-FURL"]
@@ -860,17 +857,17 @@ class Announcements(AsyncTestCase):
         ic2._load_announcements() # normally happens when connection fails
         yield flushEventualQueue()
 
-        self.failUnless(pub_key_str in announcements)
-        self.failUnlessEqual(announcements[pub_key_str]["anonymous-storage-FURL"],
+        self.failUnless(public_key_str in announcements)
+        self.failUnlessEqual(announcements[public_key_str]["anonymous-storage-FURL"],
                              furl2)
-        self.failUnlessEqual(announcements[pub_key_str2]["anonymous-storage-FURL"],
+        self.failUnlessEqual(announcements[public_key_str2]["anonymous-storage-FURL"],
                              furl3)
 
         c2 = yield create_client(basedir)
         c2.introducer_clients[0]._load_announcements()
         yield flushEventualQueue()
         self.assertEqual(c2.storage_broker.get_all_serverids(),
-                         frozenset([pub_key_str, pub_key_str2]))
+                         frozenset([public_key_str, public_key_str2]))
 
 class ClientSeqnums(AsyncBrokenTestCase):
 
@@ -899,7 +896,7 @@ class ClientSeqnums(AsyncBrokenTestCase):
             f.close()
             return int(seqnum)
 
-        ic.publish("sA", {"key": "value1"}, c._node_key)
+        ic.publish("sA", {"key": "value1"}, c._node_private_key)
         self.failUnlessEqual(read_seqnum(), 1)
         self.failUnless("sA" in outbound)
         self.failUnlessEqual(outbound["sA"]["seqnum"], 1)
@@ -911,7 +908,7 @@ class ClientSeqnums(AsyncBrokenTestCase):
 
         # publishing a second service causes both services to be
         # re-published, with the next higher sequence number
-        ic.publish("sB", {"key": "value2"}, c._node_key)
+        ic.publish("sB", {"key": "value2"}, c._node_private_key)
         self.failUnlessEqual(read_seqnum(), 2)
         self.failUnless("sB" in outbound)
         self.failUnlessEqual(outbound["sB"]["seqnum"], 2)
@@ -986,8 +983,9 @@ class Signatures(SyncTestCase):
 
     def test_sign(self):
         ann = {"key1": "value1"}
-        priv_key = SigningKey.generate()
-        ann_t = sign_to_foolscap(ann, priv_key)
+        private_key, public_key = ed25519.create_signing_keypair()
+        public_key_str = ed25519.string_from_verifying_key(public_key)
+        ann_t = sign_to_foolscap(ann, private_key)
         (msg, sig, key) = ann_t
         self.failUnlessEqual(type(msg), type("".encode("utf-8"))) # bytes
         self.failUnlessEqual(json.loads(msg.decode("utf-8")), ann)
@@ -995,7 +993,7 @@ class Signatures(SyncTestCase):
         self.failUnless(key.startswith("v0-"))
         (ann2,key2) = unsign_from_foolscap(ann_t)
         self.failUnlessEqual(ann2, ann)
-        self.failUnlessEqual("pub-" + key2, priv_key.public_key().encoded_key())
+        self.failUnlessEqual("pub-" + key2, public_key_str)
 
         # not signed
         self.failUnlessRaises(UnknownKeyError,

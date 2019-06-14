@@ -14,11 +14,11 @@ Generate a public/private keypair, dumped to stdout as two lines of ASCII..
         return t
 
 def print_keypair(options):
-    from allmydata.crypto.ed25519 import SigningKey
+    from allmydata.crypto import ed25519
     out = options.stdout
-    priv_key = SigningKey.generate()
-    print("private:", priv_key.encoded_key(), file=out)
-    print("public:", priv_key.public_key().encoded_key(), file=out)
+    private_key, public_key = ed25519.create_signing_keypair()
+    print("private:", ed25519.string_from_signing_key(private_key), file=out)
+    print("public:", ed25519.string_from_verifying_key(public_key), file=out)
 
 class DerivePubkeyOptions(BaseOptions):
     def parseArgs(self, privkey):
@@ -38,11 +38,11 @@ generate-keypair, derive the public key and print it to stdout.
 
 def derive_pubkey(options):
     out = options.stdout
-    from allmydata.crypto.ed25519 import SigningKey
+    from allmydata.crypto import ed25519
     privkey_vs = options.privkey
-    priv_key = SigningKey.parse_encoded_key(privkey_vs)
-    print("private:", priv_key.encoded_key(), file=out)
-    print("public:", priv_key.public_key().encoded_key(), file=out)
+    private_key, public_key = ed25519.signing_keypair_from_string(privkey_vs)
+    print("private:", ed25519.string_from_signing_key(private_key), file=out)
+    print("public:", ed25519.string_from_verifying_key(public_key), file=out)
     return 0
 
 class AdminCommand(BaseOptions):

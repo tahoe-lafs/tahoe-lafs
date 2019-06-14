@@ -1,7 +1,7 @@
 import re
 import json
 from allmydata import crypto
-from allmydata.crypto.ed25519 import VerifyingKey
+from allmydata.crypto import ed25519
 from allmydata.util import base32, rrefutil
 
 
@@ -15,14 +15,26 @@ def get_tubid_string(furl):
     return m.group(1).lower()
 
 
-def sign_to_foolscap(ann, sk):
+def sign_to_foolscap(announcement, signing_key):
+    """
+    :param signing_key: a (private) signing key, as returned from
+        e.g. :func:`allmydata.crypto.ed25519.signing_keypair_from_string`
+
+    :returns: 3-tuple of (msg, sig, vk) where msg is a UTF8 JSON
+        serialization of the `announcement`, sig is bytes (a signature of
+        msg) and vk is the verifying key
+    """
     # return (bytes, sig-str, pubkey-str). A future HTTP-based serialization
     # will use JSON({msg:b64(JSON(msg).utf8), sig:v0-b64(sig),
     # pubkey:v0-b64(pubkey)}) .
-    msg = json.dumps(ann).encode("utf-8")
-    sig = "v0-"+base32.b2a(sk.sign(msg))
-    vk_bytes = sk.public_key().public_bytes()
-    ann_t = (msg, sig, "v0-"+base32.b2a(vk_bytes))
+    msg = json.dumps(announcement).encode("utf-8")
+    sig = "v0-" + base32.b2a(
+        ed25519.sign_data(signing_key, msg)
+    )
+    verifying_key_bytes = ed25519.bytes_from_verifying_key(
+        ed25519.verifying_key_from_signing_key(signing_key)
+    )
+    ann_t = (msg, sig, "v0-" + base32.b2a(verifying_key_bytes))
     return ann_t
 
 
@@ -39,9 +51,9 @@ def unsign_from_foolscap(ann_t):
     if not claimed_key_vs.startswith("v0-"):
         raise UnknownKeyError("only v0- keys recognized")
 
-    claimed_key = VerifyingKey.parse_encoded_key("pub-" + claimed_key_vs)
+    claimed_key = ed25519.verifying_key_from_string("pub-" + claimed_key_vs)
     sig_bytes = base32.a2b(crypto.remove_prefix(sig_vs, "v0-"))
-    claimed_key.verify(sig_bytes, msg)
+    ed25519.verify_signature(claimed_key, sig_bytes, msg)
     key_vs = claimed_key_vs
     ann = json.loads(msg.decode("utf-8"))
     return (ann, key_vs)
