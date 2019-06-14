@@ -25,6 +25,8 @@ from testtools.matchers import (
     Equals,
     AfterPreprocessing,
     MatchesListwise,
+    MatchesDict,
+    MatchesStructure,
 )
 from testtools.twistedsupport import (
     succeeded,
@@ -39,7 +41,11 @@ from allmydata.node import config_from_string
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
-from allmydata.util import base32, fileutil, encodingutil
+from allmydata.util import (
+    base32,
+    fileutil,
+    encodingutil,
+)
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
@@ -47,9 +53,13 @@ from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
 from .common import (
     SyncTestCase,
+    UseTestPlugins,
 )
 from .matchers import (
+    MatchesNodePublicKey,
+    MatchesSameElements,
     matches_anonymous_storage_announcement,
+    matches_furl,
 )
 
 BASECONFIG = ("[client]\n"
@@ -1068,17 +1078,24 @@ class StorageAnnouncementTests(SyncTestCase):
         create_node_dir(self.basedir, u"")
 
 
-    def get_config(self, storage_enabled):
+    def get_config(self, storage_enabled, more_storage=b"", more_sections=b""):
         return b"""
 [node]
 tub.location = tcp:192.0.2.0:1234
 
 [storage]
 enabled = {storage_enabled}
+{more_storage}
 
 [client]
 introducer.furl = pb://abcde@nowhere/fake
-""".format(storage_enabled=storage_enabled)
+
+{more_sections}
+""".format(
+    storage_enabled=storage_enabled,
+    more_storage=more_storage,
+    more_sections=more_sections,
+)
 
 
     def test_no_announcement(self):
@@ -1124,5 +1141,88 @@ introducer.furl = pb://abcde@nowhere/fake
                     # The only element in the list ...
                     matches_anonymous_storage_announcement(self.basedir),
                 ]),
+            )),
+        )
+
+
+    def test_single_storage_plugin_announcement(self):
+        """
+        The announcement from a single enabled storage plugin is published when
+        storage is enabled.
+        """
+        self.useFixture(UseTestPlugins())
+
+        config = config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+                more_sections=(
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    b"some = thing\n"
+                ),
+            ),
+        )
+        matches_dummy_announcement = MatchesStructure(
+            service_name=Equals("storage"),
+            ann=MatchesDict({
+                # Everyone gets a name and a fURL added to their announcement.
+                u"name": Equals(u"tahoe-lafs-dummy-v1"),
+                u"storage-server-FURL": matches_furl(),
+                # The plugin can contribute things, too.
+                u"value": Equals(u"thing"),
+            }),
+            signing_key=MatchesNodePublicKey(self.basedir),
+        )
+        self.assertThat(
+            client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
+            succeeded(AfterPreprocessing(
+                get_published_announcements,
+                MatchesListwise([
+                    matches_anonymous_storage_announcement(self.basedir),
+                    matches_dummy_announcement,
+                ]),
+            )),
+        )
+
+
+    def test_stable_storage_server_furl(self):
+        """
+        The value for the ``storage-server-FURL`` item in the announcement for a
+        particular storage server plugin is stable across different node
+        instantiations.
+        """
+        self.useFixture(UseTestPlugins())
+
+        config = config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+                more_sections=(
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    b"some = thing\n"
+                ),
+            ),
+        )
+        node_a = client.create_client_from_config(
+            config,
+            introducer_factory=MemoryIntroducerClient,
+        )
+        node_b = client.create_client_from_config(
+            config,
+            introducer_factory=MemoryIntroducerClient,
+        )
+
+        self.assertThat(
+            defer.gatherResults([node_a, node_b]),
+            succeeded(AfterPreprocessing(
+                lambda (a, b): (
+                    get_published_announcements(a),
+                    get_published_announcements(b),
+                ),
+                MatchesSameElements(),
             )),
         )
