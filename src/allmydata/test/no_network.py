@@ -249,7 +249,7 @@ class _NoNetworkClient(_Client):
     def init_key_gen(self):
         pass
     def init_storage(self):
-        pass
+        return defer.succeed(None)
     def init_client_storage_broker(self):
         self.storage_broker = NoNetworkStorageBroker()
         self.storage_broker.client = self
