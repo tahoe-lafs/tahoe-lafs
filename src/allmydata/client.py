@@ -551,6 +551,7 @@ class _Client(node.Node, pollmixin.PollMixin):
             self.config.write_config_file("permutation-seed", seed+"\n")
         return seed.strip()
 
+    @defer.inlineCallbacks
     def init_storage(self):
         # should we run a storage server (and publish it for others to use)?
         if not self.config.get_config("storage", "enabled", True, boolean=True):
@@ -619,9 +620,10 @@ class _Client(node.Node, pollmixin.PollMixin):
         for ic in self.introducer_clients:
             ic.publish("storage", ann, self._node_private_key)
 
-        self._init_storage_plugins()
+        yield self._init_storage_plugins()
 
 
+    @defer.inlineCallbacks
     def _init_storage_plugins(self):
         """
         Load, register, and announce any configured storage plugins.
@@ -629,7 +631,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         storage_plugin_names = self._get_enabled_storage_plugin_names()
         plugins = list(self._collect_storage_plugins(storage_plugin_names))
         # TODO What if some names aren't found?
-        announceable_storage_servers = self._create_plugin_storage_servers(plugins)
+        announceable_storage_servers = yield self._create_plugin_storage_servers(plugins)
         self._enable_storage_servers(announceable_storage_servers)
 
 
@@ -660,21 +662,28 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         Cause each storage plugin to instantiate its storage server and return
         them all.
+
+        :return: A ``Deferred`` that fires with storage servers instantiated
+            by all of the given storage server plugins.
         """
-        return list(
-            self._add_to_announcement(
-                {u"name": plugin.name},
+        return defer.gatherResults(
+            list(
                 plugin.get_storage_server(
                     self._get_storage_plugin_configuration(plugin.name),
-                    lambda: self.getServiceNamed(StorageServer.name)
-                ),
-            )
+                    lambda: self.getServiceNamed(StorageServer.name),
+                ).addCallback(
+                    partial(
+                        self._add_to_announcement,
+                        {u"name": plugin.name},
+                    ),
+                )
             for plugin
             # The order is fairly arbitrary and it is not meant to convey
             # anything but providing *some* stable ordering makes the data a
             # little easier to deal with (mainly in tests and when manually
             # inspecting it).
             in sorted(plugins, key=lambda p: p.name)
+            ),
         )
 
 
