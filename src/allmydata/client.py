@@ -6,6 +6,14 @@ from ConfigParser import NoSectionError
 
 import attr
 from zope.interface import implementer
+
+from eliot import (
+    start_action,
+)
+from eliot.twisted import (
+    DeferredContext,
+)
+
 from twisted.plugin import (
     getPlugins,
 )
@@ -456,7 +464,10 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
-        self.init_storage()
+
+        with start_action(action_type=u"client:init-storage").context():
+            DeferredContext(self.init_storage()).addActionFinish()
+
         self.init_control()
         self._key_generator = KeyGenerator()
         key_gen_furl = config.get_config("client", "key_generator.furl", None)
