@@ -8,7 +8,7 @@ from twisted.internet.interfaces import IPushProducer, IConsumer
 from foolscap.api import eventually, fireEventually, DeadReferenceError, \
      RemoteException
 
-from allmydata.crypto.aes import AES
+from allmydata.crypto import aes
 from allmydata.crypto import rsa
 from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError, \
      DownloadStopped, MDMF_VERSION, SDMF_VERSION
@@ -899,8 +899,9 @@ class Retrieve(object):
         self.log("decrypting segment %d" % self._current_segment)
         started = time.time()
         key = hashutil.ssk_readkey_data_hash(salt, self._node.get_readkey())
-        decryptor = AES(key)
-        plaintext = decryptor.process(segment)
+        # XXX make aes.* functions for decryption too .. even though its the same
+        decryptor = aes.create_encryptor(key)
+        plaintext = aes.encrypt_data(decryptor, segment)
         self._status.accumulate_decrypt_time(time.time() - started)
         return plaintext
 

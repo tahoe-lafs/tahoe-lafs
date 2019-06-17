@@ -7,7 +7,7 @@ from twisted.internet import defer
 
 from allmydata import uri
 from twisted.internet.interfaces import IConsumer
-from allmydata.crypto.aes import AES
+from allmydata.crypto import aes
 from allmydata.interfaces import IImmutableFileNode, IUploadResults
 from allmydata.util import consumer
 from allmydata.check_results import CheckResults, CheckAndRepairResults
@@ -201,8 +201,9 @@ class DecryptingConsumer(object):
         offset_big = offset // 16
         offset_small = offset % 16
         iv = binascii.unhexlify("%032x" % offset_big)
-        self._decryptor = AES(readkey, iv=iv)
-        self._decryptor.process("\x00"*offset_small)
+        self._decryptor = aes.create_decryptor(readkey, iv)
+        # this is just to advance the counter
+        aes.decrypt_data(self._decryptor, "\x00" * offset_small)
 
     def set_download_status_read_event(self, read_ev):
         self._read_ev = read_ev
@@ -219,7 +220,7 @@ class DecryptingConsumer(object):
         self._consumer.unregisterProducer()
     def write(self, ciphertext):
         started = now()
-        plaintext = self._decryptor.process(ciphertext)
+        plaintext = aes.decrypt_data(self._decryptor, ciphertext)
         if self._read_ev:
             elapsed = now() - started
             self._read_ev.update(0, elapsed, 0)

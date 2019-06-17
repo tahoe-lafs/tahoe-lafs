@@ -4,7 +4,7 @@ from zope.interface import implementer
 from twisted.internet import defer, reactor
 from foolscap.api import eventually
 
-from allmydata.crypto.aes import AES
+from allmydata.crypto import aes
 from allmydata.crypto import rsa
 from allmydata.interfaces import IMutableFileNode, ICheckable, ICheckResults, \
      NotEnoughSharesError, MDMF_VERSION, SDMF_VERSION, IMutableUploadable, \
@@ -160,13 +160,13 @@ class MutableFileNode(object):
         return contents(self)
 
     def _encrypt_privkey(self, writekey, privkey):
-        enc = AES(writekey)
-        crypttext = enc.process(privkey)
+        encryptor = aes.create_encryptor(writekey)
+        crypttext = aes.encrypt_data(encryptor, privkey)
         return crypttext
 
     def _decrypt_privkey(self, enc_privkey):
-        enc = AES(self._writekey)
-        privkey = enc.process(enc_privkey)
+        encryptor = aes.create_encryptor(self._writekey)
+        privkey = aes.encrypt_data(encryptor, enc_privkey)
         return privkey
 
     def _populate_pubkey(self, pubkey):
