@@ -9,6 +9,10 @@ from zope.interface import (
     implementer,
 )
 
+from twisted.internet.defer import (
+    succeed,
+)
+
 from foolscap.api import (
     RemoteInterface,
 )
@@ -38,9 +42,13 @@ class DummyStorage(object):
     name = attr.ib()
 
     def get_storage_server(self, configuration, get_anonymous_storage_server):
-        return AnnounceableStorageServer(
-            announcement={u"value": configuration.get(u"some", u"default-value")},
-            storage_server=DummyStorageServer(get_anonymous_storage_server),
+        announcement = {u"value": configuration.get(u"some", u"default-value")}
+        storage_server = DummyStorageServer(get_anonymous_storage_server)
+        return succeed(
+            AnnounceableStorageServer(
+                announcement,
+                storage_server,
+            ),
         )
 
 
