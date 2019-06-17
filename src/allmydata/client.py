@@ -90,6 +90,7 @@ def _valid_config():
             "readonly",
             "reserved_space",
             "storage_dir",
+            "plugins",
         ),
         "sftpd": (
             "accounts.file",
