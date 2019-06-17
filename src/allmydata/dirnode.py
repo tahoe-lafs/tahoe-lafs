@@ -6,7 +6,7 @@ from twisted.internet import defer
 from foolscap.api import fireEventually
 import json
 
-from allmydata.crypto.aes import AES
+from allmydata.crypto import aes
 from allmydata.deep_stats import DeepStats
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable.filenode import MutableFileNode
@@ -214,8 +214,8 @@ def _encrypt_rw_uri(writekey, rw_uri):
 
     salt = hashutil.mutable_rwcap_salt_hash(rw_uri)
     key = hashutil.mutable_rwcap_key_hash(salt, writekey)
-    cryptor = AES(key)
-    crypttext = cryptor.process(rw_uri)
+    encryptor = aes.create_encryptor(key)
+    crypttext = aes.encrypt_data(encryptor, rw_uri)
     mac = hashutil.hmac(key, salt + crypttext)
     assert len(mac) == 32
     return salt + crypttext + mac
@@ -331,8 +331,11 @@ class DirectoryNode(object):
         salt = encwrcap[:16]
         crypttext = encwrcap[16:-32]
         key = hashutil.mutable_rwcap_key_hash(salt, self._node.get_writekey())
-        cryptor = AES(key)
-        plaintext = cryptor.process(crypttext)
+        # XXX uhm, so maybe this is confusing even if it's what the
+        # original code was doing; worth making a aes.decrypt_data
+        # just to be more clear?
+        encryptor = aes.create_encryptor(key)
+        plaintext = aes.encrypt_data(encryptor, crypttext)
         return plaintext
 
     def _create_and_validate_node(self, rw_uri, ro_uri, name):

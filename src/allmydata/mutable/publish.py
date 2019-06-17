@@ -5,7 +5,7 @@ from zope.interface import implementer
 from twisted.internet import defer
 from twisted.python import failure
 
-from allmydata.crypto.aes import AES
+from allmydata.crypto import aes
 from allmydata.crypto import rsa
 from allmydata.interfaces import IPublishStatus, SDMF_VERSION, MDMF_VERSION, \
                                  IMutableUploadable
@@ -712,8 +712,8 @@ class Publish(object):
 
         key = hashutil.ssk_readkey_data_hash(salt, self.readkey)
         self._status.set_status("Encrypting")
-        enc = AES(key)
-        crypttext = enc.process(data)
+        encryptor = aes.create_encryptor(key)
+        crypttext = aes.encrypt_data(encryptor, data)
         assert len(crypttext) == len(data)
 
         now = time.time()

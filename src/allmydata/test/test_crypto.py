@@ -5,7 +5,7 @@ from base64 import b64decode
 from binascii import a2b_hex, b2a_hex
 from os import path
 
-from allmydata.crypto.aes import AES
+from allmydata.crypto import aes
 from allmydata.crypto import ed25519, rsa
 
 RESOURCE_DIR = path.join(path.dirname(__file__), 'data')
@@ -52,33 +52,34 @@ class TestRegression(unittest.TestCase):
         This was the old startup test run at import time in `pycryptopp.cipher.aes`.
         """
         enc0 = b"dc95c078a2408989ad48a21492842087530f8afbc74536b9a963b4f1c4cb738b"
-        cryptor = AES(key=b"\x00" * 32)
-        ct = cryptor.process(b"\x00" * 32)
+        cryptor = aes.create_encryptor(key=b"\x00" * 32)
+        ct = aes.decrypt_data(cryptor, b"\x00" * 32)
         self.failUnlessEqual(enc0, b2a_hex(ct))
 
-        cryptor = AES(key=b"\x00" * 32)
-        ct1 = cryptor.process(b"\x00" * 15)
-        ct2 = cryptor.process(b"\x00" * 17)
+        cryptor = aes.create_encryptor(key=b"\x00" * 32)
+        ct1 = aes.decrypt_data(cryptor, b"\x00" * 15)
+        ct2 = aes.decrypt_data(cryptor, b"\x00" * 17)
         self.failUnlessEqual(enc0, b2a_hex(ct1+ct2))
 
         enc0 = b"66e94bd4ef8a2c3b884cfa59ca342b2e"
-        cryptor = AES(key=b"\x00" * 16)
-        ct = cryptor.process(b"\x00" * 16)
+        cryptor = aes.create_encryptor(key=b"\x00" * 16)
+        ct = aes.decrypt_data(cryptor, b"\x00" * 16)
         self.failUnlessEqual(enc0, b2a_hex(ct))
 
-        cryptor = AES(key=b"\x00" * 16)
-        ct1 = cryptor.process(b"\x00" * 8)
-        ct2 = cryptor.process(b"\x00" * 8)
+        cryptor = aes.create_encryptor(key=b"\x00" * 16)
+        ct1 = aes.decrypt_data(cryptor, b"\x00" * 8)
+        ct2 = aes.decrypt_data(cryptor, b"\x00" * 8)
         self.failUnlessEqual(enc0, b2a_hex(ct1+ct2))
 
         def _test_from_Niels_AES(keysize, result):
             def fake_ecb_using_ctr(k, p):
-                return AES(key=k, iv=p).process(b'\x00' * 16)
+                encryptor = aes.create_encryptor(key=k, iv=p)
+                return aes.encrypt_data(encryptor, b'\x00' * 16)
 
             E = fake_ecb_using_ctr
             b = 16
             k = keysize
-            S = '\x00' * (k+b)
+            S = '\x00' * (k + b)
 
             for i in range(1000):
                 K = S[-k:]
@@ -104,8 +105,8 @@ class TestRegression(unittest.TestCase):
         plaintext = b'test'
         expected_ciphertext = b'\x7fEK\\'
 
-        aes = AES(self.AES_KEY)
-        ciphertext = aes.process(plaintext)
+        k = aes.create_encryptor(self.AES_KEY)
+        ciphertext = aes.decrypt_data(k, plaintext)
 
         self.failUnlessEqual(ciphertext, expected_ciphertext)
 
@@ -126,8 +127,8 @@ class TestRegression(unittest.TestCase):
             b'\x1f\xa1|\xd2$E\xb5\xe7\x9d\xae\xd1\x1f)\xe4\xc7\x83\xb8\xd5|dHhU\xc8\x9a\xb1\x10\xed'
             b'\xd1\xe7|\xd1')
 
-        aes = AES(self.AES_KEY)
-        ciphertext = aes.process(plaintext)
+        k = aes.create_encryptor(self.AES_KEY)
+        ciphertext = aes.decrypt_data(k, plaintext)
 
         self.failUnlessEqual(ciphertext, expected_ciphertext)
 
@@ -145,8 +146,8 @@ class TestRegression(unittest.TestCase):
         plaintext = b'test'
         expected_ciphertext = b'\x82\x0e\rt'
 
-        aes = AES(self.AES_KEY, iv=self.IV)
-        ciphertext = aes.process(plaintext)
+        k = aes.create_encryptor(self.AES_KEY, iv=self.IV)
+        ciphertext = aes.decrypt_data(k, plaintext)
 
         self.failUnlessEqual(ciphertext, expected_ciphertext)
 
@@ -167,8 +168,8 @@ class TestRegression(unittest.TestCase):
             b'\x97a\xdc\x100?\xf5L\x9f\xd9\xeeO\x98\xda\xf5g\x93\xa7q\xe1\xb1~\xf8\x1b\xe8[\\s'
             b'\x144$\x86\xeaC^f')
 
-        aes = AES(self.AES_KEY, iv=self.IV)
-        ciphertext = aes.process(plaintext)
+        k = aes.create_encryptor(self.AES_KEY, iv=self.IV)
+        ciphertext = aes.decrypt_data(k, plaintext)
 
         self.failUnlessEqual(ciphertext, expected_ciphertext)
 

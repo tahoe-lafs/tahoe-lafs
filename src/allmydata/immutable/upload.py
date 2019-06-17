@@ -5,7 +5,7 @@ from twisted.internet import defer
 from twisted.application import service
 from foolscap.api import Referenceable, Copyable, RemoteCopy, fireEventually
 
-from allmydata.crypto.aes import AES
+from allmydata.crypto import aes
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
@@ -946,8 +946,7 @@ class EncryptAnUploadable(object):
 
         d = self.original.get_encryption_key()
         def _got(key):
-            e = AES(key)
-            self._encryptor = e
+            self._encryptor = aes.create_encryptor(key)
 
             storage_index = storage_index_hash(key)
             assert isinstance(storage_index, str)
@@ -957,7 +956,7 @@ class EncryptAnUploadable(object):
             self._storage_index = storage_index
             if self._status:
                 self._status.set_storage_index(storage_index)
-            return e
+            return self._encryptor
         d.addCallback(_got)
         return d
 
@@ -1067,8 +1066,8 @@ class EncryptAnUploadable(object):
             # because the AES-CTR implementation doesn't offer a
             # way to change the counter value. Once it acquires
             # this ability, change this to simply update the counter
-            # before each call to (hash_only==False) _encryptor.process()
-            ciphertext = self._encryptor.process(chunk)
+            # before each call to (hash_only==False) encrypt_data
+            ciphertext = aes.encrypt_data(self._encryptor, chunk)
             if hash_only:
                 self.log("  skipping encryption", level=log.NOISY)
             else:
