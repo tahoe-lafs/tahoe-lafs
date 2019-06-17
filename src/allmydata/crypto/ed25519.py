@@ -132,14 +132,6 @@ def signing_keypair_from_string(private_key_str):
     )
 
 
-def verifying_key_from_string(public_key_str):
-    """
-    Load a verifying key from a string
-
-    :returns: a public_key
-    """
-
-
 def verifying_key_from_bytes(public_key_bytes):
     """
     Load a verifying key from bytes
@@ -193,6 +185,11 @@ def verify_signature(public_key, alleged_signature, data):
 
 
 def verifying_key_from_string(public_key_str):
+    """
+    Load a verifying key from a string
+
+    :returns: a public_key
+    """
     return verifying_key_from_bytes(
         a2b(remove_prefix(public_key_str, PUBLIC_KEY_PREFIX))
     )
