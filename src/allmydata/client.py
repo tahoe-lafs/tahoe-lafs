@@ -19,7 +19,7 @@ from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (hashutil, base32, pollmixin, log, keyutil, idlib,
-                            yamlutil)
+                            yamlutil, configutil)
 from allmydata.util.encodingutil import (get_filesystem_encoding,
                                          from_utf8_or_none)
 from allmydata.util.abbreviate import parse_abbreviated_size
@@ -40,9 +40,9 @@ GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
 
-def _valid_config_sections():
-    cfg = node._common_config_sections()
-    cfg.update({
+def _valid_config():
+    cfg = node._common_valid_config()
+    return cfg.update(configutil.ValidConfiguration({
         "client": (
             "helper.furl",
             "introducer.furl",
@@ -94,8 +94,7 @@ def _valid_config_sections():
             "local.directory",
             "poll_interval",
         ),
-    })
-    return cfg
+    }))
 
 # this is put into README in new node-directories
 CLIENT_README = """
@@ -182,7 +181,7 @@ def read_config(basedir, portnumfile, generated_files=[]):
     return node.read_config(
         basedir, portnumfile,
         generated_files=generated_files,
-        _valid_config_sections=_valid_config_sections,
+        _valid_config=_valid_config(),
     )
 
 
