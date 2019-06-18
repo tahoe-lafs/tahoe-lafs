@@ -28,29 +28,23 @@ class TestRegression(unittest.TestCase):
     IV = b'\x96\x1c\xa0\xbcUj\x89\xc1\x85J\x1f\xeb=\x17\x04\xca'
 
     with open(path.join(RESOURCE_DIR, 'pycryptopp-rsa-2048-priv.txt')) as f:
-        '''
-        Created using `pycryptopp`:
-
-            from base64 import b64encode
-            from pycryptopp.publickey import rsa
-            priv = rsa.generate(2048)
-            priv_str = b64encode(priv.serialize())
-            pub_str = b64encode(priv.get_verifying_key().serialize())
-        '''
+        # Created using `pycryptopp`:
+        #
+        #     from base64 import b64encode
+        #     from pycryptopp.publickey import rsa
+        #     priv = rsa.generate(2048)
+        #     priv_str = b64encode(priv.serialize())
+        #     pub_str = b64encode(priv.get_verifying_key().serialize())
         RSA_2048_PRIV_KEY = six.b(b64decode(f.read().strip()))
 
     with open(path.join(RESOURCE_DIR, 'pycryptopp-rsa-2048-sig.txt')) as f:
-        '''
-        Signature created using `RSA_2048_PRIV_KEY` via:
-
-            sig = priv.sign(b'test')
-        '''
+        # Signature created using `RSA_2048_PRIV_KEY` via:
+        #
+        #     sig = priv.sign(b'test')
         RSA_2048_SIG = six.b(b64decode(f.read().strip()))
 
     with open(path.join(RESOURCE_DIR, 'pycryptopp-rsa-2048-pub.txt')) as f:
-        '''
-        The public key corresponding to `RSA_2048_PRIV_KEY`.
-        '''
+        # The public key corresponding to `RSA_2048_PRIV_KEY`.
         RSA_2048_PUB_KEY = six.b(b64decode(f.read().strip()))
 
     def test_old_start_up_test(self):
@@ -60,22 +54,22 @@ class TestRegression(unittest.TestCase):
         enc0 = b"dc95c078a2408989ad48a21492842087530f8afbc74536b9a963b4f1c4cb738b"
         cryptor = aes.create_encryptor(key=b"\x00" * 32)
         ct = aes.decrypt_data(cryptor, b"\x00" * 32)
-        self.failUnlessEqual(enc0, b2a_hex(ct))
+        self.assertEqual(enc0, b2a_hex(ct))
 
         cryptor = aes.create_encryptor(key=b"\x00" * 32)
         ct1 = aes.decrypt_data(cryptor, b"\x00" * 15)
         ct2 = aes.decrypt_data(cryptor, b"\x00" * 17)
-        self.failUnlessEqual(enc0, b2a_hex(ct1+ct2))
+        self.assertEqual(enc0, b2a_hex(ct1+ct2))
 
         enc0 = b"66e94bd4ef8a2c3b884cfa59ca342b2e"
         cryptor = aes.create_encryptor(key=b"\x00" * 16)
         ct = aes.decrypt_data(cryptor, b"\x00" * 16)
-        self.failUnlessEqual(enc0, b2a_hex(ct))
+        self.assertEqual(enc0, b2a_hex(ct))
 
         cryptor = aes.create_encryptor(key=b"\x00" * 16)
         ct1 = aes.decrypt_data(cryptor, b"\x00" * 8)
         ct2 = aes.decrypt_data(cryptor, b"\x00" * 8)
-        self.failUnlessEqual(enc0, b2a_hex(ct1+ct2))
+        self.assertEqual(enc0, b2a_hex(ct1+ct2))
 
         def _test_from_Niels_AES(keysize, result):
             def fake_ecb_using_ctr(k, p):
@@ -92,7 +86,7 @@ class TestRegression(unittest.TestCase):
                 P = S[-k-b:-k]
                 S += E(K, E(K, P))
 
-            self.failUnlessEqual(S[-b:], a2b_hex(result))
+            self.assertEqual(S[-b:], a2b_hex(result))
 
         _test_from_Niels_AES(16, b'bd883f01035e58f42f9d812f2dacbcd8')
         _test_from_Niels_AES(32, b'c84b0f3a2c76dd9871900b07f09bdd3e')
@@ -114,7 +108,7 @@ class TestRegression(unittest.TestCase):
         k = aes.create_encryptor(self.AES_KEY)
         ciphertext = aes.decrypt_data(k, plaintext)
 
-        self.failUnlessEqual(ciphertext, expected_ciphertext)
+        self.assertEqual(ciphertext, expected_ciphertext)
 
     def test_aes_no_iv_process_long_input(self):
         '''
@@ -136,7 +130,7 @@ class TestRegression(unittest.TestCase):
         k = aes.create_encryptor(self.AES_KEY)
         ciphertext = aes.decrypt_data(k, plaintext)
 
-        self.failUnlessEqual(ciphertext, expected_ciphertext)
+        self.assertEqual(ciphertext, expected_ciphertext)
 
     def test_aes_with_iv_process_short_input(self):
         '''
@@ -155,7 +149,7 @@ class TestRegression(unittest.TestCase):
         k = aes.create_encryptor(self.AES_KEY, iv=self.IV)
         ciphertext = aes.decrypt_data(k, plaintext)
 
-        self.failUnlessEqual(ciphertext, expected_ciphertext)
+        self.assertEqual(ciphertext, expected_ciphertext)
 
     def test_aes_with_iv_process_long_input(self):
         '''
@@ -177,7 +171,7 @@ class TestRegression(unittest.TestCase):
         k = aes.create_encryptor(self.AES_KEY, iv=self.IV)
         ciphertext = aes.decrypt_data(k, plaintext)
 
-        self.failUnlessEqual(ciphertext, expected_ciphertext)
+        self.assertEqual(ciphertext, expected_ciphertext)
 
     def test_decode_ed15519_keypair(self):
         '''
@@ -204,13 +198,13 @@ class TestRegression(unittest.TestCase):
         private_key, derived_public_key = ed25519.signing_keypair_from_string(priv_str)
         public_key = ed25519.verifying_key_from_string(pub_str)
 
-        self.failUnlessEqual(
+        self.assertEqual(
             ed25519.bytes_from_verifying_key(public_key),
             ed25519.bytes_from_verifying_key(derived_public_key),
         )
 
         new_sig = ed25519.sign_data(private_key, test_data)
-        self.failUnlessEqual(new_sig, sig)
+        self.assertEqual(new_sig, sig)
 
         ed25519.verify_signature(public_key, new_sig, test_data)
         ed25519.verify_signature(derived_public_key, new_sig, test_data)
@@ -285,11 +279,11 @@ class TestEd25519(unittest.TestCase):
 
         private_key2, public_key2 = ed25519.signing_keypair_from_string(private_key_str)
 
-        self.failUnlessEqual(
+        self.assertEqual(
             ed25519.bytes_from_signing_key(private_key),
             ed25519.bytes_from_signing_key(private_key2),
         )
-        self.failUnlessEqual(
+        self.assertEqual(
             ed25519.bytes_from_verifying_key(public_key),
             ed25519.bytes_from_verifying_key(public_key2),
         )
@@ -302,7 +296,7 @@ class TestEd25519(unittest.TestCase):
 
         public_key2 = ed25519.verifying_key_from_string(public_key_str)
 
-        self.failUnlessEqual(
+        self.assertEqual(
             ed25519.bytes_from_verifying_key(public_key),
             ed25519.bytes_from_verifying_key(public_key2),
         )
