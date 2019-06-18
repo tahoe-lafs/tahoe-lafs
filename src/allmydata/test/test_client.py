@@ -30,7 +30,7 @@ import allmydata
 import allmydata.frontends.magic_folder
 import allmydata.util.log
 
-from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, read_config, create_node_dir
+from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, create_node_dir
 from allmydata.node import config_from_string
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
