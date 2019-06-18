@@ -21,7 +21,7 @@ RSA_PSS_SALT_LENGTH = 32
 
 def create_signing_keypair(key_size):
     """
-    Create a new RSA signing keypair from scratch. Can be used with
+    Create a new RSA signing (private) keypair from scratch. Can be used with
     `sign_data` function.
 
     :param int key_size: length of key in bits
@@ -38,7 +38,8 @@ def create_signing_keypair(key_size):
 
 def create_signing_keypair_from_string(private_key_der):
     """
-    Create an RSA signing key from a previously serialized private key.
+    Create an RSA signing (private) key from a previously serialized
+    private key.
 
     :returns: 2-tuple of (private_key, public_key)
     """
@@ -64,7 +65,7 @@ def der_string_from_signing_key(private_key):
 
 def der_string_from_verifying_key(public_key):
     """
-    Serializes a given RSA private key to a DER string
+    Serializes a given RSA public key to a DER string
     """
     _validate_public_key(public_key)
     return public_key.public_bytes(
