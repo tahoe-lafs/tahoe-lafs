@@ -793,8 +793,6 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         f = EncryptedTemporaryFile()
         f.write("foobar")
         f.close()
-        print(f.file)
-        print(dir(f.file))
 
 
 class PollMixinTests(unittest.TestCase):
