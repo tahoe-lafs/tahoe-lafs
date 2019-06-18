@@ -13,8 +13,6 @@ from allmydata.web.logs import TokenAuthenticatedWebSocketServerProtocol
 class TestStreamingLogs(unittest.TestCase):
     """
     Test websocket streaming of logs
-
-    Note: depends on un-merged Autobahn branch
     """
 
     def setUp(self):
@@ -28,6 +26,9 @@ class TestStreamingLogs(unittest.TestCase):
 
     @inlineCallbacks
     def test_one_log(self):
+        """
+        write a single Eliot log and see it streamed via websocket
+        """
 
         proto = yield self.agent.open(
             transport_config=u"ws://localhost:1234/ws",
