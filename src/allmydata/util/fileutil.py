@@ -112,7 +112,7 @@ class EncryptedTemporaryFile(object):
         cipher = aes.create_encryptor(self.key, iv)
         # this is just to advance the counter
         aes.encrypt_data(cipher, "\x00" * offset_small)
-        return aes.encrypt_data(ciper, data)
+        return aes.encrypt_data(cipher, data)
 
     def close(self):
         self.file.close()

@@ -788,6 +788,14 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessFalse(symlinkinfo.isfile)
         self.failUnlessFalse(symlinkinfo.isdir)
 
+    def test_encrypted_tempfile(self):
+        from allmydata.util.fileutil import EncryptedTemporaryFile
+        f = EncryptedTemporaryFile()
+        f.write("foobar")
+        f.close()
+        print(f.file)
+        print(dir(f.file))
+
 
 class PollMixinTests(unittest.TestCase):
     def setUp(self):
