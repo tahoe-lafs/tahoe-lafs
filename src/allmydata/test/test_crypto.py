@@ -238,7 +238,7 @@ class TestRegression(unittest.TestCase):
         '''
         key = '\x00' * 12
         with self.assertRaises(ValueError) as ctx:
-            encryptor = aes.create_encryptor(key)
+            aes.create_encryptor(key)
         self.assertIn(
             "16 or 32 bytes long",
             str(ctx.exception)
@@ -250,7 +250,7 @@ class TestRegression(unittest.TestCase):
         '''
         key = '\x00' * 16
         with self.assertRaises(TypeError) as ctx:
-            encryptor = aes.create_encryptor(key, iv=six.text_type("1234567890abcdef"))
+            aes.create_encryptor(key, iv=six.text_type("1234567890abcdef"))
         self.assertIn(
             "was not bytes",
             str(ctx.exception)
@@ -262,7 +262,7 @@ class TestRegression(unittest.TestCase):
         '''
         key = '\x00' * 16
         with self.assertRaises(ValueError) as ctx:
-            encryptor = aes.create_encryptor(key, iv='\x00' * 3)
+            aes.create_encryptor(key, iv='\x00' * 3)
         self.assertIn(
             "16 bytes long",
             str(ctx.exception)
