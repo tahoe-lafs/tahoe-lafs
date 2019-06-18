@@ -29,6 +29,11 @@ if six.PY3:
 
 
 def sha256(data):
+    """
+    :param bytes data: data to hash
+
+    :returns: a hex-encoded SHA256 hash of the data
+    """
     return binascii.hexlify(hashlib.sha256(data).digest())
 
 
