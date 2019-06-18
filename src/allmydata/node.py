@@ -25,8 +25,8 @@ from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
 
-def _common_config_sections():
-    return {
+def _common_valid_config():
+    return configutil.ValidConfiguration({
         "connections": (
             "tcp",
         ),
@@ -63,7 +63,7 @@ def _common_config_sections():
             "onion.external_port",
             "onion.private_key_file",
         ),
-    }
+    })
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
@@ -152,7 +152,7 @@ def create_node_dir(basedir, readme_text):
             f.write(readme_text)
 
 
-def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections=None):
+def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
     """
     Read and validate configuration.
 
@@ -163,15 +163,14 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
     :param list generated_files: a list of automatically-generated
         configuration files.
 
-    :param dict _valid_config_sections: (internal use, optional) a
-        dict-of-dicts structure defining valid configuration sections and
-        keys
+    :param ValidConfiguration _valid_config: (internal use, optional) a
+        structure defining valid configuration sections and keys
 
     :returns: :class:`allmydata.node._Config` instance
     """
     basedir = abspath_expanduser_unicode(unicode(basedir))
-    if _valid_config_sections is None:
-        _valid_config_sections = _common_config_sections
+    if _valid_config is None:
+        _valid_config = _common_valid_config()
 
     # complain if there's bad stuff in the config dir
     _error_about_old_config_files(basedir, generated_files)
@@ -188,7 +187,7 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config_sections
         if e.errno != errno.ENOENT:
             raise
 
-    configutil.validate_config(config_fname, parser, _valid_config_sections())
+    configutil.validate_config(config_fname, parser, _valid_config)
 
     # make sure we have a private configuration area
     fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)

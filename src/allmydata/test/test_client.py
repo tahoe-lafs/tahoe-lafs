@@ -9,7 +9,7 @@ import allmydata
 import allmydata.frontends.magic_folder
 import allmydata.util.log
 
-from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, read_config, create_node_dir
+from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, create_node_dir
 from allmydata.node import config_from_string
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
@@ -100,10 +100,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         try:
             e = self.assertRaises(
                 EnvironmentError,
-                read_config,
+                client.read_config,
                 basedir,
                 "client.port",
-                _valid_config_sections=client._valid_config_sections,
             )
             self.assertIn("Permission denied", str(e))
         finally:
@@ -128,10 +127,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         e = self.failUnlessRaises(
             OldConfigError,
-            read_config,
+            client.read_config,
             basedir,
             "client.port",
-            _valid_config_sections=client._valid_config_sections,
         )
         abs_basedir = fileutil.abspath_expanduser_unicode(unicode(basedir)).encode(sys.getfilesystemencoding())
         self.failUnlessIn(os.path.join(abs_basedir, "introducer.furl"), e.args[0])
