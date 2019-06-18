@@ -56,7 +56,7 @@ decrypt_data = encrypt_data
 
 def _validate_encryptor(encryptor):
     """
-    raise ValueError for `encryptor` is not a valid object
+    raise ValueError if `encryptor` is not a valid object
     """
     if not isinstance(encryptor, CipherContext):
         raise ValueError(
@@ -77,7 +77,9 @@ def _validate_key(key):
 
 def _validate_iv(iv):
     """
-    confirm `iv` is a suitable initialization vector
+    Returns a suitable initialiation vector. If `iv` is `None`, a
+    default is returned. If `iv` is not a suitable initialization
+    vector an error is raised. `iv` is returned if it valid.
     """
     if iv is None:
         return DEFAULT_IV
