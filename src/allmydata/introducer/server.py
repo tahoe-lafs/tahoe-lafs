@@ -30,10 +30,7 @@ are set to disallow users other than its owner from reading the contents of
 the files.   See the 'configuration.rst' documentation file for details.
 """
 
-
-def _valid_config_sections():
-    return node._common_config_sections()
-
+_valid_config = node._common_valid_config
 
 class FurlFileConflictError(Exception):
     pass
@@ -52,7 +49,7 @@ def create_introducer(basedir=u"."):
         config = read_config(
             basedir, u"client.port",
             generated_files=["introducer.furl"],
-            _valid_config_sections=_valid_config_sections,
+            _valid_config=_valid_config(),
         )
 
         i2p_provider = create_i2p_provider(reactor, config)
