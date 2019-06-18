@@ -1,12 +1,21 @@
 class BadSignature(Exception):
-    pass
+    """
+    An alleged signature did not match
+    """
 
 
 class BadPrefixError(Exception):
-    pass
+    """
+    A key did not start with the required prefix
+    """
 
 
 def remove_prefix(s_bytes, prefix):
+    """
+    Removes `prefix` from `s_bytes` safely
+    """
     if not s_bytes.startswith(prefix):
-        raise BadPrefixError("did not see expected '%s' prefix" % (prefix,))
+        raise BadPrefixError(
+            "did not see expected '{}' prefix".format(prefix)
+        )
     return s_bytes[len(prefix):]
