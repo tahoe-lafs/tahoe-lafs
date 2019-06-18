@@ -28,8 +28,15 @@ def create_signing_keypair(key_size):
 
     :returns: 2-tuple of (private_key, public_key)
     """
+    # as per
+    # https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/#cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key
+    # and
+    # https://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.htmlhttps://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
+    # the public exponent is 65537
+    # (I *believe* that pycryptopp would have used cryptopp's default,
+    # though, which is 17)
     priv_key = rsa.generate_private_key(
-        public_exponent=65537,  # serisously don't change this value
+        public_exponent=65537,
         key_size=key_size,
         backend=default_backend()
     )
