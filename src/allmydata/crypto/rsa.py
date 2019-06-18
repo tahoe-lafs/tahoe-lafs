@@ -112,6 +112,7 @@ def verify_signature(public_key, alleged_signature, data):
 
     :param bytes data: the data which was allegedly signed
     """
+    _validate_public_key(public_key)
     try:
         public_key.verify(
             alleged_signature,
@@ -133,7 +134,7 @@ def _validate_public_key(public_key):
     """
     if not isinstance(public_key, rsa.RSAPublicKey):
         raise ValueError(
-            "public_key not an RSAPublicKey"
+            "public_key must be an RSAPublicKey"
         )
 
 
@@ -144,5 +145,5 @@ def _validate_private_key(private_key):
     """
     if not isinstance(private_key, rsa.RSAPrivateKey):
         raise ValueError(
-            "private_key not an RSAPrivateKey"
+            "private_key must be an RSAPrivateKey"
         )

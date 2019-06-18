@@ -1012,6 +1012,27 @@ class Signatures(SyncTestCase):
         self.failUnlessRaises(UnknownKeyError,
                               unsign_from_foolscap, (bad_msg, sig, "v999-key"))
 
+    def test_unsigned_announcement(self):
+        from allmydata.crypto import ed25519
+        ed25519.verifying_key_from_string("pub-v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
+        mock_tub = Mock()
+        ic = IntroducerClient(
+            mock_tub,
+            u"pb://",
+            u"fake_nick",
+            "0.0.0",
+            "1.2.3",
+            {},
+            (0, u"i am a nonce"),
+            "invalid",
+        )
+        self.assertEqual(0, ic._debug_counts["inbound_announcement"])
+        ic.got_announcements([
+            ("message", "v0-aaaaaaa", "v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
+        ])
+        # we should have rejected this announcement due to a bad signature
+        self.assertEqual(0, ic._debug_counts["inbound_announcement"])
+
 
 # add tests of StorageFarmBroker: if it receives duplicate announcements, it
 # should leave the Reconnector in place, also if it receives

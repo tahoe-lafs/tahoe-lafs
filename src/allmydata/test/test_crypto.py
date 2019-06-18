@@ -5,8 +5,14 @@ from base64 import b64decode
 from binascii import a2b_hex, b2a_hex
 from os import path
 
-from allmydata.crypto import aes
-from allmydata.crypto import ed25519, rsa
+from allmydata.crypto import (
+    aes,
+    ed25519,
+    rsa,
+    remove_prefix,
+    BadPrefixError
+)
+
 
 RESOURCE_DIR = path.join(path.dirname(__file__), 'data')
 
@@ -219,6 +225,55 @@ class TestRegression(unittest.TestCase):
         priv_key, pub_key = rsa.create_signing_keypair_from_string(self.RSA_2048_PRIV_KEY)
         rsa.verify_signature(pub_key, self.RSA_2048_SIG, b'test')
 
+    def test_encrypt_data_not_bytes(self):
+        '''
+        only bytes can be encrypted
+        '''
+        key = '\x00' * 16
+        encryptor = aes.create_encryptor(key)
+        with self.assertRaises(ValueError) as ctx:
+            aes.encrypt_data(encryptor, six.text_type("not bytes"))
+        self.assertIn(
+            "was not bytes",
+            str(ctx.exception)
+        )
+
+    def test_key_incorrect_size(self):
+        '''
+        only bytes can be encrypted
+        '''
+        key = '\x00' * 12
+        with self.assertRaises(ValueError) as ctx:
+            encryptor = aes.create_encryptor(key)
+        self.assertIn(
+            "16 or 32 bytes long",
+            str(ctx.exception)
+        )
+
+    def test_iv_not_bytes(self):
+        '''
+        iv must be bytes
+        '''
+        key = '\x00' * 16
+        with self.assertRaises(TypeError) as ctx:
+            encryptor = aes.create_encryptor(key, iv=six.text_type("1234567890abcdef"))
+        self.assertIn(
+            "was not bytes",
+            str(ctx.exception)
+        )
+
+    def test_incorrect_iv_size(self):
+        '''
+        iv must be 16 bytes
+        '''
+        key = '\x00' * 16
+        with self.assertRaises(ValueError) as ctx:
+            encryptor = aes.create_encryptor(key, iv='\x00' * 3)
+        self.assertIn(
+            "16 bytes long",
+            str(ctx.exception)
+        )
+
 
 class TestEd25519(unittest.TestCase):
 
@@ -252,6 +307,88 @@ class TestEd25519(unittest.TestCase):
             ed25519.bytes_from_verifying_key(public_key2),
         )
 
+    def test_deserialize_private_not_bytes(self):
+        '''
+        serialized key must be bytes
+        '''
+        with self.assertRaises(ValueError) as ctx:
+            ed25519.signing_keypair_from_bytes(six.text_type("not bytes"))
+        self.assertIn(
+            "must be bytes",
+            str(ctx.exception)
+        )
+
+    def test_deserialize_public_not_bytes(self):
+        '''
+        serialized key must be bytes
+        '''
+        with self.assertRaises(ValueError) as ctx:
+            ed25519.verifying_key_from_bytes(six.text_type("not bytes"))
+        self.assertIn(
+            "must be bytes",
+            str(ctx.exception)
+        )
+
+    def test_signed_data_not_bytes(self):
+        '''
+        data to sign must be bytes
+        '''
+        priv, pub = ed25519.create_signing_keypair()
+        with self.assertRaises(ValueError) as ctx:
+            ed25519.sign_data(priv, six.text_type("not bytes"))
+        self.assertIn(
+            "must be bytes",
+            str(ctx.exception)
+        )
+
+    def test_signature_not_bytes(self):
+        '''
+        signature must be bytes
+        '''
+        priv, pub = ed25519.create_signing_keypair()
+        with self.assertRaises(ValueError) as ctx:
+            ed25519.verify_signature(pub, six.text_type("not bytes"), b"data")
+        self.assertIn(
+            "must be bytes",
+            str(ctx.exception)
+        )
+
+    def test_signature_data_not_bytes(self):
+        '''
+        signature must be bytes
+        '''
+        priv, pub = ed25519.create_signing_keypair()
+        with self.assertRaises(ValueError) as ctx:
+            ed25519.verify_signature(pub, b"signature", six.text_type("not bytes"))
+        self.assertIn(
+            "must be bytes",
+            str(ctx.exception)
+        )
+
+    def test_sign_invalid_pubkey(self):
+        '''
+        pubkey must be correct
+        '''
+        priv, pub = ed25519.create_signing_keypair()
+        with self.assertRaises(ValueError) as ctx:
+            ed25519.sign_data(object(), b"data")
+        self.assertIn(
+            "must be an Ed25519PrivateKey",
+            str(ctx.exception)
+        )
+
+    def test_verify_invalid_pubkey(self):
+        '''
+        pubkey must be correct
+        '''
+        priv, pub = ed25519.create_signing_keypair()
+        with self.assertRaises(ValueError) as ctx:
+            ed25519.verify_signature(object(), b"signature", b"data")
+        self.assertIn(
+            "must be an Ed25519PublicKey",
+            str(ctx.exception)
+        )
+
 
 class TestRsa(unittest.TestCase):
 
@@ -279,3 +416,40 @@ class TestRsa(unittest.TestCase):
         # ..and a failed way
         with self.assertRaises(rsa.BadSignature):
             rsa.verify_signature(pub_key, sig1, data_to_sign + b"more")
+
+    def test_sign_invalid_pubkey(self):
+        '''
+        pubkey must be correct
+        '''
+        priv, pub = rsa.create_signing_keypair(1024)
+        with self.assertRaises(ValueError) as ctx:
+            rsa.sign_data(object(), b"data")
+        self.assertIn(
+            "must be an RSAPrivateKey",
+            str(ctx.exception)
+        )
+
+    def test_verify_invalid_pubkey(self):
+        '''
+        pubkey must be correct
+        '''
+        priv, pub = rsa.create_signing_keypair(1024)
+        with self.assertRaises(ValueError) as ctx:
+            rsa.verify_signature(object(), b"signature", b"data")
+        self.assertIn(
+            "must be an RSAPublicKey",
+            str(ctx.exception)
+        )
+
+
+class TestUtil(unittest.TestCase):
+
+    def test_remove_prefix_good(self):
+        self.assertEquals(
+            remove_prefix(b"foobar", b"foo"),
+            b"bar"
+        )
+
+    def test_remove_prefix_bad(self):
+        with self.assertRaises(BadPrefixError):
+            remove_prefix(b"foobar", b"bar")
