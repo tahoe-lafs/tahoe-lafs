@@ -38,6 +38,9 @@ from eliot import (
     log_call,
 )
 from foolscap.api import eventually
+from foolscap.reconnector import (
+    ReconnectionInfo,
+)
 from allmydata.interfaces import (
     IStorageBroker,
     IDisplayableServer,
@@ -257,7 +260,7 @@ class StorageFarmBroker(service.MultiService):
         # tubids. This clause maps the old tubids to our existing servers.
         for s in self.servers.values():
             if isinstance(s, NativeStorageServer):
-                if serverid == s._tubid:
+                if serverid == s.get_tubid():
                     return s
         return StubServer(serverid)
 
@@ -273,6 +276,116 @@ class StubServer(object):
         return base32.b2a(self.serverid)
     def get_nickname(self):
         return "?"
+
+class _AnonymousStorage(object):
+    """
+    Abstraction for connecting to an anonymous storage server.
+    """
+    @classmethod
+    def from_announcement(cls, server_id, ann):
+        """
+        Create an instance from an announcement like::
+
+            {"anonymous-storage-FURL": "pb://...@...",
+             "permutation-seed-base32": "...",
+             "nickname": "...",
+            }
+
+        *nickname* is optional.
+        """
+        self = cls()
+        self._furl = str(ann["anonymous-storage-FURL"])
+        m = re.match(r'pb://(\w+)@', self._furl)
+        assert m, self._furl
+        tubid_s = m.group(1).lower()
+        self._tubid = base32.a2b(tubid_s)
+        if "permutation-seed-base32" in ann:
+            ps = base32.a2b(str(ann["permutation-seed-base32"]))
+        elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
+            ps = base32.a2b(server_id[3:])
+        else:
+            log.msg("unable to parse serverid '%(server_id)s as pubkey, "
+                    "hashing it to get permutation-seed, "
+                    "may not converge with other clients",
+                    server_id=server_id,
+                    facility="tahoe.storage_broker",
+                    level=log.UNUSUAL, umid="qu86tw")
+            ps = hashlib.sha256(server_id).digest()
+        self._permutation_seed = ps
+
+        assert server_id
+        self._long_description = server_id
+        if server_id.startswith("v0-"):
+            # remove v0- prefix from abbreviated name
+            self._short_description = server_id[3:3+8]
+        else:
+            self._short_description = server_id[:8]
+        self._nickname = ann.get("nickname", "")
+        return self
+
+    def get_permutation_seed(self):
+        return self._permutation_seed
+
+    def get_name(self):
+        return self._short_description
+
+    def get_longname(self):
+        return self._long_description
+
+    def get_lease_seed(self):
+        return self._tubid
+
+    def get_tubid(self):
+        return self._tubid
+
+    def get_nickname(self):
+        return self._nickname
+
+    def connect_to(self, tub, got_connection):
+        return tub.connectTo(self._furl, got_connection)
+
+
+class _NullStorage(object):
+    """
+    Abstraction for *not* communicating with a storage server of a type with
+    which we can't communicate.
+    """
+    def get_permutation_seed(self):
+        return hashlib.sha256("").digest()
+
+    def get_name(self):
+        return "<unsupported>"
+
+    def get_longname(self):
+        return "<storage with unsupported protocol>"
+
+    def get_lease_seed(self):
+        return hashlib.sha256("").digest()
+
+    def get_tubid(self):
+        return hashlib.sha256("").digest()
+
+    def get_nickname(self):
+        return ""
+
+    def connect_to(self, tub, got_connection):
+        return NonReconnector()
+
+
+class NonReconnector(object):
+    """
+    A ``foolscap.reconnector.Reconnector``-alike that doesn't do anything.
+    """
+    def stopConnecting(self):
+        pass
+
+    def reset(self):
+        pass
+
+    def getReconnectionInfo(self):
+        return ReconnectionInfo()
+
+_null_storage = _NullStorage()
 
 
 @implementer(IServer)
@@ -311,33 +424,7 @@ class NativeStorageServer(service.MultiService):
         self._tub_maker = tub_maker
         self._handler_overrides = handler_overrides
 
-        assert "anonymous-storage-FURL" in ann, ann
-        furl = str(ann["anonymous-storage-FURL"])
-        m = re.match(r'pb://(\w+)@', furl)
-        assert m, furl
-        tubid_s = m.group(1).lower()
-        self._tubid = base32.a2b(tubid_s)
-        if "permutation-seed-base32" in ann:
-            ps = base32.a2b(str(ann["permutation-seed-base32"]))
-        elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
-            ps = base32.a2b(server_id[3:])
-        else:
-            log.msg("unable to parse serverid '%(server_id)s as pubkey, "
-                    "hashing it to get permutation-seed, "
-                    "may not converge with other clients",
-                    server_id=server_id,
-                    facility="tahoe.storage_broker",
-                    level=log.UNUSUAL, umid="qu86tw")
-            ps = hashlib.sha256(server_id).digest()
-        self._permutation_seed = ps
-
-        assert server_id
-        self._long_description = server_id
-        if server_id.startswith("v0-"):
-            # remove v0- prefix from abbreviated name
-            self._short_description = server_id[3:3+8]
-        else:
-            self._short_description = server_id[:8]
+        self._init_from_announcement(ann)
 
         self.last_connect_time = None
         self.last_loss_time = None
@@ -347,6 +434,29 @@ class NativeStorageServer(service.MultiService):
         self._reconnector = None
         self._trigger_cb = None
         self._on_status_changed = ObserverList()
+
+    def _init_from_announcement(self, ann):
+        storage = _null_storage
+        if "anonymous-storage-FURL" in ann:
+            storage = _AnonymousStorage.from_announcement(self._server_id, ann)
+        self._storage = storage
+
+    def get_permutation_seed(self):
+        return self._storage.get_permutation_seed()
+    def get_name(self): # keep methodname short
+        # TODO: decide who adds [] in the short description. It should
+        # probably be the output side, not here.
+        return self._storage.get_name()
+    def get_longname(self):
+        return self._storage.get_longname()
+    def get_tubid(self):
+        return self._storage.get_tubid()
+    def get_lease_seed(self):
+        return self._storage.get_tubid()
+    def get_foolscap_write_enabler_seed(self):
+        return self._storage.get_tubid()
+    def get_nickname(self):
+        return self._storage.get_nickname()
 
     def on_status_changed(self, status_changed):
         """
@@ -368,25 +478,10 @@ class NativeStorageServer(service.MultiService):
         return "<NativeStorageServer for %s>" % self.get_name()
     def get_serverid(self):
         return self._server_id
-    def get_permutation_seed(self):
-        return self._permutation_seed
     def get_version(self):
         if self._rref:
             return self._rref.version
         return None
-    def get_name(self): # keep methodname short
-        # TODO: decide who adds [] in the short description. It should
-        # probably be the output side, not here.
-        return self._short_description
-    def get_longname(self):
-        return self._long_description
-    def get_lease_seed(self):
-        return self._tubid
-    def get_foolscap_write_enabler_seed(self):
-        return self._tubid
-
-    def get_nickname(self):
-        return self.announcement.get("nickname", "")
     def get_announcement(self):
         return self.announcement
     def get_remote_host(self):
@@ -412,13 +507,11 @@ class NativeStorageServer(service.MultiService):
             available_space = protocol_v1_version.get('maximum-immutable-share-size', None)
         return available_space
 
-
     def start_connecting(self, trigger_cb):
         self._tub = self._tub_maker(self._handler_overrides)
         self._tub.setServiceParent(self)
-        furl = str(self.announcement["anonymous-storage-FURL"])
         self._trigger_cb = trigger_cb
-        self._reconnector = self._tub.connectTo(furl, self._got_connection)
+        self._reconnector = self._storage.connect_to(self._tub, self._got_connection)
 
     def _got_connection(self, rref):
         lp = log.msg(format="got connection to %(name)s, getting versions",
