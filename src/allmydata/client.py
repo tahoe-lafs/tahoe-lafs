@@ -707,12 +707,12 @@ class _Client(node.Node, pollmixin.PollMixin):
                         {u"name": plugin.name},
                     ),
                 )
-            for plugin
-            # The order is fairly arbitrary and it is not meant to convey
-            # anything but providing *some* stable ordering makes the data a
-            # little easier to deal with (mainly in tests and when manually
-            # inspecting it).
-            in sorted(plugins, key=lambda p: p.name)
+                for plugin
+                # The order is fairly arbitrary and it is not meant to convey
+                # anything but providing *some* stable ordering makes the data
+                # a little easier to deal with (mainly in tests and when
+                # manually inspecting it).
+                in sorted(plugins, key=lambda p: p.name)
             ),
         )
 
