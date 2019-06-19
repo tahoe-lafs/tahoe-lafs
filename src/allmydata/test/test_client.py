@@ -27,9 +27,11 @@ from testtools.matchers import (
     MatchesListwise,
     MatchesDict,
     MatchesStructure,
+    Always,
 )
 from testtools.twistedsupport import (
     succeeded,
+    failed,
 )
 
 import allmydata
@@ -1319,4 +1321,31 @@ introducer.furl = pb://abcde@nowhere/fake
                     ),
                 ]),
             )),
+        )
+
+
+    def test_broken_storage_plugin(self):
+        """
+        A storage plugin that raises an exception from ``get_storage_server``
+        causes ``client.create_client_from_config`` to return ``Deferred``
+        that fails.
+        """
+        self.useFixture(UseTestPlugins())
+
+        config = client.config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+                more_sections=(
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    # This will make it explode on instantiation.
+                    b"invalid = configuration\n"
+                )
+            ),
+        )
+        self.assertThat(
+            client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
+            failed(Always()),
         )

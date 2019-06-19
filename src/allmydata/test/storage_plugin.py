@@ -42,6 +42,9 @@ class DummyStorage(object):
     name = attr.ib()
 
     def get_storage_server(self, configuration, get_anonymous_storage_server):
+        if u"invalid" in configuration:
+            raise Exception("The plugin is unhappy.")
+
         announcement = {u"value": configuration.get(u"some", u"default-value")}
         storage_server = DummyStorageServer(get_anonymous_storage_server)
         return succeed(
