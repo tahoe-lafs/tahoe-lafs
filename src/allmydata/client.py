@@ -283,7 +283,9 @@ def create_client_from_config(config, _client_factory=None, introducer_factory=N
         for ic in introducer_clients:
             ic.setServiceParent(client)
         storage_broker.setServiceParent(client)
-        return defer.succeed(client)
+        d = client.init_storage_plugins()
+        d.addCallback(lambda ignored: client)
+        return d
     except Exception:
         return defer.fail()
 
@@ -464,10 +466,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
-
-        with start_action(action_type=u"client:init-storage").context():
-            DeferredContext(self.init_storage()).addActionFinish()
-
+        self.init_storage()
         self.init_control()
         self._key_generator = KeyGenerator()
         key_gen_furl = config.get_config("client", "key_generator.furl", None)
@@ -562,7 +561,6 @@ class _Client(node.Node, pollmixin.PollMixin):
             self.config.write_config_file("permutation-seed", seed+"\n")
         return seed.strip()
 
-    @defer.inlineCallbacks
     def init_storage(self):
         # should we run a storage server (and publish it for others to use)?
         if not self.config.get_config("storage", "enabled", True, boolean=True):
@@ -631,11 +629,9 @@ class _Client(node.Node, pollmixin.PollMixin):
         for ic in self.introducer_clients:
             ic.publish("storage", ann, self._node_private_key)
 
-        yield self._init_storage_plugins()
-
 
     @defer.inlineCallbacks
-    def _init_storage_plugins(self):
+    def init_storage_plugins(self):
         """
         Load, register, and announce any configured storage plugins.
         """
