@@ -1,4 +1,7 @@
 import os
+from io import (
+    BytesIO,
+)
 from os.path import dirname, join
 from mock import patch, Mock
 from six.moves import StringIO
@@ -52,6 +55,7 @@ class Util(unittest.TestCase):
 
     def test_daemonize_no_keygen(self):
         tmpdir = self.mktemp()
+        stderr = BytesIO()
         plug = DaemonizeTahoeNodePlugin('key-generator', tmpdir)
 
         with patch('twisted.internet.reactor') as r:
@@ -59,8 +63,8 @@ class Util(unittest.TestCase):
                 d = fn()
                 d.addErrback(lambda _: None)  # ignore the error we'll trigger
             r.callWhenRunning = call
-            r.stop = 'foo'
             service = plug.makeService(self.options)
+            service.stderr = stderr
             service.parent = Mock()
             # we'll raise ValueError because there's no key-generator
             # .. BUT we do this in an async function called via
@@ -70,7 +74,7 @@ class Util(unittest.TestCase):
             def done(f):
                 self.assertIn(
                     "key-generator support removed",
-                    str(f),
+                    stderr.getvalue(),
                 )
                 return None
             d.addBoth(done)
