@@ -694,7 +694,7 @@ class IntroducerClients(unittest.TestCase):
             "[client]\n"
             "introducer.furl = None\n"
         )
-        config = config_from_string("basedir", "client.port", cfg)
+        config = client.config_from_string("basedir", "client.port", cfg)
 
         with self.assertRaises(ValueError) as ctx:
             client.create_introducer_clients(config, main_tub=None)
@@ -1130,7 +1130,7 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         No storage announcement is published if storage is not enabled.
         """
-        config = config_from_string(
+        config = client.config_from_string(
             self.basedir,
             u"tub.port",
             self.get_config(storage_enabled=False),
@@ -1149,7 +1149,7 @@ introducer.furl = pb://abcde@nowhere/fake
         A storage announcement with the anonymous storage fURL is published when
         storage is enabled.
         """
-        config = config_from_string(
+        config = client.config_from_string(
             self.basedir,
             u"tub.port",
             self.get_config(storage_enabled=True),
@@ -1181,7 +1181,7 @@ introducer.furl = pb://abcde@nowhere/fake
         self.useFixture(UseTestPlugins())
 
         value = u"thing"
-        config = config_from_string(
+        config = client.config_from_string(
             self.basedir,
             u"tub.port",
             self.get_config(
@@ -1216,7 +1216,7 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         self.useFixture(UseTestPlugins())
 
-        config = config_from_string(
+        config = client.config_from_string(
             self.basedir,
             u"tub.port",
             self.get_config(
@@ -1259,7 +1259,7 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         self.useFixture(UseTestPlugins())
 
-        config = config_from_string(
+        config = client.config_from_string(
             self.basedir,
             u"tub.port",
             self.get_config(
@@ -1298,7 +1298,7 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         self.useFixture(UseTestPlugins())
 
-        config = config_from_string(
+        config = client.config_from_string(
             self.basedir,
             u"tub.port",
             self.get_config(
