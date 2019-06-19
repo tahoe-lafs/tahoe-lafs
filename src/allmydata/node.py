@@ -195,14 +195,20 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
     return _Config(parser, portnumfile, basedir, config_fname)
 
 
-def config_from_string(basedir, portnumfile, config_str):
+def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
     """
-    load configuration from in-memory string
+    load and validate configuration from in-memory string
     """
+    if _valid_config is None:
+        _valid_config = _common_valid_config()
+
     # load configuration from in-memory string
     parser = ConfigParser.SafeConfigParser()
     parser.readfp(BytesIO(config_str))
-    return _Config(parser, portnumfile, basedir, '<in-memory>')
+
+    fname = "<in-memory>"
+    configutil.validate_config(fname, parser, _valid_config)
+    return _Config(parser, portnumfile, basedir, fname)
 
 
 def get_app_versions():

@@ -62,9 +62,17 @@ GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
 
-def _valid_config():
-    cfg = node._common_valid_config()
-    return cfg.update(configutil.ValidConfiguration({
+def _is_valid_section(section_name):
+    """
+    Check for valid dynamic configuration section names.
+
+    Currently considers all possible storage server plugin sections valid.
+    """
+    return section_name.startswith("storageserver.plugins.")
+
+
+_client_config = configutil.ValidConfiguration(
+    static_valid_sections={
         "client": (
             "helper.furl",
             "introducer.furl",
@@ -117,7 +125,16 @@ def _valid_config():
             "local.directory",
             "poll_interval",
         ),
-    }))
+    },
+    is_valid_section=_is_valid_section,
+    # Anything in a valid section is a valid item, for now.
+    is_valid_item=lambda section, ignored: _is_valid_section(section),
+)
+
+
+def _valid_config():
+    cfg = node._common_valid_config()
+    return cfg.update(_client_config)
 
 # this is put into README in new node-directories
 CLIENT_README = """
@@ -205,6 +222,12 @@ def read_config(basedir, portnumfile, generated_files=[]):
         generated_files=generated_files,
         _valid_config=_valid_config(),
     )
+
+
+config_from_string = partial(
+    node.config_from_string,
+    _valid_config=_valid_config(),
+)
 
 
 def create_client(basedir=u".", _client_factory=None):
