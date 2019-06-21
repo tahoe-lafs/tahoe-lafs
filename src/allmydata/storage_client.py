@@ -277,10 +277,32 @@ class StubServer(object):
     def get_nickname(self):
         return "?"
 
+
+@attr.s(frozen=True)
 class _AnonymousStorage(object):
     """
     Abstraction for connecting to an anonymous storage server.
     """
+    nickname = attr.ib()
+    permutation_seed = attr.ib()
+    tubid = attr.ib()
+
+    _furl = attr.ib()
+    _short_description = attr.ib()
+    _long_description = attr.ib()
+
+    @property
+    def name(self):
+        return self._short_description
+
+    @property
+    def longname(self):
+        return self._long_description
+
+    @property
+    def lease_seed(self):
+        return self.tubid
+
     @classmethod
     def from_announcement(cls, server_id, ann):
         """
@@ -293,12 +315,11 @@ class _AnonymousStorage(object):
 
         *nickname* is optional.
         """
-        self = cls()
-        self._furl = str(ann["anonymous-storage-FURL"])
-        m = re.match(r'pb://(\w+)@', self._furl)
-        assert m, self._furl
+        furl = str(ann["anonymous-storage-FURL"])
+        m = re.match(r'pb://(\w+)@', furl)
+        assert m, furl
         tubid_s = m.group(1).lower()
-        self._tubid = base32.a2b(tubid_s)
+        tubid = base32.a2b(tubid_s)
         if "permutation-seed-base32" in ann:
             ps = base32.a2b(str(ann["permutation-seed-base32"]))
         elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
@@ -311,35 +332,25 @@ class _AnonymousStorage(object):
                     facility="tahoe.storage_broker",
                     level=log.UNUSUAL, umid="qu86tw")
             ps = hashlib.sha256(server_id).digest()
-        self._permutation_seed = ps
+        permutation_seed = ps
 
         assert server_id
-        self._long_description = server_id
+        long_description = server_id
         if server_id.startswith("v0-"):
             # remove v0- prefix from abbreviated name
-            self._short_description = server_id[3:3+8]
+            short_description = server_id[3:3+8]
         else:
-            self._short_description = server_id[:8]
-        self._nickname = ann.get("nickname", "")
-        return self
+            short_description = server_id[:8]
+        nickname = ann.get("nickname", "")
 
-    def get_permutation_seed(self):
-        return self._permutation_seed
-
-    def get_name(self):
-        return self._short_description
-
-    def get_longname(self):
-        return self._long_description
-
-    def get_lease_seed(self):
-        return self._tubid
-
-    def get_tubid(self):
-        return self._tubid
-
-    def get_nickname(self):
-        return self._nickname
+        return cls(
+            nickname=nickname,
+            permutation_seed=permutation_seed,
+            furl=furl,
+            tubid=tubid,
+            short_description=short_description,
+            long_description=long_description,
+        )
 
     def connect_to(self, tub, got_connection):
         return tub.connectTo(self._furl, got_connection)
@@ -350,23 +361,13 @@ class _NullStorage(object):
     Abstraction for *not* communicating with a storage server of a type with
     which we can't communicate.
     """
-    def get_permutation_seed(self):
-        return hashlib.sha256("").digest()
+    nickname = ""
+    permutation_seed = hashlib.sha256("").digest()
+    tubid = hashlib.sha256("").digest()
+    lease_seed = hashlib.sha256("").digest()
 
-    def get_name(self):
-        return "<unsupported>"
-
-    def get_longname(self):
-        return "<storage with unsupported protocol>"
-
-    def get_lease_seed(self):
-        return hashlib.sha256("").digest()
-
-    def get_tubid(self):
-        return hashlib.sha256("").digest()
-
-    def get_nickname(self):
-        return ""
+    name = "<unsupported>"
+    longname = "<storage with unsupported protocol>"
 
     def connect_to(self, tub, got_connection):
         return NonReconnector()
@@ -442,21 +443,21 @@ class NativeStorageServer(service.MultiService):
         self._storage = storage
 
     def get_permutation_seed(self):
-        return self._storage.get_permutation_seed()
+        return self._storage.permutation_seed
     def get_name(self): # keep methodname short
         # TODO: decide who adds [] in the short description. It should
         # probably be the output side, not here.
-        return self._storage.get_name()
+        return self._storage.name
     def get_longname(self):
-        return self._storage.get_longname()
+        return self._storage.longname
     def get_tubid(self):
-        return self._storage.get_tubid()
+        return self._storage.tubid
     def get_lease_seed(self):
-        return self._storage.get_tubid()
+        return self._storage.lease_seed
     def get_foolscap_write_enabler_seed(self):
-        return self._storage.get_tubid()
+        return self._storage.tubid
     def get_nickname(self):
-        return self._storage.get_nickname()
+        return self._storage.nickname
 
     def on_status_changed(self, status_changed):
         """
