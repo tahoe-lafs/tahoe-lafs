@@ -107,6 +107,9 @@ install_requires = [
 
     # A great way to define types of values.
     "attrs >= 18.2.0",
+
+    # WebSocket library for twisted and asyncio
+    "autobahn >= 19.5.2",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.
