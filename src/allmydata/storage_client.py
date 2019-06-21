@@ -94,7 +94,11 @@ class StorageFarmBroker(service.MultiService):
 
     @log_call(action_type=u"storage-client:broker:set-static-servers")
     def set_static_servers(self, servers):
-        for (server_id, server) in servers.items():
+        # Sorting the items gives us a deterministic processing order.  This
+        # doesn't really matter but it makes the logging behavior more
+        # predictable and easier to test (and at least one test does depend on
+        # this sorted order).
+        for (server_id, server) in sorted(servers.items()):
             try:
                 storage_server = self._make_storage_server(server_id, server)
             except Exception:
