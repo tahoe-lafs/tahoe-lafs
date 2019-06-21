@@ -766,7 +766,7 @@ class StorageClients(SyncTestCase):
             u"nickname": u"some-storage-server",
             u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
         }
-        static_servers = self.useFixture(
+        self.useFixture(
             StaticServers(
                 self.basedir,
                 [(serverid, announcement)],
@@ -801,7 +801,7 @@ class StorageClients(SyncTestCase):
             u"nickname": u"some-storage-server",
             u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
         }
-        static_servers = self.useFixture(
+        self.useFixture(
             StaticServers(
                 self.basedir,
                 [(serverid, announcement),
