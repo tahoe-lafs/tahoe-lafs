@@ -108,6 +108,20 @@ class UnrecognizedAnnouncement(unittest.TestCase):
         server.start_connecting(None)
         server.try_to_connect()
 
+    def test_various_data_methods(self):
+        """
+        The data accessors of ``NativeStorageServer`` that depend on the
+        announcement do not raise an exception.
+        """
+        server = self.native_storage_server()
+        server.get_permutation_seed()
+        server.get_name()
+        server.get_longname()
+        server.get_tubid()
+        server.get_lease_seed()
+        server.get_foolscap_write_enabler_seed()
+        server.get_nickname()
+
 
 class TestStorageFarmBroker(unittest.TestCase):
 
