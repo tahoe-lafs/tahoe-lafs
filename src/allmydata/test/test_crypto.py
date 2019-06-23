@@ -385,8 +385,15 @@ class TestEd25519(unittest.TestCase):
 
 
 class TestRsa(unittest.TestCase):
+    """
+    Tests related to allmydata.crypto.rsa module
+    """
 
     def test_keys(self):
+        """
+        test that two instances of 'the same' key sign and verify data
+        in the same way
+        """
         priv_key, pub_key = rsa.create_signing_keypair(2048)
         priv_key_str = rsa.der_string_from_signing_key(priv_key)
 
@@ -413,7 +420,7 @@ class TestRsa(unittest.TestCase):
 
     def test_sign_invalid_pubkey(self):
         '''
-        pubkey must be correct
+        signing data using an invalid key-object fails
         '''
         priv, pub = rsa.create_signing_keypair(1024)
         with self.assertRaises(ValueError) as ctx:
@@ -425,7 +432,7 @@ class TestRsa(unittest.TestCase):
 
     def test_verify_invalid_pubkey(self):
         '''
-        pubkey must be correct
+        verifying a signature using an invalid key-object fails
         '''
         priv, pub = rsa.create_signing_keypair(1024)
         with self.assertRaises(ValueError) as ctx:
@@ -437,13 +444,40 @@ class TestRsa(unittest.TestCase):
 
 
 class TestUtil(unittest.TestCase):
+    """
+    tests related to allmydata.crypto utils
+    """
 
     def test_remove_prefix_good(self):
+        """
+        remove a simple prefix properly
+        """
         self.assertEquals(
             remove_prefix(b"foobar", b"foo"),
             b"bar"
         )
 
     def test_remove_prefix_bad(self):
+        """
+        attempt to remove a prefix that doesn't exist does nothing
+        """
         with self.assertRaises(BadPrefixError):
             remove_prefix(b"foobar", b"bar")
+
+    def test_remove_prefix_zero(self):
+        """
+        removing a zero-length prefix does nothing
+        """
+        self.assertEquals(
+            remove_prefix(b"foobar", b""),
+            b"foobar",
+        )
+
+    def test_remove_prefix_entire_string(self):
+        """
+        removing a prefix which is the whole string is empty
+        """
+        self.assertEquals(
+            remove_prefix(b"foobar", b"foobar"),
+            b"",
+        )
