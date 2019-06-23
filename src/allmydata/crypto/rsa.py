@@ -37,7 +37,7 @@ def create_signing_keypair(key_size):
     #
     # Another popular choice is 65537. See:
     # https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/#cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key
-    # https://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.htmlhttps://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
+    # https://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
     priv_key = rsa.generate_private_key(
         public_exponent=17,
         key_size=key_size,
