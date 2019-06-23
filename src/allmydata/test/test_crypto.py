@@ -481,3 +481,10 @@ class TestUtil(unittest.TestCase):
             remove_prefix(b"foobar", b"foobar"),
             b"",
         )
+
+    def test_remove_prefix_partial(self):
+        """
+        remote a prefix with a partial match
+        """
+        with self.assertRaises(BadPrefixError):
+            remove_prefix(b"foobar", b"fooz"),
