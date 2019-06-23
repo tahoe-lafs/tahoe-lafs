@@ -1,8 +1,8 @@
 ﻿.. -*- coding: utf-8-with-signature -*-
 
-===========================
- Debian and Ubuntu Support
-===========================
+=========================
+Debian and Ubuntu Support
+=========================
 
 1.  `Overview`_
 2.  `Dependency Packages`_
