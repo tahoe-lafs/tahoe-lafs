@@ -8,14 +8,12 @@ from cryptography.hazmat.primitives.serialization import load_der_private_key, l
 from allmydata.crypto.error import BadSignature
 
 
-"""
-This is the value that was used by `pycryptopp`, and we must continue to use it for
-both backwards compatibility and interoperability.
-
-The docs for `cryptography` suggest to use the constant defined at
-`cryptography.hazmat.primitives.asymmetric.padding.PSS.MAX_LENGTH`, but this causes old
-signatures to fail to validate.
-"""
+# This is the value that was used by `pycryptopp`, and we must continue to use it for
+# both backwards compatibility and interoperability.
+#
+# The docs for `cryptography` suggest to use the constant defined at
+# `cryptography.hazmat.primitives.asymmetric.padding.PSS.MAX_LENGTH`, but this causes old
+# signatures to fail to validate.
 RSA_PSS_SALT_LENGTH = 32
 
 
