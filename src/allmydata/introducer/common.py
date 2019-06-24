@@ -21,20 +21,20 @@ def sign_to_foolscap(announcement, signing_key):
         e.g. :func:`allmydata.crypto.ed25519.signing_keypair_from_string`
 
     :returns: 3-tuple of (msg, sig, vk) where msg is a UTF8 JSON
-        serialization of the `announcement`, sig is bytes (a signature of
-        msg) and vk is the verifying key
+        serialization of the `announcement` (bytes), sig is bytes (a
+        signature of msg) and vk is the verifying key bytes
     """
     # return (bytes, sig-str, pubkey-str). A future HTTP-based serialization
     # will use JSON({msg:b64(JSON(msg).utf8), sig:v0-b64(sig),
     # pubkey:v0-b64(pubkey)}) .
     msg = json.dumps(announcement).encode("utf-8")
-    sig = "v0-" + base32.b2a(
+    sig = b"v0-" + base32.b2a(
         ed25519.sign_data(signing_key, msg)
     )
     verifying_key_bytes = ed25519.bytes_from_verifying_key(
         ed25519.verifying_key_from_signing_key(signing_key)
     )
-    ann_t = (msg, sig, "v0-" + base32.b2a(verifying_key_bytes))
+    ann_t = (msg, sig, b"v0-" + base32.b2a(verifying_key_bytes))
     return ann_t
 
 
