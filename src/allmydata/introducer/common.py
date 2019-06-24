@@ -51,12 +51,13 @@ def unsign_from_foolscap(ann_t):
     if not claimed_key_vs.startswith("v0-"):
         raise UnknownKeyError("only v0- keys recognized")
 
-    claimed_key = ed25519.verifying_key_from_string("pub-" + claimed_key_vs)
-    sig_bytes = base32.a2b(remove_prefix(sig_vs, "v0-"))
+    claimed_key = ed25519.verifying_key_from_string(b"pub-" + claimed_key_vs)
+    sig_bytes = base32.a2b(remove_prefix(sig_vs, b"v0-"))
     ed25519.verify_signature(claimed_key, sig_bytes, msg)
     key_vs = claimed_key_vs
     ann = json.loads(msg.decode("utf-8"))
     return (ann, key_vs)
+
 
 class SubscriberDescriptor(object):
     """This describes a subscriber, for status display purposes. It contains
