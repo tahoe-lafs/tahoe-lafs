@@ -1,3 +1,13 @@
+"""
+Helper functions for cryptograhpy-related operations inside Tahoe
+using AES
+
+These functions use and return objects that are documented in the
+`cryptography` library -- however, code inside Tahoe should only use
+functions from allmydata.crypto.aes and not rely on features of any
+objects that `cryptography` documents.
+"""
+
 import six
 
 from cryptography.hazmat.backends import default_backend
