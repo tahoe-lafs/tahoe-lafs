@@ -211,9 +211,7 @@ Dependencies
 
 The Tahoe-LAFS SFTP server requires the Twisted "Conch" component (a "conch"
 is a twisted shell, get it?). Many Linux distributions package the Conch code
-separately: debian puts it in the "python-twisted-conch" package. Conch
-requires the "pycrypto" package, which is a Python+C implementation of many
-cryptographic functions (the debian package is named "python-crypto").
+separately: debian puts it in the "python-twisted-conch" package.
 
 Immutable and Mutable Files
 ===========================
