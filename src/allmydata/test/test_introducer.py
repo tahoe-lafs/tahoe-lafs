@@ -14,8 +14,9 @@ from twisted.python.filepath import FilePath
 
 from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
-from allmydata import crypto
 from allmydata.crypto import ed25519
+from allmydata.crypto.util import remove_prefix
+from allmydata.crypto.error import BadSignature
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.client import IntroducerClient
 from allmydata.introducer.server import IntroducerService, FurlFileConflictError
@@ -204,7 +205,7 @@ class Client(AsyncTestCase):
 
         private_key, public_key = ed25519.create_signing_keypair()
         public_key_str = ed25519.string_from_verifying_key(public_key)
-        pubkey_s = crypto.remove_prefix(public_key_str, "pub-")
+        pubkey_s = remove_prefix(public_key_str, "pub-")
 
         # ann1: ic1, furl1
         # ann1a: ic1, furl1a (same SturdyRef, different connection hints)
@@ -761,7 +762,7 @@ class Announcements(AsyncTestCase):
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
 
         private_key, public_key = ed25519.create_signing_keypair()
-        public_key_str = crypto.remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
+        public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
 
         ann_t0 = make_ann_t(client_v2, furl1, private_key, 10)
         canary0 = Referenceable()
@@ -800,7 +801,7 @@ class Announcements(AsyncTestCase):
         c = yield create_client(basedir)
         ic = c.introducer_clients[0]
         private_key, public_key = ed25519.create_signing_keypair()
-        public_key_str = crypto.remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
+        public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         ann_t = make_ann_t(ic, furl1, private_key, 1)
 
@@ -831,7 +832,7 @@ class Announcements(AsyncTestCase):
         # but a third announcement with a different key should add to the
         # cache
         private_key2, public_key2 = ed25519.create_signing_keypair()
-        public_key_str2 = crypto.remove_prefix(ed25519.string_from_verifying_key(public_key2), "pub-")
+        public_key_str2 = remove_prefix(ed25519.string_from_verifying_key(public_key2), "pub-")
         furl3 = "pb://onug64tu@127.0.0.1:456/short"
         ann_t3 = make_ann_t(ic, furl3, private_key2, 1)
         ic.got_announcements([ann_t3])
@@ -1003,7 +1004,7 @@ class Signatures(SyncTestCase):
         # bad signature
         bad_ann = {"key1": "value2"}
         bad_msg = json.dumps(bad_ann).encode("utf-8")
-        self.failUnlessRaises(crypto.BadSignature,
+        self.failUnlessRaises(BadSignature,
                               unsign_from_foolscap, (bad_msg, sig, key))
 
         # unrecognized signatures
