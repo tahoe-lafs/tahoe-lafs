@@ -80,7 +80,7 @@ class TestRegression(unittest.TestCase):
             E = fake_ecb_using_ctr
             b = 16
             k = keysize
-            S = '\x00' * (k + b)
+            S = b'\x00' * (k + b)
 
             for i in range(1000):
                 K = S[-k:]
@@ -189,8 +189,8 @@ class TestRegression(unittest.TestCase):
         This simply checks that keys and signatures generated using the old code are still valid
         using the new code.
         '''
-        priv_str = 'priv-v0-lqcj746bqa4npkb6zpyc6esd74x3bl6mbcjgqend7cvtgmcpawhq'
-        pub_str = 'pub-v0-yzpqin3of3ep363lwzxwpvgai3ps43dao46k2jds5kw5ohhpcwhq'
+        priv_str = b'priv-v0-lqcj746bqa4npkb6zpyc6esd74x3bl6mbcjgqend7cvtgmcpawhq'
+        pub_str = b'pub-v0-yzpqin3of3ep363lwzxwpvgai3ps43dao46k2jds5kw5ohhpcwhq'
         test_data = b'test'
         sig = (b'\xde\x0e\xd6\xe2\xf5\x03]8\xfe\xa71\xad\xb4g\x03\x11\x81\x8b\x08\xffz\xf4K\xa0'
                b'\x86 ier!\xe8\xe5#*\x9d\x8c\x0bI\x02\xd90\x0e7\xbeW\xbf\xa3\xfe\xc1\x1c\xf5+\xe9)'
@@ -224,7 +224,7 @@ class TestRegression(unittest.TestCase):
         '''
         only bytes can be encrypted
         '''
-        key = '\x00' * 16
+        key = b'\x00' * 16
         encryptor = aes.create_encryptor(key)
         with self.assertRaises(ValueError) as ctx:
             aes.encrypt_data(encryptor, six.text_type("not bytes"))
@@ -237,7 +237,7 @@ class TestRegression(unittest.TestCase):
         '''
         only bytes can be encrypted
         '''
-        key = '\x00' * 12
+        key = b'\x00' * 12
         with self.assertRaises(ValueError) as ctx:
             aes.create_encryptor(key)
         self.assertIn(
@@ -249,7 +249,7 @@ class TestRegression(unittest.TestCase):
         '''
         iv must be bytes
         '''
-        key = '\x00' * 16
+        key = b'\x00' * 16
         with self.assertRaises(TypeError) as ctx:
             aes.create_encryptor(key, iv=six.text_type("1234567890abcdef"))
         self.assertIn(
@@ -261,9 +261,9 @@ class TestRegression(unittest.TestCase):
         '''
         iv must be 16 bytes
         '''
-        key = '\x00' * 16
+        key = b'\x00' * 16
         with self.assertRaises(ValueError) as ctx:
-            aes.create_encryptor(key, iv='\x00' * 3)
+            aes.create_encryptor(key, iv=b'\x00' * 3)
         self.assertIn(
             "16 bytes long",
             str(ctx.exception)
