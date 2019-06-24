@@ -8,7 +8,7 @@ from twisted.internet import defer
 from twisted.python import failure
 from foolscap.api import DeadReferenceError, RemoteException, eventually, \
                          fireEventually
-from allmydata.crypto import BadSignature
+from allmydata.crypto.error import BadSignature
 from allmydata.crypto import rsa
 from allmydata.util import base32, hashutil, log, deferredutil
 from allmydata.util.dictutil import DictOfSets

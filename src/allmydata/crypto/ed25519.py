@@ -31,10 +31,9 @@ from cryptography.hazmat.primitives.serialization import (
     PublicFormat,
 )
 
-from allmydata.crypto import (
-    remove_prefix,
-    BadSignature,
-)
+from allmydata.crypto.util import remove_prefix
+from allmydata.crypto.error import BadSignature
+
 from allmydata.util.base32 import (
     a2b,
     b2a,
