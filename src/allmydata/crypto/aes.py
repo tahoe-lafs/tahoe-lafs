@@ -48,7 +48,7 @@ def encrypt_data(encryptor, plaintext):
 
     :param bytes plaintext: the data to encrypt
 
-    :returns: ciphertext
+    :returns: bytes of ciphertext
     """
 
     _validate_encryptor(encryptor)
