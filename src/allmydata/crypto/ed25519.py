@@ -39,8 +39,8 @@ from allmydata.util.base32 import (
     b2a,
 )
 
-PRIVATE_KEY_PREFIX = 'priv-v0-'
-PUBLIC_KEY_PREFIX = 'pub-v0-'
+PRIVATE_KEY_PREFIX = b'priv-v0-'
+PUBLIC_KEY_PREFIX = b'pub-v0-'
 
 
 def create_signing_keypair():
