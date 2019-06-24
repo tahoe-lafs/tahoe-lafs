@@ -132,7 +132,7 @@ def verify_signature(public_key, alleged_signature, data):
             hashes.SHA256(),
         )
     except InvalidSignature:
-        raise BadSignature
+        raise BadSignature()
 
 
 def _validate_public_key(public_key):
