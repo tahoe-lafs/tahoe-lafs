@@ -9,9 +9,10 @@ from allmydata.crypto import (
     aes,
     ed25519,
     rsa,
-    remove_prefix,
-    BadPrefixError
 )
+from allmydata.crypto.util import remove_prefix
+from allmydata.crypto.error import BadPrefixError
+
 
 
 RESOURCE_DIR = path.join(path.dirname(__file__), 'data')
@@ -306,7 +307,7 @@ class TestEd25519(unittest.TestCase):
         serialized key must be bytes
         '''
         with self.assertRaises(ValueError) as ctx:
-            ed25519.signing_keypair_from_bytes(six.text_type("not bytes"))
+            ed25519.signing_keypair_from_string(six.text_type("not bytes"))
         self.assertIn(
             "must be bytes",
             str(ctx.exception)
@@ -317,7 +318,7 @@ class TestEd25519(unittest.TestCase):
         serialized key must be bytes
         '''
         with self.assertRaises(ValueError) as ctx:
-            ed25519.verifying_key_from_bytes(six.text_type("not bytes"))
+            ed25519.verifying_key_from_string(six.text_type("not bytes"))
         self.assertIn(
             "must be bytes",
             str(ctx.exception)
