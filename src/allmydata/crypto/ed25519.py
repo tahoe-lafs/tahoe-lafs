@@ -94,13 +94,13 @@ def sign_data(private_key, data):
 
 def string_from_signing_key(private_key):
     """
-    Encode a private key to a string of unicode
+    Encode a private key to a string bytes
 
     :param private_key: the private part returned from
         `create_signing_keypair` or from
         `signing_keypair_from_string`
 
-    :returns: string representing this key
+    :returns: byte-string representing this key
     """
     _validate_private_key(private_key)
     return PRIVATE_KEY_PREFIX + b2a(bytes_from_signing_key(private_key))
@@ -186,7 +186,7 @@ def string_from_verifying_key(public_key):
 
     :param public_key: the public part of a keypair
 
-    :returns: string representing this key
+    :returns: byte-string representing this key
     """
     _validate_public_key(public_key)
     return PUBLIC_KEY_PREFIX + b2a(bytes_from_verifying_key(public_key))
