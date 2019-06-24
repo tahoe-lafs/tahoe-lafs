@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.ciphers import (
 )
 
 
-DEFAULT_IV = '\x00' * 16
+DEFAULT_IV = b'\x00' * 16
 
 
 def create_encryptor(key, iv=None):
