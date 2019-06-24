@@ -181,7 +181,7 @@ def verify_signature(public_key, alleged_signature, data):
     try:
         public_key.verify(alleged_signature, data)
     except InvalidSignature:
-        raise BadSignature
+        raise BadSignature()
 
 
 def verifying_key_from_string(public_key_str):
