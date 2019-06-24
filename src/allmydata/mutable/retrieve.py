@@ -899,9 +899,8 @@ class Retrieve(object):
         self.log("decrypting segment %d" % self._current_segment)
         started = time.time()
         key = hashutil.ssk_readkey_data_hash(salt, self._node.get_readkey())
-        # XXX make aes.* functions for decryption too .. even though its the same
-        decryptor = aes.create_encryptor(key)
-        plaintext = aes.encrypt_data(decryptor, segment)
+        decryptor = aes.create_decryptor(key)
+        plaintext = aes.decrypt_data(decryptor, segment)
         self._status.accumulate_decrypt_time(time.time() - started)
         return plaintext
 
