@@ -10,8 +10,8 @@ from twisted.internet import task
 from twisted.python.filepath import FilePath
 
 import allmydata
-from allmydata import crypto
 from allmydata.crypto import ed25519
+from allmydata.crypto.util import remove_prefix
 from allmydata.util import fileutil, hashutil, base32
 from allmydata.util.namespace import Namespace
 from allmydata import uri
@@ -734,9 +734,9 @@ class Admin(unittest.TestCase):
             self.failUnlessEqual(pubkey_bits[0], vk_header, lines[1])
             self.failUnless(privkey_bits[1].startswith("priv-v0-"), lines[0])
             self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
-            sk_bytes = base32.a2b(crypto.remove_prefix(privkey_bits[1], "priv-v0-"))
+            sk_bytes = base32.a2b(remove_prefix(privkey_bits[1], "priv-v0-"))
             sk, pk = ed25519.signing_keypair_from_bytes(sk_bytes)
-            vk_bytes = base32.a2b(crypto.remove_prefix(pubkey_bits[1], "pub-v0-"))
+            vk_bytes = base32.a2b(remove_prefix(pubkey_bits[1], "pub-v0-"))
             self.failUnlessEqual(
                 ed25519.bytes_from_verifying_key(pk),
                 vk_bytes,
