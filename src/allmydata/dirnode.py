@@ -331,11 +331,8 @@ class DirectoryNode(object):
         salt = encwrcap[:16]
         crypttext = encwrcap[16:-32]
         key = hashutil.mutable_rwcap_key_hash(salt, self._node.get_writekey())
-        # XXX uhm, so maybe this is confusing even if it's what the
-        # original code was doing; worth making a aes.decrypt_data
-        # just to be more clear?
-        encryptor = aes.create_encryptor(key)
-        plaintext = aes.encrypt_data(encryptor, crypttext)
+        encryptor = aes.create_decryptor(key)
+        plaintext = aes.decrypt_data(encryptor, crypttext)
         return plaintext
 
     def _create_and_validate_node(self, rw_uri, ro_uri, name):
