@@ -1,6 +1,6 @@
 import re
 import json
-from allmydata import crypto
+from allmydata.crypto.util import remove_prefix
 from allmydata.crypto import ed25519
 from allmydata.util import base32, rrefutil
 
@@ -52,7 +52,7 @@ def unsign_from_foolscap(ann_t):
         raise UnknownKeyError("only v0- keys recognized")
 
     claimed_key = ed25519.verifying_key_from_string("pub-" + claimed_key_vs)
-    sig_bytes = base32.a2b(crypto.remove_prefix(sig_vs, "v0-"))
+    sig_bytes = base32.a2b(remove_prefix(sig_vs, "v0-"))
     ed25519.verify_signature(claimed_key, sig_bytes, msg)
     key_vs = claimed_key_vs
     ann = json.loads(msg.decode("utf-8"))

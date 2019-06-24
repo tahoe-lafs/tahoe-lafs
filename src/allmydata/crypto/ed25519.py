@@ -53,19 +53,6 @@ def create_signing_keypair():
     return private_key, private_key.public_key()
 
 
-def signing_keypair_from_bytes(private_bytes):
-    """
-    Creates a ed25519 keypair from serialized bytes
-
-    :returns: 2-tuple of (private_key, public_key)
-    """
-
-    if not isinstance(private_bytes, six.binary_type):
-        raise ValueError('private_bytes must be bytes')
-    private_key = Ed25519PrivateKey.from_private_bytes(private_bytes)
-    return private_key, private_key.public_key()
-
-
 def bytes_from_signing_key(private_key):
     """
     Turn a private signing key into serialized bytes
@@ -92,7 +79,7 @@ def sign_data(private_key, data):
 
     :param private_key: the private part returned from
         `create_signing_keypair` or from
-        `signing_keypair_from_bytes`
+        `signing_keypair_from_string`
 
     :param bytes data: the data to sign
 
@@ -107,11 +94,11 @@ def sign_data(private_key, data):
 
 def string_from_signing_key(private_key):
     """
-    Encode a private key to a string
+    Encode a private key to a string of unicode
 
     :param private_key: the private part returned from
         `create_signing_keypair` or from
-        `signing_keypair_from_bytes`
+        `signing_keypair_from_string`
 
     :returns: string representing this key
     """
@@ -119,27 +106,21 @@ def string_from_signing_key(private_key):
     return PRIVATE_KEY_PREFIX + b2a(bytes_from_signing_key(private_key))
 
 
-def signing_keypair_from_string(private_key_str):
+def signing_keypair_from_string(private_key_bytes):
     """
-    Load a signing keypair from a string
+    Load a signing keypair from a string of bytes (which includes the
+    PRIVATE_KEY_PREFIX)
 
     :returns: a 2-tuple of (private_key, public_key)
     """
 
-    return signing_keypair_from_bytes(
-        a2b(remove_prefix(private_key_str, PRIVATE_KEY_PREFIX))
+    if not isinstance(private_key_bytes, six.binary_type):
+        raise ValueError('private_key_bytes must be bytes')
+
+    private_key = Ed25519PrivateKey.from_private_bytes(
+        a2b(remove_prefix(private_key_bytes, PRIVATE_KEY_PREFIX))
     )
-
-
-def verifying_key_from_bytes(public_key_bytes):
-    """
-    Load a verifying key from bytes
-
-    :returns: a public_key
-    """
-    if not isinstance(public_key_bytes, six.binary_type):
-        raise ValueError('public_key_bytes must be bytes')
-    return Ed25519PublicKey.from_public_bytes(public_key_bytes)
+    return private_key, private_key.public_key()
 
 
 def bytes_from_verifying_key(public_key):
@@ -148,7 +129,7 @@ def bytes_from_verifying_key(public_key):
 
     :param public_key: the public part of a key returned from
         `create_signing_keypair` or from
-        `signing_keypair_from_bytes`
+        `signing_keypair_from_string`
 
     :returns: bytes representing this key
     """
@@ -184,14 +165,18 @@ def verify_signature(public_key, alleged_signature, data):
         raise BadSignature()
 
 
-def verifying_key_from_string(public_key_str):
+def verifying_key_from_string(public_key_bytes):
     """
-    Load a verifying key from a string
+    Load a verifying key from a string of bytes (which includes the
+    PUBLIC_KEY_PREFIX)
 
     :returns: a public_key
     """
-    return verifying_key_from_bytes(
-        a2b(remove_prefix(public_key_str, PUBLIC_KEY_PREFIX))
+    if not isinstance(public_key_bytes, six.binary_type):
+        raise ValueError('public_key_bytes must be bytes')
+
+    return Ed25519PublicKey.from_public_bytes(
+        a2b(remove_prefix(public_key_bytes, PUBLIC_KEY_PREFIX))
     )
 
 
