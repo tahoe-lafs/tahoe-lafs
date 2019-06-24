@@ -68,6 +68,8 @@ compile the dependencies yourself (instead of using ``--find-links`` to take
 advantage of the pre-compiled ones we host), you'll also need to install
 Xcode and its command-line tools.
 
+**Note** that Tahoe-LAFS depends on `openssl 1.1.1c` or greater.
+
 Python 2.7
 ----------
 
@@ -120,6 +122,9 @@ On Debian/Ubuntu-derived systems, the necessary packages are ``python-dev``,
 ``libffi-dev``, and ``libssl-dev``, and can be installed with ``apt-get``. On
 RPM-based system (like Fedora) these may be named ``python-devel``, etc,
 instead, and cam be installed with ``yum`` or ``rpm``.
+
+**Note** that Tahoe-LAFS depends on `openssl 1.1.1c` or greater.
+
 
 Install the Latest Tahoe-LAFS Release
 =====================================
@@ -283,6 +288,8 @@ apt-get install python-dev``. On RedHat/Fedora, install ``python-devel``.
 Similar errors about ``openssl/crypto.h`` indicate that you are missing the
 OpenSSL development headers (``libssl-dev``). Likewise ``ffi.h`` means you
 need ``libffi-dev``.
+
+**Note** that Tahoe-LAFS depends on `openssl 1.1.1c` or greater.
 
 
 Using Tahoe-LAFS
