@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.serialization import load_der_private_key, load_der_public_key, \
     Encoding, PrivateFormat, PublicFormat, NoEncryption
 
-from allmydata.crypto import BadSignature
+from allmydata.crypto.error import BadSignature
 
 
 """
