@@ -168,7 +168,8 @@ def verify_signature(public_key, alleged_signature, data):
 
     :param bytes data: the data which was allegedly signed
 
-    :returns: None, or raises an exception if the signature is bad.
+    :raises: BadSignature if the signature is bad
+    :returns: None (or raises an exception).
     """
 
     if not isinstance(alleged_signature, six.binary_type):
