@@ -61,6 +61,7 @@ if [ "${ALLOWED_FAILURE}" = "yes" ]; then
     alternative = "true"
 else
     alternative = "false"
+fi
 
 ${BOOTSTRAP_VENV}/bin/tox \
     -c ${PROJECT_ROOT}/tox.ini \
