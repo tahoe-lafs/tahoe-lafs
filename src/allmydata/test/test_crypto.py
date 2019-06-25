@@ -5,6 +5,8 @@ from base64 import b64decode
 from binascii import a2b_hex, b2a_hex
 from os import path
 
+from twisted.python.filepath import FilePath
+
 from allmydata.crypto import (
     aes,
     ed25519,
@@ -15,7 +17,7 @@ from allmydata.crypto.error import BadPrefixError
 
 
 
-RESOURCE_DIR = path.join(path.dirname(__file__), 'data')
+RESOURCE_DIR = FilePath(__file__).parent().child('data')
 
 
 class TestRegression(unittest.TestCase):
@@ -28,7 +30,7 @@ class TestRegression(unittest.TestCase):
     AES_KEY = b'My\x9c\xc0f\xd3\x03\x9a1\x8f\xbd\x17W_\x1f2'
     IV = b'\x96\x1c\xa0\xbcUj\x89\xc1\x85J\x1f\xeb=\x17\x04\xca'
 
-    with open(path.join(RESOURCE_DIR, 'pycryptopp-rsa-2048-priv.txt')) as f:
+    with RESOURCE_DIR.child('pycryptopp-rsa-2048-priv.txt').open('r') as f:
         # Created using `pycryptopp`:
         #
         #     from base64 import b64encode
@@ -38,13 +40,13 @@ class TestRegression(unittest.TestCase):
         #     pub_str = b64encode(priv.get_verifying_key().serialize())
         RSA_2048_PRIV_KEY = six.b(b64decode(f.read().strip()))
 
-    with open(path.join(RESOURCE_DIR, 'pycryptopp-rsa-2048-sig.txt')) as f:
+    with RESOURCE_DIR.child('pycryptopp-rsa-2048-sig.txt').open('r') as f:
         # Signature created using `RSA_2048_PRIV_KEY` via:
         #
         #     sig = priv.sign(b'test')
         RSA_2048_SIG = six.b(b64decode(f.read().strip()))
 
-    with open(path.join(RESOURCE_DIR, 'pycryptopp-rsa-2048-pub.txt')) as f:
+    with RESOURCE_DIR.child('pycryptopp-rsa-2048-pub.txt').open('r') as f:
         # The public key corresponding to `RSA_2048_PRIV_KEY`.
         RSA_2048_PUB_KEY = six.b(b64decode(f.read().strip()))
 
