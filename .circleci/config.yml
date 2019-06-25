@@ -406,3 +406,11 @@ jobs:
     environment:
       DISTRO: "slackware"
       TAG: "14.2"
+
+
+  build-image-pypy-2.7-7.1.1-jessie:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "pypy"
+      TAG: "2.7-7.1.1-jessie"
