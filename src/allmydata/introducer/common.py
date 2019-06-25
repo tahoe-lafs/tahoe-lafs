@@ -46,9 +46,9 @@ def unsign_from_foolscap(ann_t):
     (msg, sig_vs, claimed_key_vs) = ann_t
     if not sig_vs or not claimed_key_vs:
         raise UnknownKeyError("only signed announcements recognized")
-    if not sig_vs.startswith("v0-"):
+    if not sig_vs.startswith(b"v0-"):
         raise UnknownKeyError("only v0- signatures recognized")
-    if not claimed_key_vs.startswith("v0-"):
+    if not claimed_key_vs.startswith(b"v0-"):
         raise UnknownKeyError("only v0- keys recognized")
 
     claimed_key = ed25519.verifying_key_from_string(b"pub-" + claimed_key_vs)

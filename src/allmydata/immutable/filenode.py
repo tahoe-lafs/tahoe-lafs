@@ -203,7 +203,7 @@ class DecryptingConsumer(object):
         iv = binascii.unhexlify("%032x" % offset_big)
         self._decryptor = aes.create_decryptor(readkey, iv)
         # this is just to advance the counter
-        aes.decrypt_data(self._decryptor, "\x00" * offset_small)
+        aes.decrypt_data(self._decryptor, b"\x00" * offset_small)
 
     def set_download_status_read_event(self, read_ev):
         self._read_ev = read_ev
