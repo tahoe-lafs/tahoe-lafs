@@ -99,7 +99,7 @@ jobs:
       # filenames and argv).
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py27-coverage"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
@@ -170,6 +170,10 @@ jobs:
     docker:
       - image: "tahoelafsci/pypy:2.7-7.1.1-jessie"
         user: "nobody"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27-coverage"
 
 
   c-locale:
