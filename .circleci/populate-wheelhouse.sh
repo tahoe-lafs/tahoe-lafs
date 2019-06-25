@@ -43,7 +43,9 @@ export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
     "${PROJECT_ROOT}"[test,tor,i2p] \
     ${BASIC_DEPS} \
     ${TEST_DEPS} \
-    ${REPORTING_DEPS}
+    ${REPORTING_DEPS} \
+    https://github.com/exarkun/pyutil/archive/pypy.zip#eggname=pyutil    # XXX see if these changes fix pyutil for pypy
+
 
 # Not strictly wheelhouse population but ... Note we omit basic deps here.
 # They're in the wheelhouse if Tahoe-LAFS wants to drag them in but it will
