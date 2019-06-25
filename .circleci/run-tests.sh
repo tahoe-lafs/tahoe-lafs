@@ -64,6 +64,7 @@ else
 fi
 
 ${BOOTSTRAP_VENV}/bin/tox \
+    -vvvvvv \
     -c ${PROJECT_ROOT}/tox.ini \
     --workdir /tmp/tahoe-lafs.tox \
     -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
