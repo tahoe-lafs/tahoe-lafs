@@ -273,8 +273,14 @@ class TestRegression(unittest.TestCase):
 
 
 class TestEd25519(unittest.TestCase):
+    """
+    Test allmydata.crypto.ed25519
+    """
 
-    def test_keys(self):
+    def test_key_serialization(self):
+        """
+        a serialized+deserialized keypair is the same as the original
+        """
         private_key, public_key = ed25519.create_signing_keypair()
         private_key_str = ed25519.string_from_signing_key(private_key)
 
@@ -282,6 +288,7 @@ class TestEd25519(unittest.TestCase):
 
         private_key2, public_key2 = ed25519.signing_keypair_from_string(private_key_str)
 
+        # the desrialized signing keys are the same as the original
         self.assertEqual(
             ed25519.bytes_from_signing_key(private_key),
             ed25519.bytes_from_signing_key(private_key2),
@@ -291,6 +298,7 @@ class TestEd25519(unittest.TestCase):
             ed25519.bytes_from_verifying_key(public_key2),
         )
 
+        # ditto, but for the verifying keys
         public_key_str = ed25519.string_from_verifying_key(public_key)
         public_key_bytes = ed25519.bytes_from_verifying_key(public_key)
 
@@ -298,7 +306,6 @@ class TestEd25519(unittest.TestCase):
         self.assertIsInstance(public_key_bytes, six.binary_type)
 
         public_key2 = ed25519.verifying_key_from_string(public_key_str)
-
         self.assertEqual(
             ed25519.bytes_from_verifying_key(public_key),
             ed25519.bytes_from_verifying_key(public_key2),
@@ -364,7 +371,7 @@ class TestEd25519(unittest.TestCase):
 
     def test_sign_invalid_pubkey(self):
         '''
-        pubkey must be correct
+        pubkey must be correct kind of object
         '''
         priv, pub = ed25519.create_signing_keypair()
         with self.assertRaises(ValueError) as ctx:
@@ -376,7 +383,7 @@ class TestEd25519(unittest.TestCase):
 
     def test_verify_invalid_pubkey(self):
         '''
-        pubkey must be correct
+        pubkey must be correct kind of object
         '''
         priv, pub = ed25519.create_signing_keypair()
         with self.assertRaises(ValueError) as ctx:
