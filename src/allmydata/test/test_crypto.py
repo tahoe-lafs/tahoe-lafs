@@ -227,7 +227,7 @@ class TestRegression(unittest.TestCase):
         key = b'\x00' * 16
         encryptor = aes.create_encryptor(key)
         with self.assertRaises(ValueError) as ctx:
-            aes.encrypt_data(encryptor, six.text_type("not bytes"))
+            aes.encrypt_data(encryptor, u"not bytes")
         self.assertIn(
             "was not bytes",
             str(ctx.exception)
@@ -251,7 +251,7 @@ class TestRegression(unittest.TestCase):
         '''
         key = b'\x00' * 16
         with self.assertRaises(TypeError) as ctx:
-            aes.create_encryptor(key, iv=six.text_type("1234567890abcdef"))
+            aes.create_encryptor(key, iv=u"1234567890abcdef")
         self.assertIn(
             "was not bytes",
             str(ctx.exception)
@@ -307,7 +307,7 @@ class TestEd25519(unittest.TestCase):
         serialized key must be bytes
         '''
         with self.assertRaises(ValueError) as ctx:
-            ed25519.signing_keypair_from_string(six.text_type("not bytes"))
+            ed25519.signing_keypair_from_string(u"not bytes")
         self.assertIn(
             "must be bytes",
             str(ctx.exception)
@@ -318,7 +318,7 @@ class TestEd25519(unittest.TestCase):
         serialized key must be bytes
         '''
         with self.assertRaises(ValueError) as ctx:
-            ed25519.verifying_key_from_string(six.text_type("not bytes"))
+            ed25519.verifying_key_from_string(u"not bytes")
         self.assertIn(
             "must be bytes",
             str(ctx.exception)
@@ -330,7 +330,7 @@ class TestEd25519(unittest.TestCase):
         '''
         priv, pub = ed25519.create_signing_keypair()
         with self.assertRaises(ValueError) as ctx:
-            ed25519.sign_data(priv, six.text_type("not bytes"))
+            ed25519.sign_data(priv, u"not bytes")
         self.assertIn(
             "must be bytes",
             str(ctx.exception)
@@ -342,7 +342,7 @@ class TestEd25519(unittest.TestCase):
         '''
         priv, pub = ed25519.create_signing_keypair()
         with self.assertRaises(ValueError) as ctx:
-            ed25519.verify_signature(pub, six.text_type("not bytes"), b"data")
+            ed25519.verify_signature(pub, u"not bytes", b"data")
         self.assertIn(
             "must be bytes",
             str(ctx.exception)
@@ -354,7 +354,7 @@ class TestEd25519(unittest.TestCase):
         '''
         priv, pub = ed25519.create_signing_keypair()
         with self.assertRaises(ValueError) as ctx:
-            ed25519.verify_signature(pub, b"signature", six.text_type("not bytes"))
+            ed25519.verify_signature(pub, b"signature", u"not bytes")
         self.assertIn(
             "must be bytes",
             str(ctx.exception)
