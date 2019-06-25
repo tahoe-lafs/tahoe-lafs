@@ -58,9 +58,9 @@ export TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file --rterrors"
 export PIP_NO_INDEX="1"
 
 if [ "${ALLOWED_FAILURE}" = "yes" ]; then
-    alternative = "true"
+    alternative="true"
 else
-    alternative = "false"
+    alternative="false"
 fi
 
 ${BOOTSTRAP_VENV}/bin/tox \
