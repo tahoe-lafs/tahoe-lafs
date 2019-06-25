@@ -26,7 +26,11 @@ workflows:
       # - "slackware-14.2"
 
       # Test against PyPy 2.7/7.1.1
-      - "pypy2.7-7.1"
+      - "build-image-pypy-2.7-7.1.1-jessie"
+      - "pypy2.7-7.1":
+          # Just until I'm satisfied the image is being built right
+          requires:
+            - "build-image-pypy-2.7-7.1.1-jessie"
 
       # # Other assorted tasks and configurations
       # - "lint"
