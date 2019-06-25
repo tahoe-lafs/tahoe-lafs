@@ -44,7 +44,7 @@ export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
     ${BASIC_DEPS} \
     ${TEST_DEPS} \
     ${REPORTING_DEPS} \
-    https://github.com/exarkun/pyutil/archive/pypy.zip#egg=pyutil    # XXX see if these changes fix pyutil for pypy
+    https://github.com/exarkun/pyutil/archive/good-version.zip#egg=pyutil    # XXX see if these changes fix pyutil for pypy
 
 
 # Not strictly wheelhouse population but ... Note we omit basic deps here.
