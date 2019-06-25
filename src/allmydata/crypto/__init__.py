@@ -1,5 +1,5 @@
 """
-Helper functions for cryptograhpy-related operations inside Tahoe
+Helper functions for cryptography-related operations inside Tahoe
 
 For the most part, these functions use and return objects that are
 documented in the `cryptography` library -- however, code inside Tahoe
