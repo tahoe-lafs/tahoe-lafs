@@ -93,6 +93,10 @@ jobs:
         user: "nobody"
 
     environment: &UTF_8_ENVIRONMENT
+      # In general, the test suite is not allowed to fail while the job
+      # succeeds.  But you can set this to "yes" if you want it to be
+      # otherwise.
+      ALLOWED_FAILURE: "no"
       # Tell Hypothesis which configuration we want it to use.
       TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
       # Tell the C runtime things about character encoding (mainly to do with
@@ -131,6 +135,7 @@ jobs:
             /tmp/project/.circleci/run-tests.sh \
                 "/tmp/venv" \
                 "/tmp/project" \
+                "${ALLOWED_FAILURE}" \
                 "${ARTIFACTS_OUTPUT_PATH}" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
@@ -174,6 +179,7 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27-coverage"
+      ALLOWED_FAILURE: "yes"
 
 
   c-locale:
