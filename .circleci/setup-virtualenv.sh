@@ -35,6 +35,7 @@ export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
 
 # Get everything else installed in it, too.
 "${BOOTSTRAP_VENV}"/bin/tox \
+     -vvvvv \
      -c "${PROJECT_ROOT}"/tox.ini \
      --workdir /tmp/tahoe-lafs.tox \
      --notest \
