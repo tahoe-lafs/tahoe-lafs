@@ -1,5 +1,5 @@
 """
-Helper functions for cryptograhpy-related operations inside Tahoe
+Helper functions for cryptography-related operations inside Tahoe
 using RSA public-key encryption and decryption.
 
 In cases where these functions happen to use and return objects that
