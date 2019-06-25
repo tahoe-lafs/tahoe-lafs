@@ -1,3 +1,17 @@
+"""
+Helper functions for cryptograhpy-related operations inside Tahoe
+using RSA public-key encryption and decryption.
+
+In cases where these functions happen to use and return objects that
+are documented in the `cryptography` library, code outside this module
+should only use functions from allmydata.crypto.rsa and not rely on
+features of any objects that `cryptography` documents.
+
+That is, the public and private keys are opaque objects; DO NOT depend
+on any of their methods.
+"""
+
+
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -46,8 +60,10 @@ def create_signing_keypair(key_size):
 
 def create_signing_keypair_from_string(private_key_der):
     """
-    Create an RSA signing (private) key from a previously serialized
-    private key.
+    Create an RSA signing (private) key from previously serialized
+    private key bytes.
+
+    :param bytes private_key_der: blob as returned from `der_string_from_signing_keypair`
 
     :returns: 2-tuple of (private_key, public_key)
     """
@@ -62,6 +78,11 @@ def create_signing_keypair_from_string(private_key_der):
 def der_string_from_signing_key(private_key):
     """
     Serializes a given RSA private key to a DER string
+
+    :param private_key: a private key object as returned from
+        `create_signing_keypair` or `create_signing_keypair_from_string`
+
+    :returns: bytes representing `private_key`
     """
     _validate_private_key(private_key)
     return private_key.private_bytes(
@@ -73,7 +94,12 @@ def der_string_from_signing_key(private_key):
 
 def der_string_from_verifying_key(public_key):
     """
-    Serializes a given RSA public key to a DER string
+    Serializes a given RSA public key to a DER string.
+
+    :param public_key: a public key object as returned from
+        `create_signing_keypair` or `create_signing_keypair_from_string`
+
+    :returns: bytes representing `public_key`
     """
     _validate_public_key(public_key)
     return public_key.public_bytes(
@@ -85,6 +111,11 @@ def der_string_from_verifying_key(public_key):
 def create_verifying_key_from_string(public_key_der):
     """
     Create an RSA verifying key from a previously serialized public key
+
+    :param bytes public_key_der: a blob as returned by `der_string_from_verifying_key`
+
+    :returns: a public key object suitable for use with other
+        functions in this module
     """
     pub_key = load_der_public_key(
         public_key_der,
