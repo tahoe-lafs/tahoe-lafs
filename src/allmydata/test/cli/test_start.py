@@ -1,5 +1,4 @@
 import os
-import sys
 import shutil
 import subprocess
 from os.path import join
