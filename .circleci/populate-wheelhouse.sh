@@ -45,22 +45,6 @@ export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
     ${TEST_DEPS} \
     ${REPORTING_DEPS}
 
-# The latest pyutil doesn't compile on PyPy.  Also, pyutil uses versioneer
-# which gives a bogus version number when installed from a git snapshot (like
-# 0+unknown or 0+untagged.59.ga55d206, neither of which plays nicely with pip
-# dependency resolution).  https://github.com/tpltnt/pyutil/pull/5 is for the
-# branch "pypy" which fixes the PyPy SyntaxErrors.  "good-version" is a branch
-# of the "pypy" branch which hard-codes a version number instead of using
-# versioneer.
-#
-# This hack is here for CI so that PyPy builds can at least finish installing
-# and start the test suite.  We can remove it when pyutil#5 is resolved and a
-# release is made.  Note we only install this version in the PyPy CI
-# environment so it won't affect any of our CPython testing.
-PYUTIL="https://github.com/exarkun/pyutil/archive/good-version.zip#egg=pyutil"
-[ -e ${BOOTSTRAP_VENV}/bin/pypy ] &&
-    "${PIP}" wheel --wheel-dir "${WHEELHOUSE_PATH}" "${PYUTIL}"
-
 # Not strictly wheelhouse population but ... Note we omit basic deps here.
 # They're in the wheelhouse if Tahoe-LAFS wants to drag them in but it will
 # have to ask.
