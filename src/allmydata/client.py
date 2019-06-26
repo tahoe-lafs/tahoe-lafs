@@ -7,13 +7,6 @@ from ConfigParser import NoSectionError
 import attr
 from zope.interface import implementer
 
-from eliot import (
-    start_action,
-)
-from eliot.twisted import (
-    DeferredContext,
-)
-
 from twisted.plugin import (
     getPlugins,
 )
