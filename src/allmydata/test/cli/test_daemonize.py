@@ -8,9 +8,14 @@ from allmydata.scripts import runner
 from allmydata.scripts.tahoe_daemonize import identify_node_type
 from allmydata.scripts.tahoe_daemonize import DaemonizeTahoeNodePlugin
 from allmydata.scripts.tahoe_daemonize import DaemonizeOptions
+from allmydata.scripts.tahoe_daemonize import MyTwistdConfig
 
 
 class Util(unittest.TestCase):
+    def setUp(self):
+        self.twistd_options = MyTwistdConfig()
+        self.twistd_options.parseOptions(["DaemonizeTahoeNode"])
+        self.options = self.twistd_options.subOptions
 
     def test_node_type_nothing(self):
         tmpdir = self.mktemp()
@@ -39,7 +44,7 @@ class Util(unittest.TestCase):
                 fn()
             r.stop = lambda: None
             r.callWhenRunning = call
-            service = plug.makeService(None)
+            service = plug.makeService(self.options)
             service.parent = Mock()
             service.startService()
 
@@ -55,7 +60,7 @@ class Util(unittest.TestCase):
                 d.addErrback(lambda _: None)  # ignore the error we'll trigger
             r.callWhenRunning = call
             r.stop = 'foo'
-            service = plug.makeService(None)
+            service = plug.makeService(self.options)
             service.parent = Mock()
             # we'll raise ValueError because there's no key-generator
             # .. BUT we do this in an async function called via
@@ -80,7 +85,7 @@ class Util(unittest.TestCase):
                 fn()
             r.stop = lambda: None
             r.callWhenRunning = call
-            service = plug.makeService(None)
+            service = plug.makeService(self.options)
             service.parent = Mock()
             with self.assertRaises(ValueError) as ctx:
                 service.startService()

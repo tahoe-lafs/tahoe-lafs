@@ -13,6 +13,9 @@ shift
 PROJECT_ROOT="$1"
 shift
 
+ALLOWED_FAILURE="$1"
+shift
+
 ARTIFACTS=$1
 shift
 
@@ -54,14 +57,20 @@ export SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}"
 export TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file --rterrors"
 export PIP_NO_INDEX="1"
 
+if [ "${ALLOWED_FAILURE}" = "yes" ]; then
+    alternative="true"
+else
+    alternative="false"
+fi
+
 ${BOOTSTRAP_VENV}/bin/tox \
     -c ${PROJECT_ROOT}/tox.ini \
     --workdir /tmp/tahoe-lafs.tox \
     -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
-    ${TAHOE_LAFS_TOX_ARGS}
+    ${TAHOE_LAFS_TOX_ARGS} || "${alternative}"
 
 if [ -n "${ARTIFACTS}" ]; then
     # Create a junitxml results area.
     mkdir -p "$(dirname "${JUNITXML}")"
-    ${BOOTSTRAP_VENV}/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}"
+    ${BOOTSTRAP_VENV}/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
 fi

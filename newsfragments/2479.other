@@ -1,0 +1,1 @@
+Tahoe-LAFS now tests for PyPy compatibility on CI.

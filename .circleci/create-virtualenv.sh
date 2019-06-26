@@ -13,9 +13,14 @@ shift
 BOOTSTRAP_VENV="$1"
 shift
 
+# The basename of the Python executable (found on PATH) that will be used with
+# this image.  This lets us create a virtualenv that uses the correct Python.
+PYTHON="$1"
+shift
+
 # Set up the virtualenv as a non-root user so we can run the test suite as a
 # non-root user.  See below.
-virtualenv --python python2.7 "${BOOTSTRAP_VENV}"
+virtualenv --python "${PYTHON}" "${BOOTSTRAP_VENV}"
 
 # For convenience.
 PIP="${BOOTSTRAP_VENV}/bin/pip"

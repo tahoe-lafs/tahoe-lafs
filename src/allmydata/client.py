@@ -205,7 +205,7 @@ def create_client(basedir=u".", _client_factory=None):
             _client_factory=_client_factory,
         )
     except Exception:
-        return Failure()
+        return defer.fail()
 
 
 def create_client_from_config(config, _client_factory=None):
@@ -259,7 +259,7 @@ def create_client_from_config(config, _client_factory=None):
         storage_broker.setServiceParent(client)
         return defer.succeed(client)
     except Exception:
-        return Failure()
+        return defer.fail()
 
 
 def _sequencer(config):
