@@ -30,6 +30,12 @@ from allmydata.crypto.error import BadSignature
 # signatures to fail to validate.
 RSA_PSS_SALT_LENGTH = 32
 
+RSA_PADDING = padding.PSS(
+    mgf=padding.MGF1(hashes.SHA256()),
+    salt_length=RSA_PSS_SALT_LENGTH,
+)
+
+
 
 def create_signing_keypair(key_size):
     """
@@ -136,10 +142,7 @@ def sign_data(private_key, data):
     _validate_private_key(private_key)
     return private_key.sign(
         data,
-        padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=RSA_PSS_SALT_LENGTH,
-        ),
+        RSA_PADDING,
         hashes.SHA256(),
     )
 
@@ -156,10 +159,7 @@ def verify_signature(public_key, alleged_signature, data):
         public_key.verify(
             alleged_signature,
             data,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=RSA_PSS_SALT_LENGTH,
-            ),
+            RSA_PADDING,
             hashes.SHA256(),
         )
     except InvalidSignature:
