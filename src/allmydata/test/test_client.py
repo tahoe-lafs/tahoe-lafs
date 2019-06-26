@@ -1,6 +1,8 @@
 import os, sys
 import mock
-
+from functools import (
+    partial,
+)
 import attr
 
 import twisted
@@ -1284,10 +1286,7 @@ introducer.furl = pb://abcde@nowhere/fake
         self.assertThat(
             defer.gatherResults([node_a, node_b]),
             succeeded(AfterPreprocessing(
-                lambda (a, b): (
-                    get_published_announcements(a),
-                    get_published_announcements(b),
-                ),
+                partial(map, get_published_announcements),
                 MatchesSameElements(),
             )),
         )
