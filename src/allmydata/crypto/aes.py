@@ -17,9 +17,32 @@ from cryptography.hazmat.primitives.ciphers import (
     modes,
     CipherContext,
 )
+from zope.interface import (
+    Interface,
+    directlyProvides,
+    providedBy,
+)
 
 
 DEFAULT_IV = b'\x00' * 16
+
+
+class IEncryptor(Interface):
+    """
+    An object which can encrypt data.
+
+    Create one using :func:`create_encryptor` and use it with
+    :func:`encrypt_data`
+    """
+
+
+class IDecryptor(Interface):
+    """
+    An object which can decrypt data.
+
+    Create one using :func:`create_decryptor` and use it with
+    :func:`decrypt_data`
+    """
 
 
 def create_encryptor(key, iv=None):
@@ -28,16 +51,18 @@ def create_encryptor(key, iv=None):
     the given key and initialization vector (IV). The default IV is 16
     zero-bytes.
 
-    The returned object is suitable for use with `encrypt_data`
+    :param bytes key: the key bytes, should be 128 or 256 bits (16 or
+        32 bytes)
+
+    :param bytes iv: the Initialization Vector consisting of 16 bytes,
+        or None for the default (which is 16 zero bytes)
+
+    :returns: an object suitable for use with :func:`encrypt_data` (an
+        :class:`IEncryptor`)
     """
-    key = _validate_key(key)
-    iv = _validate_iv(iv)
-    cipher = Cipher(
-        algorithms.AES(key),
-        modes.CTR(iv),
-        backend=default_backend()
-    )
-    return cipher.encryptor()
+    cryptor = _create_cryptor(key, iv)
+    directlyProvides(cryptor, IEncryptor)
+    return cryptor
 
 
 def encrypt_data(encryptor, plaintext):
@@ -51,26 +76,80 @@ def encrypt_data(encryptor, plaintext):
     :returns: bytes of ciphertext
     """
 
-    _validate_encryptor(encryptor)
+    _validate_cryptor(encryptor, encrypt=True)
     if not isinstance(plaintext, six.binary_type):
-        raise ValueError('Plaintext was not bytes')
+        raise ValueError('Plaintext must be bytes')
 
     return encryptor.update(plaintext)
 
 
-create_decryptor = create_encryptor
-
-
-decrypt_data = encrypt_data
-
-
-def _validate_encryptor(encryptor):
+def create_decryptor(key, iv=None):
     """
-    raise ValueError if `encryptor` is not a valid object
+    Create and return a new object which can do AES decryptions with
+    the given key and initialization vector (IV). The default IV is 16
+    zero-bytes.
+
+    :param bytes key: the key bytes, should be 128 or 256 bits (16 or
+        32 bytes)
+
+    :param bytes iv: the Initialization Vector consisting of 16 bytes,
+        or None for the default (which is 16 zero bytes)
+
+    :returns: an object suitable for use with :func:`decrypt_data` (an
+        :class:`IDecryptor`)
     """
-    if not isinstance(encryptor, CipherContext):
+    cryptor = _create_cryptor(key, iv)
+    directlyProvides(cryptor, IDecryptor)
+    return cryptor
+
+
+def decrypt_data(decryptor, plaintext):
+    """
+    AES-decrypt `plaintext` with the given `decryptor`.
+
+    :param decryptor: an instance previously returned from `create_decryptor`
+
+    :param bytes plaintext: the data to decrypt
+
+    :returns: bytes of ciphertext
+    """
+
+    _validate_cryptor(decryptor, encrypt=False)
+    if not isinstance(plaintext, six.binary_type):
+        raise ValueError('Plaintext must be bytes')
+
+    return decryptor.update(plaintext)
+
+
+def _create_cryptor(key, iv):
+    """
+    Internal helper.
+
+    See :func:`create_encryptor` or :func:`create_decryptor`.
+    """
+    key = _validate_key(key)
+    iv = _validate_iv(iv)
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.CTR(iv),
+        backend=default_backend()
+    )
+    return cipher.encryptor()
+
+
+def _validate_cryptor(cryptor, encrypt=True):
+    """
+    raise ValueError if `cryptor` is not a valid object
+    """
+    klass = IEncryptor if encrypt else IDecryptor
+    name = "encryptor" if encrypt else "decryptor"
+    if not isinstance(cryptor, CipherContext):
         raise ValueError(
-            "'encryptor' must be a CipherContext"
+            "'{}' must be a CipherContext".format(name)
+        )
+    if not klass.providedBy(cryptor):
+        raise ValueError(
+            "'{}' must be created with create_{}()".format(name, name)
         )
 
 
@@ -79,9 +158,9 @@ def _validate_key(key):
     confirm `key` is suitable for AES encryption, or raise ValueError
     """
     if not isinstance(key, six.binary_type):
-        raise TypeError('Key was not bytes')
+        raise TypeError('Key must be bytes')
     if len(key) not in (16, 32):
-        raise ValueError('Key was not 16 or 32 bytes long')
+        raise ValueError('Key must be 16 or 32 bytes long')
     return key
 
 
@@ -94,7 +173,7 @@ def _validate_iv(iv):
     if iv is None:
         return DEFAULT_IV
     if not isinstance(iv, six.binary_type):
-        raise TypeError('IV was not bytes')
+        raise TypeError('IV must be bytes')
     if len(iv) != 16:
-        raise ValueError('IV was not 16 bytes long')
+        raise ValueError('IV must be 16 bytes long')
     return iv

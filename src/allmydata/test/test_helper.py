@@ -189,12 +189,12 @@ class AssistedUpload(unittest.TestCase):
 
         key = hashutil.convergence_hash(k, n, segsize, DATA, "test convergence string")
         assert len(key) == 16
-        encryptor = aes.create_encryptor(key)
+        decryptor = aes.create_decryptor(key)
         SI = hashutil.storage_index_hash(key)
         SI_s = si_b2a(SI)
         encfile = os.path.join(self.basedir, "CHK_encoding", SI_s)
         f = open(encfile, "wb")
-        f.write(aes.decrypt_data(encryptor, DATA))
+        f.write(aes.decrypt_data(decryptor, DATA))
         f.close()
 
         u = upload.Uploader(self.helper_furl)
