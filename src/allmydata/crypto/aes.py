@@ -20,7 +20,6 @@ from cryptography.hazmat.primitives.ciphers import (
 from zope.interface import (
     Interface,
     directlyProvides,
-    providedBy,
 )
 
 
