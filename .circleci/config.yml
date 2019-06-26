@@ -25,6 +25,9 @@ workflows:
 
       - "slackware-14.2"
 
+      # Test against PyPy 2.7/7.1.1
+      - "pypy2.7-7.1"
+
       # Other assorted tasks and configurations
       - "lint"
       - "deprecations"
@@ -59,6 +62,7 @@ workflows:
       - "build-image-fedora-29"
       - "build-image-centos-7"
       - "build-image-slackware-14.2"
+      - "build-image-pypy-2.7-7.1.1-jessie"
 
 
 jobs:
@@ -85,13 +89,17 @@ jobs:
         user: "nobody"
 
     environment: &UTF_8_ENVIRONMENT
+      # In general, the test suite is not allowed to fail while the job
+      # succeeds.  But you can set this to "yes" if you want it to be
+      # otherwise.
+      ALLOWED_FAILURE: "no"
       # Tell Hypothesis which configuration we want it to use.
       TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
       # Tell the C runtime things about character encoding (mainly to do with
       # filenames and argv).
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py27-coverage"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
@@ -123,6 +131,7 @@ jobs:
             /tmp/project/.circleci/run-tests.sh \
                 "/tmp/venv" \
                 "/tmp/project" \
+                "${ALLOWED_FAILURE}" \
                 "${ARTIFACTS_OUTPUT_PATH}" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
@@ -155,6 +164,18 @@ jobs:
     docker:
       - image: "tahoelafsci/debian:8"
         user: "nobody"
+
+
+  pypy2.7-7.1:
+    <<: *DEBIAN
+    docker:
+      - image: "tahoelafsci/pypy:2.7-7.1.1-jessie"
+        user: "nobody"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27-coverage"
+      ALLOWED_FAILURE: "yes"
 
 
   c-locale:
@@ -406,3 +427,11 @@ jobs:
     environment:
       DISTRO: "slackware"
       TAG: "14.2"
+
+
+  build-image-pypy-2.7-7.1.1-jessie:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "pypy"
+      TAG: "2.7-7.1.1-jessie"
