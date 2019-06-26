@@ -3,7 +3,6 @@ import unittest
 
 from base64 import b64decode
 from binascii import a2b_hex, b2a_hex
-from os import path
 
 from twisted.python.filepath import FilePath
 
