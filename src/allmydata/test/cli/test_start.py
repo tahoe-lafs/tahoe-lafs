@@ -255,10 +255,9 @@ class RunTests(unittest.TestCase):
         ])
 
         i, o, e = StringIO(), StringIO(), StringIO()
-        with patch.object(sys, 'stdout', o), patch.object(sys, 'stderr', e):
-            runner.dispatch(config, i, o, e)
+        runner.dispatch(config, i, o, e)
 
-        output = o.getvalue()
+        output = e.getvalue()
         # should print out the collected logs and an error-code
         self.assertIn(
             "invalid section",
