@@ -54,21 +54,21 @@ class TestRegression(unittest.TestCase):
         This was the old startup test run at import time in `pycryptopp.cipher.aes`.
         """
         enc0 = b"dc95c078a2408989ad48a21492842087530f8afbc74536b9a963b4f1c4cb738b"
-        cryptor = aes.create_encryptor(key=b"\x00" * 32)
+        cryptor = aes.create_decryptor(key=b"\x00" * 32)
         ct = aes.decrypt_data(cryptor, b"\x00" * 32)
         self.assertEqual(enc0, b2a_hex(ct))
 
-        cryptor = aes.create_encryptor(key=b"\x00" * 32)
+        cryptor = aes.create_decryptor(key=b"\x00" * 32)
         ct1 = aes.decrypt_data(cryptor, b"\x00" * 15)
         ct2 = aes.decrypt_data(cryptor, b"\x00" * 17)
         self.assertEqual(enc0, b2a_hex(ct1+ct2))
 
         enc0 = b"66e94bd4ef8a2c3b884cfa59ca342b2e"
-        cryptor = aes.create_encryptor(key=b"\x00" * 16)
+        cryptor = aes.create_decryptor(key=b"\x00" * 16)
         ct = aes.decrypt_data(cryptor, b"\x00" * 16)
         self.assertEqual(enc0, b2a_hex(ct))
 
-        cryptor = aes.create_encryptor(key=b"\x00" * 16)
+        cryptor = aes.create_decryptor(key=b"\x00" * 16)
         ct1 = aes.decrypt_data(cryptor, b"\x00" * 8)
         ct2 = aes.decrypt_data(cryptor, b"\x00" * 8)
         self.assertEqual(enc0, b2a_hex(ct1+ct2))
@@ -107,7 +107,7 @@ class TestRegression(unittest.TestCase):
         plaintext = b'test'
         expected_ciphertext = b'\x7fEK\\'
 
-        k = aes.create_encryptor(self.AES_KEY)
+        k = aes.create_decryptor(self.AES_KEY)
         ciphertext = aes.decrypt_data(k, plaintext)
 
         self.assertEqual(ciphertext, expected_ciphertext)
@@ -129,7 +129,7 @@ class TestRegression(unittest.TestCase):
             b'\x1f\xa1|\xd2$E\xb5\xe7\x9d\xae\xd1\x1f)\xe4\xc7\x83\xb8\xd5|dHhU\xc8\x9a\xb1\x10\xed'
             b'\xd1\xe7|\xd1')
 
-        k = aes.create_encryptor(self.AES_KEY)
+        k = aes.create_decryptor(self.AES_KEY)
         ciphertext = aes.decrypt_data(k, plaintext)
 
         self.assertEqual(ciphertext, expected_ciphertext)
@@ -148,7 +148,7 @@ class TestRegression(unittest.TestCase):
         plaintext = b'test'
         expected_ciphertext = b'\x82\x0e\rt'
 
-        k = aes.create_encryptor(self.AES_KEY, iv=self.IV)
+        k = aes.create_decryptor(self.AES_KEY, iv=self.IV)
         ciphertext = aes.decrypt_data(k, plaintext)
 
         self.assertEqual(ciphertext, expected_ciphertext)
@@ -170,7 +170,7 @@ class TestRegression(unittest.TestCase):
             b'\x97a\xdc\x100?\xf5L\x9f\xd9\xeeO\x98\xda\xf5g\x93\xa7q\xe1\xb1~\xf8\x1b\xe8[\\s'
             b'\x144$\x86\xeaC^f')
 
-        k = aes.create_encryptor(self.AES_KEY, iv=self.IV)
+        k = aes.create_decryptor(self.AES_KEY, iv=self.IV)
         ciphertext = aes.decrypt_data(k, plaintext)
 
         self.assertEqual(ciphertext, expected_ciphertext)
@@ -230,7 +230,7 @@ class TestRegression(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             aes.encrypt_data(encryptor, u"not bytes")
         self.assertIn(
-            "was not bytes",
+            "must be bytes",
             str(ctx.exception)
         )
 
@@ -254,7 +254,7 @@ class TestRegression(unittest.TestCase):
         with self.assertRaises(TypeError) as ctx:
             aes.create_encryptor(key, iv=u"1234567890abcdef")
         self.assertIn(
-            "was not bytes",
+            "must be bytes",
             str(ctx.exception)
         )
 
