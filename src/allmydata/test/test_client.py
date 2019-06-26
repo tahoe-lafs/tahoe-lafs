@@ -1,9 +1,30 @@
 import os, sys
 import mock
 import twisted
+from yaml import (
+    safe_dump,
+)
+from fixtures import (
+    Fixture,
+    TempDir,
+)
+from eliot.testing import (
+    capture_logging,
+    assertHasAction,
+)
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import defer
+from twisted.python.filepath import (
+    FilePath,
+)
+from testtools.matchers import (
+    Equals,
+    AfterPreprocessing,
+)
+from testtools.twistedsupport import (
+    succeeded,
+)
 
 import allmydata
 import allmydata.frontends.magic_folder
@@ -20,6 +41,9 @@ from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
+from allmydata.test.common import (
+    SyncTestCase,
+)
 
 
 BASECONFIG = ("[client]\n"
@@ -663,6 +687,143 @@ class IntroducerClients(unittest.TestCase):
         self.assertIn(
             "invalid 'introducer.furl = None'",
             str(ctx.exception)
+        )
+
+
+def get_known_server_details(a_client):
+    """
+    Get some details about known storage servers from a client.
+
+    :param _Client a_client: The client to inspect.
+
+    :return: A ``list`` of two-tuples.  Each element of the list corresponds
+        to a "known server".  The first element of each tuple is a server id.
+        The second is the server's announcement.
+    """
+    return list(
+        (s.get_serverid(), s.get_announcement())
+        for s
+        in a_client.storage_broker.get_known_servers()
+    )
+
+
+class StaticServers(Fixture):
+    """
+    Create a ``servers.yaml`` file.
+    """
+    def __init__(self, basedir, server_details):
+        super(StaticServers, self).__init__()
+        self._basedir = basedir
+        self._server_details = server_details
+
+    def _setUp(self):
+        private = self._basedir.child(u"private")
+        private.makedirs()
+        servers = private.child(u"servers.yaml")
+        servers.setContent(safe_dump({
+            u"storage": {
+                serverid: {
+                    u"ann": announcement,
+                }
+                for (serverid, announcement)
+                in self._server_details
+            },
+        }))
+
+
+class StorageClients(SyncTestCase):
+    """
+    Tests for storage-related behavior of ``_Client``.
+    """
+    def setUp(self):
+        super(StorageClients, self).setUp()
+        # Some other tests create Nodes and Node mutates tempfile.tempdir and
+        # that screws us up because we're *not* making a Node.  "Fix" it.  See
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3052 for the real fix,
+        # though.
+        import tempfile
+        tempfile.tempdir = None
+
+        tempdir = TempDir()
+        self.useFixture(tempdir)
+        self.basedir = FilePath(tempdir.path)
+
+    @capture_logging(
+        lambda case, logger: assertHasAction(
+            case,
+            logger,
+            actionType=u"storage-client:broker:set-static-servers",
+            succeeded=True,
+        ),
+    )
+    def test_static_servers(self, logger):
+        """
+        Storage servers defined in ``private/servers.yaml`` are loaded into the
+        storage broker.
+        """
+        serverid = u"v0-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        announcement = {
+            u"nickname": u"some-storage-server",
+            u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
+        }
+        self.useFixture(
+            StaticServers(
+                self.basedir,
+                [(serverid, announcement)],
+            ),
+        )
+        self.assertThat(
+            client.create_client(self.basedir.asTextMode().path),
+            succeeded(
+                AfterPreprocessing(
+                    get_known_server_details,
+                    Equals([(serverid, announcement)]),
+                ),
+            ),
+        )
+
+    @capture_logging(
+        lambda case, logger: assertHasAction(
+            case,
+            logger,
+            actionType=u"storage-client:broker:make-storage-server",
+            succeeded=False,
+        ),
+    )
+    def test_invalid_static_server(self, logger):
+        """
+        An invalid announcement for a static server does not prevent other static
+        servers from being loaded.
+        """
+        # Some good details
+        serverid = u"v1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        announcement = {
+            u"nickname": u"some-storage-server",
+            u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
+        }
+        self.useFixture(
+            StaticServers(
+                self.basedir,
+                [(serverid, announcement),
+                 # Along with a "bad" server announcement.  Order in this list
+                 # doesn't matter, yaml serializer and Python dicts are going
+                 # to shuffle everything around kind of randomly.
+                 (u"v0-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  {u"nickname": u"another-storage-server",
+                   u"anonymous-storage-FURL": None,
+                  }),
+                ],
+            ),
+        )
+        self.assertThat(
+            client.create_client(self.basedir.asTextMode().path),
+            succeeded(
+                AfterPreprocessing(
+                    get_known_server_details,
+                    # It should have the good server details.
+                    Equals([(serverid, announcement)]),
+                ),
+            ),
         )
 
 
