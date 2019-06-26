@@ -105,6 +105,8 @@ the twistd-options.
 class MyTwistdConfig(twistd.ServerOptions):
     subCommands = [("DaemonizeTahoeNode", None, usage.Options, "node")]
 
+    stderr = sys.stderr
+
 
 class DaemonizeTheRealService(Service, HookMixin):
     """
@@ -122,6 +124,7 @@ class DaemonizeTheRealService(Service, HookMixin):
         self._hooks = {
             "running": None,
         }
+        self.stderr = options.parent.stderr
 
     def startService(self):
 
@@ -143,7 +146,7 @@ class DaemonizeTheRealService(Service, HookMixin):
 
             def handle_config_error(fail):
                 fail.trap(UnknownConfigError)
-                sys.stderr.write("\nConfiguration error:\n{}\n\n".format(fail.value))
+                self.stderr.write("\nConfiguration error:\n{}\n\n".format(fail.value))
                 reactor.stop()
                 return
 
@@ -204,6 +207,8 @@ def daemonize(config):
     twistd_args.append("DaemonizeTahoeNode") # point at our DaemonizeTahoeNodePlugin
 
     twistd_config = MyTwistdConfig()
+    twistd_config.stdout = out
+    twistd_config.stderr = err
     try:
         twistd_config.parseOptions(twistd_args)
     except usage.error as ue:
