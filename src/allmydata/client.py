@@ -8,7 +8,6 @@ from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
-from twisted.python.failure import Failure
 
 import allmydata
 from allmydata.crypto import rsa, ed25519
