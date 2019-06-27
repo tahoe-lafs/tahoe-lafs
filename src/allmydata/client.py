@@ -653,7 +653,8 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         storage_plugin_names = self._get_enabled_storage_plugin_names()
         plugins = list(self._collect_storage_plugins(storage_plugin_names))
-        # TODO What if some names aren't found?
+        # TODO Handle missing plugins
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3118
         announceable_storage_servers = yield self._create_plugin_storage_servers(plugins)
         self._enable_storage_servers(announceable_storage_servers)
 
