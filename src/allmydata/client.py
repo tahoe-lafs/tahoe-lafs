@@ -77,6 +77,7 @@ _client_config = configutil.ValidConfiguration(
             "shares.needed",
             "shares.total",
             "stats_gatherer.furl",
+            "storage.plugins",
         ),
         "drop_upload": (  # deprecated already?
             "enabled",
