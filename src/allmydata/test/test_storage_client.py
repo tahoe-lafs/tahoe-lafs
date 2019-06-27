@@ -1,20 +1,39 @@
 import hashlib
 from mock import Mock
 
+from fixtures import (
+    TempDir,
+)
+
 from twisted.application.service import (
     Service,
 )
 
 from twisted.trial import unittest
 from twisted.internet.defer import succeed, inlineCallbacks
+from twisted.python.filepath import (
+    FilePath,
+)
 
 from foolscap.api import (
     Tub,
 )
 
+from .common import (
+    SyncTestCase,
+    UseTestPlugins,
+    MemoryIntroducerClient,
+)
 from allmydata.util import base32, yamlutil
-from allmydata.storage_client import NativeStorageServer
-from allmydata.storage_client import StorageFarmBroker
+from allmydata.client import (
+    config_from_string,
+    create_client_from_config,
+)
+from allmydata.storage_client import (
+    NativeStorageServer,
+    StorageFarmBroker,
+    _NullStorage,
+)
 from allmydata.interfaces import (
     IConnectionStatus,
 )
@@ -146,6 +165,60 @@ class UnrecognizedAnnouncement(unittest.TestCase):
         server.get_lease_seed()
         server.get_foolscap_write_enabler_seed()
         server.get_nickname()
+
+
+class PluginMatchedAnnouncement(SyncTestCase):
+    """
+    Tests for handling by ``NativeStorageServer`` of storage server
+    announcements that are handled by an ``IFoolscapStoragePlugin``.
+    """
+    def setUp(self):
+        super(PluginMatchedAnnouncement, self).setUp()
+        tempdir = TempDir()
+        self.useFixture(tempdir)
+        self.basedir = FilePath(tempdir.path)
+        self.basedir.child(u"private").makedirs()
+        self.useFixture(UseTestPlugins())
+
+    @inlineCallbacks
+    def test_ignored_non_enabled_plugin(self):
+        """
+        An announcement that could be matched by a plugin that is not enabled is
+        not matched.
+        """
+        config = config_from_string(
+            self.basedir.asTextMode().path,
+            u"tub.port",
+"""
+[client]
+introducer.furl = pb://tubid@example.invalid/swissnum
+storage.plugins = tahoe-lafs-dummy-v1
+""",
+        )
+        node = yield create_client_from_config(
+            config,
+            introducer_factory=MemoryIntroducerClient,
+        )
+        [introducer_client] = node.introducer_clients
+        server_id = b"v0-abcdef"
+        ann = {
+            u"service-name": u"storage",
+            # notice how the announcement is for a different storage plugin
+            # than the one that is enabled.
+            u"name": u"tahoe-lafs-dummy-v2",
+        }
+        for subscription in introducer_client.subscribed_to:
+            if subscription.service_name == u"storage":
+                subscription.cb(
+                    server_id,
+                    ann,
+                    *subscription.args,
+                    **subscription.kwargs
+                )
+
+        storage_broker = node.get_storage_broker()
+        native_storage_server = storage_broker.servers[server_id]
+        self.assertIsInstance(native_storage_server._storage, _NullStorage)
 
 
 class TestStorageFarmBroker(unittest.TestCase):
