@@ -245,7 +245,7 @@ def create_client(basedir=u".", _client_factory=None):
         return defer.fail()
 
 
-def create_client_from_config(config, _client_factory=None, introducer_factory=None):
+def create_client_from_config(config, _client_factory=None, _introducer_factory=None):
     """
     Creates a new client instance (a subclass of Node).  Most code
     should probably use `create_client` instead.
@@ -258,7 +258,7 @@ def create_client_from_config(config, _client_factory=None, introducer_factory=N
     :param _client_factory: for testing; the class to instantiate
         instead of _Client
 
-    :param introducer_factory: for testing; the class to instantiate instead
+    :param _introducer_factory: for testing; the class to instantiate instead
         of IntroducerClient
     """
     try:
@@ -277,7 +277,7 @@ def create_client_from_config(config, _client_factory=None, introducer_factory=N
         )
         control_tub = node.create_control_tub()
 
-        introducer_clients = create_introducer_clients(config, main_tub, introducer_factory)
+        introducer_clients = create_introducer_clients(config, main_tub, _introducer_factory)
         storage_broker = create_storage_farm_broker(
             config, default_connection_handlers, foolscap_connection_handlers,
             tub_options, introducer_clients
@@ -321,17 +321,17 @@ def _sequencer(config):
     return seqnum, nonce
 
 
-def create_introducer_clients(config, main_tub, introducer_factory=None):
+def create_introducer_clients(config, main_tub, _introducer_factory=None):
     """
     Read, validate and parse any 'introducers.yaml' configuration.
 
-    :param introducer_factory: for testing; the class to instantiate instead
+    :param _introducer_factory: for testing; the class to instantiate instead
         of IntroducerClient
 
     :returns: a list of IntroducerClient instances
     """
-    if introducer_factory is None:
-        introducer_factory = IntroducerClient
+    if _introducer_factory is None:
+        _introducer_factory = IntroducerClient
 
     # we return this list
     introducer_clients = []
@@ -378,7 +378,7 @@ def create_introducer_clients(config, main_tub, introducer_factory=None):
 
     for petname, introducer in introducers.items():
         introducer_cache_filepath = FilePath(config.get_private_path("introducer_{}_cache.yaml".format(petname)))
-        ic = introducer_factory(
+        ic = _introducer_factory(
             main_tub,
             introducer['furl'].encode("ascii"),
             config.nickname,

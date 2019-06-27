@@ -1139,7 +1139,10 @@ introducer.furl = pb://abcde@nowhere/fake
             self.get_config(storage_enabled=False),
         )
         self.assertThat(
-            client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
             succeeded(AfterPreprocessing(
                 get_published_announcements,
                 Equals([]),
@@ -1159,7 +1162,7 @@ introducer.furl = pb://abcde@nowhere/fake
         )
         client_deferred = client.create_client_from_config(
             config,
-            introducer_factory=MemoryIntroducerClient,
+            _introducer_factory=MemoryIntroducerClient,
         )
         self.assertThat(
             client_deferred,
@@ -1197,7 +1200,10 @@ introducer.furl = pb://abcde@nowhere/fake
             ),
         )
         self.assertThat(
-            client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
             succeeded(AfterPreprocessing(
                 get_published_announcements,
                 MatchesListwise([
@@ -1234,7 +1240,10 @@ introducer.furl = pb://abcde@nowhere/fake
             ),
         )
         self.assertThat(
-            client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
             succeeded(AfterPreprocessing(
                 get_published_announcements,
                 MatchesListwise([
@@ -1276,11 +1285,11 @@ introducer.furl = pb://abcde@nowhere/fake
         )
         node_a = client.create_client_from_config(
             config,
-            introducer_factory=MemoryIntroducerClient,
+            _introducer_factory=MemoryIntroducerClient,
         )
         node_b = client.create_client_from_config(
             config,
-            introducer_factory=MemoryIntroducerClient,
+            _introducer_factory=MemoryIntroducerClient,
         )
 
         self.assertThat(
@@ -1307,7 +1316,10 @@ introducer.furl = pb://abcde@nowhere/fake
             ),
         )
         self.assertThat(
-            client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
             succeeded(AfterPreprocessing(
                 get_published_announcements,
                 MatchesListwise([
@@ -1344,6 +1356,9 @@ introducer.furl = pb://abcde@nowhere/fake
             ),
         )
         self.assertThat(
-            client.create_client_from_config(config, introducer_factory=MemoryIntroducerClient),
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
             failed(Always()),
         )
