@@ -4,6 +4,10 @@ from functools import partial
 from errno import ENOENT, EPERM
 from ConfigParser import NoSectionError
 
+from foolscap.furl import (
+    decode_furl,
+)
+
 import attr
 from zope.interface import implementer
 
@@ -433,6 +437,40 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     return sb
 
 
+def _register_reference(key, config, tub, referenceable):
+    """
+    Register a referenceable in a tub with a stable fURL.
+
+    Stability is achieved by storing the fURL in the configuration the first
+    time and then reading it back on for future calls.
+
+    :param bytes key: An identifier for this reference which can be used to
+        identify its fURL in the configuration.
+
+    :param _Config config: The configuration to use for fURL persistence.
+
+    :param Tub tub: The tub in which to register the reference.
+
+    :param Referenceable referenceable: The referenceable to register in the
+        Tub.
+
+    :return bytes: The fURL at which the object is registered.
+    """
+    persisted_furl = config.get_private_config(
+        key,
+        default=None,
+    )
+    name = None
+    if persisted_furl is not None:
+        _, _, name = decode_furl(persisted_furl)
+    registered_furl = tub.registerReference(
+        referenceable,
+        name=name,
+    )
+    if persisted_furl is None:
+        config.write_private_config(key, registered_furl)
+    return registered_furl
+
 
 @implementer(IAnnounceableStorageServer)
 @attr.s
@@ -752,15 +790,15 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         Register and announce a storage server.
         """
-        furl_file = self.config.get_private_path(
-            "storage-plugin.{}.furl".format(
-                # Oops, why don't I have a better handle on this value?
-                announceable_storage_server.announcement[u"name"],
-            ),
+        config_key = b"storage-plugin.{}.furl".format(
+            # Oops, why don't I have a better handle on this value?
+            announceable_storage_server.announcement[u"name"],
         )
-        furl = self.tub.registerReference(
+        furl = _register_reference(
+            config_key,
+            self.config,
+            self.tub,
             announceable_storage_server.storage_server,
-            furlFile=furl_file.encode(get_filesystem_encoding()),
         )
         announceable_storage_server = self._add_to_announcement(
             {u"storage-server-FURL": furl},
