@@ -80,6 +80,37 @@ from .eliotutil import (
 
 TEST_RSA_KEY_SIZE = 522
 
+
+class UseTestPlugins(object):
+    """
+    A fixture which enables loading Twisted plugins from the Tahoe-LAFS test
+    suite.
+    """
+    def setUp(self):
+        """
+        Add the testing package ``plugins`` directory to the ``twisted.plugins``
+        aggregate package.
+        """
+        import twisted.plugins
+        testplugins = FilePath(__file__).sibling("plugins")
+        twisted.plugins.__path__.insert(0, testplugins.path)
+
+
+    def cleanUp(self):
+        """
+        Remove the testing package ``plugins`` directory from the
+        ``twisted.plugins`` aggregate package.
+        """
+        import twisted.plugins
+        testplugins = FilePath(__file__).sibling("plugins")
+        twisted.plugins.__path__.remove(testplugins.path)
+
+
+    def getDetails(self):
+        return {}
+
+
+
 @implementer(IPlugin, IStreamServerEndpointStringParser)
 class AdoptedServerPort(object):
     """
@@ -135,22 +166,16 @@ class SameProcessStreamEndpointAssigner(object):
     """
     def setUp(self):
         self._cleanups = []
+        # Make sure the `adopt-socket` endpoint is recognized.  We do this
+        # instead of providing a dropin because we don't want to make this
+        # endpoint available to random other applications.
+        f = UseTestPlugins()
+        f.setUp()
+        self._cleanups.append(f.cleanUp)
 
     def tearDown(self):
         for c in self._cleanups:
             c()
-
-    def _patch_plugins(self):
-        """
-        Add the testing package ``plugins`` directory to the ``twisted.plugins``
-        aggregate package.  Arrange for it to be removed again when the
-        fixture is torn down.
-        """
-        import twisted.plugins
-        testplugins = FilePath(__file__).sibling("plugins")
-        twisted.plugins.__path__.insert(0, testplugins.path)
-        self._cleanups.append(lambda: twisted.plugins.__path__.remove(testplugins.path))
-
 
     def assign(self, reactor):
         """
@@ -183,10 +208,6 @@ class SameProcessStreamEndpointAssigner(object):
             host, port = s.getsockname()
             location_hint = "tcp:%s:%d" % (host, port)
             port_endpoint = "adopt-socket:fd=%d" % (s.fileno(),)
-            # Make sure `adopt-socket` is recognized.  We do this instead of
-            # providing a dropin because we don't want to make this endpoint
-            # available to random other applications.
-            self._patch_plugins()
         else:
             # On other platforms, we blindly guess and hope we get lucky.
             portnum = iputil.allocate_tcp_port()

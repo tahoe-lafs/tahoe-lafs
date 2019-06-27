@@ -2,8 +2,18 @@ import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
 from errno import ENOENT, EPERM
+from ConfigParser import NoSectionError
 
+from foolscap.furl import (
+    decode_furl,
+)
+
+import attr
 from zope.interface import implementer
+
+from twisted.plugin import (
+    getPlugins,
+)
 from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
@@ -27,7 +37,14 @@ from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.stats import StatsProvider
 from allmydata.history import History
-from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION, DEFAULT_MAX_SEGMENT_SIZE
+from allmydata.interfaces import (
+    IStatsProducer,
+    SDMF_VERSION,
+    MDMF_VERSION,
+    DEFAULT_MAX_SEGMENT_SIZE,
+    IFoolscapStoragePlugin,
+    IAnnounceableStorageServer,
+)
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata import node
@@ -39,9 +56,17 @@ GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
 
-def _valid_config():
-    cfg = node._common_valid_config()
-    return cfg.update(configutil.ValidConfiguration({
+def _is_valid_section(section_name):
+    """
+    Check for valid dynamic configuration section names.
+
+    Currently considers all possible storage server plugin sections valid.
+    """
+    return section_name.startswith("storageserver.plugins.")
+
+
+_client_config = configutil.ValidConfiguration(
+    static_valid_sections={
         "client": (
             "helper.furl",
             "introducer.furl",
@@ -75,6 +100,7 @@ def _valid_config():
             "readonly",
             "reserved_space",
             "storage_dir",
+            "plugins",
         ),
         "sftpd": (
             "accounts.file",
@@ -93,7 +119,16 @@ def _valid_config():
             "local.directory",
             "poll_interval",
         ),
-    }))
+    },
+    is_valid_section=_is_valid_section,
+    # Anything in a valid section is a valid item, for now.
+    is_valid_item=lambda section, ignored: _is_valid_section(section),
+)
+
+
+def _valid_config():
+    cfg = node._common_valid_config()
+    return cfg.update(_client_config)
 
 # this is put into README in new node-directories
 CLIENT_README = """
@@ -184,6 +219,12 @@ def read_config(basedir, portnumfile, generated_files=[]):
     )
 
 
+config_from_string = partial(
+    node.config_from_string,
+    _valid_config=_valid_config(),
+)
+
+
 def create_client(basedir=u".", _client_factory=None):
     """
     Creates a new client instance (a subclass of Node).
@@ -208,7 +249,7 @@ def create_client(basedir=u".", _client_factory=None):
         return defer.fail()
 
 
-def create_client_from_config(config, _client_factory=None):
+def create_client_from_config(config, _client_factory=None, _introducer_factory=None):
     """
     Creates a new client instance (a subclass of Node).  Most code
     should probably use `create_client` instead.
@@ -220,6 +261,9 @@ def create_client_from_config(config, _client_factory=None):
 
     :param _client_factory: for testing; the class to instantiate
         instead of _Client
+
+    :param _introducer_factory: for testing; the class to instantiate instead
+        of IntroducerClient
     """
     try:
         if _client_factory is None:
@@ -237,7 +281,7 @@ def create_client_from_config(config, _client_factory=None):
         )
         control_tub = node.create_control_tub()
 
-        introducer_clients = create_introducer_clients(config, main_tub)
+        introducer_clients = create_introducer_clients(config, main_tub, _introducer_factory)
         storage_broker = create_storage_farm_broker(
             config, default_connection_handlers, foolscap_connection_handlers,
             tub_options, introducer_clients
@@ -257,7 +301,9 @@ def create_client_from_config(config, _client_factory=None):
         for ic in introducer_clients:
             ic.setServiceParent(client)
         storage_broker.setServiceParent(client)
-        return defer.succeed(client)
+        d = client.init_storage_plugins()
+        d.addCallback(lambda ignored: client)
+        return d
     except Exception:
         return defer.fail()
 
@@ -279,12 +325,18 @@ def _sequencer(config):
     return seqnum, nonce
 
 
-def create_introducer_clients(config, main_tub):
+def create_introducer_clients(config, main_tub, _introducer_factory=None):
     """
     Read, validate and parse any 'introducers.yaml' configuration.
 
+    :param _introducer_factory: for testing; the class to instantiate instead
+        of IntroducerClient
+
     :returns: a list of IntroducerClient instances
     """
+    if _introducer_factory is None:
+        _introducer_factory = IntroducerClient
+
     # we return this list
     introducer_clients = []
 
@@ -330,7 +382,7 @@ def create_introducer_clients(config, main_tub):
 
     for petname, introducer in introducers.items():
         introducer_cache_filepath = FilePath(config.get_private_path("introducer_{}_cache.yaml".format(petname)))
-        ic = IntroducerClient(
+        ic = _introducer_factory(
             main_tub,
             introducer['furl'].encode("ascii"),
             config.nickname,
@@ -381,6 +433,49 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     for ic in introducer_clients:
         sb.use_introducer(ic)
     return sb
+
+
+def _register_reference(key, config, tub, referenceable):
+    """
+    Register a referenceable in a tub with a stable fURL.
+
+    Stability is achieved by storing the fURL in the configuration the first
+    time and then reading it back on for future calls.
+
+    :param bytes key: An identifier for this reference which can be used to
+        identify its fURL in the configuration.
+
+    :param _Config config: The configuration to use for fURL persistence.
+
+    :param Tub tub: The tub in which to register the reference.
+
+    :param Referenceable referenceable: The referenceable to register in the
+        Tub.
+
+    :return bytes: The fURL at which the object is registered.
+    """
+    persisted_furl = config.get_private_config(
+        key,
+        default=None,
+    )
+    name = None
+    if persisted_furl is not None:
+        _, _, name = decode_furl(persisted_furl)
+    registered_furl = tub.registerReference(
+        referenceable,
+        name=name,
+    )
+    if persisted_furl is None:
+        config.write_private_config(key, registered_furl)
+    return registered_furl
+
+
+@implementer(IAnnounceableStorageServer)
+@attr.s
+class AnnounceableStorageServer(object):
+    announcement = attr.ib()
+    storage_server = attr.ib()
+
 
 
 @implementer(IStatsProducer)
@@ -581,6 +676,135 @@ class _Client(node.Node, pollmixin.PollMixin):
                }
         for ic in self.introducer_clients:
             ic.publish("storage", ann, self._node_key)
+
+
+    @defer.inlineCallbacks
+    def init_storage_plugins(self):
+        """
+        Load, register, and announce any configured storage plugins.
+        """
+        storage_plugin_names = self._get_enabled_storage_plugin_names()
+        plugins = list(self._collect_storage_plugins(storage_plugin_names))
+        # TODO Handle missing plugins
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3118
+        announceable_storage_servers = yield self._create_plugin_storage_servers(plugins)
+        self._enable_storage_servers(announceable_storage_servers)
+
+
+    def _get_enabled_storage_plugin_names(self):
+        """
+        Get the names of storage plugins that are enabled in the configuration.
+        """
+        return set(
+            self.config.get_config(
+                "storage", "plugins", b""
+            ).decode("ascii").split(u",")
+        )
+
+
+    def _collect_storage_plugins(self, storage_plugin_names):
+        """
+        Get the storage plugins with names matching those given.
+        """
+        return list(
+            plugin
+            for plugin
+            in getPlugins(IFoolscapStoragePlugin)
+            if plugin.name in storage_plugin_names
+        )
+
+
+    def _create_plugin_storage_servers(self, plugins):
+        """
+        Cause each storage plugin to instantiate its storage server and return
+        them all.
+
+        :return: A ``Deferred`` that fires with storage servers instantiated
+            by all of the given storage server plugins.
+        """
+        return defer.gatherResults(
+            list(
+                plugin.get_storage_server(
+                    self._get_storage_plugin_configuration(plugin.name),
+                    lambda: self.getServiceNamed(StorageServer.name),
+                ).addCallback(
+                    partial(
+                        self._add_to_announcement,
+                        {u"name": plugin.name},
+                    ),
+                )
+                for plugin
+                # The order is fairly arbitrary and it is not meant to convey
+                # anything but providing *some* stable ordering makes the data
+                # a little easier to deal with (mainly in tests and when
+                # manually inspecting it).
+                in sorted(plugins, key=lambda p: p.name)
+            ),
+        )
+
+
+    def _add_to_announcement(self, information, announceable_storage_server):
+        """
+        Create a new ``AnnounceableStorageServer`` based on
+        ``announceable_storage_server`` with ``information`` added to its
+        ``announcement``.
+        """
+        updated_announcement = announceable_storage_server.announcement.copy()
+        updated_announcement.update(information)
+        return AnnounceableStorageServer(
+            updated_announcement,
+            announceable_storage_server.storage_server,
+        )
+
+
+    def _get_storage_plugin_configuration(self, storage_plugin_name):
+        """
+        Load the configuration for a storage server plugin with the given name.
+
+        :return dict[bytes, bytes]: The matching configuration.
+        """
+        try:
+            config = self.config.items(
+                "storageserver.plugins." + storage_plugin_name,
+            )
+        except NoSectionError:
+            config = []
+        return dict(config)
+
+
+    def _enable_storage_servers(self, announceable_storage_servers):
+        """
+        Register and announce the given storage servers.
+        """
+        for announceable in announceable_storage_servers:
+            self._enable_storage_server(announceable)
+
+
+    def _enable_storage_server(self, announceable_storage_server):
+        """
+        Register and announce a storage server.
+        """
+        config_key = b"storage-plugin.{}.furl".format(
+            # Oops, why don't I have a better handle on this value?
+            announceable_storage_server.announcement[u"name"],
+        )
+        furl = _register_reference(
+            config_key,
+            self.config,
+            self.tub,
+            announceable_storage_server.storage_server,
+        )
+        announceable_storage_server = self._add_to_announcement(
+            {u"storage-server-FURL": furl},
+            announceable_storage_server,
+        )
+        for ic in self.introducer_clients:
+            ic.publish(
+                "storage",
+                announceable_storage_server.announcement,
+                self._node_key,
+            )
+
 
     def init_client(self):
         helper_furl = self.config.get_config("client", "helper.furl", None)

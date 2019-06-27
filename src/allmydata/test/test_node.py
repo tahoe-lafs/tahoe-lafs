@@ -4,6 +4,7 @@ import stat
 import sys
 import time
 import mock
+from textwrap import dedent
 
 from unittest import skipIf
 
@@ -174,6 +175,29 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         with self.assertRaises(Exception):
             config.get_config_from_file("it_does_not_exist", required=True)
+
+    def test_config_items(self):
+        """
+        All items in a config section can be retrieved.
+        """
+        basedir = u"test_node/test_config_items"
+        create_node_dir(basedir, "testing")
+
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
+            f.write(dedent(
+                """
+                [node]
+                nickname = foo
+                timeout.disconnect = 12
+                """
+            ))
+        config = read_config(basedir, "portnum")
+        self.assertEqual(
+            config.items("node"),
+            [(b"nickname", b"foo"),
+             (b"timeout.disconnect", b"12"),
+            ],
+        )
 
     @skipIf(
         "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower(),

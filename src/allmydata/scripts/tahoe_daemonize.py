@@ -115,6 +115,7 @@ class DaemonizeTheRealService(Service, HookMixin):
     - 'running': triggered when startup has completed; it triggers
         with None of successful or a Failure otherwise.
     """
+    stderr = sys.stderr
 
     def __init__(self, nodetype, basedir, options):
         super(DaemonizeTheRealService, self).__init__()
@@ -145,10 +146,12 @@ class DaemonizeTheRealService(Service, HookMixin):
                 raise ValueError("unknown nodetype %s" % self.nodetype)
 
             def handle_config_error(fail):
-                fail.trap(UnknownConfigError)
-                self.stderr.write("\nConfiguration error:\n{}\n\n".format(fail.value))
+                if fail.check(UnknownConfigError):
+                    self.stderr.write("\nConfiguration error:\n{}\n\n".format(fail.value))
+                else:
+                    self.stderr.write("\nUnknown error\n")
+                    fail.printTraceback(self.stderr)
                 reactor.stop()
-                return
 
             d = service_factory()
 
