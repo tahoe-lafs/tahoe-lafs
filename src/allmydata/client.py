@@ -729,12 +729,10 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         Load the configuration for a storage server plugin with the given name.
 
-        :return dict: The matching configuration.
+        :return dict[bytes, bytes]: The matching configuration.
         """
         try:
-            # Need to reach past the Tahoe-LAFS-supplied wrapper around the
-            # underlying ConfigParser...
-            config = self.config.config.items(
+            config = self.config.items(
                 "storageserver.plugins." + storage_plugin_name,
             )
         except NoSectionError:
