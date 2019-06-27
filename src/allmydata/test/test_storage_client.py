@@ -8,9 +8,16 @@ from twisted.application.service import (
 from twisted.trial import unittest
 from twisted.internet.defer import succeed, inlineCallbacks
 
+from foolscap.api import (
+    Tub,
+)
+
 from allmydata.util import base32, yamlutil
 from allmydata.storage_client import NativeStorageServer
 from allmydata.storage_client import StorageFarmBroker
+from allmydata.interfaces import (
+    IConnectionStatus,
+)
 
 
 class NativeStorageServerWithVersion(NativeStorageServer):
@@ -46,6 +53,24 @@ class TestNativeStorageServer(unittest.TestCase):
                }
         nss = NativeStorageServer("server_id", ann, None, {})
         self.assertEqual(nss.get_nickname(), "")
+
+
+class GetConnectionStatus(unittest.TestCase):
+    """
+    Tests for ``NativeStorageServer.get_connection_status``.
+    """
+    def test_unrecognized_announcement(self):
+        """
+        When ``NativeStorageServer`` is constructed with a storage announcement it
+        doesn't recognize, its ``get_connection_status`` nevertheless returns
+        an object which provides ``IConnectionStatus``.
+        """
+        # Pretty hard to recognize anything from an empty announcement.
+        ann = {}
+        nss = NativeStorageServer("server_id", ann, Tub, {})
+        nss.start_connecting(lambda: None)
+        connection_status = nss.get_connection_status()
+        self.assertTrue(IConnectionStatus.providedBy(connection_status))
 
 
 class UnrecognizedAnnouncement(unittest.TestCase):
