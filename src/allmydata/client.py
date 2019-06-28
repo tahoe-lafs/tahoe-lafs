@@ -536,8 +536,9 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     :param list introducer_clients: IntroducerClient instances if
         we're connecting to any
     """
-    ps = config.get_config("client", "peers.preferred", "").split(",")
-    preferred_peers = tuple([p.strip() for p in ps if p != ""])
+    storage_client_config = storage_client.StorageClientConfig.from_node_config(
+        config,
+    )
 
     def tub_creator(handler_overrides=None, **kwargs):
         return node.create_tub(
@@ -551,7 +552,7 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     sb = storage_client.StorageFarmBroker(
         permute_peers=True,
         tub_maker=tub_creator,
-        preferred_peers=preferred_peers,
+        storage_client_config=storage_client_config,
     )
     for ic in introducer_clients:
         sb.use_introducer(ic)
