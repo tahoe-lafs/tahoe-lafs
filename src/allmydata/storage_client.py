@@ -69,7 +69,17 @@ from allmydata.util.hashutil import permute_server_hash
 # look like?
 #  don't pass signatures: only pass validated blessed-objects
 
+@attr.s
+class StorageClientConfig(object):
+    preferred_peers = attr.ib(default=())
+    @classmethod
+    def from_node_config(cls, config):
+        ps = config.get_config("client", "peers.preferred", "").split(",")
+        preferred_peers = tuple([p.strip() for p in ps if p != ""])
 
+        return cls(
+            preferred_peers,
+        )
 @implementer(IStorageBroker)
 class StorageFarmBroker(service.MultiService):
     """I live on the client, and know about storage servers. For each server
@@ -78,12 +88,25 @@ class StorageFarmBroker(service.MultiService):
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, permute_peers, tub_maker, preferred_peers=()):
+
+    @property
+    def preferred_peers(self):
+        return self.storage_client_config.preferred_peers
+
+    def __init__(
+            self,
+            permute_peers,
+            tub_maker,
+            storage_client_config=None,
+    ):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self._tub_maker = tub_maker
-        self.preferred_peers = preferred_peers
+
+        if storage_client_config is None:
+            storage_client_config = StorageClientConfig()
+        self.storage_client_config = storage_client_config
 
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
