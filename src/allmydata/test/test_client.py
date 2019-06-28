@@ -28,7 +28,6 @@ from testtools.matchers import (
     AfterPreprocessing,
     MatchesListwise,
     MatchesDict,
-    MatchesStructure,
     Always,
 )
 from testtools.twistedsupport import (
@@ -59,9 +58,8 @@ from .common import (
     UseTestPlugins,
 )
 from .matchers import (
-    MatchesNodePublicKey,
     MatchesSameElements,
-    matches_anonymous_storage_announcement,
+    matches_storage_announcement,
     matches_furl,
 )
 
@@ -1071,12 +1069,10 @@ def get_published_announcements(client):
 
 
 
-def matches_dummy_announcement(basedir, name, value):
+def matches_dummy_announcement(name, value):
     """
-    Matches the announcement for the ``DummyStorage`` storage server plugin.
-
-    :param str basedir: The path to the node the storage server plugin is
-        loaded into.
+    Matches the portion of an announcement for the ``DummyStorage`` storage
+        server plugin.
 
     :param unicode name: The name of the dummy plugin.
 
@@ -1085,17 +1081,13 @@ def matches_dummy_announcement(basedir, name, value):
 
     :return: a testtools-style matcher
     """
-    return MatchesStructure(
-        service_name=Equals("storage"),
-        ann=MatchesDict({
-            # Everyone gets a name and a fURL added to their announcement.
-            u"name": Equals(name),
-            u"storage-server-FURL": matches_furl(),
-            # The plugin can contribute things, too.
-            u"value": Equals(value),
-        }),
-        signing_key=MatchesNodePublicKey(basedir),
-    )
+    return MatchesDict({
+        # Everyone gets a name and a fURL added to their announcement.
+        u"name": Equals(name),
+        u"storage-server-FURL": matches_furl(),
+        # The plugin can contribute things, too.
+        u"value": Equals(value),
+    })
 
 
 
@@ -1173,7 +1165,7 @@ introducer.furl = pb://abcde@nowhere/fake
                 # Match the following list (of one element) ...
                 MatchesListwise([
                     # The only element in the list ...
-                    matches_anonymous_storage_announcement(self.basedir),
+                    matches_storage_announcement(self.basedir),
                 ]),
             )),
         )
@@ -1207,11 +1199,14 @@ introducer.furl = pb://abcde@nowhere/fake
             succeeded(AfterPreprocessing(
                 get_published_announcements,
                 MatchesListwise([
-                    matches_anonymous_storage_announcement(self.basedir),
-                    matches_dummy_announcement(
+                    matches_storage_announcement(
                         self.basedir,
-                        u"tahoe-lafs-dummy-v1",
-                        value,
+                        options=[
+                            matches_dummy_announcement(
+                                u"tahoe-lafs-dummy-v1",
+                                value,
+                            ),
+                        ],
                     ),
                 ]),
             )),
@@ -1247,16 +1242,18 @@ introducer.furl = pb://abcde@nowhere/fake
             succeeded(AfterPreprocessing(
                 get_published_announcements,
                 MatchesListwise([
-                    matches_anonymous_storage_announcement(self.basedir),
-                    matches_dummy_announcement(
+                    matches_storage_announcement(
                         self.basedir,
-                        u"tahoe-lafs-dummy-v1",
-                        u"thing-1",
-                    ),
-                    matches_dummy_announcement(
-                        self.basedir,
-                        u"tahoe-lafs-dummy-v2",
-                        u"thing-2",
+                        options=[
+                            matches_dummy_announcement(
+                                u"tahoe-lafs-dummy-v1",
+                                u"thing-1",
+                            ),
+                            matches_dummy_announcement(
+                                u"tahoe-lafs-dummy-v2",
+                                u"thing-2",
+                            ),
+                        ],
                     ),
                 ]),
             )),
@@ -1323,11 +1320,14 @@ introducer.furl = pb://abcde@nowhere/fake
             succeeded(AfterPreprocessing(
                 get_published_announcements,
                 MatchesListwise([
-                    matches_anonymous_storage_announcement(self.basedir),
-                    matches_dummy_announcement(
+                    matches_storage_announcement(
                         self.basedir,
-                        u"tahoe-lafs-dummy-v1",
-                        u"default-value",
+                        options=[
+                            matches_dummy_announcement(
+                                u"tahoe-lafs-dummy-v1",
+                                u"default-value",
+                            ),
+                        ],
                     ),
                 ]),
             )),
