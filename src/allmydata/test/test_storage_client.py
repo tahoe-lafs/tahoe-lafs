@@ -197,7 +197,7 @@ storage.plugins = tahoe-lafs-dummy-v1
         )
         node = yield create_client_from_config(
             config,
-            introducer_factory=MemoryIntroducerClient,
+            _introducer_factory=MemoryIntroducerClient,
         )
         [introducer_client] = node.introducer_clients
         server_id = b"v0-abcdef"
