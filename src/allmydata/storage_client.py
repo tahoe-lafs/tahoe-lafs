@@ -193,7 +193,7 @@ class StorageFarmBroker(service.MultiService):
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
-        s = NativeStorageServer(serverid, ann.copy(), self._tub_maker, {})
+        s = self._make_storage_server(serverid, {"ann": ann.copy()})
         s._rref = rref
         s._is_connected = True
         self.servers[serverid] = s
@@ -234,8 +234,10 @@ class StorageFarmBroker(service.MultiService):
                     facility="tahoe.storage_broker", umid="AlxzqA",
                     level=log.UNUSUAL)
             return
-        s = NativeStorageServer(server_id, ann, self._tub_maker, {})
-        s.on_status_changed(lambda _: self._got_connection())
+        s = self._make_storage_server(
+            server_id.decode("utf-8"),
+            {u"ann": ann},
+        )
         server_id = s.get_serverid()
         old = self.servers.get(server_id)
         if old:
