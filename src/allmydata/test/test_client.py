@@ -1056,16 +1056,21 @@ class Announcement(object):
 
 def get_published_announcements(client):
     """
-    Get a flattened list of all announcements sent using all introducer
+    Get a flattened list of the latest announcements sent using all introducer
     clients.
+
+    Only the most recent announcement for any particular service name is acted
+    on so these are the only announcements returned.
     """
-    return list(
-        announcement
+    return {
+        announcement.service_name: announcement
         for introducer_client
         in client.introducer_clients
+        # Visit the announcements in the order they were sent.  The last one
+        # will win in the dictionary we construct.
         for announcement
         in introducer_client.published_announcements
-    )
+    }.values()
 
 
 
