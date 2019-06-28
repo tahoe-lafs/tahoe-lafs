@@ -41,7 +41,10 @@ import allmydata.util.log
 from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, create_node_dir
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
-from allmydata.storage_client import StorageFarmBroker
+from allmydata.storage_client import (
+    StorageClientConfig,
+    StorageFarmBroker,
+)
 from allmydata.util import (
     base32,
     fileutil,
@@ -518,7 +521,11 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
     def test_permute_with_preferred(self):
-        sb = StorageFarmBroker(True, None, preferred_peers=['1','4'])
+        sb = StorageFarmBroker(
+            True,
+            None,
+            StorageClientConfig(preferred_peers=['1','4']),
+        )
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
                    "permutation-seed-base32": base32.b2a(k) }
