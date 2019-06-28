@@ -19,6 +19,7 @@ from foolscap.api import (
 
 from allmydata.interfaces import (
     IFoolscapStoragePlugin,
+    IStorageServer,
 )
 from allmydata.client import (
     AnnounceableStorageServer,
@@ -56,7 +57,7 @@ class DummyStorage(object):
 
 
     def get_storage_client(self, configuration, announcement):
-        pass
+        return DummyStorageClient()
 
 
 
@@ -68,3 +69,9 @@ class DummyStorageServer(object):
 
     def remote_just_some_method(self):
         pass
+
+
+@implementer(IStorageServer)
+@attr.s
+class DummyStorageClient(object):
+    pass

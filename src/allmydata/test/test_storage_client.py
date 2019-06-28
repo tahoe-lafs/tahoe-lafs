@@ -24,6 +24,9 @@ from .common import (
     UseTestPlugins,
     MemoryIntroducerClient,
 )
+from .storage_plugin import (
+    DummyStorageClient,
+)
 from allmydata.util import base32, yamlutil
 from allmydata.client import (
     config_from_string,
@@ -226,6 +229,20 @@ storage.plugins = tahoe-lafs-dummy-v1
         self.publish(server_id, ann)
         storage = self.get_storage(server_id, self.node)
         self.assertIsInstance(storage, _NullStorage)
+
+    def test_enabled_plugin(self):
+        """
+        An announcement that could be matched by a plugin that is enabled is
+        matched and the plugin's storage client is used.
+        """
+        server_id = b"v0-abcdef"
+        ann = {
+            u"service-name": u"storage",
+            u"name": u"tahoe-lafs-dummy-v1",
+        }
+        self.publish(server_id, ann)
+        storage = self.get_storage(server_id, self.node)
+        self.assertIsInstance(storage, DummyStorageClient)
 
 
 class TestStorageFarmBroker(unittest.TestCase):
