@@ -218,7 +218,7 @@ class StorageFarmBroker(service.MultiService):
         ic.subscribe_to("storage", self._got_announcement)
 
     def _got_connection(self):
-        # this is called by NativeStorageClient when it is connected
+        # this is called by NativeStorageServer when it is connected
         self._check_connected_high_water_mark()
 
     def _check_connected_high_water_mark(self):
