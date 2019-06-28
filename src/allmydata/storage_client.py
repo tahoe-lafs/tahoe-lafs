@@ -30,10 +30,16 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 
 
 import re, time, hashlib
+from ConfigParser import (
+    NoSectionError,
+)
 import attr
 from zope.interface import implementer
 from twisted.internet import defer
 from twisted.application import service
+from twisted.plugin import (
+    getPlugins,
+)
 from eliot import (
     log_call,
 )
@@ -46,6 +52,7 @@ from allmydata.interfaces import (
     IDisplayableServer,
     IServer,
     IStorageServer,
+    IFoolscapStoragePlugin,
 )
 from allmydata.util import log, base32, connection_status
 from allmydata.util.assertutil import precondition
@@ -72,14 +79,38 @@ from allmydata.util.hashutil import permute_server_hash
 @attr.s
 class StorageClientConfig(object):
     preferred_peers = attr.ib(default=())
+    storage_plugins = attr.ib(default=attr.Factory(dict))
+
     @classmethod
     def from_node_config(cls, config):
         ps = config.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
 
+        enabled_storage_plugins = (
+            name.strip()
+            for name
+            in config.get_config(
+                b"client",
+                b"storage.plugins",
+                b"",
+            ).decode("utf-8").split(u",")
+            if name.strip()
+        )
+
+        storage_plugins = {}
+        for plugin_name in enabled_storage_plugins:
+            try:
+                plugin_config = config.items(b"storageclient.plugins." + plugin_name)
+            except NoSectionError:
+                plugin_config = {}
+            storage_plugins[plugin_name] = plugin_config
+
         return cls(
             preferred_peers,
+            storage_plugins,
         )
+
+
 @implementer(IStorageBroker)
 class StorageFarmBroker(service.MultiService):
     """I live on the client, and know about storage servers. For each server
