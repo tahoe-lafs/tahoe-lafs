@@ -159,6 +159,12 @@ class StorageFarmBroker(service.MultiService):
             try:
                 storage_server = self._make_storage_server(server_id, server)
             except Exception:
+                # TODO: The _make_storage_server failure is logged but maybe
+                # we should write a traceback here.  Notably, tests don't
+                # automatically fail just because we hit this case.  Well
+                # written tests will still fail if a surprising exception
+                # arrives here but they might be harder to debug without this
+                # information.
                 pass
             else:
                 self._static_server_ids.add(server_id)
