@@ -323,6 +323,13 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
 
 @attr.s
 class _StoragePlugins(object):
+    """
+    Functionality related to getting storage plugins set up and ready for use.
+
+    :ivar list[IAnnounceableStorageServer] announceable_storage_servers: The
+        announceable storage servers that should be used according to node
+        configuration.
+    """
     announceable_storage_servers = attr.ib()
 
     @classmethod
@@ -330,6 +337,14 @@ class _StoragePlugins(object):
     def from_config(cls, get_anonymous_storage_server, config):
         """
         Load and configured storage plugins.
+
+        :param get_anonymous_storage_server: A no-argument callable which
+            returns the node's anonymous ``IStorageServer`` implementation.
+
+        :param _Config config: The node's configuration.
+
+        :return: A ``_StoragePlugins`` initialized from the given
+            configuration.
         """
         storage_plugin_names = cls._get_enabled_storage_plugin_names(config)
         plugins = list(cls._collect_storage_plugins(storage_plugin_names))
