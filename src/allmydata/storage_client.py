@@ -181,8 +181,13 @@ class StorageFarmBroker(service.MultiService):
         assert isinstance(server_id, unicode) # from YAML
         server_id = server_id.encode("ascii")
         handler_overrides = server.get("connections", {})
-        s = NativeStorageServer(server_id, server["ann"],
-                                self._tub_maker, handler_overrides)
+        s = NativeStorageServer(
+            server_id,
+            server["ann"],
+            self._tub_maker,
+            handler_overrides,
+            self.storage_client_config,
+        )
         s.on_status_changed(lambda _: self._got_connection())
         return s
 
@@ -451,6 +456,38 @@ class NonReconnector(object):
 _null_storage = _NullStorage()
 
 
+class AnnouncementNotMatched(Exception):
+    """
+    A storage server announcement wasn't matched by any of the locally enabled
+    plugins.
+    """
+
+
+def _storage_from_plugin(config, announcement):
+    """
+    Construct an ``IStorageServer`` from the most locally-preferred plugin
+    that is offered in the given announcement.
+    """
+    plugins = {
+        plugin.name: plugin
+        for plugin
+        in getPlugins(IFoolscapStoragePlugin)
+    }
+    storage_options = announcement.get(u"storage-options", [])
+    for plugin_name, plugin_config in config.storage_plugins.items():
+        try:
+            plugin = plugins[plugin_name]
+        except KeyError:
+            raise ValueError("{} not installed".format(plugin_name))
+        for option in storage_options:
+            if plugin_name == option[u"name"]:
+                return plugin.get_storage_client(
+                    plugin_config,
+                    option,
+                )
+    raise AnnouncementNotMatched()
+
+
 @implementer(IServer)
 class NativeStorageServer(service.MultiService):
     """I hold information about a storage server that we want to connect to.
@@ -479,7 +516,7 @@ class NativeStorageServer(service.MultiService):
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, server_id, ann, tub_maker, handler_overrides):
+    def __init__(self, server_id, ann, tub_maker, handler_overrides, config=StorageClientConfig()):
         service.MultiService.__init__(self)
         assert isinstance(server_id, str)
         self._server_id = server_id
@@ -487,7 +524,7 @@ class NativeStorageServer(service.MultiService):
         self._tub_maker = tub_maker
         self._handler_overrides = handler_overrides
 
-        self._init_from_announcement(ann)
+        self._init_from_announcement(config, ann)
 
         self.last_connect_time = None
         self.last_loss_time = None
@@ -498,10 +535,17 @@ class NativeStorageServer(service.MultiService):
         self._trigger_cb = None
         self._on_status_changed = ObserverList()
 
-    def _init_from_announcement(self, ann):
+    def _init_from_announcement(self, config, ann):
+        """
+        :param StorageClientConfig config: Configuration specifying desired
+            storage client behavior.
+        """
         storage = _null_storage
-        if "anonymous-storage-FURL" in ann:
-            storage = _AnonymousStorage.from_announcement(self._server_id, ann)
+        try:
+            storage = _storage_from_plugin(config, ann)
+        except AnnouncementNotMatched:
+            if "anonymous-storage-FURL" in ann:
+                storage = _AnonymousStorage.from_announcement(self._server_id, ann)
         self._storage = storage
 
     def get_permutation_seed(self):
