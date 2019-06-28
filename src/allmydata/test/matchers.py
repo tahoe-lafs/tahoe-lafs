@@ -9,6 +9,7 @@ from testtools.matchers import (
     AfterPreprocessing,
     MatchesStructure,
     MatchesDict,
+    MatchesListwise,
     Always,
     Equals,
 )
@@ -50,17 +51,20 @@ class MatchesNodePublicKey(object):
             return Mismatch("The signature did not verify.")
 
 
-def matches_anonymous_storage_announcement(basedir):
+def matches_storage_announcement(basedir, options=None):
     """
     Match an anonymous storage announcement.
     """
+    announcement = {
+        u"anonymous-storage-FURL": matches_furl(),
+        u"permutation-seed-base32": matches_base32(),
+    }
+    if options:
+        announcement[u"storage-options"] = MatchesListwise(options)
     return MatchesStructure(
         # Has each of these keys with associated values that match
-        service_name=Equals("storage"),
-        ann=MatchesDict({
-            "anonymous-storage-FURL": matches_furl(),
-            "permutation-seed-base32": matches_base32(),
-        }),
+        service_name=Equals(u"storage"),
+        ann=MatchesDict(announcement),
         signing_key=MatchesNodePublicKey(basedir),
     )
 
