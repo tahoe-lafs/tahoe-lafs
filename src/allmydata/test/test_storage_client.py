@@ -222,9 +222,11 @@ storage.plugins = tahoe-lafs-dummy-v1
         server_id = b"v0-abcdef"
         ann = {
             u"service-name": u"storage",
-            # notice how the announcement is for a different storage plugin
-            # than the one that is enabled.
-            u"name": u"tahoe-lafs-dummy-v2",
+            u"storage-options": [{
+                # notice how the announcement is for a different storage plugin
+                # than the one that is enabled.
+                u"name": u"tahoe-lafs-dummy-v2",
+            }],
         }
         self.publish(server_id, ann)
         storage = self.get_storage(server_id, self.node)
@@ -238,7 +240,10 @@ storage.plugins = tahoe-lafs-dummy-v1
         server_id = b"v0-abcdef"
         ann = {
             u"service-name": u"storage",
-            u"name": u"tahoe-lafs-dummy-v1",
+            u"storage-options": [{
+                # and this announcement is for a plugin with a matching name
+                u"name": u"tahoe-lafs-dummy-v1",
+            }],
         }
         self.publish(server_id, ann)
         storage = self.get_storage(server_id, self.node)
