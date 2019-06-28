@@ -172,6 +172,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
     Tests for handling by ``NativeStorageServer`` of storage server
     announcements that are handled by an ``IFoolscapStoragePlugin``.
     """
+    @inlineCallbacks
     def setUp(self):
         super(PluginMatchedAnnouncement, self).setUp()
         tempdir = TempDir()
@@ -180,13 +181,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
         self.basedir.child(u"private").makedirs()
         self.useFixture(UseTestPlugins())
 
-    @inlineCallbacks
-    def test_ignored_non_enabled_plugin(self):
-        """
-        An announcement that could be matched by a plugin that is not enabled is
-        not matched.
-        """
-        config = config_from_string(
+        self.config = config_from_string(
             self.basedir.asTextMode().path,
             u"tub.port",
 """
@@ -195,11 +190,32 @@ introducer.furl = pb://tubid@example.invalid/swissnum
 storage.plugins = tahoe-lafs-dummy-v1
 """,
         )
-        node = yield create_client_from_config(
-            config,
+        self.node = yield create_client_from_config(
+            self.config,
             _introducer_factory=MemoryIntroducerClient,
         )
-        [introducer_client] = node.introducer_clients
+        [self.introducer_client] = self.node.introducer_clients
+
+    def publish(self, server_id, announcement):
+        for subscription in self.introducer_client.subscribed_to:
+            if subscription.service_name == u"storage":
+                subscription.cb(
+                    server_id,
+                    announcement,
+                    *subscription.args,
+                    **subscription.kwargs
+                )
+
+    def get_storage(self, server_id, node):
+        storage_broker = node.get_storage_broker()
+        native_storage_server = storage_broker.servers[server_id]
+        return native_storage_server._storage
+
+    def test_ignored_non_enabled_plugin(self):
+        """
+        An announcement that could be matched by a plugin that is not enabled is
+        not matched.
+        """
         server_id = b"v0-abcdef"
         ann = {
             u"service-name": u"storage",
@@ -207,18 +223,9 @@ storage.plugins = tahoe-lafs-dummy-v1
             # than the one that is enabled.
             u"name": u"tahoe-lafs-dummy-v2",
         }
-        for subscription in introducer_client.subscribed_to:
-            if subscription.service_name == u"storage":
-                subscription.cb(
-                    server_id,
-                    ann,
-                    *subscription.args,
-                    **subscription.kwargs
-                )
-
-        storage_broker = node.get_storage_broker()
-        native_storage_server = storage_broker.servers[server_id]
-        self.assertIsInstance(native_storage_server._storage, _NullStorage)
+        self.publish(server_id, ann)
+        storage = self.get_storage(server_id, self.node)
+        self.assertIsInstance(storage, _NullStorage)
 
 
 class TestStorageFarmBroker(unittest.TestCase):
