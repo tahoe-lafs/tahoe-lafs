@@ -13,9 +13,15 @@ shift
 PROJECT_ROOT="$1"
 shift
 
+# "yes" if the tox command may fail without causing this script to fail,
+# anything else for normal behavior.  This is basically implementing the
+# "expected failure" workflow - useful to, eg, add a new Python runtime to CI
+# before the test suite completely passes on that runtime.
 ALLOWED_FAILURE="$1"
 shift
 
+# The path to which test artifacts will be written so that they can be
+# collected by some other tool.
 ARTIFACTS=$1
 shift
 
