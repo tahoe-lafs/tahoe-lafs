@@ -1,6 +1,13 @@
 # -*- mode: conf -*-
 
 [run]
+# Support concurrent test runs recording coverage information.
+parallel = True
+
+# Branch-based coverage measurements are great.  Why wouldn't you want
+# information about which branches are taken?
+branch = True
+
 # only record trace data for allmydata.*
 source =
        allmydata
