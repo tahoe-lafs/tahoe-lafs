@@ -15,7 +15,7 @@ TEST_DEPS="tox codecov"
 
 # Python packages we need to generate test reports for CI infrastructure.
 # *Not* packages Tahoe-LAFS itself (implement or test suite) need.
-REPORTING_DEPS="python-subunit junitxml subunitreporter"
+REPORTING_DEPS="python-subunit junitxml subunitreporter coverage_enable_subprocess"
 
 # The filesystem location of the wheelhouse which we'll populate with wheels
 # for all of our dependencies.
