@@ -25,6 +25,11 @@ shift
 ARTIFACTS=$1
 shift
 
+# The number of concurrent trial jobs to run (a value for the `--jobs` trial
+# argument).  Empty string to disable this.
+TRIAL_JOBS=$1
+shift
+
 TAHOE_LAFS_TOX_ENVIRONMENT=$1
 shift
 
@@ -60,7 +65,7 @@ fi
 # Send the output directly to a file because transporting the binary subunit2
 # via tox and then scraping it out is hideous and failure prone.
 export SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}"
-export TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file --rterrors"
+export TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file --rterrors ${TRIAL_JOBS:+--jobs ${TRIAL_JOBS}}"
 export PIP_NO_INDEX="1"
 
 if [ "${ALLOWED_FAILURE}" = "yes" ]; then
