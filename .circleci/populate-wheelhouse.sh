@@ -9,6 +9,8 @@ BASIC_DEPS="pip wheel"
 
 # Python packages we need to support the test infrastructure.  *Not* packages
 # Tahoe-LAFS itself (implementation or test suite) need.
+#
+# Note codecov is what pulls in coveragepy.
 TEST_DEPS="tox codecov"
 
 # Python packages we need to generate test reports for CI infrastructure.
