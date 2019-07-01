@@ -104,8 +104,13 @@ jobs:
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
       ARTIFACTS_OUTPUT_PATH: "/tmp/artifacts"
-      # Convince all of our pip invocations to look at the cached wheelhouse
-      # we maintain.
+      # The number of concurrent jobs to tell trial to use to run the test
+      # suite.  The empty string is the preferred spelling of "no
+      # concurrency".  This uses trial's --jobs.  We select 2 because normal
+      # CircleCI runner environment has 2 vCPUs.
+      TRIAL_JOBS: "2"
+      # Convince all of our pip
+      # invocations to look at the cached wheelhouse we maintain.
       WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
       PIP_FIND_LINKS: "file:///tmp/wheelhouse"
 
@@ -133,6 +138,7 @@ jobs:
                 "/tmp/project" \
                 "${ALLOWED_FAILURE}" \
                 "${ARTIFACTS_OUTPUT_PATH}" \
+                "${TRIAL_JOBS}" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
           # trial output gets directed straight to a log.  avoid the circleci
