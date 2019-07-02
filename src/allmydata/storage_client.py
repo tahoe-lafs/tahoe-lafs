@@ -544,7 +544,7 @@ class AnnouncementNotMatched(Exception):
     """
 
 
-def _storage_from_plugin(config, announcement):
+def _storage_from_foolscap_plugin(config, announcement, get_rref):
     """
     Construct an ``IStorageServer`` from the most locally-preferred plugin
     that is offered in the given announcement.
@@ -566,6 +566,7 @@ def _storage_from_plugin(config, announcement):
                 return furl, plugin.get_storage_client(
                     plugin_config,
                     option,
+                    get_rref,
                 )
     raise AnnouncementNotMatched()
 
@@ -630,7 +631,15 @@ class NativeStorageServer(service.MultiService):
         """
         # Try to match the announcement against a plugin.
         try:
-            furl, storage_server = _storage_from_plugin(config, ann)
+            furl, storage_server = _storage_from_foolscap_plugin(
+                config,
+                ann,
+                # Pass in an accessor for our _rref attribute.  The value of
+                # the attribute may change over time as connections are lost
+                # and re-established.  The _StorageServer should always be
+                # able to get the most up-to-date value.
+                self.get_rref,
+            )
         except AnnouncementNotMatched:
             # Nope.
             pass
@@ -649,10 +658,8 @@ class NativeStorageServer(service.MultiService):
             # Nope
             pass
         else:
-            # Pass in an accessor for our _rref attribute.  The value of the
-            # attribute may change over time as connections are lost and
-            # re-established.  The _StorageServer should always be able to get
-            # the most up-to-date value.
+            # See comment above for the _storage_from_foolscap_plugin case
+            # about passing in get_rref.
             storage_server = _StorageServer(get_rref=self.get_rref)
             return _FoolscapStorage.from_announcement(
                 self._server_id,
