@@ -34,7 +34,11 @@ from ConfigParser import (
     NoSectionError,
 )
 import attr
-from zope.interface import implementer
+from zope.interface import (
+    Attribute,
+    Interface,
+    implementer,
+)
 from twisted.internet import defer
 from twisted.application import service
 from twisted.plugin import (
@@ -369,18 +373,69 @@ class StubServer(object):
         return "?"
 
 
-@attr.s(frozen=True)
-class _AnonymousStorage(object):
+class IFoolscapStorageServer(Interface):
     """
-    Abstraction for connecting to an anonymous storage server.
+    An internal interface that mediates between ``NativeStorageServer`` and
+    Foolscap-based ``IStorageServer`` implementations.
+    """
+    nickname = Attribute("""
+    A name for this server for presentation to users.
+    """)
+    permutation_seed = Attribute("""
+    A stable value associated with this server which a client can use as an
+    input to the server selection permutation ordering.
+    """)
+    tubid = Attribute("""
+    The identifier for the Tub in which the server is run.
+    """)
+    storage_server = Attribute("""
+    An IStorageServer provide which implements a concrete Foolscap-based
+    protocol for communicating with the server.
+    """)
+    name = Attribute("""
+    Another name for this server for presentation to users.
+    """)
+    longname = Attribute("""
+    *Another* name for this server for presentation to users.
+    """)
+    lease_seed = Attribute("""
+    A stable value associated with this server which a client can use as an
+    input to a lease secret generation function.
+    """)
+
+    def connect_to(tub, got_connection):
+        """
+        Attempt to establish and maintain a connection to the server.
+
+        :param Tub tub: A Foolscap Tub from which the connection is to
+            originate.
+
+        :param got_connection: A one-argument callable which is called with a
+            Foolscap ``RemoteReference`` when a connection is established.
+            This may be called multiple times if the connection is lost and
+            then re-established.
+
+        :return foolscap.reconnector.Reconnector: An object which manages the
+            connection and reconnection attempts.
+        """
+
+
+@implementer(IFoolscapStorageServer)
+@attr.s(frozen=True)
+class _FoolscapStorage(object):
+    """
+    Abstraction for connecting to a storage server exposed via Foolscap.
     """
     nickname = attr.ib()
     permutation_seed = attr.ib()
     tubid = attr.ib()
 
+    storage_server = attr.ib()
+
     _furl = attr.ib()
     _short_description = attr.ib()
     _long_description = attr.ib()
+
 
     @property
     def name(self):
@@ -395,18 +450,16 @@ class _AnonymousStorage(object):
         return self.tubid
 
     @classmethod
-    def from_announcement(cls, server_id, ann):
+    def from_announcement(cls, server_id, furl, ann, storage_server):
         """
-        Create an instance from an announcement like::
+        Create an instance from a fURL and an announcement like::
 
-            {"anonymous-storage-FURL": "pb://...@...",
-             "permutation-seed-base32": "...",
+            {"permutation-seed-base32": "...",
              "nickname": "...",
             }
 
         *nickname* is optional.
         """
-        furl = str(ann["anonymous-storage-FURL"])
         m = re.match(r'pb://(\w+)@', furl)
         assert m, furl
         tubid_s = m.group(1).lower()
@@ -437,8 +490,9 @@ class _AnonymousStorage(object):
         return cls(
             nickname=nickname,
             permutation_seed=permutation_seed,
-            furl=furl,
             tubid=tubid,
+            storage_server=storage_server,
+            furl=furl,
             short_description=short_description,
             long_description=long_description,
         )
@@ -447,6 +501,7 @@ class _AnonymousStorage(object):
         return tub.connectTo(self._furl, got_connection)
 
 
+@implementer(IFoolscapStorageServer)
 class _NullStorage(object):
     """
     Abstraction for *not* communicating with a storage server of a type with
@@ -455,6 +510,8 @@ class _NullStorage(object):
     nickname = ""
     permutation_seed = hashlib.sha256("").digest()
     tubid = hashlib.sha256("").digest()
+    storage_server = None
+
     lease_seed = hashlib.sha256("").digest()
 
     name = "<unsupported>"
@@ -505,7 +562,8 @@ def _storage_from_plugin(config, announcement):
             raise ValueError("{} not installed".format(plugin_name))
         for option in storage_options:
             if plugin_name == option[u"name"]:
-                return plugin.get_storage_client(
+                furl = option[u"storage-server-FURL"]
+                return furl, plugin.get_storage_client(
                     plugin_config,
                     option,
                 )
@@ -548,7 +606,7 @@ class NativeStorageServer(service.MultiService):
         self._tub_maker = tub_maker
         self._handler_overrides = handler_overrides
 
-        self._init_from_announcement(config, ann)
+        self._storage = self._make_storage_system(config, ann)
 
         self.last_connect_time = None
         self.last_loss_time = None
@@ -559,18 +617,52 @@ class NativeStorageServer(service.MultiService):
         self._trigger_cb = None
         self._on_status_changed = ObserverList()
 
-    def _init_from_announcement(self, config, ann):
+    def _make_storage_system(self, config, ann):
         """
         :param StorageClientConfig config: Configuration specifying desired
             storage client behavior.
+
+        :param dict ann: The storage announcement from the storage server we
+            are meant to communicate with.
+
+        :return IFoolscapStorageServer: An object enabling communication via
+            Foolscap with the server which generated the announcement.
         """
-        storage = _null_storage
+        # Try to match the announcement against a plugin.
         try:
-            storage = _storage_from_plugin(config, ann)
+            furl, storage_server = _storage_from_plugin(config, ann)
         except AnnouncementNotMatched:
-            if "anonymous-storage-FURL" in ann:
-                storage = _AnonymousStorage.from_announcement(self._server_id, ann)
-        self._storage = storage
+            # Nope.
+            pass
+        else:
+            return _FoolscapStorage.from_announcement(
+                self._server_id,
+                furl.encode("utf-8"),
+                ann,
+                storage_server,
+            )
+
+        # Try to match the announcement against the anonymous access scheme.
+        try:
+            furl = ann[u"anonymous-storage-FURL"]
+        except KeyError:
+            # Nope
+            pass
+        else:
+            # Pass in an accessor for our _rref attribute.  The value of the
+            # attribute may change over time as connections are lost and
+            # re-established.  The _StorageServer should always be able to get
+            # the most up-to-date value.
+            storage_server = _StorageServer(get_rref=self.get_rref)
+            return _FoolscapStorage.from_announcement(
+                self._server_id,
+                furl.encode("utf-8"),
+                ann,
+                storage_server,
+            )
+
+        # Nothing matched so we can't talk to this server.
+        return _null_storage
 
     def get_permutation_seed(self):
         return self._storage.permutation_seed
@@ -678,11 +770,7 @@ class NativeStorageServer(service.MultiService):
         """
         if self._rref is None:
             return None
-        # Pass in an accessor for our _rref attribute.  The value of the
-        # attribute may change over time as connections are lost and
-        # re-established.  The _StorageServer should always be able to get the
-        # most up-to-date value.
-        return _StorageServer(get_rref=self.get_rref)
+        return self._storage.storage_server
 
     def _lost(self):
         log.msg(format="lost connection to %(name)s", name=self.get_name(),
