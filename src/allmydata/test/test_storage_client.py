@@ -5,6 +5,10 @@ from fixtures import (
     TempDir,
 )
 
+from zope.interface.verify import (
+    verifyObject,
+)
+
 from twisted.application.service import (
     Service,
 )
@@ -33,8 +37,10 @@ from allmydata.client import (
     create_client_from_config,
 )
 from allmydata.storage_client import (
+    IFoolscapStorageServer,
     NativeStorageServer,
     StorageFarmBroker,
+    _FoolscapStorage,
     _NullStorage,
 )
 from allmydata.interfaces import (
@@ -250,7 +256,45 @@ storage.plugins = tahoe-lafs-dummy-v1
         }
         self.publish(server_id, ann)
         storage = self.get_storage(server_id, self.node)
-        self.assertIsInstance(storage, DummyStorageClient)
+        self.assertTrue(
+            verifyObject(
+                IFoolscapStorageServer,
+                storage,
+            ),
+        )
+        self.assertIsInstance(storage.storage_server, DummyStorageClient)
+
+
+class FoolscapStorageServers(unittest.TestCase):
+    """
+    Tests for implementations of ``IFoolscapStorageServer``.
+    """
+    def test_null_provider(self):
+        """
+        Instances of ``_NullStorage`` provide ``IFoolscapStorageServer``.
+        """
+        self.assertTrue(
+            verifyObject(
+                IFoolscapStorageServer,
+                _NullStorage(),
+            ),
+        )
+
+    def test_foolscap_provider(self):
+        """
+        Instances of ``_FoolscapStorage`` provide ``IFoolscapStorageServer``.
+        """
+        self.assertTrue(
+            verifyObject(
+                IFoolscapStorageServer,
+                _FoolscapStorage.from_announcement(
+                    u"server-id",
+                    SOME_FURL,
+                    {u"permutation-seed-base32": base32.b2a(b"permutationseed")},
+                    object(),
+                ),
+            ),
+        )
 
 
 class TestStorageFarmBroker(unittest.TestCase):
