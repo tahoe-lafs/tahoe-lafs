@@ -78,11 +78,29 @@ from allmydata.util.hashutil import permute_server_hash
 
 @attr.s
 class StorageClientConfig(object):
+    """
+    Configuration for a node acting as a storage client.
+
+    :ivar preferred_peers: An iterable of the server-ids of the storage
+        servers where share placement is preferred, in order of decreasing
+        preference.  See the *[client]peers.preferred* documentation for
+        details.
+
+    :ivar dict[unicode, dict[bytes, bytes]] storage_plugins: A mapping from
+        names of ``IFoolscapStoragePlugin`` configured in *tahoe.cfg* to the
+        respective configuration.
+    """
     preferred_peers = attr.ib(default=())
     storage_plugins = attr.ib(default=attr.Factory(dict))
 
     @classmethod
     def from_node_config(cls, config):
+        """
+        Create a ``StorageClientConfig`` from a complete Tahoe-LAFS node
+        configuration.
+
+        :param _Config config: The loaded Tahoe-LAFS node configuration.
+        """
         ps = config.get_config("client", "peers.preferred", "").split(",")
         preferred_peers = tuple([p.strip() for p in ps if p != ""])
 
