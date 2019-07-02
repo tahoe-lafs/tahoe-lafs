@@ -41,6 +41,7 @@ from allmydata.interfaces import (
     IConnectionStatus,
 )
 
+SOME_FURL = b"pb://abcde@nowhere/fake"
 
 class NativeStorageServerWithVersion(NativeStorageServer):
     def __init__(self, version):
@@ -187,11 +188,11 @@ class PluginMatchedAnnouncement(SyncTestCase):
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             u"tub.port",
-"""
+b"""
 [client]
-introducer.furl = pb://tubid@example.invalid/swissnum
+introducer.furl = {furl}
 storage.plugins = tahoe-lafs-dummy-v1
-""",
+""".format(furl=SOME_FURL),
         )
         self.node = yield create_client_from_config(
             self.config,
@@ -226,6 +227,7 @@ storage.plugins = tahoe-lafs-dummy-v1
                 # notice how the announcement is for a different storage plugin
                 # than the one that is enabled.
                 u"name": u"tahoe-lafs-dummy-v2",
+                u"storage-server-FURL": SOME_FURL.decode("ascii"),
             }],
         }
         self.publish(server_id, ann)
@@ -243,6 +245,7 @@ storage.plugins = tahoe-lafs-dummy-v1
             u"storage-options": [{
                 # and this announcement is for a plugin with a matching name
                 u"name": u"tahoe-lafs-dummy-v1",
+                u"storage-server-FURL": SOME_FURL.decode("ascii"),
             }],
         }
         self.publish(server_id, ann)
@@ -256,13 +259,13 @@ class TestStorageFarmBroker(unittest.TestCase):
         broker = StorageFarmBroker(True, lambda h: Mock())
 
         key_s = 'v0-1234-1'
-        servers_yaml = """\
+        servers_yaml = b"""\
 storage:
   v0-1234-1:
     ann:
-      anonymous-storage-FURL: pb://ge@nowhere/fake
+      anonymous-storage-FURL: {furl}
       permutation-seed-base32: aaaaaaaaaaaaaaaaaaaaaaaa
-"""
+""".format(furl=SOME_FURL)
         servers = yamlutil.safe_load(servers_yaml)
         permseed = base32.a2b("aaaaaaaaaaaaaaaaaaaaaaaa")
         broker.set_static_servers(servers["storage"])
@@ -291,7 +294,7 @@ storage:
         server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         k = "4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         ann = {
-            "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            "anonymous-storage-FURL": SOME_FURL,
         }
         broker.set_static_servers({server_id.decode("ascii"): {"ann": ann}})
         s = broker.servers[server_id]
@@ -302,7 +305,7 @@ storage:
         server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         k = "w5gl5igiexhwmftwzhai5jy2jixn7yx7"
         ann = {
-            "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            "anonymous-storage-FURL": SOME_FURL,
             "permutation-seed-base32": k,
         }
         broker.set_static_servers({server_id.decode("ascii"): {"ann": ann}})
@@ -313,7 +316,7 @@ storage:
         broker = StorageFarmBroker(True, lambda h: Mock())
         server_id = "unparseable"
         ann = {
-            "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            "anonymous-storage-FURL": SOME_FURL,
         }
         broker.set_static_servers({server_id.decode("ascii"): {"ann": ann}})
         s = broker.servers[server_id]
