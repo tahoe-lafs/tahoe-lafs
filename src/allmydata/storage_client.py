@@ -136,6 +136,9 @@ class StorageFarmBroker(service.MultiService):
     remember enough information to establish a connection to it on demand.
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
+
+    :ivar StorageClientConfig storage_client_config: Values from the node
+        configuration file relating to storage behavior.
     """
 
     @property
