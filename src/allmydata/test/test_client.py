@@ -67,6 +67,8 @@ from .matchers import (
     matches_furl,
 )
 
+SOME_FURL = b"pb://abcde@nowhere/fake"
+
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
               )
@@ -574,7 +576,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
     def test_permute(self):
         sb = StorageFarmBroker(True, None)
         for k in ["%d" % i for i in range(5)]:
-            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
@@ -590,7 +592,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
             StorageClientConfig(preferred_peers=['1','4']),
         )
         for k in ["%d" % i for i in range(5)]:
-            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
