@@ -51,14 +51,30 @@ class MatchesNodePublicKey(object):
             return Mismatch("The signature did not verify.")
 
 
-def matches_storage_announcement(basedir, options=None):
+def matches_storage_announcement(basedir, anonymous=True, options=None):
     """
-    Match an anonymous storage announcement.
+    Match a storage announcement.
+
+    :param bytes basedir: The path to the node base directory which is
+        expected to emit the announcement.  This is used to determine the key
+        which is meant to sign the announcement.
+
+    :param bool anonymous: If True, matches a storage announcement containing
+        an anonymous access fURL.  Otherwise, fails to match such an
+        announcement.
+
+    :param list[matcher]|NoneType options: If a list, matches a storage
+        announcement containing a list of storage plugin options matching the
+        elements of the list.  If None, fails to match an announcement with
+        storage plugin options.
+
+    :return: A matcher with the requested behavior.
     """
     announcement = {
-        u"anonymous-storage-FURL": matches_furl(),
         u"permutation-seed-base32": matches_base32(),
     }
+    if anonymous:
+        announcement[u"anonymous-storage-FURL"] = matches_furl()
     if options:
         announcement[u"storage-options"] = MatchesListwise(options)
     return MatchesStructure(
