@@ -124,8 +124,8 @@ class StorageClientConfig(object):
             try:
                 plugin_config = config.items(b"storageclient.plugins." + plugin_name)
             except NoSectionError:
-                plugin_config = {}
-            storage_plugins[plugin_name] = plugin_config
+                plugin_config = []
+            storage_plugins[plugin_name] = dict(plugin_config)
 
         return cls(
             preferred_peers,

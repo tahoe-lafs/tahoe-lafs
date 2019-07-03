@@ -4,6 +4,14 @@ from mock import Mock
 from fixtures import (
     TempDir,
 )
+from testtools.matchers import (
+    MatchesAll,
+    IsInstance,
+    MatchesStructure,
+    Equals,
+    Is,
+    AfterPreprocessing,
+)
 
 from zope.interface.verify import (
     verifyObject,
@@ -183,13 +191,39 @@ class PluginMatchedAnnouncement(SyncTestCase):
     announcements that are handled by an ``IFoolscapStoragePlugin``.
     """
     @inlineCallbacks
-    def setUp(self):
-        super(PluginMatchedAnnouncement, self).setUp()
+    def make_node(self, introducer_furl, storage_plugin, plugin_config):
+        """
+        Create a client node with the given configuration.
+
+        :param bytes introducer_furl: The introducer furl with which to
+            configure the client.
+
+        :param bytes storage_plugin: The name of a storage plugin to enable.
+
+        :param dict[bytes, bytes] plugin_config: Configuration to supply to
+            the enabled plugin.  May also be ``None`` for no configuration
+            section (distinct from ``{}`` which creates an empty configuration
+            section).
+        """
         tempdir = TempDir()
         self.useFixture(tempdir)
         self.basedir = FilePath(tempdir.path)
         self.basedir.child(u"private").makedirs()
         self.useFixture(UseTestPlugins())
+
+        if plugin_config is None:
+            plugin_config_section = b""
+        else:
+            plugin_config_section = b"""
+[storageclient.plugins.{storage_plugin}]
+{config}
+""".format(
+    storage_plugin=storage_plugin,
+    config=b"\n".join(
+        b" = ".join((key, value))
+        for (key, value)
+        in plugin_config.items()
+    ))
 
         self.config = config_from_string(
             self.basedir.asTextMode().path,
@@ -197,8 +231,13 @@ class PluginMatchedAnnouncement(SyncTestCase):
 b"""
 [client]
 introducer.furl = {furl}
-storage.plugins = tahoe-lafs-dummy-v1
-""".format(furl=SOME_FURL),
+storage.plugins = {storage_plugin}
+{plugin_config_section}
+""".format(
+    furl=introducer_furl,
+    storage_plugin=storage_plugin,
+    plugin_config_section=plugin_config_section,
+)
         )
         self.node = yield create_client_from_config(
             self.config,
@@ -206,8 +245,8 @@ storage.plugins = tahoe-lafs-dummy-v1
         )
         [self.introducer_client] = self.node.introducer_clients
 
-    def publish(self, server_id, announcement):
-        for subscription in self.introducer_client.subscribed_to:
+    def publish(self, server_id, announcement, introducer_client):
+        for subscription in introducer_client.subscribed_to:
             if subscription.service_name == u"storage":
                 subscription.cb(
                     server_id,
@@ -221,11 +260,22 @@ storage.plugins = tahoe-lafs-dummy-v1
         native_storage_server = storage_broker.servers[server_id]
         return native_storage_server._storage
 
+    def set_rref(self, server_id, node, rref):
+        storage_broker = node.get_storage_broker()
+        native_storage_server = storage_broker.servers[server_id]
+        native_storage_server._rref = rref
+
+    @inlineCallbacks
     def test_ignored_non_enabled_plugin(self):
         """
         An announcement that could be matched by a plugin that is not enabled is
         not matched.
         """
+        yield self.make_node(
+            introducer_furl=SOME_FURL,
+            storage_plugin=b"tahoe-lafs-dummy-v1",
+            plugin_config=None,
+        )
         server_id = b"v0-abcdef"
         ann = {
             u"service-name": u"storage",
@@ -236,25 +286,35 @@ storage.plugins = tahoe-lafs-dummy-v1
                 u"storage-server-FURL": SOME_FURL.decode("ascii"),
             }],
         }
-        self.publish(server_id, ann)
+        self.publish(server_id, ann, self.introducer_client)
         storage = self.get_storage(server_id, self.node)
         self.assertIsInstance(storage, _NullStorage)
 
+    @inlineCallbacks
     def test_enabled_plugin(self):
         """
-        An announcement that could be matched by a plugin that is enabled is
-        matched and the plugin's storage client is used.
+        An announcement that could be matched by a plugin that is enabled with
+        configuration is matched and the plugin's storage client is used.
         """
+        plugin_config = {
+            b"abc": b"xyz",
+        }
+        plugin_name = b"tahoe-lafs-dummy-v1"
+        yield self.make_node(
+            introducer_furl=SOME_FURL,
+            storage_plugin=plugin_name,
+            plugin_config=plugin_config,
+        )
         server_id = b"v0-abcdef"
         ann = {
             u"service-name": u"storage",
             u"storage-options": [{
                 # and this announcement is for a plugin with a matching name
-                u"name": u"tahoe-lafs-dummy-v1",
+                u"name": plugin_name,
                 u"storage-server-FURL": SOME_FURL.decode("ascii"),
             }],
         }
-        self.publish(server_id, ann)
+        self.publish(server_id, ann, self.introducer_client)
         storage = self.get_storage(server_id, self.node)
         self.assertTrue(
             verifyObject(
@@ -262,7 +322,60 @@ storage.plugins = tahoe-lafs-dummy-v1
                 storage,
             ),
         )
-        self.assertIsInstance(storage.storage_server, DummyStorageClient)
+        expected_rref = object()
+        # Can't easily establish a real Foolscap connection so fake the result
+        # of doing so...
+        self.set_rref(server_id, self.node, expected_rref)
+        self.expectThat(
+            storage.storage_server,
+            MatchesAll(
+                IsInstance(DummyStorageClient),
+                MatchesStructure(
+                    get_rref=AfterPreprocessing(
+                        lambda get_rref: get_rref(),
+                        Is(expected_rref),
+                    ),
+                    configuration=Equals(plugin_config),
+                    announcement=Equals({
+                        u'name': plugin_name,
+                        u'storage-server-FURL': u'pb://abcde@nowhere/fake',
+                    }),
+                ),
+            ),
+        )
+
+    @inlineCallbacks
+    def test_enabled_no_configuration_plugin(self):
+        """
+        An announcement that could be matched by a plugin that is enabled with no
+        configuration is matched and the plugin's storage client is used.
+        """
+        plugin_name = b"tahoe-lafs-dummy-v1"
+        yield self.make_node(
+            introducer_furl=SOME_FURL,
+            storage_plugin=plugin_name,
+            plugin_config=None,
+        )
+        server_id = b"v0-abcdef"
+        ann = {
+            u"service-name": u"storage",
+            u"storage-options": [{
+                # and this announcement is for a plugin with a matching name
+                u"name": plugin_name,
+                u"storage-server-FURL": SOME_FURL.decode("ascii"),
+            }],
+        }
+        self.publish(server_id, ann, self.introducer_client)
+        storage = self.get_storage(server_id, self.node)
+        self.expectThat(
+            storage.storage_server,
+            MatchesAll(
+                IsInstance(DummyStorageClient),
+                MatchesStructure(
+                    configuration=Equals({}),
+                ),
+            ),
+        )
 
 
 class FoolscapStorageServers(unittest.TestCase):
