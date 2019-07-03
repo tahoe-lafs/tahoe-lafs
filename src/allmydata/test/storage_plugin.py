@@ -57,7 +57,7 @@ class DummyStorage(object):
 
 
     def get_storage_client(self, configuration, announcement, get_rref):
-        return DummyStorageClient()
+        return DummyStorageClient(get_rref, configuration, announcement)
 
 
 
@@ -74,4 +74,6 @@ class DummyStorageServer(object):
 @implementer(IStorageServer)
 @attr.s
 class DummyStorageClient(object):
-    pass
+    get_rref = attr.ib()
+    configuration = attr.ib()
+    announcement = attr.ib()
