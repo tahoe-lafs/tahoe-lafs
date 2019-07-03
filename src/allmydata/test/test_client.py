@@ -238,6 +238,69 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         c = yield client.create_client(basedir)
         self.failUnless(c.get_long_nodeid().startswith("v0-"))
 
+    def test_storage_anonymous_enabled_by_default(self):
+        """
+        Anonymous storage access is enabled if storage is enabled and *anonymous*
+        is not set.
+        """
+        config = client.config_from_string(
+            b"test_storage_default_anonymous_enabled",
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = true\n"
+            )
+        )
+        self.assertTrue(client.anonymous_storage_enabled(config))
+
+    def test_storage_anonymous_enabled_explicitly(self):
+        """
+        Anonymous storage access is enabled if storage is enabled and *anonymous*
+        is set to true.
+        """
+        config = client.config_from_string(
+            self.id(),
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = true\n"
+            )
+        )
+        self.assertTrue(client.anonymous_storage_enabled(config))
+
+    def test_storage_anonymous_disabled_explicitly(self):
+        """
+        Anonymous storage access is disabled if storage is enabled and *anonymous*
+        is set to false.
+        """
+        config = client.config_from_string(
+            self.id(),
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = false\n"
+            )
+        )
+        self.assertFalse(client.anonymous_storage_enabled(config))
+
+    def test_storage_anonymous_disabled_by_storage(self):
+        """
+        Anonymous storage access is disabled if storage is disabled and *anonymous*
+        is set to true.
+        """
+        config = client.config_from_string(
+            self.id(),
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = false\n"
+                b"anonymous = true\n"
+            )
+        )
+        self.assertFalse(client.anonymous_storage_enabled(config))
+
     @defer.inlineCallbacks
     def test_reserved_1(self):
         """

@@ -97,6 +97,7 @@ _client_config = configutil.ValidConfiguration(
         "storage": (
             "debug_discard",
             "enabled",
+            "anonymous",
             "expire.cutoff_date",
             "expire.enabled",
             "expire.immutable",
@@ -619,6 +620,31 @@ def _add_to_announcement(information, announceable_storage_server):
     )
 
 
+def storage_enabled(config):
+    """
+    Is storage enabled according to the given configuration object?
+
+    :param _Config config: The configuration to inspect.
+
+    :return bool: ``True`` if storage is enabled, ``False`` otherwise.
+    """
+    return config.get_config(b"storage", b"enabled", True, boolean=True)
+
+
+def anonymous_storage_enabled(config):
+    """
+    Is anonymous access to storage enabled according to the given
+    configuration object?
+
+    :param _Config config: The configuration to inspect.
+
+    :return bool: ``True`` if storage is enabled, ``False`` otherwise.
+    """
+    return (
+        storage_enabled(config) and
+        config.get_config(b"storage", b"anonymous", True, boolean=True)
+    )
+
 
 @implementer(IStatsProducer)
 class _Client(node.Node, pollmixin.PollMixin):
@@ -828,7 +854,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def init_storage(self, announceable_storage_servers):
         # should we run a storage server (and publish it for others to use)?
-        if not self.config.get_config("storage", "enabled", True, boolean=True):
+        if not storage_enabled(self.config):
             return
         if not self._is_tub_listening():
             raise ValueError("config error: storage is enabled, but tub "
