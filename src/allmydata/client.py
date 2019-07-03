@@ -861,33 +861,32 @@ class _Client(node.Node, pollmixin.PollMixin):
                              "is not listening ('tub.port=' is empty)")
 
         ss = self.get_anonymous_storage_server()
-        furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
-        furl = self.tub.registerReference(ss, furlFile=furl_file)
-
-        anonymous_announcement = {
-            "anonymous-storage-FURL": furl,
+        announcement = {
             "permutation-seed-base32": self._init_permutation_seed(ss),
         }
+
+        if anonymous_storage_enabled(self.config):
+            furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
+            furl = self.tub.registerReference(ss, furlFile=furl_file)
+            announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(
             announceable_storage_servers,
         )
-        plugins_announcement = {}
         storage_options = list(
             storage_server.announcement
             for storage_server
             in enabled_storage_servers
         )
+        plugins_announcement = {}
         if storage_options:
             # Only add the new key if there are any plugins enabled.
             plugins_announcement[u"storage-options"] = storage_options
 
-        total_announcement = {}
-        total_announcement.update(anonymous_announcement)
-        total_announcement.update(plugins_announcement)
+        announcement.update(plugins_announcement)
 
         for ic in self.introducer_clients:
-            ic.publish("storage", total_announcement, self._node_private_key)
+            ic.publish("storage", announcement, self._node_private_key)
 
 
     def _enable_storage_servers(self, announceable_storage_servers):
