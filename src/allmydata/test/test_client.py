@@ -28,6 +28,8 @@ from testtools.matchers import (
     MatchesListwise,
     MatchesDict,
     Always,
+    Is,
+    raises,
 )
 from testtools.twistedsupport import (
     succeeded,
@@ -66,6 +68,8 @@ from .matchers import (
     matches_storage_announcement,
     matches_furl,
 )
+
+SOME_FURL = b"pb://abcde@nowhere/fake"
 
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
@@ -237,6 +241,69 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                        BASECONFIG + "[storage]\n" + "enabled = false\n")
         c = yield client.create_client(basedir)
         self.failUnless(c.get_long_nodeid().startswith("v0-"))
+
+    def test_storage_anonymous_enabled_by_default(self):
+        """
+        Anonymous storage access is enabled if storage is enabled and *anonymous*
+        is not set.
+        """
+        config = client.config_from_string(
+            b"test_storage_default_anonymous_enabled",
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = true\n"
+            )
+        )
+        self.assertTrue(client.anonymous_storage_enabled(config))
+
+    def test_storage_anonymous_enabled_explicitly(self):
+        """
+        Anonymous storage access is enabled if storage is enabled and *anonymous*
+        is set to true.
+        """
+        config = client.config_from_string(
+            self.id(),
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = true\n"
+            )
+        )
+        self.assertTrue(client.anonymous_storage_enabled(config))
+
+    def test_storage_anonymous_disabled_explicitly(self):
+        """
+        Anonymous storage access is disabled if storage is enabled and *anonymous*
+        is set to false.
+        """
+        config = client.config_from_string(
+            self.id(),
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = false\n"
+            )
+        )
+        self.assertFalse(client.anonymous_storage_enabled(config))
+
+    def test_storage_anonymous_disabled_by_storage(self):
+        """
+        Anonymous storage access is disabled if storage is disabled and *anonymous*
+        is set to true.
+        """
+        config = client.config_from_string(
+            self.id(),
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = false\n"
+                b"anonymous = true\n"
+            )
+        )
+        self.assertFalse(client.anonymous_storage_enabled(config))
 
     @defer.inlineCallbacks
     def test_reserved_1(self):
@@ -511,7 +578,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
     def test_permute(self):
         sb = StorageFarmBroker(True, None)
         for k in ["%d" % i for i in range(5)]:
-            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
@@ -527,7 +594,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
             StorageClientConfig(preferred_peers=['1','4']),
         )
         for k in ["%d" % i for i in range(5)]:
-            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
@@ -690,6 +757,129 @@ def flush_but_dont_ignore(res):
         return res
     d.addCallback(_done)
     return d
+
+
+class AnonymousStorage(SyncTestCase):
+    """
+    Tests for behaviors of the client object with respect to the anonymous
+    storage service.
+    """
+    @defer.inlineCallbacks
+    def test_anonymous_storage_enabled(self):
+        """
+        If anonymous storage access is enabled then the client announces it.
+        """
+        basedir = self.id()
+        os.makedirs(basedir + b"/private")
+        config = client.config_from_string(
+            basedir,
+            b"tub.port",
+            BASECONFIG_I % (SOME_FURL,) + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = true\n"
+            )
+        )
+        node = yield client.create_client_from_config(
+            config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        self.assertThat(
+            get_published_announcements(node),
+            MatchesListwise([
+                matches_storage_announcement(
+                    basedir,
+                    anonymous=True,
+                ),
+            ]),
+        )
+
+    @defer.inlineCallbacks
+    def test_anonymous_storage_disabled(self):
+        """
+        If anonymous storage access is disabled then the client does not announce
+        it nor does it write a fURL for it to beneath the node directory.
+        """
+        basedir = self.id()
+        os.makedirs(basedir + b"/private")
+        config = client.config_from_string(
+            basedir,
+            b"tub.port",
+            BASECONFIG_I % (SOME_FURL,) + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = false\n"
+            )
+        )
+        node = yield client.create_client_from_config(
+            config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        self.expectThat(
+            get_published_announcements(node),
+            MatchesListwise([
+                matches_storage_announcement(
+                    basedir,
+                    anonymous=False,
+                ),
+            ]),
+        )
+        self.expectThat(
+            config.get_private_config(b"storage.furl", default=None),
+            Is(None),
+        )
+
+    @defer.inlineCallbacks
+    def test_anonymous_storage_enabled_then_disabled(self):
+        """
+        If a node is run with anonymous storage enabled and then later anonymous
+        storage is disabled in the configuration for that node, it is not
+        possible to reach the anonymous storage server via the originally
+        published fURL.
+        """
+        basedir = self.id()
+        os.makedirs(basedir + b"/private")
+        enabled_config = client.config_from_string(
+            basedir,
+            b"tub.port",
+            BASECONFIG_I % (SOME_FURL,) + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = true\n"
+            )
+        )
+        node = yield client.create_client_from_config(
+            enabled_config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        anonymous_storage_furl = enabled_config.get_private_config(b"storage.furl")
+        def check_furl():
+            return node.tub.getReferenceForURL(anonymous_storage_furl)
+        # Perform a sanity check that our test code makes sense: is this a
+        # legit way to verify whether a fURL will refer to an object?
+        self.assertThat(
+            check_furl(),
+            # If it doesn't raise a KeyError we're in business.
+            Always(),
+        )
+
+        disabled_config = client.config_from_string(
+            basedir,
+            b"tub.port",
+            BASECONFIG_I % (SOME_FURL,) + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = false\n"
+            )
+        )
+        node = yield client.create_client_from_config(
+            disabled_config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        self.assertThat(
+            check_furl,
+            raises(KeyError),
+        )
 
 
 class IntroducerClients(unittest.TestCase):

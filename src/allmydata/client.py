@@ -94,6 +94,7 @@ _client_config = configutil.ValidConfiguration(
         "storage": (
             "debug_discard",
             "enabled",
+            "anonymous",
             "expire.cutoff_date",
             "expire.enabled",
             "expire.immutable",
@@ -617,6 +618,31 @@ def _add_to_announcement(information, announceable_storage_server):
     )
 
 
+def storage_enabled(config):
+    """
+    Is storage enabled according to the given configuration object?
+
+    :param _Config config: The configuration to inspect.
+
+    :return bool: ``True`` if storage is enabled, ``False`` otherwise.
+    """
+    return config.get_config(b"storage", b"enabled", True, boolean=True)
+
+
+def anonymous_storage_enabled(config):
+    """
+    Is anonymous access to storage enabled according to the given
+    configuration object?
+
+    :param _Config config: The configuration to inspect.
+
+    :return bool: ``True`` if storage is enabled, ``False`` otherwise.
+    """
+    return (
+        storage_enabled(config) and
+        config.get_config(b"storage", b"anonymous", True, boolean=True)
+    )
+
 
 @implementer(IStatsProducer)
 class _Client(node.Node, pollmixin.PollMixin):
@@ -822,40 +848,39 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def init_storage(self, announceable_storage_servers):
         # should we run a storage server (and publish it for others to use)?
-        if not self.config.get_config("storage", "enabled", True, boolean=True):
+        if not storage_enabled(self.config):
             return
         if not self._is_tub_listening():
             raise ValueError("config error: storage is enabled, but tub "
                              "is not listening ('tub.port=' is empty)")
 
         ss = self.get_anonymous_storage_server()
-        furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
-        furl = self.tub.registerReference(ss, furlFile=furl_file)
-
-        anonymous_announcement = {
-            "anonymous-storage-FURL": furl,
+        announcement = {
             "permutation-seed-base32": self._init_permutation_seed(ss),
         }
+
+        if anonymous_storage_enabled(self.config):
+            furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
+            furl = self.tub.registerReference(ss, furlFile=furl_file)
+            announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(
             announceable_storage_servers,
         )
-        plugins_announcement = {}
         storage_options = list(
             storage_server.announcement
             for storage_server
             in enabled_storage_servers
         )
+        plugins_announcement = {}
         if storage_options:
             # Only add the new key if there are any plugins enabled.
             plugins_announcement[u"storage-options"] = storage_options
 
-        total_announcement = {}
-        total_announcement.update(anonymous_announcement)
-        total_announcement.update(plugins_announcement)
+        announcement.update(plugins_announcement)
 
         for ic in self.introducer_clients:
-            ic.publish("storage", total_announcement, self._node_key)
+            ic.publish("storage", announcement, self._node_key)
 
 
     def _enable_storage_servers(self, announceable_storage_servers):
