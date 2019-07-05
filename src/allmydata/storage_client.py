@@ -85,10 +85,10 @@ class StorageClientConfig(object):
     """
     Configuration for a node acting as a storage client.
 
-    :ivar preferred_peers: An iterable of the server-ids of the storage
-        servers where share placement is preferred, in order of decreasing
-        preference.  See the *[client]peers.preferred* documentation for
-        details.
+    :ivar preferred_peers: An iterable of the server-ids (``bytes``) of the
+        storage servers where share placement is preferred, in order of
+        decreasing preference.  See the *[client]peers.preferred*
+        documentation for details.
 
     :ivar dict[unicode, dict[bytes, bytes]] storage_plugins: A mapping from
         names of ``IFoolscapStoragePlugin`` configured in *tahoe.cfg* to the
@@ -105,8 +105,8 @@ class StorageClientConfig(object):
 
         :param _Config config: The loaded Tahoe-LAFS node configuration.
         """
-        ps = config.get_config("client", "peers.preferred", "").split(",")
-        preferred_peers = tuple([p.strip() for p in ps if p != ""])
+        ps = config.get_config("client", "peers.preferred", b"").split(b",")
+        preferred_peers = tuple([p.strip() for p in ps if p != b""])
 
         enabled_storage_plugins = (
             name.strip()
