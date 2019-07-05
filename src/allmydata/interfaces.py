@@ -3097,7 +3097,7 @@ class IFoolscapStoragePlugin(IPlugin):
         :rtype: ``Deferred`` firing with ``IAnnounceableStorageServer``
         """
 
-    def get_storage_client(configuration, announcement):
+    def get_storage_client(configuration, announcement, get_rref):
         """
         Get an ``IStorageServer`` provider that implements the client side of the
         storage protocol.
@@ -3108,6 +3108,11 @@ class IFoolscapStoragePlugin(IPlugin):
         :param dict announcement: The announcement for the corresponding
             server portion of this plugin received from a storage server which
             is offering it.
+
+        :param get_rref: A no-argument callable which returns a
+            ``foolscap.referenceable.RemoteReference`` which refers to the
+            server portion of this plugin on the currently active connection,
+            or ``None`` if no connection has been established yet.
 
         :rtype: ``Deferred`` firing with ``IStorageServer``
         """

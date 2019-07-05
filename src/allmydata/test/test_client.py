@@ -3,7 +3,6 @@ import mock
 from functools import (
     partial,
 )
-import attr
 
 import twisted
 from yaml import (
@@ -42,7 +41,10 @@ import allmydata.util.log
 from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, create_node_dir
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
-from allmydata.storage_client import StorageFarmBroker
+from allmydata.storage_client import (
+    StorageClientConfig,
+    StorageFarmBroker,
+)
 from allmydata.util import (
     base32,
     fileutil,
@@ -56,6 +58,8 @@ import allmydata.test.common_util as testutil
 from .common import (
     SyncTestCase,
     UseTestPlugins,
+    MemoryIntroducerClient,
+    get_published_announcements,
 )
 from .matchers import (
     MatchesSameElements,
@@ -517,7 +521,11 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
     def test_permute_with_preferred(self):
-        sb = StorageFarmBroker(True, None, preferred_peers=['1','4'])
+        sb = StorageFarmBroker(
+            True,
+            None,
+            StorageClientConfig(preferred_peers=['1','4']),
+        )
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
                    "permutation-seed-base32": base32.b2a(k) }
@@ -997,80 +1005,6 @@ class NodeMaker(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(n.get_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_write_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_readonly_uri(), "ro." + unknown_ro)
-
-
-
-@attr.s
-class MemoryIntroducerClient(object):
-    """
-    A model-only (no behavior) stand-in for ``IntroducerClient``.
-    """
-    tub = attr.ib()
-    introducer_furl = attr.ib()
-    nickname = attr.ib()
-    my_version = attr.ib()
-    oldest_supported = attr.ib()
-    app_versions = attr.ib()
-    sequencer = attr.ib()
-    cache_filepath = attr.ib()
-
-    subscribed_to = attr.ib(default=attr.Factory(list))
-    published_announcements = attr.ib(default=attr.Factory(list))
-
-
-    def setServiceParent(self, parent):
-        pass
-
-
-    def subscribe_to(self, service_name, cb, *args, **kwargs):
-        self.subscribed_to.append(Subscription(service_name, cb, args, kwargs))
-
-
-    def publish(self, service_name, ann, signing_key):
-        self.published_announcements.append(Announcement(service_name, ann, signing_key))
-
-
-
-@attr.s
-class Subscription(object):
-    """
-    A model of an introducer subscription.
-    """
-    service_name = attr.ib()
-    cb = attr.ib()
-    args = attr.ib()
-    kwargs = attr.ib()
-
-
-
-@attr.s
-class Announcement(object):
-    """
-    A model of an introducer announcement.
-    """
-    service_name = attr.ib()
-    ann = attr.ib()
-    signing_key = attr.ib()
-
-
-
-def get_published_announcements(client):
-    """
-    Get a flattened list of the latest announcements sent using all introducer
-    clients.
-
-    Only the most recent announcement for any particular service name is acted
-    on so these are the only announcements returned.
-    """
-    return {
-        announcement.service_name: announcement
-        for introducer_client
-        in client.introducer_clients
-        # Visit the announcements in the order they were sent.  The last one
-        # will win in the dictionary we construct.
-        for announcement
-        in introducer_client.published_announcements
-    }.values()
 
 
 

@@ -1,17 +1,61 @@
 import hashlib
 from mock import Mock
 
+from fixtures import (
+    TempDir,
+)
+from testtools.matchers import (
+    MatchesAll,
+    IsInstance,
+    MatchesStructure,
+    Equals,
+    Is,
+    AfterPreprocessing,
+)
+
+from zope.interface.verify import (
+    verifyObject,
+)
+
 from twisted.application.service import (
     Service,
 )
 
 from twisted.trial import unittest
 from twisted.internet.defer import succeed, inlineCallbacks
+from twisted.python.filepath import (
+    FilePath,
+)
 
+from foolscap.api import (
+    Tub,
+)
+
+from .common import (
+    SyncTestCase,
+    UseTestPlugins,
+    MemoryIntroducerClient,
+)
+from .storage_plugin import (
+    DummyStorageClient,
+)
 from allmydata.util import base32, yamlutil
-from allmydata.storage_client import NativeStorageServer
-from allmydata.storage_client import StorageFarmBroker
+from allmydata.client import (
+    config_from_string,
+    create_client_from_config,
+)
+from allmydata.storage_client import (
+    IFoolscapStorageServer,
+    NativeStorageServer,
+    StorageFarmBroker,
+    _FoolscapStorage,
+    _NullStorage,
+)
+from allmydata.interfaces import (
+    IConnectionStatus,
+)
 
+SOME_FURL = b"pb://abcde@nowhere/fake"
 
 class NativeStorageServerWithVersion(NativeStorageServer):
     def __init__(self, version):
@@ -46,6 +90,24 @@ class TestNativeStorageServer(unittest.TestCase):
                }
         nss = NativeStorageServer("server_id", ann, None, {})
         self.assertEqual(nss.get_nickname(), "")
+
+
+class GetConnectionStatus(unittest.TestCase):
+    """
+    Tests for ``NativeStorageServer.get_connection_status``.
+    """
+    def test_unrecognized_announcement(self):
+        """
+        When ``NativeStorageServer`` is constructed with a storage announcement it
+        doesn't recognize, its ``get_connection_status`` nevertheless returns
+        an object which provides ``IConnectionStatus``.
+        """
+        # Pretty hard to recognize anything from an empty announcement.
+        ann = {}
+        nss = NativeStorageServer("server_id", ann, Tub, {})
+        nss.start_connecting(lambda: None)
+        connection_status = nss.get_connection_status()
+        self.assertTrue(IConnectionStatus.providedBy(connection_status))
 
 
 class UnrecognizedAnnouncement(unittest.TestCase):
@@ -123,19 +185,244 @@ class UnrecognizedAnnouncement(unittest.TestCase):
         server.get_nickname()
 
 
+class PluginMatchedAnnouncement(SyncTestCase):
+    """
+    Tests for handling by ``NativeStorageServer`` of storage server
+    announcements that are handled by an ``IFoolscapStoragePlugin``.
+    """
+    @inlineCallbacks
+    def make_node(self, introducer_furl, storage_plugin, plugin_config):
+        """
+        Create a client node with the given configuration.
+
+        :param bytes introducer_furl: The introducer furl with which to
+            configure the client.
+
+        :param bytes storage_plugin: The name of a storage plugin to enable.
+
+        :param dict[bytes, bytes] plugin_config: Configuration to supply to
+            the enabled plugin.  May also be ``None`` for no configuration
+            section (distinct from ``{}`` which creates an empty configuration
+            section).
+        """
+        tempdir = TempDir()
+        self.useFixture(tempdir)
+        self.basedir = FilePath(tempdir.path)
+        self.basedir.child(u"private").makedirs()
+        self.useFixture(UseTestPlugins())
+
+        if plugin_config is None:
+            plugin_config_section = b""
+        else:
+            plugin_config_section = b"""
+[storageclient.plugins.{storage_plugin}]
+{config}
+""".format(
+    storage_plugin=storage_plugin,
+    config=b"\n".join(
+        b" = ".join((key, value))
+        for (key, value)
+        in plugin_config.items()
+    ))
+
+        self.config = config_from_string(
+            self.basedir.asTextMode().path,
+            u"tub.port",
+b"""
+[client]
+introducer.furl = {furl}
+storage.plugins = {storage_plugin}
+{plugin_config_section}
+""".format(
+    furl=introducer_furl,
+    storage_plugin=storage_plugin,
+    plugin_config_section=plugin_config_section,
+)
+        )
+        self.node = yield create_client_from_config(
+            self.config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        [self.introducer_client] = self.node.introducer_clients
+
+    def publish(self, server_id, announcement, introducer_client):
+        for subscription in introducer_client.subscribed_to:
+            if subscription.service_name == u"storage":
+                subscription.cb(
+                    server_id,
+                    announcement,
+                    *subscription.args,
+                    **subscription.kwargs
+                )
+
+    def get_storage(self, server_id, node):
+        storage_broker = node.get_storage_broker()
+        native_storage_server = storage_broker.servers[server_id]
+        return native_storage_server._storage
+
+    def set_rref(self, server_id, node, rref):
+        storage_broker = node.get_storage_broker()
+        native_storage_server = storage_broker.servers[server_id]
+        native_storage_server._rref = rref
+
+    @inlineCallbacks
+    def test_ignored_non_enabled_plugin(self):
+        """
+        An announcement that could be matched by a plugin that is not enabled is
+        not matched.
+        """
+        yield self.make_node(
+            introducer_furl=SOME_FURL,
+            storage_plugin=b"tahoe-lafs-dummy-v1",
+            plugin_config=None,
+        )
+        server_id = b"v0-abcdef"
+        ann = {
+            u"service-name": u"storage",
+            u"storage-options": [{
+                # notice how the announcement is for a different storage plugin
+                # than the one that is enabled.
+                u"name": u"tahoe-lafs-dummy-v2",
+                u"storage-server-FURL": SOME_FURL.decode("ascii"),
+            }],
+        }
+        self.publish(server_id, ann, self.introducer_client)
+        storage = self.get_storage(server_id, self.node)
+        self.assertIsInstance(storage, _NullStorage)
+
+    @inlineCallbacks
+    def test_enabled_plugin(self):
+        """
+        An announcement that could be matched by a plugin that is enabled with
+        configuration is matched and the plugin's storage client is used.
+        """
+        plugin_config = {
+            b"abc": b"xyz",
+        }
+        plugin_name = b"tahoe-lafs-dummy-v1"
+        yield self.make_node(
+            introducer_furl=SOME_FURL,
+            storage_plugin=plugin_name,
+            plugin_config=plugin_config,
+        )
+        server_id = b"v0-abcdef"
+        ann = {
+            u"service-name": u"storage",
+            u"storage-options": [{
+                # and this announcement is for a plugin with a matching name
+                u"name": plugin_name,
+                u"storage-server-FURL": SOME_FURL.decode("ascii"),
+            }],
+        }
+        self.publish(server_id, ann, self.introducer_client)
+        storage = self.get_storage(server_id, self.node)
+        self.assertTrue(
+            verifyObject(
+                IFoolscapStorageServer,
+                storage,
+            ),
+        )
+        expected_rref = object()
+        # Can't easily establish a real Foolscap connection so fake the result
+        # of doing so...
+        self.set_rref(server_id, self.node, expected_rref)
+        self.expectThat(
+            storage.storage_server,
+            MatchesAll(
+                IsInstance(DummyStorageClient),
+                MatchesStructure(
+                    get_rref=AfterPreprocessing(
+                        lambda get_rref: get_rref(),
+                        Is(expected_rref),
+                    ),
+                    configuration=Equals(plugin_config),
+                    announcement=Equals({
+                        u'name': plugin_name,
+                        u'storage-server-FURL': u'pb://abcde@nowhere/fake',
+                    }),
+                ),
+            ),
+        )
+
+    @inlineCallbacks
+    def test_enabled_no_configuration_plugin(self):
+        """
+        An announcement that could be matched by a plugin that is enabled with no
+        configuration is matched and the plugin's storage client is used.
+        """
+        plugin_name = b"tahoe-lafs-dummy-v1"
+        yield self.make_node(
+            introducer_furl=SOME_FURL,
+            storage_plugin=plugin_name,
+            plugin_config=None,
+        )
+        server_id = b"v0-abcdef"
+        ann = {
+            u"service-name": u"storage",
+            u"storage-options": [{
+                # and this announcement is for a plugin with a matching name
+                u"name": plugin_name,
+                u"storage-server-FURL": SOME_FURL.decode("ascii"),
+            }],
+        }
+        self.publish(server_id, ann, self.introducer_client)
+        storage = self.get_storage(server_id, self.node)
+        self.expectThat(
+            storage.storage_server,
+            MatchesAll(
+                IsInstance(DummyStorageClient),
+                MatchesStructure(
+                    configuration=Equals({}),
+                ),
+            ),
+        )
+
+
+class FoolscapStorageServers(unittest.TestCase):
+    """
+    Tests for implementations of ``IFoolscapStorageServer``.
+    """
+    def test_null_provider(self):
+        """
+        Instances of ``_NullStorage`` provide ``IFoolscapStorageServer``.
+        """
+        self.assertTrue(
+            verifyObject(
+                IFoolscapStorageServer,
+                _NullStorage(),
+            ),
+        )
+
+    def test_foolscap_provider(self):
+        """
+        Instances of ``_FoolscapStorage`` provide ``IFoolscapStorageServer``.
+        """
+        self.assertTrue(
+            verifyObject(
+                IFoolscapStorageServer,
+                _FoolscapStorage.from_announcement(
+                    u"server-id",
+                    SOME_FURL,
+                    {u"permutation-seed-base32": base32.b2a(b"permutationseed")},
+                    object(),
+                ),
+            ),
+        )
+
+
 class TestStorageFarmBroker(unittest.TestCase):
 
     def test_static_servers(self):
         broker = StorageFarmBroker(True, lambda h: Mock())
 
         key_s = 'v0-1234-1'
-        servers_yaml = """\
+        servers_yaml = b"""\
 storage:
   v0-1234-1:
     ann:
-      anonymous-storage-FURL: pb://ge@nowhere/fake
+      anonymous-storage-FURL: {furl}
       permutation-seed-base32: aaaaaaaaaaaaaaaaaaaaaaaa
-"""
+""".format(furl=SOME_FURL)
         servers = yamlutil.safe_load(servers_yaml)
         permseed = base32.a2b("aaaaaaaaaaaaaaaaaaaaaaaa")
         broker.set_static_servers(servers["storage"])
@@ -164,7 +451,7 @@ storage:
         server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         k = "4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         ann = {
-            "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            "anonymous-storage-FURL": SOME_FURL,
         }
         broker.set_static_servers({server_id.decode("ascii"): {"ann": ann}})
         s = broker.servers[server_id]
@@ -175,7 +462,7 @@ storage:
         server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         k = "w5gl5igiexhwmftwzhai5jy2jixn7yx7"
         ann = {
-            "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            "anonymous-storage-FURL": SOME_FURL,
             "permutation-seed-base32": k,
         }
         broker.set_static_servers({server_id.decode("ascii"): {"ann": ann}})
@@ -186,7 +473,7 @@ storage:
         broker = StorageFarmBroker(True, lambda h: Mock())
         server_id = "unparseable"
         ann = {
-            "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            "anonymous-storage-FURL": SOME_FURL,
         }
         broker.set_static_servers({server_id.decode("ascii"): {"ann": ann}})
         s = broker.servers[server_id]

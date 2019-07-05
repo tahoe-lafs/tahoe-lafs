@@ -26,6 +26,8 @@ from errno import (
     EADDRINUSE,
 )
 
+import attr
+
 import treq
 
 from zope.interface import implementer
@@ -79,6 +81,75 @@ from .eliotutil import (
 
 
 TEST_RSA_KEY_SIZE = 522
+
+
+@attr.s
+class MemoryIntroducerClient(object):
+    """
+    A model-only (no behavior) stand-in for ``IntroducerClient``.
+    """
+    tub = attr.ib()
+    introducer_furl = attr.ib()
+    nickname = attr.ib()
+    my_version = attr.ib()
+    oldest_supported = attr.ib()
+    app_versions = attr.ib()
+    sequencer = attr.ib()
+    cache_filepath = attr.ib()
+
+    subscribed_to = attr.ib(default=attr.Factory(list))
+    published_announcements = attr.ib(default=attr.Factory(list))
+
+
+    def setServiceParent(self, parent):
+        pass
+
+
+    def subscribe_to(self, service_name, cb, *args, **kwargs):
+        self.subscribed_to.append(Subscription(service_name, cb, args, kwargs))
+
+
+    def publish(self, service_name, ann, signing_key):
+        self.published_announcements.append(Announcement(service_name, ann, signing_key))
+
+
+
+@attr.s
+class Subscription(object):
+    """
+    A model of an introducer subscription.
+    """
+    service_name = attr.ib()
+    cb = attr.ib()
+    args = attr.ib()
+    kwargs = attr.ib()
+
+
+
+@attr.s
+class Announcement(object):
+    """
+    A model of an introducer announcement.
+    """
+    service_name = attr.ib()
+    ann = attr.ib()
+    signing_key = attr.ib()
+
+
+
+def get_published_announcements(client):
+    """
+    Get a flattened list of all announcements sent using all introducer
+    clients.
+    """
+    return list(
+        announcement
+        for introducer_client
+        in client.introducer_clients
+        for announcement
+        in introducer_client.published_announcements
+    )
+
 
 
 class UseTestPlugins(object):
