@@ -68,7 +68,8 @@ def encrypt_data(encryptor, plaintext):
     """
     AES-encrypt `plaintext` with the given `encryptor`.
 
-    :param encryptor: an instance previously returned from `create_encryptor`
+    :param encryptor: an instance of :class:`IEncryptor` previously
+        returned from `create_encryptor`
 
     :param bytes plaintext: the data to encrypt
 
@@ -95,7 +96,7 @@ def create_decryptor(key, iv=None):
         or None for the default (which is 16 zero bytes)
 
     :returns: an object suitable for use with :func:`decrypt_data` (an
-        :class:`IDecryptor`)
+        :class:`IDecryptor` instance)
     """
     cryptor = _create_cryptor(key, iv)
     directlyProvides(cryptor, IDecryptor)
@@ -106,7 +107,8 @@ def decrypt_data(decryptor, plaintext):
     """
     AES-decrypt `plaintext` with the given `decryptor`.
 
-    :param decryptor: an instance previously returned from `create_decryptor`
+    :param decryptor: an instance of :class:`IDecryptor` previously
+        returned from `create_decryptor`
 
     :param bytes plaintext: the data to decrypt
 
