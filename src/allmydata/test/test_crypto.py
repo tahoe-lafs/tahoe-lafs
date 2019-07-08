@@ -236,7 +236,7 @@ class TestRegression(unittest.TestCase):
 
     def test_key_incorrect_size(self):
         '''
-        only bytes can be encrypted
+        keys that aren't 16 or 32 bytes are rejected
         '''
         key = b'\x00' * 12
         with self.assertRaises(ValueError) as ctx:
@@ -287,7 +287,7 @@ class TestEd25519(unittest.TestCase):
 
         private_key2, public_key2 = ed25519.signing_keypair_from_string(private_key_str)
 
-        # the desrialized signing keys are the same as the original
+        # the deserialized signing keys are the same as the original
         self.assertEqual(
             ed25519.string_from_signing_key(private_key),
             ed25519.string_from_signing_key(private_key2),
@@ -355,7 +355,7 @@ class TestEd25519(unittest.TestCase):
 
     def test_signature_data_not_bytes(self):
         '''
-        signature must be bytes
+        signed data must be bytes
         '''
         priv, pub = ed25519.create_signing_keypair()
         with self.assertRaises(ValueError) as ctx:
@@ -465,7 +465,7 @@ class TestUtil(unittest.TestCase):
 
     def test_remove_prefix_bad(self):
         """
-        attempt to remove a prefix that doesn't exist does nothing
+        attempt to remove a prefix that doesn't exist fails with exception
         """
         with self.assertRaises(BadPrefixError):
             remove_prefix(b"foobar", b"bar")
@@ -490,7 +490,7 @@ class TestUtil(unittest.TestCase):
 
     def test_remove_prefix_partial(self):
         """
-        remote a prefix with a partial match
+        removing a prefix with only partial match fails with exception
         """
         with self.assertRaises(BadPrefixError):
             remove_prefix(b"foobar", b"fooz"),
