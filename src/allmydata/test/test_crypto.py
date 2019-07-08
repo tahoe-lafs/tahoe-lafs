@@ -201,8 +201,8 @@ class TestRegression(unittest.TestCase):
         public_key = ed25519.verifying_key_from_string(pub_str)
 
         self.assertEqual(
-            ed25519.bytes_from_verifying_key(public_key),
-            ed25519.bytes_from_verifying_key(derived_public_key),
+            ed25519.string_from_verifying_key(public_key),
+            ed25519.string_from_verifying_key(derived_public_key),
         )
 
         new_sig = ed25519.sign_data(private_key, test_data)
@@ -289,25 +289,22 @@ class TestEd25519(unittest.TestCase):
 
         # the desrialized signing keys are the same as the original
         self.assertEqual(
-            ed25519.bytes_from_signing_key(private_key),
-            ed25519.bytes_from_signing_key(private_key2),
+            ed25519.string_from_signing_key(private_key),
+            ed25519.string_from_signing_key(private_key2),
         )
         self.assertEqual(
-            ed25519.bytes_from_verifying_key(public_key),
-            ed25519.bytes_from_verifying_key(public_key2),
+            ed25519.string_from_verifying_key(public_key),
+            ed25519.string_from_verifying_key(public_key2),
         )
 
         # ditto, but for the verifying keys
         public_key_str = ed25519.string_from_verifying_key(public_key)
-        public_key_bytes = ed25519.bytes_from_verifying_key(public_key)
-
         self.assertIsInstance(public_key_str, six.string_types)
-        self.assertIsInstance(public_key_bytes, six.binary_type)
 
         public_key2 = ed25519.verifying_key_from_string(public_key_str)
         self.assertEqual(
-            ed25519.bytes_from_verifying_key(public_key),
-            ed25519.bytes_from_verifying_key(public_key2),
+            ed25519.string_from_verifying_key(public_key),
+            ed25519.string_from_verifying_key(public_key2),
         )
 
     def test_deserialize_private_not_bytes(self):

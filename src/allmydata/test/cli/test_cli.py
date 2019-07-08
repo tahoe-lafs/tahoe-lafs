@@ -735,9 +735,9 @@ class Admin(unittest.TestCase):
             self.failUnless(privkey_bits[1].startswith("priv-v0-"), lines[0])
             self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
             sk, pk = ed25519.signing_keypair_from_string(privkey_bits[1])
-            vk_bytes = base32.a2b(remove_prefix(pubkey_bits[1], "pub-v0-"))
+            vk_bytes = pubkey_bits[1]
             self.failUnlessEqual(
-                ed25519.bytes_from_verifying_key(pk),
+                ed25519.string_from_verifying_key(pk),
                 vk_bytes,
             )
         d.addCallback(_done)

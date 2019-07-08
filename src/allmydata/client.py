@@ -11,6 +11,7 @@ from twisted.python.filepath import FilePath
 
 import allmydata
 from allmydata.crypto import rsa, ed25519
+from allmydata.crypto.util import remove_prefix
 from allmydata.storage.server import StorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
@@ -489,8 +490,8 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def get_long_nodeid(self):
         # this matches what IServer.get_longname() says about us elsewhere
-        vk_bytes = ed25519.bytes_from_verifying_key(self._node_public_key)
-        return "v0-" + base32.b2a(vk_bytes)
+        vk_string = ed25519.string_from_verifying_key(self._node_public_key)
+        return remove_prefix(vk_string, "pub-")
 
     def get_long_tubid(self):
         return idlib.nodeid_b2a(self.nodeid)
@@ -511,7 +512,8 @@ class _Client(node.Node, pollmixin.PollMixin):
             else:
                 # otherwise, we're free to use the more natural seed of our
                 # pubkey-based serverid
-                vk_bytes = ed25519.bytes_from_verifying_key(self._node_public_key)
+                vk_string = ed25519.string_from_verifying_key(self._node_public_key)
+                vk_bytes = remove_prefix(vk_string, ed25519.PUBLIC_KEY_PREFIX)
                 seed = base32.b2a(vk_bytes)
             self.config.write_config_file("permutation-seed", seed+"\n")
         return seed.strip()

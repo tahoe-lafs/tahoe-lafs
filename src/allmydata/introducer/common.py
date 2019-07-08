@@ -31,10 +31,10 @@ def sign_to_foolscap(announcement, signing_key):
     sig = b"v0-" + base32.b2a(
         ed25519.sign_data(signing_key, msg)
     )
-    verifying_key_bytes = ed25519.bytes_from_verifying_key(
+    verifying_key_string = ed25519.string_from_verifying_key(
         ed25519.verifying_key_from_signing_key(signing_key)
     )
-    ann_t = (msg, sig, b"v0-" + base32.b2a(verifying_key_bytes))
+    ann_t = (msg, sig, remove_prefix(verifying_key_string, b"pub-"))
     return ann_t
 
 

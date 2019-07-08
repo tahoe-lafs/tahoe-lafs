@@ -53,18 +53,6 @@ def create_signing_keypair():
     return private_key, private_key.public_key()
 
 
-def bytes_from_signing_key(private_key):
-    """
-    Turn a private signing key into serialized bytes
-    """
-    _validate_private_key(private_key)
-    return private_key.private_bytes(
-        Encoding.Raw,
-        PrivateFormat.Raw,
-        NoEncryption(),
-    )
-
-
 def verifying_key_from_signing_key(private_key):
     """
     :returns: the public key associated to the given `private_key`
@@ -94,7 +82,7 @@ def sign_data(private_key, data):
 
 def string_from_signing_key(private_key):
     """
-    Encode a private key to a string bytes
+    Encode a private key to a string of bytes
 
     :param private_key: the private part returned from
         `create_signing_keypair` or from
@@ -103,7 +91,12 @@ def string_from_signing_key(private_key):
     :returns: byte-string representing this key
     """
     _validate_private_key(private_key)
-    return PRIVATE_KEY_PREFIX + b2a(bytes_from_signing_key(private_key))
+    raw_key_bytes = private_key.private_bytes(
+        Encoding.Raw,
+        PrivateFormat.Raw,
+        NoEncryption(),
+    )
+    return PRIVATE_KEY_PREFIX + b2a(raw_key_bytes)
 
 
 def signing_keypair_from_string(private_key_bytes):
@@ -121,23 +114,6 @@ def signing_keypair_from_string(private_key_bytes):
         a2b(remove_prefix(private_key_bytes, PRIVATE_KEY_PREFIX))
     )
     return private_key, private_key.public_key()
-
-
-def bytes_from_verifying_key(public_key):
-    """
-    Encode a verifying key to bytes.
-
-    :param public_key: the public part of a key returned from
-        `create_signing_keypair` or from
-        `signing_keypair_from_string`
-
-    :returns: bytes representing this key
-    """
-    _validate_public_key(public_key)
-    return public_key.public_bytes(
-        Encoding.Raw,
-        PublicFormat.Raw,
-    )
 
 
 def verify_signature(public_key, alleged_signature, data):
@@ -182,14 +158,18 @@ def verifying_key_from_string(public_key_bytes):
 
 def string_from_verifying_key(public_key):
     """
-    Encode a public key to a string
+    Encode a public key to a string of bytes
 
     :param public_key: the public part of a keypair
 
     :returns: byte-string representing this key
     """
     _validate_public_key(public_key)
-    return PUBLIC_KEY_PREFIX + b2a(bytes_from_verifying_key(public_key))
+    raw_key_bytes = public_key.public_bytes(
+        Encoding.Raw,
+        PublicFormat.Raw,
+    )
+    return PUBLIC_KEY_PREFIX + b2a(raw_key_bytes)
 
 
 def _validate_public_key(public_key):
