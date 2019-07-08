@@ -165,8 +165,8 @@ class MutableFileNode(object):
         return crypttext
 
     def _decrypt_privkey(self, enc_privkey):
-        encryptor = aes.create_encryptor(self._writekey)
-        privkey = aes.encrypt_data(encryptor, enc_privkey)
+        decryptor = aes.create_decryptor(self._writekey)
+        privkey = aes.decrypt_data(decryptor, enc_privkey)
         return privkey
 
     def _populate_pubkey(self, pubkey):
