@@ -23,7 +23,7 @@ class _SHA256d_Hasher(object):
         self._digest = None
 
     def update(self, data):
-        assert isinstance(data, str)  # no unicode
+        assert isinstance(data, bytes)  # no unicode
         self.h.update(data)
 
     def digest(self):
