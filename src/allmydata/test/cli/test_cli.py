@@ -736,7 +736,7 @@ class Admin(unittest.TestCase):
             self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
             sk, pk = ed25519.signing_keypair_from_string(privkey_bits[1])
             vk_bytes = pubkey_bits[1]
-            self.failUnlessEqual(
+            self.assertEqual(
                 ed25519.string_from_verifying_key(pk),
                 vk_bytes,
             )
@@ -758,7 +758,7 @@ class Admin(unittest.TestCase):
             self.failUnless(privkey_line.startswith(sk_header), privkey_line)
             self.failUnless(pubkey_line.startswith(vk_header), pubkey_line)
             pub_key_str2 = pubkey_line[len(vk_header):]
-            self.failUnlessEqual("pub-v0-" + pub_key_str2, pub_key_str)
+            self.assertEqual("pub-v0-" + pub_key_str2, pub_key_str)
         d.addCallback(_done)
         return d
 
