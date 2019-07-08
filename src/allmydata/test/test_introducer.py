@@ -495,8 +495,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             if i < NUM_STORAGE:
                 # sign all announcements
                 c.publish("storage", make_ann(node_furl), private_key)
-                assert public_key_str.startswith("pub-")
-                printable_serverids[i] = public_key_str[len("pub-"):]
+                printable_serverids[i] = remove_prefix(public_key_str, b"pub-")
                 publishing_clients.append(c)
             else:
                 # the last one does not publish anything
@@ -1014,8 +1013,7 @@ class Signatures(SyncTestCase):
                               unsign_from_foolscap, (bad_msg, sig, "v999-key"))
 
     def test_unsigned_announcement(self):
-        from allmydata.crypto import ed25519
-        ed25519.verifying_key_from_string("pub-v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
+        ed25519.verifying_key_from_string(b"pub-v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
         mock_tub = Mock()
         ic = IntroducerClient(
             mock_tub,
