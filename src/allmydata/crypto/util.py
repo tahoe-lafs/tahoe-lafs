@@ -17,8 +17,8 @@ def remove_prefix(s_bytes, prefix):
 
     :returns: `s_bytes` with `prefix` removed from the front.
     """
-    if not s_bytes.startswith(prefix):
-        raise BadPrefixError(
-            "did not see expected '{}' prefix".format(prefix)
-        )
-    return s_bytes[len(prefix):]
+    if s_bytes.startswith(prefix):
+        return s_bytes[len(prefix):]
+    raise BadPrefixError(
+        "did not see expected '{}' prefix".format(prefix)
+    )

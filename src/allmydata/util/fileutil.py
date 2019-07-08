@@ -111,7 +111,7 @@ class EncryptedTemporaryFile(object):
         iv = binascii.unhexlify("%032x" % offset_big)
         cipher = aes.create_encryptor(self.key, iv)
         # this is just to advance the counter
-        aes.encrypt_data(cipher, "\x00" * offset_small)
+        aes.encrypt_data(cipher, b"\x00" * offset_small)
         return aes.encrypt_data(cipher, data)
 
     def close(self):
