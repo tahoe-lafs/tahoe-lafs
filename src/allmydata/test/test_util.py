@@ -22,6 +22,7 @@ from allmydata.util import limiter, time_format, pollmixin, cachedir
 from allmydata.util import statistics, dictutil, pipeline, yamlutil
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
+from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.test.common_util import ReallyEqualMixin, TimezoneMixin
 
 if six.PY3:
@@ -789,7 +790,6 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessFalse(symlinkinfo.isdir)
 
     def test_encrypted_tempfile(self):
-        from allmydata.util.fileutil import EncryptedTemporaryFile
         f = EncryptedTemporaryFile()
         f.write("foobar")
         f.close()
