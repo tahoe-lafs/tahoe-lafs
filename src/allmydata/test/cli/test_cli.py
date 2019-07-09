@@ -11,7 +11,6 @@ from twisted.python.filepath import FilePath
 
 import allmydata
 from allmydata.crypto import ed25519
-from allmydata.crypto.util import remove_prefix
 from allmydata.util import fileutil, hashutil, base32
 from allmydata.util.namespace import Namespace
 from allmydata import uri
