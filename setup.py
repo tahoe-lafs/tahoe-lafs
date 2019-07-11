@@ -292,6 +292,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
                                       "static/css/*.css",
                                       ]
                     },
+      include_package_data=True,
       setup_requires=setup_requires,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       **setup_args

@@ -1,4 +1,3 @@
-
 import os.path
 from six.moves import cStringIO as StringIO
 import urllib, sys
@@ -11,14 +10,14 @@ from twisted.internet import task
 from twisted.python.filepath import FilePath
 
 import allmydata
-from allmydata.util import fileutil, hashutil, base32, keyutil
+from allmydata.crypto import ed25519
+from allmydata.util import fileutil, hashutil, base32
 from allmydata.util.namespace import Namespace
 from allmydata import uri
 from allmydata.immutable import upload
 from allmydata.dirnode import normalize
 from allmydata.scripts.common_http import socket_error
 import allmydata.scripts.common_http
-from pycryptopp.publickey import ed25519
 
 # Test that the scripts can be imported.
 from allmydata.scripts import create_node, debug, tahoe_start, tahoe_restart, \
@@ -35,10 +34,10 @@ from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
      DefaultAliasMarker
 
 from allmydata.scripts import cli, debug, runner
-from ..common_util import (ReallyEqualMixin, skip_if_cannot_represent_filename,
-                           run_cli)
-from ..no_network import GridTestMixin
-from .common import CLITestMixin, parse_options
+from allmydata.test.common_util import (ReallyEqualMixin, skip_if_cannot_represent_filename,
+                                         run_cli)
+from allmydata.test.no_network import GridTestMixin
+from allmydata.test.cli.common import CLITestMixin, parse_options
 from twisted.python import usage
 
 from allmydata.util.encodingutil import listdir_unicode, get_io_encoding
@@ -734,16 +733,20 @@ class Admin(unittest.TestCase):
             self.failUnlessEqual(pubkey_bits[0], vk_header, lines[1])
             self.failUnless(privkey_bits[1].startswith("priv-v0-"), lines[0])
             self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
-            sk_bytes = base32.a2b(keyutil.remove_prefix(privkey_bits[1], "priv-v0-"))
-            sk = ed25519.SigningKey(sk_bytes)
-            vk_bytes = base32.a2b(keyutil.remove_prefix(pubkey_bits[1], "pub-v0-"))
-            self.failUnlessEqual(sk.get_verifying_key_bytes(), vk_bytes)
+            sk, pk = ed25519.signing_keypair_from_string(privkey_bits[1])
+            vk_bytes = pubkey_bits[1]
+            self.assertEqual(
+                ed25519.string_from_verifying_key(pk),
+                vk_bytes,
+            )
         d.addCallback(_done)
         return d
 
     def test_derive_pubkey(self):
-        priv1,pub1 = keyutil.make_keypair()
-        d = run_cli("admin", "derive-pubkey", priv1)
+        priv_key, pub_key = ed25519.create_signing_keypair()
+        priv_key_str = ed25519.string_from_signing_key(priv_key)
+        pub_key_str = ed25519.string_from_verifying_key(pub_key)
+        d = run_cli("admin", "derive-pubkey", priv_key_str)
         def _done(args):
             (rc, stdout, stderr) = args
             lines = stdout.split("\n")
@@ -753,8 +756,8 @@ class Admin(unittest.TestCase):
             vk_header = "public: pub-v0-"
             self.failUnless(privkey_line.startswith(sk_header), privkey_line)
             self.failUnless(pubkey_line.startswith(vk_header), pubkey_line)
-            pub2 = pubkey_line[len(vk_header):]
-            self.failUnlessEqual("pub-v0-"+pub2, pub1)
+            pub_key_str2 = pubkey_line[len(vk_header):]
+            self.assertEqual("pub-v0-" + pub_key_str2, pub_key_str)
         d.addCallback(_done)
         return d
 

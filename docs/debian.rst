@@ -39,16 +39,16 @@ virtualenv.
 
 The ``.deb`` packages, of course, rely solely upon other ``.deb`` packages.
 For reference, here is a list of the debian package names that provide Tahoe's
-dependencies as of the 1.9 release:
+dependencies as of the 1.14.0 release:
 
 * python
 * python-zfec
-* python-pycryptopp
 * python-foolscap
 * python-openssl (needed by foolscap)
 * python-twisted
 * python-nevow
 * python-mock
+* python-cryptography
 * python-simplejson
 * python-setuptools
 * python-support (for Debian-specific install-time tools)
