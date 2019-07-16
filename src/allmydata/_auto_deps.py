@@ -139,6 +139,7 @@ package_imports = [
     ('setuptools',       'setuptools'),
     ('eliot',            'eliot'),
     ('attrs',            'attr'),
+    ('autobahn',         'autobahn'),
 ]
 
 # Dependencies for which we don't know how to get a version number at run-time.
