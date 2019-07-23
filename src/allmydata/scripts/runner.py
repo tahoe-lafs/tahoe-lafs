@@ -194,7 +194,45 @@ def run():
     # doesn't return: calls sys.exit(rc)
     task.react(_run_with_reactor)
 
+
+def _setup_coverage(reactor):
+    """
+    Arrange for coverage to be collected if the 'coverage' package is
+    installed
+    """
+    # can we put this _setup_coverage call after we hit
+    # argument-parsing?
+    if not '--coverage' in sys.argv:
+        return
+    sys.argv.remove('--coverage')
+
+    try:
+        import coverage
+    except ImportError:
+        return
+
+    os.environ["COVERAGE_PROCESS_START"] = '.coveragerc'
+    # maybe-start the global coverage, unless it already got started
+    cov = coverage.process_startup()
+    if cov is None:
+        cov = coverage.process_startup.coverage
+
+    def write_coverage_data(*args, **kw):
+        """
+        Make sure that coverage has stopped; internally, it depends on
+        ataxit handlers running which doesn't always happen (Twisted's
+        shutdown hook also won't run if os._exit() is called, but it
+        runs more-often than atexit handlers).
+        """
+        cov.stop()
+        cov.save()
+    reactor.addSystemEventTrigger('after', 'shutdown', write_coverage_data)
+
+
 def _run_with_reactor(reactor):
+
+    _setup_coverage(reactor)
+
     d = defer.maybeDeferred(parse_or_exit_with_explanation, sys.argv[1:])
     d.addCallback(_maybe_enable_eliot_logging, reactor)
     d.addCallback(dispatch)

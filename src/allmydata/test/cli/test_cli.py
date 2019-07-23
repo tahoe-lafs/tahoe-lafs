@@ -2,7 +2,7 @@ import os.path
 from six.moves import cStringIO as StringIO
 import urllib, sys
 import re
-from mock import patch
+from mock import patch, Mock
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
@@ -525,7 +525,8 @@ class CLI(CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(exitcode, 1)
 
         def fake_react(f):
-            d = f("reactor")
+            reactor = Mock()
+            d = f(reactor)
             # normally this Deferred would be errbacked with SystemExit, but
             # since we mocked out sys.exit, it will be fired with None. So
             # it's safe to drop it on the floor.
