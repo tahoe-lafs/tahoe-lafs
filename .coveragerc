@@ -8,3 +8,5 @@ source =
 omit =
      */allmydata/test/*
      */allmydata/_version.py
+parallel = True
+branch = True
