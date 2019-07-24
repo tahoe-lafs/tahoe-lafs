@@ -12,6 +12,10 @@ from allmydata.util import log, fileutil
 from allmydata.web import introweb, root
 from allmydata.web.common import IOpHandleTable, MyExceptionHandler
 
+from .web.storage_plugins import (
+    StoragePlugins,
+)
+
 # we must override twisted.web.http.Request.requestReceived with a version
 # that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
 # override the nevow-specific subclass, nevow.appserver.NevowRequest . This
@@ -167,6 +171,8 @@ class WebishServer(service.MultiService):
         if self.root.child_operations:
             self.site.remember(self.root.child_operations, IOpHandleTable)
             self.root.child_operations.setServiceParent(self)
+
+        self.root.putChild("storage-plugins", StoragePlugins(client))
 
     def buildServer(self, webport, nodeurl_path, staticdir):
         self.webport = webport
