@@ -14,6 +14,8 @@ def test_index(alice):
     we can download the index file
     """
     util.web_get(alice._node_dir, "")
+    # ...and json mode is valid json
+    json.loads(util.web_get(alice._node_dir, "?t=json"))
 
 
 def test_upload_download(alice):
