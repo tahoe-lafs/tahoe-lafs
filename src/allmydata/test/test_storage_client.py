@@ -1,6 +1,8 @@
 import hashlib
 from mock import Mock
-
+from json import (
+    dumps,
+)
 from fixtures import (
     TempDir,
 )
@@ -430,7 +432,9 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.node = yield self.node_fixture.create_node()
         self.webish = self.node.getServiceNamed(WebishServer.name)
         self.node.startService()
+        self.addCleanup(self.node.stopService)
         self.port = self.webish.getPortnum()
+
 
     @inlineCallbacks
     def test_plugin_resource_path(self):
@@ -441,8 +445,8 @@ class StoragePluginWebPresence(AsyncTestCase):
             port=self.port,
             plugin_name=self.storage_plugin,
         )
-        # As long as it doesn't raise an exception, the test is a success.
-        yield do_http(b"get", url)
+        result = yield do_http(b"get", url)
+        self.assertThat(result, Equals(dumps({b"web": b"1"})))
 
 
 

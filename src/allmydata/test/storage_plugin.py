@@ -3,6 +3,10 @@ A storage server plugin the test suite can use to validate the
 functionality.
 """
 
+from json import (
+    dumps,
+)
+
 import attr
 
 from zope.interface import (
@@ -12,7 +16,9 @@ from zope.interface import (
 from twisted.internet.defer import (
     succeed,
 )
-
+from twisted.web.static import (
+    Data,
+)
 from foolscap.api import (
     RemoteInterface,
 )
@@ -58,6 +64,14 @@ class DummyStorage(object):
 
     def get_storage_client(self, configuration, announcement, get_rref):
         return DummyStorageClient(get_rref, configuration, announcement)
+
+
+    def get_client_resource(self, configuration):
+        """
+        :return: A static data resource that produces the given configuration when
+            rendered, as an aid to testing.
+        """
+        return Data(dumps(configuration), b"text/json")
 
 
 

@@ -883,6 +883,16 @@ class _Client(node.Node, pollmixin.PollMixin):
             ic.publish("storage", announcement, self._node_key)
 
 
+    def get_client_storage_plugin_web_resources(self):
+        """
+        Get all of the client-side ``IResource`` implementations provided by
+        enabled storage plugins.
+
+        :return dict[bytes, IResource provider]: The implementations.
+        """
+        return self.storage_broker.get_client_storage_plugin_web_resources()
+
+
     def _enable_storage_servers(self, announceable_storage_servers):
         """
         Register and announce the given storage servers.

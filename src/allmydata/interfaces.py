@@ -3117,6 +3117,17 @@ class IFoolscapStoragePlugin(IPlugin):
         :rtype: ``Deferred`` firing with ``IStorageServer``
         """
 
+    def get_client_resource(configuration):
+        """
+        Get an ``IResource`` that can be published in the Tahoe-LAFS web interface
+        to expose information related to this plugin.
+
+        :param dict configuration: Any configuration given in the section for
+            this plugin in the node's configuration file.
+
+        :rtype: ``IResource``
+        """
+
 
 class IAnnounceableStorageServer(Interface):
     announcement = Attribute(
