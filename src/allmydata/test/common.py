@@ -74,6 +74,10 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
 import allmydata.test.common_util as testutil
 from allmydata.immutable.upload import Uploader
+from allmydata.client import (
+    config_from_string,
+    create_client_from_config,
+)
 
 from ..crypto import (
     ed25519,
@@ -186,6 +190,72 @@ class UseTestPlugins(object):
         import twisted.plugins
         testplugins = FilePath(__file__).sibling("plugins")
         twisted.plugins.__path__.remove(testplugins.path)
+
+
+    def getDetails(self):
+        return {}
+
+
+
+@attr.s
+class UseNode(object):
+    """
+    A fixture which creates a client node.
+    """
+    plugin_config = attr.ib()
+    storage_plugin = attr.ib()
+    basedir = attr.ib()
+    introducer_furl = attr.ib()
+    node_config = attr.ib(default=attr.Factory(dict))
+
+    config = attr.ib(default=None)
+
+    def setUp(self):
+        def format_config_items(config):
+            return b"\n".join(
+                b" = ".join((key, value))
+                for (key, value)
+                in config.items()
+            )
+
+        if self.plugin_config is None:
+            plugin_config_section = b""
+        else:
+            plugin_config_section = b"""
+[storageclient.plugins.{storage_plugin}]
+{config}
+""".format(
+    storage_plugin=self.storage_plugin,
+    config=format_config_items(self.plugin_config),
+)
+
+        self.config = config_from_string(
+            self.basedir.asTextMode().path,
+            u"tub.port",
+b"""
+[node]
+{node_config}
+
+[client]
+introducer.furl = {furl}
+storage.plugins = {storage_plugin}
+{plugin_config_section}
+""".format(
+    furl=self.introducer_furl,
+    storage_plugin=self.storage_plugin,
+    node_config=format_config_items(self.node_config),
+    plugin_config_section=plugin_config_section,
+)
+        )
+
+    def create_node(self):
+        return create_client_from_config(
+            self.config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+
+    def cleanUp(self):
+        pass
 
 
     def getDetails(self):
