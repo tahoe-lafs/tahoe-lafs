@@ -33,17 +33,21 @@ from foolscap.api import (
 
 from .common import (
     SyncTestCase,
+    AsyncTestCase,
     UseTestPlugins,
-    MemoryIntroducerClient,
+    UseNode,
+    SameProcessStreamEndpointAssigner,
+)
+from .common_web import (
+    do_http,
 )
 from .storage_plugin import (
     DummyStorageClient,
 )
-from allmydata.util import base32, yamlutil
-from allmydata.client import (
-    config_from_string,
-    create_client_from_config,
+from allmydata.webish import (
+    WebishServer,
 )
+from allmydata.util import base32, yamlutil
 from allmydata.storage_client import (
     IFoolscapStorageServer,
     NativeStorageServer,
@@ -185,6 +189,7 @@ class UnrecognizedAnnouncement(unittest.TestCase):
         server.get_nickname()
 
 
+
 class PluginMatchedAnnouncement(SyncTestCase):
     """
     Tests for handling by ``NativeStorageServer`` of storage server
@@ -211,39 +216,16 @@ class PluginMatchedAnnouncement(SyncTestCase):
         self.basedir.child(u"private").makedirs()
         self.useFixture(UseTestPlugins())
 
-        if plugin_config is None:
-            plugin_config_section = b""
-        else:
-            plugin_config_section = b"""
-[storageclient.plugins.{storage_plugin}]
-{config}
-""".format(
-    storage_plugin=storage_plugin,
-    config=b"\n".join(
-        b" = ".join((key, value))
-        for (key, value)
-        in plugin_config.items()
-    ))
-
-        self.config = config_from_string(
-            self.basedir.asTextMode().path,
-            u"tub.port",
-b"""
-[client]
-introducer.furl = {furl}
-storage.plugins = {storage_plugin}
-{plugin_config_section}
-""".format(
-    furl=introducer_furl,
-    storage_plugin=storage_plugin,
-    plugin_config_section=plugin_config_section,
-)
-        )
-        self.node = yield create_client_from_config(
-            self.config,
-            _introducer_factory=MemoryIntroducerClient,
-        )
+        self.node_fixture = self.useFixture(UseNode(
+            plugin_config,
+            storage_plugin,
+            self.basedir,
+            introducer_furl,
+        ))
+        self.config = self.node_fixture.config
+        self.node = yield self.node_fixture.create_node()
         [self.introducer_client] = self.node.introducer_clients
+
 
     def publish(self, server_id, announcement, introducer_client):
         for subscription in introducer_client.subscribed_to:
@@ -408,6 +390,60 @@ class FoolscapStorageServers(unittest.TestCase):
                 ),
             ),
         )
+
+
+
+class StoragePluginWebPresence(AsyncTestCase):
+    """
+    Tests for the web resources ``IFoolscapStorageServer`` plugins may expose.
+    """
+    @inlineCallbacks
+    def setUp(self):
+        super(StoragePluginWebPresence, self).setUp()
+
+        self.useFixture(UseTestPlugins())
+
+        self.port_assigner = SameProcessStreamEndpointAssigner()
+        self.port_assigner.setUp()
+        self.addCleanup(self.port_assigner.tearDown)
+        self.storage_plugin = b"tahoe-lafs-dummy-v1"
+
+        from twisted.internet import reactor
+        _, port_endpoint = self.port_assigner.assign(reactor)
+
+        tempdir = TempDir()
+        self.useFixture(tempdir)
+        self.basedir = FilePath(tempdir.path)
+        self.basedir.child(u"private").makedirs()
+        self.node_fixture = self.useFixture(UseNode(
+            plugin_config={
+                b"web": b"1",
+            },
+            node_config={
+                b"tub.location": b"127.0.0.1:1",
+                b"web.port": port_endpoint,
+            },
+            storage_plugin=self.storage_plugin,
+            basedir=self.basedir,
+            introducer_furl=SOME_FURL,
+        ))
+        self.node = yield self.node_fixture.create_node()
+        self.webish = self.node.getServiceNamed(WebishServer.name)
+        self.node.startService()
+        self.port = self.webish.getPortnum()
+
+    @inlineCallbacks
+    def test_plugin_resource_path(self):
+        """
+        The plugin's resource is published at */storage-plugins/<plugin name>*.
+        """
+        url = "http://127.0.0.1:{port}/storage-plugins/{plugin_name}".format(
+            port=self.port,
+            plugin_name=self.storage_plugin,
+        )
+        # As long as it doesn't raise an exception, the test is a success.
+        yield do_http(b"get", url)
+
 
 
 class TestStorageFarmBroker(unittest.TestCase):
