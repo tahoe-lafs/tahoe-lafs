@@ -52,3 +52,26 @@ def test_upload_download(alice):
         }
     )
     assert data == FILE_CONTENTS
+
+
+def test_put(alice):
+    """
+    use PUT to create a file
+    """
+
+    import time; time.sleep(10) # XXX wat
+    FILE_CONTENTS = "added via PUT"
+
+    import requests
+    resp = requests.put(
+        util.node_url(alice._node_dir, "uri"),
+        files={
+            "file": FILE_CONTENTS,
+        },
+    )
+    print(resp)
+    print(resp.status_code)
+    print(resp.text)
+    print("\n\n\n\n\n\n\n")
+    assert resp.text.strip().startswith("URI:CHK:")
+    assert resp.text.strip().endswith(":2:4:153")
