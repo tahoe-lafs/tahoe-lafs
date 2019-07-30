@@ -194,10 +194,13 @@ class Root(MultiFormatPage):
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
         return render_time(time.time())
+
     def data_version(self, ctx, data):
         return get_package_versions_string()
+
     def data_import_path(self, ctx, data):
         return str(allmydata)
+
     def render_my_nodeid(self, ctx, data):
         tubid_s = "TubID: "+self.client.get_long_tubid()
         return T.td(title=tubid_s)[self.client.get_long_nodeid()]
