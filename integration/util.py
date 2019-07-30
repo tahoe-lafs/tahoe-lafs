@@ -360,15 +360,28 @@ def cli(request, reactor, node_dir, *argv):
     return proto.done
 
 
+def node_url(node_dir, uri_fragment):
+    """
+    Create a fully qualified URL by reading config from `node_dir` and
+    adding the `uri_fragment`
+    """
+    with open(join(node_dir, "node.url"), "r") as f:
+        base = f.read().strip()
+    url = base + uri_fragment
+    return url
+
+
 def web_get(node_dir, uri_fragment, **kw):
     """
     Make a web-request to the webport of `node_dir`. This will look
     like: `http://localhost:<webport>/<uri_fragment>`
     """
-    with open(join(node_dir, "node.url"), "r") as f:
-        base = f.read().strip()
-    url = base + uri_fragment
+    url = node_url(node_dir, uri_fragment)
     resp = requests.get(url, **kw)
+    if resp.status_code < 200 or resp.status_code >= 300:
+        raise RuntimeError(
+            "Expected a 200 code, got {}".format(resp.status_code)
+        )
     return resp.content
 
 
@@ -377,10 +390,7 @@ def web_post(node_dir, uri_fragment, **kw):
     Make a web-request to the webport of `node_dir`. This will look
     like: `http://localhost:<webport>/<uri_fragment>`
     """
-    # XXXX same as above except requests.post
-    with open(join(node_dir, "node.url"), "r") as f:
-        base = f.read().strip()
-    url = base + uri_fragment
+    url = node_url(node_dir, uri_fragment)
     resp = requests.post(url, **kw)
     if resp.status_code < 200 or resp.status_code >= 300:
         raise RuntimeError(
