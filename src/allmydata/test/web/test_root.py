@@ -73,6 +73,11 @@ class FakeStorageBroker(object):
         return ()
 
 
+class FakeMagicFolder(object):
+    def get_public_status(self):
+        return (True, ["this magic folder is alive"])
+
+
 # XXX there are several 'fake client' instance throughout the code
 # .. probably should be a single one that works better and covers all
 # the cases etc.
@@ -88,7 +93,9 @@ class FakeClient(object):
     storage_broker = FakeStorageBroker()
 
     _secret_holder = SecretHolder("lease secret", "convergence secret")
-    _magic_folders = None
+    _magic_folders = {
+        "foo": FakeMagicFolder(),
+    }
 
     def get_long_nodeid(self):
         return "v0-nodeid"
@@ -313,7 +320,10 @@ GOLDEN_ROOT = """<!DOCTYPE html
             </div><!--/row-->
           </div>
 
-          <p></p><!--/row-->
+          <div class="row-fluid">
+            <h2>Magic Folders</h2>
+            <div><div><div class="status-indicator"><img alt="working" src="img/connected-yes.png" /></div><h3>foo</h3><ul class="magic-folder-status"><li>this magic folder is alive</li></ul></div></div>
+          </div><!--/row-->
 
           <div class="row-fluid">
             <h2>
