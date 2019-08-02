@@ -7,7 +7,8 @@ from twisted.python import log
 from twisted.python.failure import Failure
 from zope.interface import Interface
 from nevow import loaders, appserver
-from nevow.rend import Page
+#from nevow.rend import Page
+from twisted.web.resource import Resource
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata import blacklist
