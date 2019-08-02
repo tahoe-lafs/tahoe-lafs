@@ -462,9 +462,9 @@ def chutney(reactor, temp_dir):
     proto = _DumpOutputProtocol(None)
     reactor.spawnProcess(
         proto,
-        '/usr/bin/git',
+        'git',
         (
-            '/usr/bin/git', 'clone', '--depth=1',
+            'git', 'clone', '--depth=1',
             'https://git.torproject.org/chutney.git',
             chutney_dir,
         ),
