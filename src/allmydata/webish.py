@@ -172,7 +172,7 @@ class WebishServer(service.MultiService):
             self.site.remember(self.root.child_operations, IOpHandleTable)
             self.root.child_operations.setServiceParent(self)
 
-        self.root.putChild("storage-plugins", StoragePlugins(client))
+        self.root.putChild(b"storage-plugins", StoragePlugins(client))
 
     def buildServer(self, webport, nodeurl_path, staticdir):
         self.webport = webport
