@@ -61,10 +61,8 @@ class DummyStorage(object):
             ),
         )
 
-
     def get_storage_client(self, configuration, announcement, get_rref):
         return DummyStorageClient(get_rref, configuration, announcement)
-
 
     def get_client_resource(self, configuration):
         """

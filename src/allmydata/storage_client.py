@@ -197,7 +197,6 @@ class StorageFarmBroker(service.MultiService):
                 storage_server.setServiceParent(self)
                 storage_server.start_connecting(self._trigger_connections)
 
-
     def get_client_storage_plugin_web_resources(self):
         """
         Get all of the client-side ``IResource`` implementations provided by
@@ -213,7 +212,6 @@ class StorageFarmBroker(service.MultiService):
             for (name, config)
             in self.storage_client_config.storage_plugins.items()
         }
-
 
     @log_call(
         action_type=u"storage-client:broker:make-storage-server",

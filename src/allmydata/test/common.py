@@ -124,7 +124,6 @@ class MemoryIntroducerClient(object):
         ))
 
 
-
 @attr.s
 class Subscription(object):
     """
@@ -134,7 +133,6 @@ class Subscription(object):
     cb = attr.ib()
     args = attr.ib()
     kwargs = attr.ib()
-
 
 
 @attr.s
@@ -151,7 +149,6 @@ class Announcement(object):
         return ed25519.signing_keypair_from_string(self.signing_key_bytes)[0]
 
 
-
 def get_published_announcements(client):
     """
     Get a flattened list of all announcements sent using all introducer
@@ -164,7 +161,6 @@ def get_published_announcements(client):
         for announcement
         in introducer_client.published_announcements
     )
-
 
 
 class UseTestPlugins(object):
@@ -181,7 +177,6 @@ class UseTestPlugins(object):
         testplugins = FilePath(__file__).sibling("plugins")
         twisted.plugins.__path__.insert(0, testplugins.path)
 
-
     def cleanUp(self):
         """
         Remove the testing package ``plugins`` directory from the
@@ -191,10 +186,8 @@ class UseTestPlugins(object):
         testplugins = FilePath(__file__).sibling("plugins")
         twisted.plugins.__path__.remove(testplugins.path)
 
-
     def getDetails(self):
         return {}
-
 
 
 @attr.s

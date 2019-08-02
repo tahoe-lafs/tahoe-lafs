@@ -888,7 +888,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         for ic in self.introducer_clients:
             ic.publish("storage", announcement, self._node_private_key)
 
-
     def get_client_storage_plugin_web_resources(self):
         """
         Get all of the client-side ``IResource`` implementations provided by
@@ -898,14 +897,12 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         return self.storage_broker.get_client_storage_plugin_web_resources()
 
-
     def _enable_storage_servers(self, announceable_storage_servers):
         """
         Register and announce the given storage servers.
         """
         for announceable in announceable_storage_servers:
             yield self._enable_storage_server(announceable)
-
 
     def _enable_storage_server(self, announceable_storage_server):
         """
@@ -926,7 +923,6 @@ class _Client(node.Node, pollmixin.PollMixin):
             announceable_storage_server,
         )
         return announceable_storage_server
-
 
     def init_client(self):
         helper_furl = self.config.get_config("client", "helper.furl", None)
