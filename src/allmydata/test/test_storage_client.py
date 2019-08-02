@@ -394,7 +394,6 @@ class FoolscapStorageServers(unittest.TestCase):
         )
 
 
-
 class StoragePluginWebPresence(AsyncTestCase):
     """
     Tests for the web resources ``IFoolscapStorageServer`` plugins may expose.
@@ -435,7 +434,6 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.addCleanup(self.node.stopService)
         self.port = self.webish.getPortnum()
 
-
     @inlineCallbacks
     def test_plugin_resource_path(self):
         """
@@ -447,7 +445,6 @@ class StoragePluginWebPresence(AsyncTestCase):
         ).encode("utf-8")
         result = yield do_http(b"get", url)
         self.assertThat(result, Equals(dumps({b"web": b"1"})))
-
 
 
 class TestStorageFarmBroker(unittest.TestCase):

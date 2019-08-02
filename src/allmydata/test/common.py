@@ -117,7 +117,6 @@ class MemoryIntroducerClient(object):
         self.published_announcements.append(Announcement(service_name, ann, signing_key))
 
 
-
 @attr.s
 class Subscription(object):
     """
@@ -129,7 +128,6 @@ class Subscription(object):
     kwargs = attr.ib()
 
 
-
 @attr.s
 class Announcement(object):
     """
@@ -138,7 +136,6 @@ class Announcement(object):
     service_name = attr.ib()
     ann = attr.ib()
     signing_key = attr.ib()
-
 
 
 def get_published_announcements(client):
@@ -155,7 +152,6 @@ def get_published_announcements(client):
     )
 
 
-
 class UseTestPlugins(object):
     """
     A fixture which enables loading Twisted plugins from the Tahoe-LAFS test
@@ -170,7 +166,6 @@ class UseTestPlugins(object):
         testplugins = FilePath(__file__).sibling("plugins")
         twisted.plugins.__path__.insert(0, testplugins.path)
 
-
     def cleanUp(self):
         """
         Remove the testing package ``plugins`` directory from the
@@ -180,10 +175,8 @@ class UseTestPlugins(object):
         testplugins = FilePath(__file__).sibling("plugins")
         twisted.plugins.__path__.remove(testplugins.path)
 
-
     def getDetails(self):
         return {}
-
 
 
 @attr.s
