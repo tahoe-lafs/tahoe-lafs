@@ -5,6 +5,7 @@ from mock import Mock
 from twisted.trial import unittest
 from twisted.internet.task import Clock
 from twisted.internet.defer import inlineCallbacks
+from twisted.web.template import XMLString, Element
 
 from nevow.testutil import FakeRequest, FakeSession, renderPage
 from nevow.context import WebContext
@@ -134,14 +135,15 @@ class RenderRoot(unittest.TestCase):
         self.clock = Clock()
         self.client = FakeClient()
 
-    def _test_root_template(self):
-        page = Root(self.client, self.clock, now_fn=self.clock.seconds)
-        page.addSlash = False
+    def test_basic_stan(self):
+
+        class MyRoot(Element):
+            loader = XMLString(GOLDEN_ROOT)
+
         request = FakeRequest()
-        print(dir(page))
-        print(page.renderer)
-        d = page.renderHTTP(request)
-        print(d)
+        r = MyRoot()
+        data = r.render(request)
+        print(data)
 
     @inlineCallbacks
     def test_root_template(self):
@@ -154,8 +156,9 @@ class RenderRoot(unittest.TestCase):
         # we chop up to the line with "<footer>" because there's a
         # timestamp and a bunch of versions burned into that :/
         page_data = page_data[:page_data.find("<footer>")].rstrip()
+        golden = GOLDEN_ROOT[:GOLDEN_ROOT.find("<footer>")].rstrip()
 
-        self.assertEqual(page_data, GOLDEN_ROOT)
+        self.assertEqual(page_data, golden)
 
 
 GOLDEN_ROOT = """<!DOCTYPE html
@@ -348,4 +351,60 @@ GOLDEN_ROOT = """<!DOCTYPE html
         </div><!--/span-->
       </div><!--/row-->
 
-      <hr />"""
+      <hr />
+
+      <footer>
+        <p>© <a href="https://tahoe-lafs.org/">Tahoe-LAFS Software Foundation 2013-2016</a></p>
+        <p class="minutia">Page rendered at <span>2019-07-30 15:32:19</span></p>
+        <p class="minutia">tahoe-lafs: 1.13.0.post1003.dev0 [ticket3227-remove-nevow: aa6eba1ce8220e5f794864063d7900686e0fb3ad-dirty]
+foolscap: 0.13.1
+zfec: 1.5.3
+Twisted: 19.2.1
+Nevow: 0.14.4
+zope.interface: unknown
+python: 2.7.13
+platform: Linux-debian_9.9-x86_64-64bit
+pyOpenSSL: 19.0.0
+OpenSSL: 1.1.1c [ 28 May 2019]
+pyasn1: 0.4.5
+service-identity: 18.1.0
+characteristic: 14.3.0
+pyasn1-modules: 0.2.5
+cryptography: 2.7
+cffi: 1.12.3
+six: 1.12.0
+enum34: 1.1.6
+pycparser: 2.19
+PyYAML: 5.1.1
+magic-wormhole: 0.11.2
+setuptools: 41.0.1
+eliot: 1.7.0
+attrs: 19.1.0
+autobahn: 19.7.2 [according to pkg_resources]
+txtorcon: 19.0.0 [according to pkg_resources]
+constantly: 15.1.0 [according to pkg_resources]
+tqdm: 4.32.2 [according to pkg_resources]
+automat: 0.7.0 [according to pkg_resources]
+boltons: 19.1.0 [according to pkg_resources]
+click: 7.0 [according to pkg_resources]
+appdirs: 1.4.3 [according to pkg_resources]
+ipaddress: 1.0.22 [according to pkg_resources]
+humanize: 0.5.1 [according to pkg_resources]
+hkdf: 0.0.3 [according to pkg_resources]
+bcrypt: 3.1.7 [according to pkg_resources]
+txaio: 18.8.1 [according to pkg_resources]
+pynacl: 1.3.0 [according to pkg_resources]
+idna: 2.8 [according to pkg_resources]
+hyperlink: 19.0.0 [according to pkg_resources]
+spake2: 0.8 [according to pkg_resources]
+pyhamcrest: 1.9.0 [according to pkg_resources]
+pyrsistent: 0.15.4 [according to pkg_resources]
+incremental: 17.5.0 [according to pkg_resources]
+asn1crypto: 0.24.0 [according to pkg_resources]
+</p>
+        <p class="minutia">Tahoe-LAFS code imported from: <span>&lt;module 'allmydata' from '/home/mike/work-lafs/src/tahoe-lafs/src/allmydata/__init__.pyc'&gt;</span></p>
+      </footer>
+
+    </div><!--/.fluid-container-->
+  </body>
+</html>"""
