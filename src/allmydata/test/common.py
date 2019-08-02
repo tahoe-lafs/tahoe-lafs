@@ -201,6 +201,21 @@ class UseTestPlugins(object):
 class UseNode(object):
     """
     A fixture which creates a client node.
+
+    :ivar dict[bytes, bytes] plugin_config: Configuration items to put in the
+        node's configuration.
+
+    :ivar bytes storage_plugin: The name of a storage plugin to enable.
+
+    :ivar FilePath basedir: The base directory of the node.
+
+    :ivar bytes introducer_furl: The introducer furl with which to
+        configure the client.
+
+    :ivar dict[bytes, bytes] node_config: Configuration items for the *node*
+        section of the configuration.
+
+    :ivar _Config config: The complete resulting configuration.
     """
     plugin_config = attr.ib()
     storage_plugin = attr.ib()

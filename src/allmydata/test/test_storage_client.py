@@ -441,10 +441,10 @@ class StoragePluginWebPresence(AsyncTestCase):
         """
         The plugin's resource is published at */storage-plugins/<plugin name>*.
         """
-        url = "http://127.0.0.1:{port}/storage-plugins/{plugin_name}".format(
+        url = u"http://127.0.0.1:{port}/storage-plugins/{plugin_name}".format(
             port=self.port,
             plugin_name=self.storage_plugin,
-        )
+        ).encode("utf-8")
         result = yield do_http(b"get", url)
         self.assertThat(result, Equals(dumps({b"web": b"1"})))
 
