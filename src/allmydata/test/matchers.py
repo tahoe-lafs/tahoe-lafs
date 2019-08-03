@@ -40,6 +40,16 @@ class MatchesNodePublicKey(object):
     basedir = attr.ib()
 
     def match(self, other):
+        """
+        Match a private key which is the same as the private key in the node at
+        ``self.basedir``.
+
+        :param other: A signing key (aka "private key") from
+            ``allmydata.crypto.ed25519``.  This is the key to check against
+            the node's key.
+
+        :return Mismatch: If the keys don't match.
+        """
         config = read_config(self.basedir, u"tub.port")
         privkey_bytes = config.get_private_config("node.privkey")
         private_key = ed25519.signing_keypair_from_string(privkey_bytes)[0]
