@@ -156,40 +156,42 @@ class Root(MultiFormatPage):
         self.client = client
         # If set, clock is a twisted.internet.task.Clock that the tests
         # use to test ophandle expiration.
-        self.child_operations = operations.OphandleTable(clock)
+        self.putChild("operations", operations.OphandleTable(clock))
         self.now_fn = now_fn
         try:
             s = client.getServiceNamed("storage")
         except KeyError:
             s = None
-        self.child_storage = storage.StorageStatus(s, self.client.nickname)
 
-        self.child_uri = URIHandler(client)
-        self.child_cap = URIHandler(client)
+        self.putChild("storage", storage.StorageStatus(s, self.client.nickname))
+
+        self.putChild("uri", URIHandler(client))
+        self.putChild("cap", URIHandler(client))
 
         # handler for "/magic_folder" URIs
-        self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
+        self.putChild("magic_folder", magic_folder.MagicFolderWebApi(client))
 
         # Handler for everything beneath "/private", an area of the resource
         # hierarchy which is only accessible with the private per-node API
         # auth token.
-        self.child_private = create_private_tree(client.get_auth_token)
+        self.putChild("private", create_private_tree(client.get_auth_token))
 
-        self.child_file = FileHandler(client)
-        self.child_named = FileHandler(client)
-        self.child_status = status.Status(client.get_history())
-        self.child_statistics = status.Statistics(client.stats_provider)
+        self.putChild("file", FileHandler(client))
+        self.putChild("named", FileHandler(client))
+        self.putChild("status", status.Status(client.get_history()))
+        self.putChild("statistics", status.Statistics(client.stats_provider))
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
             self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
 
-    def child_helper_status(self, ctx):
-        # the Helper isn't attached until after the Tub starts, so this child
-        # needs to created on each request
-        return status.HelperStatus(self.client.helper)
+        self.putChild("report_incident", IncidentReporter())
 
-    child_report_incident = IncidentReporter()
-    #child_server # let's reserve this for storage-server-over-HTTP
+
+    def getChild(self, path, request):
+        if path == "helper_status":
+            # the Helper isn't attached until after the Tub starts, so this child
+            # needs to created on each request
+            return status.HelperStatus(self.client.helper)
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
