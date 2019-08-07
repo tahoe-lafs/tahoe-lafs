@@ -166,7 +166,7 @@ class WebishServer(service.MultiService):
         self.buildServer(webport, nodeurl_path, staticdir)
 
         # XXX FIXME what does this really do?
-        if False and self.root.child_operations:
+        if self.root.child_operations:
             self.site.remember(self.root.child_operations, IOpHandleTable)
             self.root.child_operations.setServiceParent(self)
 
