@@ -209,7 +209,7 @@ def _setup_coverage(reactor):
     try:
         import coverage
     except ImportError:
-        except RuntimeError(
+        raise RuntimeError(
                 "The 'coveage' package must be installed to use --coverage"
         )
 
