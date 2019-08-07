@@ -69,9 +69,17 @@ def test_put(alice):
             "file": FILE_CONTENTS,
         },
     )
-    print(resp)
-    print(resp.status_code)
-    print(resp.text)
-    print("\n\n\n\n\n\n\n")
     assert resp.text.strip().startswith("URI:CHK:")
     assert resp.text.strip().endswith(":2:4:153")
+
+
+def test_helper_status(storage_nodes):
+    """
+    successfully GET the /helper_status page
+    """
+
+    import requests
+    url = util.node_url(storage_nodes[0]._node_dir, "helper_status")
+    print("GET {}".format(url))
+    resp = requests.get(url)
+    print(resp.text.strip())

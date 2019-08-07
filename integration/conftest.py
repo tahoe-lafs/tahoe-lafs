@@ -310,12 +310,13 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
     # start all 5 nodes in parallel
     for x in range(5):
         name = 'node{}'.format(x)
+        web_port=  9990 + x
         # tub_port = 9900 + x
         nodes.append(
             pytest_twisted.blockon(
                 _create_node(
                     reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
-                    web_port=None, storage=True,
+                    web_port=str(web_port), storage=True,
                 )
             )
         )
