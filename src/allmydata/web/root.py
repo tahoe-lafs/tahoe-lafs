@@ -186,6 +186,14 @@ class Root(MultiFormatPage):
 
         self.putChild("report_incident", IncidentReporter())
 
+    # until we get rid of nevow.Page in favour of twisted.web.resource
+    # we can't use getChild() -- but we CAN use childFactory or
+    # override locatechild
+    def childFactory(self, ctx, name):
+        request = IRequest(ctx)
+        print(request)
+        return self.getChild(name, request)
+
 
     def getChild(self, path, request):
         if path == "helper_status":
