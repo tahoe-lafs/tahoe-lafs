@@ -211,13 +211,17 @@ def _setup_coverage(reactor):
     except ImportError:
         return
 
+    # this doesn't change the shell's notion of the environment, but
+    # it makes the test in process_startup() succeed, which is the
+    # goal here.
     os.environ["COVERAGE_PROCESS_START"] = '.coveragerc'
+
     # maybe-start the global coverage, unless it already got started
     cov = coverage.process_startup()
     if cov is None:
         cov = coverage.process_startup.coverage
 
-    def write_coverage_data(*args, **kw):
+    def write_coverage_data():
         """
         Make sure that coverage has stopped; internally, it depends on
         ataxit handlers running which doesn't always happen (Twisted's
