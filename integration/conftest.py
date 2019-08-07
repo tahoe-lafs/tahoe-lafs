@@ -3,7 +3,7 @@ from __future__ import print_function
 import sys
 import shutil
 from time import sleep
-from os import mkdir, listdir
+from os import mkdir, listdir, environ
 from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 from functools import partial
@@ -462,12 +462,13 @@ def chutney(reactor, temp_dir):
     proto = _DumpOutputProtocol(None)
     reactor.spawnProcess(
         proto,
-        '/usr/bin/git',
+        'git',
         (
-            '/usr/bin/git', 'clone', '--depth=1',
+            'git', 'clone', '--depth=1',
             'https://git.torproject.org/chutney.git',
             chutney_dir,
-        )
+        ),
+        env=environ,
     )
     pytest_twisted.blockon(proto.done)
     return chutney_dir
@@ -483,6 +484,8 @@ def tor_network(reactor, temp_dir, chutney, request):
     # ./chutney configure networks/basic
     # ./chutney start networks/basic
 
+    env = environ.copy()
+    env.update({"PYTHONPATH": join(chutney_dir, "lib")})
     proto = _DumpOutputProtocol(None)
     reactor.spawnProcess(
         proto,
@@ -492,7 +495,7 @@ def tor_network(reactor, temp_dir, chutney, request):
             join(chutney_dir, 'networks', 'basic'),
         ),
         path=join(chutney_dir),
-        env={"PYTHONPATH": join(chutney_dir, "lib")},
+        env=env,
     )
     pytest_twisted.blockon(proto.done)
 
@@ -505,7 +508,7 @@ def tor_network(reactor, temp_dir, chutney, request):
             join(chutney_dir, 'networks', 'basic'),
         ),
         path=join(chutney_dir),
-        env={"PYTHONPATH": join(chutney_dir, "lib")},
+        env=env,
     )
     pytest_twisted.blockon(proto.done)
 
@@ -519,7 +522,7 @@ def tor_network(reactor, temp_dir, chutney, request):
             join(chutney_dir, 'networks', 'basic'),
         ),
         path=join(chutney_dir),
-        env={"PYTHONPATH": join(chutney_dir, "lib")},
+        env=env,
     )
     try:
         pytest_twisted.blockon(proto.done)
@@ -538,7 +541,7 @@ def tor_network(reactor, temp_dir, chutney, request):
                 join(chutney_dir, 'networks', 'basic'),
             ),
             path=join(chutney_dir),
-            env={"PYTHONPATH": join(chutney_dir, "lib")},
+            env=env,
         )
         pytest_twisted.blockon(proto.done)
     request.addfinalizer(cleanup)
