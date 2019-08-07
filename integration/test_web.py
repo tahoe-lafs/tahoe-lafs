@@ -2,6 +2,7 @@ import sys
 import time
 import shutil
 import json
+import urllib2
 from os import mkdir, unlink, utime
 from os.path import join, exists, getmtime
 
@@ -81,3 +82,72 @@ def test_helper_status(storage_nodes):
     url = util.node_url(storage_nodes[0]._node_dir, "helper_status")
     resp = requests.get(url)
     assert resp.status_code >= 200 and resp.status_code < 300
+
+
+def test_deep_stats():#alice):
+    """
+    create a directory, do deep-stats on it and prove the /operations/
+    URIs work
+    """
+    class Alice:
+        _node_dir = "testgrid/alice"
+    alice = Alice()
+    resp = requests.post(
+        util.node_url(alice._node_dir, "uri"),
+        params={
+            "format": "sdmf",
+            "t": "mkdir",
+            "redirect_to_result": "true",
+        },
+    )
+    assert resp.status_code >= 200 and resp.status_code < 300
+
+    # when creating a directory, we'll be re-directed to a URL
+    # containing our writecap.. (XXX doesn't this violate the "URLs
+    # leak" maxim?)
+    uri = urllib2.unquote(resp.url)
+    assert 'URI:DIR2:' in uri
+    dircap = uri[uri.find("URI:DIR2:"):].rstrip('/')
+    dircap_uri = util.node_url(alice._node_dir, "uri/{}".format(urllib2.quote(dircap)))
+
+    # POST a file into this directory
+    FILE_CONTENTS = "a file in a directory"
+
+    resp = requests.post(
+        dircap_uri,
+        data={
+            "t": "upload",
+            "when_done": ".",
+        },
+        files={
+            "file": FILE_CONTENTS,
+        },
+    )
+
+    # confirm the file is in the directory
+    resp = requests.get(
+        dircap_uri,
+        params={
+            "t": "json",
+        },
+    )
+    d = json.loads(resp.content)
+    k, data = d
+    assert k == "dirnode"
+    assert len(data['children']) == 1
+    k, child = data['children'].values()[0]
+    assert k == "filenode"
+    assert child['size'] == len(FILE_CONTENTS)
+
+    # perform deep-stats on it...
+    resp = requests.post(
+        dircap_uri,
+        data={
+            "t": "start-deep-stats",
+            "ophandle": "something_random",
+        },
+    )
+    print(resp.content)
+    print(resp.status_code)
+    assert resp.status_code >= 200 and resp.status_code < 300
+

@@ -339,6 +339,7 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
             storage=False,
         )
     )
+    import time; time.sleep(10) # XXX wat ("waiting for readiness" :/ )
     return process
 
 
