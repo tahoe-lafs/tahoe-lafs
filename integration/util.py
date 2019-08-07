@@ -126,6 +126,24 @@ def _cleanup_twistd_process(twistd_process, exited):
         pass
 
 
+def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
+    """
+    Internal helper. Calls spawnProcess with `-m
+    allmydata.scripts.runner` and `other_args`, optionally inserting a
+    `--coverage` option if the `request` indicates we should.
+    """
+    if request.config.getoption('coverage'):
+        args = [sys.executable, '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
+    else:
+        args = [sys.executable, '-m', 'allmydata.scripts.runner']
+    args += other_args
+    return reactor.spawnProcess(
+        proto,
+        sys.executable,
+        args,
+    )
+
+
 def _run_node(reactor, node_dir, request, magic_text):
     if magic_text is None:
         magic_text = "client running"
@@ -134,14 +152,12 @@ def _run_node(reactor, node_dir, request, magic_text):
     # on windows, "tahoe start" means: run forever in the foreground,
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
-    if request.config.getoption('coverage'):
-        args = [sys.executable, '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
-    else:
-        args = [sys.executable, '-m', 'allmydata.scripts.runner']
-    process = reactor.spawnProcess(
+
+    process = _tahoe_runner_optional_coverage(
         protocol,
-        sys.executable,
-        args + [
+        reactor,
+        request,
+        [
             '--eliot-destination', 'file:{}/logs/eliot.json'.format(node_dir),
             'run',
             node_dir,

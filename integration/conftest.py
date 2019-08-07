@@ -31,6 +31,7 @@ from util import (
     _create_node,
     _run_node,
     _cleanup_twistd_process,
+    _tahoe_runner_optional_coverage,
 )
 
 
@@ -156,24 +157,6 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     with open(join(gather_dir, 'log_gatherer.furl'), 'r') as f:
         furl = f.read().strip()
     return furl
-
-
-def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
-    """
-    Internal helper. Calls spawnProcess with `-m
-    allmydata.scripts.runner` and `other_args`, optionally inserting a
-    `--coverage` option if the `request` indicates we should.
-    """
-    if request.config.getoption('coverage'):
-        args = [sys.executable, '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
-    else:
-        args = [sys.executable, '-m', 'allmydata.scripts.runner']
-    args += other_args
-    return reactor.spawnProcess(
-        proto,
-        sys.executable,
-        args,
-    )
 
 
 @pytest.fixture(scope='session')
