@@ -165,7 +165,8 @@ class WebishServer(service.MultiService):
         self.root = root.Root(client, clock, now_fn)
         self.buildServer(webport, nodeurl_path, staticdir)
 
-        # XXX FIXME what does this really do?
+        # XXX just make this 'child_operations' thing something we
+        # pass to Root instead .. then can we pass it to OpHandleTable() as well?
         if self.root.child_operations:
             self.root.child_operations.setServiceParent(self)
 
