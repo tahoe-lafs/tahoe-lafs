@@ -22,7 +22,7 @@ from allmydata.blacklist import ProhibitedNode
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata import dirnode
 from allmydata.web.common import text_plain, WebError, \
-     IOpHandleTable, NeedOperationHandleError, \
+     NeedOperationHandleError, \
      boolean_of_arg, get_arg, get_root, parse_replace_arg, \
      should_create_intermediate_directories, \
      getxmlfile, RenderMixin, humanize_failure, convert_children_json, \
@@ -62,6 +62,9 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         self.node = node
         self.parentnode = parentnode
         self.name = name
+
+        # probably better to just pass this in? can we?
+        self._operations = client.getServiceNamed("webish").getServiceNamed("operations")
 
     def childFactory(self, ctx, name):
         name = name.decode("utf-8")
@@ -442,9 +445,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         return d
 
     def _start_operation(self, monitor, renderer, ctx):
-        table = IOpHandleTable(ctx)
-        table.add_monitor(ctx, monitor, renderer)
-        return table.redirect_to(ctx)
+        self._operations.add_monitor(ctx, monitor, renderer)
+        return self._operations.redirect_to(ctx)
 
     def _POST_start_deep_check(self, ctx):
         # check this directory and everything reachable from it
