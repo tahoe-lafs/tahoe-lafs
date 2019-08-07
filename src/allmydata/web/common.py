@@ -40,9 +40,6 @@ def get_filenode_metadata(filenode):
         metadata['size'] = size
     return metadata
 
-class IOpHandleTable(Interface):
-    pass
-
 def getxmlfile(name):
     return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
 

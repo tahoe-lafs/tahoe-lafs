@@ -10,7 +10,7 @@ from nevow import appserver, inevow
 from allmydata.util import log, fileutil
 
 from allmydata.web import introweb, root
-from allmydata.web.common import IOpHandleTable, MyExceptionHandler
+from allmydata.web.common import MyExceptionHandler
 
 # we must override twisted.web.http.Request.requestReceived with a version
 # that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
@@ -167,7 +167,6 @@ class WebishServer(service.MultiService):
 
         # XXX FIXME what does this really do?
         if self.root.child_operations:
-            self.site.remember(self.root.child_operations, IOpHandleTable)
             self.root.child_operations.setServiceParent(self)
 
     def buildServer(self, webport, nodeurl_path, staticdir):
