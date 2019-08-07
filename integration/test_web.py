@@ -84,14 +84,11 @@ def test_helper_status(storage_nodes):
     assert resp.status_code >= 200 and resp.status_code < 300
 
 
-def test_deep_stats():#alice):
+def test_deep_stats(alice):
     """
     create a directory, do deep-stats on it and prove the /operations/
     URIs work
     """
-    class Alice:
-        _node_dir = "testgrid/alice"
-    alice = Alice()
     resp = requests.post(
         util.node_url(alice._node_dir, "uri"),
         params={
