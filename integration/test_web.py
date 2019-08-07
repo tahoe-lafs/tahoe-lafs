@@ -7,6 +7,7 @@ from os.path import join, exists, getmtime
 
 import util
 
+import requests
 import pytest_twisted
 
 
@@ -62,7 +63,6 @@ def test_put(alice):
     import time; time.sleep(10) # XXX wat
     FILE_CONTENTS = "added via PUT"
 
-    import requests
     resp = requests.put(
         util.node_url(alice._node_dir, "uri"),
         files={
@@ -78,8 +78,6 @@ def test_helper_status(storage_nodes):
     successfully GET the /helper_status page
     """
 
-    import requests
     url = util.node_url(storage_nodes[0]._node_dir, "helper_status")
-    print("GET {}".format(url))
     resp = requests.get(url)
-    print(resp.text.strip())
+    assert resp.status_code >= 200 and resp.status_code < 300
