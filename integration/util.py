@@ -372,6 +372,16 @@ def node_url(node_dir, uri_fragment):
     return url
 
 
+def _check_status(response):
+    """
+    Check the response code is a 2xx (raise an exception otherwise)
+    """
+    if response.status_code < 200 or response.status_code >= 300:
+        raise RuntimeError(
+            "Expected a 2xx code, got {}".format(response.status_code)
+        )
+
+
 def web_get(node_dir, uri_fragment, **kw):
     """
     Make a web-request to the webport of `node_dir`. This will look
@@ -379,10 +389,7 @@ def web_get(node_dir, uri_fragment, **kw):
     """
     url = node_url(node_dir, uri_fragment)
     resp = requests.get(url, **kw)
-    if resp.status_code < 200 or resp.status_code >= 300:
-        raise RuntimeError(
-            "Expected a 200 code, got {}".format(resp.status_code)
-        )
+    _check_status(resp)
     return resp.content
 
 
@@ -393,10 +400,7 @@ def web_post(node_dir, uri_fragment, **kw):
     """
     url = node_url(node_dir, uri_fragment)
     resp = requests.post(url, **kw)
-    if resp.status_code < 200 or resp.status_code >= 300:
-        raise RuntimeError(
-            "Expected a 200 code, got {}".format(resp.status_code)
-        )
+    _check_status(resp)
     return resp.content
 
 
