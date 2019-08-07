@@ -202,14 +202,16 @@ def _setup_coverage(reactor):
     """
     # can we put this _setup_coverage call after we hit
     # argument-parsing?
-    if not '--coverage' in sys.argv:
+    if '--coverage' not in sys.argv:
         return
     sys.argv.remove('--coverage')
 
     try:
         import coverage
     except ImportError:
-        return
+        except RuntimeError(
+                "The 'coveage' package must be installed to use --coverage"
+        )
 
     # this doesn't change the shell's notion of the environment, but
     # it makes the test in process_startup() succeed, which is the
