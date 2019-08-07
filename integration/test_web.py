@@ -147,7 +147,17 @@ def test_deep_stats():#alice):
             "ophandle": "something_random",
         },
     )
-    print(resp.content)
-    print(resp.status_code)
     assert resp.status_code >= 200 and resp.status_code < 300
 
+    # confirm we get information from the op .. after its done
+    while True:
+        resp = requests.get(
+            util.node_url(alice._node_dir, "operations/something_random"),
+        )
+        d = json.loads(resp.content)
+        if d['size-literal-files'] == len(FILE_CONTENTS):
+            print("stats completed successfully")
+            break
+        else:
+            print("{} != {}; waiting".format(d['size-literal-files'], len(FILE_CONTENTS)))
+        time.sleep(.5)
