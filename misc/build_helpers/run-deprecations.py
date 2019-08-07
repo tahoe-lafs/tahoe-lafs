@@ -37,13 +37,21 @@ class RunPP(protocol.ProcessProtocol):
 
 
 def make_matcher(options):
-    # A deprecation warning line looks something like this:
-    #
-    # somepath/foo/bar/baz.py:43: DeprecationWarning: Foo is deprecated, try bar instead.
-    #
-    # Sadly there is no guarantee warnings begin at the beginning of a line
-    # since they are written to output without coordination with whatever
-    # other Python code is running in the process.
+    """
+    Make a function that matches a line with a relevant deprecation.
+
+    A deprecation warning line looks something like this::
+
+      somepath/foo/bar/baz.py:43: DeprecationWarning: Foo is deprecated, try bar instead.
+
+    Sadly there is no guarantee warnings begin at the beginning of a line
+    since they are written to output without coordination with whatever other
+    Python code is running in the process.
+
+    :return: A one-argument callable that accepts a string and returns
+        ``True`` if it contains an interesting warning and ``False``
+        otherwise.
+    """
     pattern = r".*\.py[oc]?:\d+:" # (Pending)?DeprecationWarning: .*"
     if options["package"]:
         pattern = r".*/{}/".format(
