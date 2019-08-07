@@ -312,6 +312,7 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
     # start all 5 nodes in parallel
     for x in range(5):
         name = 'node{}'.format(x)
+        web_port=  9990 + x
         # tub_port = 9900 + x
         nodes_d.append(
             _create_node(
