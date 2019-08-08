@@ -188,7 +188,6 @@ class Root(MultiFormatPage):
     # override locatechild
     def childFactory(self, ctx, name):
         request = IRequest(ctx)
-        print(request)
         return self.getChild(name, request)
 
 
