@@ -50,12 +50,16 @@ class RenderServiceRow(unittest.TestCase):
 
 class FakeUploader(object):
     """
+    Fake enough of an uploader instance for /helper_status/ to render
     """
     def get_helper_info(self):
         return ("furl", False)
 
 
 class FakeHelper(object):
+    """
+    Fake enough of a Helper instance for /helper_status/ to render
+    """
     def get_stats(self):
         return {
             "chk_upload_helper.active_uploads": 0,
@@ -63,6 +67,9 @@ class FakeHelper(object):
 
 
 class FakeStorageBroker(object):
+    """
+    Fake enough of a StorageBroker for root page rendering to work
+    """
     def get_connected_servers(self):
         return {}
 
@@ -74,6 +81,10 @@ class FakeStorageBroker(object):
 
 
 class FakeMagicFolder(object):
+    """
+    Fake enough of MagicFolder for status-rendering to work
+    """
+
     def get_public_status(self):
         return (True, ["this magic folder is alive"])
 
@@ -125,7 +136,6 @@ class FakeClient(object):
         return None
 
 
-
 class RenderRoot(unittest.TestCase):
     """
     Test rendering of the root template.
@@ -133,7 +143,7 @@ class RenderRoot(unittest.TestCase):
     These tests are fairly fragile because they have 'actual HTML'
     burned into them -- they are here to prove that porting away from
     Nevow hasn't changed the rendering drastically (perhaps they
-    should just be deleted or simlified after that).
+    should just be deleted or simplified after that).
     """
 
     def setUp(self):
