@@ -82,8 +82,8 @@ class FakeMagicFolder(object):
 # the cases etc.
 class FakeClient(object):
     """
-    just enough to let the node acquire a downloader (which it won't
-    use), and to get default encoding parameters
+    just enough to let the node acquire an uploader (which it won't
+    use) and at least one magic-folder for RenderRoot tests.
     """
     nickname = "fake_nickname"
     stats_provider = None
