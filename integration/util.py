@@ -197,11 +197,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
         print("creating", node_dir)
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
-        if request.config.getoption('coverage'):
-            args = [sys.executable, '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
-        else:
-            args = [sys.executable, '-m', 'allmydata.scripts.runner']
-        args = args + [
+        args = [
             'create-node',
             '--nickname', name,
             '--introducer', introducer_furl,
@@ -216,11 +212,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             args.append('--no-storage')
         args.append(node_dir)
 
-        reactor.spawnProcess(
-            done_proto,
-            sys.executable,
-            args,
-        )
+        _tahoe_runner_optional_coverage(done_proto, reactor, request, args)
         created_d = done_proto.done
 
         def created(_):
