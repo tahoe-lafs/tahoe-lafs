@@ -108,19 +108,19 @@ class _MagicTextProtocol(ProcessProtocol):
         sys.stdout.write(data)
 
 
-def _cleanup_twistd_process(twistd_process, exited):
+def _cleanup_tahoe_process(tahoe_transport, exited):
     """
     Terminate the given process with a kill signal (SIGKILL on POSIX,
     TerminateProcess on Windows).
 
-    :param twistd_process: The `IProcessTransport` representing the process.
+    :param tahoe_transport: The `IProcessTransport` representing the process.
     :param exited: A `Deferred` which fires when the process has exited.
 
     :return: After the process has exited.
     """
     try:
-        print("signaling {} with TERM".format(twistd_process.pid))
-        twistd_process.signalProcess('TERM')
+        print("signaling {} with TERM".format(tahoe_transport.pid))
+        tahoe_transport.signalProcess('TERM')
         print("signaled, blocking on exit")
         pytest_twisted.blockon(exited)
         print("exited, goodbye")
@@ -146,7 +146,30 @@ def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
     )
 
 
+class TahoeProcess(object):
+    """
+    A running Tahoe process, with associated information.
+    """
+
+    def __init__(self, process_transport, node_dir):
+        self._process_transport = process_transport  # IProcessTransport instance
+        self._node_dir = node_dir  # path
+
+    @property
+    def transport(self):
+        return self._process_transport
+
+    @property
+    def node_dir(self):
+        return self._node_dir
+
+
 def _run_node(reactor, node_dir, request, magic_text):
+    """
+    Run a tahoe process from its node_dir.
+
+    :returns: a TahoeProcess for this node
+    """
     if magic_text is None:
         magic_text = "client running"
     protocol = _MagicTextProtocol(magic_text)
@@ -155,7 +178,7 @@ def _run_node(reactor, node_dir, request, magic_text):
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
 
-    process = _tahoe_runner_optional_coverage(
+    transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
         request,
@@ -165,17 +188,18 @@ def _run_node(reactor, node_dir, request, magic_text):
             node_dir,
         ],
     )
-    process.exited = protocol.exited
+    transport.exited = protocol.exited
 
-    request.addfinalizer(partial(_cleanup_twistd_process, process, protocol.exited))
+    request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
 
-    # we return the 'process' ITransport instance
-    # XXX abusing the Deferred; should use .when_magic_seen() or something?
+    # XXX abusing the Deferred; should use .when_magic_seen() pattern
 
     def got_proto(proto):
-        process._protocol = proto
-        process._node_dir = node_dir
-        return process
+        transport._protocol = proto
+        return TahoeProcess(
+            transport,
+            node_dir,
+        )
     protocol.magic_seen.addCallback(got_proto)
     return protocol.magic_seen
 

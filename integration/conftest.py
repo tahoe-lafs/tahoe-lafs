@@ -30,7 +30,7 @@ from util import (
     _ProcessExitedProtocol,
     _create_node,
     _run_node,
-    _cleanup_twistd_process,
+    _cleanup_tahoe_process,
     _tahoe_runner_optional_coverage,
 )
 
@@ -130,7 +130,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     pytest_twisted.blockon(twistd_protocol.magic_seen)
 
     def cleanup():
-        _cleanup_twistd_process(twistd_process, twistd_protocol.exited)
+        _cleanup_tahoe_process(twistd_process, twistd_protocol.exited)
 
         flog_file = mktemp('.flog_dump')
         flog_protocol = _DumpOutputProtocol(open(flog_file, 'w'))
@@ -209,7 +209,7 @@ log_gatherer.furl = {log_furl}
             intro_dir,
         ),
     )
-    request.addfinalizer(partial(_cleanup_twistd_process, process, protocol.exited))
+    request.addfinalizer(partial(_cleanup_tahoe_process, process, protocol.exited))
 
     pytest_twisted.blockon(protocol.magic_seen)
     return process
@@ -279,8 +279,8 @@ log_gatherer.furl = {log_furl}
 
     def cleanup():
         try:
-            process.signalProcess('TERM')
-            pytest_twisted.blockon(protocol.exited)
+            process.transport.signalProcess('TERM')
+            pytest_twisted.blockon(process.transport.exited)
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
@@ -402,8 +402,8 @@ def alice_invite(reactor, alice, temp_dir, request):
         # before magic-folder works, we have to stop and restart (this is
         # crappy for the tests -- can we fix it in magic-folder?)
         try:
-            alice.signalProcess('TERM')
-            pytest_twisted.blockon(alice.exited)
+            alice.transport.signalProcess('TERM')
+            pytest_twisted.blockon(alice.transport.exited)
         except ProcessExitedAlready:
             pass
         with start_action(action_type=u"integration:alice:magic_folder:magic-text"):
@@ -439,8 +439,8 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     # crappy for the tests -- can we fix it in magic-folder?)
     try:
         print("Sending TERM to Bob")
-        bob.signalProcess('TERM')
-        pytest_twisted.blockon(bob.exited)
+        bob.transport.signalProcess('TERM')
+        pytest_twisted.blockon(bob.transport.exited)
     except ProcessExitedAlready:
         pass
 

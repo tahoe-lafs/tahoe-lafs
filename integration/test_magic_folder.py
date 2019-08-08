@@ -336,10 +336,10 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
     assert created, "Didn't create a magic-folder"
 
     # to actually-start the magic-folder we have to re-start
-    edmond.signalProcess('TERM')
-    yield edmond._protocol.exited
+    edmond.transport.signalProcess('TERM')
+    yield edmond.transport.exited
     time.sleep(1)
-    edmond = yield util._run_node(reactor, edmond._node_dir, request, 'Completed initial Magic Folder scan successfully')
+    edmond = yield util._run_node(reactor, edmond.node_dir, request, 'Completed initial Magic Folder scan successfully')
 
     # add a thing to the magic-folder
     with open(join(magic_folder, "its_a_file"), "w") as f:
@@ -383,10 +383,10 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
     # re-starting edmond right now would "normally" trigger the 2880 bug
 
     # kill edmond
-    edmond.signalProcess('TERM')
-    yield edmond._protocol.exited
+    edmond.transport.signalProcess('TERM')
+    yield edmond.transport.exited
     time.sleep(1)
-    edmond = yield util._run_node(reactor, edmond._node_dir, request, 'Completed initial Magic Folder scan successfully')
+    edmond = yield util._run_node(reactor, edmond.node_dir, request, 'Completed initial Magic Folder scan successfully')
 
     # XXX how can we say for sure if we've waited long enough? look at
     # tail of logs for magic-folder ... somethingsomething?
