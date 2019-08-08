@@ -359,16 +359,9 @@ def cli(request, reactor, node_dir, *argv):
     under coverage if '--coverage' was supplied.
     """
     proto = _CollectOutputProtocol()
-    if request.config.getoption('coverage'):
-        args = [sys.executable, '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner']
-    else:
-        args = [sys.executable, '-m', 'allmydata.scripts.runner']
-    reactor.spawnProcess(
-        proto,
-        sys.executable,
-        args + [
-            '--node-directory', node_dir,
-        ] + list(argv),
+    _tahoe_runner_optional_coverage(
+        proto, reactor, request,
+        ['--node-directory', node_dir] + list(argv),
     )
     return proto.done
 
