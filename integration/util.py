@@ -400,7 +400,7 @@ def _check_status(response):
     Check the response code is a 2xx (raise an exception otherwise)
     """
     if response.status_code < 200 or response.status_code >= 300:
-        raise RuntimeError(
+        raise ValueError(
             "Expected a 2xx code, got {}".format(response.status_code)
         )
 
