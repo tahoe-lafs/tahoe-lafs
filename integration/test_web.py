@@ -16,9 +16,9 @@ def test_index(alice):
     """
     we can download the index file
     """
-    util.web_get(alice.node_dir, "")
+    util.web_get(alice.node_dir, u"")
     # ...and json mode is valid json
-    json.loads(util.web_get(alice.node_dir, "?t=json"))
+    json.loads(util.web_get(alice.node_dir, u"?t=json"))
 
 
 def test_upload_download(alice):
@@ -30,23 +30,22 @@ def test_upload_download(alice):
 
     readcap = util.web_post(
         alice.node_dir,
-        "uri",
+        u"uri",
         data={
-            "t": "upload",
-            "format": "mdmf",
+            u"t": u"upload",
+            u"format": u"mdmf",
         },
         files={
-            "file": FILE_CONTENTS,
+            u"file": FILE_CONTENTS,
         },
     )
     readcap = readcap.strip()
-    print("readcap '{}'".format(readcap))
 
     data = util.web_get(
-        alice.node_dir, "uri",
+        alice.node_dir, u"uri",
         params={
-            "uri": readcap,
-            "filename": "boom",
+            u"uri": readcap,
+            u"filename": u"boom",
         }
     )
     assert data == FILE_CONTENTS
@@ -57,12 +56,12 @@ def test_put(alice):
     use PUT to create a file
     """
 
-    FILE_CONTENTS = "added via PUT"
+    FILE_CONTENTS = b"added via PUT"
 
     resp = requests.put(
-        util.node_url(alice.node_dir, "uri"),
+        util.node_url(alice.node_dir, u"uri"),
         files={
-            "file": FILE_CONTENTS,
+            u"file": FILE_CONTENTS,
         },
     )
     assert resp.text.strip().startswith("URI:CHK:")
@@ -103,16 +102,16 @@ def test_deep_stats(alice):
     dircap_uri = util.node_url(alice.node_dir, "uri/{}".format(urllib2.quote(dircap)))
 
     # POST a file into this directory
-    FILE_CONTENTS = "a file in a directory"
+    FILE_CONTENTS = b"a file in a directory"
 
     resp = requests.post(
         dircap_uri,
         data={
-            "t": "upload",
-            "when_done": ".",
+            u"t": u"upload",
+            u"when_done": u".",
         },
         files={
-            "file": FILE_CONTENTS,
+            u"file": FILE_CONTENTS,
         },
     )
 
@@ -120,23 +119,23 @@ def test_deep_stats(alice):
     resp = requests.get(
         dircap_uri,
         params={
-            "t": "json",
+            u"t": u"json",
         },
     )
     d = json.loads(resp.content)
     k, data = d
-    assert k == "dirnode"
+    assert k == u"dirnode"
     assert len(data['children']) == 1
     k, child = data['children'].values()[0]
-    assert k == "filenode"
+    assert k == u"filenode"
     assert child['size'] == len(FILE_CONTENTS)
 
     # perform deep-stats on it...
     resp = requests.post(
         dircap_uri,
         data={
-            "t": "start-deep-stats",
-            "ophandle": "something_random",
+            u"t": u"start-deep-stats",
+            u"ophandle": u"something_random",
         },
     )
     assert resp.status_code >= 200 and resp.status_code < 300
@@ -144,7 +143,7 @@ def test_deep_stats(alice):
     # confirm we get information from the op .. after its done
     while True:
         resp = requests.get(
-            util.node_url(alice.node_dir, "operations/something_random"),
+            util.node_url(alice.node_dir, u"operations/something_random"),
         )
         d = json.loads(resp.content)
         if d['size-literal-files'] == len(FILE_CONTENTS):
