@@ -1,13 +1,11 @@
 # encoding: utf-8
 
-from mock import Mock
-
 from twisted.trial import unittest
 from twisted.internet.task import Clock
 from twisted.internet.defer import inlineCallbacks
 from twisted.web.template import XMLString, Element
 
-from nevow.testutil import FakeRequest, FakeSession, renderPage
+from nevow.testutil import FakeRequest, renderPage
 from nevow.context import WebContext
 
 from ...storage_client import NativeStorageServer
@@ -149,7 +147,6 @@ class RenderRoot(unittest.TestCase):
     def test_root_template(self):
         page = Root(self.client, self.clock, now_fn=self.clock.seconds)
         page.addSlash = False  # XXX hack around what looks like nevow testutils bug
-        request = FakeRequest()
 
         page_data = yield renderPage(page)
 
