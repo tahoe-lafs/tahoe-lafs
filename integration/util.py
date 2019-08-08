@@ -381,24 +381,26 @@ def _check_status(response):
         )
 
 
-def web_get(node_dir, uri_fragment, **kw):
+def web_get(node_dir, uri_fragment, **kwargs):
     """
-    Make a web-request to the webport of `node_dir`. This will look
-    like: `http://localhost:<webport>/<uri_fragment>`
+    Make a GET request to the webport of `node_dir`. This will look
+    like: `http://localhost:<webport>/<uri_fragment>`. All `kwargs`
+    are passed on to `requests.get`
     """
     url = node_url(node_dir, uri_fragment)
-    resp = requests.get(url, **kw)
+    resp = requests.get(url, **kwargs)
     _check_status(resp)
     return resp.content
 
 
-def web_post(node_dir, uri_fragment, **kw):
+def web_post(node_dir, uri_fragment, **kwargs):
     """
-    Make a web-request to the webport of `node_dir`. This will look
-    like: `http://localhost:<webport>/<uri_fragment>`
+    Make a POST request to the webport of `node_dir`. This will look
+    like: `http://localhost:<webport>/<uri_fragment>`. All `kwargs`
+    are passed on to `requests.post`
     """
     url = node_url(node_dir, uri_fragment)
-    resp = requests.post(url, **kw)
+    resp = requests.post(url, **kwargs)
     _check_status(resp)
     return resp.content
 
