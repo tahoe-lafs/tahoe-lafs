@@ -2,7 +2,8 @@
 import pprint, itertools, hashlib
 import json
 from twisted.internet import defer
-from nevow import rend, inevow, tags as T
+from twisted.web.resource import Resource
+from nevow import rend, tags as T
 from allmydata.util import base32, idlib
 from allmydata.web.common import (
     getxmlfile,
@@ -331,12 +332,161 @@ class DownloadResultsRendererMixin(RateAndTimeMixin):
         d.addCallback(_render)
         return d
 
+def _find_overlap(events, start_key, end_key):
+    """
+    given a list of event dicts, return a new list in which each event
+    has an extra "row" key (an int, starting at 0), and if appropriate
+    a "serverid" key (ascii-encoded server id), replacing the "server"
+    key. This is a hint to our JS frontend about how to overlap the
+    parts of the graph it is drawing.
+
+    we must always make a copy, since we're going to be adding keys
+    and don't want to change the original objects. If we're
+    stringifying serverids, we'll also be changing the serverid keys.
+    """
+    new_events = []
+    rows = []
+    for ev in events:
+        ev = ev.copy()
+        if ev.has_key('server'):
+            ev["serverid"] = ev["server"].get_longname()
+            del ev["server"]
+        # find an empty slot in the rows
+        free_slot = None
+        for row,finished in enumerate(rows):
+            if finished is not None:
+                if ev[start_key] > finished:
+                    free_slot = row
+                    break
+        if free_slot is None:
+            free_slot = len(rows)
+            rows.append(ev[end_key])
+        else:
+            rows[free_slot] = ev[end_key]
+        ev["row"] = free_slot
+        new_events.append(ev)
+    return new_events
+
+def _find_overlap_requests(events):
+    """
+    We compute a three-element 'row tuple' for each event: (serverid,
+    shnum, row). All elements are ints. The first is a mapping from
+    serverid to group number, the second is a mapping from shnum to
+    subgroup number. The third is a row within the subgroup.
+
+    We also return a list of lists of rowcounts, so renderers can decide
+    how much vertical space to give to each row.
+    """
+
+    serverid_to_group = {}
+    groupnum_to_rows = {} # maps groupnum to a table of rows. Each table
+                          # is a list with an element for each row number
+                          # (int starting from 0) that contains a
+                          # finish_time, indicating that the row is empty
+                          # beyond that time. If finish_time is None, it
+                          # indicate a response that has not yet
+                          # completed, so the row cannot be reused.
+    new_events = []
+    for ev in events:
+        # DownloadStatus promises to give us events in temporal order
+        ev = ev.copy()
+        ev["serverid"] = ev["server"].get_longname()
+        del ev["server"]
+        if ev["serverid"] not in serverid_to_group:
+            groupnum = len(serverid_to_group)
+            serverid_to_group[ev["serverid"]] = groupnum
+        groupnum = serverid_to_group[ev["serverid"]]
+        if groupnum not in groupnum_to_rows:
+            groupnum_to_rows[groupnum] = []
+        rows = groupnum_to_rows[groupnum]
+        # find an empty slot in the rows
+        free_slot = None
+        for row,finished in enumerate(rows):
+            if finished is not None:
+                if ev["start_time"] > finished:
+                    free_slot = row
+                    break
+        if free_slot is None:
+            free_slot = len(rows)
+            rows.append(ev["finish_time"])
+        else:
+            rows[free_slot] = ev["finish_time"]
+        ev["row"] = (groupnum, free_slot)
+        new_events.append(ev)
+    del groupnum
+    # maybe also return serverid_to_group, groupnum_to_rows, and some
+    # indication of the highest finish_time
+    #
+    # actually, return the highest rownum for each groupnum
+    highest_rownums = [len(groupnum_to_rows[groupnum])
+                       for groupnum in range(len(serverid_to_group))]
+    return new_events, highest_rownums
+
+
+def _color(server):
+    h = hashlib.sha256(server.get_serverid()).digest()
+    def m(c):
+        return min(ord(c) / 2 + 0x80, 0xff)
+    return "#%02x%02x%02x" % (m(h[0]), m(h[1]), m(h[2]))
+
+class _EventJson(Resource):
+
+    def __init__(self, download_status):
+        self._download_status = download_status
+
+    def render(self, request):
+        request.setHeader("content-type", "text/plain")
+        data = { } # this will be returned to the GET
+        ds = self._download_status
+
+        data["misc"] = _find_overlap(
+            ds.misc_events,
+            "start_time", "finish_time",
+        )
+        data["read"] = _find_overlap(
+            ds.read_events,
+            "start_time", "finish_time",
+        )
+        data["segment"] = _find_overlap(
+            ds.segment_events,
+            "start_time", "finish_time",
+        )
+        # TODO: overlap on DYHB isn't very useful, and usually gets in the
+        # way. So don't do it.
+        data["dyhb"] = _find_overlap(
+            ds.dyhb_requests,
+            "start_time", "finish_time",
+        )
+        data["block"],data["block_rownums"] =_find_overlap_requests(ds.block_requests)
+
+        server_info = {} # maps longname to {num,color,short}
+        server_shortnames = {} # maps servernum to shortname
+        for d_ev in ds.dyhb_requests:
+            s = d_ev["server"]
+            longname = s.get_longname()
+            if longname not in server_info:
+                num = len(server_info)
+                server_info[longname] = {"num": num,
+                                         "color": _color(s),
+                                         "short": s.get_name() }
+                server_shortnames[str(num)] = s.get_name()
+
+        data["server_info"] = server_info
+        data["num_serverids"] = len(server_info)
+        # we'd prefer the keys of serverids[] to be ints, but this is JSON,
+        # so they get converted to strings. Stupid javascript.
+        data["serverids"] = server_shortnames
+        data["bounds"] = {"min": ds.first_timestamp, "max": ds.last_timestamp}
+        return json.dumps(data, indent=1) + "\n"
+
+
 class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
     docFactory = getxmlfile("download-status.xhtml")
 
     def __init__(self, data):
         rend.Page.__init__(self, data)
         self.download_status = data
+        self.putChild("event_json", _EventJson(self.download_status))
 
     def download_results(self):
         return defer.maybeDeferred(self.download_status.get_results)
@@ -352,130 +502,6 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         if t is None:
             return ""
         return "+%.6fs" % t
-
-    def _find_overlap(self, events, start_key, end_key):
-        # given a list of event dicts, return a new list in which each event
-        # has an extra "row" key (an int, starting at 0), and if appropriate
-        # a "serverid" key (ascii-encoded server id), replacing the "server"
-        # key. This is a hint to our JS frontend about how to overlap the
-        # parts of the graph it is drawing.
-
-        # we must always make a copy, since we're going to be adding keys
-        # and don't want to change the original objects. If we're
-        # stringifying serverids, we'll also be changing the serverid keys.
-        new_events = []
-        rows = []
-        for ev in events:
-            ev = ev.copy()
-            if ev.has_key('server'):
-                ev["serverid"] = ev["server"].get_longname()
-                del ev["server"]
-            # find an empty slot in the rows
-            free_slot = None
-            for row,finished in enumerate(rows):
-                if finished is not None:
-                    if ev[start_key] > finished:
-                        free_slot = row
-                        break
-            if free_slot is None:
-                free_slot = len(rows)
-                rows.append(ev[end_key])
-            else:
-                rows[free_slot] = ev[end_key]
-            ev["row"] = free_slot
-            new_events.append(ev)
-        return new_events
-
-    def _find_overlap_requests(self, events):
-        """We compute a three-element 'row tuple' for each event: (serverid,
-        shnum, row). All elements are ints. The first is a mapping from
-        serverid to group number, the second is a mapping from shnum to
-        subgroup number. The third is a row within the subgroup.
-
-        We also return a list of lists of rowcounts, so renderers can decide
-        how much vertical space to give to each row.
-        """
-
-        serverid_to_group = {}
-        groupnum_to_rows = {} # maps groupnum to a table of rows. Each table
-                              # is a list with an element for each row number
-                              # (int starting from 0) that contains a
-                              # finish_time, indicating that the row is empty
-                              # beyond that time. If finish_time is None, it
-                              # indicate a response that has not yet
-                              # completed, so the row cannot be reused.
-        new_events = []
-        for ev in events:
-            # DownloadStatus promises to give us events in temporal order
-            ev = ev.copy()
-            ev["serverid"] = ev["server"].get_longname()
-            del ev["server"]
-            if ev["serverid"] not in serverid_to_group:
-                groupnum = len(serverid_to_group)
-                serverid_to_group[ev["serverid"]] = groupnum
-            groupnum = serverid_to_group[ev["serverid"]]
-            if groupnum not in groupnum_to_rows:
-                groupnum_to_rows[groupnum] = []
-            rows = groupnum_to_rows[groupnum]
-            # find an empty slot in the rows
-            free_slot = None
-            for row,finished in enumerate(rows):
-                if finished is not None:
-                    if ev["start_time"] > finished:
-                        free_slot = row
-                        break
-            if free_slot is None:
-                free_slot = len(rows)
-                rows.append(ev["finish_time"])
-            else:
-                rows[free_slot] = ev["finish_time"]
-            ev["row"] = (groupnum, free_slot)
-            new_events.append(ev)
-        del groupnum
-        # maybe also return serverid_to_group, groupnum_to_rows, and some
-        # indication of the highest finish_time
-        #
-        # actually, return the highest rownum for each groupnum
-        highest_rownums = [len(groupnum_to_rows[groupnum])
-                           for groupnum in range(len(serverid_to_group))]
-        return new_events, highest_rownums
-
-    def child_event_json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        data = { } # this will be returned to the GET
-        ds = self.download_status
-
-        data["misc"] = self._find_overlap(ds.misc_events,
-                                          "start_time", "finish_time")
-        data["read"] = self._find_overlap(ds.read_events,
-                                          "start_time", "finish_time")
-        data["segment"] = self._find_overlap(ds.segment_events,
-                                             "start_time", "finish_time")
-        # TODO: overlap on DYHB isn't very useful, and usually gets in the
-        # way. So don't do it.
-        data["dyhb"] = self._find_overlap(ds.dyhb_requests,
-                                          "start_time", "finish_time")
-        data["block"],data["block_rownums"] = self._find_overlap_requests(ds.block_requests)
-
-        server_info = {} # maps longname to {num,color,short}
-        server_shortnames = {} # maps servernum to shortname
-        for d_ev in ds.dyhb_requests:
-            s = d_ev["server"]
-            longname = s.get_longname()
-            if longname not in server_info:
-                num = len(server_info)
-                server_info[longname] = {"num": num,
-                                         "color": self.color(s),
-                                         "short": s.get_name() }
-                server_shortnames[str(num)] = s.get_name()
-
-        data["server_info"] = server_info
-        data["num_serverids"] = len(server_info)
-        # we'd prefer the keys of serverids[] to be ints, but this is JSON,
-        # so they get converted to strings. Stupid javascript.
-        data["serverids"] = server_shortnames
-        data["bounds"] = {"min": ds.first_timestamp, "max": ds.last_timestamp}
-        return json.dumps(data, indent=1) + "\n"
 
     def render_timeline_link(self, ctx, data):
         from nevow import url
@@ -507,7 +533,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                 rtt = received - sent
             if not shnums:
                 shnums = ["-"]
-            t[T.tr(style="background: %s" % self.color(server))[
+            t[T.tr(style="background: %s" % _color(server))[
                 [T.td[server.get_name()], T.td[srt(sent)], T.td[srt(received)],
                  T.td[",".join([str(shnum) for shnum in shnums])],
                  T.td[self.render_time(None, rtt)],
@@ -587,7 +613,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
             rtt = None
             if r_ev["finish_time"] is not None:
                 rtt = r_ev["finish_time"] - r_ev["start_time"]
-            color = self.color(server)
+            color = _color(server)
             t[T.tr(style="background: %s" % color)[
                 T.td[server.get_name()], T.td[r_ev["shnum"]],
                 T.td["[%d:+%d]" % (r_ev["start"], r_ev["length"])],
@@ -600,12 +626,6 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         l[T.br(clear="all")]
 
         return l
-
-    def color(self, server):
-        h = hashlib.sha256(server.get_serverid()).digest()
-        def m(c):
-            return min(ord(c) / 2 + 0x80, 0xff)
-        return "#%02x%02x%02x" % (m(h[0]), m(h[1]), m(h[2]))
 
     def render_results(self, ctx, data):
         d = self.download_results()

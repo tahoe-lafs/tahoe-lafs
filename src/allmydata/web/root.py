@@ -10,7 +10,7 @@ import allmydata # to display import path
 from allmydata import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
-from allmydata.web import filenode, directory, unlinked, status, operations
+from allmydata.web import filenode, directory, unlinked, status
 from allmydata.web import storage, magic_folder
 from allmydata.web.common import (
     abbreviate_size,

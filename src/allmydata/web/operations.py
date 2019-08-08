@@ -1,6 +1,5 @@
 
 import time
-from zope.interface import implementer
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
 from twisted.python.failure import Failure
