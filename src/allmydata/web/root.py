@@ -154,12 +154,6 @@ class Root(MultiFormatPage):
     def __init__(self, client, clock=None, now_fn=None):
         rend.Page.__init__(self, client)
         self.client = client
-        # If set, clock is a twisted.internet.task.Clock that the tests
-        # use to test ophandle expiration.
-        self.child_operations = operations.OphandleTable(clock)
-        self.putChild("operations", self.child_operations)
-        # XXX get rid of self.child_operations entirely when we remove the .remember() usage in webish
-
         self.now_fn = now_fn
         try:
             s = client.getServiceNamed("storage")
