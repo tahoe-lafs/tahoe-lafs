@@ -126,6 +126,14 @@ class FakeClient(object):
 
 
 class RenderRoot(unittest.TestCase):
+    """
+    Test rendering of the root template.
+
+    These tests are fairly fragile because they have 'actual HTML'
+    burned into them -- they are here to prove that porting away from
+    Nevow hasn't changed the rendering drastically (perhaps they
+    should just be deleted or simlified after that).
+    """
 
     def setUp(self):
         self.root = FakeRoot()
