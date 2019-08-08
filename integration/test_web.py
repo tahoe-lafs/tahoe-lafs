@@ -6,6 +6,8 @@ import urllib2
 from os import mkdir, unlink, utime
 from os.path import join, exists, getmtime
 
+import allmydata.uri
+
 import util
 
 import requests
@@ -64,8 +66,11 @@ def test_put(alice):
             u"file": FILE_CONTENTS,
         },
     )
-    assert resp.text.strip().startswith("URI:CHK:")
-    assert resp.text.strip().endswith(":2:4:153")
+    cap = allmydata.uri.from_string(resp.text.strip().encode('ascii'))
+    assert isinstance(cap, allmydata.uri.CHKFileURI)
+    assert cap.size == 153
+    assert cap.total_shares == 4
+    assert cap.needed_shares == 2
 
 
 def test_helper_status(storage_nodes):
