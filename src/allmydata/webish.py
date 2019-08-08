@@ -11,6 +11,7 @@ from allmydata.util import log, fileutil
 
 from allmydata.web import introweb, root
 from allmydata.web.common import MyExceptionHandler
+from allmydata.web.operations import OphandleTable
 
 # we must override twisted.web.http.Request.requestReceived with a version
 # that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
@@ -165,10 +166,11 @@ class WebishServer(service.MultiService):
         self.root = root.Root(client, clock, now_fn)
         self.buildServer(webport, nodeurl_path, staticdir)
 
-        # XXX just make this 'child_operations' thing something we
-        # pass to Root instead .. then can we pass it to OpHandleTable() as well?
-        if self.root.child_operations:
-            self.root.child_operations.setServiceParent(self)
+        # If set, clock is a twisted.internet.task.Clock that the tests
+        # use to test ophandle expiration.
+        operations = OphandleTable(clock)
+        operations.setServiceParent(self)
+        self.root.putChild("operations", operations)
 
     def buildServer(self, webport, nodeurl_path, staticdir):
         self.webport = webport
