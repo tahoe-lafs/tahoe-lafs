@@ -408,7 +408,7 @@ def test_alice_adds_files_while_bob_is_offline(reactor, request, temp_dir, magic
     bob_node_dir = join(temp_dir, "bob")
 
     # Take Bob offline.
-    yield util.cli(reactor, bob_node_dir, "stop")
+    yield util.cli(request, reactor, bob_node_dir, "stop")
 
     # Create a couple files in Alice's local directory.
     some_files = list(
@@ -422,7 +422,7 @@ def test_alice_adds_files_while_bob_is_offline(reactor, request, temp_dir, magic
 
     good = False
     for i in range(15):
-        status = yield util.magic_folder_cli(reactor, alice_node_dir, "status")
+        status = yield util.magic_folder_cli(request, reactor, alice_node_dir, "status")
         good = status.count(".added-while-offline (36 B): good, version=0") == len(some_files) * 2
         if good:
             # We saw each file as having a local good state and a remote good

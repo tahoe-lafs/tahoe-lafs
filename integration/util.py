@@ -117,13 +117,31 @@ def _cleanup_twistd_process(twistd_process, exited):
     :return: After the process has exited.
     """
     try:
-        print("signaling {} with KILL".format(twistd_process.pid))
-        twistd_process.signalProcess('KILL')
+        print("signaling {} with TERM".format(twistd_process.pid))
+        twistd_process.signalProcess('TERM')
         print("signaled, blocking on exit")
         pytest_twisted.blockon(exited)
         print("exited, goodbye")
     except ProcessExitedAlready:
         pass
+
+
+def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
+    """
+    Internal helper. Calls spawnProcess with `-m
+    allmydata.scripts.runner` and `other_args`, optionally inserting a
+    `--coverage` option if the `request` indicates we should.
+    """
+    if request.config.getoption('coverage'):
+        args = [sys.executable, '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
+    else:
+        args = [sys.executable, '-m', 'allmydata.scripts.runner']
+    args += other_args
+    return reactor.spawnProcess(
+        proto,
+        sys.executable,
+        args,
+    )
 
 
 def _run_node(reactor, node_dir, request, magic_text):
@@ -134,15 +152,16 @@ def _run_node(reactor, node_dir, request, magic_text):
     # on windows, "tahoe start" means: run forever in the foreground,
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
-    process = reactor.spawnProcess(
+
+    process = _tahoe_runner_optional_coverage(
         protocol,
-        sys.executable,
-        (
-            sys.executable, '-m', 'allmydata.scripts.runner',
+        reactor,
+        request,
+        [
             '--eliot-destination', 'file:{}/logs/eliot.json'.format(node_dir),
             'run',
             node_dir,
-        ),
+        ],
     )
     process.exited = protocol.exited
 
@@ -179,7 +198,6 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
         args = [
-            sys.executable, '-m', 'allmydata.scripts.runner',
             'create-node',
             '--nickname', name,
             '--introducer', introducer_furl,
@@ -194,11 +212,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             args.append('--no-storage')
         args.append(node_dir)
 
-        reactor.spawnProcess(
-            done_proto,
-            sys.executable,
-            args,
-        )
+        _tahoe_runner_optional_coverage(done_proto, reactor, request, args)
         created_d = done_proto.done
 
         def created(_):
@@ -331,17 +345,17 @@ def await_file_vanishes(path, timeout=10):
     raise FileShouldVanishException(path, timeout)
 
 
-def cli(reactor, node_dir, *argv):
+def cli(request, reactor, node_dir, *argv):
+    """
+    Run a tahoe CLI subcommand for a given node, optionally running
+    under coverage if '--coverage' was supplied.
+    """
     proto = _CollectOutputProtocol()
-    reactor.spawnProcess(
-        proto,
-        sys.executable,
-        [
-            sys.executable, '-m', 'allmydata.scripts.runner',
-            '--node-directory', node_dir,
-        ] + list(argv),
+    _tahoe_runner_optional_coverage(
+        proto, reactor, request,
+        ['--node-directory', node_dir] + list(argv),
     )
     return proto.done
 
-def magic_folder_cli(reactor, node_dir, *argv):
-    return cli(reactor, node_dir, "magic-folder", *argv)
+def magic_folder_cli(request, reactor, node_dir, *argv):
+    return cli(request, reactor, node_dir, "magic-folder", *argv)
