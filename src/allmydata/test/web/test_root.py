@@ -142,17 +142,22 @@ class RenderRoot(unittest.TestCase):
         self.client = FakeClient()
 
     def test_basic_stan(self):
+        """
+        we can render the root without any exceptions
+        """
 
         class MyRoot(Element):
             loader = XMLString(GOLDEN_ROOT)
 
         request = FakeRequest()
         r = MyRoot()
-        data = r.render(request)
-        print(data)
+        r.render(request)
 
     @inlineCallbacks
     def test_root_template(self):
+        """
+        The current root renders the same as it did with Nevow
+        """
         page = Root(self.client, self.clock, now_fn=self.clock.seconds)
         page.addSlash = False  # XXX hack around what looks like nevow testutils bug
 
