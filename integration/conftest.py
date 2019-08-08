@@ -313,11 +313,11 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
     for x in range(5):
         name = 'node{}'.format(x)
         web_port=  9990 + x
-        # tub_port = 9900 + x
         nodes_d.append(
             _create_node(
                 reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
-                web_port=None, storage=True,
+                web_port="tcp:{}:interface=localhost".format(web_port),
+                storage=True,
             )
         )
     nodes_status = pytest_twisted.blockon(DeferredList(nodes_d))

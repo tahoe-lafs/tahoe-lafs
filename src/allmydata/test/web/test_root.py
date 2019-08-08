@@ -27,6 +27,7 @@ class FakeContext(object):
         self.slots[slotname] = contents
 
 class RenderServiceRow(unittest.TestCase):
+
     def test_missing(self):
         # minimally-defined static servers just need anonymous-storage-FURL
         # and permutation-seed-base32. The WUI used to have problems
