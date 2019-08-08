@@ -26,10 +26,6 @@ def test_upload_download(alice):
     upload a file, then download it via readcap
     """
 
-    # XXX FIXME why?
-    print("waiting for ready..")
-    time.sleep(10)
-
     FILE_CONTENTS = "some contents"
 
     readcap = util.web_post(
@@ -61,7 +57,6 @@ def test_put(alice):
     use PUT to create a file
     """
 
-    import time; time.sleep(10) # XXX wat
     FILE_CONTENTS = "added via PUT"
 
     resp = requests.put(
