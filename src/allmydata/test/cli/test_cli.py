@@ -532,14 +532,13 @@ class CLI(CLITestMixin, unittest.TestCase):
             # it's safe to drop it on the floor.
             del d
 
-        patcher = MonkeyPatcher(
-            (runner, 'parse_or_exit_with_explanation', call_parse_or_exit),
-            (runner, "_setup_coverage", lambda r: None),
-            (sys, 'argv', ["tahoe"]),
-            (sys, 'exit', call_sys_exit),
-            (sys, 'stderr', stderr),
-            (task, 'react', fake_react),
-        )
+        patcher = MonkeyPatcher((runner, 'parse_or_exit_with_explanation',
+                                 call_parse_or_exit),
+                                (sys, 'argv', ["tahoe"]),
+                                (sys, 'exit', call_sys_exit),
+                                (sys, 'stderr', stderr),
+                                (task, 'react', fake_react),
+                                )
         patcher.runWithPatches(runner.run)
 
         self.failUnless(ns.parse_called)
