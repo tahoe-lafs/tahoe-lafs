@@ -434,7 +434,7 @@ def await_client_ready(process, timeout=10, liveness=60*2):
     """
     Uses the status API to wait for a client-type node to be
     'ready'. A client is deemed ready if:
-      - it answers http://<node_url>/statistics/?t-json/
+      - it answers http://<node_url>/statistics/?t=json/
       - there is at least one storage-server connected
       - every storage-server has a "last_received_data" and it is
         within the last `liveness` seconds
