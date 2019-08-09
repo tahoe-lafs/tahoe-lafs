@@ -444,7 +444,6 @@ def await_client_ready(process, timeout=10, liveness=60*2):
     """
     start = time.time()
     while (time.time() - start) < float(timeout):
-        time.sleep(1)
         try:
             data = web_get(process.node_dir, u"", params={u"t": u"json"})
         except ValueError as e:
@@ -452,6 +451,7 @@ def await_client_ready(process, timeout=10, liveness=60*2):
         js = json.loads(data)
         if len(js['servers']) == 0:
             print("waiting because no servers at all")
+            time.sleep(1)
             continue
         server_times = [
             server['last_received_data']
@@ -461,11 +461,13 @@ def await_client_ready(process, timeout=10, liveness=60*2):
         # contacted (so it's down still, probably)
         if any([t is None for t in server_times]):
             print("waiting because at least one server not contacted")
+            time.sleep(1)
             continue
 
         # check that all times are 'recent enough'
         if any([time.time() - t > liveness for t in server_times]):
             print("waiting because at least one server too old")
+            time.sleep(1)
             continue
 
         # we have a status with at least one server, and all servers
