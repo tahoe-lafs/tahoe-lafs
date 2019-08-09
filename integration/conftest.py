@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import sys
 import shutil
+import json
 from time import sleep
 from os import mkdir, listdir, environ
 from os.path import join, exists
@@ -15,6 +16,7 @@ from eliot import (
 )
 
 from twisted.python.procutils import which
+from twisted.internet.defer import DeferredList
 from twisted.internet.error import (
     ProcessExitedAlready,
     ProcessTerminated,
@@ -32,6 +34,7 @@ from util import (
     _run_node,
     _cleanup_tahoe_process,
     _tahoe_runner_optional_coverage,
+    await_client_ready,
 )
 
 
@@ -306,20 +309,22 @@ def tor_introducer_furl(tor_introducer, temp_dir):
     include_result=False,
 )
 def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer, request):
-    nodes = []
+    nodes_d = []
     # start all 5 nodes in parallel
     for x in range(5):
         name = 'node{}'.format(x)
         # tub_port = 9900 + x
-        nodes.append(
-            pytest_twisted.blockon(
-                _create_node(
-                    reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
-                    web_port=None, storage=True,
-                )
+        nodes_d.append(
+            _create_node(
+                reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
+                web_port=None, storage=True,
             )
         )
-    #nodes = pytest_twisted.blockon(DeferredList(nodes))
+    nodes_status = pytest_twisted.blockon(DeferredList(nodes_d))
+    nodes = []
+    for ok, process in nodes_status:
+        assert ok, "Storage node creation failed: {}".format(process)
+        nodes.append(process)
     return nodes
 
 
@@ -338,6 +343,7 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
             storage=False,
         )
     )
+    await_client_ready(process)
     return process
 
 
@@ -356,6 +362,7 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
             storage=False,
         )
     )
+    await_client_ready(process)
     return process
 
 
@@ -368,7 +375,6 @@ def alice_invite(reactor, alice, temp_dir, request):
         # FIXME XXX by the time we see "client running" in the logs, the
         # storage servers aren't "really" ready to roll yet (uploads fairly
         # consistently fail if we don't hack in this pause...)
-        import time ; time.sleep(5)
         proto = _CollectOutputProtocol()
         _tahoe_runner_optional_coverage(
             proto,
@@ -409,6 +415,7 @@ def alice_invite(reactor, alice, temp_dir, request):
         with start_action(action_type=u"integration:alice:magic_folder:magic-text"):
             magic_text = 'Completed initial Magic Folder scan successfully'
             pytest_twisted.blockon(_run_node(reactor, node_dir, request, magic_text))
+            await_client_ready(alice)
     return invite
 
 
@@ -446,6 +453,7 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
 
     magic_text = 'Completed initial Magic Folder scan successfully'
     pytest_twisted.blockon(_run_node(reactor, bob_dir, request, magic_text))
+    await_client_ready(bob)
     return (join(temp_dir, 'magic-alice'), join(temp_dir, 'magic-bob'))
 
 

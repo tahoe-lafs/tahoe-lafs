@@ -1,5 +1,6 @@
 import sys
 import time
+import json
 from os import mkdir
 from os.path import exists, join
 from six.moves import StringIO
@@ -427,6 +428,56 @@ def web_post(node_dir, uri_fragment, **kwargs):
     resp = requests.post(url, **kwargs)
     _check_status(resp)
     return resp.content
+
+
+def await_client_ready(process, timeout=10, liveness=60*2):
+    """
+    Uses the status API to wait for a client-type node to be
+    'ready'. A client is deemed ready if:
+      - it answers http://<node_url>/statistics/?t-json/
+      - there is at least one storage-server connected
+      - every storage-server has a "last_received_data" and it is
+        within the last `liveness` seconds
+
+    We will try for up to `timeout` seconds for the above conditions
+    to be true. Otherwise, an exception is raised
+    """
+    start = time.time()
+    while (time.time() - start) < float(timeout):
+        time.sleep(1)
+        try:
+            data = web_get(process.node_dir, u"", params={u"t": u"json"})
+        except ValueError as e:
+            print("waiting because '{}'".format(e))
+        js = json.loads(data)
+        if len(js['servers']) == 0:
+            print("waiting because no servers at all")
+            continue
+        server_times = [
+            server['last_received_data']
+            for server in js['servers']
+        ]
+        # if any times are null/None that server has never been
+        # contacted (so it's down still, probably)
+        if any([t is None for t in server_times]):
+            print("waiting because at least one server not contacted")
+            continue
+
+        # check that all times are 'recent enough'
+        if any([time.time() - t > liveness for t in server_times]):
+            print("waiting because at least one server too old")
+            continue
+
+        # we have a status with at least one server, and all servers
+        # have been contacted recently
+        return True
+    # we only fall out of the loop when we've timed out
+    raise RuntimeError(
+        "Waited {} seconds for {} to be 'ready' but it never was".format(
+            timeout,
+            process.node_dir,
+        )
+    )
 
 
 def magic_folder_cli(request, reactor, node_dir, *argv):
