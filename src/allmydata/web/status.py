@@ -1089,7 +1089,12 @@ class Status(MultiFormatPage):
 
     def childFactory(self, ctx, name):
         h = self.history
-        stype,count_s = name.split("-")
+        try:
+            stype, count_s = name.split("-")
+        except ValueError:
+            raise RuntimeError(
+                "no - in '{}'".format(name)
+            )
         count = int(count_s)
         if stype == "up":
             for s in itertools.chain(h.list_all_upload_statuses(),
