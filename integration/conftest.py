@@ -270,7 +270,7 @@ log_gatherer.furl = {log_furl}
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
     protocol = _MagicTextProtocol('introducer running')
-    process = _tahoe_runner_optional_coverage(
+    transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
         request,
@@ -282,8 +282,8 @@ log_gatherer.furl = {log_furl}
 
     def cleanup():
         try:
-            process.transport.signalProcess('TERM')
-            pytest_twisted.blockon(process.transport.exited)
+            transport.signalProcess('TERM')
+            pytest_twisted.blockon(transport.exited)
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
