@@ -163,26 +163,26 @@ def test_status(alice):
     """
     confirm we get something sensible from /status and the various sub-types
     """
+
     # upload a file
     # (because of the nature of the integration-tests, we can only
     # assert things about "our" file because we don't know what other
     # operations may have happened in the grid before our test runs).
-    FILE_CONTENTS = b"all the Important Data of alice\n" * 1000
+
+    FILE_CONTENTS = b"all the Important Data of alice\n" * 1200
+
     resp = requests.put(
         util.node_url(alice.node_dir, u"uri"),
-        files={
-            u"file": FILE_CONTENTS,
-        },
+        data=FILE_CONTENTS,
     )
     cap = resp.text.strip()
+
     print("Uploaded data, cap={}".format(cap))
     resp = requests.get(
         util.node_url(alice.node_dir, u"uri/{}".format(urllib2.quote(cap))),
     )
-    print("Downloaded {} bytes of data".format(len(resp.content)))
 
-    print(dir(resp))
-    print(resp.content[:120])
+    print("Downloaded {} bytes of data".format(len(resp.content)))
     assert resp.content == FILE_CONTENTS
 
     # find our upload and download status pages
@@ -203,22 +203,24 @@ def test_status(alice):
         for link in dom.getElementsByTagName('a'):
             hrefs.add(link.getAttribute('href'))
 
-    found_our_status = False
+    found_upload = False
+    found_download = False
     for href in hrefs:
-        if href.startswith("/") or not href:
+        print("href: {}".format(href))
+        if href.startswith(u"/") or not href:
             continue
         resp = requests.get(
             util.node_url(alice.node_dir, u"status/{}".format(href)),
         )
-        if href.startswith('up'):
+        if href.startswith(u'up'):
             assert "File Upload Status" in resp.content
-            if "Total Size: 32140" in resp.content:
-                found_our_status = True
-        elif href.startswith('down'):
+            if "Total Size: {}".format(len(FILE_CONTENTS)) in resp.content:
+                found_upload = True
+        elif href.startswith(u'down'):
             print(href)
             assert "File Download Status" in resp.content
-            if "Total Size: 32140" in resp.content:
-                print("FOUND IT\n\n\n")
-                found_our_status = True
+            if "Total Size: {}".format(len(FILE_CONTENTS)) in resp.content:
+                found_download = True
 
-    assert found_our_status, "Failed to find the file we uploaded in the status-page"
+    assert found_upload, "Failed to find the file we uploaded in the status-page"
+    assert found_download, "Failed to find the file we downloaded in the status-page"
