@@ -387,10 +387,7 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
     yield edmond.transport.exited
     time.sleep(1)
     edmond = yield util._run_node(reactor, edmond.node_dir, request, 'Completed initial Magic Folder scan successfully')
-<<<<<<< HEAD
     util.await_client_ready(edmond)
-=======
->>>>>>> Instead of abusing the process transport, introduce a new object
 
     # XXX how can we say for sure if we've waited long enough? look at
     # tail of logs for magic-folder ... somethingsomething?
