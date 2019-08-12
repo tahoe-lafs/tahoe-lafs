@@ -222,5 +222,15 @@ def test_status(alice):
             if "Total Size: {}".format(len(FILE_CONTENTS)) in resp.content:
                 found_download = True
 
+                # download the specialized event information
+                resp = requests.get(
+                    util.node_url(alice.node_dir, u"status/{}/event_json".format(href)),
+                )
+                js = json.loads(resp.content)
+                # there's usually just one "read" operation, but this can handle many ..
+                total_bytes = sum([st['bytes_returned'] for st in js['read']], 0)
+                assert total_bytes == len(FILE_CONTENTS)
+
+
     assert found_upload, "Failed to find the file we uploaded in the status-page"
     assert found_download, "Failed to find the file we downloaded in the status-page"
