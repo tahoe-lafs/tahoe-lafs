@@ -234,3 +234,164 @@ def test_status(alice):
 
     assert found_upload, "Failed to find the file we uploaded in the status-page"
     assert found_download, "Failed to find the file we downloaded in the status-page"
+
+
+def test_directory_deep_check(alice):
+    """
+    use deep-check and confirm the result pages work
+    """
+
+    # create a directory
+    resp = requests.post(
+        util.node_url(alice.node_dir, u"uri"),
+        params={
+            u"t": u"mkdir",
+            u"redirect_to_result": u"true",
+        }
+    )
+
+    # get json information about our directory
+    dircap_url = resp.url
+    resp = requests.get(
+        dircap_url,
+        params={u"t": u"json"},
+    )
+    dir_meta = json.loads(resp.content)
+
+    # upload a file of pangrams into the directory
+    FILE_CONTENTS = b"Sphinx of black quartz, judge my vow.\n" * 2048
+
+    resp = requests.post(
+        dircap_url,
+        params={
+            u"t": u"upload",
+            u"upload-chk": u"upload-chk",
+        },
+        files={
+            u"file": FILE_CONTENTS,
+        }
+    )
+    cap = resp.content
+
+    print("Uploaded data, cap={}".format(cap))
+
+
+    resp= requests.get(
+        util.node_url(alice.node_dir, u"uri/{}".format(urllib2.quote(cap))),
+        params={u"t": u"info"},
+    )
+    print("info", resp.content)
+
+
+    def check_repair_data(checkdata):
+        assert checkdata["healthy"] is True
+        assert checkdata["count-happiness"] == 4
+        assert checkdata["count-good-share-hosts"] == 4
+        assert checkdata["count-shares-good"] == 4
+        assert checkdata["count-corrupt-shares"] == 0
+        assert checkdata["list-corrupt-shares"] == []
+
+    # do a "check" (once for HTML, then with JSON for easier asserts)
+    resp = requests.post(
+        dircap_url,
+        params={
+            u"t": u"check",
+            u"return_to": u".",
+            u"verify": u"true",
+        }
+    )
+    resp = requests.post(
+        dircap_url,
+        params={
+            u"t": u"check",
+            u"return_to": u".",
+            u"verify": u"true",
+            u"output": u"JSON",
+        }
+    )
+    check_repair_data(json.loads(resp.content)["results"])
+
+    # "check and repair"
+    resp = requests.post(
+        dircap_url,
+        params={
+            u"t": u"check",
+            u"return_to": u".",
+            u"verify": u"true",
+            u"repair": u"true",
+        }
+    )
+    resp = requests.post(
+        dircap_url,
+        params={
+            u"t": u"check",
+            u"return_to": u".",
+            u"verify": u"true",
+            u"repair": u"true",
+            u"output": u"JSON",
+        }
+    )
+    check_repair_data(json.loads(resp.content)["post-repair-results"]["results"])
+
+    # start a "deep check and repair"
+    resp = requests.post(
+        dircap_url,
+        params={
+            u"t": u"start-deep-check",
+            u"return_to": u".",
+            u"verify": u"true",
+            u"repair": u"true",
+            u"output": u"JSON",
+            u"ophandle": u"deadbeef",
+        }
+    )
+    deepcheck_uri = resp.url
+
+    data = json.loads(resp.content)
+    while not data['finished']:
+        time.sleep(0.5)
+        print("deep-check not finished, reloading")
+        resp = requests.get(deepcheck_uri)
+        data = json.loads(resp.content)
+    print("deep-check finished")
+    assert data[u"stats"][u"count-immutable-files"] == 1
+    assert data[u"stats"][u"count-literal-files"] == 0
+    assert data[u"stats"][u"largest-immutable-file"] == 77824
+    assert data[u"count-objects-checked"] == 2
+
+
+def test_storage_info(storage_nodes):
+    """
+    retrieve and confirm /storage URI for one storage node
+    """
+    storage0 = storage_nodes[0]
+    print(storage0)
+    print(dir(storage0))
+
+    resp = requests.get(
+        util.node_url(storage0.node_dir, u"storage"),
+    )
+    resp = requests.get(
+        util.node_url(storage0.node_dir, u"storage"),
+        params={u"t": u"json"},
+    )
+    data = json.loads(resp.content)
+    assert data[u"stats"][u"storage_server.reserved_space"] == 1000000000
+
+
+def test_introducer_info(introducer):
+    """
+    retrieve and confirm /introducer URI for the introducer
+    """
+    resp = requests.get(
+        util.node_url(introducer.node_dir, u""),
+    )
+    assert "Introducer" in resp.content
+
+    resp = requests.get(
+        util.node_url(introducer.node_dir, u""),
+        params={u"t": u"json"},
+    )
+    data = json.loads(resp.content)
+    assert "announcement_summary" in data
+    assert "subscription_summary" in data
