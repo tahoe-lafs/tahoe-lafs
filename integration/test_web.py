@@ -12,6 +12,7 @@ import util
 
 import requests
 import pytest_twisted
+import html5lib
 
 
 def test_index(alice):
@@ -185,28 +186,19 @@ def test_status(alice):
     print("Downloaded {} bytes of data".format(len(resp.content)))
     assert resp.content == FILE_CONTENTS
 
-    # find our upload and download status pages
-    from twisted.web import microdom
-    from collections import defaultdict
-    from twisted.web import microdom
-    from collections import defaultdict
-
     resp = requests.get(
         util.node_url(alice.node_dir, "status"),
     )
-    dom = microdom.parseString(resp.content)
+    dom = html5lib.parse(resp.content)
 
-    # so, we *could* descend the DOM "more properly" .. or just look
-    # at the URIs
-    hrefs = set()
-    for td in dom.getElementsByTagName('td'):
-        for link in dom.getElementsByTagName('a'):
-            hrefs.add(link.getAttribute('href'))
+    hrefs = [
+        a.get('href')
+        for a in dom.iter(u'{http://www.w3.org/1999/xhtml}a')
+    ]
 
     found_upload = False
     found_download = False
     for href in hrefs:
-        print("href: {}".format(href))
         if href.startswith(u"/") or not href:
             continue
         resp = requests.get(
