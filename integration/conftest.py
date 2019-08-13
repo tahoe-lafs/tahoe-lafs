@@ -2,7 +2,6 @@ from __future__ import print_function
 
 import sys
 import shutil
-import json
 from time import sleep
 from os import mkdir, listdir, environ
 from os.path import join, exists
