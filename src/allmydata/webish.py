@@ -20,7 +20,7 @@ from allmydata.web.common import IOpHandleTable, MyExceptionHandler
 # surgery may induce a dependency upon a particular version of twisted.web
 
 parse_qs = http.parse_qs
-class MyRequest(appserver.NevowRequest):
+class MyRequest(appserver.NevowRequest, object):
     fields = None
     _tahoe_request_had_error = None
 

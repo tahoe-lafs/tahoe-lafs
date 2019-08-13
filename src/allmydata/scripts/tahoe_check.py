@@ -114,7 +114,7 @@ def check(options):
 class FakeTransport(object):
     disconnecting = False
 
-class DeepCheckOutput(LineOnlyReceiver):
+class DeepCheckOutput(LineOnlyReceiver, object):
     delimiter = "\n"
     def __init__(self, streamer, options):
         self.streamer = streamer
@@ -173,7 +173,7 @@ class DeepCheckOutput(LineOnlyReceiver):
         print("done: %d objects checked, %d healthy, %d unhealthy" \
               % (self.num_objects, self.files_healthy, self.files_unhealthy), file=stdout)
 
-class DeepCheckAndRepairOutput(LineOnlyReceiver):
+class DeepCheckAndRepairOutput(LineOnlyReceiver, object):
     delimiter = "\n"
     def __init__(self, streamer, options):
         self.streamer = streamer
@@ -271,7 +271,7 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
               % (self.post_repair_files_healthy,
                  self.post_repair_files_unhealthy), file=stdout)
 
-class DeepCheckStreamer(LineOnlyReceiver):
+class DeepCheckStreamer(LineOnlyReceiver, object):
 
     def deepcheck_location(self, options, where):
         stdout = options.stdout

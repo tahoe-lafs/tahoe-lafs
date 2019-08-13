@@ -14,7 +14,7 @@ from allmydata.util.encodingutil import get_filesystem_encoding
 from foolscap.api import Tub, fireEventually, flushEventualQueue
 from twisted.python import log, procutils
 
-class StallableHTTPGetterDiscarder(tw_client.HTTPPageGetter):
+class StallableHTTPGetterDiscarder(tw_client.HTTPPageGetter, object):
     full_speed_ahead = False
     _bytes_so_far = 0
     stalled = None
@@ -41,7 +41,7 @@ class StallableHTTPGetterDiscarder(tw_client.HTTPPageGetter):
             self.stalled = None
         return tw_client.HTTPPageGetter.handleResponseEnd(self)
 
-class StallableDiscardingHTTPClientFactory(tw_client.HTTPClientFactory):
+class StallableDiscardingHTTPClientFactory(tw_client.HTTPClientFactory, object):
     protocol = StallableHTTPGetterDiscarder
 
 def discardPage(url, stall=False, *args, **kwargs):
@@ -477,7 +477,7 @@ this file are ignored.
         return d
 
 
-class ClientWatcher(protocol.ProcessProtocol):
+class ClientWatcher(protocol.ProcessProtocol, object):
     ended = False
     def outReceived(self, data):
         print("OUT:", data)
@@ -504,4 +504,3 @@ if __name__ == '__main__':
     # removed each time we run.
     sf = SystemFramework("_test_memory", mode)
     sf.run()
-
