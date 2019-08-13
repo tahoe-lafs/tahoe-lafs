@@ -23,7 +23,9 @@ class PythonTwoRegressions(unittest.TestCase):
         """
         All classes defined by Tahoe-LAFS are new-style.
         """
-        for mod in getModule("allmydata").walkModules(importPackages=True):
+        for mod in getModule("allmydata").walkModules():
+            # Cannot iterate attributes of unloaded modules.
+            mod.load()
             for attr in mod.iterAttributes():
                 value = attr.load()
                 self.assertFalse(
