@@ -15,6 +15,7 @@ from eliot import (
 )
 
 from twisted.python.procutils import which
+from twisted.internet.defer import DeferredList
 from twisted.internet.error import (
     ProcessExitedAlready,
     ProcessTerminated,
@@ -30,8 +31,9 @@ from util import (
     _ProcessExitedProtocol,
     _create_node,
     _run_node,
-    _cleanup_twistd_process,
+    _cleanup_tahoe_process,
     _tahoe_runner_optional_coverage,
+    await_client_ready,
 )
 
 
@@ -130,7 +132,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     pytest_twisted.blockon(twistd_protocol.magic_seen)
 
     def cleanup():
-        _cleanup_twistd_process(twistd_process, twistd_protocol.exited)
+        _cleanup_tahoe_process(twistd_process, twistd_protocol.exited)
 
         flog_file = mktemp('.flog_dump')
         flog_protocol = _DumpOutputProtocol(open(flog_file, 'w'))
@@ -209,7 +211,7 @@ log_gatherer.furl = {log_furl}
             intro_dir,
         ),
     )
-    request.addfinalizer(partial(_cleanup_twistd_process, process, protocol.exited))
+    request.addfinalizer(partial(_cleanup_tahoe_process, process, protocol.exited))
 
     pytest_twisted.blockon(protocol.magic_seen)
     return process
@@ -267,7 +269,7 @@ log_gatherer.furl = {log_furl}
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
     protocol = _MagicTextProtocol('introducer running')
-    process = _tahoe_runner_optional_coverage(
+    transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
         request,
@@ -279,14 +281,14 @@ log_gatherer.furl = {log_furl}
 
     def cleanup():
         try:
-            process.signalProcess('TERM')
+            transport.signalProcess('TERM')
             pytest_twisted.blockon(protocol.exited)
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
 
     pytest_twisted.blockon(protocol.magic_seen)
-    return process
+    return transport
 
 
 @pytest.fixture(scope='session')
@@ -306,20 +308,22 @@ def tor_introducer_furl(tor_introducer, temp_dir):
     include_result=False,
 )
 def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer, request):
-    nodes = []
+    nodes_d = []
     # start all 5 nodes in parallel
     for x in range(5):
         name = 'node{}'.format(x)
         # tub_port = 9900 + x
-        nodes.append(
-            pytest_twisted.blockon(
-                _create_node(
-                    reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
-                    web_port=None, storage=True,
-                )
+        nodes_d.append(
+            _create_node(
+                reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
+                web_port=None, storage=True,
             )
         )
-    #nodes = pytest_twisted.blockon(DeferredList(nodes))
+    nodes_status = pytest_twisted.blockon(DeferredList(nodes_d))
+    nodes = []
+    for ok, process in nodes_status:
+        assert ok, "Storage node creation failed: {}".format(process)
+        nodes.append(process)
     return nodes
 
 
@@ -338,6 +342,7 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
             storage=False,
         )
     )
+    await_client_ready(process)
     return process
 
 
@@ -356,6 +361,7 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
             storage=False,
         )
     )
+    await_client_ready(process)
     return process
 
 
@@ -368,7 +374,6 @@ def alice_invite(reactor, alice, temp_dir, request):
         # FIXME XXX by the time we see "client running" in the logs, the
         # storage servers aren't "really" ready to roll yet (uploads fairly
         # consistently fail if we don't hack in this pause...)
-        import time ; time.sleep(5)
         proto = _CollectOutputProtocol()
         _tahoe_runner_optional_coverage(
             proto,
@@ -402,13 +407,14 @@ def alice_invite(reactor, alice, temp_dir, request):
         # before magic-folder works, we have to stop and restart (this is
         # crappy for the tests -- can we fix it in magic-folder?)
         try:
-            alice.signalProcess('TERM')
-            pytest_twisted.blockon(alice.exited)
+            alice.transport.signalProcess('TERM')
+            pytest_twisted.blockon(alice.transport.exited)
         except ProcessExitedAlready:
             pass
         with start_action(action_type=u"integration:alice:magic_folder:magic-text"):
             magic_text = 'Completed initial Magic Folder scan successfully'
             pytest_twisted.blockon(_run_node(reactor, node_dir, request, magic_text))
+            await_client_ready(alice)
     return invite
 
 
@@ -439,13 +445,14 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     # crappy for the tests -- can we fix it in magic-folder?)
     try:
         print("Sending TERM to Bob")
-        bob.signalProcess('TERM')
-        pytest_twisted.blockon(bob.exited)
+        bob.transport.signalProcess('TERM')
+        pytest_twisted.blockon(bob.transport.exited)
     except ProcessExitedAlready:
         pass
 
     magic_text = 'Completed initial Magic Folder scan successfully'
     pytest_twisted.blockon(_run_node(reactor, bob_dir, request, magic_text))
+    await_client_ready(bob)
     return (join(temp_dir, 'magic-alice'), join(temp_dir, 'magic-bob'))
 
 

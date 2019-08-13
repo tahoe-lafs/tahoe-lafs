@@ -1,5 +1,6 @@
 import sys
 import time
+import json
 from os import mkdir
 from os.path import exists, join
 from six.moves import StringIO
@@ -8,6 +9,8 @@ from functools import partial
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
+
+import requests
 
 from allmydata.util.configutil import (
     get_config,
@@ -106,19 +109,19 @@ class _MagicTextProtocol(ProcessProtocol):
         sys.stdout.write(data)
 
 
-def _cleanup_twistd_process(twistd_process, exited):
+def _cleanup_tahoe_process(tahoe_transport, exited):
     """
     Terminate the given process with a kill signal (SIGKILL on POSIX,
     TerminateProcess on Windows).
 
-    :param twistd_process: The `IProcessTransport` representing the process.
+    :param tahoe_transport: The `IProcessTransport` representing the process.
     :param exited: A `Deferred` which fires when the process has exited.
 
     :return: After the process has exited.
     """
     try:
-        print("signaling {} with TERM".format(twistd_process.pid))
-        twistd_process.signalProcess('TERM')
+        print("signaling {} with TERM".format(tahoe_transport.pid))
+        tahoe_transport.signalProcess('TERM')
         print("signaled, blocking on exit")
         pytest_twisted.blockon(exited)
         print("exited, goodbye")
@@ -144,7 +147,30 @@ def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
     )
 
 
+class TahoeProcess(object):
+    """
+    A running Tahoe process, with associated information.
+    """
+
+    def __init__(self, process_transport, node_dir):
+        self._process_transport = process_transport  # IProcessTransport instance
+        self._node_dir = node_dir  # path
+
+    @property
+    def transport(self):
+        return self._process_transport
+
+    @property
+    def node_dir(self):
+        return self._node_dir
+
+
 def _run_node(reactor, node_dir, request, magic_text):
+    """
+    Run a tahoe process from its node_dir.
+
+    :returns: a TahoeProcess for this node
+    """
     if magic_text is None:
         magic_text = "client running"
     protocol = _MagicTextProtocol(magic_text)
@@ -153,7 +179,7 @@ def _run_node(reactor, node_dir, request, magic_text):
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
 
-    process = _tahoe_runner_optional_coverage(
+    transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
         request,
@@ -163,17 +189,18 @@ def _run_node(reactor, node_dir, request, magic_text):
             node_dir,
         ],
     )
-    process.exited = protocol.exited
+    transport.exited = protocol.exited
 
-    request.addfinalizer(partial(_cleanup_twistd_process, process, protocol.exited))
+    request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
 
-    # we return the 'process' ITransport instance
-    # XXX abusing the Deferred; should use .when_magic_seen() or something?
+    # XXX abusing the Deferred; should use .when_magic_seen() pattern
 
     def got_proto(proto):
-        process._protocol = proto
-        process._node_dir = node_dir
-        return process
+        transport._protocol = proto
+        return TahoeProcess(
+            transport,
+            node_dir,
+        )
     protocol.magic_seen.addCallback(got_proto)
     return protocol.magic_seen
 
@@ -357,6 +384,107 @@ def cli(request, reactor, node_dir, *argv):
         ['--node-directory', node_dir] + list(argv),
     )
     return proto.done
+
+
+def node_url(node_dir, uri_fragment):
+    """
+    Create a fully qualified URL by reading config from `node_dir` and
+    adding the `uri_fragment`
+    """
+    with open(join(node_dir, "node.url"), "r") as f:
+        base = f.read().strip()
+    url = base + uri_fragment
+    return url
+
+
+def _check_status(response):
+    """
+    Check the response code is a 2xx (raise an exception otherwise)
+    """
+    if response.status_code < 200 or response.status_code >= 300:
+        raise ValueError(
+            "Expected a 2xx code, got {}".format(response.status_code)
+        )
+
+
+def web_get(node_dir, uri_fragment, **kwargs):
+    """
+    Make a GET request to the webport of `node_dir`. This will look
+    like: `http://localhost:<webport>/<uri_fragment>`. All `kwargs`
+    are passed on to `requests.get`
+    """
+    url = node_url(node_dir, uri_fragment)
+    resp = requests.get(url, **kwargs)
+    _check_status(resp)
+    return resp.content
+
+
+def web_post(node_dir, uri_fragment, **kwargs):
+    """
+    Make a POST request to the webport of `node_dir`. This will look
+    like: `http://localhost:<webport>/<uri_fragment>`. All `kwargs`
+    are passed on to `requests.post`
+    """
+    url = node_url(node_dir, uri_fragment)
+    resp = requests.post(url, **kwargs)
+    _check_status(resp)
+    return resp.content
+
+
+def await_client_ready(process, timeout=10, liveness=60*2):
+    """
+    Uses the status API to wait for a client-type node to be
+    'ready'. A client is deemed ready if:
+      - it answers http://<node_url>/statistics/?t=json/
+      - there is at least one storage-server connected
+      - every storage-server has a "last_received_data" and it is
+        within the last `liveness` seconds
+
+    We will try for up to `timeout` seconds for the above conditions
+    to be true. Otherwise, an exception is raised
+    """
+    start = time.time()
+    while (time.time() - start) < float(timeout):
+        try:
+            data = web_get(process.node_dir, u"", params={u"t": u"json"})
+            js = json.loads(data)
+        except Exception as e:
+            print("waiting because '{}'".format(e))
+            time.sleep(1)
+            continue
+
+        if len(js['servers']) == 0:
+            print("waiting because no servers at all")
+            time.sleep(1)
+            continue
+        server_times = [
+            server['last_received_data']
+            for server in js['servers']
+        ]
+        # if any times are null/None that server has never been
+        # contacted (so it's down still, probably)
+        if any(t is None for t in server_times):
+            print("waiting because at least one server not contacted")
+            time.sleep(1)
+            continue
+
+        # check that all times are 'recent enough'
+        if any([time.time() - t > liveness for t in server_times]):
+            print("waiting because at least one server too old")
+            time.sleep(1)
+            continue
+
+        # we have a status with at least one server, and all servers
+        # have been contacted recently
+        return True
+    # we only fall out of the loop when we've timed out
+    raise RuntimeError(
+        "Waited {} seconds for {} to be 'ready' but it never was".format(
+            timeout,
+            process.node_dir,
+        )
+    )
+
 
 def magic_folder_cli(request, reactor, node_dir, *argv):
     return cli(request, reactor, node_dir, "magic-folder", *argv)
