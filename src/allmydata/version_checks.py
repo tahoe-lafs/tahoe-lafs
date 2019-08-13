@@ -23,6 +23,12 @@ from .util import (
     verlib,
 )
 
+_INSTALL_REQUIRES = list(
+    str(req)
+    for req
+    in pkg_resources.get_distribution(__appname__).requires()
+)
+
 class PackagingError(EnvironmentError):
     """
     Raised when there is an error in packaging of Tahoe-LAFS or its
@@ -71,11 +77,6 @@ def normalized_version(verstr, what=None):
         six.reraise(cls, new_exc, trace)
 
 def _get_error_string(errors, debug=False):
-    install_requires = list(
-        str(req)
-        for req
-        in pkg_resources.get_distribution(__appname__).requires()
-    )
 
     msg = "\n%s\n" % ("\n".join(errors),)
     if debug:
@@ -89,7 +90,7 @@ def _get_error_string(errors, debug=False):
             "  %s\n"
             % (
                 os.environ.get('PYTHONPATH'),
-                install_requires,
+                _INSTALL_REQUIRES,
                 (os.pathsep+"\n  ").join(sys.path),
             )
         )
@@ -321,15 +322,10 @@ def _get_package_versions_and_locations():
     pkg_resources_vers_and_locs = dict()
 
     if not hasattr(sys, 'frozen'):
-        install_requires = list(
-            str(req)
-            for req
-            in pkg_resources.get_distribution(__appname__).requires()
-        )
         pkg_resources_vers_and_locs = {
             p.project_name.lower(): (str(p.version), p.location)
             for p
-            in pkg_resources.require(install_requires)
+            in pkg_resources.require(_INSTALL_REQUIRES)
         }
 
     def get_version(module):
