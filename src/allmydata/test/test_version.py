@@ -1,11 +1,16 @@
 
 import sys
 import pkg_resources
-
+from operator import (
+    setitem,
+)
 from twisted.trial import unittest
 
-from allmydata import cross_check, get_package_versions_and_locations, \
-     extract_openssl_version
+from allmydata.version_checks import (
+    _cross_check as cross_check,
+    _extract_openssl_version as extract_openssl_version,
+    _get_package_versions_and_locations as get_package_versions_and_locations,
+)
 from allmydata.util.verlib import NormalizedVersion as V, \
                                   IrrationalVersionError, \
                                   suggest_normalized_version as suggest
@@ -232,3 +237,26 @@ class VersionTestCase(unittest.TestCase):
 
         # zetuptoolz
         self.failUnlessEqual(suggest('0.6c16dev3'), '0.6c16.dev3')
+
+
+class T(unittest.TestCase):
+    def test_report_import_error(self):
+        """
+        get_package_versions_and_locations reports a dependency if a dependency
+        cannot be imported.
+        """
+        # Make sure we don't leave the system in a bad state.
+        self.addCleanup(
+            lambda foolscap=sys.modules["foolscap"]: setitem(
+                sys.modules,
+                "foolscap",
+                foolscap,
+            ),
+        )
+        # Make it look like Foolscap isn't installed.
+        sys.modules["foolscap"] = None
+        vers_and_locs, errors = get_package_versions_and_locations()
+
+        foolscap_stuffs = [stuff for (pkg, stuff) in vers_and_locs if pkg == 'foolscap']
+        self.failUnlessEqual(len(foolscap_stuffs), 1)
+        self.failUnless([e for e in errors if "dependency \'foolscap\' could not be imported" in e])

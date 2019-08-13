@@ -17,7 +17,7 @@ from twisted.application import service
 from twisted.python.failure import Failure
 from foolscap.api import Tub, app_versions
 import foolscap.logging.log
-from allmydata import get_package_versions, get_package_versions_string
+from allmydata.version_checks import get_package_versions, get_package_versions_string
 from allmydata.util import log
 from allmydata.util import fileutil, iputil
 from allmydata.util.assertutil import _assert
