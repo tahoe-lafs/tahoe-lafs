@@ -277,91 +277,6 @@ def get_package_versions_and_locations():
     return packages, cross_check_errors
 
 
-def split_requirement(req):
-    """
-    Split up a single requirement string into the different version constraint pieces.
-
-    This is like req.split(",") except it doesn't split on , found inside [].
-
-    :return: A list of the split up pieces.
-    """
-    in_extras = False
-    pieces = []
-    chunk = ''
-    for ch in req:
-        if in_extras:
-            if ch == ']':
-                in_extras = False
-            chunk += ch
-        else:
-            if ch == '[':
-                in_extras = True
-                chunk += ch
-            elif ch == ',':
-                pieces.append(chunk)
-                chunk = ''
-            else:
-                chunk += ch
-    pieces.append(chunk)
-    return pieces
-
-
-def check_requirement(req, vers_and_locs):
-    # We support only conjunctions of <=, >=, and !=
-    reqlist = split_requirement(req)
-    name = reqlist[0].split('<=')[0].split('>=')[0].split('!=')[0].strip(' ').split('[')[0]
-    if name not in vers_and_locs:
-        raise PackagingError("no version info for %s" % (name,))
-    if req.strip(' ') == name:
-        return
-    (actual, location, comment) = vers_and_locs[name]
-    if actual is None:
-        # comment is (type, message, (filename, line number, function name, text)) for the original ImportError
-        raise ImportError("for requirement %r: %s" % (req, comment))
-    if actual == 'unknown':
-        return
-    try:
-        actualver = normalized_version(actual, what="actual version %r of %s from %r" %
-                                               (actual, name, location))
-        matched = match_requirement(req, reqlist, actualver)
-    except verlib.IrrationalVersionError:
-        # meh, it probably doesn't matter
-        return
-
-    if not matched:
-        msg = ("We require %s, but could only find version %s.\n" % (req, actual))
-        if location and location != 'unknown':
-            msg += "The version we found is from %r.\n" % (location,)
-        msg += ("To resolve this problem, uninstall that version, either using your\n"
-                "operating system's package manager or by moving aside the directory.")
-        raise PackagingError(msg)
-
-
-def match_requirement(req, reqlist, actualver):
-    for r in reqlist:
-        s = r.split('<=')
-        if len(s) == 2:
-            required = s[1].strip(' ')
-            if not (actualver <= normalized_version(required, what="required maximum version %r in %r" % (required, req))):
-                return False  # maximum requirement not met
-        else:
-            s = r.split('>=')
-            if len(s) == 2:
-                required = s[1].strip(' ')
-                if not (actualver >= normalized_version(required, what="required minimum version %r in %r" % (required, req))):
-                    return False  # minimum requirement not met
-            else:
-                s = r.split('!=')
-                if len(s) == 2:
-                    required = s[1].strip(' ')
-                    if not (actualver != normalized_version(required, what="excluded version %r in %r" % (required, req))):
-                        return False  # not-equal requirement not met
-                else:
-                    raise PackagingError("no version info or could not understand requirement %r" % (req,))
-
-    return True
-
-
 def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     """This function returns a list of errors due to any failed cross-checks."""
 
@@ -452,36 +367,6 @@ def get_error_string(errors, debug=False):
                 "  %s\n"
                 % (os.environ.get('PYTHONPATH'), install_requires, (os.pathsep+"\n  ").join(sys.path)) )
     return msg
-
-def check_all_requirements():
-    """This function returns a list of errors due to any failed checks."""
-
-    from allmydata._auto_deps import install_requires
-
-    fatal_errors = []
-
-    # We require at least 2.6 on all platforms.
-    # (On Python 3, we'll have failed long before this point.)
-    if sys.version_info < (2, 6):
-        try:
-            version_string = ".".join(map(str, sys.version_info))
-        except Exception:
-            version_string = repr(sys.version_info)
-        fatal_errors.append("Tahoe-LAFS currently requires Python v2.6 or greater (but less than v3), not %s"
-                            % (version_string,))
-
-    vers_and_locs = dict(_vers_and_locs_list)
-    for requirement in install_requires:
-        try:
-            check_requirement(requirement, vers_and_locs)
-        except (ImportError, PackagingError) as e:
-            fatal_errors.append("%s: %s" % (e.__class__.__name__, e))
-
-    if fatal_errors:
-        raise PackagingError(get_error_string(fatal_errors + _cross_check_errors, debug=True))
-
-check_all_requirements()
-
 
 def get_package_versions():
     return dict([(k, v) for k, (v, l, c) in _vers_and_locs_list])
