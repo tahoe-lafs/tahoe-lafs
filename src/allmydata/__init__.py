@@ -371,9 +371,6 @@ def get_error_string(errors, debug=False):
 def get_package_versions():
     return dict([(k, v) for k, (v, l, c) in _vers_and_locs_list])
 
-def get_package_locations():
-    return dict([(k, l) for k, (v, l, c) in _vers_and_locs_list])
-
 def get_package_versions_string(show_paths=False, debug=False):
     res = []
     for p, (v, loc, comment) in _vers_and_locs_list:
