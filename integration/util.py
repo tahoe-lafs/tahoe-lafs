@@ -207,6 +207,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             '--shares-needed', unicode(needed),
             '--shares-happy', unicode(happy),
             '--shares-total', unicode(total),
+            '--helper',
         ]
         if not storage:
             args.append('--no-storage')
