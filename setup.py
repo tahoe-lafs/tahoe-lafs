@@ -31,10 +31,8 @@ VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
 install_requires = [
-    # we don't need much out of setuptools, but the __init__.py stuff does
-    # need pkg_resources . We use >=11.3 here because that's what
-    # "cryptography" requires (which is a sub-dependency of TLS-using
-    # packages), so there's no point in requiring less.
+    # we don't need much out of setuptools but the version checking stuff
+    # needs pkg_resources and PEP 440 version specifiers.
     "setuptools >= 28.8.0",
 
     "zfec >= 1.1.0",
