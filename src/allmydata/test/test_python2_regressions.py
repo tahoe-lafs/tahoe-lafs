@@ -15,6 +15,9 @@ def is_classic_class(obj):
     # not a class.  So ... less than completely useful.
     return type(obj) is ClassType
 
+def defined_here(obj, where):
+    return obj.__module__ == where
+
 class PythonTwoRegressions(unittest.TestCase):
     """
     A test class to hold Python2 regression tests.
@@ -29,6 +32,6 @@ class PythonTwoRegressions(unittest.TestCase):
             for attr in mod.iterAttributes():
                 value = attr.load()
                 self.assertFalse(
-                    is_classic_class(value),
+                    is_classic_class(value) and defined_here(value, mod.name),
                     "{} appears to be a classic class".format(attr.name),
                 )
