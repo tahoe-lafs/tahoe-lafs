@@ -42,14 +42,6 @@ install_requires = [
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     "foolscap >= 0.12.6",
 
-    # cryptography>2.3 because of CVE-2018-10903
-    'cryptography >= 2.3',
-
-    "service-identity",         # this is needed to suppress complaints about being unable to verify certs
-    "characteristic >= 14.0.0", # latest service-identity depends on this version
-    "pyasn1 >= 0.1.8",          # latest pyasn1-modules depends on this version
-    "pyasn1-modules >= 0.0.5",  # service-identity depends on this
-
     # * On Linux we need at least Twisted 10.1.0 for inotify support
     #   used by the drop-upload frontend.
     # * We also need Twisted 10.1.0 for the FTP frontend in order for
@@ -81,16 +73,6 @@ install_requires = [
     # We need Nevow >= 0.11.1 which can be installed using pip.
     "Nevow >= 0.11.1",
 
-    # * pyOpenSSL is required in order for foolscap to provide secure connections.
-    #   Since foolscap doesn't reliably declare this dependency in a machine-readable
-    #   way, we need to declare a dependency on pyOpenSSL ourselves. Tahoe-LAFS does
-    #   not *directly* depend on pyOpenSSL.
-    # * pyOpenSSL >= 0.13 is needed in order to avoid
-    #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2005>, and also to check the
-    #   version of OpenSSL that pyOpenSSL is using.
-    # * pyOpenSSL >= 0.14 is needed in order to avoid
-    #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2474>.
-    "pyOpenSSL >= 0.14",
     "PyYAML >= 3.11",
 
     "six >= 1.10.0",
