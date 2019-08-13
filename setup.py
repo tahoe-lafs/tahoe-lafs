@@ -94,11 +94,8 @@ install_requires = [
     "magic-wormhole >= 0.10.2",
 
     # Eliot is contemplating dropping Python 2 support.  Stick to a version we
-    # know works on Python 2.7.  Because we don't have support for `==`
-    # constraints, pin 1.7.x this way.  I feel pretty safe betting that we
-    # won't end up stuck on Eliot 1.7.100 with a critical fix only present in
-    # 1.7.101.  And if we do, I know how to deal with that situation.
-    "eliot >= 1.7.0, <= 1.7.100",
+    # know works on Python 2.7.
+    "eliot ~= 1.7",
 
     # A great way to define types of values.
     "attrs >= 18.2.0",
