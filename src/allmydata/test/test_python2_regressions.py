@@ -50,11 +50,7 @@ class PythonTwoRegressions(TestCase):
                 continue
 
             # iterAttributes will only work on loaded modules.  So, load it.
-            try:
-                mod.load()
-            except Exception as e:
-                print(mod.name, ":", e)
-                continue
+            mod.load()
 
             for attr in mod.iterAttributes():
                 value = attr.load()
@@ -63,7 +59,7 @@ class PythonTwoRegressions(TestCase):
                         newstyle.add(value)
                     else:
                         classic.add(value)
-        print(newstyle)
+
         self.assertThat(
             classic,
             Equals(set()),
