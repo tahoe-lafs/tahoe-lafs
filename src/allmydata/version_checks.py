@@ -10,7 +10,7 @@ __all__ = [
     "normalized_version",
 ]
 
-import os, platform, re, subprocess, sys, traceback
+import os, platform, re, subprocess, sys, traceback, pkg_resources
 
 import six
 
@@ -71,18 +71,28 @@ def normalized_version(verstr, what=None):
         six.reraise(cls, new_exc, trace)
 
 def _get_error_string(errors, debug=False):
-    from allmydata._auto_deps import install_requires
+    install_requires = list(
+        str(req)
+        for req
+        in pkg_resources.get_distribution(__appname__).requires()
+    )
 
     msg = "\n%s\n" % ("\n".join(errors),)
     if debug:
-        msg += ("\n"
-                "For debugging purposes, the PYTHONPATH was\n"
-                "  %r\n"
-                "install_requires was\n"
-                "  %r\n"
-                "sys.path after importing pkg_resources was\n"
-                "  %s\n"
-                % (os.environ.get('PYTHONPATH'), install_requires, (os.pathsep+"\n  ").join(sys.path)) )
+        msg += (
+            "\n"
+            "For debugging purposes, the PYTHONPATH was\n"
+            "  %r\n"
+            "install_requires was\n"
+            "  %r\n"
+            "sys.path after importing pkg_resources was\n"
+            "  %s\n"
+            % (
+                os.environ.get('PYTHONPATH'),
+                install_requires,
+                (os.pathsep+"\n  ").join(sys.path),
+            )
+        )
     return msg
 
 def _cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
@@ -311,11 +321,16 @@ def _get_package_versions_and_locations():
     pkg_resources_vers_and_locs = dict()
 
     if not hasattr(sys, 'frozen'):
-        import pkg_resources
-        from _auto_deps import install_requires
-
-        pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
-                                            for p in pkg_resources.require(install_requires)])
+        install_requires = list(
+            str(req)
+            for req
+            in pkg_resources.get_distribution(__appname__).requires()
+        )
+        pkg_resources_vers_and_locs = {
+            p.project_name.lower(): (str(p.version), p.location)
+            for p
+            in pkg_resources.require(install_requires)
+        }
 
     def get_version(module):
         if hasattr(module, '__version__'):
