@@ -6,6 +6,7 @@ from six.moves import StringIO
 from twisted.python import usage
 from twisted.internet import defer, task, threads
 
+from allmydata.version_checks import get_package_versions_string
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
     stats_gatherer, admin, magic_folder_cli, tahoe_daemonize, tahoe_start, \
@@ -76,13 +77,11 @@ class Options(usage.Options):
     ]
 
     def opt_version(self):
-        import allmydata
-        print(allmydata.get_package_versions_string(debug=True), file=self.stdout)
+        print(get_package_versions_string(debug=True), file=self.stdout)
         self.no_command_needed = True
 
     def opt_version_and_path(self):
-        import allmydata
-        print(allmydata.get_package_versions_string(show_paths=True, debug=True), file=self.stdout)
+        print(get_package_versions_string(show_paths=True, debug=True), file=self.stdout)
         self.no_command_needed = True
 
     opt_eliot_destination = opt_eliot_destination

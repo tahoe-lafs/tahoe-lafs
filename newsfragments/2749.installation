@@ -1,0 +1,1 @@
+Tahoe-LAFS no longer makes start-up time assertions about the versions of its dependencies.  It is the responsibility of the administrator of the installation to ensure the correct version of dependencies are supplied.

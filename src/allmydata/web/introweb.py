@@ -5,7 +5,7 @@ from nevow.static import File as nevow_File
 from nevow.util import resource_filename
 import allmydata
 import json
-from allmydata import get_package_versions_string
+from allmydata.version_checks import get_package_versions_string
 from allmydata.util import idlib
 from allmydata.web.common import (
     getxmlfile,

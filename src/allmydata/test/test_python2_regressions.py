@@ -8,6 +8,7 @@ class PythonTwoRegressions(unittest.TestCase):
     """
     A test class to hold Python2 regression tests.
     """
+    skip = "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3239"
 
     def is_new_style(self, cls):
         """check for being a new-style class"""
