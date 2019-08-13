@@ -446,9 +446,12 @@ def await_client_ready(process, timeout=10, liveness=60*2):
     while (time.time() - start) < float(timeout):
         try:
             data = web_get(process.node_dir, u"", params={u"t": u"json"})
-        except ValueError as e:
+            js = json.loads(data)
+        except Exception as e:
             print("waiting because '{}'".format(e))
-        js = json.loads(data)
+            time.sleep(1)
+            continue
+
         if len(js['servers']) == 0:
             print("waiting because no servers at all")
             time.sleep(1)
@@ -459,7 +462,7 @@ def await_client_ready(process, timeout=10, liveness=60*2):
         ]
         # if any times are null/None that server has never been
         # contacted (so it's down still, probably)
-        if any([t is None for t in server_times]):
+        if any(t is None for t in server_times):
             print("waiting because at least one server not contacted")
             time.sleep(1)
             continue
