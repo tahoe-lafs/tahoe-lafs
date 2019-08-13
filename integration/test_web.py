@@ -387,3 +387,70 @@ def test_introducer_info(introducer):
     data = json.loads(resp.content)
     assert "announcement_summary" in data
     assert "subscription_summary" in data
+
+
+def test_mkdir_with_children(alice):
+    """
+    create a directory using ?t=mkdir-with-children
+    """
+
+    # create a file to put in our directory
+    FILE_CONTENTS = b"some file contents\n" * 500
+    resp = requests.put(
+        util.node_url(alice.node_dir, u"uri"),
+        data=FILE_CONTENTS,
+    )
+    filecap = resp.content.strip()
+
+    # create a (sub) directory to put in our directory
+    resp = requests.post(
+        util.node_url(alice.node_dir, u"uri"),
+        params={
+            u"t": u"mkdir",
+        }
+    )
+    # (we need both the read-write and read-only URIs I guess)
+    dircap = resp.content
+    dircap_obj = allmydata.uri.from_string(dircap)
+    dircap_ro = dircap_obj.get_readonly().to_string()
+
+    # create json information about our directory
+    meta = {
+        "a_file": [
+            "filenode", {
+                "ro_uri": filecap,
+                "metadata": {
+                    "ctime": 1202777696.7564139,
+                    "mtime": 1202777696.7564139,
+                    "tahoe": {
+                        "linkcrtime": 1202777696.7564139,
+                        "linkmotime": 1202777696.7564139
+                    }
+                }
+            }
+        ],
+        "some_subdir": [
+            "dirnode", {
+                "rw_uri": dircap,
+                "ro_uri": dircap_ro,
+                "metadata": {
+                    "ctime": 1202778102.7589991,
+                    "mtime": 1202778111.2160511,
+                    "tahoe": {
+                        "linkcrtime": 1202777696.7564139,
+                        "linkmotime": 1202777696.7564139
+                    }
+                }
+            }
+        ]
+    }
+
+    # create a new directory with one file and one sub-dir (all-at-once)
+    resp = util.web_post(
+        alice.node_dir, u"uri",
+        params={u"t": "mkdir-with-children"},
+        data=json.dumps(meta),
+    )
+    assert resp.startswith("URI:DIR2")
+    cap = allmydata.uri.from_string(resp)
+    assert isinstance(cap, allmydata.uri.DirectoryURI)
