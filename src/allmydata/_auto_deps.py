@@ -4,17 +4,6 @@
 # It is ok to import modules from the Python Standard Library if they are
 # always available, or the import is protected by try...except ImportError.
 
-# The semantics for requirement specs changed incompatibly in setuptools 8,
-# which now follows PEP 440. The requirements used in this file must be valid
-# under both the old and new semantics. That can be achieved by limiting
-# requirement specs to one of the following forms:
-#
-#   * >= X, <= Y where X < Y
-#   * >= X, != Y, != Z, ... where X < Y < Z...
-#
-# (In addition, check_requirement in allmydata/__init__.py only supports
-# >=, <= and != operators.)
-
 # Includes some indirect dependencies, but does not include allmydata.
 # These are in the order they should be listed by --version, etc.
 package_imports = [
