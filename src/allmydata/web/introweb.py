@@ -13,16 +13,14 @@ from allmydata.util import idlib
 from allmydata.web.common import (
     getxmlfile,
     render_time,
-    MultiFormatPage,
+    MultiFormatResource,
     SlotsSequenceElement,
 )
 
 
-class IntroducerRoot(resource.Resource):
+class IntroducerRoot(MultiFormatResource):
     def __init__(self, introducer_node):
-        resource.Resource.__init__(self)
-        # probably should fix this.. Resource isn't new-style in py2
-        #super(IntroducerRoot, self).__init__()
+        super(IntroducerRoot, self).__init__()
         self.introducer_node = introducer_node
         self.introducer_service = introducer_node.getServiceNamed("introducer")
         # necessary as a root Resource
@@ -31,8 +29,8 @@ class IntroducerRoot(resource.Resource):
         for filen in os.listdir(static_dir):
             self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
 
-    def render(self, request):
-        return renderElement(request, IntroducerRootElement(
+    def render_HTML(self, req):
+        return renderElement(req, IntroducerRootElement(
             self.introducer_node, self.introducer_service))
 
     def render_JSON(self, req):

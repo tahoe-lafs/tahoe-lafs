@@ -461,6 +461,63 @@ class MultiFormatPage(Page):
 
 
 
+class MultiFormatResource(resource.Resource, object):
+    """
+    ```MultiFormatPage`` is a ``rend.Page`` that can be rendered in a number
+    of different formats.
+
+    Rendered format is controlled by a query argument (given by
+    ``self.formatArgument``).  Different resources may support different
+    formats but ``json`` is a pretty common one.
+    """
+    formatArgument = "t"
+    formatDefault = None
+
+    def render(self, req):
+        """
+        Dispatch to a renderer for a particular format, as selected by a query
+        argument.
+
+        A renderer for the format given by the query argument matching
+        ``formatArgument`` will be selected and invoked.  The default ``Page``
+        rendering behavior will be used if no format is selected (either by
+        query arguments or by ``formatDefault``).
+
+        :return: The result of the selected renderer.
+        """
+        t = get_arg(req, self.formatArgument, self.formatDefault)
+        renderer = self._get_renderer(t)
+        return renderer(req)
+
+
+    def _get_renderer(self, fmt):
+        """
+        Get the renderer for the indicated format.
+
+        :param bytes fmt: The format.  If a method with a prefix of
+            ``render_`` and a suffix of this format (upper-cased) is found, it
+            will be used.
+
+        :return: A callable which takes a Nevow context and renders a
+            response.
+        """
+        renderer = None
+
+        if fmt is not None:
+            try:
+                renderer = getattr(self, "render_{}".format(fmt.upper()))
+            except AttributeError:
+                raise WebError(
+                    "Unknown {} value: {!r}".format(self.formatArgument, fmt),
+                )
+
+        if renderer is None:
+            renderer = self.render_HTML
+
+        return renderer
+
+
+
 class SlotsSequenceElement(template.Element):
     def __init__(self, tag, seq):
         self.loader = template.TagLoader(tag)
