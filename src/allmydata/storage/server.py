@@ -392,8 +392,9 @@ class StorageServer(service.MultiService, Referenceable):
         bucket. Each lease is returned as a LeaseInfo instance.
 
         This method is not for client use.
-        """
 
+        :note: Only for immutable shares.
+        """
         # since all shares get the same lease data, we just grab the leases
         # from the first share
         try:
@@ -402,6 +403,19 @@ class StorageServer(service.MultiService, Referenceable):
             return sf.get_leases()
         except StopIteration:
             return iter([])
+
+    def get_slot_leases(self, storage_index):
+        """
+        This method is not for client use.
+
+        :return: An iterable of the leases attached to this slot.
+        """
+        si_dir = storage_index_to_dir(storage_index)
+        bucketdir = os.path.join(self.sharedir, si_dir)
+        for share_filename in os.listdir(bucketdir):
+            share = MutableShareFile(os.path.join(bucketdir, share_filename))
+            return share.get_leases()
+        return []
 
     def _collect_mutable_shares_for_storage_index(self, bucketdir, write_enabler, si_s):
         """
@@ -549,10 +563,24 @@ class StorageServer(service.MultiService, Referenceable):
         for share in six.viewvalues(shares):
             share.add_or_renew_lease(lease_info)
 
-    def remote_slot_testv_and_readv_and_writev(self, storage_index,
-                                               secrets,
-                                               test_and_write_vectors,
-                                               read_vector):
+    def slot_testv_and_readv_and_writev(
+            self,
+            storage_index,
+            secrets,
+            test_and_write_vectors,
+            read_vector,
+            renew_leases,
+    ):
+        """
+        Read data from shares and conditionally write some data to them.
+
+        :param bool renew_leases: If and only if this is ``True`` then shares
+            which are written to will also have an updated lease applied to
+            them.
+
+        See ``allmydata.interfaces.RIStorageServer`` for details about other
+        parameters and return value.
+        """
         start = time.time()
         self.count("writev")
         si_s = si_b2a(storage_index)
@@ -582,8 +610,6 @@ class StorageServer(service.MultiService, Referenceable):
         )
 
         if testv_is_good:
-            lease_info = self._make_lease_info(renew_secret, cancel_secret)
-
             # now apply the write vectors
             remaining_shares = self._evaluate_write_vectors(
                 bucketdir,
@@ -591,11 +617,25 @@ class StorageServer(service.MultiService, Referenceable):
                 test_and_write_vectors,
                 shares,
             )
-            self._add_or_renew_leases(remaining_shares, lease_info)
+            if renew_leases:
+                lease_info = self._make_lease_info(renew_secret, cancel_secret)
+                self._add_or_renew_leases(remaining_shares, lease_info)
 
         # all done
         self.add_latency("writev", time.time() - start)
         return (testv_is_good, read_data)
+
+    def remote_slot_testv_and_readv_and_writev(self, storage_index,
+                                               secrets,
+                                               test_and_write_vectors,
+                                               read_vector):
+        return self.slot_testv_and_readv_and_writev(
+            storage_index,
+            secrets,
+            test_and_write_vectors,
+            read_vector,
+            renew_leases=True,
+        )
 
     def _allocate_slot_share(self, bucketdir, secrets, sharenum,
                              allocated_size, owner_num=0):

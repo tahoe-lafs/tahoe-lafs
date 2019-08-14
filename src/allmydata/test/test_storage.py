@@ -1369,6 +1369,35 @@ class MutableServer(unittest.TestCase):
         self.failUnless(os.path.exists(prefixdir), prefixdir)
         self.failIf(os.path.exists(bucketdir), bucketdir)
 
+    def test_writev_without_renew_lease(self):
+        """
+        The helper method ``slot_testv_and_readv_and_writev`` does not renew
+        leases if ``False`` is passed for the ``renew_leases`` parameter.
+        """
+        ss = self.create("test_writev_without_renew_lease")
+
+        storage_index = "si2"
+        secrets = (
+            self.write_enabler(storage_index),
+            self.renew_secret(storage_index),
+            self.cancel_secret(storage_index),
+        )
+
+        sharenum = 3
+        datav = [(0, b"Hello, world")]
+
+        ss.slot_testv_and_readv_and_writev(
+            storage_index=storage_index,
+            secrets=secrets,
+            test_and_write_vectors={
+                sharenum: ([], datav, None),
+            },
+            read_vector=[],
+            renew_leases=False,
+        )
+        leases = list(ss.get_slot_leases(storage_index))
+        self.assertEqual([], leases)
+
     def test_remove_non_present(self):
         """
         A write vector which would remove a share completely can be applied on a
