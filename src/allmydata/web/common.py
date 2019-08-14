@@ -463,12 +463,13 @@ class MultiFormatPage(Page):
 
 class MultiFormatResource(resource.Resource, object):
     """
-    ```MultiFormatPage`` is a ``rend.Page`` that can be rendered in a number
-    of different formats.
+    ``MultiFormatResource`` is a ``resource.Resource`` that can be rendered in
+    a number of different formats.
 
     Rendered format is controlled by a query argument (given by
     ``self.formatArgument``).  Different resources may support different
-    formats but ``json`` is a pretty common one.
+    formats but ``json`` is a pretty common one.  ``html`` is the default
+    format if nothing else is given as the ``formatDefault``.
     """
     formatArgument = "t"
     formatDefault = None
@@ -479,9 +480,9 @@ class MultiFormatResource(resource.Resource, object):
         argument.
 
         A renderer for the format given by the query argument matching
-        ``formatArgument`` will be selected and invoked.  The default ``Page``
-        rendering behavior will be used if no format is selected (either by
-        query arguments or by ``formatDefault``).
+        ``formatArgument`` will be selected and invoked.  render_HTML will be
+        used as a default if no format is selected (either by query arguments
+        or by ``formatDefault``).
 
         :return: The result of the selected renderer.
         """
@@ -494,11 +495,11 @@ class MultiFormatResource(resource.Resource, object):
         """
         Get the renderer for the indicated format.
 
-        :param bytes fmt: The format.  If a method with a prefix of
+        :param str fmt: The format.  If a method with a prefix of
             ``render_`` and a suffix of this format (upper-cased) is found, it
             will be used.
 
-        :return: A callable which takes a Nevow context and renders a
+        :return: A callable which takes a twisted.web Request and renders a
             response.
         """
         renderer = None
@@ -519,6 +520,22 @@ class MultiFormatResource(resource.Resource, object):
 
 
 class SlotsSequenceElement(template.Element):
+    """
+    ``SlotsSequenceElement` is a minimal port of nevow's sequence renderer
+    for twisted.web.template.
+
+    Tags passed in to be templated will have two renderers available:
+
+    - The ``item`` renderer will have its tag cloned for each item in the
+      sequence provided, and its slots filled from the sequence item. Each
+      item must be dict-like enough for ``tag.fillSlots(**item)``. Each cloned
+      tag will be siblings with no separator beween them.
+
+    - The ``empty`` renderer will either return its tag unmodified if the
+      provided sequence has no items, or return the empty string if there are
+      any items.
+    """
+
     def __init__(self, tag, seq):
         self.loader = template.TagLoader(tag)
         self.seq = seq
@@ -526,9 +543,9 @@ class SlotsSequenceElement(template.Element):
     @template.renderer
     def item(self, request, tag):
         for item in self.seq:
-            yield tag().fillSlots(**item)
-    @template.renderer
+            yield tag.clone(deep=False).fillSlots(**item)
 
+    @template.renderer
     def empty(self, request, tag):
         if len(self.seq) > 0:
             return ''
