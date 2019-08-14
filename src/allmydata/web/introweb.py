@@ -75,16 +75,6 @@ class IntroducerRootElement(Element):
     def node_data(self, req, tag):
         return tag.fillSlots(**self.node_data_dict)
 
-    # FIXME: This code is duplicated in root.py and introweb.py.
-    def data_rendered_at(self, ctx, data):
-        return render_time(time.time())
-    def data_version(self, ctx, data):
-        return get_package_versions_string()
-    def data_import_path(self, ctx, data):
-        return str(allmydata).replace("/", "/ ")
-    def data_my_nodeid(self, ctx, data):
-        return idlib.nodeid_b2a(self.introducer_node.nodeid)
-
     @renderer
     def announcement_summary(self, req, data):
         services = {}
