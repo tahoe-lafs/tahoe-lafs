@@ -193,6 +193,17 @@ You can also install directly from the source tarball URL::
  tahoe-lafs: 1.13.0
  ...
 
+Extras
+------
+
+Tahoe-LAFS provides some functionality only when explicitly requested at installation time.
+It does this using the "extras" feature of setuptools.
+You can request these extra features when running the ``pip install`` command like this::
+
+  % venv/bin/pip install tahoe-lafs[sftp]
+
+This example enables the SFTP frontend.
+The Tahoe-LAFS documentation for specific features which require an explicit install-time step will mention the "extra" that must be requested.
 
 Hacking On Tahoe-LAFS
 ---------------------
