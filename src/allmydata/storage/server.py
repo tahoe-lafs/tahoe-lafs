@@ -438,7 +438,14 @@ class StorageServer(service.MultiService, Referenceable):
         """
         Execute test vectors against share data.
 
-        :param test_and_write_vectors:
+        :param test_and_write_vectors: See
+            ``allmydata.interfaces.TestAndWriteVectorsForShares``.
+
+        :param dict[int, MutableShareFile] shares: The shares against which to
+            execute the vectors.
+
+        :return bool: ``True`` if and only if all of the test vectors succeed
+            against the given shares.
         """
         for sharenum in test_and_write_vectors:
             (testv, datav, new_length) = test_and_write_vectors[sharenum]
@@ -456,12 +463,42 @@ class StorageServer(service.MultiService, Referenceable):
         return True
 
     def _evaluate_read_vectors(self, read_vector, shares):
+        """
+        Execute read vectors against share data.
+
+        :param read_vector: See ``allmydata.interfaces.ReadVector``.
+
+        :param dict[int, MutableShareFile] shares: The shares against which to
+            execute the vector.
+
+        :return dict[int, bytes]: The data read from the shares.
+        """
         read_data = {}
         for sharenum, share in shares.items():
             read_data[sharenum] = share.readv(read_vector)
         return read_data
 
     def _evaluate_write_vectors(self, bucketdir, secrets, test_and_write_vectors, shares):
+        """
+        Execute write vectors against share data.
+
+        :param bytes bucketdir: The parent directory holding the shares.  This
+            is removed if the last share is removed from it.  If shares are
+            created, they are created in it.
+
+        :param secrets: A tuple of ``WriteEnablerSecret``,
+            ``LeaseRenewSecret``, and ``LeaseCancelSecret``.  These secrets
+            are used to initialize new shares.
+
+        :param test_and_write_vectors: See
+            ``allmydata.interfaces.TestAndWriteVectorsForShares``.
+
+        :param dict[int, MutableShareFile]: The shares against which to
+            execute the vectors.
+
+        :return dict[int, MutableShareFile]: The shares which still exist
+            after applying the vectors.
+        """
         remaining_shares = {}
 
         for sharenum in test_and_write_vectors:
@@ -490,6 +527,9 @@ class StorageServer(service.MultiService, Referenceable):
         return remaining_shares
 
     def _make_lease_info(self, renew_secret, cancel_secret):
+        """
+        :return LeaseInfo: Information for a new lease for a share.
+        """
         ownerid = 1 # TODO
         expire_time = time.time() + 31*24*60*60   # one month
         lease_info = LeaseInfo(ownerid,
@@ -498,6 +538,14 @@ class StorageServer(service.MultiService, Referenceable):
         return lease_info
 
     def _add_or_renew_leases(self, shares, lease_info):
+        """
+        Put the given lease onto the given shares.
+
+        :param dict[int, MutableShareFile] shares: The shares to put the lease
+            onto.
+
+        :param LeaseInfo lease_info: The lease to put on the shares.
+        """
         for share in six.viewvalues(shares):
             share.add_or_renew_lease(lease_info)
 
