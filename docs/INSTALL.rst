@@ -200,9 +200,9 @@ Tahoe-LAFS provides some functionality only when explicitly requested at install
 It does this using the "extras" feature of setuptools.
 You can request these extra features when running the ``pip install`` command like this::
 
-  % venv/bin/pip install tahoe-lafs[sftp]
+  % venv/bin/pip install tahoe-lafs[tor]
 
-This example enables the SFTP frontend.
+This example enables support for listening and connecting using Tor.
 The Tahoe-LAFS documentation for specific features which require an explicit install-time step will mention the "extra" that must be requested.
 
 Hacking On Tahoe-LAFS
