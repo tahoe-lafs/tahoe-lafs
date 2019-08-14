@@ -1,11 +1,9 @@
 
 import time, os
-from nevow import rend
-from nevow.static import File as nevow_File
-from nevow.util import resource_filename
+from pkg_resources import resource_filename
 from twisted.web.template import Element, renderer, renderElement, XMLFile
 from twisted.python.filepath import FilePath
-from twisted.web import resource
+from twisted.web import resource, static
 import allmydata
 import json
 from allmydata.version_checks import get_package_versions_string
@@ -27,7 +25,7 @@ class IntroducerRoot(MultiFormatResource):
         self.putChild('', self)
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
-            self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
+            self.putChild(filen, static.File(os.path.join(static_dir, filen)))
 
     def render_HTML(self, req):
         return renderElement(req, IntroducerRootElement(
