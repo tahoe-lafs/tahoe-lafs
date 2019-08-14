@@ -1,4 +1,3 @@
-import re
 from bs4 import BeautifulSoup
 from os.path import join
 from twisted.trial import unittest

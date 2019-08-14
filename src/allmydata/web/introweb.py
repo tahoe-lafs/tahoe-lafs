@@ -3,7 +3,7 @@ import time, os
 from pkg_resources import resource_filename
 from twisted.web.template import Element, XMLFile, renderElement, renderer
 from twisted.python.filepath import FilePath
-from twisted.web import resource, static
+from twisted.web import static
 import allmydata
 import json
 from allmydata.version_checks import get_package_versions_string
