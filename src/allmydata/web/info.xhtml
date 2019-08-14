@@ -1,67 +1,67 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1"><head>
-  <title n:render="title"></title>
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1"><head>
+  <title t:render="title" />
   <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
   <link href="/icon.png" rel="shortcut icon" />
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
 </head><body>
 
-<h1 n:render="header"></h1>
+<h1 t:render="header"></h1>
 
 <ul>
-  <li>Object Type: <span n:render="type" /></li>
-  <li>Storage Index: <tt n:render="si" /></li>
-  <li>Object Size: <span n:render="size" /></li>
+  <li>Object Type: <span t:render="type" /></li>
+  <li>Storage Index: <tt t:render="si" /></li>
+  <li>Object Size: <span t:render="size" /></li>
   <li>Access Caps (Tahoe-URIs):
   <table class="table-headings-left">
-    <span n:render="is_directory">
+    <span t:render="is_directory">
     <tr>
       <th>Directory writecap</th>
-      <td><tt class="data-chars" n:render="directory_writecap" /></td>
+      <td><tt class="data-chars" t:render="directory_writecap" /></td>
     </tr>
     <tr>
       <th>Directory readcap</th>
-      <td><tt class="data-chars" n:render="directory_readcap" /></td>
+      <td><tt class="data-chars" t:render="directory_readcap" /></td>
     </tr>
     <tr>
       <th>Directory verifycap</th>
-      <td><tt class="data-chars" n:render="directory_verifycap" /></td>
+      <td><tt class="data-chars" t:render="directory_verifycap" /></td>
     </tr>
     </span>
 
     <tr>
       <th>File writecap</th>
-      <td><tt class="data-chars" n:render="file_writecap" /></td>
+      <td><tt class="data-chars" t:render="file_writecap" /></td>
     </tr>
     <tr>
       <th>File readcap</th>
-      <td><tt class="data-chars" n:render="file_readcap" /></td>
+      <td><tt class="data-chars" t:render="file_readcap" /></td>
     </tr>
     <tr>
       <th>File verifycap</th>
-      <td><tt class="data-chars" n:render="file_verifycap" /></td>
+      <td><tt class="data-chars" t:render="file_verifycap" /></td>
     </tr>
   </table></li>
   <li><a href="?t=json">JSON</a></li>
-  <li n:render="raw_link" />
+  <li t:render="raw_link" />
 </ul>
 
-<div n:render="is_checkable">
+<div t:render="is_checkable">
   <h2>Checker Operations</h2>
-  <div n:render="check_form" />
+  <div t:render="check_form" />
 </div>
 
-<div n:render="is_mutable_file">
+<div t:render="is_mutable_file">
   <h2>Mutable File Operations</h2>
-  <div n:render="overwrite_form" />
+  <div t:render="overwrite_form" />
 </div>
 
-<div n:render="is_directory">
+<div t:render="is_directory">
   <h2>Directory Operations</h2>
-  <div n:render="deep_check_form" />
-  <div n:render="deep_size_form" />
-  <div n:render="deep_stats_form" />
-  <div n:render="manifest_form" />
+  <div t:render="deep_check_form" />
+  <div t:render="deep_size_form" />
+  <div t:render="deep_stats_form" />
+  <div t:render="manifest_form" />
 </div>
 
 </body></html>
