@@ -18,6 +18,8 @@ BLACKLIST = {
     "allmydata.watchdog._watchdog_541",
     "allmydata.watchdog.inotify",
     "allmydata.windows.inotify",
+    "allmydata.windows.registry",
+    "allmydata.windows.tahoesvc",
 }
 
 
