@@ -341,6 +341,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "towncrier",
               "testtools",
               "fixtures",
+              "beautifulsoup4",
+              "html5lib",
           ],
           "tor": [
               "foolscap[tor] >= 0.12.5",
