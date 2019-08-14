@@ -1,7 +1,7 @@
 
 import time, os
 from pkg_resources import resource_filename
-from twisted.web.template import Element, renderer, renderElement, XMLFile
+from twisted.web.template import Element, XMLFile, renderElement, renderer
 from twisted.python.filepath import FilePath
 from twisted.web import resource, static
 import allmydata
@@ -9,7 +9,6 @@ import json
 from allmydata.version_checks import get_package_versions_string
 from allmydata.util import idlib
 from allmydata.web.common import (
-    getxmlfile,
     render_time,
     MultiFormatResource,
     SlotsSequenceElement,
@@ -17,12 +16,13 @@ from allmydata.web.common import (
 
 
 class IntroducerRoot(MultiFormatResource):
+
     def __init__(self, introducer_node):
         super(IntroducerRoot, self).__init__()
         self.introducer_node = introducer_node
         self.introducer_service = introducer_node.getServiceNamed("introducer")
         # necessary as a root Resource
-        self.putChild('', self)
+        self.putChild("", self)
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
             self.putChild(filen, static.File(os.path.join(static_dir, filen)))
@@ -61,10 +61,10 @@ class IntroducerRootElement(Element):
         self.introducer_node = introducer_node
         self.introducer_service = introducer_service
         self.node_data_dict = {
-            'my_nodeid': idlib.nodeid_b2a(self.introducer_node.nodeid),
-            'version': get_package_versions_string(),
-            'import_path': str(allmydata).replace("/", "/ "),  # XXX kludge for wrapping
-            'rendered_at': render_time(time.time()),
+            "my_nodeid": idlib.nodeid_b2a(self.introducer_node.nodeid),
+            "version": get_package_versions_string(),
+            "import_path": str(allmydata).replace("/", "/ "),  # XXX kludge for wrapping
+            "rendered_at": render_time(time.time()),
         }
 
     @renderer
@@ -72,7 +72,7 @@ class IntroducerRootElement(Element):
         return tag.fillSlots(**self.node_data_dict)
 
     @renderer
-    def announcement_summary(self, req, data):
+    def announcement_summary(self, req, tag):
         services = {}
         for ad in self.introducer_service.get_announcements():
             if ad.service_name not in services:
@@ -84,7 +84,7 @@ class IntroducerRootElement(Element):
                           for service_name in service_names])
 
     @renderer
-    def client_summary(self, req, data):
+    def client_summary(self, req, tag):
         counts = {}
         for s in self.introducer_service.get_subscribers():
             if s.service_name not in counts:
@@ -110,7 +110,7 @@ class IntroducerRootElement(Element):
         return SlotsSequenceElement(tag, services)
 
     @renderer
-    def subscribers(self, ctx, tag):
+    def subscribers(self, req, tag):
         subscribers = [{
             "nickname": s.nickname,
             "tubid": s.tubid,
