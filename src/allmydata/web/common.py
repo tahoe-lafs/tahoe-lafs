@@ -467,13 +467,6 @@ class SlotsSequenceElement(template.Element):
         self.seq = seq
 
     @template.renderer
-    def header(self, request, tag):
-        if len(self.seq) > 0:
-            return tag
-        else:
-            return ''
-
-    @template.renderer
     def item(self, request, tag):
         for item in self.seq:
             yield tag().fillSlots(**item)
