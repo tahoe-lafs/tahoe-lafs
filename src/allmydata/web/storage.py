@@ -4,18 +4,11 @@ from twisted.python.filepath import FilePath
 from twisted.web.template import Element, XMLFile, renderElement, renderer
 from twisted.web.template import tags as T
 from allmydata.web.common import (
-    getxmlfile,
     abbreviate_time,
     MultiFormatResource,
 )
 from allmydata.util.abbreviate import abbreviate_space
 from allmydata.util import time_format, idlib
-
-
-def remove_prefix(s, prefix):
-    if not s.startswith(prefix):
-        return None
-    return s[len(prefix):]
 
 
 class StorageStatus(MultiFormatResource):
