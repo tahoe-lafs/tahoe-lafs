@@ -576,9 +576,9 @@ class StorageServer(service.MultiService, Referenceable):
         """
         Read data from shares and conditionally write some data to them.
 
-        :param bool renew_leases: If and only if this is ``True`` then shares
-            which are written to will also have an updated lease applied to
-            them.
+        :param bool renew_leases: If and only if this is ``True`` and the test
+            vectors pass then shares in this slot will also have an updated
+            lease applied to them.
 
         See ``allmydata.interfaces.RIStorageServer`` for details about other
         parameters and return value.
