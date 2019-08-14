@@ -49,7 +49,7 @@ from ..util.eliotutil import (
     inline_callbacks,
 )
 
-class Expect(Protocol):
+class Expect(Protocol, object):
     def __init__(self):
         self._expectations = []
 
@@ -79,7 +79,7 @@ class Expect(Protocol):
             d.errback(reason)
 
 
-class _ProcessProtocolAdapter(ProcessProtocol):
+class _ProcessProtocolAdapter(ProcessProtocol, object):
     def __init__(self, fds):
         self._fds = fds
 
@@ -218,7 +218,7 @@ class CLINodeAPI(object):
         return stopping
 
 
-class _WaitForEnd(ProcessProtocol):
+class _WaitForEnd(ProcessProtocol, object):
     def __init__(self, ended):
         self._ended = ended
 
