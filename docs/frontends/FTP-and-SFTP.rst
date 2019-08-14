@@ -37,6 +37,15 @@ We recommend SFTP over FTP, because the protocol is better, and the server
 implementation in Tahoe-LAFS is more complete. See `Known Issues`_, below,
 for details.
 
+Software Dependencies
+---------------------
+
+The SFTP support in Tahoe-LAFS requires certain additional libraries not installed by default.
+In order to install everything necessary, use the "sftp" extra when installing Tahoe-LAFS.
+For example::
+
+  % pip install tahoe-lafs[sftp]
+
 Tahoe-LAFS Support
 ==================
 
