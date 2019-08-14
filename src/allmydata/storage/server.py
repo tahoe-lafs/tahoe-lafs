@@ -408,6 +408,8 @@ class StorageServer(service.MultiService, Referenceable):
         """
         This method is not for client use.
 
+        :note: Only for mutable shares.
+
         :return: An iterable of the leases attached to this slot.
         """
         si_dir = storage_index_to_dir(storage_index)
