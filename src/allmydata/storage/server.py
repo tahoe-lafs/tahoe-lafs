@@ -482,8 +482,10 @@ class StorageServer(service.MultiService, Referenceable):
                 remaining_shares[sharenum] = shares[sharenum]
 
             if new_length == 0:
-                # delete empty bucket directories
-                if not os.listdir(bucketdir):
+                # delete bucket directories that exist but are empty.  They
+                # might not exist if a client showed up and asked us to
+                # truncate a share we weren't even holding.
+                if os.path.exists(bucketdir) and [] == os.listdir(bucketdir):
                     os.rmdir(bucketdir)
         return remaining_shares
 
