@@ -36,7 +36,9 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
     """This is a no-network unit test of the SFTPUserHandler and the abstractions it uses."""
 
     if conch_unavailable_reason:
-        skip = "SFTP support requires Twisted Conch which is not available: {}".format(e)
+        skip = "SFTP support requires Twisted Conch which is not available: {}".format(
+            conch_unavailable_reason,
+        )
 
     def shouldFailWithSFTPError(self, expected_code, which, callable, *args, **kwargs):
         assert isinstance(expected_code, int), repr(expected_code)
