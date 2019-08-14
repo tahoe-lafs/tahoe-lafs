@@ -2,7 +2,7 @@
 import time
 import json
 
-from twisted.web import http, server, resource
+from twisted.web import http, server, resource, template
 from twisted.python import log
 from twisted.python.failure import Failure
 from zope.interface import Interface
@@ -458,6 +458,32 @@ class MultiFormatPage(Page):
             if renderer is None:
                 return super(MultiFormatPage, self).renderHTTP
             return lambda ctx: renderer(IRequest(ctx))
+
+
+
+class SlotsSequenceElement(template.Element):
+    def __init__(self, tag, seq):
+        self.loader = template.TagLoader(tag)
+        self.seq = seq
+
+    @template.renderer
+    def header(self, request, tag):
+        if len(self.seq) > 0:
+            return tag
+        else:
+            return ''
+
+    @template.renderer
+    def item(self, request, tag):
+        for item in self.seq:
+            yield tag().fillSlots(**item)
+    @template.renderer
+
+    def empty(self, request, tag):
+        if len(self.seq) > 0:
+            return ''
+        else:
+            return tag
 
 
 

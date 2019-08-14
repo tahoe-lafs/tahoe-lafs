@@ -1,4 +1,4 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1"><head>
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1"><head>
   <title>Tahoe-LAFS - Introducer Status</title>
   <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
   <link href="/icon.png" rel="shortcut icon" />
@@ -10,23 +10,23 @@
 <div class="section" id="this-client">
   <h2>This Introducer</h2>
 
-  <table class="node-info table-headings-left">
-    <tr><th>My nodeid:</th> <td class="nodeid mine data-chars" n:render="string" n:data="my_nodeid" /></tr>
-    <tr><th>My versions:</th> <td n:render="string" n:data="version" /></tr>
-    <tr><th>Tahoe-LAFS code imported from:</th> <td n:render="data" n:data="import_path" /></tr>
+  <table class="node-info table-headings-left" t:render="node_data">
+    <tr><th>My nodeid:</th> <td class="nodeid mine data-chars"><t:slot name="my_nodeid" /></td></tr>
+    <tr><th>My versions:</th> <td><t:slot name="version" /></td></tr>
+    <tr><th>Tahoe-LAFS code imported from:</th> <td><t:slot name="import_path" /></td></tr>
   </table>
 </div>
 
-<div>Announcement Summary: <span n:render="announcement_summary" /></div>
-<div>Subscription Summary: <span n:render="client_summary" /></div>
+<div>Announcement Summary: <span t:render="announcement_summary" /></div>
+<div>Subscription Summary: <span t:render="client_summary" /></div>
 
 <br />
 
 
 <div class="section">
 <h2>Service Announcements</h2>
-<table class="services table-headings-top" n:render="sequence" n:data="services">
-  <tr n:pattern="header">
+<table class="services table-headings-top" t:render="services">
+  <tr t:render="header">
     <th class="nickname-and-peerid">
       <div class="service-nickname">Nickname</div>
       <div class="nodeid data-chars">ServerID</div></th>
@@ -34,23 +34,23 @@
     <th>Version</th>
     <th>Service Name</th>
   </tr>
-  <tr n:pattern="item" n:render="service_row">
+  <tr t:render="item">
     <td class="nickname-and-peerid">
-      <div class="nickname"><n:slot name="nickname"/></div>
-      <div class="nodeid data-chars"><n:slot name="serverid"/></div></td>
-    <td class="service-announced"><n:attr name="title"><n:slot name="connection-hints"/></n:attr><n:slot name="announced"/></td>
-    <td class="service-version"><n:slot name="version"/></td>
-    <td class="service-service-name"><n:slot name="service_name"/></td>
+      <div class="nickname"><t:slot name="nickname"/></div>
+      <div class="nodeid data-chars"><t:slot name="serverid"/></div></td>
+    <td class="service-announced"><t:attr name="title"><t:slot name="connection-hints"/></t:attr><t:slot name="announced"/></td>
+    <td class="service-version"><t:slot name="version"/></td>
+    <td class="service-service-name"><t:slot name="service_name"/></td>
   </tr>
-  <tr n:pattern="empty"><td>no peers!</td></tr>
+  <tr t:render="empty"><td>no peers!</td></tr>
 </table>
 </div>
 
 
 <div>
 <h2>Subscribed Clients</h2>
-<table class="services table-headings-top" n:render="sequence" n:data="subscribers">
-  <tr n:pattern="header">
+<table class="services table-headings-top" t:render="subscribers">
+  <tr t:render="header">
     <th class="nickname-and-peerid">
       <div class="service-nickname">Nickname</div>
       <div class="nodeid data-chars">Tub ID</div></th>
@@ -59,20 +59,20 @@
     <th>Version</th>
     <th>Subscribed To</th>
   </tr>
-  <tr n:pattern="item" n:render="subscriber_row">
+  <tr t:render="item">
     <td class="nickname-and-peerid">
-      <div class="nickname"><n:slot name="nickname"/></div>
-      <div class="nodeid data-chars"><n:slot name="tubid"/></div></td>
-    <td><n:slot name="connected"/></td>
-    <td class="service-since"><n:slot name="since"/></td>
-    <td class="service-version"><n:slot name="version"/></td>
-    <td class="service-service-name"><n:slot name="service_name"/></td>
+      <div class="nickname"><t:slot name="nickname"/></div>
+      <div class="nodeid data-chars"><t:slot name="tubid"/></div></td>
+    <td><t:slot name="connected"/></td>
+    <td class="service-since"><t:slot name="since"/></td>
+    <td class="service-version"><t:slot name="version"/></td>
+    <td class="service-service-name"><t:slot name="service_name"/></td>
   </tr>
-  <tr n:pattern="empty"><td>no subscribers!</td></tr>
+  <tr t:render="empty"><td>no subscribers!</td></tr>
 </table>
 </div>
 
-<p class="minutia">Page rendered at <span n:render="data" n:data="rendered_at" /></p>
+<p class="minutia" t:render="node_data">Page rendered at <span><t:slot name="rendered_at" /></span></p>
 
   </body>
 </html>
