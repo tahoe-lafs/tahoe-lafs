@@ -412,10 +412,8 @@ class StorageServer(service.MultiService, Referenceable):
 
         :return: An iterable of the leases attached to this slot.
         """
-        si_dir = storage_index_to_dir(storage_index)
-        bucketdir = os.path.join(self.sharedir, si_dir)
-        for share_filename in os.listdir(bucketdir):
-            share = MutableShareFile(os.path.join(bucketdir, share_filename))
+        for _, share_filename in self._get_bucket_shares(storage_index):
+            share = MutableShareFile(share_filename)
             return share.get_leases()
         return []
 

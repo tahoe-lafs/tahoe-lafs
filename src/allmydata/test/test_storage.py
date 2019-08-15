@@ -1398,6 +1398,17 @@ class MutableServer(unittest.TestCase):
         leases = list(ss.get_slot_leases(storage_index))
         self.assertEqual([], leases)
 
+    def test_get_slot_leases_empty_slot(self):
+        """
+        When ``get_slot_leases`` is called for a slot for which the server has no
+        shares, it returns an empty iterable.
+        """
+        ss = self.create(b"test_get_slot_leases_empty_slot")
+        self.assertEqual(
+            list(ss.get_slot_leases(b"si1")),
+            [],
+        )
+
     def test_remove_non_present(self):
         """
         A write vector which would remove a share completely can be applied on a
