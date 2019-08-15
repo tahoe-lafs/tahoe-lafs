@@ -254,7 +254,7 @@ def test_directory_deep_check(alice):
     dir_meta = json.loads(resp.content)
 
     # upload a file of pangrams into the directory
-    FILE_CONTENTS = b"Sphinx of black quartz, judge my vow.\n" * 2048
+    FILE_CONTENTS = b"Sphinx of black quartz, judge my vow.\n" * (2048*10)
 
     resp = requests.post(
         dircap_url,
@@ -266,17 +266,29 @@ def test_directory_deep_check(alice):
             u"file": FILE_CONTENTS,
         }
     )
-    cap = resp.content
+    cap0 = resp.content
+    print("Uploaded data0, cap={}".format(cap0))
 
-    print("Uploaded data, cap={}".format(cap))
+    # a different pangram
+    FILE_CONTENTS = b"The five boxing wizards jump quickly.\n" * (2048*10)
 
+    resp = requests.post(
+        dircap_url,
+        params={
+            u"t": u"upload",
+            u"upload-chk": u"upload-chk",
+        },
+        files={
+            u"file": FILE_CONTENTS,
+        }
+    )
+    cap1 = resp.content
+    print("Uploaded data1, cap={}".format(cap1))
 
-    resp= requests.get(
-        util.node_url(alice.node_dir, u"uri/{}".format(urllib2.quote(cap))),
+    resp = requests.get(
+        util.node_url(alice.node_dir, u"uri/{}".format(urllib2.quote(cap0))),
         params={u"t": u"info"},
     )
-    print("info", resp.content)
-
 
     def check_repair_data(checkdata):
         assert checkdata["healthy"] is True
@@ -334,8 +346,8 @@ def test_directory_deep_check(alice):
         params={
             u"t": u"start-deep-check",
             u"return_to": u".",
-            u"verify": u"true",
-            u"repair": u"true",
+            u"verify": u"on",
+            u"repair": u"on",
             u"output": u"JSON",
             u"ophandle": u"deadbeef",
         }
@@ -346,13 +358,38 @@ def test_directory_deep_check(alice):
     while not data['finished']:
         time.sleep(0.5)
         print("deep-check not finished, reloading")
-        resp = requests.get(deepcheck_uri)
+        resp = requests.get(deepcheck_uri, params={u"output": "JSON"})
         data = json.loads(resp.content)
     print("deep-check finished")
     assert data[u"stats"][u"count-immutable-files"] == 1
     assert data[u"stats"][u"count-literal-files"] == 0
-    assert data[u"stats"][u"largest-immutable-file"] == 77824
+    assert data[u"stats"][u"largest-immutable-file"] == 778240
     assert data[u"count-objects-checked"] == 2
+
+    # also get the HTML version
+    resp = requests.post(
+        dircap_url,
+        params={
+            u"t": u"start-deep-check",
+            u"return_to": u".",
+            u"verify": u"on",
+            u"repair": u"on",
+            u"ophandle": u"definitely_random",
+        }
+    )
+    deepcheck_uri = resp.url
+
+    # if the operations isn't done, there's an <H2> tag with the
+    # reload link; otherwise there's only an <H1> tag..
+    for _ in range(5):
+        resp = requests.get(deepcheck_uri)
+        dom = BeautifulSoup(resp.content, "html5lib")
+        if dom.h1 and u'Results' in unicode(dom.h1.string):
+            break
+        if dom.h2 and dom.h2.a and u"Reload" in unicode(dom.h2.a.string):
+            dom = None
+            time.sleep(1)
+    assert dom is not None, "Operation never completed"
 
 
 def test_storage_info(storage_nodes):
