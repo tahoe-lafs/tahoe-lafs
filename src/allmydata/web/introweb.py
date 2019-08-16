@@ -39,7 +39,7 @@ class IntroducerRoot(MultiFormatResource):
             if s.service_name not in counts:
                 counts[s.service_name] = 0
             counts[s.service_name] += 1
-        res["subscription_summary"] = counts
+        res[u"subscription_summary"] = counts
 
         announcement_summary = {}
         for ad in self.introducer_service.get_announcements():
@@ -47,9 +47,9 @@ class IntroducerRoot(MultiFormatResource):
             if service_name not in announcement_summary:
                 announcement_summary[service_name] = 0
             announcement_summary[service_name] += 1
-        res["announcement_summary"] = announcement_summary
+        res[u"announcement_summary"] = announcement_summary
 
-        return json.dumps(res, indent=1) + "\n"
+        return json.dumps(res, indent=1) + b"\n"
 
 
 class IntroducerRootElement(Element):
@@ -80,8 +80,8 @@ class IntroducerRootElement(Element):
             services[ad.service_name] += 1
         service_names = services.keys()
         service_names.sort()
-        return ", ".join(["%s: %d" % (service_name, services[service_name])
-                          for service_name in service_names])
+        return u", ".join(u"{}: {}".format(service_name, services[service_name])
+                          for service_name in service_names)
 
     @renderer
     def client_summary(self, req, tag):
@@ -90,8 +90,8 @@ class IntroducerRootElement(Element):
             if s.service_name not in counts:
                 counts[s.service_name] = 0
             counts[s.service_name] += 1
-        return ", ".join([ "%s: %d" % (name, counts[name])
-                           for name in sorted(counts.keys()) ] )
+        return u", ".join(u"{}: {}".format(name, counts[name])
+                          for name in sorted(counts.keys()))
 
     @renderer
     def services(self, req, tag):
@@ -101,8 +101,8 @@ class IntroducerRootElement(Element):
             "serverid": ad.serverid,
             "nickname": ad.nickname,
             "connection-hints":
-                "connection hints: " + " ".join(ad.connection_hints),
-            "connected": "?",
+                u"connection hints: " + u" ".join(ad.connection_hints),
+            "connected": u"?",
             "announced": render_time(ad.when),
             "version": ad.version,
             "service_name": ad.service_name,

@@ -460,7 +460,6 @@ class MultiFormatPage(Page):
             return lambda ctx: renderer(IRequest(ctx))
 
 
-
 class MultiFormatResource(resource.Resource, object):
     """
     ``MultiFormatResource`` is a ``resource.Resource`` that can be rendered in
@@ -490,7 +489,6 @@ class MultiFormatResource(resource.Resource, object):
         renderer = self._get_renderer(t)
         return renderer(req)
 
-
     def _get_renderer(self, fmt):
         """
         Get the renderer for the indicated format.
@@ -516,7 +514,6 @@ class MultiFormatResource(resource.Resource, object):
             renderer = self.render_HTML
 
         return renderer
-
 
 
 class SlotsSequenceElement(template.Element):
@@ -548,10 +545,9 @@ class SlotsSequenceElement(template.Element):
     @template.renderer
     def empty(self, request, tag):
         if len(self.seq) > 0:
-            return ''
+            return u''
         else:
             return tag
-
 
 
 class TokenOnlyWebApi(resource.Resource, object):

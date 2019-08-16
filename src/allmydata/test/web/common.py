@@ -7,10 +7,12 @@ unknown_immcap = u"imm.lafs://immutable_from_the_future_imm_\u263A".encode('utf-
 
 FAVICON_MARKUP = '<link href="/icon.png" rel="shortcut icon" />'
 
+
 def assert_soup_has_favicon(testcase, soup):
-    links = soup.find_all('link', rel='shortcut icon')
+    links = soup.find_all(u'link', rel=u'shortcut icon')
     testcase.assert_(
-        any(t['href'] == '/icon.png' for t in links), soup)
+        any(t[u'href'] == u'/icon.png' for t in links), soup)
+
 
 def assert_soup_has_text(testcase, soup, text):
     testcase.assert_(

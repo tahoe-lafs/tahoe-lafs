@@ -15,6 +15,7 @@ from ..common import (
 )
 from ..common_web import do_http
 
+
 class IntroducerWeb(unittest.TestCase):
     def setUp(self):
         self.node = None
@@ -50,7 +51,7 @@ class IntroducerWeb(unittest.TestCase):
         url = "http://localhost:%d/" % self.ws.getPortnum()
         res = yield do_http("get", url)
         soup = BeautifulSoup(res, 'html5lib')
-        assert_soup_has_text(self, soup, 'Welcome to the Tahoe-LAFS Introducer')
+        assert_soup_has_text(self, soup, u'Welcome to the Tahoe-LAFS Introducer')
         assert_soup_has_favicon(self, soup)
-        assert_soup_has_text(self, soup, 'Page rendered at')
-        assert_soup_has_text(self, soup, 'Tahoe-LAFS code imported from:')
+        assert_soup_has_text(self, soup, u'Page rendered at')
+        assert_soup_has_text(self, soup, u'Tahoe-LAFS code imported from:')
