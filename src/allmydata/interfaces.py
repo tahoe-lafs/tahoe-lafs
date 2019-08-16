@@ -3069,22 +3069,8 @@ class IFoolscapStoragePlugin(IPlugin):
         This will be exposed and offered to clients in the storage server's
         announcement.
 
-        :param dict configuration: Any configuration given in the section for
-            this plugin in the node's configuration file.  As an example, the
-            configuration for the original anonymous-access filesystem-based
-            storage server might look like::
-
-                {u"storedir": u"/foo/bar/storage",
-                 u"nodeid": u"abcdefg...",
-                 u"reserved_space": 0,
-                 u"discard_storage": False,
-                 u"readonly_storage": False,
-                 u"expiration_enabled": False,
-                 u"expiration_mode": u"age",
-                 u"expiration_override_lease_duration": None,
-                 u"expiration_cutoff_date": None,
-                 u"expiration_sharetypes": (u"mutable, u"immutable"),
-                }
+        :param allmydata.node._Config configuration: A representation of the
+            configuration for the node into which this plugin has been loaded.
 
         :param get_anonymous_storage_server: A no-argument callable which
             returns a single instance of the original, anonymous-access
@@ -3102,8 +3088,8 @@ class IFoolscapStoragePlugin(IPlugin):
         Get an ``IStorageServer`` provider that implements the client side of the
         storage protocol.
 
-        :param dict configuration: Any configuration given in the section for
-            this plugin in the node's configuration file.
+        :param allmydata.node._Config configuration: A representation of the
+            configuration for the node into which this plugin has been loaded.
 
         :param dict announcement: The announcement for the corresponding
             server portion of this plugin received from a storage server which
@@ -3122,8 +3108,8 @@ class IFoolscapStoragePlugin(IPlugin):
         Get an ``IResource`` that can be published in the Tahoe-LAFS web interface
         to expose information related to this plugin.
 
-        :param dict configuration: Any configuration given in the section for
-            this plugin in the node's configuration file.
+        :param allmydata.node._Config configuration: A representation of the
+            configuration for the node into which this plugin has been loaded.
 
         :rtype: ``IResource``
         """
