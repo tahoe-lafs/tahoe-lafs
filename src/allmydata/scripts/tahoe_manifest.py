@@ -12,7 +12,7 @@ from allmydata.util.encodingutil import quote_output, quote_path
 class FakeTransport(object):
     disconnecting = False
 
-class ManifestStreamer(LineOnlyReceiver):
+class ManifestStreamer(LineOnlyReceiver, object):
     delimiter = "\n"
 
     def __init__(self):

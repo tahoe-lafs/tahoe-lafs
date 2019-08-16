@@ -336,10 +336,10 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
     assert created, "Didn't create a magic-folder"
 
     # to actually-start the magic-folder we have to re-start
-    edmond.signalProcess('TERM')
-    yield edmond._protocol.exited
-    time.sleep(1)
-    edmond = yield util._run_node(reactor, edmond._node_dir, request, 'Completed initial Magic Folder scan successfully')
+    edmond.transport.signalProcess('TERM')
+    yield edmond.transport.exited
+    edmond = yield util._run_node(reactor, edmond.node_dir, request, 'Completed initial Magic Folder scan successfully')
+    util.await_client_ready(edmond)
 
     # add a thing to the magic-folder
     with open(join(magic_folder, "its_a_file"), "w") as f:
@@ -383,10 +383,11 @@ def test_edmond_uploads_then_restarts(reactor, request, temp_dir, introducer_fur
     # re-starting edmond right now would "normally" trigger the 2880 bug
 
     # kill edmond
-    edmond.signalProcess('TERM')
-    yield edmond._protocol.exited
+    edmond.transport.signalProcess('TERM')
+    yield edmond.transport.exited
     time.sleep(1)
-    edmond = yield util._run_node(reactor, edmond._node_dir, request, 'Completed initial Magic Folder scan successfully')
+    edmond = yield util._run_node(reactor, edmond.node_dir, request, 'Completed initial Magic Folder scan successfully')
+    util.await_client_ready(edmond)
 
     # XXX how can we say for sure if we've waited long enough? look at
     # tail of logs for magic-folder ... somethingsomething?
@@ -408,7 +409,7 @@ def test_alice_adds_files_while_bob_is_offline(reactor, request, temp_dir, magic
     bob_node_dir = join(temp_dir, "bob")
 
     # Take Bob offline.
-    yield util.cli(reactor, bob_node_dir, "stop")
+    yield util.cli(request, reactor, bob_node_dir, "stop")
 
     # Create a couple files in Alice's local directory.
     some_files = list(
@@ -422,7 +423,7 @@ def test_alice_adds_files_while_bob_is_offline(reactor, request, temp_dir, magic
 
     good = False
     for i in range(15):
-        status = yield util.magic_folder_cli(reactor, alice_node_dir, "status")
+        status = yield util.magic_folder_cli(request, reactor, alice_node_dir, "status")
         good = status.count(".added-while-offline (36 B): good, version=0") == len(some_files) * 2
         if good:
             # We saw each file as having a local good state and a remote good

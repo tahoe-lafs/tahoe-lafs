@@ -42,6 +42,9 @@ import allmydata.util.log
 
 from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, create_node_dir
 from allmydata.frontends.auth import NeedRootcapLookupScheme
+from allmydata.version_checks import (
+    get_package_versions_string,
+)
 from allmydata import client
 from allmydata.storage_client import (
     StorageClientConfig,
@@ -622,7 +625,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failIfEqual(str(allmydata.__version__), "unknown")
         self.failUnless("." in str(allmydata.__full_version__),
                         "non-numeric version in '%s'" % allmydata.__version__)
-        all_versions = allmydata.get_package_versions_string()
+        all_versions = get_package_versions_string()
         self.failUnless(allmydata.__appname__ in all_versions)
         # also test stats
         stats = c.get_stats()

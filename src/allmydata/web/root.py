@@ -7,7 +7,7 @@ from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
 
 import allmydata # to display import path
-from allmydata import get_package_versions_string
+from allmydata.version_checks import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations

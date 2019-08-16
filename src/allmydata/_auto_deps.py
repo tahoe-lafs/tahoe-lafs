@@ -4,114 +4,6 @@
 # It is ok to import modules from the Python Standard Library if they are
 # always available, or the import is protected by try...except ImportError.
 
-# The semantics for requirement specs changed incompatibly in setuptools 8,
-# which now follows PEP 440. The requirements used in this file must be valid
-# under both the old and new semantics. That can be achieved by limiting
-# requirement specs to one of the following forms:
-#
-#   * >= X, <= Y where X < Y
-#   * >= X, != Y, != Z, ... where X < Y < Z...
-#
-# (In addition, check_requirement in allmydata/__init__.py only supports
-# >=, <= and != operators.)
-
-install_requires = [
-    # we don't need much out of setuptools, but the __init__.py stuff does
-    # need pkg_resources . We use >=11.3 here because that's what
-    # "cryptography" requires (which is a sub-dependency of TLS-using
-    # packages), so there's no point in requiring less.
-    "setuptools >= 28.8.0",
-
-    "zfec >= 1.1.0",
-
-    # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
-    # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
-    "zope.interface >= 3.6.0, != 3.6.3, != 3.6.4",
-
-    # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
-    #   transferring large mutable files of size N.
-    # * foolscap < 0.6 is incompatible with Twisted 10.2.0.
-    # * foolscap 0.6.1 quiets a DeprecationWarning.
-    # * foolscap < 0.6.3 is incompatible with Twisted 11.1.0 and newer.
-    # * foolscap 0.8.0 generates 2048-bit RSA-with-SHA-256 signatures,
-    #   rather than 1024-bit RSA-with-MD5. This also allows us to work
-    #   with a FIPS build of OpenSSL.
-    # * foolscap >= 0.12.3 provides tcp/tor/i2p connection handlers we need,
-    #   and allocate_tcp_port
-    # * foolscap >= 0.12.5 has ConnectionInfo and ReconnectionInfo
-    # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
-    "foolscap >= 0.12.6",
-
-    # cryptography>2.3 because of CVE-2018-10903
-    'cryptography >= 2.3',
-
-    "service-identity",         # this is needed to suppress complaints about being unable to verify certs
-    "characteristic >= 14.0.0", # latest service-identity depends on this version
-    "pyasn1 >= 0.1.8",          # latest pyasn1-modules depends on this version
-    "pyasn1-modules >= 0.0.5",  # service-identity depends on this
-
-    # * On Linux we need at least Twisted 10.1.0 for inotify support
-    #   used by the drop-upload frontend.
-    # * We also need Twisted 10.1.0 for the FTP frontend in order for
-    #   Twisted's FTP server to support asynchronous close.
-    # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
-    #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
-    # * The FTP frontend depends on Twisted >= 11.1.0 for
-    #   filepath.Permissions
-    # * Nevow 0.11.1 depends on Twisted >= 13.0.0.
-    # * The SFTP frontend and manhole depend on the conch extra. However, we
-    #   can't explicitly declare that without an undesirable dependency on gmpy,
-    #   as explained in ticket #2740.
-    # * Due to a setuptools bug, we need to declare a dependency on the tls
-    #   extra even though we only depend on it via foolscap.
-    # * Twisted >= 15.1.0 is the first version that provided the [tls] extra.
-    # * Twisted-16.1.0 fixes https://twistedmatrix.com/trac/ticket/8223,
-    #   which otherwise causes test_system to fail (DirtyReactorError, due to
-    #   leftover timers)
-    # * Twisted-16.4.0 introduces `python -m twisted.trial` which is needed
-    #   for coverage testing
-
-    # * Twisted 16.6.0 drops the undesirable gmpy dependency from the conch
-    #   extra, letting us use that extra instead of trying to duplicate its
-    #   dependencies here.  Twisted[conch] >18.7 introduces a dependency on
-    #   bcrypt.  It is nice to avoid that if the user ends up with an older
-    #   version of Twisted.  That's hard to express except by using the extra.
-    "Twisted[tls,conch] >= 16.6.0",
-
-    # We need Nevow >= 0.11.1 which can be installed using pip.
-    "Nevow >= 0.11.1",
-
-    # * pyOpenSSL is required in order for foolscap to provide secure connections.
-    #   Since foolscap doesn't reliably declare this dependency in a machine-readable
-    #   way, we need to declare a dependency on pyOpenSSL ourselves. Tahoe-LAFS does
-    #   not *directly* depend on pyOpenSSL.
-    # * pyOpenSSL >= 0.13 is needed in order to avoid
-    #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2005>, and also to check the
-    #   version of OpenSSL that pyOpenSSL is using.
-    # * pyOpenSSL >= 0.14 is needed in order to avoid
-    #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2474>.
-    "pyOpenSSL >= 0.14",
-    "PyYAML >= 3.11",
-
-    "six >= 1.10.0",
-
-    # for 'tahoe invite' and 'tahoe join'
-    "magic-wormhole >= 0.10.2",
-
-    # Eliot is contemplating dropping Python 2 support.  Stick to a version we
-    # know works on Python 2.7.  Because we don't have support for `==`
-    # constraints, pin 1.7.x this way.  I feel pretty safe betting that we
-    # won't end up stuck on Eliot 1.7.100 with a critical fix only present in
-    # 1.7.101.  And if we do, I know how to deal with that situation.
-    "eliot >= 1.7.0, <= 1.7.100",
-
-    # A great way to define types of values.
-    "attrs >= 18.2.0",
-
-    # WebSocket library for twisted and asyncio
-    "autobahn >= 19.5.2",
-]
-
 # Includes some indirect dependencies, but does not include allmydata.
 # These are in the order they should be listed by --version, etc.
 package_imports = [
@@ -156,11 +48,6 @@ ignorable = [
     'twisted-web',
     'twisted-core',
     'twisted-conch',
-]
-
-
-setup_requires = [
-    'setuptools >= 28.8.0',  # for PEP-440 style versions
 ]
 
 

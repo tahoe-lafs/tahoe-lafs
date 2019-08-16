@@ -19,7 +19,7 @@ class SingleFileError(Exception):
     """You are not permitted to add a job to a full pipeline."""
 
 
-class ExpandableDeferredList(defer.Deferred):
+class ExpandableDeferredList(defer.Deferred, object):
     # like DeferredList(fireOnOneErrback=True) with a built-in
     # gatherResults(), but you can add new Deferreds until you close it. This
     # gives you a chance to add don't-complain-about-unhandled-error errbacks

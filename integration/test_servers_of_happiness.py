@@ -12,7 +12,7 @@ import pytest_twisted
 @pytest_twisted.inlineCallbacks
 def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
 
-    yield util._create_node(
+    edna = yield util._create_node(
         reactor, request, temp_dir, introducer_furl, flog_gatherer, "edna",
         web_port="tcp:9983:interface=localhost",
         storage=False,
@@ -20,12 +20,9 @@ def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, sto
         happy=7,
         total=10,
     )
-
+    util.await_client_ready(edna)
 
     node_dir = join(temp_dir, 'edna')
-
-    print("waiting 10 seconds unil we're maybe ready")
-    yield task.deferLater(reactor, 10, lambda: None)
 
     # upload a file, which should fail because we have don't have 7
     # storage servers (but happiness is set to 7)

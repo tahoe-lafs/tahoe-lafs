@@ -322,7 +322,7 @@ def humanize_failure(f):
         return (f.getTraceback(), http.REQUEST_ENTITY_TOO_LARGE)
     return (str(f), None)
 
-class MyExceptionHandler(appserver.DefaultExceptionHandler):
+class MyExceptionHandler(appserver.DefaultExceptionHandler, object):
     def simple(self, ctx, text, code=http.BAD_REQUEST):
         req = IRequest(ctx)
         req.setResponseCode(code)
@@ -461,7 +461,7 @@ class MultiFormatPage(Page):
 
 
 
-class TokenOnlyWebApi(resource.Resource):
+class TokenOnlyWebApi(resource.Resource, object):
     """
     I provide a rend.Page implementation that only accepts POST calls,
     and only if they have a 'token=' arg with the correct

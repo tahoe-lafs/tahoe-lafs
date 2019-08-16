@@ -3,7 +3,7 @@ from __future__ import print_function
 import sys
 import shutil
 from time import sleep
-from os import mkdir, listdir
+from os import mkdir, listdir, environ
 from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 from functools import partial
@@ -15,6 +15,7 @@ from eliot import (
 )
 
 from twisted.python.procutils import which
+from twisted.internet.defer import DeferredList
 from twisted.internet.error import (
     ProcessExitedAlready,
     ProcessTerminated,
@@ -30,7 +31,9 @@ from util import (
     _ProcessExitedProtocol,
     _create_node,
     _run_node,
-    _cleanup_twistd_process,
+    _cleanup_tahoe_process,
+    _tahoe_runner_optional_coverage,
+    await_client_ready,
 )
 
 
@@ -40,6 +43,10 @@ def pytest_addoption(parser):
     parser.addoption(
         "--keep-tempdir", action="store_true", dest="keep",
         help="Keep the tmpdir with the client directories (introducer, etc)",
+    )
+    parser.addoption(
+        "--coverage", action="store_true", dest="coverage",
+        help="Collect coverage statistics",
     )
 
 @pytest.fixture(autouse=True, scope='session')
@@ -125,7 +132,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     pytest_twisted.blockon(twistd_protocol.magic_seen)
 
     def cleanup():
-        _cleanup_twistd_process(twistd_process, twistd_protocol.exited)
+        _cleanup_tahoe_process(twistd_process, twistd_protocol.exited)
 
         flog_file = mktemp('.flog_dump')
         flog_protocol = _DumpOutputProtocol(open(flog_file, 'w'))
@@ -174,11 +181,11 @@ log_gatherer.furl = {log_furl}
     if not exists(intro_dir):
         mkdir(intro_dir)
         done_proto = _ProcessExitedProtocol()
-        reactor.spawnProcess(
+        _tahoe_runner_optional_coverage(
             done_proto,
-            sys.executable,
+            reactor,
+            request,
             (
-                sys.executable, '-m', 'allmydata.scripts.runner',
                 'create-introducer',
                 '--listen=tcp',
                 '--hostname=localhost',
@@ -195,16 +202,16 @@ log_gatherer.furl = {log_furl}
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
     protocol = _MagicTextProtocol('introducer running')
-    process = reactor.spawnProcess(
+    process = _tahoe_runner_optional_coverage(
         protocol,
-        sys.executable,
+        reactor,
+        request,
         (
-            sys.executable, '-m', 'allmydata.scripts.runner',
             'run',
             intro_dir,
         ),
     )
-    request.addfinalizer(partial(_cleanup_twistd_process, process, protocol.exited))
+    request.addfinalizer(partial(_cleanup_tahoe_process, process, protocol.exited))
 
     pytest_twisted.blockon(protocol.magic_seen)
     return process
@@ -241,11 +248,11 @@ log_gatherer.furl = {log_furl}
     if not exists(intro_dir):
         mkdir(intro_dir)
         done_proto = _ProcessExitedProtocol()
-        reactor.spawnProcess(
+        _tahoe_runner_optional_coverage(
             done_proto,
-            sys.executable,
+            reactor,
+            request,
             (
-                sys.executable, '-m', 'allmydata.scripts.runner',
                 'create-introducer',
                 '--tor-control-port', 'tcp:localhost:8010',
                 '--listen=tor',
@@ -262,11 +269,11 @@ log_gatherer.furl = {log_furl}
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
     protocol = _MagicTextProtocol('introducer running')
-    process = reactor.spawnProcess(
+    transport = _tahoe_runner_optional_coverage(
         protocol,
-        sys.executable,
+        reactor,
+        request,
         (
-            sys.executable, '-m', 'allmydata.scripts.runner',
             'run',
             intro_dir,
         ),
@@ -274,14 +281,14 @@ log_gatherer.furl = {log_furl}
 
     def cleanup():
         try:
-            process.signalProcess('TERM')
+            transport.signalProcess('TERM')
             pytest_twisted.blockon(protocol.exited)
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
 
     pytest_twisted.blockon(protocol.magic_seen)
-    return process
+    return transport
 
 
 @pytest.fixture(scope='session')
@@ -301,20 +308,22 @@ def tor_introducer_furl(tor_introducer, temp_dir):
     include_result=False,
 )
 def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer, request):
-    nodes = []
+    nodes_d = []
     # start all 5 nodes in parallel
     for x in range(5):
         name = 'node{}'.format(x)
         # tub_port = 9900 + x
-        nodes.append(
-            pytest_twisted.blockon(
-                _create_node(
-                    reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
-                    web_port=None, storage=True,
-                )
+        nodes_d.append(
+            _create_node(
+                reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
+                web_port=None, storage=True,
             )
         )
-    #nodes = pytest_twisted.blockon(DeferredList(nodes))
+    nodes_status = pytest_twisted.blockon(DeferredList(nodes_d))
+    nodes = []
+    for ok, process in nodes_status:
+        assert ok, "Storage node creation failed: {}".format(process)
+        nodes.append(process)
     return nodes
 
 
@@ -333,6 +342,7 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
             storage=False,
         )
     )
+    await_client_ready(process)
     return process
 
 
@@ -351,6 +361,7 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
             storage=False,
         )
     )
+    await_client_ready(process)
     return process
 
 
@@ -363,13 +374,12 @@ def alice_invite(reactor, alice, temp_dir, request):
         # FIXME XXX by the time we see "client running" in the logs, the
         # storage servers aren't "really" ready to roll yet (uploads fairly
         # consistently fail if we don't hack in this pause...)
-        import time ; time.sleep(5)
         proto = _CollectOutputProtocol()
-        reactor.spawnProcess(
+        _tahoe_runner_optional_coverage(
             proto,
-            sys.executable,
+            reactor,
+            request,
             [
-                sys.executable, '-m', 'allmydata.scripts.runner',
                 'magic-folder', 'create',
                 '--poll-interval', '2',
                 '--basedir', node_dir, 'magik:', 'alice',
@@ -380,11 +390,11 @@ def alice_invite(reactor, alice, temp_dir, request):
 
     with start_action(action_type=u"integration:alice:magic_folder:invite") as a:
         proto = _CollectOutputProtocol()
-        reactor.spawnProcess(
+        _tahoe_runner_optional_coverage(
             proto,
-            sys.executable,
+            reactor,
+            request,
             [
-                sys.executable, '-m', 'allmydata.scripts.runner',
                 'magic-folder', 'invite',
                 '--basedir', node_dir, 'magik:', 'bob',
             ]
@@ -397,13 +407,14 @@ def alice_invite(reactor, alice, temp_dir, request):
         # before magic-folder works, we have to stop and restart (this is
         # crappy for the tests -- can we fix it in magic-folder?)
         try:
-            alice.signalProcess('TERM')
-            pytest_twisted.blockon(alice.exited)
+            alice.transport.signalProcess('TERM')
+            pytest_twisted.blockon(alice.transport.exited)
         except ProcessExitedAlready:
             pass
         with start_action(action_type=u"integration:alice:magic_folder:magic-text"):
             magic_text = 'Completed initial Magic Folder scan successfully'
             pytest_twisted.blockon(_run_node(reactor, node_dir, request, magic_text))
+            await_client_ready(alice)
     return invite
 
 
@@ -416,13 +427,13 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     print("pairing magic-folder")
     bob_dir = join(temp_dir, 'bob')
     proto = _CollectOutputProtocol()
-    reactor.spawnProcess(
+    _tahoe_runner_optional_coverage(
         proto,
-        sys.executable,
+        reactor,
+        request,
         [
-            sys.executable, '-m', 'allmydata.scripts.runner',
             'magic-folder', 'join',
-            '--poll-interval', '2',
+            '--poll-interval', '1',
             '--basedir', bob_dir,
             alice_invite,
             join(temp_dir, 'magic-bob'),
@@ -434,13 +445,14 @@ def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
     # crappy for the tests -- can we fix it in magic-folder?)
     try:
         print("Sending TERM to Bob")
-        bob.signalProcess('TERM')
-        pytest_twisted.blockon(bob.exited)
+        bob.transport.signalProcess('TERM')
+        pytest_twisted.blockon(bob.transport.exited)
     except ProcessExitedAlready:
         pass
 
     magic_text = 'Completed initial Magic Folder scan successfully'
     pytest_twisted.blockon(_run_node(reactor, bob_dir, request, magic_text))
+    await_client_ready(bob)
     return (join(temp_dir, 'magic-alice'), join(temp_dir, 'magic-bob'))
 
 
@@ -462,12 +474,13 @@ def chutney(reactor, temp_dir):
     proto = _DumpOutputProtocol(None)
     reactor.spawnProcess(
         proto,
-        '/usr/bin/git',
+        'git',
         (
-            '/usr/bin/git', 'clone', '--depth=1',
+            'git', 'clone', '--depth=1',
             'https://git.torproject.org/chutney.git',
             chutney_dir,
-        )
+        ),
+        env=environ,
     )
     pytest_twisted.blockon(proto.done)
     return chutney_dir
@@ -483,6 +496,8 @@ def tor_network(reactor, temp_dir, chutney, request):
     # ./chutney configure networks/basic
     # ./chutney start networks/basic
 
+    env = environ.copy()
+    env.update({"PYTHONPATH": join(chutney_dir, "lib")})
     proto = _DumpOutputProtocol(None)
     reactor.spawnProcess(
         proto,
@@ -492,7 +507,7 @@ def tor_network(reactor, temp_dir, chutney, request):
             join(chutney_dir, 'networks', 'basic'),
         ),
         path=join(chutney_dir),
-        env={"PYTHONPATH": join(chutney_dir, "lib")},
+        env=env,
     )
     pytest_twisted.blockon(proto.done)
 
@@ -505,7 +520,7 @@ def tor_network(reactor, temp_dir, chutney, request):
             join(chutney_dir, 'networks', 'basic'),
         ),
         path=join(chutney_dir),
-        env={"PYTHONPATH": join(chutney_dir, "lib")},
+        env=env,
     )
     pytest_twisted.blockon(proto.done)
 
@@ -519,7 +534,7 @@ def tor_network(reactor, temp_dir, chutney, request):
             join(chutney_dir, 'networks', 'basic'),
         ),
         path=join(chutney_dir),
-        env={"PYTHONPATH": join(chutney_dir, "lib")},
+        env=env,
     )
     try:
         pytest_twisted.blockon(proto.done)
@@ -538,7 +553,7 @@ def tor_network(reactor, temp_dir, chutney, request):
                 join(chutney_dir, 'networks', 'basic'),
             ),
             path=join(chutney_dir),
-            env={"PYTHONPATH": join(chutney_dir, "lib")},
+            env=env,
         )
         pytest_twisted.blockon(proto.done)
     request.addfinalizer(cleanup)

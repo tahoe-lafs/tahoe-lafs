@@ -1,6 +1,6 @@
 
 from foolscap.logging.incident import IncidentQualifier
-class NonQualifier(IncidentQualifier):
+class NonQualifier(IncidentQualifier, object):
     def check_event(self, ev):
         return False
 
