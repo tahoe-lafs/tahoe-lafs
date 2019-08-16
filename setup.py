@@ -75,12 +75,21 @@ install_requires = [
     #   leftover timers)
     # * Twisted-16.4.0 introduces `python -m twisted.trial` which is needed
     #   for coverage testing
-
     # * Twisted 16.6.0 drops the undesirable gmpy dependency from the conch
     #   extra, letting us use that extra instead of trying to duplicate its
     #   dependencies here.  Twisted[conch] >18.7 introduces a dependency on
     #   bcrypt.  It is nice to avoid that if the user ends up with an older
     #   version of Twisted.  That's hard to express except by using the extra.
+    #
+    #   In a perfect world, Twisted[conch] would be a dependency of an "sftp"
+    #   extra.  However, pip fails to resolve the dependencies all
+    #   dependencies when asked for Twisted[tls] *and* Twisted[conch].
+    #   Specifically, "Twisted[conch]" (as the later requirement) is ignored.
+    #   If there were an Tahoe-LAFS sftp extra that dependended on
+    #   Twisted[conch] and install_requires only included Twisted[tls] then
+    #   `pip install tahoe-lafs[sftp]` would not install requirements
+    #   specified by Twisted[conch].  Since this would be the *whole point* of
+    #   an sftp extra in Tahoe-LAFS, there is no point in having one.
     "Twisted[tls,conch] >= 16.6.0",
 
     # We need Nevow >= 0.11.1 which can be installed using pip.
@@ -106,6 +115,18 @@ install_requires = [
 
 setup_requires = [
     'setuptools >= 28.8.0',  # for PEP-440 style versions
+]
+
+tor_requires = [
+    # This is exactly what `foolscap[tor]` means but pip resolves the pair of
+    # dependencies "foolscap[i2p] foolscap[tor]" to "foolscap[i2p]" so we lose
+    # this if we don't declare it ourselves!
+    "txtorcon >= 0.17.0",
+]
+
+i2p_requires = [
+    # See the comment in tor_requires.
+    "txi2p >= 0.3.2",
 ]
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
@@ -330,10 +351,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "coverage",
               "mock",
               "tox",
-              "foolscap[tor] >= 0.12.5",
-              "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
-              "foolscap[i2p] >= 0.12.6",
-              "txi2p >= 0.3.2", # in case pip's resolver doesn't work
               "pytest",
               "pytest-twisted",
               "hypothesis >= 3.6.1",
@@ -343,15 +360,9 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "fixtures",
               "beautifulsoup4",
               "html5lib",
-          ],
-          "tor": [
-              "foolscap[tor] >= 0.12.5",
-              "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
-          ],
-          "i2p": [
-              "foolscap[i2p] >= 0.12.6",
-              "txi2p >= 0.3.2", # in case pip's resolver doesn't work
-          ],
+          ] + tor_requires + i2p_requires,
+          "tor": tor_requires,
+          "i2p": i2p_requires,
       },
       package_data={"allmydata.web": ["*.xhtml",
                                       "static/*.js", "static/*.png", "static/*.css",
