@@ -16,6 +16,12 @@ from allmydata.web.common import (
 
 
 class IntroducerRoot(MultiFormatResource):
+    """
+    A ``Resource`` intended as the root resource for introducers.
+
+    :param _IntroducerNode introducer_node: The introducer node to template
+        information about.
+    """
 
     def __init__(self, introducer_node):
         super(IntroducerRoot, self).__init__()
@@ -27,11 +33,24 @@ class IntroducerRoot(MultiFormatResource):
         for filen in os.listdir(static_dir):
             self.putChild(filen, static.File(os.path.join(static_dir, filen)))
 
+    def _create_element(self):
+        """
+        Create a ``IntroducerRootElement`` which can be flattened into an HTML
+        response.
+        """
+        return IntroducerRootElement(
+            self.introducer_node, self.introducer_service)
+
     def render_HTML(self, req):
-        return renderElement(req, IntroducerRootElement(
-            self.introducer_node, self.introducer_service))
+        """
+        Render an HTML template describing this introducer node.
+        """
+        return renderElement(req, self._create_element())
 
     def render_JSON(self, req):
+        """
+        Render JSON describing this introducer node.
+        """
         res = {}
 
         counts = {}
