@@ -72,6 +72,14 @@ class IntroducerRoot(MultiFormatResource):
 
 
 class IntroducerRootElement(Element):
+    """
+    An ``Element`` HTML template which can be flattened to describe this
+    introducer node.
+
+    :param _IntroducerNode introducer_node: The introducer node to describe.
+    :param IntroducerService introducer_service: The introducer service created
+        by the node.
+    """
 
     loader = XMLFile(FilePath(__file__).sibling("introducer.xhtml"))
 
