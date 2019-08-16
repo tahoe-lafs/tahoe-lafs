@@ -493,9 +493,9 @@ class MultiFormatResource(resource.Resource, object):
         """
         Get the renderer for the indicated format.
 
-        :param str fmt: The format.  If a method with a prefix of
-            ``render_`` and a suffix of this format (upper-cased) is found, it
-            will be used.
+        :param str fmt: The format.  If a method with a prefix of ``render_``
+            and a suffix of this format (upper-cased) is found, it will be
+            used.
 
         :return: A callable which takes a twisted.web Request and renders a
             response.
@@ -518,19 +518,11 @@ class MultiFormatResource(resource.Resource, object):
 
 class SlotsSequenceElement(template.Element):
     """
-    ``SlotsSequenceElement` is a minimal port of nevow's sequence renderer
-    for twisted.web.template.
+    ``SlotsSequenceElement` is a minimal port of nevow's sequence renderer for
+    twisted.web.template.
 
-    Tags passed in to be templated will have two renderers available:
-
-    - The ``item`` renderer will have its tag cloned for each item in the
-      sequence provided, and its slots filled from the sequence item. Each
-      item must be dict-like enough for ``tag.fillSlots(**item)``. Each cloned
-      tag will be siblings with no separator beween them.
-
-    - The ``empty`` renderer will either return its tag unmodified if the
-      provided sequence has no items, or return the empty string if there are
-      any items.
+    Tags passed in to be templated will have two renderers available: ``item``
+    and ``tag``.
     """
 
     def __init__(self, tag, seq):
@@ -539,11 +531,26 @@ class SlotsSequenceElement(template.Element):
 
     @template.renderer
     def item(self, request, tag):
+        """
+        A template renderer for each sequence item.
+
+        ``tag`` will be cloned for each item in the sequence provided, and its
+        slots filled from the sequence item. Each item must be dict-like enough
+        for ``tag.fillSlots(**item)``. Each cloned tag will be siblings with no
+        separator beween them.
+        """
         for item in self.seq:
             yield tag.clone(deep=False).fillSlots(**item)
 
     @template.renderer
     def empty(self, request, tag):
+        """
+        A template renderer for empty sequences.
+
+        This renderer will either return ``tag`` unmodified if the provided
+        sequence has no items, or return the empty string if there are any
+        items.
+        """
         if len(self.seq) > 0:
             return u''
         else:

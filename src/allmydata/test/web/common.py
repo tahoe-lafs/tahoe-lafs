@@ -9,12 +9,21 @@ FAVICON_MARKUP = '<link href="/icon.png" rel="shortcut icon" />'
 
 
 def assert_soup_has_favicon(testcase, soup):
+    """
+    Using a ``TestCase`` object ``testcase``, assert that the passed in
+    ``BeautifulSoup`` object ``soup`` contains the tahoe favicon link.
+    """
     links = soup.find_all(u'link', rel=u'shortcut icon')
     testcase.assert_(
         any(t[u'href'] == u'/icon.png' for t in links), soup)
 
 
 def assert_soup_has_text(testcase, soup, text):
+    """
+    Using a ``TestCase`` object ``testcase``, assert that the passed in
+    ``BeautifulSoup`` object ``soup`` contains the passed in ``text`` anywhere
+    as a text node.
+    """
     testcase.assert_(
         soup.find_all(string=re.compile(re.escape(text))),
         soup)
