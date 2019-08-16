@@ -11,17 +11,31 @@ from allmydata.mutable.common import UnrecoverableFileError # TODO: move
 
 
 class MoreInfo(MultiFormatResource):
+    """
+    A ``Resource`` for describing more information about a node.
+
+    :param node Node: The node to describe.
+    """
+
     def __init__(self, node):
         super(MoreInfo, self).__init__()
         self.node = node
 
     def render_HTML(self, req):
+        """
+        Render an HTML template describing this node.
+        """
         return renderElement(req, MoreInfoElement(self.node))
 
     render_INFO = render_HTML
 
 
 class MoreInfoElement(Element):
+    """
+    An ``Element`` HTML template which can be flattened to describe this node.
+
+    :param Node node: The node to describe.
+    """
 
     loader = XMLFile(FilePath(__file__).sibling("info.xhtml"))
 
