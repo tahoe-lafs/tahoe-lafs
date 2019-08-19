@@ -153,12 +153,15 @@ class StorageFarmBroker(service.MultiService):
             self,
             permute_peers,
             tub_maker,
+            node_config,
             storage_client_config=None,
     ):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self._tub_maker = tub_maker
+
+        self.node_config = node_config
 
         if storage_client_config is None:
             storage_client_config = StorageClientConfig()
@@ -233,6 +236,7 @@ class StorageFarmBroker(service.MultiService):
             server["ann"],
             self._tub_maker,
             handler_overrides,
+            self.node_config,
             self.storage_client_config,
         )
         s.on_status_changed(lambda _: self._got_connection())
@@ -566,10 +570,13 @@ class AnnouncementNotMatched(Exception):
     """
 
 
-def _storage_from_foolscap_plugin(config, announcement, get_rref):
+def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
     """
     Construct an ``IStorageServer`` from the most locally-preferred plugin
     that is offered in the given announcement.
+
+    :param allmydata.node._Config node_config: The node configuration to
+        pass to the plugin.
     """
     plugins = {
         plugin.name: plugin
@@ -586,7 +593,7 @@ def _storage_from_foolscap_plugin(config, announcement, get_rref):
             if plugin_name == option[u"name"]:
                 furl = option[u"storage-server-FURL"]
                 return furl, plugin.get_storage_client(
-                    plugin_config,
+                    node_config,
                     option,
                     get_rref,
                 )
@@ -621,7 +628,7 @@ class NativeStorageServer(service.MultiService):
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, server_id, ann, tub_maker, handler_overrides, config=StorageClientConfig()):
+    def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=StorageClientConfig()):
         service.MultiService.__init__(self)
         assert isinstance(server_id, str)
         self._server_id = server_id
@@ -629,7 +636,7 @@ class NativeStorageServer(service.MultiService):
         self._tub_maker = tub_maker
         self._handler_overrides = handler_overrides
 
-        self._storage = self._make_storage_system(config, ann)
+        self._storage = self._make_storage_system(node_config, config, ann)
 
         self.last_connect_time = None
         self.last_loss_time = None
@@ -640,8 +647,11 @@ class NativeStorageServer(service.MultiService):
         self._trigger_cb = None
         self._on_status_changed = ObserverList()
 
-    def _make_storage_system(self, config, ann):
+    def _make_storage_system(self, node_config, config, ann):
         """
+        :param allmydata.node._Config node_config: The node configuration to pass
+            to any configured storage plugins.
+
         :param StorageClientConfig config: Configuration specifying desired
             storage client behavior.
 
@@ -654,6 +664,7 @@ class NativeStorageServer(service.MultiService):
         # Try to match the announcement against a plugin.
         try:
             furl, storage_server = _storage_from_foolscap_plugin(
+                node_config,
                 config,
                 ann,
                 # Pass in an accessor for our _rref attribute.  The value of

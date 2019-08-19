@@ -15,6 +15,10 @@ from allmydata.immutable.upload import Data
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.mutable.publish import MutableData
 
+from .common import (
+    EMPTY_CLIENT_CONFIG,
+)
+
 class FakeClient(object):
     def get_storage_broker(self):
         return self.storage_broker
@@ -22,7 +26,7 @@ class FakeClient(object):
 class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def create_fake_client(self):
-        sb = StorageFarmBroker(True, None)
+        sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
         # s.get_name() (the "short description") will be "v0-00000000".
         # s.get_longname() will include the -long suffix.
         servers = [("v0-00000000-long", "\x00"*20, "peer-0"),
@@ -41,7 +45,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                     "my-version": "ver",
                     "oldest-supported": "oldest",
                     }
-            s = NativeStorageServer(server_id, ann, None, None)
+            s = NativeStorageServer(server_id, ann, None, None, None)
             sb.test_add_server(server_id, s)
         c = FakeClient()
         c.storage_broker = sb

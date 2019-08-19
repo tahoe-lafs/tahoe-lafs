@@ -89,6 +89,12 @@ from .eliotutil import (
 
 TEST_RSA_KEY_SIZE = 522
 
+EMPTY_CLIENT_CONFIG = config_from_string(
+    b"/dev/null",
+    b"tub.port",
+    b""
+)
+
 
 @attr.s
 class MemoryIntroducerClient(object):
