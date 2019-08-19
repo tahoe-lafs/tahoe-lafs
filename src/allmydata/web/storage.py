@@ -20,7 +20,8 @@ class StorageStatus(MultiFormatResource):
         self.nickname = nickname
 
     def render_HTML(self, req):
-        return renderElement(req, StorageStatusElement(self.storage, self.nickname))
+        return renderElement(
+            req, StorageStatusElement(self.storage, self.nickname))
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
