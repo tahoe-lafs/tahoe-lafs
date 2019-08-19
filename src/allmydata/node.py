@@ -292,8 +292,13 @@ class _Config(object):
                 "Unable to write config file '{}'".format(fn),
             )
 
-    def items(self, section):
-        return self.config.items(section)
+    def items(self, section, default=_None):
+        try:
+            return self.config.items(section)
+        except ConfigParser.NoSectionError:
+            if default is _None:
+                raise
+            return default
 
     def get_config(self, section, option, default=_None, boolean=False):
         try:

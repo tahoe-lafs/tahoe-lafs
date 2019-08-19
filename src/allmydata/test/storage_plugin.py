@@ -48,6 +48,10 @@ class RIDummy(RemoteInterface):
 class DummyStorage(object):
     name = attr.ib()
 
+    @property
+    def _client_section_name(self):
+        return u"storageclient.plugins.{}".format(self.name)
+
     def get_storage_server(self, configuration, get_anonymous_storage_server):
         if u"invalid" in configuration:
             raise Exception("The plugin is unhappy.")
@@ -69,8 +73,11 @@ class DummyStorage(object):
         :return: A static data resource that produces the given configuration when
             rendered, as an aid to testing.
         """
-        return Data(dumps(configuration), b"text/json")
-
+        items = configuration.items(self._client_section_name, [])
+        return Data(
+            dumps(dict(items)),
+            b"text/json",
+        )
 
 
 @implementer(RIDummy)

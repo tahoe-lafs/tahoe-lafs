@@ -197,10 +197,16 @@ class StorageFarmBroker(service.MultiService):
                 storage_server.setServiceParent(self)
                 storage_server.start_connecting(self._trigger_connections)
 
-    def get_client_storage_plugin_web_resources(self):
+    def get_client_storage_plugin_web_resources(self, node_config):
         """
         Get all of the client-side ``IResource`` implementations provided by
         enabled storage plugins.
+
+        :param allmydata.node._Config node_config: The complete node
+            configuration for the node from which these web resources will be
+            served.
+
+        :return dict[unicode, IResource]: Resources for all of the plugins.
         """
         plugins = {
             plugin.name: plugin
@@ -208,7 +214,7 @@ class StorageFarmBroker(service.MultiService):
             in getPlugins(IFoolscapStoragePlugin)
         }
         return {
-            name: plugins[name].get_client_resource(config)
+            name: plugins[name].get_client_resource(node_config)
             for (name, config)
             in self.storage_client_config.storage_plugins.items()
         }
