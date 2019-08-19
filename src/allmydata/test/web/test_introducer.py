@@ -1,3 +1,4 @@
+from bs4 import BeautifulSoup
 from os.path import join
 from twisted.trial import unittest
 from twisted.internet import reactor
@@ -6,12 +7,14 @@ from twisted.internet import defer
 from allmydata.introducer import create_introducer
 from allmydata import node
 from .common import (
-    FAVICON_MARKUP,
+    assert_soup_has_favicon,
+    assert_soup_has_text,
 )
 from ..common import (
     SameProcessStreamEndpointAssigner,
 )
 from ..common_web import do_http
+
 
 class IntroducerWeb(unittest.TestCase):
     def setUp(self):
@@ -47,7 +50,8 @@ class IntroducerWeb(unittest.TestCase):
 
         url = "http://localhost:%d/" % self.ws.getPortnum()
         res = yield do_http("get", url)
-        self.failUnlessIn('Welcome to the Tahoe-LAFS Introducer', res)
-        self.failUnlessIn(FAVICON_MARKUP, res)
-        self.failUnlessIn('Page rendered at', res)
-        self.failUnlessIn('Tahoe-LAFS code imported from:', res)
+        soup = BeautifulSoup(res, 'html5lib')
+        assert_soup_has_text(self, soup, u'Welcome to the Tahoe-LAFS Introducer')
+        assert_soup_has_favicon(self, soup)
+        assert_soup_has_text(self, soup, u'Page rendered at')
+        assert_soup_has_text(self, soup, u'Tahoe-LAFS code imported from:')

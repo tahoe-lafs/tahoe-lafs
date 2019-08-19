@@ -11,6 +11,7 @@ from testtools.matchers import (
 from twisted.internet import defer, address
 from twisted.python import log
 from twisted.python.filepath import FilePath
+from twisted.web.template import flattenString
 
 from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
@@ -592,7 +593,12 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             # now check the web status, make sure it renders without error
             ir = introweb.IntroducerRoot(self.parent)
             self.parent.nodeid = "NODEID"
-            text = ir.renderSynchronously().decode("utf-8")
+            log.msg("_check1 done")
+            return flattenString(None, ir._create_element())
+        d.addCallback(_check1)
+
+        def _check2(flattened_bytes):
+            text = flattened_bytes.decode("utf-8")
             self.assertIn(NICKNAME % "0", text) # a v2 client
             self.assertIn(NICKNAME % "1", text) # another v2 client
             for i in range(NUM_STORAGE):
@@ -601,8 +607,8 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
                 # make sure there isn't a double-base32ed string too
                 self.assertNotIn(idlib.nodeid_b2a(printable_serverids[i]), text,
                               (i,printable_serverids[i],text))
-            log.msg("_check1 done")
-        d.addCallback(_check1)
+            log.msg("_check2 done")
+        d.addCallback(_check2)
 
         # force an introducer reconnect, by shutting down the Tub it's using
         # and starting a new Tub (with the old introducer). Everybody should
