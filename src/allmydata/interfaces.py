@@ -3102,8 +3102,8 @@ class IFoolscapStoragePlugin(IPlugin):
         Get an ``IStorageServer`` provider that implements the client side of the
         storage protocol.
 
-        :param dict configuration: Any configuration given in the section for
-            this plugin in the node's configuration file.
+        :param allmydata.node._Config configuration: A representation of the
+            configuration for the node into which this plugin has been loaded.
 
         :param dict announcement: The announcement for the corresponding
             server portion of this plugin received from a storage server which
