@@ -2920,8 +2920,8 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         w = StorageStatus(ss)
 
         # this sample is before the crawler has started doing anything
-        html = w.renderSynchronously()
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        soup = self.flatten_synchronously(w._create_element())
+        self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: Yes", s)
         self.failUnlessIn("Reserved space: - 0 B (0)", s)
@@ -2943,7 +2943,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(state["last-complete-prefix"],
                                  ss.bucket_counter.prefixes[0])
             ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
-            html = w.renderSynchronously()
+            soup = self.flatten_synchronously(w._create_element())
             s = remove_tags(html)
             self.failUnlessIn(" Current crawl ", s)
             self.failUnlessIn(" (next work in ", s)
@@ -2955,7 +2955,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         d.addCallback(lambda ignored: self.poll(_watch))
         def _check2(ignored):
             ss.bucket_counter.cpu_slice = orig_cpu_slice
-            html = w.renderSynchronously()
+            soup = self.flatten_synchronously(w._create_element())
             s = remove_tags(html)
             self.failUnlessIn("Total buckets: 0 (the number of", s)
             self.failUnless("Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
@@ -3017,20 +3017,20 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
 
         def _check_1(ignored):
             # no ETA is available yet
-            html = w.renderSynchronously()
+            soup = self.flatten_synchronously(w._create_element())
             s = remove_tags(html)
             self.failUnlessIn("complete (next work", s)
 
         def _check_2(ignored):
             # one prefix has finished, so an ETA based upon that elapsed time
             # should be available.
-            html = w.renderSynchronously()
+            soup = self.flatten_synchronously(w._create_element())
             s = remove_tags(html)
             self.failUnlessIn("complete (ETA ", s)
 
         def _check_3(ignored):
             # two prefixes have finished
-            html = w.renderSynchronously()
+            soup = self.flatten_synchronously(w._create_element())
             s = remove_tags(html)
             self.failUnlessIn("complete (ETA ", s)
             d.callback("done")
@@ -3985,24 +3985,26 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
     def test_no_server(self):
         w = StorageStatus(None)
-        html = w.renderSynchronously()
-        self.failUnlessIn("<h1>No Storage Server Running</h1>", html)
+        soup = self.flatten_synchronously(w._create_element())
+        self.assert_(soup.find_all(u"h1", string=u"No Storage Server Running"))
 
-    def test_status(self):
+    def test_status_html(self):
         basedir = "storage/WebStatus/status"
         fileutil.make_dirs(basedir)
         nodeid = "\x00" * 20
         ss = StorageServer(basedir, nodeid)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss, "nickname")
-        d = self.render1(w)
+        soup = self.flatten_synchronously(w._create_element())
+        self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
+
         def _check_html(html):
-            self.failUnlessIn("<h1>Storage Server Status</h1>", html)
-            s = remove_tags(html)
             self.failUnlessIn("Server Nickname: nickname", s)
             self.failUnlessIn("Server Nodeid: %s"  % base32.b2a(nodeid), s)
             self.failUnlessIn("Accepting new shares: Yes", s)
             self.failUnlessIn("Reserved space: - 0 B (0)", s)
+
+    def test_status_json(self):
         d.addCallback(_check_html)
         d.addCallback(lambda ign: self.render_json(w))
         def _check_json(raw):
@@ -4031,13 +4033,15 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
-        s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: Yes", s)
-        self.failUnlessIn("Total disk space: ?", s)
-        self.failUnlessIn("Space Available to Tahoe: ?", s)
-        self.failUnless(ss.get_available_space() is None)
+        soup = self.flatten_synchronously(w._create_element())
+        self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
+        self.assert_(
+            soup.select_one(u':contains("Accepting new shares: Yes")'))
+        self.assert_(soup.select_one(
+            u'td:contains("Total disk space:") + td:contains("?")'))
+        self.assert_(soup.select_one(
+            u'td:contains("Space Available to Tahoe:") + td:contains("?")'))
+        self.assertIdentical(ss.get_available_space(), None)
 
     def test_status_bad_disk_stats(self):
         def call_get_disk_stats(whichdir, reserved_space=0):
@@ -4051,13 +4055,15 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
-        s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: No", s)
-        self.failUnlessIn("Total disk space: ?", s)
-        self.failUnlessIn("Space Available to Tahoe: ?", s)
-        self.failUnlessEqual(ss.get_available_space(), 0)
+        soup = self.flatten_synchronously(w._create_element())
+        self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
+        self.assert_(
+            soup.select_one(u':contains("Accepting new shares: No")'))
+        self.assert_(soup.select_one(
+            u'td:contains("Total disk space:") + td:contains("?")'))
+        self.assert_(soup.select_one(
+            u'td:contains("Space Available to Tahoe:") + td:contains("?")'))
+        self.assertEqual(ss.get_available_space(), 0)
 
     def test_status_right_disk_stats(self):
         GB = 1000000000
@@ -4087,17 +4093,28 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        soup = self.flatten_synchronously(w._create_element())
 
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
-        s = remove_tags(html)
-        self.failUnlessIn("Total disk space: 5.00 GB", s)
-        self.failUnlessIn("Disk space used: - 1.00 GB", s)
-        self.failUnlessIn("Disk space free (root): 4.00 GB", s)
-        self.failUnlessIn("Disk space free (non-root): 3.00 GB", s)
-        self.failUnlessIn("Reserved space: - 1.00 GB", s)
-        self.failUnlessIn("Space Available to Tahoe: 2.00 GB", s)
-        self.failUnlessEqual(ss.get_available_space(), 2*GB)
+        self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
+        self.assert_(soup.select_one(
+            u'td:contains("Total disk space:") + '
+            u'td:contains("5.00 GB")'))
+        self.assert_(soup.select_one(
+            u'td:contains("Disk space used:") + '
+            u'td:contains("- 1.00 GB")'))
+        self.assert_(soup.select_one(
+            u'td:contains("Disk space free (root):") + '
+            u'td:contains("4.00 GB")'))
+        self.assert_(soup.select_one(
+            u'td:contains("Disk space free (non-root):") + '
+            u'td:contains("3.00 GB")'))
+        self.assert_(soup.select_one(
+            u'td:contains("Reserved space:") + '
+            u'td:contains("- 1.00 GB")'))
+        self.assert_(soup.select_one(
+            u'td:contains("Space Available to Tahoe:") + '
+            u'td:contains("2.00 GB")'))
+        self.assertEqual(ss.get_available_space(), 2*GB)
 
     def test_readonly(self):
         basedir = "storage/WebStatus/readonly"
@@ -4105,10 +4122,10 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20, readonly_storage=True)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
-        s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: No", s)
+        soup = self.flatten_synchronously(w._create_element())
+        self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
+        self.assert_(
+            soup.select_one(u':contains("Accepting new shares: No")'))
 
     def test_reserved(self):
         basedir = "storage/WebStatus/reserved"
@@ -4116,10 +4133,12 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
-        s = remove_tags(html)
-        self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
+        soup = self.flatten_synchronously(w._create_element())
+        self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
+        self.assert_(soup.select_one(
+            u'td:contains("Reserved space:") + '
+            u'td:contains("- 10.00 MB") + '
+            u'td:contains("(10000000)")'))
 
     def test_huge_reserved(self):
         basedir = "storage/WebStatus/reserved"
@@ -4127,10 +4146,12 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
-        s = remove_tags(html)
-        self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
+        soup = self.flatten_synchronously(w._create_element())
+        self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
+        self.assert_(soup.select_one(
+            u'td:contains("Reserved space:") + '
+            u'td:contains("- 10.00 MB") + '
+            u'td:contains("(10000000)")'))
 
     def test_util(self):
         w = StorageStatus(None)

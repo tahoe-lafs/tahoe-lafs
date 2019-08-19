@@ -1,8 +1,10 @@
 
 import re
 import treq
+from bs4 import BeautifulSoup
 from twisted.internet import defer
 from twisted.web.error import Error
+from twisted.web.template import flattenString
 from nevow.testutil import FakeRequest
 from nevow import inevow, context
 
@@ -59,6 +61,14 @@ class WebRenderingMixin(object):
         s = re.sub(r'<[^>]*>', ' ', s)
         s = re.sub(r'\s+', ' ', s)
         return s
+
+    def flatten_synchronously(self, element, request=None):
+        d = flattenString(request, element)
+        # from trial's TestCase
+        html = self.successResultOf(d)
+        soup = BeautifulSoup(html.decode('utf-8'), 'html5lib')
+        return soup
+
 
 @defer.inlineCallbacks
 def do_http(method, url, **kwargs):
