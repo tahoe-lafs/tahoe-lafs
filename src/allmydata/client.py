@@ -895,7 +895,9 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         :return dict[bytes, IResource provider]: The implementations.
         """
-        return self.storage_broker.get_client_storage_plugin_web_resources()
+        return self.storage_broker.get_client_storage_plugin_web_resources(
+            self.config,
+        )
 
     def _enable_storage_servers(self, announceable_storage_servers):
         """

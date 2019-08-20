@@ -3122,8 +3122,8 @@ class IFoolscapStoragePlugin(IPlugin):
         Get an ``IResource`` that can be published in the Tahoe-LAFS web interface
         to expose information related to this plugin.
 
-        :param dict configuration: Any configuration given in the section for
-            this plugin in the node's configuration file.
+        :param allmydata.node._Config configuration: A representation of the
+            configuration for the node into which this plugin has been loaded.
 
         :rtype: ``IResource``
         """
