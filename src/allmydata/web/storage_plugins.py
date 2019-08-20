@@ -8,7 +8,7 @@ from twisted.web.resource import (
     NoResource,
 )
 
-class StoragePlugins(Resource):
+class StoragePlugins(Resource, object):
     """
     The parent resource of all enabled storage client plugins' web resources.
     """
