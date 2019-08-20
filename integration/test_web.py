@@ -30,7 +30,7 @@ def test_upload_download(alice):
     upload a file, then download it via readcap
     """
 
-    FILE_CONTENTS = "some contents"
+    FILE_CONTENTS = u"some contents"
 
     readcap = util.web_post(
         alice, u"uri",
@@ -59,7 +59,7 @@ def test_put(alice):
     use PUT to create a file
     """
 
-    FILE_CONTENTS = b"added via PUT"
+    FILE_CONTENTS = u"added via PUT"
 
     resp = requests.put(
         util.node_url(alice.node_dir, u"uri"),
@@ -111,7 +111,7 @@ def test_deep_stats(alice):
     dircap_uri = util.node_url(alice.node_dir, "uri/{}".format(urllib2.quote(dircap)))
 
     # POST a file into this directory
-    FILE_CONTENTS = b"a file in a directory"
+    FILE_CONTENTS = u"a file in a directory"
 
     resp = requests.post(
         dircap_uri,
@@ -173,7 +173,7 @@ def test_status(alice):
     # assert things about "our" file because we don't know what other
     # operations may have happened in the grid before our test runs).
 
-    FILE_CONTENTS = b"all the Important Data of alice\n" * 1200
+    FILE_CONTENTS = u"all the Important Data of alice\n" * 1200
 
     resp = requests.put(
         util.node_url(alice.node_dir, u"uri"),
@@ -254,7 +254,7 @@ def test_directory_deep_check(alice):
     dir_meta = json.loads(resp.content)
 
     # upload a file of pangrams into the directory
-    FILE_CONTENTS = b"Sphinx of black quartz, judge my vow.\n" * (2048*10)
+    FILE_CONTENTS = u"Sphinx of black quartz, judge my vow.\n" * (2048*10)
 
     resp = requests.post(
         dircap_url,
@@ -270,7 +270,7 @@ def test_directory_deep_check(alice):
     print("Uploaded data0, cap={}".format(cap0))
 
     # a different pangram
-    FILE_CONTENTS = b"The five boxing wizards jump quickly.\n" * (2048*10)
+    FILE_CONTENTS = u"The five boxing wizards jump quickly.\n" * (2048*10)
 
     resp = requests.post(
         dircap_url,
@@ -435,7 +435,7 @@ def test_mkdir_with_children(alice):
     """
 
     # create a file to put in our directory
-    FILE_CONTENTS = b"some file contents\n" * 500
+    FILE_CONTENTS = u"some file contents\n" * 500
     resp = requests.put(
         util.node_url(alice.node_dir, u"uri"),
         data=FILE_CONTENTS,
