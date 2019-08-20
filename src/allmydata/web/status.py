@@ -429,7 +429,7 @@ def _color(server):
         return min(ord(c) / 2 + 0x80, 0xff)
     return "#%02x%02x%02x" % (m(h[0]), m(h[1]), m(h[2]))
 
-class _EventJson(Resource):
+class _EventJson(Resource, object):
 
     def __init__(self, download_status):
         self._download_status = download_status
