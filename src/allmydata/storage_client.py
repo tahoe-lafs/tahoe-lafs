@@ -446,7 +446,7 @@ class _FoolscapStorage(object):
     permutation_seed = attr.ib()
     tubid = attr.ib()
 
-    storage_server = attr.ib()
+    storage_server = attr.ib(validator=attr.validators.provides(IStorageServer))
 
     _furl = attr.ib()
     _short_description = attr.ib()

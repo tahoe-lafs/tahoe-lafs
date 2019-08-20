@@ -3114,7 +3114,7 @@ class IFoolscapStoragePlugin(IPlugin):
             server portion of this plugin on the currently active connection,
             or ``None`` if no connection has been established yet.
 
-        :rtype: ``Deferred`` firing with ``IStorageServer``
+        :rtype: ``IStorageServer``
         """
 
     def get_client_resource(configuration):
