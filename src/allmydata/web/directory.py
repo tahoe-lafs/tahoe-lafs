@@ -62,7 +62,6 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         self.node = node
         self.parentnode = parentnode
         self.name = name
-        # is it better to just pass in the 'webish' service / object as well?
         self._operations = client.getServiceNamed("webish").getServiceNamed("operations")
 
     def childFactory(self, ctx, name):
