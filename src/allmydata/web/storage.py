@@ -182,7 +182,7 @@ class StorageStatusElement(Element):
 
         p = T.ul()
         def add(*pieces):
-            p[T.li[pieces]]
+            p(T.li(pieces))
 
         def maybe(d):
             if d is None:
@@ -218,9 +218,13 @@ class StorageStatusElement(Element):
 
         if so_far["corrupt-shares"]:
             add("Corrupt shares:",
-                T.ul[ [T.li[ ["SI %s shnum %d" % corrupt_share
-                              for corrupt_share in so_far["corrupt-shares"] ]
-                             ]]])
+                T.ul(
+                    T.li(
+                        "SI %s shnum %d" % corrupt_share
+                        for corrupt_share in so_far["corrupt-shares"]
+                    )
+                )
+            )
 
         return tag("Current cycle:", p)
 

@@ -1,4 +1,5 @@
 
+import json
 import re
 import treq
 from bs4 import BeautifulSoup
@@ -61,6 +62,11 @@ class WebRenderingMixin(object):
         s = re.sub(r'<[^>]*>', ' ', s)
         s = re.sub(r'\s+', ' ', s)
         return s
+
+    def render_json(self, page, request=None):
+        d = defer.succeed(page.render_JSON(FakeRequest()))
+        d.addCallback(json.loads)
+        return d
 
     def flatten_synchronously(self, element, request=None):
         d = flattenString(request, element)
