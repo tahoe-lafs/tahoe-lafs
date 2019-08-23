@@ -1411,8 +1411,8 @@ class MutableServer(unittest.TestCase):
 
     def test_remove_non_present(self):
         """
-        A write vector which would remove a share completely can be applied on a
-        server which does not have the share as a no-op.
+        A write vector which would remove a share completely is applied as a no-op
+        by a server which does not have the share.
         """
         ss = self.create("test_remove_non_present")
 
