@@ -68,10 +68,12 @@ from allmydata.web.operations import ReloadMixin
 from allmydata.web.check_results import json_check_results, \
      json_check_and_repair_results
 
+
 class BlockingFileError(Exception):
     # TODO: catch and transform
     """We cannot auto-create a parent directory, because there is a file in
     the way"""
+
 
 def make_handler_for(node, client, parentnode=None, name=None):
     if parentnode:
@@ -82,11 +84,16 @@ def make_handler_for(node, client, parentnode=None, name=None):
         return DirectoryNodeHandler(client, node, parentnode, name)
     return UnknownNodeHandler(client, node, parentnode, name)
 
-class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
+
+# did inherit from: RenderMixin, rend.Page, ReplaceMeMixin
+# XXX is MultiFormatResource appropriate? this probably *should*
+# support ?t=json but I don't know that all the variants already *did*
+# support that..
+class DirectoryNodeHandler(RenderMixin, ReplaceMeMixin, Resource, object):
     addSlash = True
 
     def __init__(self, client, node, parentnode=None, name=None):
-        rend.Page.__init__(self)
+        super(DirectoryNodeHandler, self).__init__()
         self.client = client
         assert node
         self.node = node
@@ -94,21 +101,25 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         self.name = name
         self._operations = client.get_web_service().get_operations()
 
-    def childFactory(self, ctx, name):
-        name = name.decode("utf-8")
-        if not name:
-            raise EmptyPathnameComponentError()
-        d = self.node.get(name)
-        d.addBoth(self.got_child, ctx, name)
-        # got_child returns a handler resource: FileNodeHandler or
-        # DirectoryNodeHandler
+    def getChild(self, name, req):
+        """
+        Dynamically create a child for the given request and name
+        """
+        # XXX can we do this with putChild() instead? (i.e. does it
+        # HAVE to be dynamic?)
+        d = self.node.get(name.decode('utf8'))
+        d.addBoth(self._got_child, req, name)
         return d
 
-    def got_child(self, node_or_failure, ctx, name):
-        req = IRequest(ctx)
+    def _got_child(self, node_or_failure, req, name):
+        """
+        Callback when self.node.get has returned
+        """
+        import six
+        name = six.u(name)
         method = req.method
         nonterminal = len(req.postpath) > 1
-        t = get_arg(req, "t", "").strip()
+        t = get_arg(req, "t", "").strip()  # XXX looking like MultiFormatResource..
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
             f.trap(NoSuchChildError)
@@ -122,29 +133,43 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                     return d
             else:
                 # terminal node
-                if (method,t) in [ ("POST","mkdir"), ("PUT","mkdir"),
-                                   ("POST", "mkdir-with-children"),
-                                   ("POST", "mkdir-immutable") ]:
+                terminal_requests = (
+                    ("POST", "mkdir"),
+                    ("PUT", "mkdir"),
+                    ("POST", "mkdir-with-children"),
+                    ("POST", "mkdir-immutable")
+                )
+                if (method, t) in terminal_requests:
                     # final directory
                     kids = {}
                     if t in ("mkdir-with-children", "mkdir-immutable"):
                         req.content.seek(0)
                         kids_json = req.content.read()
-                        kids = convert_children_json(self.client.nodemaker,
-                                                     kids_json)
+                        kids = convert_children_json(
+                            self.client.nodemaker,
+                            kids_json,
+                        )
                     file_format = get_format(req, None)
                     mutable = True
                     mt = get_mutable_type(file_format)
                     if t == "mkdir-immutable":
                         mutable = False
 
-                    d = self.node.create_subdirectory(name, kids,
-                                                      mutable=mutable,
-                                                      mutable_version=mt)
-                    d.addCallback(make_handler_for,
-                                  self.client, self.node, name)
+                    d = self.node.create_subdirectory(
+                        name, kids,
+                        mutable=mutable,
+                        mutable_version=mt,
+                    )
+                    d.addCallback(
+                        make_handler_for,
+                        self.client, self.node, name,
+                    )
                     return d
-                if (method,t) in ( ("PUT",""), ("PUT","uri"), ):
+                leaf_requests = (
+                    ("PUT",""),
+                    ("PUT","uri"),
+                )
+                if (method, t) in leaf_requests:
                     # we were trying to find the leaf filenode (to put a new
                     # file in its place), and it didn't exist. That's ok,
                     # since that's the leaf node that we're about to create.
@@ -164,14 +189,13 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                                http.CONFLICT)
         return make_handler_for(node, self.client, self.node, name)
 
-    def render_DELETE(self, ctx):
+    def render_DELETE(self, req):
         assert self.parentnode and self.name
         d = self.parentnode.delete(self.name)
         d.addCallback(lambda res: self.node.get_uri())
         return d
 
-    def render_GET(self, ctx):
-        req = IRequest(ctx)
+    def render_GET(self, req):
         # This is where all of the directory-related ?t=* code goes.
         t = get_arg(req, "t", "").strip()
 
@@ -190,27 +214,26 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                                    self.client.mutable_file_default)
 
         if t == "json":
-            return DirectoryJSONMetadata(ctx, self.node)
+            return DirectoryJSONMetadata(req, self.node)
         if t == "info":
             return MoreInfo(self.node)
         if t == "uri":
-            return DirectoryURI(ctx, self.node)
+            return DirectoryURI(req, self.node)
         if t == "readonly-uri":
-            return DirectoryReadonlyURI(ctx, self.node)
+            return DirectoryReadonlyURI(req, self.node)
         if t == 'rename-form':
             return RenameForm(self.node)
 
         raise WebError("GET directory: bad t=%s" % t)
 
-    def render_PUT(self, ctx):
-        req = IRequest(ctx)
+    def render_PUT(self, req):
         t = get_arg(req, "t", "").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         if t == "mkdir":
             # our job was done by the traversal/create-intermediate-directory
             # process that got us here.
-            return text_plain(self.node.get_uri(), ctx) # TODO: urlencode
+            return text_plain(self.node.get_uri(), req) # TODO: urlencode
         if t == "uri":
             if not replace:
                 # they're trying to set_uri and that name is already occupied
@@ -222,8 +245,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
         raise WebError("PUT to a directory")
 
-    def render_POST(self, ctx):
-        req = IRequest(ctx)
+    def render_POST(self, req):
         t = get_arg(req, "t", "").strip()
 
         if t == "mkdir":
@@ -233,7 +255,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         elif t == "mkdir-immutable":
             d = self._POST_mkdir_immutable(req)
         elif t == "upload":
-            d = self._POST_upload(ctx) # this one needs the context
+            d = self._POST_upload(req) # this one needs the context
         elif t == "uri":
             d = self._POST_uri(req)
         elif t == "delete" or t == "unlink":
@@ -245,17 +267,17 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         elif t == "check":
             d = self._POST_check(req)
         elif t == "start-deep-check":
-            d = self._POST_start_deep_check(ctx)
+            d = self._POST_start_deep_check(req)
         elif t == "stream-deep-check":
-            d = self._POST_stream_deep_check(ctx)
+            d = self._POST_stream_deep_check(req)
         elif t == "start-manifest":
-            d = self._POST_start_manifest(ctx)
+            d = self._POST_start_manifest(req)
         elif t == "start-deep-size":
-            d = self._POST_start_deep_size(ctx)
+            d = self._POST_start_deep_size(req)
         elif t == "start-deep-stats":
-            d = self._POST_start_deep_stats(ctx)
+            d = self._POST_start_deep_stats(req)
         elif t == "stream-manifest":
-            d = self._POST_stream_manifest(ctx)
+            d = self._POST_stream_manifest(req)
         elif t == "set_children" or t == "set-children":
             d = self._POST_set_children(req)
         else:
@@ -315,8 +337,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 
-    def _POST_upload(self, ctx):
-        req = IRequest(ctx)
+    def _POST_upload(self, req):
         charset = get_arg(req, "_charset", "utf-8")
         contents = req.fields["file"]
         assert contents.filename is None or isinstance(contents.filename, str)
@@ -336,7 +357,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         # since POST /uri/path/file?t=upload is equivalent to
         # POST /uri/path/dir?t=upload&name=foo, just do the same thing that
         # childFactory would do. Things are cleaner if we only do a subset of
-        # them, though, so we don't do: d = self.childFactory(ctx, name)
+        # them, though, so we don't do: d = self.childFactory(req, name)
 
         d = self.node.get(name)
         def _maybe_got_node(node_or_failure):
@@ -353,7 +374,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         # delegate to it. We could return the resource back out of
         # DirectoryNodeHandler.renderHTTP, and nevow would recurse into it,
         # but the addCallback() that handles when_done= would break.
-        d.addCallback(lambda child: child.renderHTTP(ctx))
+        d.addCallback(lambda child: child.renderHTTP(req))
         return d
 
     def _POST_uri(self, req):
@@ -476,33 +497,33 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         self._operations.add_monitor(ctx, monitor, renderer)
         return self._operations.redirect_to(ctx)
 
-    def _POST_start_deep_check(self, ctx):
+    def _POST_start_deep_check(self, req):
         # check this directory and everything reachable from it
-        if not get_arg(ctx, "ophandle"):
+        if not get_arg(req, "ophandle"):
             raise NeedOperationHandleError("slow operation requires ophandle=")
-        verify = boolean_of_arg(get_arg(ctx, "verify", "false"))
-        repair = boolean_of_arg(get_arg(ctx, "repair", "false"))
-        add_lease = boolean_of_arg(get_arg(ctx, "add-lease", "false"))
+        verify = boolean_of_arg(get_arg(req, "verify", "false"))
+        repair = boolean_of_arg(get_arg(req, "repair", "false"))
+        add_lease = boolean_of_arg(get_arg(req, "add-lease", "false"))
         if repair:
             monitor = self.node.start_deep_check_and_repair(verify, add_lease)
             renderer = DeepCheckAndRepairResultsRenderer(self.client, monitor)
         else:
             monitor = self.node.start_deep_check(verify, add_lease)
             renderer = DeepCheckResultsRenderer(self.client, monitor)
-        return self._start_operation(monitor, renderer, ctx)
+        return self._start_operation(monitor, renderer, req)
 
-    def _POST_stream_deep_check(self, ctx):
-        verify = boolean_of_arg(get_arg(ctx, "verify", "false"))
-        repair = boolean_of_arg(get_arg(ctx, "repair", "false"))
-        add_lease = boolean_of_arg(get_arg(ctx, "add-lease", "false"))
-        walker = DeepCheckStreamer(ctx, self.node, verify, repair, add_lease)
+    def _POST_stream_deep_check(self, req):
+        verify = boolean_of_arg(get_arg(req, "verify", "false"))
+        repair = boolean_of_arg(get_arg(req, "repair", "false"))
+        add_lease = boolean_of_arg(get_arg(req, "add-lease", "false"))
+        walker = DeepCheckStreamer(req, self.node, verify, repair, add_lease)
         monitor = self.node.deep_traverse(walker)
         walker.setMonitor(monitor)
         # register to hear stopProducing. The walker ignores pauseProducing.
-        IRequest(ctx).registerProducer(walker, True)
+        req.registerProducer(walker, True)
         d = monitor.when_done()
         def _done(res):
-            IRequest(ctx).unregisterProducer()
+            req.unregisterProducer()
             return res
         d.addBoth(_done)
         def _cancelled(f):
@@ -518,36 +539,36 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d.addErrback(_error)
         return d
 
-    def _POST_start_manifest(self, ctx):
-        if not get_arg(ctx, "ophandle"):
+    def _POST_start_manifest(self, req):
+        if not get_arg(req, "ophandle"):
             raise NeedOperationHandleError("slow operation requires ophandle=")
         monitor = self.node.build_manifest()
         renderer = ManifestResults(self.client, monitor)
-        return self._start_operation(monitor, renderer, ctx)
+        return self._start_operation(monitor, renderer, req)
 
-    def _POST_start_deep_size(self, ctx):
-        if not get_arg(ctx, "ophandle"):
+    def _POST_start_deep_size(self, req):
+        if not get_arg(req, "ophandle"):
             raise NeedOperationHandleError("slow operation requires ophandle=")
         monitor = self.node.start_deep_stats()
         renderer = DeepSizeResults(self.client, monitor)
-        return self._start_operation(monitor, renderer, ctx)
+        return self._start_operation(monitor, renderer, req)
 
-    def _POST_start_deep_stats(self, ctx):
-        if not get_arg(ctx, "ophandle"):
+    def _POST_start_deep_stats(self, req):
+        if not get_arg(req, "ophandle"):
             raise NeedOperationHandleError("slow operation requires ophandle=")
         monitor = self.node.start_deep_stats()
         renderer = DeepStatsResults(self.client, monitor)
-        return self._start_operation(monitor, renderer, ctx)
+        return self._start_operation(monitor, renderer, req)
 
-    def _POST_stream_manifest(self, ctx):
-        walker = ManifestStreamer(ctx, self.node)
+    def _POST_stream_manifest(self, req):
+        walker = ManifestStreamer(req, self.node)
         monitor = self.node.deep_traverse(walker)
         walker.setMonitor(monitor)
         # register to hear stopProducing. The walker ignores pauseProducing.
-        IRequest(ctx).registerProducer(walker, True)
+        req.registerProducer(walker, True)
         d = monitor.when_done()
         def _done(res):
-            IRequest(ctx).unregisterProducer()
+            req.unregisterProducer()
             return res
         d.addBoth(_done)
         def _cancelled(f):
@@ -594,20 +615,35 @@ def abbreviated_dirnode(dirnode):
 
 SPACE = u"\u00A0"*2
 
-class DirectoryAsHTML(rend.Page):
+class DirectoryAsHTML(Element):
     # The remainder of this class is to render the directory into
     # human+browser -oriented HTML.
-    docFactory = getxmlfile("directory.xhtml")
-    addSlash = True
+    loader = XMLFile(FilePath(__file__).sibling("directory.xhtml"))
 
     def __init__(self, node, default_mutable_format):
-        rend.Page.__init__(self)
+        super(DirectoryAsHTML, self).__init__()
         self.node = node
-
-        assert default_mutable_format in (MDMF_VERSION, SDMF_VERSION)
+        if default_mutable_format not in (MDMF_VERSION, SDMF_VERSION):
+            raise ValueError(
+                "Uknown multable format '{}'".format(default_mutable_format)
+            )
         self.default_mutable_format = default_mutable_format
 
-    def beforeRender(self, ctx):
+    def render(self, request):
+        """
+        Override Element.render .. we have async work to do before we flatten our template
+        """
+        # XXX should this be a helper like MultiFormatResource etc?
+        # i.e. AsyncElement or something?
+        template = Element.render(request)
+
+    # XXX what's the -> twisted.web.template version of this.
+
+    # beforeRender is literally just a (possibly-deferred) thing
+    # that's called before render .. that is, in renderHTTP .. so I
+    # think we can just call it "_gather_children" or something and
+    # call it in our render?
+    def beforeRender(self, req):
         # attempt to get the dirnode's children, stashing them (or the
         # failure that results) for later use
         d = self.node.list()
@@ -629,16 +665,16 @@ class DirectoryAsHTML(rend.Page):
                 else:
                     output.append(item)
             self.dirnode_children = output
-            return ctx
+            return req
         def _bad(f):
             text, code = humanize_failure(f)
             self.dirnode_children = None
             self.dirnode_children_error = text
-            return ctx
+            return req
         d.addCallbacks(_good, _bad)
         return d
 
-    def render_title(self, ctx, data):
+    def render_title(self, req, data):
         si_s = abbreviated_dirnode(self.node)
         header = ["Tahoe-LAFS - Directory SI=%s" % si_s]
         if self.node.is_unknown():
@@ -649,9 +685,9 @@ class DirectoryAsHTML(rend.Page):
             header.append(" (read-only)")
         else:
             header.append(" (modifiable)")
-        return ctx.tag[header]
+        return req.tag[header]
 
-    def render_header(self, ctx, data):
+    def render_header(self, req, data):
         si_s = abbreviated_dirnode(self.node)
         header = ["Tahoe-LAFS Directory SI=", T.span(class_="data-chars")[si_s]]
         if self.node.is_unknown():
@@ -660,39 +696,39 @@ class DirectoryAsHTML(rend.Page):
             header.append(" (immutable)")
         elif self.node.is_readonly():
             header.append(" (read-only)")
-        return ctx.tag[header]
+        return req.tag[header]
 
-    def render_welcome(self, ctx, data):
-        link = get_root(ctx)
-        return ctx.tag[T.a(href=link)["Return to Welcome page"]]
+    def render_welcome(self, req, data):
+        link = get_root(req)
+        return req.tag[T.a(href=link)["Return to Welcome page"]]
 
-    def render_show_readonly(self, ctx, data):
+    def render_show_readonly(self, req, data):
         if self.node.is_unknown() or self.node.is_readonly():
             return ""
         rocap = self.node.get_readonly_uri()
-        root = get_root(ctx)
+        root = get_root(req)
         uri_link = "%s/uri/%s/" % (root, urllib.quote(rocap))
-        return ctx.tag[T.a(href=uri_link)["Read-Only Version"]]
+        return req.tag[T.a(href=uri_link)["Read-Only Version"]]
 
-    def render_try_children(self, ctx, data):
+    def render_try_children(self, req, data):
         # if the dirnode can be retrived, render a table of children.
         # Otherwise, render an apologetic error message.
         if self.dirnode_children is not None:
-            return ctx.tag
+            return req.tag
         else:
             return T.div[T.p["Error reading directory:"],
                          T.p[self.dirnode_children_error]]
 
-    def data_children(self, ctx, data):
+    def data_children(self, req, data):
         return self.dirnode_children
 
-    def render_row(self, ctx, data):
+    def render_row(self, req, data):
         name, (target, metadata) = data
         name = name.encode("utf-8")
         assert not isinstance(name, unicode)
         nameurl = urllib.quote(name, safe="") # encode any slashes too
 
-        root = get_root(ctx)
+        root = get_root(req)
         here = "%s/uri/%s/" % (root, urllib.quote(self.node.get_uri()))
         if self.node.is_unknown() or self.node.is_readonly():
             unlink = "-"
@@ -715,8 +751,8 @@ class DirectoryAsHTML(rend.Page):
                 T.input(type='submit', _class='btn', value='rename/relink', name="rename"),
                 ]
 
-        ctx.fillSlots("unlink", unlink)
-        ctx.fillSlots("rename", rename)
+        req.fillSlots("unlink", unlink)
+        req.fillSlots("rename", rename)
 
         times = []
         linkcrtime = metadata.get('tahoe', {}).get("linkcrtime")
@@ -739,7 +775,7 @@ class DirectoryAsHTML(rend.Page):
                 if times:
                     times.append(T.br())
                 times.append("m: " + mtime)
-        ctx.fillSlots("times", times)
+        req.fillSlots("times", times)
 
         assert IFilesystemNode.providedBy(target), target
         target_uri = target.get_uri() or ""
@@ -751,70 +787,70 @@ class DirectoryAsHTML(rend.Page):
             # page that doesn't know about the directory at all
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
 
-            ctx.fillSlots("filename", T.a(href=dlurl, rel="noreferrer")[name])
-            ctx.fillSlots("type", "SSK")
+            req.fillSlots("filename", T.a(href=dlurl, rel="noreferrer")[name])
+            req.fillSlots("type", "SSK")
 
-            ctx.fillSlots("size", "?")
+            req.fillSlots("size", "?")
 
             info_link = "%s/uri/%s?t=info" % (root, quoted_uri)
 
         elif IImmutableFileNode.providedBy(target):
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
 
-            ctx.fillSlots("filename", T.a(href=dlurl, rel="noreferrer")[name])
-            ctx.fillSlots("type", "FILE")
+            req.fillSlots("filename", T.a(href=dlurl, rel="noreferrer")[name])
+            req.fillSlots("type", "FILE")
 
-            ctx.fillSlots("size", target.get_size())
+            req.fillSlots("size", target.get_size())
 
             info_link = "%s/uri/%s?t=info" % (root, quoted_uri)
 
         elif IDirectoryNode.providedBy(target):
             # directory
             uri_link = "%s/uri/%s/" % (root, urllib.quote(target_uri))
-            ctx.fillSlots("filename", T.a(href=uri_link)[name])
+            req.fillSlots("filename", T.a(href=uri_link)[name])
             if not target.is_mutable():
                 dirtype = "DIR-IMM"
             elif target.is_readonly():
                 dirtype = "DIR-RO"
             else:
                 dirtype = "DIR"
-            ctx.fillSlots("type", dirtype)
-            ctx.fillSlots("size", "-")
+            req.fillSlots("type", dirtype)
+            req.fillSlots("size", "-")
             info_link = "%s/uri/%s/?t=info" % (root, quoted_uri)
 
         elif isinstance(target, ProhibitedNode):
-            ctx.fillSlots("filename", T.strike[name])
+            req.fillSlots("filename", T.strike[name])
             if IDirectoryNode.providedBy(target.wrapped_node):
                 blacklisted_type = "DIR-BLACKLISTED"
             else:
                 blacklisted_type = "BLACKLISTED"
-            ctx.fillSlots("type", blacklisted_type)
-            ctx.fillSlots("size", "-")
+            req.fillSlots("type", blacklisted_type)
+            req.fillSlots("size", "-")
             info_link = None
-            ctx.fillSlots("info", ["Access Prohibited:", T.br, target.reason])
+            req.fillSlots("info", ["Access Prohibited:", T.br, target.reason])
 
         else:
             # unknown
-            ctx.fillSlots("filename", name)
+            req.fillSlots("filename", name)
             if target.get_write_uri() is not None:
                 unknowntype = "?"
             elif not self.node.is_mutable() or target.is_alleged_immutable():
                 unknowntype = "?-IMM"
             else:
                 unknowntype = "?-RO"
-            ctx.fillSlots("type", unknowntype)
-            ctx.fillSlots("size", "-")
+            req.fillSlots("type", unknowntype)
+            req.fillSlots("size", "-")
             # use a directory-relative info link, so we can extract both the
             # writecap and the readcap
             info_link = "%s?t=info" % urllib.quote(name)
 
         if info_link:
-            ctx.fillSlots("info", T.a(href=info_link)["More Info"])
+            req.fillSlots("info", T.a(href=info_link)["More Info"])
 
-        return ctx.tag
+        return req.tag
 
     # XXX: similar to render_upload_form and render_mkdir_form in root.py.
-    def render_forms(self, ctx, data):
+    def render_forms(self, req, data):
         forms = []
 
         if self.node.is_readonly():
@@ -884,11 +920,10 @@ class DirectoryAsHTML(rend.Page):
         forms.append(T.div(class_="freeform-form")[attach_form])
         return forms
 
-    def render_results(self, ctx, data):
-        req = IRequest(ctx)
+    def render_results(self, req, data):
         return get_arg(req, "results", "")
 
-def DirectoryJSONMetadata(ctx, dirnode):
+def DirectoryJSONMetadata(req, dirnode):
     d = dirnode.list()
     def _got(children):
         kids = {}
@@ -928,11 +963,10 @@ def DirectoryJSONMetadata(ctx, dirnode):
         data = ("dirnode", contents)
         return json.dumps(data, indent=1) + "\n"
     d.addCallback(_got)
-    d.addCallback(text_plain, ctx)
+    d.addCallback(text_plain, req)
 
     def error(f):
         message, code = humanize_failure(f)
-        req = IRequest(ctx)
         req.setResponseCode(code)
         return json.dumps({
             "error": message,
@@ -941,20 +975,20 @@ def DirectoryJSONMetadata(ctx, dirnode):
     return d
 
 
-def DirectoryURI(ctx, dirnode):
-    return text_plain(dirnode.get_uri(), ctx)
+def DirectoryURI(req, dirnode):
+    return text_plain(dirnode.get_uri(), req)
 
-def DirectoryReadonlyURI(ctx, dirnode):
-    return text_plain(dirnode.get_readonly_uri(), ctx)
+def DirectoryReadonlyURI(req, dirnode):
+    return text_plain(dirnode.get_readonly_uri(), req)
 
-class RenameForm(rend.Page):
+class RenameForm(Element):
     addSlash = True
     docFactory = getxmlfile("rename-form.xhtml")
 
-    def render_title(self, ctx, data):
-        return ctx.tag["Directory SI=%s" % abbreviated_dirnode(self.original)]
+    def render_title(self, req, data):
+        return req.tag["Directory SI=%s" % abbreviated_dirnode(self.original)]
 
-    def render_header(self, ctx, data):
+    def render_header(self, req, data):
         header = ["Rename "
                   "in directory SI=%s" % abbreviated_dirnode(self.original),
                   ]
@@ -962,16 +996,16 @@ class RenameForm(rend.Page):
         if self.original.is_readonly():
             header.append(" (readonly!)")
         header.append(":")
-        return ctx.tag[header]
+        return req.tag[header]
 
-    def render_when_done(self, ctx, data):
+    def render_when_done(self, req, data):
         return T.input(type="hidden", name="when_done", value=".")
 
-    def render_get_name(self, ctx, data):
-        req = IRequest(ctx)
+    def render_get_name(self, req, data):
+
         name = get_arg(req, "name", "")
-        ctx.tag.attributes['value'] = name
-        return ctx.tag
+        req.tag.attributes['value'] = name
+        return req.tag
 
 
 class ReloadableMonitorElement(Element):
@@ -1179,14 +1213,14 @@ class DeepSizeResults(MultiFormatPage):
                   }
         return json.dumps(status)
 
-class DeepStatsResults(rend.Page):
+class DeepStatsResults(Resource):
     def __init__(self, client, monitor):
         self.client = client
         self.monitor = monitor
 
-    def renderHTTP(self, ctx):
+    def renderHTTP(self, req):
         # JSON only
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        req.setHeader("content-type", "text/plain")
         s = self.monitor.get_status().copy()
         s["finished"] = self.monitor.is_finished()
         return json.dumps(s, indent=1)
@@ -1194,9 +1228,9 @@ class DeepStatsResults(rend.Page):
 @implementer(IPushProducer)
 class ManifestStreamer(dirnode.DeepStats):
 
-    def __init__(self, ctx, origin):
+    def __init__(self, req, origin):
         dirnode.DeepStats.__init__(self, origin)
-        self.req = IRequest(ctx)
+        self.req = req
 
     def setMonitor(self, monitor):
         self.monitor = monitor
@@ -1251,9 +1285,9 @@ class ManifestStreamer(dirnode.DeepStats):
 @implementer(IPushProducer)
 class DeepCheckStreamer(dirnode.DeepStats):
 
-    def __init__(self, ctx, origin, verify, repair, add_lease):
+    def __init__(self, req, origin, verify, repair, add_lease):
         dirnode.DeepStats.__init__(self, origin)
-        self.req = IRequest(ctx)
+        self.req = req
         self.verify = verify
         self.repair = repair
         self.add_lease = add_lease
@@ -1327,16 +1361,15 @@ class DeepCheckStreamer(dirnode.DeepStats):
         return ""
 
 
-class UnknownNodeHandler(RenderMixin, rend.Page):
+class UnknownNodeHandler(RenderMixin, Resource):
     def __init__(self, client, node, parentnode=None, name=None):
-        rend.Page.__init__(self)
+        super(UnknownNodeHandler, self).__init__()
         assert node
         self.node = node
         self.parentnode = parentnode
         self.name = name
 
-    def render_GET(self, ctx):
-        req = IRequest(ctx)
+    def render_GET(self, req):
         t = get_arg(req, "t", "").strip()
         if t == "info":
             return MoreInfo(self.node)
@@ -1346,13 +1379,13 @@ class UnknownNodeHandler(RenderMixin, rend.Page):
                 d = self.parentnode.get_metadata_for(self.name)
             else:
                 d = defer.succeed(None)
-            d.addCallback(lambda md: UnknownJSONMetadata(ctx, self.node, md, is_parent_known_immutable))
+            d.addCallback(lambda md: UnknownJSONMetadata(req, self.node, md, is_parent_known_immutable))
             return d
         raise WebError("GET unknown URI type: can only do t=info and t=json, not t=%s.\n"
                        "Using a webapi server that supports a later version of Tahoe "
                        "may help." % t)
 
-def UnknownJSONMetadata(ctx, node, edge_metadata, is_parent_known_immutable):
+def UnknownJSONMetadata(req, node, edge_metadata, is_parent_known_immutable):
     rw_uri = node.get_write_uri()
     ro_uri = node.get_readonly_uri()
     data = ("unknown", {})
@@ -1367,4 +1400,4 @@ def UnknownJSONMetadata(ctx, node, edge_metadata, is_parent_known_immutable):
 
     if edge_metadata is not None:
         data[1]['metadata'] = edge_metadata
-    return text_plain(json.dumps(data, indent=1) + "\n", ctx)
+    return text_plain(json.dumps(data, indent=1) + "\n", req)

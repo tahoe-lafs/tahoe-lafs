@@ -1,6 +1,6 @@
 <html xmlns:n="http://nevow.com/ns/nevow/0.1">
   <head>
-    <title n:render="title"></title>
+    <title t:render="title"></title>
     <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
     <link href="/icon.png" rel="shortcut icon" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -8,17 +8,17 @@
 
 <body>
 
-<h2 n:render="header" />
+<h2 t:render="header" />
 
 <div class="freeform-form">
     <form action="." method="post" enctype="multipart/form-data">
         <fieldset>
             <legend class="freeform-form-label">Rename child</legend>
             <input type="hidden" name="t" value="rename" />
-            <input n:render="when_done" />
+            <input t:render="when_done" />
 
             Rename child:
-            <input type="text" name="from_name" readonly="true" n:render="get_name" /><br />
+            <input type="text" name="from_name" readonly="true" t:render="get_name" /><br />
             to name:
             <input type="text" name="to_name" /><br />
             <input type="submit" value="rename" />
@@ -29,11 +29,11 @@
         <fieldset>
             <legend class="freeform-form-label">Move Child to Different Directory</legend>
             <input type="hidden" name="t" value="move" />
-            <input n:render="when_done" />
+            <input t:render="when_done" />
 
             Move child: <input type="text" name="from_name" readonly="true"
-                         n:render="get_name" /><br />
-            to name: <input type="text" name="to_name" n:render="get_name"/><br />
+                         t:render="get_name" /><br />
+            to name: <input type="text" name="to_name" t:render="get_name"/><br />
             in directory: <input type="text" name="to_dir" />
             <input checked="checked" type="radio" id="tt-name"
              value="name" name="target_type" />
