@@ -453,13 +453,18 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.assertThat(result, Equals(dumps({b"web": b"1"})))
 
 
+def make_broker(tub_maker=lambda h: Mock()):
+    """
+    Create a ``StorageFarmBroker`` with the given tub maker and an empty
+    client configuration.
+    """
+    return StorageFarmBroker(True, tub_maker, EMPTY_CLIENT_CONFIG)
+
+
 class TestStorageFarmBroker(unittest.TestCase):
 
-    def make_broker(self, tub_maker=lambda h: Mock()):
-        return StorageFarmBroker(True, tub_maker, EMPTY_CLIENT_CONFIG)
-
     def test_static_servers(self):
-        broker = self.make_broker()
+        broker = make_broker()
 
         key_s = 'v0-1234-1'
         servers_yaml = b"""\
@@ -493,7 +498,7 @@ storage:
         self.assertEqual(s2.get_permutation_seed(), permseed)
 
     def test_static_permutation_seed_pubkey(self):
-        broker = self.make_broker()
+        broker = make_broker()
         server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         k = "4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         ann = {
@@ -504,7 +509,7 @@ storage:
         self.assertEqual(s.get_permutation_seed(), base32.a2b(k))
 
     def test_static_permutation_seed_explicit(self):
-        broker = self.make_broker()
+        broker = make_broker()
         server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         k = "w5gl5igiexhwmftwzhai5jy2jixn7yx7"
         ann = {
@@ -516,7 +521,7 @@ storage:
         self.assertEqual(s.get_permutation_seed(), base32.a2b(k))
 
     def test_static_permutation_seed_hashed(self):
-        broker = self.make_broker()
+        broker = make_broker()
         server_id = "unparseable"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
@@ -532,7 +537,7 @@ storage:
         new_tubs = []
         def make_tub(*args, **kwargs):
             return new_tubs.pop()
-        broker = self.make_broker(make_tub)
+        broker = make_broker(make_tub)
         done = broker.when_connected_enough(5)
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes
