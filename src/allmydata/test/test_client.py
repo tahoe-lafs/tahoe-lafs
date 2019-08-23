@@ -61,6 +61,7 @@ from allmydata.interfaces import IFilesystemNode, IFileNode, \
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
 from .common import (
+    EMPTY_CLIENT_CONFIG,
     SyncTestCase,
     UseTestPlugins,
     MemoryIntroducerClient,
@@ -579,7 +580,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
-        sb = StorageFarmBroker(True, None)
+        sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
@@ -594,6 +595,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         sb = StorageFarmBroker(
             True,
             None,
+            EMPTY_CLIENT_CONFIG,
             StorageClientConfig(preferred_peers=['1','4']),
         )
         for k in ["%d" % i for i in range(5)]:

@@ -6,6 +6,9 @@ from json import (
 from fixtures import (
     TempDir,
 )
+from testtools.content import (
+    text_content,
+)
 from testtools.matchers import (
     MatchesAll,
     IsInstance,
@@ -37,6 +40,7 @@ from foolscap.api import (
 )
 
 from .common import (
+    EMPTY_CLIENT_CONFIG,
     SyncTestCase,
     AsyncTestCase,
     UseTestPlugins,
@@ -98,7 +102,7 @@ class TestNativeStorageServer(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        nss = NativeStorageServer("server_id", ann, None, {})
+        nss = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
         self.assertEqual(nss.get_nickname(), "")
 
 
@@ -114,7 +118,7 @@ class GetConnectionStatus(unittest.TestCase):
         """
         # Pretty hard to recognize anything from an empty announcement.
         ann = {}
-        nss = NativeStorageServer("server_id", ann, Tub, {})
+        nss = NativeStorageServer("server_id", ann, Tub, {}, EMPTY_CLIENT_CONFIG)
         nss.start_connecting(lambda: None)
         connection_status = nss.get_connection_status()
         self.assertTrue(IConnectionStatus.providedBy(connection_status))
@@ -148,6 +152,7 @@ class UnrecognizedAnnouncement(unittest.TestCase):
             self.ann,
             self._tub_maker,
             {},
+            EMPTY_CLIENT_CONFIG,
         )
 
     def test_no_exceptions(self):
@@ -355,6 +360,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
         }
         self.publish(server_id, ann, self.introducer_client)
         storage = self.get_storage(server_id, self.node)
+        self.addDetail("storage", text_content(str(storage)))
         self.expectThat(
             storage.storage_server,
             MatchesAll(
@@ -454,10 +460,18 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.assertThat(result, Equals(dumps({b"web": b"1"})))
 
 
+def make_broker(tub_maker=lambda h: Mock()):
+    """
+    Create a ``StorageFarmBroker`` with the given tub maker and an empty
+    client configuration.
+    """
+    return StorageFarmBroker(True, tub_maker, EMPTY_CLIENT_CONFIG)
+
+
 class TestStorageFarmBroker(unittest.TestCase):
 
     def test_static_servers(self):
-        broker = StorageFarmBroker(True, lambda h: Mock())
+        broker = make_broker()
 
         key_s = 'v0-1234-1'
         servers_yaml = b"""\
@@ -491,7 +505,7 @@ storage:
         self.assertEqual(s2.get_permutation_seed(), permseed)
 
     def test_static_permutation_seed_pubkey(self):
-        broker = StorageFarmBroker(True, lambda h: Mock())
+        broker = make_broker()
         server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         k = "4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         ann = {
@@ -502,7 +516,7 @@ storage:
         self.assertEqual(s.get_permutation_seed(), base32.a2b(k))
 
     def test_static_permutation_seed_explicit(self):
-        broker = StorageFarmBroker(True, lambda h: Mock())
+        broker = make_broker()
         server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         k = "w5gl5igiexhwmftwzhai5jy2jixn7yx7"
         ann = {
@@ -514,7 +528,7 @@ storage:
         self.assertEqual(s.get_permutation_seed(), base32.a2b(k))
 
     def test_static_permutation_seed_hashed(self):
-        broker = StorageFarmBroker(True, lambda h: Mock())
+        broker = make_broker()
         server_id = "unparseable"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
@@ -530,7 +544,7 @@ storage:
         new_tubs = []
         def make_tub(*args, **kwargs):
             return new_tubs.pop()
-        broker = StorageFarmBroker(True, make_tub)
+        broker = make_broker(make_tub)
         done = broker.when_connected_enough(5)
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes

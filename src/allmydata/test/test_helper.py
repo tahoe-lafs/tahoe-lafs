@@ -12,6 +12,10 @@ from allmydata.immutable import offloaded, upload
 from allmydata import uri, client
 from allmydata.util import hashutil, fileutil, mathutil
 
+from .common import (
+    EMPTY_CLIENT_CONFIG,
+)
+
 MiB = 1024*1024
 
 DATA = "I need help\n" * 1000
@@ -118,7 +122,11 @@ class AssistedUpload(unittest.TestCase):
         self.tub = t = Tub()
         t.setOption("expose-remote-exception-types", False)
         self.s = FakeClient()
-        self.s.storage_broker = StorageFarmBroker(True, lambda h: self.tub)
+        self.s.storage_broker = StorageFarmBroker(
+            True,
+            lambda h: self.tub,
+            EMPTY_CLIENT_CONFIG,
+        )
         self.s.secret_holder = client.SecretHolder("lease secret", "converge")
         self.s.startService()
 

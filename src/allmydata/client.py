@@ -556,6 +556,7 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     sb = storage_client.StorageFarmBroker(
         permute_peers=True,
         tub_maker=tub_creator,
+        node_config=config,
         storage_client_config=storage_client_config,
     )
     for ic in introducer_clients:
