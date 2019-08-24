@@ -21,8 +21,15 @@ def test_index(alice):
     we can download the index file
     """
     util.web_get(alice, u"")
-    # ...and json mode is valid json
-    json.loads(util.web_get(alice, u"", params={u"t": u"json"}))
+
+
+def test_index_json(alice):
+    """
+    we can download the index file as json
+    """
+    data = util.web_get(alice, u"", params={u"t": u"json"})
+    # it should be valid json
+    json.loads(data)
 
 
 def test_upload_download(alice):
