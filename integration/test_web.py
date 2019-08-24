@@ -219,7 +219,6 @@ def test_status(alice):
             if "Total Size: {}".format(len(FILE_CONTENTS)) in resp.content:
                 found_upload = True
         elif href.startswith(u'down'):
-            print(href)
             assert "File Download Status" in resp.content
             if "Total Size: {}".format(len(FILE_CONTENTS)) in resp.content:
                 found_download = True
