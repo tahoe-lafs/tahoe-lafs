@@ -168,9 +168,9 @@ class WebishServer(service.MultiService):
 
         # If set, clock is a twisted.internet.task.Clock that the tests
         # use to test ophandle expiration.
-        operations = OphandleTable(clock)
-        operations.setServiceParent(self)
-        self.root.putChild("operations", operations)
+        self._operations = OphandleTable(clock)
+        self._operations.setServiceParent(self)
+        self.root.putChild("operations", self._operations)
 
     def buildServer(self, webport, nodeurl_path, staticdir):
         self.webport = webport
@@ -240,6 +240,12 @@ class WebishServer(service.MultiService):
         else:
             # who knows, probably some weirdo future version of Twisted
             self._started.errback(AssertionError("couldn't find out the scheme or port for the web-API server"))
+
+    def get_operations(self):
+        """
+        :return: a reference to our "active operations" tracker
+        """
+        return self._operations
 
 
 class IntroducerWebishServer(WebishServer):

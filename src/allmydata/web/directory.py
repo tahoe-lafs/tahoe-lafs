@@ -62,7 +62,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         self.node = node
         self.parentnode = parentnode
         self.name = name
-        self._operations = client.getServiceNamed("webish").getServiceNamed("operations")
+        self._operations = client.get_web_service().get_operations()
 
     def childFactory(self, ctx, name):
         name = name.decode("utf-8")
