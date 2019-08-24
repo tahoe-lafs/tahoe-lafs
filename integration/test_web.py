@@ -1,3 +1,14 @@
+"""
+These tests were originally written to achieve some level of
+coverage for the WebAPI functionality during Python3 porting (there
+aren't many tests of the Web API period).
+
+Most of the tests have cursory asserts and encode 'what the WebAPI did
+at the time of testing' -- not necessarily a cohesive idea of what the
+WebAPI *should* do in every situation. It's not clear the latter
+exists anywhere, however.
+"""
+
 import sys
 import time
 import shutil
