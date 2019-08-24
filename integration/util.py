@@ -17,6 +17,7 @@ from allmydata.util.configutil import (
     set_config,
     write_config,
 )
+from allmydata import client
 
 import pytest_twisted
 
@@ -163,6 +164,12 @@ class TahoeProcess(object):
     @property
     def node_dir(self):
         return self._node_dir
+
+    def get_config(self):
+        return client.read_config(
+            self._node_dir,
+            u"portnum",
+        )
 
     def __str__(self):
         return "<TahoeProcess in '{}'>".format(self._node_dir)

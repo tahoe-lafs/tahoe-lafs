@@ -77,19 +77,18 @@ def test_put(alice):
     use PUT to create a file
     """
 
-    FILE_CONTENTS = u"added via PUT"
+    FILE_CONTENTS = b"added via PUT" * 20
 
     resp = requests.put(
         util.node_url(alice.node_dir, u"uri"),
-        files={
-            u"file": FILE_CONTENTS,
-        },
+        data=FILE_CONTENTS,
     )
     cap = allmydata.uri.from_string(resp.text.strip().encode('ascii'))
+    cfg = alice.get_config()
     assert isinstance(cap, allmydata.uri.CHKFileURI)
-    assert cap.size == 153
-    assert cap.total_shares == 4
-    assert cap.needed_shares == 2
+    assert cap.size == len(FILE_CONTENTS)
+    assert cap.total_shares == int(cfg.get_config("client", "shares.total"))
+    assert cap.needed_shares == int(cfg.get_config("client", "shares.needed"))
 
 
 def test_helper_status(storage_nodes):
