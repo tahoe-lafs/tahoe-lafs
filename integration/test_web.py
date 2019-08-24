@@ -404,12 +404,18 @@ def test_storage_info(storage_nodes):
     retrieve and confirm /storage URI for one storage node
     """
     storage0 = storage_nodes[0]
-    print(storage0)
-    print(dir(storage0))
 
-    resp = requests.get(
+    requests.get(
         util.node_url(storage0.node_dir, u"storage"),
     )
+
+
+def test_storage_info_json(storage_nodes):
+    """
+    retrieve and confirm /storage?t=json URI for one storage node
+    """
+    storage0 = storage_nodes[0]
+
     resp = requests.get(
         util.node_url(storage0.node_dir, u"storage"),
         params={u"t": u"json"},
