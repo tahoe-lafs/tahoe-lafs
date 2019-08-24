@@ -168,7 +168,9 @@ def test_deep_stats(alice):
     assert resp.status_code >= 200 and resp.status_code < 300
 
     # confirm we get information from the op .. after its done
-    while True:
+    tries = 10
+    while tries > 0:
+        tries -= 1
         resp = requests.get(
             util.node_url(alice.node_dir, u"operations/something_random"),
         )
@@ -372,7 +374,9 @@ def test_directory_deep_check(alice):
     deepcheck_uri = resp.url
 
     data = json.loads(resp.content)
-    while not data['finished']:
+    tries = 10
+    while not data['finished'] and tries > 0:
+        tries -= 1
         time.sleep(0.5)
         print("deep-check not finished, reloading")
         resp = requests.get(deepcheck_uri, params={u"output": "JSON"})
