@@ -400,7 +400,8 @@ def test_directory_deep_check(alice):
     deepcheck_uri = resp.url
 
     # if the operations isn't done, there's an <H2> tag with the
-    # reload link; otherwise there's only an <H1> tag..
+    # reload link; otherwise there's only an <H1> tag..wait up to 5
+    # seconds for this to respond properly.
     for _ in range(5):
         resp = requests.get(deepcheck_uri)
         dom = BeautifulSoup(resp.content, "html5lib")
