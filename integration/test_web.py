@@ -99,7 +99,6 @@ def test_helper_status(storage_nodes):
     url = util.node_url(storage_nodes[0].node_dir, "helper_status")
     resp = requests.get(url)
     assert resp.status_code >= 200 and resp.status_code < 300
-    # XXX put in util.parse_html(resp) ...?
     dom = BeautifulSoup(resp.content, "html5lib")
     assert unicode(dom.h1.string) == u"Helper Status"
 
@@ -120,8 +119,7 @@ def test_deep_stats(alice):
     assert resp.status_code >= 200 and resp.status_code < 300
 
     # when creating a directory, we'll be re-directed to a URL
-    # containing our writecap.. (XXX doesn't this violate the "URLs
-    # leak" maxim?)
+    # containing our writecap..
     uri = urllib2.unquote(resp.url)
     assert 'URI:DIR2:' in uri
     dircap = uri[uri.find("URI:DIR2:"):].rstrip('/')
