@@ -17,6 +17,7 @@ from allmydata.util.configutil import (
     set_config,
     write_config,
 )
+from allmydata import client
 
 import pytest_twisted
 
@@ -163,6 +164,15 @@ class TahoeProcess(object):
     @property
     def node_dir(self):
         return self._node_dir
+
+    def get_config(self):
+        return client.read_config(
+            self._node_dir,
+            u"portnum",
+        )
+
+    def __str__(self):
+        return "<TahoeProcess in '{}'>".format(self._node_dir)
 
 
 def _run_node(reactor, node_dir, request, magic_text):
@@ -407,35 +417,39 @@ def _check_status(response):
         )
 
 
-def web_get(node_dir, uri_fragment, **kwargs):
+def web_get(tahoe, uri_fragment, **kwargs):
     """
-    Make a GET request to the webport of `node_dir`. This will look
-    like: `http://localhost:<webport>/<uri_fragment>`. All `kwargs`
-    are passed on to `requests.get`
+    Make a GET request to the webport of `tahoe` (a `TahoeProcess`,
+    usually from a fixture (e.g. `alice`). This will look like:
+    `http://localhost:<webport>/<uri_fragment>`. All `kwargs` are
+    passed on to `requests.get`
     """
-    url = node_url(node_dir, uri_fragment)
+    url = node_url(tahoe.node_dir, uri_fragment)
     resp = requests.get(url, **kwargs)
     _check_status(resp)
     return resp.content
 
 
-def web_post(node_dir, uri_fragment, **kwargs):
+def web_post(tahoe, uri_fragment, **kwargs):
     """
-    Make a POST request to the webport of `node_dir`. This will look
-    like: `http://localhost:<webport>/<uri_fragment>`. All `kwargs`
-    are passed on to `requests.post`
+    Make a POST request to the webport of `node` (a `TahoeProcess,
+    usually from a fixture e.g. `alice`). This will look like:
+    `http://localhost:<webport>/<uri_fragment>`. All `kwargs` are
+    passed on to `requests.post`
     """
-    url = node_url(node_dir, uri_fragment)
+    url = node_url(tahoe.node_dir, uri_fragment)
     resp = requests.post(url, **kwargs)
     _check_status(resp)
     return resp.content
 
 
-def await_client_ready(process, timeout=10, liveness=60*2):
+def await_client_ready(tahoe, timeout=10, liveness=60*2):
     """
-    Uses the status API to wait for a client-type node to be
+    Uses the status API to wait for a client-type node (in `tahoe`, a
+    `TahoeProcess` instance usually from a fixture e.g. `alice`) to be
     'ready'. A client is deemed ready if:
-      - it answers http://<node_url>/statistics/?t=json/
+
+      - it answers `http://<node_url>/statistics/?t=json/`
       - there is at least one storage-server connected
       - every storage-server has a "last_received_data" and it is
         within the last `liveness` seconds
@@ -446,7 +460,7 @@ def await_client_ready(process, timeout=10, liveness=60*2):
     start = time.time()
     while (time.time() - start) < float(timeout):
         try:
-            data = web_get(process.node_dir, u"", params={u"t": u"json"})
+            data = web_get(tahoe, u"", params={u"t": u"json"})
             js = json.loads(data)
         except Exception as e:
             print("waiting because '{}'".format(e))
@@ -481,7 +495,7 @@ def await_client_ready(process, timeout=10, liveness=60*2):
     raise RuntimeError(
         "Waited {} seconds for {} to be 'ready' but it never was".format(
             timeout,
-            process.node_dir,
+            tahoe,
         )
     )
 

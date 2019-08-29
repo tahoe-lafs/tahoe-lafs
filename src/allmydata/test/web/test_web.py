@@ -4521,7 +4521,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         res = yield self.GET("/operations/128?t=status&output=JSON")
         data = json.loads(res)
         self.failUnless("finished" in data, res)
-        monitor = self.ws.root.child_operations.handles["128"][0]
+        monitor = self.ws.getServiceNamed("operations").handles["128"][0]
 
         res = yield self.POST("/operations/128?t=cancel&output=JSON")
         data = json.loads(res)
