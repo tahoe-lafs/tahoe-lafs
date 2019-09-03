@@ -105,13 +105,13 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
 
     # enroll first two storage-servers into the grid-manager
     for idx, storage in enumerate(storage_nodes[:2]):
-        pubkey_fname = join(storage._node_dir, "node.pubkey")
-        with open(pubkey_fname, 'r') as f:
-            pubkey = f.read().strip()
+        storage_pubkey_fname = join(storage._node_dir, "node.pubkey")
+        with open(storage_pubkey_fname, 'r') as f:
+            storage_pubkey = f.read().strip()
 
         gm_config = yield util.cli(
             request, reactor, "/dev/null",  "grid-manager", "--config", "-", "add",
-            "storage{}".format(idx), pubkey,
+            "storage{}".format(idx), storage_pubkey,
             stdin=gm_config,
         )
     assert sorted(json.loads(gm_config)['storage_servers'].keys()) == ['storage0', 'storage1']
@@ -161,7 +161,7 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
 
     config = configutil.get_config(join(carol._node_dir, "tahoe.cfg"))
     config.add_section("grid_managers")
-    config.set("grid_managers", "test", pubkey)
+    config.set("grid_managers", "test", ed25519.string_from_verifying_key(pubkey))
     with open(join(carol._node_dir, "tahoe.cfg"), "w") as carol_cfg:
         config.write(carol_cfg)
     carol.transport.signalProcess('TERM')
@@ -182,9 +182,8 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
             stdin="some content" * 200,
         )
         assert False, "Should get a failure"
-    except UploadUnhappinessError:
+    except Exception as e:
+        # the exception is now a "your process failed", not a real
+        # UploadUnhappinessError...
+        assert "UploadUnhappinessError" in str(e)
         print("found expected UploadUnhappinessError")
-        # we kind of want to (also) assert "only 2 servers found" but
-        # UploadUnhappinessError doesn't include those details.
-
-    # other exceptions will be (and should be) errors in the test
