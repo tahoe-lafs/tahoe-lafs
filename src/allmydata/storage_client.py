@@ -351,7 +351,8 @@ def validate_grid_manager_certificate(gm_key, alleged_cert):
         expired.
     """
     try:
-        gm_key.verify(
+        ed25519.verify_signature(
+            gm_key,
             base32.a2b(alleged_cert['signature'].encode('ascii')),
             alleged_cert['certificate'].encode('ascii'),
         )

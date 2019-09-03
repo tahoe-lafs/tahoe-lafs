@@ -399,11 +399,12 @@ def await_file_vanishes(path, timeout=10):
     raise FileShouldVanishException(path, timeout)
 
 
-def cli(request, reactor, node_dir, *argv, stdin=None):
+def cli(request, reactor, node_dir, *argv, **kwargs):
     """
     Run a tahoe CLI subcommand for a given node, optionally running
     under coverage if '--coverage' was supplied.
     """
+    stdin = kwargs.get("stdin", None)
     proto = _CollectOutputProtocol(stdin=stdin)
     _tahoe_runner_optional_coverage(
         proto, reactor, request,

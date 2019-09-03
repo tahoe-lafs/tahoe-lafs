@@ -5,7 +5,7 @@ import json
 import time
 from datetime import datetime
 
-from pycryptopp.publickey import ed25519  # perhaps NaCl instead? other code uses this though
+from allmydata.crypto import ed25519
 
 from allmydata.scripts.common import BaseOptions
 from allmydata.util.abbreviate import abbreviate_time
@@ -13,7 +13,6 @@ from twisted.python import usage
 from twisted.python.filepath import FilePath
 from allmydata.util import fileutil
 from allmydata.util import base32
-from allmydata.util import keyutil
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 
@@ -49,8 +48,7 @@ class AddOptions(BaseOptions):
             )
         self['name'] = unicode(args[0])
         try:
-            # WTF?! why does it want 'str' and not six.text_type?
-            self['storage_public_key'] = keyutil.parse_pubkey(args[1])
+            self['storage_public_key'] = ed25519.verifying_key_from_string(args[1])
         except Exception as e:
             raise usage.UsageError(
                 "Invalid public_key argument: {}".format(e)
@@ -132,8 +130,10 @@ def _create_gridmanager():
     :return: an object providing the GridManager interface initialized
         with a new random keypair
     """
-    private_key_bytes, public_key_bytes = keyutil.make_keypair()
+    private_key, public_key = ed25519.create_signing_keypair()
+    private_key_bytes = ed25519.string_from_signing_key(private_key)
     return _GridManager(private_key_bytes, {})
+
 
 def _create(gridoptions, options):
     """
@@ -168,12 +168,13 @@ class _GridManagerStorageServer(object):
         self._certificates.append(certificate)
 
     def public_key(self):
-        return "pub-v0-" + base32.b2a(self._public_key.vk_bytes)
+        return ed25519.string_from_verifying_key(self._public_key)
 
     def marshal(self):
         return {
             u"public_key": self.public_key(),
         }
+
 
 class _GridManager(object):
     """
@@ -195,7 +196,7 @@ class _GridManager(object):
 
         private_key_bytes = config['private_key'].encode('ascii')
         try:
-            private_key, public_key_bytes = keyutil.parse_privkey(private_key_bytes)
+            private_key, public_key_bytes = ed25519.signing_keypair_from_string(private_key_bytes)
         except Exception as e:
             raise ValueError(
                 "Invalid Grid Manager private_key: {}".format(e)
@@ -209,7 +210,7 @@ class _GridManager(object):
                 )
             storage_servers[name] = _GridManagerStorageServer(
                 name,
-                keyutil.parse_pubkey(srv_config['public_key'].encode('ascii')),
+                ed25519.verifying_key_from_string(srv_config['public_key'].encode('ascii')),
                 None,
             )
 
@@ -225,7 +226,7 @@ class _GridManager(object):
     def __init__(self, private_key_bytes, storage_servers):
         self._storage_servers = dict() if storage_servers is None else storage_servers
         self._private_key_bytes = private_key_bytes
-        self._private_key, _ = keyutil.parse_privkey(self._private_key_bytes)
+        self._private_key, _ = ed25519.signing_keypair_from_string(self._private_key_bytes)
         self._version = 0
 
     @property
@@ -233,7 +234,9 @@ class _GridManager(object):
         return self._storage_servers
 
     def public_identity(self):
-        verify_key_bytes = self._private_key.get_verifying_key_bytes()
+        pubkey = ed25519.verifying_key_from_signing_key(self._private_key)
+        verify_key_bytes = ed25519.string_from_verifying_key(pubkey)
+        return verify_key_bytes
         return base32.b2a(verify_key_bytes)
 
     def sign(self, name):
@@ -256,8 +259,7 @@ class _GridManager(object):
         }
 
         if True:
-            verify_key_bytes = self._private_key.get_verifying_key_bytes()
-            vk = ed25519.VerifyingKey(verify_key_bytes)
+            vk = ed25519.verifying_key_from_signing_key(self._private_key)
             assert vk.verify(sig, cert_data) is None, "cert should verify"
 
         return certificate
@@ -265,15 +267,13 @@ class _GridManager(object):
     def add_storage_server(self, name, public_key):
         """
         :param name: a user-meaningful name for the server
-        :param public_key: ed25519.VerifyingKey the public-key of the
-            storage provider (e.g. from the contents of node.pubkey
-            for the client)
+        :param public_key: the public-key of the storage provider
+            (e.g. from the contents of node.pubkey for the client)
         """
         if name in self._storage_servers:
             raise KeyError(
                 "Already have a storage server called '{}'".format(name)
             )
-        assert public_key.vk_bytes
         ss = _GridManagerStorageServer(name, public_key, None)
         self._storage_servers[name] = ss
         return ss
@@ -292,7 +292,7 @@ class _GridManager(object):
     def marshal(self):
         data = {
             u"grid_manager_config_version": self._version,
-            u"private_key": self._private_key_bytes.decode('ascii'),
+            u"private_key": self._private_key_bytes,
         }
         if self._storage_servers:
             data[u"storage_servers"] = {
@@ -371,7 +371,7 @@ def _show_identity(gridoptions, options):
     assert gm_config is not None
 
     gm = _load_gridmanager_config(gm_config)
-    print("pub-v0-{}".format(gm.public_identity()))
+    print("{}".format(gm.public_identity()))
 
 
 def _add(gridoptions, options):
