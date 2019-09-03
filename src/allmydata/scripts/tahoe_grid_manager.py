@@ -196,7 +196,7 @@ class _GridManager(object):
 
         private_key_bytes = config['private_key'].encode('ascii')
         try:
-            private_key, public_key_bytes = ed25519.signing_keypair_from_string(private_key_bytes)
+            private_key, public_key = ed25519.signing_keypair_from_string(private_key_bytes)
         except Exception as e:
             raise ValueError(
                 "Invalid Grid Manager private_key: {}".format(e)
@@ -226,7 +226,7 @@ class _GridManager(object):
     def __init__(self, private_key_bytes, storage_servers):
         self._storage_servers = dict() if storage_servers is None else storage_servers
         self._private_key_bytes = private_key_bytes
-        self._private_key, _ = ed25519.signing_keypair_from_string(self._private_key_bytes)
+        self._private_key, self._public_key = ed25519.signing_keypair_from_string(self._private_key_bytes)
         self._version = 0
 
     @property
@@ -238,6 +238,14 @@ class _GridManager(object):
         verify_key_bytes = ed25519.string_from_verifying_key(pubkey)
         return verify_key_bytes
         return base32.b2a(verify_key_bytes)
+
+    @property
+    def public_key(self):
+        return self._public_key
+
+    @property
+    def private_key(self):
+        return self._private_key
 
     def sign(self, name):
         try:
@@ -429,11 +437,21 @@ def _list(gridoptions, options):
 
     gm = _load_gridmanager_config(gm_config)
     for name in sorted(gm.storage_servers.keys()):
+        srv = gm.storage_servers[name]
         print("{}: {}".format(name, gm.storage_servers[name].public_key()))
         if fp:
             cert_count = 0
             while fp.child('{}.cert.{}'.format(name, cert_count)).exists():
                 container = json.load(fp.child('{}.cert.{}'.format(name, cert_count)).open('r'))
+                try:
+                    ed25519.verify_signature(
+                        gm.public_key,
+                        base32.a2b(container['signature'].encode('ascii')),
+                        container['certificate'].encode('ascii'),
+                    )
+                except Exception:
+                    print("{}: invalid signature".format(name))
+                    continue
                 cert_data = json.loads(container['certificate'])
                 expires = datetime.fromtimestamp(cert_data['expires'])
                 delta = datetime.utcnow() - expires
