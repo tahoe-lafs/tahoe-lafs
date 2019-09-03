@@ -8,6 +8,7 @@ from os.path import join, exists, getmtime
 from allmydata.crypto import ed25519
 from allmydata.util import base32
 from allmydata.util import configutil
+from allmydata.interfaces import UploadUnhappinessError
 
 import util
 
@@ -147,6 +148,14 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
             reactor, storage.node_dir, request, None,
         )
 
+    # we still haven't added the grid-manager public key to Carol's
+    # config, so with happy=3 she should be able to upload still
+    yield util.cli(
+        request, reactor, carol.node_dir,
+        "put", "-",
+        stdin="kwalitee content " * 50,
+    )
+
     # now only two storage-servers have certificates .. configure
     # carol to have the grid-manager public key
 
@@ -160,7 +169,7 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
     carol = yield util._run_node(
         reactor, carol._node_dir, request, None,
     )
-    yield util.await_client_ready(carol)
+    yield util.await_client_ready(carol, minimum_storage_servers=5)
 
     # try to put something into the grid, which should fail (because
     # carol has happy=3 but should only find storage0, storage1 to be
@@ -173,8 +182,9 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
             stdin="some content" * 200,
         )
         assert False, "Should get a failure"
-    except Exception as e:
-        # depending on the full output being in the error-message
-        # here; see util.py
-        assert 'UploadUnhappinessError' in str(e)
+    except UploadUnhappinessError:
         print("found expected UploadUnhappinessError")
+        # we kind of want to (also) assert "only 2 servers found" but
+        # UploadUnhappinessError doesn't include those details.
+
+    # other exceptions will be (and should be) errors in the test

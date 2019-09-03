@@ -460,7 +460,7 @@ def web_post(tahoe, uri_fragment, **kwargs):
     return resp.content
 
 
-def await_client_ready(tahoe, timeout=10, liveness=60*2):
+def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_storage_servers=None):
     """
     Uses the status API to wait for a client-type node (in `tahoe`, a
     `TahoeProcess` instance usually from a fixture e.g. `alice`) to be
@@ -475,6 +475,7 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
     to be true. Otherwise, an exception is raised
     """
     start = time.time()
+    minimum_storage_servers = minimum_storage_servers if minimum_storage_servers else 1
     while (time.time() - start) < float(timeout):
         try:
             data = web_get(tahoe, u"", params={u"t": u"json"})
@@ -484,8 +485,8 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
             time.sleep(1)
             continue
 
-        if len(js['servers']) == 0:
-            print("waiting because no servers at all")
+        if len(js['servers']) < minimum_storage_servers:
+            print("waiting because fewer than {} storage-servers".format(minimum_storage_servers))
             time.sleep(1)
             continue
         server_times = [
