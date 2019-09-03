@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:n="http://nevow.com/ns/nevow/0.1">
+<html lang="en" xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
   <head>
     <meta charset="utf-8"/>
     <title t:render="title"></title>
@@ -41,8 +41,8 @@
           <h1 t:render="header"></h1>
 
           <div t:render="try_children">
-            <table class="table table-striped tahoe-directory" t:render="sequence" t:data="children">
-              <tr t:pattern="header">
+            <table class="table table-striped tahoe-directory" t:render="children">
+              <tr t:render="header">
                 <th>Type</th>
                 <th>Filename</th>
                 <th>Size</th>
@@ -51,7 +51,7 @@
                 <th></th>
                 <th></th>
               </tr>
-              <tr t:pattern="item" t:render="row">
+              <tr t:render="item">
                 <td><t:slot name="type"/></td>
                 <td><t:slot name="filename"/></td>
                 <td align="right"><t:slot name="size"/></td>

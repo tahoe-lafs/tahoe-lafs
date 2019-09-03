@@ -367,6 +367,7 @@ class NeedOperationHandleError(WebError):
     pass
 
 
+# XXX should be phased out by the nevow -> twisted.web port
 class RenderMixin(object):
 
     def renderHTTP(self, ctx):
@@ -526,6 +527,10 @@ class SlotsSequenceElement(template.Element):
         self.seq = seq
 
     @template.renderer
+    def header(self, request, tag):
+        return tag
+
+    @template.renderer
     def item(self, request, tag):
         """
         A template renderer for each sequence item.
@@ -536,6 +541,8 @@ class SlotsSequenceElement(template.Element):
         separator beween them.
         """
         for item in self.seq:
+            print("item: {}".format(item))
+            print(type(item))
             yield tag.clone(deep=False).fillSlots(**item)
 
     @template.renderer
