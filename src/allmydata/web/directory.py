@@ -8,6 +8,7 @@ from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer
 from twisted.python.failure import Failure
 from twisted.web import http
+from twisted.web.resource import Resource
 from twisted.web.template import (
     Element,
     XMLFile,
