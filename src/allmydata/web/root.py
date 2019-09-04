@@ -8,7 +8,6 @@ from twisted.web import (
     resource,
 )
 from twisted.web.util import redirectTo
-from twisted.python.urlpath import URLPath
 
 from hyperlink import URL
 
