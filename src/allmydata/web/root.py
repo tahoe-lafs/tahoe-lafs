@@ -6,6 +6,8 @@ from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
 
+from twisted.web import resource
+
 import allmydata # to display import path
 from allmydata.version_checks import get_package_versions_string
 from allmydata.util import log
@@ -29,13 +31,18 @@ from allmydata.web.private import (
     create_private_tree,
 )
 
-class URIHandler(RenderMixin, rend.Page):
-    # I live at /uri . There are several operations defined on /uri itself,
-    # mostly involved with creation of unlinked files and directories.
+class URIHandler(resource.Resource, object):
+    """
+    I live at /uri . There are several operations defined on /uri itself,
+    mostly involved with creation of unlinked files and directories.
+    """
 
     def __init__(self, client):
-        rend.Page.__init__(self, client)
+        super(URIHandler, self).__init__()
         self.client = client
+
+    def render(self, req):
+        return resource.Resource.render(self, req)
 
     def render_GET(self, ctx):
         req = IRequest(ctx)
@@ -92,14 +99,15 @@ class URIHandler(RenderMixin, rend.Page):
                   "and POST?t=mkdir")
         raise WebError(errmsg, http.BAD_REQUEST)
 
-    def childFactory(self, ctx, name):
-        # 'name' is expected to be a URI
+    def getChild(self, name, req):
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
         except (TypeError, AssertionError):
-            raise WebError("'%s' is not a valid file- or directory- cap"
-                           % name)
+            raise WebError(
+                "'{}' is not a valid file- or directory- cap".format(name)
+            )
+
 
 class FileHandler(rend.Page):
     # I handle /file/$FILECAP[/IGNORED] , which provides a URL from which a
