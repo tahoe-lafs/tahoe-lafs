@@ -56,10 +56,11 @@ class URIHandler(resource.Resource, object):
         # XXX nevow escaped 'uri' -- do we need to do that here?
         return redirectTo(b'/uri/{}'.format(uri), req)
 
-    def render_PUT(self, ctx):
-        req = IRequest(ctx)
-        # either "PUT /uri" to create an unlinked file, or
-        # "PUT /uri?t=mkdir" to create an unlinked directory
+    def render_PUT(self, req):
+        """
+        either "PUT /uri" to create an unlinked file, or
+        "PUT /uri?t=mkdir" to create an unlinked directory
+        """
         t = get_arg(req, "t", "").strip()
         if t == "":
             file_format = get_format(req, "CHK")
@@ -70,15 +71,18 @@ class URIHandler(resource.Resource, object):
                 return unlinked.PUTUnlinkedCHK(req, self.client)
         if t == "mkdir":
             return unlinked.PUTUnlinkedCreateDirectory(req, self.client)
-        errmsg = ("/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, "
-                  "and POST?t=mkdir")
+        errmsg = (
+            "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, "
+            "and POST?t=mkdir"
+        )
         raise WebError(errmsg, http.BAD_REQUEST)
 
-    def render_POST(self, ctx):
-        # "POST /uri?t=upload&file=newfile" to upload an
-        # unlinked file or "POST /uri?t=mkdir" to create a
-        # new directory
-        req = IRequest(ctx)
+    def render_POST(self, req):
+        """
+        "POST /uri?t=upload&file=newfile" to upload an
+        unlinked file or "POST /uri?t=mkdir" to create a
+        new directory
+        """
         t = get_arg(req, "t", "").strip()
         if t in ("", "upload"):
             file_format = get_format(req)
@@ -100,6 +104,11 @@ class URIHandler(resource.Resource, object):
         raise WebError(errmsg, http.BAD_REQUEST)
 
     def getChild(self, name, req):
+        """
+        Most requests look like /uri/<cap> so this fetches the capability
+        and creates and appropriate handler (depending on the kind of
+        capability it was passed).
+        """
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
