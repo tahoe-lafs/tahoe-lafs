@@ -5,7 +5,7 @@ from twisted.web import (
     resource,
 )
 from twisted.web.util import redirectTo
-from nevow import rend, url, tags as T
+from nevow import rend, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
