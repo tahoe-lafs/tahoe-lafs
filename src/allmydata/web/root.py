@@ -1,10 +1,15 @@
-import time, os, json
+import os
+import time
+import json
+import urllib
 
 from twisted.web import (
     http,
     resource,
 )
 from twisted.web.util import redirectTo
+from twisted.python.urlpath import URLPath
+
 from nevow import rend, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
@@ -53,8 +58,15 @@ class URIHandler(resource.Resource, object):
         uri = get_arg(req, "uri", None)
         if uri is None:
             raise WebError("GET /uri requires uri=")
-        # XXX nevow escaped 'uri' -- do we need to do that here?
-        return redirectTo(b'/uri/{}'.format(uri), req)
+        base = URLPath.fromRequest(req)
+        args = '&'.join([
+            '{}={}'.format(name, vals[0])
+            for name, vals in req.args.items()
+            if name != 'uri'
+        ])
+        if args:
+            args = '?{}'.format(args)
+        return redirectTo(b'{}{}'.format(base.child(urllib.quote(uri)), args), req)
 
     def render_PUT(self, req):
         """
