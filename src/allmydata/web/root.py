@@ -1,12 +1,15 @@
 import time, os, json
 
-from twisted.web import http
+from twisted.web import (
+    http,
+    resource,
+)
+from twisted.web.util import redirectTo
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
 
-from twisted.web import resource
 
 import allmydata # to display import path
 from allmydata.version_checks import get_package_versions_string
@@ -41,20 +44,17 @@ class URIHandler(resource.Resource, object):
         super(URIHandler, self).__init__()
         self.client = client
 
-    def render(self, req):
-        return resource.Resource.render(self, req)
-
-    def render_GET(self, ctx):
-        req = IRequest(ctx)
+    def render_GET(self, req):
+        """
+        Historically, accessing this via "GET /uri?uri=<capabilitiy>"
+        was/is a feature -- which simply redirects to the more-common
+        "GET /uri/<capability>". New code should use /uri/<cap>
+        """
         uri = get_arg(req, "uri", None)
         if uri is None:
             raise WebError("GET /uri requires uri=")
-        there = url.URL.fromContext(ctx)
-        there = there.clear("uri")
-        # I thought about escaping the childcap that we attach to the URL
-        # here, but it seems that nevow does that for us.
-        there = there.child(uri)
-        return there
+        # XXX nevow escaped 'uri' -- do we need to do that here?
+        return redirectTo(b'/uri/{}'.format(uri), req)
 
     def render_PUT(self, ctx):
         req = IRequest(ctx)
