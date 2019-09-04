@@ -10,11 +10,12 @@ from twisted.web import (
 from twisted.web.util import redirectTo
 from twisted.python.urlpath import URLPath
 
+from hyperlink import URL
+
 from nevow import rend, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
-
 
 import allmydata # to display import path
 from allmydata.version_checks import get_package_versions_string
@@ -53,20 +54,25 @@ class URIHandler(resource.Resource, object):
         """
         Historically, accessing this via "GET /uri?uri=<capabilitiy>"
         was/is a feature -- which simply redirects to the more-common
-        "GET /uri/<capability>". New code should use /uri/<cap>
+        "GET /uri/<capability>" with any other query args
+        preserved. New code should use "/uri/<cap>"
         """
-        uri = get_arg(req, "uri", None)
-        if uri is None:
+        uri_arg = get_arg(req, "uri", None)
+        if uri_arg is None:
             raise WebError("GET /uri requires uri=")
-        base = URLPath.fromRequest(req)
-        args = '&'.join([
-            '{}={}'.format(name, vals[0])
-            for name, vals in req.args.items()
-            if name != 'uri'
-        ])
-        if args:
-            args = '?{}'.format(args)
-        return redirectTo(b'{}{}'.format(base.child(urllib.quote(uri)), args), req)
+        # so, using URL.from_text(req.uri) isn't going to work because
+        # it seems Nevow was creating absolute URLs including
+        # host/port whereas req.uri is absolute but lacks host/port
+        uri = URL.from_text(req.prePathURL().decode('utf8'))
+        # using ^ prePathURL() above because that includes the scheme
+        # / host / port but req.uri does not.
+        uri = uri.child(urllib.quote(uri_arg).decode('utf8'))
+        # add back all the query args that AREN'T ?uri=
+        for k, values in req.args.items():
+            if k != "uri":
+                for v in values:
+                    uri = uri.add(k.decode('utf8'), v.decode('utf8'))
+        return redirectTo(uri.to_text().encode('utf8'), req)
 
     def render_PUT(self, req):
         """
