@@ -60,6 +60,14 @@ class URIHandler(resource.Resource, object):
         uri_arg = get_arg(req, "uri", None)
         if uri_arg is None:
             raise WebError("GET /uri requires uri=")
+
+        # XXX exarkun raised in #twisted that shennanigans like
+        # putting "%2F" or just "/" itself, or ../ etc in the <cap>
+        # might be a vector for weirdness .. so we should confirm
+        # uri_arg is at least a valid cap (not necessarily
+        # retrievable) before redirecting or doing anything else with
+        # it.
+
         # so, using URL.from_text(req.uri) isn't going to work because
         # it seems Nevow was creating absolute URLs including
         # host/port whereas req.uri is absolute but lacks host/port
