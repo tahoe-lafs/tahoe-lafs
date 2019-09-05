@@ -10,6 +10,7 @@ class FakeRoot(Root):
     def now_fn(self):
         return 0
 
+
 class FakeContext(object):
     def __init__(self):
         self.slots = {}
@@ -17,12 +18,15 @@ class FakeContext(object):
     def fillSlots(self, slotname, contents):
         self.slots[slotname] = contents
 
+
 class RenderServiceRow(unittest.TestCase):
     def test_missing(self):
-        # minimally-defined static servers just need anonymous-storage-FURL
-        # and permutation-seed-base32. The WUI used to have problems
-        # rendering servers that lacked nickname and version. This tests that
-        # we can render such minimal servers.
+        """
+        minimally-defined static servers just need anonymous-storage-FURL
+        and permutation-seed-base32. The WUI used to have problems
+        rendering servers that lacked nickname and version. This tests that
+        we can render such minimal servers.
+        """
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
