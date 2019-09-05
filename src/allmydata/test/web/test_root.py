@@ -9,9 +9,15 @@ from ...util.connection_status import ConnectionStatus
 from allmydata.web.root import URIHandler
 from allmydata.web.common import WebError
 
+from hypothesis import given
+from hypothesis.strategies import text
+
+# remove nevow imports when we use twisted.web.Site instead of nevow
+# for the base.
 from nevow.inevow import IRequest
 
 from zope.interface import directlyProvides
+
 
 class FakeRoot(Root):
     def __init__(self):
@@ -40,14 +46,19 @@ class FakeField(object):
 
 class RenderSlashUri(unittest.TestCase):
     """
-    Ensure that URI's starting with /uri?uri= only accept valid
+    Ensure that URIs starting with /uri?uri= only accept valid
     capabilities
     """
 
     def setUp(self):
         self.request = DummyRequest("/uri")
         self.request.fields = {}
-        self.request.prePathURL = lambda: "http://127.0.0.1.99999/{}".format("/".join(self.request.prepath))
+
+        def prepathURL():
+            return "http://127.0.0.1.99999/{}".format(
+                "/".join(self.request.prepath)
+            )
+        self.request.prePathURL = prepathURL
         directlyProvides(self.request, IRequest)
         self.client = Mock()
         self.res = URIHandler(self.client)
@@ -56,19 +67,33 @@ class RenderSlashUri(unittest.TestCase):
         """
         A valid capbility does not result in error
         """
-        self.request.fields["uri"] = FakeField(
-            value=(
-                "URI:CHK:nt2xxmrccp7sursd6yh2thhcky:"
-                "mukesarwdjxiyqsjinbfiiro6q7kgmmekocxfjcngh23oxwyxtzq:2:5:5874882"
-            )
-        )
+        self.request.args[b"uri"] = [(
+            b"URI:CHK:nt2xxmrccp7sursd6yh2thhcky:"
+            b"mukesarwdjxiyqsjinbfiiro6q7kgmmekocxfjcngh23oxwyxtzq:2:5:5874882"
+        )]
         self.res.render_GET(self.request)
 
     def test_invalid(self):
         """
         A (trivially) invalid capbility is an error
         """
-        self.request.fields["uri"] = FakeField(value="not a capability")
+        self.request.args[b"uri"] = [b"not a capability"]
+        with self.assertRaises(WebError):
+            self.res.render_GET(self.request)
+
+    @given(
+        text()
+    )
+    def test_hypothesis_error_caps(self, cap):
+        """
+        Let hypothesis try a bunch of invalid capabilities
+        """
+        # existing code insists capabilities are type "str" .. which
+        # sounds like it'll definitely be wrong for python3? (what
+        # does twisted.web produce for stuff in 'fields' or the
+        # equivalent for a plain Request? also maybe I should use that
+        # already?)
+        self.request.args[b"uri"] = [cap.encode('utf8')]
         with self.assertRaises(WebError):
             self.res.render_GET(self.request)
 

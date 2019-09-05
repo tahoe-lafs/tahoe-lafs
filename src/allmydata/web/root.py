@@ -57,7 +57,7 @@ class URIHandler(resource.Resource, object):
         "GET /uri/<capability>" with any other query args
         preserved. New code should use "/uri/<cap>"
         """
-        uri_arg = get_arg(req, "uri", None)
+        uri_arg = req.args.get(b"uri", [None])[0]
         if uri_arg is None:
             raise WebError("GET /uri requires uri=")
 
