@@ -12,12 +12,6 @@ from allmydata.web.common import WebError
 from hypothesis import given
 from hypothesis.strategies import text
 
-# remove nevow imports when we use twisted.web.Site instead of nevow
-# for the base.
-from nevow.inevow import IRequest
-
-from zope.interface import directlyProvides
-
 
 class FakeRoot(Root):
     def __init__(self):
@@ -49,7 +43,6 @@ class RenderSlashUri(unittest.TestCase):
                 "/".join(self.request.prepath)
             )
         self.request.prePathURL = prepathURL
-        directlyProvides(self.request, IRequest)
         self.client = Mock()
         self.res = URIHandler(self.client)
 
