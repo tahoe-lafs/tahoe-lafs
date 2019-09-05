@@ -7,6 +7,7 @@ from ...storage_client import NativeStorageServer
 from ...web.root import Root
 from ...util.connection_status import ConnectionStatus
 from allmydata.web.root import URIHandler
+from allmydata.web.common import WebError
 
 from nevow.inevow import IRequest
 
@@ -61,8 +62,15 @@ class RenderSlashUri(unittest.TestCase):
                 "mukesarwdjxiyqsjinbfiiro6q7kgmmekocxfjcngh23oxwyxtzq:2:5:5874882"
             )
         )
-
         self.res.render_GET(self.request)
+
+    def test_invalid(self):
+        """
+        A (trivially) invalid capbility is an error
+        """
+        self.request.fields["uri"] = FakeField(value="not a capability")
+        with self.assertRaises(WebError):
+            self.res.render_GET(self.request)
 
 
 class RenderServiceRow(unittest.TestCase):
