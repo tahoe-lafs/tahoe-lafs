@@ -38,6 +38,7 @@ from allmydata.web.common import (
 from allmydata.web.private import (
     create_private_tree,
 )
+from allmydata import uri
 
 class URIHandler(resource.Resource, object):
     """
@@ -60,26 +61,24 @@ class URIHandler(resource.Resource, object):
         if uri_arg is None:
             raise WebError("GET /uri requires uri=")
 
-        # XXX exarkun raised in #twisted that shennanigans like
-        # putting "%2F" or just "/" itself, or ../ etc in the <cap>
-        # might be a vector for weirdness .. so we should confirm
-        # uri_arg is at least a valid cap (not necessarily
-        # retrievable) before redirecting or doing anything else with
-        # it.
+        # shennanigans like putting "%2F" or just "/" itself, or ../
+        # etc in the <cap> might be a vector for weirdness so we
+        # validate that this is a valid capability before proceeding.
+        cap = uri.from_string(uri_arg)
+        if isinstance(cap, uri.UnknownURI):
+            raise WebError("Invalid capability")
 
         # so, using URL.from_text(req.uri) isn't going to work because
         # it seems Nevow was creating absolute URLs including
-        # host/port whereas req.uri is absolute but lacks host/port
-        uri = URL.from_text(req.prePathURL().decode('utf8'))
-        # using ^ prePathURL() above because that includes the scheme
-        # / host / port but req.uri does not.
-        uri = uri.child(urllib.quote(uri_arg).decode('utf8'))
-        # add back all the query args that AREN'T ?uri=
+        # host/port whereas req.uri is absolute (but lacks host/port)
+        redir_uri = URL.from_text(req.prePathURL().decode('utf8'))
+        redir_uri = redir_uri.child(urllib.quote(uri_arg).decode('utf8'))
+        # add back all the query args that AREN'T "?uri="
         for k, values in req.args.items():
             if k != "uri":
                 for v in values:
-                    uri = uri.add(k.decode('utf8'), v.decode('utf8'))
-        return redirectTo(uri.to_text().encode('utf8'), req)
+                    redir_uri = redir_uri.add(k.decode('utf8'), v.decode('utf8'))
+        return redirectTo(redir_uri.to_text().encode('utf8'), req)
 
     def render_PUT(self, req):
         """
