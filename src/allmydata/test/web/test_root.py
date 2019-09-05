@@ -1,8 +1,16 @@
+from mock import Mock
+
 from twisted.trial import unittest
+from twisted.web.test.requesthelper import DummyRequest
 
 from ...storage_client import NativeStorageServer
 from ...web.root import Root
 from ...util.connection_status import ConnectionStatus
+from allmydata.web.root import URIHandler
+
+from nevow.inevow import IRequest
+
+from zope.interface import directlyProvides
 
 class FakeRoot(Root):
     def __init__(self):
@@ -17,6 +25,44 @@ class FakeContext(object):
         self.tag = self
     def fillSlots(self, slotname, contents):
         self.slots[slotname] = contents
+
+
+class FakeField(object):
+    """
+    Without using Nevow code directly, provide a false IRequest.fields
+    implementation on top of twisted.web's DummyRequest
+    """
+    def __init__(self, **kw):
+        for k, v in kw.items():
+            setattr(self, k, v)
+
+
+class RenderSlashUri(unittest.TestCase):
+    """
+    Ensure that URI's starting with /uri?uri= only accept valid
+    capabilities
+    """
+
+    def setUp(self):
+        self.request = DummyRequest("/uri")
+        self.request.fields = {}
+        self.request.prePathURL = lambda: "http://127.0.0.1.99999/{}".format("/".join(self.request.prepath))
+        directlyProvides(self.request, IRequest)
+        self.client = Mock()
+        self.res = URIHandler(self.client)
+
+    def test_valid(self):
+        """
+        A valid capbility does not result in error
+        """
+        self.request.fields["uri"] = FakeField(
+            value=(
+                "URI:CHK:nt2xxmrccp7sursd6yh2thhcky:"
+                "mukesarwdjxiyqsjinbfiiro6q7kgmmekocxfjcngh23oxwyxtzq:2:5:5874882"
+            )
+        )
+
+        self.res.render_GET(self.request)
 
 
 class RenderServiceRow(unittest.TestCase):
