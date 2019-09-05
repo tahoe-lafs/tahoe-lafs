@@ -34,16 +34,6 @@ class FakeContext(object):
         self.slots[slotname] = contents
 
 
-class FakeField(object):
-    """
-    Without using Nevow code directly, provide a false IRequest.fields
-    implementation on top of twisted.web's DummyRequest
-    """
-    def __init__(self, **kw):
-        for k, v in kw.items():
-            setattr(self, k, v)
-
-
 class RenderSlashUri(unittest.TestCase):
     """
     Ensure that URIs starting with /uri?uri= only accept valid
