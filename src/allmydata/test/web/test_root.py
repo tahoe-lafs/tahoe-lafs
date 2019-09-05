@@ -71,11 +71,6 @@ class RenderSlashUri(unittest.TestCase):
         """
         Let hypothesis try a bunch of invalid capabilities
         """
-        # existing code insists capabilities are type "str" .. which
-        # sounds like it'll definitely be wrong for python3? (what
-        # does twisted.web produce for stuff in 'fields' or the
-        # equivalent for a plain Request? also maybe I should use that
-        # already?)
         self.request.args[b"uri"] = [cap.encode('utf8')]
         with self.assertRaises(WebError):
             self.res.render_GET(self.request)
