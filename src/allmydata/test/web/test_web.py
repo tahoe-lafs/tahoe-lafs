@@ -4,6 +4,7 @@ import os.path, re, urllib, time, cgi
 import json
 import treq
 import mock
+from bs4 import BeautifulSoup
 
 from twisted.application import service
 from twisted.trial import unittest
@@ -51,7 +52,7 @@ from ..common_web import (
     Error,
 )
 from allmydata.client import _Client, SecretHolder
-from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
+from .common import assert_soup_has_favicon, assert_soup_has_text, unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
 from ..status import FakeStatus
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
@@ -973,11 +974,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_storage(self):
         d = self.GET("/storage")
-        def _check(res):
-            self.failUnlessIn('Storage Server Status', res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
-            res_u = res.decode('utf-8')
-            self.failUnlessIn(u'<li>Server Nickname: <span class="nickname mine">fake_nickname \u263A</span></li>', res_u)
+        def _check(html):
+            soup = BeautifulSoup(html.decode('utf-8'), 'html5lib')
+            assert_soup_has_text(self, soup, 'Storage Server Status')
+            assert_soup_has_favicon(self, soup)
+            self.assert_(soup.select_one(
+                u'span.nickname.mine:contains("fake_nickname \u263A")'))
         d.addCallback(_check)
         return d
 
