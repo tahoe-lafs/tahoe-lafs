@@ -4136,10 +4136,3 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             u'td:contains("Reserved space:") + '
             u'td:contains("- 10.00 MB") + '
             u'td:contains("(10000000)")'))
-
-    def test_util(self):
-        w = StorageStatus(None)
-        self.failUnlessEqual(w.render_space(None, None), "?")
-        self.failUnlessEqual(w.render_space(None, 10e6), "10000000")
-        self.failUnlessEqual(w.render_abbrev_space(None, None), "?")
-        self.failUnlessEqual(w.render_abbrev_space(None, 10e6), "10.00 MB")
