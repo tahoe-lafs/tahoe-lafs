@@ -36,7 +36,6 @@ class RenderSlashUri(unittest.TestCase):
 
     def setUp(self):
         self.request = DummyRequest("/uri")
-        self.request.fields = {}
 
         def prepathURL():
             return "http://127.0.0.1.99999/{}".format(
@@ -44,7 +43,7 @@ class RenderSlashUri(unittest.TestCase):
             )
         self.request.prePathURL = prepathURL
         self.client = Mock()
-        self.res = URIHandler(self.client)
+        self.resource = URIHandler(self.client)
 
     def test_valid(self):
         """
@@ -54,7 +53,7 @@ class RenderSlashUri(unittest.TestCase):
             b"URI:CHK:nt2xxmrccp7sursd6yh2thhcky:"
             b"mukesarwdjxiyqsjinbfiiro6q7kgmmekocxfjcngh23oxwyxtzq:2:5:5874882"
         )]
-        self.res.render_GET(self.request)
+        self.resource.render_GET(self.request)
 
     def test_invalid(self):
         """
@@ -62,7 +61,7 @@ class RenderSlashUri(unittest.TestCase):
         """
         self.request.args[b"uri"] = [b"not a capability"]
         with self.assertRaises(WebError):
-            self.res.render_GET(self.request)
+            self.resource.render_GET(self.request)
 
     @given(
         text()
@@ -73,7 +72,7 @@ class RenderSlashUri(unittest.TestCase):
         """
         self.request.args[b"uri"] = [cap.encode('utf8')]
         with self.assertRaises(WebError):
-            self.res.render_GET(self.request)
+            self.resource.render_GET(self.request)
 
 
 class RenderServiceRow(unittest.TestCase):
