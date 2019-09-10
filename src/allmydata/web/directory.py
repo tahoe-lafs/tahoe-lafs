@@ -77,8 +77,6 @@ class BlockingFileError(Exception):
 
 
 def make_handler_for(node, client, parentnode=None, name=None):
-    print("make_handler_for")
-    print(node)
     if parentnode:
         assert IDirectoryNode.providedBy(parentnode)
     if IFileNode.providedBy(node):
@@ -109,11 +107,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             return self.render_GET(req)
         elif req.method == 'POST':
             return self.render_POST(req)
-        print("RENDER: {}",format(req))
-        print(dir(req))
-        for k in dir(req):
-            print("  {}: {}".format(k, getattr(req, k)))
-        x = super(DirectoryNodeHandler, self).__init__()
+        x = super(DirectoryNodeHandler, self).render(req)
         print(type(x))
         print(x)
         return x
@@ -124,8 +118,6 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         """
         # XXX can we do this with putChild() instead? (i.e. does it
         # HAVE to be dynamic?)
-        print("getChild {} {}".format(name, type(name)))
-        print(dir(req))
         if name is None:
             name = get_arg(req, "uri")
         d = self.node.get(name.decode('utf8'))
@@ -219,8 +211,6 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
     def render_GET(self, req):
         # This is where all of the directory-related ?t=* code goes.
         t = get_arg(req, "t", "").strip()
-        print("RENDER_GET", req)
-        print(t)
 
         # t=info contains variable ophandles, t=rename-form contains the name
         # of the child being renamed. Neither is allowed an ETag.
@@ -237,10 +227,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                 self.node,
                 self.client.mutable_file_default,
             )
-            x = renderElement(req, dah)
-            print("X")
-            print(x)
-            return x
+            return renderElement(req, dah)
 
         if t == "json":
             return DirectoryJSONMetadata(req, self.node)
@@ -275,7 +262,6 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         raise WebError("PUT to a directory")
 
     def render_POST(self, req):
-        print("RENDER_POST")
         t = get_arg(req, "t", "").strip()
 
         if t == "mkdir":
@@ -315,13 +301,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
         when_done = get_arg(req, "when_done", None)
         if when_done:
-            print("got a when_done: {}".format(when_done))
-            print(dir(req))
-            print(d)
             def done(res):
-                print("RES: {}".format(type(res)))
-                print(res)
-                print(dir(req))
                 req.redirect(when_done)
                 return res
             d.addCallback(done)
@@ -685,7 +665,6 @@ class DirectoryAsHTML(Element):
 
     @defer.inlineCallbacks
     def _get_children(self, req):
-        print("beforeRender")
         # attempt to get the dirnode's children, stashing them (or the
         # failure that results) for later use
         try:
@@ -715,7 +694,6 @@ class DirectoryAsHTML(Element):
 
     @renderer
     def title(self, req, tag):
-        print("render_title", req, tag)
         si_s = abbreviated_dirnode(self.node)
         header = ["Tahoe-LAFS - Directory SI=%s" % si_s]
         if self.node.is_unknown():
@@ -726,8 +704,6 @@ class DirectoryAsHTML(Element):
             header.append(" (read-only)")
         else:
             header.append(" (modifiable)")
-        print(tag)
-        print(dir(tag))
         return tag(header)
 
     @renderer
