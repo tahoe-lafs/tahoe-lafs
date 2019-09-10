@@ -108,9 +108,12 @@ class URIHandler(resource.Resource, object):
         new directory
         """
         t = get_arg(req, "t", "").strip()
+        print("oh its a post!", t)
         if t in ("", "upload"):
             file_format = get_format(req)
+            print("ding", file_format)
             mutable_type = get_mutable_type(file_format)
+            print(mutable_type)
             if mutable_type is not None:
                 return unlinked.POSTUnlinkedSSK(req, self.client, mutable_type)
             else:
@@ -133,6 +136,11 @@ class URIHandler(resource.Resource, object):
         and creates and appropriate handler (depending on the kind of
         capability it was passed).
         """
+        print("getchild {} {}".format(name, type(name)))
+        print(dir(req))
+        print(req.args)
+        if not name:
+            return self
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
