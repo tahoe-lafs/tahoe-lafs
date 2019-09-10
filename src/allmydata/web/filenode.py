@@ -3,8 +3,9 @@ import json
 
 from twisted.web import http, static
 from twisted.internet import defer
-from nevow import url, rend
-from nevow.inevow import IRequest
+from twisted.web.resource import Resource
+
+from nevow import url
 
 from allmydata.interfaces import ExistingChildError
 from allmydata.monitor import Monitor
@@ -87,17 +88,17 @@ class ReplaceMeMixin(object):
         return d
 
 
-class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
+# XXX
+class PlaceHolderNodeHandler(Resource, ReplaceMeMixin, object):
     def __init__(self, client, parentnode, name):
-        rend.Page.__init__(self)
+        super(PlaceHolderNodeHandler, self).__init__()
         self.client = client
         assert parentnode
         self.parentnode = parentnode
         self.name = name
         self.node = None
 
-    def render_PUT(self, ctx):
-        req = IRequest(ctx)
+    def render_PUT(self, req):
         t = get_arg(req, "t", "").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
@@ -112,8 +113,7 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
         raise WebError("PUT to a file: bad t=%s" % t)
 
-    def render_POST(self, ctx):
-        req = IRequest(ctx)
+    def render_POST(self, req):
         t = get_arg(req, "t", "").strip()
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
         if t == "upload":
@@ -131,31 +131,36 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
         when_done = get_arg(req, "when_done", None)
         if when_done:
-            d.addCallback(lambda res: url.URL.fromString(when_done))
+            d.addCallback(lambda res: when_done)
         return d
 
 
-class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
+class FileNodeHandler(Resource, ReplaceMeMixin, object):
     def __init__(self, client, node, parentnode=None, name=None):
-        rend.Page.__init__(self)
+        super(FileNodeHandler, self).__init__()
         self.client = client
         assert node
         self.node = node
         self.parentnode = parentnode
         self.name = name
 
-    def childFactory(self, ctx, name):
-        req = IRequest(ctx)
+    # XXX fixme, this was a childFactory override before, but it seems
+    # like it never does anything except raise errors? so .. why?
+    def getChild(self, name, req):
         if isinstance(self.node, ProhibitedNode):
             raise FileProhibited(self.node.reason)
         if should_create_intermediate_directories(req):
-            raise WebError("Cannot create directory %s, because its "
-                           "parent is a file, not a directory" % quote_output(name, encoding='utf-8'))
-        raise WebError("Files have no children, certainly not named %s"
-                       % quote_output(name, encoding='utf-8'))
+            raise WebError(
+                u"Cannot create directory {}, because its "
+                u"parent is a file, not a directory".format(name)
+            )
+        raise WebError(
+            "Files have no children named '{}'".format(
+                quote_output(name, encoding='utf-8'),
+            )
+        )
 
-    def render_GET(self, ctx):
-        req = IRequest(ctx)
+    def render_GET(self, req):
         t = get_arg(req, "t", "").strip()
 
         # t=info contains variable ophandles, so is not allowed an ETag.
@@ -212,8 +217,7 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             return FileReadOnlyURI(ctx, self.node)
         raise WebError("GET file: bad t=%s" % t)
 
-    def render_HEAD(self, ctx):
-        req = IRequest(ctx)
+    def render_HEAD(self, req):
         t = get_arg(req, "t", "").strip()
         if t:
             raise WebError("HEAD file: bad t=%s" % t)
@@ -222,8 +226,7 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d.addCallback(lambda dn: FileDownloader(dn, filename))
         return d
 
-    def render_PUT(self, ctx):
-        req = IRequest(ctx)
+    def render_PUT(self, req):
         t = get_arg(req, "t", "").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
         offset = parse_offset_arg(get_arg(req, "offset", None))
@@ -265,8 +268,7 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
         raise WebError("PUT to a file: bad t=%s" % t)
 
-    def render_POST(self, ctx):
-        req = IRequest(ctx)
+    def render_POST(self, req):
         t = get_arg(req, "t", "").strip()
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
         if t == "check":
@@ -346,9 +348,9 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         return d
 
 
-class FileDownloader(rend.Page):
+class FileDownloader(Resource, object):
     def __init__(self, filenode, filename):
-        rend.Page.__init__(self)
+        super(FileDownloader, self).__init__()
         self.filenode = filenode
         self.filename = filename
 
@@ -400,8 +402,7 @@ class FileDownloader(rend.Page):
         except ValueError:
             return None
 
-    def renderHTTP(self, ctx):
-        req = IRequest(ctx)
+    def render(self, req):
         gte = static.getTypeAndEncoding
         ctype, encoding = gte(self.filename,
                               static.File.contentTypes,

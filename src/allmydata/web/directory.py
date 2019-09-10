@@ -67,6 +67,8 @@ class BlockingFileError(Exception):
 
 
 def make_handler_for(node, client, parentnode=None, name=None):
+    print("make_handler_for")
+    print(node)
     if parentnode:
         assert IDirectoryNode.providedBy(parentnode)
     if IFileNode.providedBy(node):
@@ -92,12 +94,30 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         self.name = name
         self._operations = client.get_web_service().get_operations()
 
+    def render(self, req):
+        if req.method == 'GET':
+            return self.render_GET(req)
+        elif req.method == 'POST':
+            return self.render_POST(req)
+        print("RENDER: {}",format(req))
+        print(dir(req))
+        for k in dir(req):
+            print("  {}: {}".format(k, getattr(req, k)))
+        x = super(DirectoryNodeHandler, self).__init__()
+        print(type(x))
+        print(x)
+        return x
+
     def getChild(self, name, req):
         """
         Dynamically create a child for the given request and name
         """
         # XXX can we do this with putChild() instead? (i.e. does it
         # HAVE to be dynamic?)
+        print("getChild {} {}".format(name, type(name)))
+        print(dir(req))
+        if name is None:
+            name = get_arg(req, "uri")
         d = self.node.get(name.decode('utf8'))
         d.addBoth(self._got_child, req, name)
         return d
@@ -190,6 +210,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # This is where all of the directory-related ?t=* code goes.
         t = get_arg(req, "t", "").strip()
         print("RENDER_GET", req)
+        print(t)
 
         # t=info contains variable ophandles, t=rename-form contains the name
         # of the child being renamed. Neither is allowed an ETag.
@@ -244,6 +265,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         raise WebError("PUT to a directory")
 
     def render_POST(self, req):
+        print("RENDER_POST")
         t = get_arg(req, "t", "").strip()
 
         if t == "mkdir":
@@ -283,7 +305,16 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
         when_done = get_arg(req, "when_done", None)
         if when_done:
-            d.addCallback(lambda res: url.URL.fromString(when_done))
+            print("got a when_done: {}".format(when_done))
+            print(dir(req))
+            print(d)
+            def done(res):
+                print("RES: {}".format(type(res)))
+                print(res)
+                print(dir(req))
+                req.redirect(when_done)
+                return res
+            d.addCallback(done)
         return d
 
     def _POST_mkdir(self, req):
@@ -372,7 +403,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # delegate to it. We could return the resource back out of
         # DirectoryNodeHandler.renderHTTP, and nevow would recurse into it,
         # but the addCallback() that handles when_done= would break.
-        d.addCallback(lambda child: child.renderHTTP(req))
+        d.addCallback(lambda child: child.render(req))
         return d
 
     def _POST_uri(self, req):
@@ -663,26 +694,13 @@ class DirectoryAsHTML(Element):
         defer.returnValue(self.dirnode_children)
 
     @renderer
-    @defer.inlineCallbacks
     def children(self, req, tag):
-        yield
-        print("children:", self.dirnode_children)
-        children = [
-            {
-                "type": None,
-                "filename": None,
-                "size": None,
-                "times": None,
-# XXX these should come from .. some other fill-slots call?
-##                "unlink": None,
-##                "rename": None,
-##                "info": None,
-            }
-            for k, v in self.dirnode_children.items()
-        ]
-        print("childs", children)
-        defer.returnValue(
-            SlotsSequenceElement(tag, children)
+        return SlotsSequenceElement(
+            tag,
+            [
+                self._child_slots(req, fname, data[0], data[1])
+                for fname, data in self.dirnode_children.items()
+            ]
         )
 
     @renderer
@@ -740,18 +758,17 @@ class DirectoryAsHTML(Element):
                 tags.p(self.dirnode_children_error),
             )
 
-    def data_children(self, req, data):
-        return self.dirnode_children
-
-    @renderer
-    def row(self, req, tag):
-        name, (target, metadata) = data
+    def _child_slots(self, req, name, target, metadata):
+        """
+        :returns: a dict of key/values to give to each item in the table
+            of sub-items that directory.xhtml defines (this method is
+            called by the 'children' renderer)
+        """
         name = name.encode("utf-8")
-        assert not isinstance(name, unicode)
         nameurl = urllib.quote(name, safe="") # encode any slashes too
 
         root = get_root(req)
-        here = "%s/uri/%s/" % (root, urllib.quote(self.node.get_uri()))
+        here = "{}/uri/{}/".format(root, urllib.quote(self.node.get_uri()))
         if self.node.is_unknown() or self.node.is_readonly():
             unlink = "-"
             rename = "-"
@@ -764,23 +781,24 @@ class DirectoryAsHTML(Element):
                     tags.input(type='hidden', name='t', value='unlink'),
                     tags.input(type='hidden', name='name', value=name),
                     tags.input(type='hidden', name='when_done', value="."),
-                    tags.input(type='submit', _class='btn', value='unlink', name="unlink"),
+                    tags.input(type='submit', class_='btn', value='unlink', name="unlink"),
                 ],
                 action=here, method="post"
             )
-
             rename = tags.form(
                 [
                     tags.input(type='hidden', name='t', value='rename-form'),
                     tags.input(type='hidden', name='name', value=name),
                     tags.input(type='hidden', name='when_done', value="."),
-                    tags.input(type='submit', _class='btn', value='rename/relink', name="rename"),
+                    tags.input(type='submit', class_='btn', value='rename/relink', name="rename"),
                 ],
                 action=here, method="get",
             )
 
-        tag.fillSlots("unlink", unlink)
-        tag.fillSlots("rename", rename)
+        slots = {
+            "unlink": unlink,
+            "rename": rename,
+        }
 
         times = []
         linkcrtime = metadata.get('tahoe', {}).get("linkcrtime")
@@ -803,7 +821,7 @@ class DirectoryAsHTML(Element):
                 if times:
                     times.append(tags.br())
                 times.append("m: " + mtime)
-        tag.fillSlots("times", times)
+        slots["times"] = times
 
         assert IFilesystemNode.providedBy(target), target
         target_uri = target.get_uri() or ""
@@ -814,70 +832,65 @@ class DirectoryAsHTML(Element):
             # secret directory URI from the URL, send the browser to a URI-based
             # page that doesn't know about the directory at all
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
-
-            tag.fillSlots("filename", tags.a(name, href=dlurl, rel="noreferrer"))
-            tag.fillSlots("type", "SSK")
-
-            tag.fillSlots("size", "?")
-
-            info_link = "%s/uri/%s?t=info" % (root, quoted_uri)
+            slots["filename"] = tags.a(name, href=dlurl, rel="noreferrer")
+            slots["type"] = "SSK"
+            slots["size"] = "?"
+            info_link = "{}/uri/{}?t=info".format(root, quoted_uri)
 
         elif IImmutableFileNode.providedBy(target):
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
-
-            tag.fillSlots("filename", tags.a(name, href=dlurl, rel="noreferrer"))
-            tag.fillSlots("type", "FILE")
-
-            tag.fillSlots("size", target.get_size())
-
-            info_link = "%s/uri/%s?t=info" % (root, quoted_uri)
+            slots["filename"] = tags.a(name, href=dlurl, rel="noreferrer")
+            slots["type"] = "FILE"
+            slots["size"] = str(target.get_size())
+            info_link = "{}/uri/{}?t=info".format(root, quoted_uri)
 
         elif IDirectoryNode.providedBy(target):
             # directory
             uri_link = "%s/uri/%s/" % (root, urllib.quote(target_uri))
-            tag.fillSlots("filename", tags.a(name, href=uri_link))
+            slots["filename"] = tags.a(name, href=uri_link)
             if not target.is_mutable():
                 dirtype = "DIR-IMM"
             elif target.is_readonly():
                 dirtype = "DIR-RO"
             else:
                 dirtype = "DIR"
-            tag.fillSlots("type", dirtype)
-            tag.fillSlots("size", "-")
+            slots["type"] = dirtype
+            slots["size"] = "-"
             info_link = "%s/uri/%s/?t=info" % (root, quoted_uri)
 
         elif isinstance(target, ProhibitedNode):
-            tag.fillSlots("filename", tags.strike(name))
+            tag.fillSlots(filename=tags.strike(name))
             if IDirectoryNode.providedBy(target.wrapped_node):
                 blacklisted_type = "DIR-BLACKLISTED"
             else:
                 blacklisted_type = "BLACKLISTED"
-            tag.fillSlots("type", blacklisted_type)
-            tag.fillSlots("size", "-")
+            slots["type"] = blacklisted_type
+            slots["size"] = "-"
+            slots["info"] = ["Access Prohibited:", tags.br, target.reason]
             info_link = None
-            tag.fillSlots("info", ["Access Prohibited:", tags.br, target.reason])
 
         else:
             # unknown
-            tag.fillSlots("filename", name)
             if target.get_write_uri() is not None:
                 unknowntype = "?"
             elif not self.node.is_mutable() or target.is_alleged_immutable():
                 unknowntype = "?-IMM"
             else:
                 unknowntype = "?-RO"
-            tag.fillSlots("type", unknowntype)
-            tag.fillSlots("size", "-")
+            slots["filename"] = name
+            slots["type"] = unknowntype
+            slots["size"] = "-"
             # use a directory-relative info link, so we can extract both the
             # writecap and the readcap
             info_link = "%s?t=info" % urllib.quote(name)
 
         if info_link:
-            tag.fillSlots("info", tags.a("More Info", href=info_link))
+            slots["info"] = tags.a("More Info", href=info_link)
 
-        return tag
+        return slots
 
     # XXX: similar to render_upload_form and render_mkdir_form in root.py.
+    # XXX: also, is generating so much HTML in code a great idea? -> templates?
     @renderer
     def forms(self, req, data):
         forms = []
@@ -951,7 +964,7 @@ class DirectoryAsHTML(Element):
         upload_form = tags.form(
             tags.fieldset([
                 tags.input(type="hidden", name="t", value="upload"),
-                tags.input(type="hidden", name="when_done", value="."),
+                tags.input(type="hidden", name="when_done", value=req.uri),
                 tags.legend("Upload a file to this directory", class_="freeform-form-label"),
                 "Choose a file to upload:"+SPACE,
                 tags.input(type="file", name="file", class_="freeform-input-file"), SPACE,
@@ -962,7 +975,7 @@ class DirectoryAsHTML(Element):
                 ], class_="form-inline"),
                 tags.input(type="submit", class_="btn", value="Upload"),             SPACE*2,
             ]),
-            action=".",
+            action=req.uri,
             method="post",
             enctype="multipart/form-data",
         )
