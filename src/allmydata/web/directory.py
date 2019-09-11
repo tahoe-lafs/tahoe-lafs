@@ -1183,10 +1183,6 @@ class ManifestElement(ReloadableMonitorElement):
     @renderer
     def items(self, req, tag):
         manifest = self.monitor.get_status()["manifest"]
-        print("MAN", manifest)
-        for x in manifest:
-            print(type(x), x)
-
         root = get_root(req)
         rows = [
             {
