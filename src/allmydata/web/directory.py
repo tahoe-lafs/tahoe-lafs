@@ -92,15 +92,6 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         self.name = name
         self._operations = client.get_web_service().get_operations()
 
-    def render(self, req):
-        if req.method == 'GET':
-            return self.render_GET(req)
-        elif req.method == 'POST':
-            return self.render_POST(req)
-        x = super(DirectoryNodeHandler, self).render(req)
-        print(type(x))
-        print(x)
-        return x
 
     def getChild(self, name, req):
         """
