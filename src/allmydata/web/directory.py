@@ -1293,17 +1293,23 @@ class DeepSizeResults(MultiFormatPage):
                   }
         return json.dumps(status)
 
+
 class DeepStatsResults(Resource):
+    """
+    Renders the results of a 'deep-stats' operation on a directory
+    capability.
+    """
     def __init__(self, client, monitor):
         self.client = client
         self.monitor = monitor
 
-    def renderHTTP(self, req):
+    def render(self, req):
         # JSON only
         req.setHeader("content-type", "text/plain")
         s = self.monitor.get_status().copy()
         s["finished"] = self.monitor.is_finished()
         return json.dumps(s, indent=1)
+
 
 @implementer(IPushProducer)
 class ManifestStreamer(dirnode.DeepStats):
