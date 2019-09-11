@@ -150,16 +150,15 @@ class URIHandler(resource.Resource, object):
             )
 
 
-class FileHandler(rend.Page):
+class FileHandler(resource.Resource, object):
     # I handle /file/$FILECAP[/IGNORED] , which provides a URL from which a
     # file can be downloaded correctly by tools like "wget".
 
     def __init__(self, client):
-        rend.Page.__init__(self, client)
+        super(FileHandler, self).__init__()
         self.client = client
 
-    def childFactory(self, ctx, name):
-        req = IRequest(ctx)
+    def getChild(self, name, req):
         if req.method not in ("GET", "HEAD"):
             raise WebError("/file can only be used with GET or HEAD")
         # 'name' must be a file URI
