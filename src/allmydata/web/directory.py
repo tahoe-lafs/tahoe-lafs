@@ -234,7 +234,10 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if t == "readonly-uri":
             return DirectoryReadonlyURI(req, self.node)
         if t == 'rename-form':
-            return RenameForm(self.node)
+            return renderElement(
+                req,
+                RenameForm(self.node),
+            )
 
         raise WebError("GET directory: bad t=%s" % t)
 
@@ -877,6 +880,12 @@ class DirectoryAsHTML(Element):
     def forms(self, req, data):
         forms = []
 
+        # making this consistent with the other forms, and also
+        # because action="." doesn't get us back to the dir page (but
+        # instead /uri itself)
+        root = get_root(req)
+        here = "{}/uri/{}/".format(root, urllib.quote(self.node.get_uri()))
+
         if self.node.is_readonly():
             return tags.div("No upload forms: directory is read-only")
         if self.dirnode_children is None:
@@ -918,7 +927,7 @@ class DirectoryAsHTML(Element):
                     ),
                 ])
             ],
-            action=".",
+            action=here,
             method="post",
             enctype="multipart/form-data",
         )
@@ -977,7 +986,7 @@ class DirectoryAsHTML(Element):
                     tags.input(type="submit", class_="btn", value="Attach"),
                     ], class_="form-inline"),
             ),
-            action=".",
+            action=here,
             method="post",
             enctype="multipart/form-data",
         )
@@ -1046,31 +1055,39 @@ def DirectoryURI(req, dirnode):
 def DirectoryReadonlyURI(req, dirnode):
     return text_plain(dirnode.get_readonly_uri(), req)
 
-class RenameForm(Element):
+class RenameForm(Element, object):
     addSlash = True
-    docFactory = getxmlfile("rename-form.xhtml")
+    loader = XMLFile(FilePath(__file__).sibling("rename-form.xhtml"))
 
-    def render_title(self, req, data):
-        return req.tag["Directory SI=%s" % abbreviated_dirnode(self.original)]
+    def __init__(self, original):
+        self.original = original
+        super(RenameForm, self).__init__()
 
-    def render_header(self, req, data):
-        header = ["Rename "
-                  "in directory SI=%s" % abbreviated_dirnode(self.original),
-                  ]
+    @renderer
+    def title(self, req, tag):
+        return tag("Directory SI={}".format(abbreviated_dirnode(self.original)))
+
+    @renderer
+    def header(self, req, tag):
+        header = [
+            "Rename "
+            "in directory SI=%s" % abbreviated_dirnode(self.original),
+        ]
 
         if self.original.is_readonly():
             header.append(" (readonly!)")
         header.append(":")
-        return req.tag[header]
+        return tag(header)
 
-    def render_when_done(self, req, data):
+    @renderer
+    def when_done(self, req, tag):
         return tags.input(type="hidden", name="when_done", value=".")
 
-    def render_get_name(self, req, data):
-
+    @renderer
+    def get_name(self, req, tag):
         name = get_arg(req, "name", "")
-        req.tag.attributes['value'] = name
-        return req.tag
+        tag.attributes['value'] = name
+        return tag
 
 
 class ReloadableMonitorElement(Element):
