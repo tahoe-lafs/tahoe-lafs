@@ -217,11 +217,13 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if not t:
             # render the directory as HTML, using the docFactory and Nevow's
             # whole templating thing.
-            dah = DirectoryAsHTML(
-                self.node,
-                self.client.mutable_file_default,
+            return renderElement(
+                req,
+                DirectoryAsHTML(
+                    self.node,
+                    self.client.mutable_file_default,
+                )
             )
-            return renderElement(req, dah)
 
         if t == "json":
             return DirectoryJSONMetadata(req, self.node)
