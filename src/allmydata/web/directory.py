@@ -896,31 +896,32 @@ class DirectoryAsHTML(Element):
             id='mkdir-mdmf',
         )
 
-        mkdir_form = tags.form([
-            tags.fieldset([
-                tags.input(type="hidden", name="t", value="mkdir"),
-                tags.input(type="hidden", name="when_done", value="."),
-                tags.legend("Create a new directory in this directory", class_="freeform-form-label"),
-                "New directory name:"+SPACE, tags.br,
-                tags.input(type="text", name="name"), SPACE,
-                tags.div(
-                    [
-                        mkdir_sdmf, tags.label(SPACE, "SDMF", for_='mutable-directory-sdmf'), SPACE*2,
-                        mkdir_mdmf, tags.label(SPACE, "MDMF (experimental)", for_='mutable-directory-mdmf'),
-                    ],
-                    class_="form-inline",
-                ),
-                tags.input(
-                    type="submit",
-                    class_="btn",
-                    value="Create",
-                )
+        mkdir_form = tags.form(
+            [
+                tags.fieldset([
+                    tags.input(type="hidden", name="t", value="mkdir"),
+                    tags.input(type="hidden", name="when_done", value="."),
+                    tags.legend("Create a new directory in this directory", class_="freeform-form-label"),
+                    "New directory name:"+SPACE, tags.br,
+                    tags.input(type="text", name="name"), SPACE,
+                    tags.div(
+                        [
+                            mkdir_sdmf, tags.label(SPACE, "SDMF", for_='mutable-directory-sdmf'), SPACE*2,
+                            mkdir_mdmf, tags.label(SPACE, "MDMF (experimental)", for_='mutable-directory-mdmf'),
+                        ],
+                        class_="form-inline",
+                    ),
+                    tags.input(
+                        type="submit",
+                        class_="btn",
+                        value="Create",
+                    ),
+                ])
             ],
             action=".",
             method="post",
             enctype="multipart/form-data",
         )
-        ])
         forms.append(tags.div(mkdir_form, class_="freeform-form"))
 
         upload_chk = tags.input(
