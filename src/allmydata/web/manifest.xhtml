@@ -1,4 +1,4 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
   <head>
     <title t:render="title"></title>
     <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
@@ -12,17 +12,17 @@
 
 <h2 t:render="reload" />
 
-<table t:render="sequence" t:data="items">
+<table t:render="items">
   <tr t:pattern="header">
     <td>Path</td>
     <td>cap</td>
   </tr>
-  <tr t:pattern="item" t:render="row">
+  <tr t:render="item">
     <td><t:slot name="path"/></td>
     <td><t:slot name="cap"/></td>
   </tr>
 
-  <tr t:pattern="empty"><td>no items in the manifest!</td></tr>
+  <tr t:render="empty"><td>no items in the manifest!</td></tr>
 
 </table>
 
