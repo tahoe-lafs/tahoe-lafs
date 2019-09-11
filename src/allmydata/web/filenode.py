@@ -521,5 +521,5 @@ def FileReadOnlyURI(req, filenode):
     return text_plain(filenode.get_readonly_uri(), req)
 
 class FileNodeDownloadHandler(FileNodeHandler):
-    def childFactory(self, req, name):
+    def getChild(self, name, req):
         return FileNodeDownloadHandler(self.client, self.node, name=name)
