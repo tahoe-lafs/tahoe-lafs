@@ -203,8 +203,7 @@ def plural(sequence_or_length):
         return ""
     return "s"
 
-def text_plain(text, ctx):
-    req = IRequest(ctx)
+def text_plain(text, req):
     req.setHeader("content-type", "text/plain")
     req.setHeader("content-length", b"%d" % len(text))
     return text
