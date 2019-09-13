@@ -12,7 +12,7 @@ git config user.name 'Build Automation'
 git config user.email 'tahoe-dev@tahoe-lafs.org'
 
 TAHOE="${PWD}"
-git clone git@github.com:tahoe-lafs/tahoe-depgraph.git
+git clone -b gh-pages git@github.com:tahoe-lafs/tahoe-depgraph.git
 cd tahoe-depgraph
 
 pip install twisted
