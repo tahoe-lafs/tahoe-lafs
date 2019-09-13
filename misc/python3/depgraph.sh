@@ -15,6 +15,8 @@ TAHOE="${PWD}"
 git clone git@github.com:tahoe-lafs/tahoe-depgraph.git
 cd tahoe-depgraph
 
+pip install twisted
+
 # Generate the maybe-changed data.
 python tahoe-depgraph.py "${TAHOE}"
 
