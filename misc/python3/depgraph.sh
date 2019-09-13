@@ -20,7 +20,7 @@ pip install twisted
 # Generate the maybe-changed data.
 python tahoe-depgraph.py "${TAHOE}"
 
-if git diff-index --quiet --cached HEAD; then
+if git diff-index --quiet HEAD; then
   echo "Declining to commit without any changes."
   exit 0
 fi
