@@ -9,6 +9,7 @@ from twisted.internet.interfaces import IConsumer
 from allmydata import uri, dirnode
 from allmydata.client import _Client
 from allmydata.immutable import upload
+from allmydata.immutable.literal import LiteralFileNode
 from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, MustNotBeUnknownRWError, \
      MustBeDeepImmutableError, MustBeReadonlyError, \
@@ -1459,6 +1460,23 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         for name in which:
             kids[unicode(name)] = (nm.create_from_cap(caps[name]), {})
         return kids
+
+    def test_pack_unpack_unicode(self):
+        """
+        pack -> unpack results in the same objects (with a unicode filename)
+        """
+        nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None, None)
+        fn = MinimalFakeMutableFile()
+
+        kids = {
+            u"n\u00e9wer.txt": (LiteralFileNode(uri.from_string(one_uri)), {}),
+        }
+        packed = dirnode.pack_children(kids, fn.get_writekey(), deep_immutable=False)
+        write_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        filenode = nm.create_from_cap(write_uri)
+        dn = dirnode.DirectoryNode(filenode, nm, None)
+        unkids = dn._unpack_contents(packed)  # why is this a member?
+        assert kids == unkids
 
     def test_deep_immutable(self):
         nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None, None)
