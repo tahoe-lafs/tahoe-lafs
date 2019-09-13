@@ -303,6 +303,12 @@ jobs:
 
     steps:
       - "checkout"
+      - add_ssh_keys:
+          fingerprints:
+            # Jean-Paul Calderone <exarkun@twistedmatrix.com> (CircleCI depgraph key)
+            # This lets us push to tahoe-lafs/tahoe-depgraph in the next step.
+            - "86:38:18:a7:c0:97:42:43:18:46:55:d6:21:b0:5f:d4"
+
       - run:
           name: "Generate dependency graph data"
           command: |
