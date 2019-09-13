@@ -3,10 +3,10 @@
 set -x
 set -eo pipefail
 
-# if [ "${CIRCLE_BRANCH}" != "master" ]; then
-#     echo "Declining to update dependency graph for non-master build."
-#     exit 0
-# fi
+if [ "${CIRCLE_BRANCH}" != "master" ]; then
+    echo "Declining to update dependency graph for non-master build."
+    exit 0
+fi
 
 TAHOE="${PWD}"
 git clone -b gh-pages git@github.com:tahoe-lafs/tahoe-depgraph.git
