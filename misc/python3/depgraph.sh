@@ -30,7 +30,7 @@ fi
 git commit -am "\
 Built from ${CIRCLE_REPOSITORY_URL}@${CIRCLE_SHA1}
 
-tahoe-depgraph was $(git --git-dir ../.git rev-parse HEAD
+tahoe-depgraph was $(git --git-dir ../.git rev-parse HEAD)
 "
 
 # Publish it on GitHub.
