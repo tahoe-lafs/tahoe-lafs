@@ -5,41 +5,41 @@ workflows:
   version: 2
   ci:
     jobs:
-      # # Platforms
-      # - "debian-9"
-      # - "debian-8":
-      #     requires:
-      #       - "debian-9"
+      # Platforms
+      - "debian-9"
+      - "debian-8":
+          requires:
+            - "debian-9"
 
-      # - "ubuntu-18.04"
-      # - "ubuntu-16.04":
-      #     requires:
-      #       - "ubuntu-18.04"
+      - "ubuntu-18.04"
+      - "ubuntu-16.04":
+          requires:
+            - "ubuntu-18.04"
 
-      # - "fedora-29"
-      # - "fedora-28":
-      #     requires:
-      #       - "fedora-29"
+      - "fedora-29"
+      - "fedora-28":
+          requires:
+            - "fedora-29"
 
-      # - "centos-7"
+      - "centos-7"
 
-      # - "slackware-14.2"
+      - "slackware-14.2"
 
-      # # Test against PyPy 2.7/7.1.1
-      # - "pypy2.7-7.1"
+      # Test against PyPy 2.7/7.1.1
+      - "pypy2.7-7.1"
 
-      # # Other assorted tasks and configurations
-      # - "lint"
-      # - "deprecations"
-      # - "c-locale"
-      # # Any locale other than C or UTF-8.
-      # - "another-locale"
+      # Other assorted tasks and configurations
+      - "lint"
+      - "deprecations"
+      - "c-locale"
+      # Any locale other than C or UTF-8.
+      - "another-locale"
 
-      # - "integration":
-      #     requires:
-      #       # If the unit test suite doesn't pass, don't bother running the
-      #       # integration tests.
-      #       - "debian-9"
+      - "integration":
+          requires:
+            # If the unit test suite doesn't pass, don't bother running the
+            # integration tests.
+            - "debian-9"
 
       # Generate the underlying data for a visualization to aid with Python 3
       # porting.
