@@ -299,7 +299,7 @@ jobs:
   build-porting-depgraph:
     # Generate up-to-date data for the dependency graph visualizer.
     docker:
-      - image: "python:3.7-buster"
+      - image: "python:2.7-buster"
 
     steps:
       - "checkout"
