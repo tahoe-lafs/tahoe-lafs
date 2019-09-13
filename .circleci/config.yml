@@ -320,6 +320,7 @@ jobs:
       - run:
           name: "Generate dependency graph data"
           command: |
+            . /tmp/venv/bin/activate
             ./misc/python3/depgraph.sh
 
   build-image: &BUILD_IMAGE
