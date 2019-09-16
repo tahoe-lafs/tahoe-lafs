@@ -23,7 +23,7 @@ fi
 git config user.name 'Build Automation'
 git config user.email 'tahoe-dev@tahoe-lafs.org'
 
-git add tahoe-deps.json tahoe-ported.json.
+git add tahoe-deps.json tahoe-ported.json
 git commit -m "\
 Built from ${CIRCLE_REPOSITORY_URL}@${CIRCLE_SHA1}
 
