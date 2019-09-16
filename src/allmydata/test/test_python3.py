@@ -2,19 +2,10 @@
 Tests related to the Python 3 porting effort itself.
 """
 
-from sys import (
-    modules,
-)
-from inspect import (
-    getsource,
-)
 from pkg_resources import (
     resource_stream,
 )
 
-from twisted.python.reflect import (
-    namedAny,
-)
 from twisted.python.modules import (
     getModule,
 )
