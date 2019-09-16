@@ -41,6 +41,10 @@ workflows:
             # integration tests.
             - "debian-9"
 
+      # Generate the underlying data for a visualization to aid with Python 3
+      # porting.
+      - "build-porting-depgraph"
+
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
     # faster and takes various spurious failures out of the critical path.
@@ -291,6 +295,33 @@ jobs:
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
+
+  # Generate up-to-date data for the dependency graph visualizer.
+  build-porting-depgraph:
+    # Get a system in which we can easily install Tahoe-LAFS and all its
+    # dependencies.  The dependency graph analyzer works by executing the code.
+    # It's Python, what do you expect?
+    <<: *DEBIAN
+
+    steps:
+      - "checkout"
+
+      - add_ssh_keys:
+          fingerprints:
+            # Jean-Paul Calderone <exarkun@twistedmatrix.com> (CircleCI depgraph key)
+            # This lets us push to tahoe-lafs/tahoe-depgraph in the next step.
+            - "86:38:18:a7:c0:97:42:43:18:46:55:d6:21:b0:5f:d4"
+
+      - run:
+          name: "Setup Python Environment"
+          command: |
+            /tmp/venv/bin/pip install -e /tmp/project
+
+      - run:
+          name: "Generate dependency graph data"
+          command: |
+            . /tmp/venv/bin/activate
+            ./misc/python3/depgraph.sh
 
   build-image: &BUILD_IMAGE
     # This is a template for a job to build a Docker image that has as much of
