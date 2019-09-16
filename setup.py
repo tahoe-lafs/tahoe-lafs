@@ -368,7 +368,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
                                       "static/*.js", "static/*.png", "static/*.css",
                                       "static/img/*.png",
                                       "static/css/*.css",
-                                      ]
+                                      ],
                     "allmydata": ["ported-modules.txt"],
                     },
       include_package_data=True,
