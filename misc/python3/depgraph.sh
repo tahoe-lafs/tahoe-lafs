@@ -3,11 +3,6 @@
 set -x
 set -eo pipefail
 
-if [ "${CIRCLE_BRANCH}" != "master" ]; then
-    echo "Declining to update dependency graph for non-master build."
-    exit 0
-fi
-
 TAHOE="${PWD}"
 git clone -b gh-pages git@github.com:tahoe-lafs/tahoe-depgraph.git
 cd tahoe-depgraph
@@ -29,6 +24,11 @@ Built from ${CIRCLE_REPOSITORY_URL}@${CIRCLE_SHA1}
 
 tahoe-depgraph was $(git rev-parse HEAD)
 "
+
+if [ "${CIRCLE_BRANCH}" != "master" ]; then
+    echo "Declining to update dependency graph for non-master build."
+    exit 0
+fi
 
 # Publish it on GitHub.
 git push -q origin gh-pages
