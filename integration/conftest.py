@@ -34,6 +34,7 @@ from util import (
     _cleanup_tahoe_process,
     _tahoe_runner_optional_coverage,
     await_client_ready,
+    TahoeProcess,
 )
 
 
@@ -202,7 +203,7 @@ log_gatherer.furl = {log_furl}
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
     protocol = _MagicTextProtocol('introducer running')
-    process = _tahoe_runner_optional_coverage(
+    transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
         request,
@@ -211,10 +212,10 @@ log_gatherer.furl = {log_furl}
             intro_dir,
         ),
     )
-    request.addfinalizer(partial(_cleanup_tahoe_process, process, protocol.exited))
+    request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
 
     pytest_twisted.blockon(protocol.magic_seen)
-    return process
+    return TahoeProcess(transport, intro_dir)
 
 
 @pytest.fixture(scope='session')
@@ -312,11 +313,12 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
     # start all 5 nodes in parallel
     for x in range(5):
         name = 'node{}'.format(x)
-        # tub_port = 9900 + x
+        web_port=  9990 + x
         nodes_d.append(
             _create_node(
                 reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
-                web_port=None, storage=True,
+                web_port="tcp:{}:interface=localhost".format(web_port),
+                storage=True,
             )
         )
     nodes_status = pytest_twisted.blockon(DeferredList(nodes_d))

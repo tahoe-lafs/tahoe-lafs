@@ -10,7 +10,7 @@ import allmydata # to display import path
 from allmydata.version_checks import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
-from allmydata.web import filenode, directory, unlinked, status, operations
+from allmydata.web import filenode, directory, unlinked, status
 from allmydata.web import storage, magic_folder
 from allmydata.web.common import (
     abbreviate_size,
@@ -154,50 +154,59 @@ class Root(MultiFormatPage):
     def __init__(self, client, clock=None, now_fn=None):
         rend.Page.__init__(self, client)
         self.client = client
-        # If set, clock is a twisted.internet.task.Clock that the tests
-        # use to test ophandle expiration.
-        self.child_operations = operations.OphandleTable(clock)
         self.now_fn = now_fn
         try:
             s = client.getServiceNamed("storage")
         except KeyError:
             s = None
-        self.child_storage = storage.StorageStatus(s, self.client.nickname)
 
-        self.child_uri = URIHandler(client)
-        self.child_cap = URIHandler(client)
+        self.putChild("storage", storage.StorageStatus(s, self.client.nickname))
+
+        self.putChild("uri", URIHandler(client))
+        self.putChild("cap", URIHandler(client))
 
         # handler for "/magic_folder" URIs
-        self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
+        self.putChild("magic_folder", magic_folder.MagicFolderWebApi(client))
 
         # Handler for everything beneath "/private", an area of the resource
         # hierarchy which is only accessible with the private per-node API
         # auth token.
-        self.child_private = create_private_tree(client.get_auth_token)
+        self.putChild("private", create_private_tree(client.get_auth_token))
 
-        self.child_file = FileHandler(client)
-        self.child_named = FileHandler(client)
-        self.child_status = status.Status(client.get_history())
-        self.child_statistics = status.Statistics(client.stats_provider)
+        self.putChild("file", FileHandler(client))
+        self.putChild("named", FileHandler(client))
+        self.putChild("status", status.Status(client.get_history()))
+        self.putChild("statistics", status.Statistics(client.stats_provider))
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
             self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
 
-    def child_helper_status(self, ctx):
-        # the Helper isn't attached until after the Tub starts, so this child
-        # needs to created on each request
-        return status.HelperStatus(self.client.helper)
+        self.putChild("report_incident", IncidentReporter())
 
-    child_report_incident = IncidentReporter()
-    #child_server # let's reserve this for storage-server-over-HTTP
+    # until we get rid of nevow.Page in favour of twisted.web.resource
+    # we can't use getChild() -- but we CAN use childFactory or
+    # override locatechild
+    def childFactory(self, ctx, name):
+        request = IRequest(ctx)
+        return self.getChild(name, request)
+
+
+    def getChild(self, path, request):
+        if path == "helper_status":
+            # the Helper isn't attached until after the Tub starts, so this child
+            # needs to created on each request
+            return status.HelperStatus(self.client.helper)
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
         return render_time(time.time())
+
     def data_version(self, ctx, data):
         return get_package_versions_string()
+
     def data_import_path(self, ctx, data):
         return str(allmydata)
+
     def render_my_nodeid(self, ctx, data):
         tubid_s = "TubID: "+self.client.get_long_tubid()
         return T.td(title=tubid_s)[self.client.get_long_nodeid()]

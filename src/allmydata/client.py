@@ -496,6 +496,12 @@ class _Client(node.Node, pollmixin.PollMixin):
     def get_long_tubid(self):
         return idlib.nodeid_b2a(self.nodeid)
 
+    def get_web_service(self):
+        """
+        :return: a reference to our web server
+        """
+        return self.getServiceNamed("webish")
+
     def _init_permutation_seed(self, ss):
         seed = self.config.get_config_from_file("permutation-seed")
         if not seed:

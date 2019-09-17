@@ -5,7 +5,6 @@ import json
 from twisted.web import http, server, resource, template
 from twisted.python import log
 from twisted.python.failure import Failure
-from zope.interface import Interface
 from nevow import loaders, appserver
 from nevow.rend import Page
 from nevow.inevow import IRequest
@@ -38,9 +37,6 @@ def get_filenode_metadata(filenode):
     if size is not None:
         metadata['size'] = size
     return metadata
-
-class IOpHandleTable(Interface):
-    pass
 
 def getxmlfile(name):
     return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
