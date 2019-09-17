@@ -8,7 +8,7 @@ git clone -b gh-pages git@github.com:tahoe-lafs/tahoe-depgraph.git
 cd tahoe-depgraph
 
 # Generate the maybe-changed data.
-python tahoe-depgraph.py "${TAHOE}"
+python "${TAHOE}"/misc/python3/tahoe-depgraph.py "${TAHOE}"
 
 if git diff-index --quiet HEAD; then
   echo "Declining to commit without any changes."
