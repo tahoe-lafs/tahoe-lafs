@@ -3024,9 +3024,10 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
                                  ss.bucket_counter.prefixes[0])
             ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
             soup = self.flatten_synchronously(w._create_element())
-            # s = remove_tags(html)
-            # self.failUnlessIn(" Current crawl ", s)
-            # self.failUnlessIn(" (next work in ", s)
+            self.assert_(soup.select_one(
+                u'li:contains("Current crawl")'))
+            self.assert_(soup.select_one(
+                u'li:contains("(next work in")'))
         d.addCallback(_check)
 
         # now give it enough time to complete a full cycle
@@ -3036,9 +3037,12 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         def _check2(ignored):
             ss.bucket_counter.cpu_slice = orig_cpu_slice
             soup = self.flatten_synchronously(w._create_element())
-            # s = remove_tags(html)
-            # self.failUnlessIn("Total buckets: 0 (the number of", s)
-            # self.failUnless("Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
+            self.assert_(soup.select_one(
+                u'li:contains("Total buckets") > '
+                u'span:contains("0")'))
+            self.assert_(soup.select_one(
+                u'li:contains("Next crawl in 59 minutes"), '
+                u'li:contains("Next crawl in 60 minutes")'))
         d.addCallback(_check2)
         return d
 
@@ -3098,21 +3102,21 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         def _check_1(ignored):
             # no ETA is available yet
             soup = self.flatten_synchronously(w._create_element())
-            # s = remove_tags(html)
-            # self.failUnlessIn("complete (next work", s)
+            self.assert_(soup.select_one(
+                u'li:contains("complete (next work")'))
 
         def _check_2(ignored):
             # one prefix has finished, so an ETA based upon that elapsed time
             # should be available.
             soup = self.flatten_synchronously(w._create_element())
-            # s = remove_tags(html)
-            # self.failUnlessIn("complete (ETA ", s)
+            self.assert_(soup.select_one(
+                u'li:contains("complete (ETA")'))
 
         def _check_3(ignored):
             # two prefixes have finished
             soup = self.flatten_synchronously(w._create_element())
-            # s = remove_tags(html)
-            # self.failUnlessIn("complete (ETA ", s)
+            self.assert_(soup.select_one(
+                u'li:contains("complete (ETA")'))
             d.callback("done")
 
         hooks[0].addCallback(_check_1).addErrback(d.errback)
@@ -3465,11 +3469,14 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             # predictor thinks we'll have 5 shares and that we'll delete them
             # all. This part of the test depends upon the SIs landing right
             # where they do now.
-            # self.failUnlessIn("The remainder of this cycle is expected to "
-            #                   "recover: 4 shares, 4 buckets", s)
-            # self.failUnlessIn("The whole cycle is expected to examine "
-            #                   "5 shares in 5 buckets and to recover: "
-            #                   "5 shares, 5 buckets", s)
+            self.assert_(soup.select_one(
+                u'li:contains("The remainder of this cycle is expected to '
+                u'recover: 4 shares, 4 buckets")'))
+            self.assert_(soup.select_one(
+                u'li:contains("The whole cycle is expected to examine '
+                u'5 shares in 5 buckets'))
+            self.assert_(soup.select_one(
+                u'li:contains("and to recover: 5 shares, 5 buckets")'))
         d.addCallback(_check_html_in_cycle)
 
         # wait for the crawler to finish the first cycle. Two shares should
@@ -3607,11 +3614,14 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             # predictor thinks we'll have 5 shares and that we'll delete them
             # all. This part of the test depends upon the SIs landing right
             # where they do now.
-            # self.failUnlessIn("The remainder of this cycle is expected to "
-            #                   "recover: 4 shares, 4 buckets", s)
-            # self.failUnlessIn("The whole cycle is expected to examine "
-            #                   "5 shares in 5 buckets and to recover: "
-            #                   "5 shares, 5 buckets", s)
+            self.assert_(soup.select_one(
+                u'li:contains("The remainder of this cycle is expected to '
+                u'recover: 4 shares, 4 buckets")'))
+            self.assert_(soup.select_one(
+                u'li:contains("The whole cycle is expected to examine '
+                u'5 shares in 5 buckets'))
+            self.assert_(soup.select_one(
+                u'li:contains("and to recover: 5 shares, 5 buckets")'))
         d.addCallback(_check_html_in_cycle)
 
         # wait for the crawler to finish the first cycle. Two shares should
@@ -3723,7 +3733,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(_after_first_cycle)
         def _check_html(ign):
             soup = self.flatten_synchronously(webstatus._create_element())
-            # self.failUnlessIn("The following sharetypes will be expired: immutable.", s)
+            self.assert_(soup.select_one(
+                u'li:contains("The following sharetypes will be expired: '
+                u'immutable.")'))
         d.addCallback(_check_html)
         return d
 
@@ -3779,7 +3791,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(_after_first_cycle)
         def _check_html(ign):
             soup = self.flatten_synchronously(webstatus._create_element())
-            # self.failUnlessIn("The following sharetypes will be expired: mutable.", s)
+            self.assert_(soup.select_one(
+                u'li:contains("The following sharetypes will be expired: '
+                u'mutable.")'))
         d.addCallback(_check_html)
         return d
 
