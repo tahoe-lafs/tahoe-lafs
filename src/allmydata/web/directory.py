@@ -107,15 +107,12 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         """
         Dynamically create a child for the given request and name
         """
-        if self.name is None:
-            return self
-        name = name.decode("utf-8")
-        if not name:
-            raise EmptyPathnameComponentError()
-        d = self.node.get(name)
+        # XXX can we do this with putChild() instead? (i.e. does it
+        # HAVE to be dynamic?)
+        if name is None:
+            name = get_arg(req, "uri")
+        d = self.node.get(name.decode('utf8'))
         d.addBoth(self._got_child, req, name)
-        # got_child returns a handler resource: FileNodeHandler or
-        # DirectoryNodeHandler
         return d
 
     def _got_child(self, node_or_failure, req, name):
