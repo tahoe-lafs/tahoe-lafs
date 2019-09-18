@@ -3474,7 +3474,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
                 u'recover: 4 shares, 4 buckets")'))
             self.assert_(soup.select_one(
                 u'li:contains("The whole cycle is expected to examine '
-                u'5 shares in 5 buckets'))
+                u'5 shares in 5 buckets")'))
             self.assert_(soup.select_one(
                 u'li:contains("and to recover: 5 shares, 5 buckets")'))
         d.addCallback(_check_html_in_cycle)
@@ -3619,7 +3619,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
                 u'recover: 4 shares, 4 buckets")'))
             self.assert_(soup.select_one(
                 u'li:contains("The whole cycle is expected to examine '
-                u'5 shares in 5 buckets'))
+                u'5 shares in 5 buckets")'))
             self.assert_(soup.select_one(
                 u'li:contains("and to recover: 5 shares, 5 buckets")'))
         d.addCallback(_check_html_in_cycle)
