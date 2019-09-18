@@ -4045,7 +4045,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(_check_json_history)
         def _check_html_history(ign):
             soup = self.flatten_synchronously(w._create_element())
-            # self.failUnlessIn("Corrupt shares: SI %s shnum 0" % first_b32, s)
+            self.assert_(soup.select_one(
+                u'li:contains("Corrupt shares:") '
+                u'li:contains("SI %s shnum 0")' % (first_b32,)))
         d.addCallback(_check_html_history)
 
         def _cleanup(res):
@@ -4077,12 +4079,17 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         w = StorageStatus(ss, "nickname")
         soup = self.flatten_synchronously(w._create_element())
         self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
+        self.assert_(soup.select_one(
+            u':contains("Server Nickname: nickname")'))
+        self.assert_(soup.select_one(
+            u':contains("Server Nodeid: %s")' % (base32.b2a(nodeid),)))
+        self.assert_(soup.select_one(
+            u':contains("Accepting new shares: Yes")'))
+        self.assert_(soup.select_one(
+            u'td:contains("Reserved space:") + '
+            u'td:contains("- 0 B") + '
+            u'td:contains("(0)")'))
 
-        def _check_html(html):
-            self.failUnlessIn("Server Nickname: nickname", s)
-            self.failUnlessIn("Server Nodeid: %s"  % base32.b2a(nodeid), s)
-            self.failUnlessIn("Accepting new shares: Yes", s)
-            self.failUnlessIn("Reserved space: - 0 B (0)", s)
 
         d = self.render_json(w)
         def _check_json(data):
@@ -4108,8 +4115,8 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         w = StorageStatus(ss)
         soup = self.flatten_synchronously(w._create_element())
         self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
-        self.assert_(
-            soup.select_one(u':contains("Accepting new shares: Yes")'))
+        self.assert_(soup.select_one(
+            u':contains("Accepting new shares: Yes")'))
         self.assert_(soup.select_one(
             u'td:contains("Total disk space:") + td:contains("?")'))
         self.assert_(soup.select_one(
@@ -4130,8 +4137,8 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         w = StorageStatus(ss)
         soup = self.flatten_synchronously(w._create_element())
         self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
-        self.assert_(
-            soup.select_one(u':contains("Accepting new shares: No")'))
+        self.assert_(soup.select_one(
+            u':contains("Accepting new shares: No")'))
         self.assert_(soup.select_one(
             u'td:contains("Total disk space:") + td:contains("?")'))
         self.assert_(soup.select_one(
@@ -4197,8 +4204,8 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         w = StorageStatus(ss)
         soup = self.flatten_synchronously(w._create_element())
         self.assert_(soup.find_all(u"h1", string=u"Storage Server Status"))
-        self.assert_(
-            soup.select_one(u':contains("Accepting new shares: No")'))
+        self.assert_(soup.select_one(
+            u':contains("Accepting new shares: No")'))
 
     def test_reserved(self):
         basedir = "storage/WebStatus/reserved"
