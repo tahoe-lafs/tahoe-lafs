@@ -540,8 +540,6 @@ class SlotsSequenceElement(template.Element):
         separator beween them.
         """
         for item in self.seq:
-            print("item: {}".format(item))
-            print(type(item))
             yield tag.clone(deep=False).fillSlots(**item)
 
     @template.renderer
