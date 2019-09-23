@@ -107,10 +107,12 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         """
         Dynamically create a child for the given request and name
         """
-        # XXX can we do this with putChild() instead? (i.e. does it
-        # HAVE to be dynamic?)
-        if name is None:
-            name = get_arg(req, "uri")
+        # trying to replicate what I have observed as Nevow behavior
+        # for these nodes, which is that a URI like
+        # "/uri/URI%3ADIR2%3Aj...vq/" (that is, with a trailing slash
+        # or no further children) renders "this" page
+        if not name:
+            return self
         d = self.node.get(name.decode('utf8'))
         d.addBoth(self._got_child, req, name)
         return d
