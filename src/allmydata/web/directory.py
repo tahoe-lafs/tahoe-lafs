@@ -1288,7 +1288,7 @@ class DeepSizeResults(MultiFormatPage):
         return json.dumps(status)
 
 
-class DeepStatsResults(Resource):
+class DeepStatsResults(Resource, object):
     """
     Renders the results of a 'deep-stats' operation on a directory
     capability.
