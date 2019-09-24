@@ -102,9 +102,10 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # for these nodes, which is that a URI like
         # "/uri/URI%3ADIR2%3Aj...vq/" (that is, with a trailing slash
         # or no further children) renders "this" page
+        name = name.decode('utf8')
         if not name:
             return self
-        d = self.node.get(name.decode('utf8'))
+        d = self.node.get(name)
         d.addBoth(self._got_child, req, name)
         return d
 
@@ -112,8 +113,6 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         """
         Callback when self.node.get has returned
         """
-        import six
-        name = six.u(name)
         method = req.method
         nonterminal = len(req.postpath) > 1
         t = get_arg(req, "t", "").strip()  # XXX looking like MultiFormatResource..
