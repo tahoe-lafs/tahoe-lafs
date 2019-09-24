@@ -91,7 +91,6 @@ def make_handler_for(node, client, parentnode=None, name=None):
 # support ?t=json but I don't know that all the variants already *did*
 # support that..
 class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
-    addSlash = True
 
     def __init__(self, client, node, parentnode=None, name=None):
         super(DirectoryNodeHandler, self).__init__()

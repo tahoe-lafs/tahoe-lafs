@@ -101,7 +101,7 @@ def parse_offset_arg(offset):
 def get_root(ctx_or_req):
     req = IRequest(ctx_or_req)
     # the addSlash=True gives us one extra (empty) segment
-    depth = len(req.prepath) + len(req.postpath) - 1
+    depth = len(req.prepath) + len(req.postpath)
     link = "/".join([".."] * depth)
     return link
 
