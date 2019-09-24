@@ -155,7 +155,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
                 u"parent is a file, not a directory".format(name)
             )
         raise WebError(
-            "Files have no children named '{}'".format(
+            "Files have no children named {}".format(
                 quote_output(name, encoding='utf-8'),
             )
         )
