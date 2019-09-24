@@ -842,7 +842,6 @@ class DirectoryAsHTML(Element):
             info_link = "%s/uri/%s/?t=info" % (root, quoted_uri)
 
         elif isinstance(target, ProhibitedNode):
-            tag.fillSlots(filename=tags.strike(name))
             if IDirectoryNode.providedBy(target.wrapped_node):
                 blacklisted_type = "DIR-BLACKLISTED"
             else:
@@ -850,6 +849,7 @@ class DirectoryAsHTML(Element):
             slots["type"] = blacklisted_type
             slots["size"] = "-"
             slots["info"] = ["Access Prohibited:", tags.br, target.reason]
+            slots["filename"] = tags.strike(name)
             info_link = None
 
         else:
