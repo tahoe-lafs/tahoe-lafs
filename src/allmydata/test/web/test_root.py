@@ -35,13 +35,12 @@ class RenderSlashUri(unittest.TestCase):
     """
 
     def setUp(self):
-        self.request = DummyRequest("/uri")
+        self.request = DummyRequest(b"/uri")
         self.request.fields = {}
 
         def prepathURL():
-            return "http://127.0.0.1.99999/{}".format(
-                "/".join(self.request.prepath)
-            )
+            return b"http://127.0.0.1.99999/" + b"/".join(self.request.prepath)
+
         self.request.prePathURL = prepathURL
         self.client = Mock()
         self.res = URIHandler(self.client)

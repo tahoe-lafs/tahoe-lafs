@@ -75,7 +75,7 @@ class URIHandler(resource.Resource, object):
         redir_uri = redir_uri.child(urllib.quote(uri_arg).decode('utf8'))
         # add back all the query args that AREN'T "?uri="
         for k, values in req.args.items():
-            if k != "uri":
+            if k != b"uri":
                 for v in values:
                     redir_uri = redir_uri.add(k.decode('utf8'), v.decode('utf8'))
         return redirectTo(redir_uri.to_text().encode('utf8'), req)
