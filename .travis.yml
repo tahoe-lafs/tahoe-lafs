@@ -29,6 +29,7 @@ script:
     else
       tox -e ${T}
     fi
+    if [ "${T}" = "pyinstaller" ]; then dist/Tahoe-LAFS/tahoe --version; fi
 
 after_success:
   - if [ "${T}" = "coverage" ]; then codecov; fi
