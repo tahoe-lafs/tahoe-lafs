@@ -51,6 +51,8 @@ test_script:
   # to put the Python version you want to use on PATH.
   - |
     %PYTHON%\Scripts\tox.exe -e coverage
+    %PYTHON%\Scripts\tox.exe -e pyinstaller
+    dist\Tahoe-LAFS\tahoe.exe --version
 
 after_test:
   # This builds the main tahoe wheel, and wheels for all dependencies.
