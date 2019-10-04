@@ -30,6 +30,7 @@ workflows:
 
       # Other assorted tasks and configurations
       - "lint"
+      - "pyinstaller"
       - "deprecations"
       - "c-locale"
       # Any locale other than C or UTF-8.
@@ -86,6 +87,28 @@ jobs:
           name: "Static-ish code checks"
           command: |
             ~/.local/bin/tox -e codechecks
+
+  pyinstaller:
+    docker:
+      - image: "circleci/python:2"
+
+    steps:
+      - "checkout"
+
+      - run:
+          name: "Install tox"
+          command: |
+            pip install --user tox
+
+      - run:
+          name: "Make PyInstaller executable"
+          command: |
+            ~/.local/bin/tox -e pyinstaller
+
+      - run:
+          name: "Test PyInstaller executable"
+          command: |
+            dist/Tahoe-LAFS/tahoe --version
 
   debian-9: &DEBIAN
     docker:
