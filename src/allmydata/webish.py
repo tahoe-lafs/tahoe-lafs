@@ -10,7 +10,8 @@ from nevow import appserver, inevow
 from allmydata.util import log, fileutil
 
 from allmydata.web import introweb, root
-from allmydata.web.common import IOpHandleTable, MyExceptionHandler
+from allmydata.web.common import MyExceptionHandler
+from allmydata.web.operations import OphandleTable
 
 from .web.storage_plugins import (
     StoragePlugins,
@@ -168,9 +169,12 @@ class WebishServer(service.MultiService):
 
         self.root = root.Root(client, clock, now_fn)
         self.buildServer(webport, nodeurl_path, staticdir)
-        if self.root.child_operations:
-            self.site.remember(self.root.child_operations, IOpHandleTable)
-            self.root.child_operations.setServiceParent(self)
+
+        # If set, clock is a twisted.internet.task.Clock that the tests
+        # use to test ophandle expiration.
+        self._operations = OphandleTable(clock)
+        self._operations.setServiceParent(self)
+        self.root.putChild("operations", self._operations)
 
         self.root.putChild(b"storage-plugins", StoragePlugins(client))
 
@@ -242,6 +246,12 @@ class WebishServer(service.MultiService):
         else:
             # who knows, probably some weirdo future version of Twisted
             self._started.errback(AssertionError("couldn't find out the scheme or port for the web-API server"))
+
+    def get_operations(self):
+        """
+        :return: a reference to our "active operations" tracker
+        """
+        return self._operations
 
 
 class IntroducerWebishServer(WebishServer):
