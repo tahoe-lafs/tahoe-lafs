@@ -667,9 +667,8 @@ class DirectoryAsHTML(Element):
             children = yield self.node.list()
         except Exception as e:
             text, code = humanize_failure(Failure(e))
-            self.dirnode_children = None
+            children = None
             self.dirnode_children_error = text
-            children = {}
 
         # XXX there was a big comment here about tail-recursion etc
         # .. do we need to yield sometimes in this loop, or ..? (I'm
