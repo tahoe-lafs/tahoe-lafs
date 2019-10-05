@@ -649,15 +649,13 @@ class DirectoryAsHTML(Element):
         """
         Override Element.render .. we have async work to do before we flatten our template
         """
-        # this could be improved; doing a more-straightforward part
+        # this could be improved; doing a more-straightforward port
         # here, which used to be in "beforeRender" .. so lots of the
         # renderers don't yield/wait properly, they expect the self.*
         # state that is set up here to "just be there" :/
         yield self._get_children(request)
         template = Element.render(self, request)
         defer.returnValue(template)
-
-    # XXX what's the -> twisted.web.template version of this.
 
     @defer.inlineCallbacks
     def _get_children(self, req):
