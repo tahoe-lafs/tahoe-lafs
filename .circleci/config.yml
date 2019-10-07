@@ -106,6 +106,9 @@ jobs:
             ~/.local/bin/tox -e pyinstaller
 
       - run:
+          # To verify that the resultant PyInstaller-generated binary executes
+          # cleanly (i.e., that it terminates with an exit code of 0 and isn't
+          # failing due to import/packaging-related errors, etc.).
           name: "Test PyInstaller executable"
           command: |
             dist/Tahoe-LAFS/tahoe --version
