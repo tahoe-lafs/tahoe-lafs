@@ -152,10 +152,12 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
         if should_create_intermediate_directories(req):
             raise WebError(
                 u"Cannot create directory {}, because its "
-                u"parent is a file, not a directory".format(name)
+                u"parent is a file, not a directory".format(
+                    quote_output(name, encoding='utf-8')
+                )
             )
         raise WebError(
-            "Files have no children named {}".format(
+            u"Files have no children named {}".format(
                 quote_output(name, encoding='utf-8'),
             )
         )

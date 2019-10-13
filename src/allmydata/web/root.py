@@ -166,7 +166,7 @@ class FileHandler(resource.Resource, object):
             raise WebError("'%s' is not a file-cap" % name)
         return filenode.FileNodeDownloadHandler(self.client, node)
 
-    def renderHTTP(self, ctx):
+    def render_GET(self, ctx):
         raise WebError("/file must be followed by a file-cap and a name",
                        http.NOT_FOUND)
 
