@@ -55,6 +55,12 @@ install_requires = [
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     "foolscap >= 0.12.6",
 
+    # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
+    #   Twisted[conch] also depends on cryptography and Twisted[tls]
+    #   transitively depends on cryptography.  So it's anyone's guess what
+    #   version of cryptography will *really* be installed.
+    "cryptography >= 2.6",
+
     # * On Linux we need at least Twisted 10.1.0 for inotify support
     #   used by the drop-upload frontend.
     # * We also need Twisted 10.1.0 for the FTP frontend in order for
