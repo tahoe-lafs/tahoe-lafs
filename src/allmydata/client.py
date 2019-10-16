@@ -355,8 +355,13 @@ class _StoragePlugins(object):
         """
         storage_plugin_names = cls._get_enabled_storage_plugin_names(config)
         plugins = list(cls._collect_storage_plugins(storage_plugin_names))
-        # TODO Handle missing plugins
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3118
+        unknown_plugin_names = storage_plugin_names - {plugin.name for plugin in plugins}
+        if unknown_plugin_names:
+            raise configutil.UnknownConfigError(
+                "Storage plugins {} are enabled but not known on this system.".format(
+                    unknown_plugin_names,
+                ),
+            )
         announceable_storage_servers = yield cls._create_plugin_storage_servers(
             get_anonymous_storage_server,
             config,
@@ -375,7 +380,7 @@ class _StoragePlugins(object):
             config.get_config(
                 "storage", "plugins", b""
             ).decode("ascii").split(u",")
-        )
+        ) - {u""}
 
     @classmethod
     def _collect_storage_plugins(cls, storage_plugin_names):
