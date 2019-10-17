@@ -54,6 +54,7 @@ from allmydata.util import (
     base32,
     fileutil,
     encodingutil,
+    configutil,
 )
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
@@ -1495,4 +1496,31 @@ introducer.furl = pb://abcde@nowhere/fake
                 _introducer_factory=MemoryIntroducerClient,
             ),
             failed(Always()),
+        )
+
+    def test_storage_plugin_not_found(self):
+        """
+        ``client.create_client_from_config`` raises ``UnknownConfigError`` when
+        called with a configuration which enables a storage plugin that is not
+        available on the system.
+        """
+        config = client.config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-vX",
+            ),
+        )
+        self.assertThat(
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
+            failed(
+                AfterPreprocessing(
+                    lambda f: f.type,
+                    Equals(configutil.UnknownConfigError),
+                ),
+            ),
         )
