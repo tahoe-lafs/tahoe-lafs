@@ -3,7 +3,10 @@ import json
 
 from twisted.web import http, static
 from twisted.internet import defer
-from twisted.web.resource import Resource
+from twisted.web.resource import (
+    Resource,
+    ErrorPage,
+)
 
 from nevow import url
 
@@ -150,16 +153,20 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
         if isinstance(self.node, ProhibitedNode):
             raise FileProhibited(self.node.reason)
         if should_create_intermediate_directories(req):
-            raise WebError(
-                u"Cannot create directory {}, because its "
-                u"parent is a file, not a directory".format(
-                    quote_output(name, encoding='utf-8')
+                return ErrorPage(
+                    http.BAD_REQUEST,
+                    u"Cannot create directory {}, because its "
+                    u"parent is a file, not a directory".format(
+                        quote_output(name, encoding='utf-8')
+                    ),
+                    "no details"
                 )
-            )
-        raise WebError(
+        return ErrorPage(
+            http.BAD_REQUEST,
             u"Files have no children named {}".format(
                 quote_output(name, encoding='utf-8'),
-            )
+            ),
+            "no details",
         )
 
     def render_GET(self, req):

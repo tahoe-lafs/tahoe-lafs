@@ -8,6 +8,7 @@ from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer
 from twisted.python.failure import Failure
 from twisted.web import http
+from twisted.web.resource import ErrorPage
 from twisted.web.resource import Resource
 from twisted.web.template import (
     Element,
@@ -101,7 +102,6 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         self.name = name
         self._operations = client.get_web_service().get_operations()
 
-
     def getChild(self, name, req):
         """
         Dynamically create a child for the given request and name
@@ -122,7 +122,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         Callback when self.node.get has returned
         """
         method = req.method
-        nonterminal = len(req.postpath) > 1
+        nonterminal = len(req.postpath) >= 1
         t = get_arg(req, "t", "").strip()  # XXX looking like MultiFormatResource..
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
@@ -188,9 +188,11 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             if not IDirectoryNode.providedBy(node):
                 # we would have put a new directory here, but there was a
                 # file in the way.
-                raise WebError("Unable to create directory '%s': "
-                               "a file was in the way" % name,
-                               http.CONFLICT)
+                return ErrorPage(
+                    http.CONFLICT,
+                    "Unable to create directory '{}': a file was in the way".format(name),
+                    "no details",
+                )
         return make_handler_for(node, self.client, self.node, name)
 
     def render_DELETE(self, req):
