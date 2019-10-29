@@ -170,21 +170,6 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         d.addCallback(_cb)
         return d
 
-    def test_version_no_noise(self):
-        d = self.run_bintahoe(["--version"])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0, str(res))
-            self.failUnless(out.startswith(allmydata.__appname__+':'), str(res))
-            self.failIfIn("DeprecationWarning", out, str(res))
-            errlines = err.split("\n")
-            self.failIf([True for line in errlines if (line != "" and "UserWarning: Unbuilt egg for setuptools" not in line
-                                                                  and "from pkg_resources import load_entry_point" not in line)], str(res))
-            if err != "":
-                raise unittest.SkipTest("This test is known not to pass on Ubuntu Lucid; see #1235.")
-        d.addCallback(_cb)
-        return d
-
     @inlineCallbacks
     def test_help_eliot_destinations(self):
         out, err, rc_or_sig = yield self.run_bintahoe(["--help-eliot-destinations"])
