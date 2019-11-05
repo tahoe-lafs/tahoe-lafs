@@ -5,6 +5,8 @@ import json
 import treq
 import mock
 
+from bs4 import BeautifulSoup
+
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -48,6 +50,10 @@ from ..common import (
     WebErrorMixin,
     make_mutable_file_uri,
     create_mutable_filenode,
+)
+from .common import (
+    assert_soup_has_favicon,
+    assert_soup_has_text,
 )
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable import servermap, publish, retrieve
@@ -2038,11 +2044,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return d
         d.addCallback(getman, None)
         def _got_html(manifest):
-            self.failUnlessIn("Manifest of SI=", manifest)
-            self.failUnlessIn("<td>sub</td>", manifest)
-            self.failUnlessIn(self._sub_uri, manifest)
-            self.failUnlessIn("<td>sub/baz.txt</td>", manifest)
-            self.failUnlessIn(FAVICON_MARKUP, manifest)
+            soup = BeautifulSoup(manifest, 'html5lib')
+            assert_soup_has_text(self, soup, "Manifest of SI=")
+            assert_soup_has_text(self, soup, "sub")
+            assert_soup_has_text(self, soup, self._sub_uri)
+            assert_soup_has_text(self, soup, "sub/baz.txt")
+            assert_soup_has_favicon(self, soup)
         d.addCallback(_got_html)
 
         # both t=status and unadorned GET should be identical
