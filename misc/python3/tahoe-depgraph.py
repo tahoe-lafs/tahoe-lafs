@@ -111,7 +111,7 @@ def main(target):
         json_dump(mf.as_json(), outfile)
         outfile.write('\n')
 
-    ported_modules_path = os.path.join(target, "misc", "python3", "ported-modules.txt")
+    ported_modules_path = os.path.join(target, "src", "allmydata", "ported-modules.txt")
     with open(ported_modules_path) as ported_modules:
         port_status = dict.fromkeys((line.strip() for line in ported_modules), "ported")
     with open('tahoe-ported.json', 'wb') as outfile:
