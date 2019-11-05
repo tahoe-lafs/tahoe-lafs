@@ -965,8 +965,121 @@ class RenameForm(rend.Page):
         ctx.tag.attributes['value'] = name
         return ctx.tag
 
-class ManifestResults(MultiFormatPage, ReloadMixin):
-    docFactory = getxmlfile("manifest.xhtml")
+
+class ReloadableMonitorElement(Element, object):
+    """
+    Like 'ReloadMixin', but for twisted.web.template style. This
+    provides renderers for "reload" and "refesh" and a self.monitor
+    attribute
+    """
+    refresh_time = 60  # 1 minute
+
+    def __init__(self, monitor):
+        self.monitor = monitor
+        super(ReloadableMonitorElement, self).__init__()
+
+    @renderer
+    def refresh(self, req, tag):
+        if self.monitor.is_finished():
+            return ""
+        tag.attributes["http-equiv"] = "refresh"
+        tag.attributes["content"] = str(self.refresh_time)
+        return tag
+
+    @renderer
+    def reload(self, req, tag):
+        if self.monitor.is_finished():
+            return ""
+        # url.gethere would break a proxy, so the correct thing to do is
+        # req.path[-1] + queryargs
+        ophandle = req.prepath[-1]
+        reload_target = ophandle + "?output=html"
+        cancel_target = ophandle + "?t=cancel"
+        cancel_button = tags.form(
+            [
+                tags.input(type="submit", value="Cancel"),
+            ],
+            action=cancel_target,
+            method="POST",
+            enctype="multipart/form-data",
+        )
+
+        return tag([
+            "Operation still running: ",
+            tags.a("Reload", href=reload_target),
+            cancel_button,
+        ])
+
+
+def _slashify_path(path):
+    """
+    Converts a tuple from a 'manifest' path into a string with slashes
+    in it
+    """
+    if not path:
+        return ""
+    return "/".join([p.encode("utf-8") for p in path])
+
+
+def _cap_to_link(root, path, cap):
+    """
+    Turns a capability-string into a WebAPI link tag
+
+    :param root: the root piece of the URI
+
+    :param cap: the capability-string
+
+    :returns: tags.a instance
+    """
+    # TODO: we need a clean consistent way to get the type of a cap string
+    if cap:
+        if cap.startswith("URI:CHK") or cap.startswith("URI:SSK"):
+            nameurl = urllib.quote(path[-1].encode("utf-8"))
+            uri_link = "%s/file/%s/@@named=/%s" % (root, urllib.quote(cap),
+                                                   nameurl)
+        else:
+            uri_link = "%s/uri/%s" % (root, urllib.quote(cap, safe=""))
+        return tags.a(cap, href=uri_link)
+    else:
+        return ""
+
+
+class ManifestElement(ReloadableMonitorElement):
+    loader = XMLFile(FilePath(__file__).sibling("manifest.xhtml"))
+
+    def _si_abbrev(self):
+        si = self.monitor.origin_si
+        if not si:
+            return "<LIT>"
+        return base32.b2a(si)[:6]
+
+    @renderer
+    def title(self, req, tag):
+        return tag(
+            "Manifest of SI={}".format(self._si_abbrev())
+        )
+
+    @renderer
+    def header(self, req, tag):
+        return tag(
+            "Manifest of SI={}".format(self._si_abbrev())
+        )
+
+    @renderer
+    def items(self, req, tag):
+        manifest = self.monitor.get_status()["manifest"]
+        root = get_root(req)
+        rows = [
+            {
+                "path": _slashify_path(path),
+                "cap": _cap_to_link(root, path, cap),
+            }
+            for path, cap in manifest
+        ]
+        return SlotsSequenceElement(tag, rows)
+
+
+class ManifestResults(MultiFormatResource, ReloadMixin):
 
     # Control MultiFormatPage
     formatArgument = "output"
@@ -979,18 +1092,19 @@ class ManifestResults(MultiFormatPage, ReloadMixin):
     # The default format is HTML but the HTML renderer is just renderHTTP.
     render_HTML = None
 
-    def slashify_path(self, path):
-        if not path:
-            return ""
-        return "/".join([p.encode("utf-8") for p in path])
+    def render_HTML(self, req):
+        return renderElement(
+            req,
+            ManifestElement(self.monitor)
+        )
 
     def render_TEXT(self, req):
         req.setHeader("content-type", "text/plain")
         lines = []
         is_finished = self.monitor.is_finished()
         lines.append("finished: " + {True: "yes", False: "no"}[is_finished])
-        for (path, cap) in self.monitor.get_status()["manifest"]:
-            lines.append(self.slashify_path(path) + " " + cap)
+        for path, cap in self.monitor.get_status()["manifest"]:
+            lines.append(_slashify_path(path) + " " + cap)
         return "\n".join(lines) + "\n"
 
     def render_JSON(self, req):
@@ -1024,37 +1138,6 @@ class ManifestResults(MultiFormatPage, ReloadMixin):
             # CPU.
         return json.dumps(status, indent=1)
 
-    def _si_abbrev(self):
-        si = self.monitor.origin_si
-        if not si:
-            return "<LIT>"
-        return base32.b2a(si)[:6]
-
-    def render_title(self, ctx):
-        return T.title["Manifest of SI=%s" % self._si_abbrev()]
-
-    def render_header(self, ctx):
-        return T.p["Manifest of SI=%s" % self._si_abbrev()]
-
-    def data_items(self, ctx, data):
-        return self.monitor.get_status()["manifest"]
-
-    def render_row(self, ctx, path_cap):
-        path, cap = path_cap
-        ctx.fillSlots("path", self.slashify_path(path))
-        root = get_root(ctx)
-        # TODO: we need a clean consistent way to get the type of a cap string
-        if cap:
-            if cap.startswith("URI:CHK") or cap.startswith("URI:SSK"):
-                nameurl = urllib.quote(path[-1].encode("utf-8"))
-                uri_link = "%s/file/%s/@@named=/%s" % (root, urllib.quote(cap),
-                                                       nameurl)
-            else:
-                uri_link = "%s/uri/%s" % (root, urllib.quote(cap, safe=""))
-            ctx.fillSlots("cap", T.a(href=uri_link)[cap])
-        else:
-            ctx.fillSlots("cap", "")
-        return ctx.tag
 
 class DeepSizeResults(MultiFormatPage):
     # Control MultiFormatPage
