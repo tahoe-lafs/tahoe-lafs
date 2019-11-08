@@ -196,12 +196,6 @@ class Root(MultiFormatPage):
         rend.Page.__init__(self, client)
         self.client = client
         self.now_fn = now_fn
-        try:
-            s = client.getServiceNamed("storage")
-        except KeyError:
-            s = None
-
-        self.putChild("storage", storage.StorageStatus(s, self.client.nickname))
 
         self.putChild("uri", URIHandler(client))
         self.putChild("cap", URIHandler(client))
@@ -237,6 +231,16 @@ class Root(MultiFormatPage):
             # the Helper isn't attached until after the Tub starts, so this child
             # needs to created on each request
             return status.HelperStatus(self.client.helper)
+        if path == "storage":
+            # Storage isn't initialized until after the web hierarchy is
+            # constructed so this child needs to be created later than
+            # `__init__`.
+            try:
+                storage_server = self.client.getServiceNamed("storage")
+            except KeyError:
+                storage_server = None
+            return storage.StorageStatus(storage_server, self.client.nickname)
+
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
