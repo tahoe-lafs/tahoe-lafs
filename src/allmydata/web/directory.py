@@ -1,6 +1,7 @@
 
 import json
 import urllib
+from datetime import timedelta
 
 from zope.interface import implementer
 from twisted.internet import defer
@@ -972,7 +973,7 @@ class ReloadableMonitorElement(Element, object):
     provides renderers for "reload" and "refesh" and a self.monitor
     attribute
     """
-    refresh_time = 60  # 1 minute
+    refresh_time = timedelta(seconds=60)
 
     def __init__(self, monitor):
         self.monitor = monitor
