@@ -15,6 +15,7 @@ from twisted.web.template import (
     renderer,
     tags,
 )
+from hyperlink import URL
 from twisted.python.filepath import FilePath
 from nevow import url, rend, inevow, tags as T
 from nevow.inevow import IRequest
@@ -982,32 +983,31 @@ class ReloadableMonitorElement(Element, object):
     @renderer
     def refresh(self, req, tag):
         if self.monitor.is_finished():
-            return ""
-        tag.attributes["http-equiv"] = "refresh"
-        tag.attributes["content"] = str(self.refresh_time)
+            return u""
+        tag.attributes[u"http-equiv"] = u"refresh"
+        tag.attributes[u"content"] = u"{}".format(self.refresh_time.seconds)
         return tag
 
     @renderer
     def reload(self, req, tag):
         if self.monitor.is_finished():
-            return ""
-        # url.gethere would break a proxy, so the correct thing to do is
-        # req.path[-1] + queryargs
-        ophandle = req.prepath[-1]
-        reload_target = ophandle + "?output=html"
-        cancel_target = ophandle + "?t=cancel"
+            return u""
+        reload_url = URL.from_text(u"{}".format(req.path))
         cancel_button = tags.form(
             [
-                tags.input(type="submit", value="Cancel"),
+                tags.input(type=u"submit", value=u"Cancel"),
             ],
-            action=cancel_target,
-            method="POST",
-            enctype="multipart/form-data",
+            action=reload_url.replace(query={u"t": u"cancel"}).to_uri().to_text(),
+            method=u"POST",
+            enctype=u"multipart/form-data",
         )
 
         return tag([
-            "Operation still running: ",
-            tags.a("Reload", href=reload_target),
+            u"Operation still running: ",
+            tags.a(
+                u"Reload",
+                href=reload_url.replace(query={u"output": u"html"}).to_uri().to_text(),
+            ),
             cancel_button,
         ])
 
@@ -1026,23 +1026,31 @@ def _cap_to_link(root, path, cap):
     """
     Turns a capability-string into a WebAPI link tag
 
-    :param root: the root piece of the URI
+    :param text root: the root piece of the URI
 
-    :param cap: the capability-string
+    :param text cap: the capability-string
 
-    :returns: tags.a instance
+    :returns: something suitable for `IRenderable`, specifically
+        either a valid local link (tags.a instance) to the capability
+        or an empty string.
     """
     # TODO: we need a clean consistent way to get the type of a cap string
     if cap:
-        if cap.startswith("URI:CHK") or cap.startswith("URI:SSK"):
-            nameurl = urllib.quote(path[-1].encode("utf-8"))
-            uri_link = "%s/file/%s/@@named=/%s" % (root, urllib.quote(cap),
-                                                   nameurl)
+        root_url = URL.from_text(u"{}".format(root))
+        if cap.startswith(u"URI:CHK") or cap.startswith(u"URI:SSK"):
+            uri_link = root_url.child(
+                u"file",
+                u"{}".format(urllib.quote(cap)),
+                u"{}".format(urllib.quote(path[-1])),
+            )
         else:
-            uri_link = "%s/uri/%s" % (root, urllib.quote(cap, safe=""))
-        return tags.a(cap, href=uri_link)
+            uri_link = root_url.child(
+                u"uri",
+                u"{}".format(urllib.quote(cap, safe="")),
+            )
+        return tags.a(cap, href=uri_link.to_text())
     else:
-        return ""
+        return u""
 
 
 class ManifestElement(ReloadableMonitorElement):
