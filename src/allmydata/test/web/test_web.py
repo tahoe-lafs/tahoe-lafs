@@ -2384,9 +2384,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessNodeKeysAre, [u"baz.txt"])
         return d
 
-    # XXX fails, but not with 409 Conflict ??
-    # wtf, if i do this by hand, it seems to work (with curl) and
-    # return a 409 .. but so is it some test-code failure?
     def test_PUT_NEWDIRURL_blocked(self):
         d = self.shouldFail2(error.Error, "PUT_NEWDIRURL_blocked",
                              "409 Conflict", "Unable to create directory 'bar.txt': a file was in the way",
