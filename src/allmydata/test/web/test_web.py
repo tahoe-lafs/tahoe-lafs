@@ -1737,7 +1737,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     # XXX this 'fails' (as it should), but not with '409 Conflict' ... 
-    def _test_PUT_NEWFILEURL_blocked(self):
+    def test_PUT_NEWFILEURL_blocked(self):
         d = self.PUT(self.public_url + "/foo/blockingfile/new.txt",
                      self.NEWFILE_CONTENTS)
         d.addBoth(self.shouldFail, error.Error, "PUT_NEWFILEURL_blocked",
