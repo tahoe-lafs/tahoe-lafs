@@ -968,11 +968,11 @@ class RenameForm(rend.Page):
         return ctx.tag
 
 
-class ReloadableMonitorElement(Element, object):
+class ReloadableMonitorElement(Element):
     """
     Like 'ReloadMixin', but for twisted.web.template style. This
     provides renderers for "reload" and "refesh" and a self.monitor
-    attribute
+    attribute (which is an instance of IMonitor)
     """
     refresh_time = timedelta(seconds=60)
 
