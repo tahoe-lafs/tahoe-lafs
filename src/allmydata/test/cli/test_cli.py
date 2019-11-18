@@ -907,12 +907,15 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         def _check(args, st):
             (rc, out, err) = args
+            print(st)
+            print(rc, out, err)
+            print("---")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn(st, out)
             return out
         def _mkdir(ign, mutable_type, uri_prefix, dirname):
-            d2 = self.do_cli("mkdir", "--format="+mutable_type, dirname)
+            d2 = self.do_cli("mkdir", "--format={}".format(mutable_type), dirname)
             d2.addCallback(_check, uri_prefix)
             def _stash_filecap(cap):
                 u = uri.from_string(cap)
