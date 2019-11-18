@@ -1401,7 +1401,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         base = "/uri/%s/boguschild" % urllib.quote(self._bar_txt_uri)
         errmsg = "Cannot create directory 'boguschild', because its parent is a file, not a directory"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
-                             "400 Bad Request", errmsg,
+                             "409 Conflict", errmsg,
                              self.PUT, base, "")
         return d
 
