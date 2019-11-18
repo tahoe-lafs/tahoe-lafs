@@ -130,7 +130,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         Callback when self.node.get has returned
         """
         method = req.method
-        nonterminal = len(req.postpath) >= 1
+        nonterminal = len(req.postpath) > 1
         t = get_arg(req, "t", "").strip()  # XXX looking like MultiFormatResource..
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
