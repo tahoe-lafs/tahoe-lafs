@@ -655,7 +655,7 @@ class DirectoryAsHTML(Element):
         self.node = node
         if default_mutable_format not in (MDMF_VERSION, SDMF_VERSION):
             raise ValueError(
-                "Uknown multable format '{}'".format(default_mutable_format)
+                "Uknown mutable format '{}'".format(default_mutable_format)
             )
         self.default_mutable_format = default_mutable_format
 
