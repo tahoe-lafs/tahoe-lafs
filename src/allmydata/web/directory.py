@@ -129,8 +129,13 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         """
         Callback when self.node.get has returned
         """
-        method = req.method
-        nonterminal = len(req.postpath) > 1
+        # we used to determine if a request was 'terminal' by
+        # examining req.postpath .. but that's a Nevow-ism, so we
+        # determine if this is a "terminal" request using only Twisted
+        # Web APIs, which means finding where "name" is in the path
+        u = URL.from_text(unicode(req.path)).to_iri()
+        assert name in u.path, "Can't find our child-name in the path"
+        nonterminal = (u.path[-1] != name)
         t = get_arg(req, "t", "").strip()  # XXX looking like MultiFormatResource..
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
@@ -151,7 +156,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                     ("POST", "mkdir-with-children"),
                     ("POST", "mkdir-immutable")
                 )
-                if (method, t) in terminal_requests:
+                if (req.method, t) in terminal_requests:
                     # final directory
                     kids = {}
                     if t in ("mkdir-with-children", "mkdir-immutable"):
@@ -181,7 +186,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                     ("PUT",""),
                     ("PUT","uri"),
                 )
-                if (method, t) in leaf_requests:
+                if (req.method, t) in leaf_requests:
                     # we were trying to find the leaf filenode (to put a new
                     # file in its place), and it didn't exist. That's ok,
                     # since that's the leaf node that we're about to create.
