@@ -13,6 +13,10 @@ from hypothesis import given
 from hypothesis.strategies import text
 
 
+from ..common import (
+    EMPTY_CLIENT_CONFIG,
+)
+
 class FakeRoot(Root):
     def __init__(self):
         pass
@@ -86,7 +90,7 @@ class RenderServiceRow(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        s = NativeStorageServer("server_id", ann, None, {})
+        s = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
         cs = ConnectionStatus(False, "summary", {}, 0, 0)
         s.get_connection_status = lambda: cs
 

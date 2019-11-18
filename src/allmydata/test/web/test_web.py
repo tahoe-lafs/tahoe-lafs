@@ -40,9 +40,15 @@ from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
 from allmydata.util.encodingutil import to_str
 from ...util.connection_status import ConnectionStatus
-from ..common import FakeCHKFileNode, FakeMutableFileNode, \
-     create_chk_filenode, WebErrorMixin, \
-     make_mutable_file_uri, create_mutable_filenode
+from ..common import (
+    EMPTY_CLIENT_CONFIG,
+    FakeCHKFileNode,
+    FakeMutableFileNode,
+    create_chk_filenode,
+    WebErrorMixin,
+    make_mutable_file_uri,
+    create_mutable_filenode,
+)
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
@@ -280,7 +286,11 @@ class FakeClient(_Client):
         self._secret_holder = SecretHolder("lease secret", "convergence secret")
         self.helper = None
         self.convergence = "some random string"
-        self.storage_broker = StorageFarmBroker(permute_peers=True, tub_maker=None)
+        self.storage_broker = StorageFarmBroker(
+            permute_peers=True,
+            tub_maker=None,
+            node_config=EMPTY_CLIENT_CONFIG,
+        )
         # fake knowledge of another server
         self.storage_broker.test_add_server("other_nodeid",
             FakeDisplayableServer(
