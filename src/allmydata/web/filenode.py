@@ -154,7 +154,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
             raise FileProhibited(self.node.reason)
         if should_create_intermediate_directories(req):
                 return ErrorPage(
-                    http.BAD_REQUEST,
+                    http.CONFLICT,
                     u"Cannot create directory {}, because its "
                     u"parent is a file, not a directory".format(
                         quote_output(name, encoding='utf-8')
