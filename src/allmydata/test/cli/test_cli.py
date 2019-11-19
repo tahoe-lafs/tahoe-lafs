@@ -907,9 +907,6 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         def _check(args, st):
             (rc, out, err) = args
-            print(st)
-            print(rc, out, err)
-            print("---")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn(st, out)
