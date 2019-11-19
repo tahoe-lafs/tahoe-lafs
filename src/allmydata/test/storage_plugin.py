@@ -16,6 +16,9 @@ from zope.interface import (
 from twisted.internet.defer import (
     succeed,
 )
+from twisted.web.resource import (
+    Resource,
+)
 from twisted.web.static import (
     Data,
 )
@@ -78,10 +81,20 @@ class DummyStorage(object):
             rendered, as an aid to testing.
         """
         items = configuration.items(self._client_section_name, [])
-        return Data(
+        resource = Data(
             dumps(dict(items)),
             b"text/json",
         )
+        # Give it some dynamic stuff too.
+        resource.putChild(b"counter", GetCounter())
+        return resource
+
+
+class GetCounter(Resource):
+    value = 0
+    def render_GET(self, request):
+        self.value += 1
+        return dumps({"value": self.value})
 
 
 @implementer(RIDummy)
