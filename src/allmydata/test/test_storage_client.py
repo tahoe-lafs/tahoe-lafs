@@ -2,6 +2,7 @@ import hashlib
 from mock import Mock
 from json import (
     dumps,
+    loads,
 )
 from fixtures import (
     TempDir,
@@ -458,6 +459,26 @@ class StoragePluginWebPresence(AsyncTestCase):
         ).encode("utf-8")
         result = yield do_http(b"get", url)
         self.assertThat(result, Equals(dumps({b"web": b"1"})))
+
+    @inlineCallbacks
+    def test_plugin_resource_persistent_across_requests(self):
+        """
+        The plugin's resource is loaded and then saved and re-used for future
+        requests.
+        """
+        url = u"http://127.0.0.1:{port}/storage-plugins/{plugin_name}/counter".format(
+            port=self.port,
+            plugin_name=self.storage_plugin,
+        ).encode("utf-8")
+        values = {
+            loads((yield do_http(b"get", url)))[u"value"],
+            loads((yield do_http(b"get", url)))[u"value"],
+        }
+        self.assertThat(
+            values,
+            # If the counter manages to go up then the state stuck around.
+            Equals({1, 2}),
+        )
 
 
 def make_broker(tub_maker=lambda h: Mock()):
