@@ -91,6 +91,12 @@ class DummyStorage(object):
 
 
 class GetCounter(Resource):
+    """
+    ``GetCounter`` is a resource that returns a count of the number of times
+    it has rendered a response to a GET request.
+
+    :ivar int value: The number of ``GET`` requests rendered so far.
+    """
     value = 0
     def render_GET(self, request):
         self.value += 1
