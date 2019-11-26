@@ -29,6 +29,8 @@ class StoragePlugins(Resource, object):
         """
         resources = self._client.get_client_storage_plugin_web_resources()
         try:
-            return resources[segment]
+            result = resources[segment]
         except KeyError:
-            return NoResource()
+            result = NoResource()
+        self.putChild(segment, result)
+        return result

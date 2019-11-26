@@ -2,6 +2,7 @@ import hashlib
 from mock import Mock
 from json import (
     dumps,
+    loads,
 )
 from fixtures import (
     TempDir,
@@ -23,6 +24,10 @@ from zope.interface import (
 )
 from zope.interface.verify import (
     verifyObject,
+)
+
+from hyperlink import (
+    URL,
 )
 
 from twisted.application.service import (
@@ -458,6 +463,32 @@ class StoragePluginWebPresence(AsyncTestCase):
         ).encode("utf-8")
         result = yield do_http(b"get", url)
         self.assertThat(result, Equals(dumps({b"web": b"1"})))
+
+    @inlineCallbacks
+    def test_plugin_resource_persistent_across_requests(self):
+        """
+        The plugin's resource is loaded and then saved and re-used for future
+        requests.
+        """
+        url = URL(
+            scheme=u"http",
+            host=u"127.0.0.1",
+            port=self.port,
+            path=(
+                u"storage-plugins",
+                self.storage_plugin.decode("utf-8"),
+                u"counter",
+            ),
+        ).to_text().encode("utf-8")
+        values = {
+            loads((yield do_http(b"get", url)))[u"value"],
+            loads((yield do_http(b"get", url)))[u"value"],
+        }
+        self.assertThat(
+            values,
+            # If the counter manages to go up then the state stuck around.
+            Equals({1, 2}),
+        )
 
 
 def make_broker(tub_maker=lambda h: Mock()):
