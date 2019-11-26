@@ -90,7 +90,7 @@ class DummyStorage(object):
         return resource
 
 
-class GetCounter(Resource):
+class GetCounter(Resource, object):
     """
     ``GetCounter`` is a resource that returns a count of the number of times
     it has rendered a response to a GET request.
