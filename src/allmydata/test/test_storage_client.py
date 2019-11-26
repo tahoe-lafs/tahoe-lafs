@@ -26,6 +26,10 @@ from zope.interface.verify import (
     verifyObject,
 )
 
+from hyperlink import (
+    URL,
+)
+
 from twisted.application.service import (
     Service,
 )
@@ -466,10 +470,16 @@ class StoragePluginWebPresence(AsyncTestCase):
         The plugin's resource is loaded and then saved and re-used for future
         requests.
         """
-        url = u"http://127.0.0.1:{port}/storage-plugins/{plugin_name}/counter".format(
+        url = URL(
+            scheme=u"http",
+            host=u"127.0.0.1",
             port=self.port,
-            plugin_name=self.storage_plugin,
-        ).encode("utf-8")
+            path=(
+                u"storage-plugins",
+                self.storage_plugin.decode("utf-8"),
+                u"counter",
+            ),
+        ).to_text().encode("utf-8")
         values = {
             loads((yield do_http(b"get", url)))[u"value"],
             loads((yield do_http(b"get", url)))[u"value"],
