@@ -332,13 +332,12 @@ class NoNetworkGrid(service.MultiService):
         if write_config:
             from twisted.internet import reactor
             _, port_endpoint = self.port_assigner.assign(reactor)
-            f = open(tahoe_cfg_path, "w")
-            f.write("[node]\n")
-            f.write("nickname = client-%d\n" % i)
-            f.write("web.port = {}\n".format(port_endpoint))
-            f.write("[storage]\n")
-            f.write("enabled = false\n")
-            f.close()
+            with open(tahoe_cfg_path, "w") as f:
+                f.write("[node]\n")
+                f.write("nickname = client-%d\n" % i)
+                f.write("web.port = {}\n".format(port_endpoint))
+                f.write("[storage]\n")
+                f.write("enabled = false\n")
         else:
             _assert(os.path.exists(tahoe_cfg_path), tahoe_cfg_path=tahoe_cfg_path)
 
@@ -523,12 +522,14 @@ class GridTestMixin(object):
     def copy_shares(self, uri):
         shares = {}
         for (shnum, serverid, sharefile) in self.find_uri_shares(uri):
-            shares[sharefile] = open(sharefile, "rb").read()
+            with open(sharefile, "rb") as f:
+                shares[sharefile] = f.read()
         return shares
 
     def restore_all_shares(self, shares):
         for sharefile, data in shares.items():
-            open(sharefile, "wb").write(data)
+            with open(sharefile, "wb") as f:
+                f.write(data)
 
     def delete_share(self, sharenum_and_serverid_and_sharefile):
         (shnum, serverid, sharefile) = sharenum_and_serverid_and_sharefile
@@ -547,16 +548,20 @@ class GridTestMixin(object):
 
     def corrupt_share(self, sharenum_and_serverid_and_sharefile, corruptor_function):
         (shnum, serverid, sharefile) = sharenum_and_serverid_and_sharefile
-        sharedata = open(sharefile, "rb").read()
+        with open(sharefile, "rb") as f:
+            sharedata = f.read()
         corruptdata = corruptor_function(sharedata)
-        open(sharefile, "wb").write(corruptdata)
+        with open(sharefile, "wb") as f:
+            f.write(corruptdata)
 
     def corrupt_shares_numbered(self, uri, shnums, corruptor, debug=False):
         for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
             if i_shnum in shnums:
-                sharedata = open(i_sharefile, "rb").read()
+                with open(i_sharefile, "rb") as f:
+                    sharedata = f.read()
                 corruptdata = corruptor(sharedata, debug=debug)
-                open(i_sharefile, "wb").write(corruptdata)
+                with open(i_sharefile, "wb") as f:
+                    f.write(corruptdata)
 
     def corrupt_all_shares(self, uri, corruptor, debug=False):
         for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
