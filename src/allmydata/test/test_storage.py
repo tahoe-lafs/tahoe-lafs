@@ -1,4 +1,5 @@
 import time, os.path, platform, stat, re, json, struct, shutil
+import gc
 
 from twisted.trial import unittest
 
@@ -553,8 +554,14 @@ class Server(unittest.TestCase):
 
         # we abandon the first set, so their provisional allocation should be
         # returned
+
+        # XXX okay, so the weak-key-dictionary in storage-server is
+        # basically making an interface to the storage-server that is
+        # "whenever I drop my object AND the garbage-collector removes
+        # it, *then* that thing is no longer writing"..? ... yuuuuck.
         del already
         del writers
+        gc.collect()  # for pypy's benefit
         self.failUnlessEqual(len(ss._active_writers), 1)
         # now we have a provisional allocation of 1001 bytes
 
@@ -567,6 +574,7 @@ class Server(unittest.TestCase):
         del already2
         del writers2
         del bw
+        gc.collect()  # for pypy's benefit
         self.failUnlessEqual(len(ss._active_writers), 0)
 
         # this also changes the amount reported as available by call_get_disk_stats
