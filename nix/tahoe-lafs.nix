@@ -3,6 +3,7 @@
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
 , beautifulsoup4, eliot, autobahn, cryptography
+, html5lib
 }:
 python.pkgs.buildPythonPackage rec {
   version = "1.14.0.dev";
@@ -26,13 +27,15 @@ python.pkgs.buildPythonPackage rec {
     twisted foolscap nevow zfec appdirs
     setuptoolsTrial pyasn1 zope_interface
     service-identity pyyaml magic-wormhole treq
-    beautifulsoup4 eliot autobahn cryptography setuptools
+    eliot autobahn cryptography setuptools
   ];
 
   checkInputs = with python.pkgs; [
     hypothesis
     testtools
     fixtures
+    beautifulsoup4
+    html5lib
   ];
 
   checkPhase = ''
