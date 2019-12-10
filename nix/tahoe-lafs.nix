@@ -7,15 +7,7 @@
 python.pkgs.buildPythonPackage rec {
   version = "1.14.0.dev";
   name = "tahoe-lafs-${version}";
-  # src = fetchFromGitHub {
-  #   owner = "LeastAuthority";
-  #   repo = "tahoe-lafs";
-  #   # HEAD of an integration branch for all of the storage plugin stuff.  Last
-  #   # updated October 4 2019.
-  #   rev = "8c1f536ba4fbc01f3bc5f08412edbefc56ff7037";
-  #   sha256 = "17d7pkbsgss3rhqf7ac7ylzbddi555rnkzz48zjqwq1zx1z2jhy6";
-  # };
-  src = ~/Work/python/tahoe-lafs;
+  src = ../.;
 
   postPatch = ''
     sed -i "src/allmydata/util/iputil.py" \
