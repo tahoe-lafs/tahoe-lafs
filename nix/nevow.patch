@@ -1,5 +1,5 @@
 diff --git a/nevow/__init__.py b/nevow/__init__.py
-index 45ac0a7..c9db574 100644
+index 45ac0a7..ebfb517 100644
 --- a/nevow/__init__.py
 +++ b/nevow/__init__.py
 @@ -65,7 +65,8 @@ def _versions():
@@ -8,7 +8,7 @@ index 45ac0a7..c9db574 100644
  
 -__version__, __version_info__, version = _versions()
 +from twisted.python.versions import Version
-+__version__, __version_info__, version = "0.14.4.dev1", ("0", "14", "4", "dev1"), Version("nevow", 0, 14, 4, dev=1)
++__version__, __version_info__, version = "0.14.4.dev1", (0, 14, 4), Version("nevow", 0, 14, 4, dev=1)
  
  import sys
  from twisted.python.components import registerAdapter
