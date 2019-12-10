@@ -2,7 +2,7 @@
 
 buildPythonPackage rec {
   pname = "Nevow";
-  version = "0.15.0";
+  version = "0.14.4.dev";
   name = "${pname}-${version}";
   disabled = isPy3k;
 
@@ -14,6 +14,8 @@ buildPythonPackage rec {
   };
 
   propagatedBuildInputs = [ twisted ];
+
+  patches = [ ./nevow.patch ];
 
   checkInputs = [ twisted ];
 
