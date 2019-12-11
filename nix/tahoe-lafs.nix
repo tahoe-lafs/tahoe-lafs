@@ -22,12 +22,16 @@ python.pkgs.buildPythonPackage rec {
     done
 
     # Some tests are flaky or fail to skip when dependencies are missing.
+    # This list is over-zealous because it's more work to disable individual
+    # tests with in a module.
     rm src/allmydata/test/test_system.py
     rm src/allmydata/test/test_i2p_provider.py
     rm src/allmydata/test/test_connections.py
     rm src/allmydata/test/cli/test_create.py
     rm src/allmydata/test/test_eliotutil.py
     rm src/allmydata/test/test_iputil.py
+    rm src/allmydata/test/test_client.py
+    rm src/allmydata/test/test_runner.py
   '';
 
 
