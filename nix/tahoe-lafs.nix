@@ -1,4 +1,5 @@
-{ fetchFromGitHub, nettools, python
+{ fetchFromGitHub, lib
+, nettools, python
 , twisted, foolscap, nevow, zfec
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
@@ -8,7 +9,7 @@
 python.pkgs.buildPythonPackage rec {
   version = "1.14.0.dev";
   name = "tahoe-lafs-${version}";
-  src = ../.;
+  src = lib.cleanSource ../.;
 
   postPatch = ''
     sed -i "src/allmydata/util/iputil.py" \
