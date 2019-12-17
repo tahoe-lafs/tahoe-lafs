@@ -254,7 +254,11 @@ class RunTests(unittest.TestCase):
         ])
 
         i, o, e = StringIO(), StringIO(), StringIO()
-        runner.dispatch(config, i, o, e)
+        d = runner.dispatch(config, i, o, e)
+
+        def must_be_systemexit(f):
+            assert isinstance(f.value, SystemExit)
+        d.addErrback(must_be_systemexit)
 
         output = e.getvalue()
         # should print out the collected logs and an error-code
@@ -266,10 +270,6 @@ class RunTests(unittest.TestCase):
             "Configuration error:",
             output,
         )
-        # this is SystemExit(0) for some reason I can't understand,
-        # while running on the command-line, "echo $?" shows "1" on
-        # this same error (some config exception)...
-        errs = self.flushLoggedErrors(SystemExit)
-        self.assertEqual(1, len(errs))
         # ensure reactor.stop was actually called
         self.assertEqual([None], stopped)
+        return d
