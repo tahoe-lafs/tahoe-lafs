@@ -543,16 +543,16 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
-        f = open(os.path.join(basedirs[0],"private","helper.furl"), "r")
-        helper_furl = f.read()
-        f.close()
+        with open(os.path.join(basedirs[0],"private","helper.furl"), "r") as f:
+            helper_furl = f.read()
+
         self.helper_furl = helper_furl
         if self.numclients >= 4:
-            f = open(os.path.join(basedirs[3], 'tahoe.cfg'), 'ab+')
-            f.write(
-                  "[client]\n"
-                  "helper.furl = %s\n" % helper_furl)
-            f.close()
+            with open(os.path.join(basedirs[3], 'tahoe.cfg'), 'ab+') as f:
+                f.write(
+                    "[client]\n"
+                    "helper.furl = {}\n".format(helper_furl)
+                )
 
         # this starts the rest of the clients
         for i in range(1, self.numclients):
