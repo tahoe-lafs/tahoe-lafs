@@ -25,6 +25,8 @@ workflows:
 
       - "slackware-14.2"
 
+      - "nixos-19.09"
+
       # Test against PyPy 2.7/7.1.1
       - "pypy2.7-7.1"
 
@@ -321,6 +323,31 @@ jobs:
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
+
+  nixos-19.09:
+    docker:
+      # Run in a highly Nix-capable environment.
+      - image: "nixorg/nix:circleci"
+
+    environment:
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-19.09-small.tar.gz"
+
+    steps:
+      - "checkout"
+      - "run":
+          name: "Build and Test"
+          command: |
+            # CircleCI build environment looks like it has a zillion and a
+            # half cores.  Don't let Nix autodetect this high core count
+            # because it blows up memory usage and fails the test run.  Pick a
+            # number of cores that suites the build environment we're paying
+            # for (the free one!).
+            #
+            # Also, let it run more than one job at a time because we have to
+            # build a couple simple little dependencies that don't take
+            # advantage of multiple cores and we get a little speedup by doing
+            # them in parallel.
+            nix-build --cores 3 --max-jobs 2 nix/
 
   # Generate up-to-date data for the dependency graph visualizer.
   build-porting-depgraph:
