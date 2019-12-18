@@ -12,9 +12,6 @@ python.pkgs.buildPythonPackage rec {
   src = lib.cleanSource ../.;
 
   postPatch = ''
-    sed -i "src/allmydata/util/iputil.py" \
-        -es"|_linux_path = '/sbin/ifconfig'|_linux_path = '${nettools}/bin/ifconfig'|g"
-
     # Chroots don't have /etc/hosts and /etc/resolv.conf, so work around
     # that.
     for i in $(find src/allmydata/test -type f)
@@ -25,14 +22,22 @@ python.pkgs.buildPythonPackage rec {
     # Some tests are flaky or fail to skip when dependencies are missing.
     # This list is over-zealous because it's more work to disable individual
     # tests with in a module.
+
+    # test_system is a lot of integration-style tests that do a lot of real
+    # networking between many processes.  They sometimes fail spuriously.
     rm src/allmydata/test/test_system.py
+
+    # Many of these tests don't properly skip when i2p or tor dependencies are
+    # not supplied (and we are not supplying them).
     rm src/allmydata/test/test_i2p_provider.py
     rm src/allmydata/test/test_connections.py
     rm src/allmydata/test/cli/test_create.py
-    rm src/allmydata/test/test_eliotutil.py
-    rm src/allmydata/test/test_iputil.py
     rm src/allmydata/test/test_client.py
     rm src/allmydata/test/test_runner.py
+
+    # Some eliot code changes behavior based on whether stdout is a tty or not
+    # and fails when it is not.
+    rm src/allmydata/test/test_eliotutil.py
   '';
 
 
@@ -49,6 +54,7 @@ python.pkgs.buildPythonPackage rec {
     fixtures
     beautifulsoup4
     html5lib
+    nettools
   ];
 
   checkPhase = ''
