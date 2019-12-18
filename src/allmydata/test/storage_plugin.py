@@ -104,10 +104,9 @@ class GetCounter(Resource, object):
 
 
 @implementer(RIDummy)
-@attr.s(cmp=True, hash=True)
+@attr.s(frozen=True)
 class DummyStorageServer(object):
-    # TODO Requirement of some interface that instances be hashable
-    get_anonymous_storage_server = attr.ib(cmp=False)
+    get_anonymous_storage_server = attr.ib()
 
     def remote_just_some_method(self):
         pass
