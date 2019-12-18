@@ -41,6 +41,10 @@ python.pkgs.buildPythonPackage rec {
   '';
 
 
+  propagatedNativeBuildInputs = [
+    nettools
+  ];
+
   propagatedBuildInputs = with python.pkgs; [
     twisted foolscap nevow zfec appdirs
     setuptoolsTrial pyasn1 zope_interface
@@ -54,7 +58,6 @@ python.pkgs.buildPythonPackage rec {
     fixtures
     beautifulsoup4
     html5lib
-    nettools
   ];
 
   checkPhase = ''
