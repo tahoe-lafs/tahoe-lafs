@@ -354,7 +354,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # this version from time to time, but we will do it
               # intentionally.
               "pyflakes == 2.1.0",
-              "coverage",
+              "coverage ~= 4.5",
               "mock",
               "tox",
               "pytest",
