@@ -1,21 +1,18 @@
-{ stdenv, buildPythonPackage, fetchFromGitHub, isPy3k, twisted }:
+{ stdenv, buildPythonPackage, fetchPypi, isPy3k, twisted }:
 
 buildPythonPackage rec {
   pname = "Nevow";
-  version = "0.14.4.dev";
+  version = "0.14.5";
   name = "${pname}-${version}";
   disabled = isPy3k;
 
-  src = fetchFromGitHub {
-    owner = "twisted";
-    repo = "nevow";
-    rev = "aff713a6884a0ebf2214af5cfa3c1ea2d7d70669";
-    sha256 = "0wmfin9igj46dazyfkphk7jxqalvxisn2hjz79maqg4nbl0x3rcv";
+  src = fetchPypi {
+    inherit pname;
+    inherit version;
+    sha256 = "1wr3fai01h1bcp4qpia6indg4qmxvywwv3q1iibm669mln2vmdmg";
   };
 
   propagatedBuildInputs = [ twisted ];
-
-  patches = [ ./nevow.patch ];
 
   checkInputs = [ twisted ];
 
