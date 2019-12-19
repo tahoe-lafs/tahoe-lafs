@@ -1,5 +1,4 @@
 import time, os.path, platform, stat, re, json, struct, shutil
-import gc
 
 from twisted.trial import unittest
 
