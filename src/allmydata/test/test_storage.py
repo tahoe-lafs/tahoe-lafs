@@ -541,27 +541,22 @@ class Server(unittest.TestCase):
         OVERHEAD = 3*4
         LEASE_SIZE = 4+32+32+4
         canary = FakeCanary(True)
-        already,writers = self.allocate(ss, "vid1", [0,1,2], 1000, canary)
+        already, writers = self.allocate(ss, "vid1", [0,1,2], 1000, canary)
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
         self.failUnlessEqual(len(ss._active_writers), 3)
 
         # allocating 1001-byte shares only leaves room for one
-        already2,writers2 = self.allocate(ss, "vid2", [0,1,2], 1001, canary)
+        already2, writers2 = self.allocate(ss, "vid2", [0,1,2], 1001, canary)
         self.failUnlessEqual(len(writers2), 1)
         self.failUnlessEqual(len(ss._active_writers), 4)
 
         # we abandon the first set, so their provisional allocation should be
         # returned
 
-        # XXX okay, so the weak-key-dictionary in storage-server is
-        # basically making an interface to the storage-server that is
-        # "whenever I drop my object AND the garbage-collector removes
-        # it, *then* that thing is no longer writing"..? ... yuuuuck.
-        del already
-        del writers
-        gc.collect()  # for pypy's benefit
+        for x in writers.values():
+            x.remote_close()
         self.failUnlessEqual(len(ss._active_writers), 1)
         # now we have a provisional allocation of 1001 bytes
 
@@ -574,7 +569,6 @@ class Server(unittest.TestCase):
         del already2
         del writers2
         del bw
-        gc.collect()  # for pypy's benefit
         self.failUnlessEqual(len(ss._active_writers), 0)
 
         # this also changes the amount reported as available by call_get_disk_stats
@@ -582,12 +576,12 @@ class Server(unittest.TestCase):
 
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
-        already3,writers3 = self.allocate(ss,"vid3", range(100), 100, canary)
+        already3, writers3 = self.allocate(ss,"vid3", range(100), 100, canary)
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(ss._active_writers), 39)
 
-        del already3
-        del writers3
+        for x in writers3.values():
+            x._disconnected()
         self.failUnlessEqual(len(ss._active_writers), 0)
         ss.disownServiceParent()
         del ss
