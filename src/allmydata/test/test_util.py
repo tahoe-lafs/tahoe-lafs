@@ -8,6 +8,7 @@ import six
 import hashlib
 import os, time, sys
 import yaml
+import gc  # support PyPy
 
 from six.moves import StringIO
 from datetime import timedelta
@@ -1303,9 +1304,11 @@ class CacheDir(unittest.TestCase):
         a = cdm.get_file("a")
         b = cdm.get_file("b")
         c = cdm.get_file("c")
-        f = open(a.get_filename(), "wb"); f.write("hi"); f.close(); del f
-        f = open(b.get_filename(), "wb"); f.write("hi"); f.close(); del f
-        f = open(c.get_filename(), "wb"); f.write("hi"); f.close(); del f
+        for x in {a, b, c}:
+            with open(x.get_filename(), "wb") as f:
+                f.write("hi")
+        del x
+        gc.collect()  # for PyPy
 
         _failUnlessExists("a")
         _failUnlessExists("b")
@@ -1318,6 +1321,7 @@ class CacheDir(unittest.TestCase):
         _failUnlessExists("c")
 
         del a
+        gc.collect()  # for PyPy
         # this file won't be deleted yet, because it isn't old enough
         cdm.check()
         _failUnlessExists("a")
@@ -1335,6 +1339,7 @@ class CacheDir(unittest.TestCase):
         cdm.old = 60*60
 
         del b
+        gc.collect()  # for PyPy
 
         cdm.check()
         _failIfExists("a")
@@ -1348,6 +1353,7 @@ class CacheDir(unittest.TestCase):
         _failUnlessExists("b")
         _failUnlessExists("c")
         del b2
+        gc.collect()  # for PyPy
 
 ctr = [0]
 class EqButNotIs(object):
@@ -1617,6 +1623,7 @@ class Pipeline(unittest.TestCase):
         self.calls[2][0].errback(ValueError("three-error"))
 
         del d1,d2,d3,d4
+        gc.collect()  # for PyPy
 
 class SampleError(Exception):
     pass
