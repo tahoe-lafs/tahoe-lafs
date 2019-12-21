@@ -1,12 +1,22 @@
 
 import json
 import urllib
+from datetime import timedelta
 
 from zope.interface import implementer
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer
 from twisted.python.failure import Failure
 from twisted.web import http
+from twisted.web.template import (
+    Element,
+    XMLFile,
+    renderElement,
+    renderer,
+    tags,
+)
+from hyperlink import URL
+from twisted.python.filepath import FilePath
 from nevow import url, rend, inevow, tags as T
 from nevow.inevow import IRequest
 
@@ -14,20 +24,40 @@ from foolscap.api import fireEventually
 
 from allmydata.util import base32
 from allmydata.util.encodingutil import to_str
-from allmydata.uri import from_string_dirnode
+from allmydata.uri import (
+    from_string_dirnode,
+    from_string,
+    CHKFileURI,
+    WriteableSSKFileURI,
+    ReadonlySSKFileURI,
+)
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
      IImmutableFileNode, IMutableFileNode, ExistingChildError, \
      NoSuchChildError, EmptyPathnameComponentError, SDMF_VERSION, MDMF_VERSION
 from allmydata.blacklist import ProhibitedNode
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata import dirnode
-from allmydata.web.common import text_plain, WebError, \
-     NeedOperationHandleError, \
-     boolean_of_arg, get_arg, get_root, parse_replace_arg, \
-     should_create_intermediate_directories, \
-     getxmlfile, RenderMixin, humanize_failure, convert_children_json, \
-     get_format, get_mutable_type, get_filenode_metadata, render_time, \
-     MultiFormatPage
+from allmydata.web.common import (
+    text_plain,
+    WebError,
+    NeedOperationHandleError,
+    boolean_of_arg,
+    get_arg,
+    get_root,
+    parse_replace_arg,
+    should_create_intermediate_directories,
+    getxmlfile,
+    RenderMixin,
+    humanize_failure,
+    convert_children_json,
+    get_format,
+    get_mutable_type,
+    get_filenode_metadata,
+    render_time,
+    MultiFormatPage,
+    MultiFormatResource,
+    SlotsSequenceElement,
+)
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.check_results import CheckResultsRenderer, \
@@ -943,8 +973,128 @@ class RenameForm(rend.Page):
         ctx.tag.attributes['value'] = name
         return ctx.tag
 
-class ManifestResults(MultiFormatPage, ReloadMixin):
-    docFactory = getxmlfile("manifest.xhtml")
+
+class ReloadableMonitorElement(Element):
+    """
+    Like 'ReloadMixin', but for twisted.web.template style. This
+    provides renderers for "reload" and "refesh" and a self.monitor
+    attribute (which is an instance of IMonitor)
+    """
+    refresh_time = timedelta(seconds=60)
+
+    def __init__(self, monitor):
+        self.monitor = monitor
+        super(ReloadableMonitorElement, self).__init__()
+
+    @renderer
+    def refresh(self, req, tag):
+        if self.monitor.is_finished():
+            return u""
+        tag.attributes[u"http-equiv"] = u"refresh"
+        tag.attributes[u"content"] = u"{}".format(self.refresh_time.seconds)
+        return tag
+
+    @renderer
+    def reload(self, req, tag):
+        if self.monitor.is_finished():
+            return u""
+        reload_url = URL.from_text(u"{}".format(req.path))
+        cancel_button = tags.form(
+            [
+                tags.input(type=u"submit", value=u"Cancel"),
+            ],
+            action=reload_url.replace(query={u"t": u"cancel"}).to_uri().to_text(),
+            method=u"POST",
+            enctype=u"multipart/form-data",
+        )
+
+        return tag([
+            u"Operation still running: ",
+            tags.a(
+                u"Reload",
+                href=reload_url.replace(query={u"output": u"html"}).to_uri().to_text(),
+            ),
+            cancel_button,
+        ])
+
+
+def _slashify_path(path):
+    """
+    Converts a tuple from a 'manifest' path into a string with slashes
+    in it
+    """
+    if not path:
+        return ""
+    return "/".join([p.encode("utf-8") for p in path])
+
+
+def _cap_to_link(root, path, cap):
+    """
+    Turns a capability-string into a WebAPI link tag
+
+    :param text root: the root piece of the URI
+
+    :param text cap: the capability-string
+
+    :returns: something suitable for `IRenderable`, specifically
+        either a valid local link (tags.a instance) to the capability
+        or an empty string.
+    """
+    if cap:
+        root_url = URL.from_text(u"{}".format(root))
+        cap_obj = from_string(cap)
+        if isinstance(cap_obj, (CHKFileURI, WriteableSSKFileURI, ReadonlySSKFileURI)):
+            uri_link = root_url.child(
+                u"file",
+                u"{}".format(urllib.quote(cap)),
+                u"{}".format(urllib.quote(path[-1])),
+            )
+        else:
+            uri_link = root_url.child(
+                u"uri",
+                u"{}".format(urllib.quote(cap, safe="")),
+            )
+        return tags.a(cap, href=uri_link.to_text())
+    else:
+        return u""
+
+
+class ManifestElement(ReloadableMonitorElement):
+    loader = XMLFile(FilePath(__file__).sibling("manifest.xhtml"))
+
+    def _si_abbrev(self):
+        si = self.monitor.origin_si
+        if not si:
+            return "<LIT>"
+        return base32.b2a(si)[:6]
+
+    @renderer
+    def title(self, req, tag):
+        return tag(
+            "Manifest of SI={}".format(self._si_abbrev())
+        )
+
+    @renderer
+    def header(self, req, tag):
+        return tag(
+            "Manifest of SI={}".format(self._si_abbrev())
+        )
+
+    @renderer
+    def items(self, req, tag):
+        manifest = self.monitor.get_status()["manifest"]
+        root = get_root(req)
+        rows = [
+            {
+                "path": _slashify_path(path),
+                "cap": _cap_to_link(root, path, cap),
+            }
+            for path, cap in manifest
+        ]
+        return SlotsSequenceElement(tag, rows)
+
+
+class ManifestResults(MultiFormatResource, ReloadMixin):
 
     # Control MultiFormatPage
     formatArgument = "output"
@@ -954,21 +1104,19 @@ class ManifestResults(MultiFormatPage, ReloadMixin):
         self.client = client
         self.monitor = monitor
 
-    # The default format is HTML but the HTML renderer is just renderHTTP.
-    render_HTML = None
-
-    def slashify_path(self, path):
-        if not path:
-            return ""
-        return "/".join([p.encode("utf-8") for p in path])
+    def render_HTML(self, req):
+        return renderElement(
+            req,
+            ManifestElement(self.monitor)
+        )
 
     def render_TEXT(self, req):
         req.setHeader("content-type", "text/plain")
         lines = []
         is_finished = self.monitor.is_finished()
         lines.append("finished: " + {True: "yes", False: "no"}[is_finished])
-        for (path, cap) in self.monitor.get_status()["manifest"]:
-            lines.append(self.slashify_path(path) + " " + cap)
+        for path, cap in self.monitor.get_status()["manifest"]:
+            lines.append(_slashify_path(path) + " " + cap)
         return "\n".join(lines) + "\n"
 
     def render_JSON(self, req):
@@ -1002,37 +1150,6 @@ class ManifestResults(MultiFormatPage, ReloadMixin):
             # CPU.
         return json.dumps(status, indent=1)
 
-    def _si_abbrev(self):
-        si = self.monitor.origin_si
-        if not si:
-            return "<LIT>"
-        return base32.b2a(si)[:6]
-
-    def render_title(self, ctx):
-        return T.title["Manifest of SI=%s" % self._si_abbrev()]
-
-    def render_header(self, ctx):
-        return T.p["Manifest of SI=%s" % self._si_abbrev()]
-
-    def data_items(self, ctx, data):
-        return self.monitor.get_status()["manifest"]
-
-    def render_row(self, ctx, path_cap):
-        path, cap = path_cap
-        ctx.fillSlots("path", self.slashify_path(path))
-        root = get_root(ctx)
-        # TODO: we need a clean consistent way to get the type of a cap string
-        if cap:
-            if cap.startswith("URI:CHK") or cap.startswith("URI:SSK"):
-                nameurl = urllib.quote(path[-1].encode("utf-8"))
-                uri_link = "%s/file/%s/@@named=/%s" % (root, urllib.quote(cap),
-                                                       nameurl)
-            else:
-                uri_link = "%s/uri/%s" % (root, urllib.quote(cap, safe=""))
-            ctx.fillSlots("cap", T.a(href=uri_link)[cap])
-        else:
-            ctx.fillSlots("cap", "")
-        return ctx.tag
 
 class DeepSizeResults(MultiFormatPage):
     # Control MultiFormatPage
