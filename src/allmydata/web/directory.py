@@ -24,7 +24,13 @@ from foolscap.api import fireEventually
 
 from allmydata.util import base32
 from allmydata.util.encodingutil import to_str
-from allmydata.uri import from_string_dirnode
+from allmydata.uri import (
+    from_string_dirnode,
+    from_string,
+    CHKFileURI,
+    WriteableSSKFileURI,
+    ReadonlySSKFileURI,
+)
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
      IImmutableFileNode, IMutableFileNode, ExistingChildError, \
      NoSuchChildError, EmptyPathnameComponentError, SDMF_VERSION, MDMF_VERSION
@@ -1034,10 +1040,10 @@ def _cap_to_link(root, path, cap):
         either a valid local link (tags.a instance) to the capability
         or an empty string.
     """
-    # TODO: we need a clean consistent way to get the type of a cap string
     if cap:
         root_url = URL.from_text(u"{}".format(root))
-        if cap.startswith(u"URI:CHK") or cap.startswith(u"URI:SSK"):
+        cap_obj = from_string(cap)
+        if isinstance(cap_obj, (CHKFileURI, WriteableSSKFileURI, ReadonlySSKFileURI)):
             uri_link = root_url.child(
                 u"file",
                 u"{}".format(urllib.quote(cap)),
