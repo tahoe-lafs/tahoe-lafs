@@ -250,16 +250,15 @@ class JSONStatsGatherer(StdOutStatsGatherer):
         self.jsonfile = os.path.join(basedir, "stats.json")
 
         if os.path.exists(self.jsonfile):
-            f = open(self.jsonfile, 'rb')
             try:
-                self.gathered_stats = json.load(f)
+                with open(self.jsonfile, 'rb') as f:
+                    self.gathered_stats = json.load(f)
             except Exception:
                 print("Error while attempting to load stats file %s.\n"
                       "You may need to restore this file from a backup,"
                       " or delete it if no backup is available.\n" %
                       quote_local_unicode_path(self.jsonfile))
                 raise
-            f.close()
         else:
             self.gathered_stats = {}
 
@@ -272,9 +271,8 @@ class JSONStatsGatherer(StdOutStatsGatherer):
 
     def dump_json(self):
         tmp = "%s.tmp" % (self.jsonfile,)
-        f = open(tmp, 'wb')
-        json.dump(self.gathered_stats, f)
-        f.close()
+        with open(tmp, 'wb') as f:
+            json.dump(self.gathered_stats, f)
         if os.path.exists(self.jsonfile):
             os.unlink(self.jsonfile)
         os.rename(tmp, self.jsonfile)

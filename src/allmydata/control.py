@@ -19,12 +19,13 @@ def get_memory_usage():
                   "VmData")
     stats = {}
     try:
-        for line in open("/proc/self/status", "r").readlines():
-            name, right = line.split(":",2)
-            if name in stat_names:
-                assert right.endswith(" kB\n")
-                right = right[:-4]
-                stats[name] = int(right) * 1024
+        with open("/proc/self/status", "r") as f:
+            for line in f.readlines():
+                name, right = line.split(":",2)
+                if name in stat_names:
+                    assert right.endswith(" kB\n")
+                    right = right[:-4]
+                    stats[name] = int(right) * 1024
     except:
         # Probably not on (a compatible version of) Linux
         stats['VmSize'] = 0

@@ -34,13 +34,14 @@ class Blacklist(object):
         try:
             if self.last_mtime is None or current_mtime > self.last_mtime:
                 self.entries.clear()
-                for line in open(self.blacklist_fn, "r").readlines():
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    si_s, reason = line.split(None, 1)
-                    si = base32.a2b(si_s) # must be valid base32
-                    self.entries[si] = reason
+                with open(self.blacklist_fn, "r") as f:
+                    for line in f.readlines():
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        si_s, reason = line.split(None, 1)
+                        si = base32.a2b(si_s) # must be valid base32
+                        self.entries[si] = reason
                 self.last_mtime = current_mtime
         except Exception as e:
             twisted_log.err(e, "unparseable blacklist file")

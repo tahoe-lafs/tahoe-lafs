@@ -235,18 +235,18 @@ def _get_linux_distro():
         return (_distname, _version)
 
     try:
-        etclsbrel = open("/etc/lsb-release", "rU")
-        for line in etclsbrel:
-            m = _distributor_id_file_re.search(line)
-            if m:
-                _distname = m.group(1).strip()
-                if _distname and _version:
-                    return (_distname, _version)
-            m = _release_file_re.search(line)
-            if m:
-                _version = m.group(1).strip()
-                if _distname and _version:
-                    return (_distname, _version)
+        with open("/etc/lsb-release", "rU") as etclsbrel:
+            for line in etclsbrel:
+                m = _distributor_id_file_re.search(line)
+                if m:
+                    _distname = m.group(1).strip()
+                    if _distname and _version:
+                        return (_distname, _version)
+                m = _release_file_re.search(line)
+                if m:
+                    _version = m.group(1).strip()
+                    if _distname and _version:
+                        return (_distname, _version)
     except EnvironmentError:
         pass
 

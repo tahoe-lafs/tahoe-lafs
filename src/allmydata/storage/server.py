@@ -317,9 +317,8 @@ class StorageServer(service.MultiService, Referenceable):
 
     def _iter_share_files(self, storage_index):
         for shnum, filename in self._get_bucket_shares(storage_index):
-            f = open(filename, 'rb')
-            header = f.read(32)
-            f.close()
+            with open(filename, 'rb') as f:
+                header = f.read(32)
             if header[:32] == MutableShareFile.MAGIC:
                 sf = MutableShareFile(filename, self)
                 # note: if the share has been migrated, the renew_lease()
@@ -682,15 +681,14 @@ class StorageServer(service.MultiService, Referenceable):
         # windows can't handle colons in the filename
         fn = os.path.join(self.corruption_advisory_dir,
                           "%s--%s-%d" % (now, si_s, shnum)).replace(":","")
-        f = open(fn, "w")
-        f.write("report: Share Corruption\n")
-        f.write("type: %s\n" % share_type)
-        f.write("storage_index: %s\n" % si_s)
-        f.write("share_number: %d\n" % shnum)
-        f.write("\n")
-        f.write(reason)
-        f.write("\n")
-        f.close()
+        with open(fn, "w") as f:
+            f.write("report: Share Corruption\n")
+            f.write("type: %s\n" % share_type)
+            f.write("storage_index: %s\n" % si_s)
+            f.write("share_number: %d\n" % shnum)
+            f.write("\n")
+            f.write(reason)
+            f.write("\n")
         log.msg(format=("client claims corruption in (%(share_type)s) " +
                         "%(si)s-%(shnum)d: %(reason)s"),
                 share_type=share_type, si=si_s, shnum=shnum, reason=reason,
