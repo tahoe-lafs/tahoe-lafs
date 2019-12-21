@@ -1098,9 +1098,6 @@ class ManifestResults(MultiFormatResource, ReloadMixin):
         self.client = client
         self.monitor = monitor
 
-    # The default format is HTML but the HTML renderer is just renderHTTP.
-    render_HTML = None
-
     def render_HTML(self, req):
         return renderElement(
             req,
