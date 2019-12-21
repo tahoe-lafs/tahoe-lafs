@@ -159,7 +159,7 @@ class NoDefault(unittest.TestCase):
             yield create_client(self.basedir)
         self.assertEquals(
             str(ctx.exception),
-            "string indices must be integers",
+            "string index must be an integer, not str",
         )
 
     @defer.inlineCallbacks

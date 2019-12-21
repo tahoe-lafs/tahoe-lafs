@@ -60,8 +60,7 @@ class BackupDB(unittest.TestCase):
         bdb = backupdb.get_backupdb(where, stderr_f)
         self.failUnlessEqual(bdb, None)
         stderr = stderr_f.getvalue()
-        self.failUnlessIn("Unable to create/open backupdb file %s" % (where,), stderr)
-        self.failUnlessIn("unable to open database file", stderr)
+        self.failUnlessIn("Could not open database", stderr)
 
 
     def writeto(self, filename, data):
