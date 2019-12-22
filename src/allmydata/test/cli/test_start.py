@@ -256,9 +256,7 @@ class RunTests(unittest.TestCase):
         i, o, e = StringIO(), StringIO(), StringIO()
         d = runner.dispatch(config, i, o, e)
 
-        def must_be_systemexit(f):
-            assert isinstance(f.value, SystemExit)
-        d.addErrback(must_be_systemexit)
+        self.assertFailure(d, SystemExit)
 
         output = e.getvalue()
         # should print out the collected logs and an error-code
