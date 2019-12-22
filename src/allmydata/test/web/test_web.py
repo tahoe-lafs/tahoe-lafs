@@ -1389,7 +1389,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessIsQuuxDotTxt)
         return d
 
-    def test_GET_FILE_URI_badchild0(self):
+    def test_GET_FILE_URI_badchild(self):
         base = "/uri/%s/boguschild" % urllib.quote(self._bar_txt_uri)
         errmsg = "Files have no children named 'boguschild'"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
@@ -1397,7 +1397,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              self.GET, base)
         return d
 
-    def test_PUT_FILE_URI_badchild1(self):
+    def test_PUT_FILE_URI_badchild(self):
         base = "/uri/%s/boguschild" % urllib.quote(self._bar_txt_uri)
         errmsg = "Cannot create directory 'boguschild', because its parent is a file, not a directory"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
