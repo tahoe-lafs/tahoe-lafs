@@ -157,9 +157,9 @@ class NoDefault(unittest.TestCase):
         self.yaml_path.setContent(EQUALS_YAML)
         with self.assertRaises(TypeError) as ctx:
             yield create_client(self.basedir)
-        self.assertEquals(
-            str(ctx.exception),
-            "string index must be an integer, not str",
+        self.assertIsInstance(
+            ctx.exception,
+            TypeError,
         )
 
     @defer.inlineCallbacks
