@@ -19,7 +19,7 @@ from allmydata.util import log, base32
 from allmydata.util.encodingutil import quote_output
 from allmydata.blacklist import FileProhibited, ProhibitedNode
 
-from allmydata.web.common import text_plain, WebError, RenderMixin, \
+from allmydata.web.common import text_plain, WebError, \
      boolean_of_arg, get_arg, should_create_intermediate_directories, \
      MyExceptionHandler, parse_replace_arg, parse_offset_arg, \
      get_format, get_mutable_type, get_filenode_metadata

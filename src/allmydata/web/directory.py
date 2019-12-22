@@ -19,10 +19,6 @@ from twisted.web.template import (
 )
 from hyperlink import URL
 from twisted.python.filepath import FilePath
-from nevow import url, rend, inevow, tags as T
-from nevow.inevow import IRequest
-
-from foolscap.api import fireEventually
 
 from allmydata.util import base32
 from allmydata.util.encodingutil import to_str
@@ -48,7 +44,6 @@ from allmydata.web.common import (
     get_root,
     parse_replace_arg,
     should_create_intermediate_directories,
-    getxmlfile,
     RenderMixin,
     humanize_failure,
     convert_children_json,
