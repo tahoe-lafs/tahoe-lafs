@@ -54,6 +54,7 @@ from ..common import (
 from .common import (
     assert_soup_has_favicon,
     assert_soup_has_text,
+    assert_soup_has_tag_with_attributes,
 )
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable import servermap, publish, retrieve
@@ -4185,22 +4186,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         )
         soup = BeautifulSoup(data, 'html5lib')
         assert_soup_has_favicon(self, soup)
-        inputs = soup.find_all(u"input")
-        want = [
+        assert_soup_has_tag_with_attributes(
+            self, soup, u"input",
             {u"name": u"when_done", u"value": u".", u"type": u"hidden"},
+        )
+        assert_soup_has_tag_with_attributes(
+            self, soup, u"input",
             {u"readonly": u"true", u"name": u"from_name", u"value": u"bar.txt", u"type": u"text"},
-        ]
-        found = []
-        for inp in inputs:
-            print(inp)
-            print(dir(inp))
-            print(inp.attrs)
-            if inp.attrs in want:
-                found.append(inp.attrs)
-        self.assertEqual(
-            len(found),
-            len(want),
-            "Wanted <input> tags: {} but only found: {}".format(want, found),
         )
 
     def log(self, res, msg):

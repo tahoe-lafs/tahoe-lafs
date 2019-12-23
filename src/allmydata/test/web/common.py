@@ -18,6 +18,21 @@ def assert_soup_has_favicon(testcase, soup):
         any(t[u'href'] == u'/icon.png' for t in links), soup)
 
 
+def assert_soup_has_tag_with_attributes(testcase, soup, tag_name, attrs):
+    """
+    Using a ``TestCase`` object ``testcase``, assert that the passed
+    in ``BeatufulSoup`` object ``soup`` contains a tag ``tag_name``
+    (unicode) which has all the attributes in ``attrs`` (dict).
+    """
+    tags = soup.find_all(tag_name)
+    for tag in tags:
+        if all(tag.attrs[k] == v for k, v in attrs.items()):
+            return  # we found every attr in this tag; done
+    testcase.fail(
+        "No <{}> tags contain attributes: {}".format(tag_name, attrs)
+    )
+
+
 def assert_soup_has_text(testcase, soup, text):
     """
     Using a ``TestCase`` object ``testcase``, assert that the passed in
