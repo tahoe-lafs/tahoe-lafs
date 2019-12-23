@@ -4177,15 +4177,31 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              self.GET, "/uri")
         return d
 
+    @inlineCallbacks
     def test_GET_rename_form(self):
-        d = self.GET(self.public_url + "/foo?t=rename-form&name=bar.txt",
-                     followRedirect=True)
-        def _check(res):
-            self.failUnless(re.search('<input (name="when_done" |value="." |type="hidden" ){3}/>', res), res)
-            self.failUnless(re.search(r'<input (readonly="true" |type="text" |name="from_name" |value="bar\.txt" ){4}/>', res), res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
-        d.addCallback(_check)
-        return d
+        data = yield self.GET(
+            self.public_url + "/foo?t=rename-form&name=bar.txt",
+            followRedirect=True
+        )
+        soup = BeautifulSoup(data, 'html5lib')
+        assert_soup_has_favicon(self, soup)
+        inputs = soup.find_all(u"input")
+        want = [
+            {u"name": u"when_done", u"value": u".", u"type": u"hidden"},
+            {u"readonly": u"true", u"name": u"from_name", u"value": u"bar.txt", u"type": u"text"},
+        ]
+        found = []
+        for inp in inputs:
+            print(inp)
+            print(dir(inp))
+            print(inp.attrs)
+            if inp.attrs in want:
+                found.append(inp.attrs)
+        self.assertEqual(
+            len(found),
+            len(want),
+            "Wanted <input> tags: {} but only found: {}".format(want, found),
+        )
 
     def log(self, res, msg):
         #print "MSG: %s  RES: %s" % (msg, res)
