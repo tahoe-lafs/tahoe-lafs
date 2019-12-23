@@ -55,7 +55,10 @@ from .common import (
     assert_soup_has_favicon,
     assert_soup_has_text,
     assert_soup_has_tag_with_attributes,
+    assert_soup_has_tag_with_content,
+    assert_soup_has_tag_with_attributes_and_content,
 )
+
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
@@ -842,63 +845,95 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check)
         return d
 
+    @inlineCallbacks
     def test_welcome(self):
-        d = self.GET("/")
-        def _check(res):
-            # TODO: replace this with a parser
-            self.failUnlessIn('<title>Tahoe-LAFS - Welcome</title>', res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
-            self.failUnlessIn('<a href="status">Recent and Active Operations</a>', res)
-            self.failUnlessIn('<a href="statistics">Operational Statistics</a>', res)
-            self.failUnless(re.search('<input (type="hidden" |name="t" |value="report-incident" ){3}/>',res), res)
-            self.failUnlessIn('Page rendered at', res)
-            self.failUnlessIn('Tahoe-LAFS code imported from:', res)
-            res_u = res.decode('utf-8')
-            self.failUnlessIn(u'<td>fake_nickname \u263A</td>', res_u)
-            self.failUnlessIn(u'<div class="nickname">other_nickname \u263B</div>', res_u)
-            self.failUnlessIn(u'Connected to <span>1</span>\n              of <span>2</span> known storage servers', res_u)
-            def timestamp(t):
-                return (u'"%s"' % (t,)) if self.have_working_tzset() else u'"[^"]*"'
+        data = yield self.GET("/")
+        soup = BeautifulSoup(data, 'html5lib')
+        assert_soup_has_favicon(self, soup)
+        assert_soup_has_tag_with_content(self, soup, u"title", u"Tahoe-LAFS - Welcome")
+        assert_soup_has_tag_with_attributes_and_content(
+            self, soup, u"a",
+            u"Recent and Active Operations",
+            {u"href": u"status"},
+        )
+        assert_soup_has_tag_with_attributes_and_content(
+            self, soup, u"a",
+            u"Operational Statistics",
+            {u"href": u"statistics"},
+        )
+        assert_soup_has_tag_with_attributes(
+            self, soup, u"input",
+            {u"type": u"hidden", u"name": u"t", u"value": u"report-incident"},
+        )
+        assert_soup_has_text(self, soup, "Page rendered at")
+        assert_soup_has_tag_with_content(self, soup, u"td", u"fake_nickname \u263A")
+        assert_soup_has_tag_with_attributes_and_content(
+            self, soup, u"div",
+            u"other_nickname \u263B",
+            {u"class": u"nickname"},
+        )
+        # self.failUnlessIn(u'Connected to <span>1</span>\n              of <span>2</span> known storage servers', res_u)
+        divs = soup.find_all(u"div")
+        found_status = False
+        for div in divs:
+            if u"status-indicator" in div.attrs.get(u"class", []):
+                imgs = div.find_all(u"img")
+                if imgs and imgs[0].attrs.get(u"src", u"") == u"img/connected-yes.png":
+                    found_status = True
+                    sib = div.find_next_siblings()[0]
+                    self.assert_(u"nickname" in sib.attrs[u"class"])
+                    self.assert_(u"other_nickname \u263B" in sib.contents)
+        self.assert_(found_status, "no status-indicator found")
 
-            # TODO: use a real parser to make sure these two nodes are siblings
-            self.failUnless(re.search(
-                u'<div class="status-indicator"><img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>'
-                u'\s+'
-                u'<div class="nickname">other_nickname \u263B</div>',
-                res_u), repr(res_u))
-            self.failUnless(re.search(
-                u'<a( class="timestamp"| title=%s){2}>\s+1d\u00A00h\u00A00m\u00A050s\s+</a>'
-                % timestamp(u'1970-01-01 13:00:10'), res_u), repr(res_u))
+        if self.have_working_tzset():
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"1d\u00A00h\u00A00m\u00A050s",
+                {u"class": u"timestamp", u"title": u"1970-01-01 13:00:10" }
+            )
 
-            # same for these two nodes
-            self.failUnless(re.search(
-                u'<div class="status-indicator"><img (src="img/connected-no.png" |alt="Disconnected" ){2}/></div>'
-                u'\s+'
-                u'<div class="nickname">disconnected_nickname \u263B</div>',
-                res_u), repr(res_u))
-            self.failUnless(re.search(
-                u'<a( class="timestamp"| title="N/A"){2}>\s+N/A\s+</a>',
-                res_u), repr(res_u))
+        found_status = False
+        for div in divs:
+            if u"status-indicator" in div.attrs.get(u"class", []):
+                imgs = div.find_all(u"img")
+                if imgs and imgs[0].attrs.get(u"src", u"") == u"img/connected-no.png" and imgs[0].attrs.get(u"alt", u"") == u"Disconnected":
+                    # since we don't connect to any introducer, we
+                    # find that one first .. but we want to look for
+                    # the disconnected storage node..
+                    sib = div.find_next_siblings()[0]
+                    if u"No introducers connected" in sib.contents:
+                        continue
+                    found_status = True
+                    self.assert_(u"nickname" in sib.attrs.get(u"class", []))
+                    self.assert_(u"disconnected_nickname \u263B" in sib.contents)
+        self.assert_(found_status, "no status-indicator found")
 
-            self.failUnless(re.search(
-                u'<td class="service-last-received-data"><a( class="timestamp"| title=%s){2}>'
-                u'1d\u00A00h\u00A00m\u00A030s</a></td>'
-                % timestamp(u'1970-01-01 13:00:30'), res_u), repr(res_u))
-            self.failUnless(re.search(
-                u'<td class="service-last-received-data"><a( class="timestamp"| title=%s){2}>'
-                u'1d\u00A00h\u00A00m\u00A025s</a></td>'
-                % timestamp(u'1970-01-01 13:00:35'), res_u), repr(res_u))
 
-            self.failUnlessIn(u'\u00A9 <a href="https://tahoe-lafs.org/">Tahoe-LAFS Software Foundation', res_u)
-            self.failUnlessIn('<td><h3>Available</h3></td>', res)
-            self.failUnlessIn('123.5kB', res)
+        assert_soup_has_tag_with_attributes_and_content(
+            self, soup, u"a",
+            u"N/A",
+            {u"class": u"timestamp", u"title": u"N/A"},
+        )
+        stamps = []
+        timestamps = []
+        for t in soup.find_all(u"td"):
+            if u"service-last-received-data" in t.attrs.get(u"class", []):
+                a = t.find_all(u"a")
+                stamps.append(a[0].contents[0])
+                timestamps.append(a[0].attrs.get(u"title", u""))
+        self.assertIn(u"1d\u00A00h\u00A00m\u00A030s", stamps)
+        self.assertIn(u"1d\u00A00h\u00A00m\u00A025s", stamps)  # huh? should be 35s .. i think?
+        self.assertIn(u'1970-01-01 13:00:30', timestamps)
+        self.assertIn(u'1970-01-01 13:00:35', timestamps)
 
-            self.s.basedir = 'web/test_welcome'
-            fileutil.make_dirs("web/test_welcome")
-            fileutil.make_dirs("web/test_welcome/private")
-            return self.GET("/")
-        d.addCallback(_check)
-        return d
+        assert_soup_has_text(self, soup, u"Tahoe-LAFS Software Foundation")
+        assert_soup_has_tag_with_content(self, soup, u"h3", u"Available")
+        assert_soup_has_text(self, soup, u"123.5kB")
+
+        # wait, WTF? why is this in a TEST?
+        self.s.basedir = 'web/test_welcome'
+        fileutil.make_dirs("web/test_welcome")
+        fileutil.make_dirs("web/test_welcome/private")
 
     def test_introducer_status(self):
         class MockIntroducerClient(object):
