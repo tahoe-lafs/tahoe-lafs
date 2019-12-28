@@ -4,7 +4,7 @@ import json
 from twisted.web import http, static
 from twisted.internet import defer
 from twisted.web.resource import (
-    Resource,
+    Resource,  # note: Resource is an old-style class
     ErrorPage,
 )
 
