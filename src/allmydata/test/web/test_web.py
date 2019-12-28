@@ -1957,85 +1957,103 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         soup = BeautifulSoup(data, 'html5lib')
         self._check_upload_and_mkdir_forms(soup)
 
+    @inlineCallbacks
     def test_GET_DIRURL(self):
-        # the addSlash means we get a redirect here
+        data = yield self.GET(self.public_url + "/foo", followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+
         # from /uri/$URI/foo/ , we need ../../../ to get back to the root
-        ROOT = "../../.."
-        d = self.GET(self.public_url + "/foo", followRedirect=True)
-        def _check(res):
-            self.failUnlessIn('<a href="%s">Return to Welcome page' % ROOT, res)
+        root = u"../../.."
+        self.assertTrue(
+            any(
+                a.text == u"Return to Welcome page"
+                for a in soup.find_all(u"a", {u"href": root})
+            )
+        )
 
-            # the FILE reference points to a URI, but it should end in bar.txt
-            bar_url = ("%s/file/%s/@@named=/bar.txt" %
-                       (ROOT, urllib.quote(self._bar_txt_uri)))
-            get_bar = "".join([r'<td>FILE</td>',
-                               r'\s+<td>',
-                               r'<a href="%s" rel="noreferrer">bar.txt</a>' % bar_url,
-                               r'</td>',
-                               r'\s+<td align="right">%d</td>' % len(self.BAR_CONTENTS),
-                               ])
-            self.failUnless(re.search(get_bar, res), res)
-            for label in ['unlink', 'rename/relink']:
-                for line in res.split("\n"):
-                    # find the line that contains the relevant button for bar.txt
-                    if ("form action" in line and
-                        ('value="%s"' % (label,)) in line and
-                        'value="bar.txt"' in line):
-                        # the form target should use a relative URL
-                        foo_url = urllib.quote("%s/uri/%s/" % (ROOT, self._foo_uri))
-                        self.failUnlessIn('action="%s"' % foo_url, line)
-                        # and the when_done= should too
-                        #done_url = urllib.quote(???)
-                        #self.failUnlessIn('name="when_done" value="%s"' % done_url, line)
+        # the FILE reference points to a URI, but it should end in bar.txt
+        bar_url = "{}/file/{}/@@named=/bar.txt".format(root, urllib.quote(self._bar_txt_uri))
+        self.assertTrue(
+            any(
+                a.text == u"bar.txt"
+                for a in soup.find_all(u"a", {u"href": bar_url})
+            )
+        )
+        self.assertTrue(
+            any(
+                td.text == u"{}".format(len(self.BAR_CONTENTS))
+                for td in soup.find_all(u"td", {u"align": u"right"})
+            )
+        )
+        foo_url = urllib.quote("{}/uri/{}/".format(root, self._foo_uri))
+        forms = soup.find_all(u"form", {u"action": foo_url})
+        found = []
+        for form in forms:
+            if form.find_all(u"input", {u"name": u"name", u"value": u"bar.txt"}):
+                kind = form.find_all(u"input", {u"type": u"submit"})[0][u"value"]
+                found.append(kind)
+                if kind == u"unlink":
+                    self.assertTrue(form[u"method"] == u"post")
+        self.assertEqual(
+            set(found),
+            {u"unlink", u"rename/relink"}
+        )
 
-                        # 'unlink' needs to use POST because it directly has a side effect
-                        if label == 'unlink':
-                            self.failUnlessIn('method="post"', line)
-                        break
-                else:
-                    self.fail("unable to find '%s bar.txt' line" % (label,))
+        sub_url = "{}/uri/{}/".format(root, urllib.quote(self._sub_uri))
+        self.assertTrue(
+            any(
+                td.findNextSibling()(u"a")[0][u"href"] == sub_url
+                for td in soup.find_all(u"td")
+                if td.text == u"DIR"
+            )
+        )
 
-            # the DIR reference just points to a URI
-            sub_url = ("%s/uri/%s/" % (ROOT, urllib.quote(self._sub_uri)))
-            get_sub = ((r'<td>DIR</td>')
-                       +r'\s+<td><a href="%s">sub</a></td>' % sub_url)
-            self.failUnless(re.search(get_sub, res), res)
-        d.addCallback(_check)
-
+    @inlineCallbacks
+    def test_GET_DIRURL_readonly(self):
         # look at a readonly directory
-        d.addCallback(lambda res:
-                      self.GET(self.public_url + "/reedownlee", followRedirect=True))
-        def _check2(res):
-            self.failUnlessIn("(read-only)", res)
-            self.failIfIn("Upload a file", res)
-        d.addCallback(_check2)
+        data = yield self.GET(self.public_url + "/reedownlee", followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+        self.failUnlessIn("(read-only)", data)
+        self.failIfIn("Upload a file", data)
 
-        # and at a directory that contains a readonly directory
-        d.addCallback(lambda res:
-                      self.GET(self.public_url, followRedirect=True))
-        def _check3(res):
-            self.failUnless(re.search('<td>DIR-RO</td>'
-                                      r'\s+<td><a href="[\.\/]+/uri/URI%3ADIR2-RO%3A[^"]+">reedownlee</a></td>', res), res)
-        d.addCallback(_check3)
+    @inlineCallbacks
+    def test_GET_DIRURL_readonly_dir(self):
+        # look at a directory that contains a readonly directory
+        data = yield self.GET(self.public_url, followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+        ro_links = list(
+            td.findNextSibling()(u"a")[0]
+            for td in soup.find_all(u"td")
+            if td.text == u"DIR-RO"
+        )
+        self.assertEqual(1, len(ro_links))
+        self.assertEqual(u"reedownlee", ro_links[0].text)
+        self.assertTrue(u"URI%3ADIR2-RO%3A" in ro_links[0][u"href"])
 
-        # and an empty directory
-        d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty/"))
-        def _check4(res):
-            self.failUnlessIn("directory is empty", res)
-            MKDIR_BUTTON_RE=re.compile('<input (type="hidden" |name="t" |value="mkdir" ){3}/>.*<legend class="freeform-form-label">Create a new directory in this directory</legend>.*<input (type="submit" |class="btn" |value="Create" ){3}/>', re.I)
-            self.failUnless(MKDIR_BUTTON_RE.search(res), res)
-        d.addCallback(_check4)
+    @inlineCallbacks
+    def test_GET_DIRURL_empty(self):
+        # look at an empty directory
+        data = yield self.GET(self.public_url + "/foo/empty/")
+        soup = BeautifulSoup(data, 'html5lib')
+        self.failUnlessIn("directory is empty", data)
+        MKDIR_BUTTON_RE=re.compile('<input (type="hidden" |name="t" |value="mkdir" ){3}/>.*<legend class="freeform-form-label">Create a new directory in this directory</legend>.*<input (type="submit" |class="btn" |value="Create" ){3}/>', re.I)
+        self.failUnless(MKDIR_BUTTON_RE.search(data), data)
 
-        # and at a literal directory
+    @inlineCallbacks
+    def test_GET_DIRURL_literal(self):
+        # look at a literal directory
         tiny_litdir_uri = "URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm" # contains one child which is itself also LIT
-        d.addCallback(lambda res:
-                      self.GET("/uri/" + tiny_litdir_uri + "/", followRedirect=True))
-        def _check5(res):
-            self.failUnlessIn('(immutable)', res)
-            self.failUnless(re.search('<td>FILE</td>'
-                                      r'\s+<td><a href="[\.\/]+/file/URI%3ALIT%3Akrugkidfnzsc4/@@named=/short" rel="noreferrer">short</a></td>', res), res)
-        d.addCallback(_check5)
-        return d
+        data = yield self.GET("/uri/" + tiny_litdir_uri + "/", followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+        self.failUnlessIn('(immutable)', data)
+        file_links = list(
+            td.findNextSibling()(u"a")[0]
+            for td in soup.find_all(u"td")
+            if td.text == u"FILE"
+        )
+        self.assertEqual(1, len(file_links))
+        self.assertEqual(u"short", file_links[0].text)
+        self.assertTrue(file_links[0][u"href"].endswith(u"/file/URI%3ALIT%3Akrugkidfnzsc4/@@named=/short"))
 
     @inlineCallbacks
     def test_GET_DIRURL_badtype(self):
