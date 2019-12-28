@@ -2012,7 +2012,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_DIRURL_readonly(self):
         # look at a readonly directory
         data = yield self.GET(self.public_url + "/reedownlee", followRedirect=True)
-        soup = BeautifulSoup(data, 'html5lib')
         self.failUnlessIn("(read-only)", data)
         self.failIfIn("Upload a file", data)
 
@@ -2036,8 +2035,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         data = yield self.GET(self.public_url + "/foo/empty/")
         soup = BeautifulSoup(data, 'html5lib')
         self.failUnlessIn("directory is empty", data)
-        MKDIR_BUTTON_RE=re.compile('<input (type="hidden" |name="t" |value="mkdir" ){3}/>.*<legend class="freeform-form-label">Create a new directory in this directory</legend>.*<input (type="submit" |class="btn" |value="Create" ){3}/>', re.I)
-        self.failUnless(MKDIR_BUTTON_RE.search(data), data)
+        mkdir_inputs = soup.find_all(u"input", {u"type": u"hidden", u"name": u"t", u"value": u"mkdir"})
+        self.assertEqual(1, len(mkdir_inputs))
+        self.assertEqual(
+            u"Create a new directory in this directory",
+            mkdir_inputs[0].parent(u"legend")[0].text
+        )
 
     @inlineCallbacks
     def test_GET_DIRURL_literal(self):
