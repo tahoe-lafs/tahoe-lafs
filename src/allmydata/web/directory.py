@@ -218,8 +218,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                 return ""
 
         if not t:
-            # render the directory as HTML, using the docFactory and Nevow's
-            # whole templating thing.
+            # render the directory as HTML
             return renderElement(
                 req,
                 DirectoryAsHTML(
