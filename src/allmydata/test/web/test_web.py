@@ -1892,31 +1892,40 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addBoth(self.should404, "test_GET_FILEURL_uri_missing")
         return d
 
-    def _check_upload_and_mkdir_forms(self, html):
-        # We should have a form to create a file, with radio buttons that allow
-        # the user to toggle whether it is a CHK/LIT (default), SDMF, or MDMF file.
-        self.failUnless(re.search('<input (name="t" |value="upload" |type="hidden" ){3}/>', html), html)
-        self.failUnless(re.search('<input [^/]*id="upload-chk"', html), html)
-        self.failUnless(re.search('<input [^/]*id="upload-sdmf"', html), html)
-        self.failUnless(re.search('<input [^/]*id="upload-mdmf"', html), html)
+    def _check_upload_and_mkdir_forms(self, soup):
+        """
+        Confirm `soup` contains a form to create a file, with radio
+        buttons that allow the user to toggle whether it is a CHK/LIT
+        (default), SDMF, or MDMF file.
+        """
+        found = []
+        desired_ids = (
+            u"upload-chk",
+            u"upload-sdmf",
+            u"upload-mdmf",
+            u"mkdir-sdmf",
+            u"mkdir-mdmf",
+        )
+        for input_tag in soup.find_all(u"input"):
+            if input_tag.get(u"id", u"") in desired_ids:
+                found.append(input_tag)
+            else:
+                if input_tag.get(u"name", u"") == u"t" and input_tag.get(u"type", u"") == u"hidden":
+                    if input_tag[u"value"] == u"upload":
+                        found.append(input_tag)
+                    elif input_tag[u"value"] == u"mkdir":
+                        found.append(input_tag)
+        self.assertEqual(len(found), 7, u"Failed to find all 7 <input> tags")
+        assert_soup_has_favicon(self, soup)
 
-        # We should also have the ability to create a mutable directory, with
-        # radio buttons that allow the user to toggle whether it is an SDMF (default)
-        # or MDMF directory.
-        self.failUnless(re.search('<input (name="t" |value="mkdir" |type="hidden" ){3}/>', html), html)
-        self.failUnless(re.search('<input [^/]*id="mkdir-sdmf"', html), html)
-        self.failUnless(re.search('<input [^/]*id="mkdir-mdmf"', html), html)
-
-        self.failUnlessIn(FAVICON_MARKUP, html)
-
+    @inlineCallbacks
     def test_GET_DIRECTORY_html(self):
-        d = self.GET(self.public_url + "/foo", followRedirect=True)
-        def _check(html):
-            self.failUnlessIn('<li class="toolbar-item"><a href="../../..">Return to Welcome page</a></li>', html)
-            self._check_upload_and_mkdir_forms(html)
-            self.failUnlessIn("quux", html)
-        d.addCallback(_check)
-        return d
+        data = yield self.GET(self.public_url + "/foo", followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+        self._check_upload_and_mkdir_forms(soup)
+        toolbars = soup.find_all(u"li", {u"class": u"toolbar-item"})
+        self.assertTrue(any(li.text == u"Return to Welcome page" for li in toolbars))
+        self.failUnlessIn("quux", data)
 
     def test_GET_DIRECTORY_html_filenode_encoding(self):
         d = self.GET(self.public_url + "/foo", followRedirect=True)
@@ -1936,10 +1945,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check)
         return d
 
+    @inlineCallbacks
     def test_GET_root_html(self):
-        d = self.GET("/")
-        d.addCallback(self._check_upload_and_mkdir_forms)
-        return d
+        data = yield self.GET("/")
+        soup = BeautifulSoup(data, 'html5lib')
+        self._check_upload_and_mkdir_forms(soup)
 
     def test_GET_DIRURL(self):
         # the addSlash means we get a redirect here
