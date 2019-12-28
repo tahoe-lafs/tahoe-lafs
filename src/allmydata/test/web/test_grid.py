@@ -3,6 +3,9 @@ from __future__ import print_function
 import os.path, re, urllib
 import json
 from six.moves import StringIO
+
+from bs4 import BeautifulSoup
+
 from nevow import rend
 from twisted.trial import unittest
 from allmydata import uri, dirnode
@@ -534,19 +537,26 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         # Make sure the lonely child can be listed in HTML...
         d.addCallback(lambda ign: self.GET(self.rooturl))
         def _check_html(res):
+            soup = BeautifulSoup(res, 'html5lib')
             self.failIfIn("URI:SSK", res)
-            get_lonely = "".join([r'<td>FILE</td>',
-                                  r'\s+<td>',
-                                  r'<a href="[^"]+%s[^"]+" rel="noreferrer">lonely</a>' % (urllib.quote(lonely_uri),),
-                                  r'</td>',
-                                  r'\s+<td align="right">%d</td>' % len("one"),
-                                  ])
-            self.failUnless(re.search(get_lonely, res), res)
+            found = False
+            for td in soup.find_all(u"td"):
+                if td.text != u"FILE":
+                    continue
+                a = td.findNextSibling()(u"a")[0]
+                self.assertIn(urllib.quote(lonely_uri), a[u"href"])
+                self.assertEqual(u"lonely", a.text)
+                self.assertEqual(u"{}".format(len("one")), td.findNextSibling().findNextSibling().text)
+                found = True
+            self.assertTrue(found)
 
-            # find the More Info link for name, should be relative
-            mo = re.search(r'<a href="([^"]+)">More Info</a>', res)
-            info_url = mo.group(1)
-            self.failUnless(info_url.endswith(urllib.quote(lonely_uri) + "?t=info"), info_url)
+            infos = list(
+                a[u"href"]
+                for a in soup.find_all(u"a")
+                if a.text == u"More Info"
+            )
+            self.assertEqual(1, len(infos))
+            self.assertTrue(infos[0].endswith(urllib.quote(lonely_uri) + "?t=info"))
         d.addCallback(_check_html)
 
         # ... and in JSON.
