@@ -82,10 +82,6 @@ def make_handler_for(node, client, parentnode=None, name=None):
     return UnknownNodeHandler(client, node, parentnode, name)
 
 
-# did inherit from: RenderMixin, rend.Page, ReplaceMeMixin
-# XXX is MultiFormatResource appropriate? this probably *should*
-# support ?t=json but I don't know that all the variants already *did*
-# support that..
 class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     def __init__(self, client, node, parentnode=None, name=None):
