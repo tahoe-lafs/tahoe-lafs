@@ -1927,23 +1927,29 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.assertTrue(any(li.text == u"Return to Welcome page" for li in toolbars))
         self.failUnlessIn("quux", data)
 
+    @inlineCallbacks
     def test_GET_DIRECTORY_html_filenode_encoding(self):
-        d = self.GET(self.public_url + "/foo", followRedirect=True)
-        def _check(html):
-            # Check if encoded entries are there
-            self.failUnlessIn('@@named=/' + self._htmlname_urlencoded + '" rel="noreferrer">'
-                              + self._htmlname_escaped + '</a>', html)
-            self.failUnlessIn('value="' + self._htmlname_escaped_attr + '"', html)
-            self.failIfIn(self._htmlname_escaped_double, html)
-            # Make sure that Nevow escaping actually works by checking for unsafe characters
-            # and that '&' is escaped.
-            for entity in '<>':
-                self.failUnlessIn(entity, self._htmlname_raw)
-                self.failIfIn(entity, self._htmlname_escaped)
-            self.failUnlessIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_raw))
-            self.failIfIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_escaped))
-        d.addCallback(_check)
-        return d
+        data = yield self.GET(self.public_url + "/foo", followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+        # Check if encoded entries are there
+        target_ref = u'@@named=/{}'.format(self._htmlname_urlencoded)
+        # at least one <a> tag has our weirdly-named file properly
+        # encoded (or else BeautifulSoup would produce an error)
+        self.assertTrue(
+            any(
+                a.text == self._htmlname_unicode and a[u"href"].endswith(target_ref)
+                for a in soup.find_all(u"a", {u"rel": u"noreferrer"})
+            )
+        )
+
+        # XXX leaving this as-is, but consider using beautfulsoup here too?
+        # Make sure that Nevow escaping actually works by checking for unsafe characters
+        # and that '&' is escaped.
+        for entity in '<>':
+            self.failUnlessIn(entity, self._htmlname_raw)
+            self.failIfIn(entity, self._htmlname_escaped)
+        self.failUnlessIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_raw))
+        self.failIfIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_escaped))
 
     @inlineCallbacks
     def test_GET_root_html(self):
