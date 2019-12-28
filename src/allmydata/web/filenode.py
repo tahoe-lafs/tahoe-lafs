@@ -91,7 +91,6 @@ class ReplaceMeMixin(object):
         return d
 
 
-# XXX
 class PlaceHolderNodeHandler(Resource, ReplaceMeMixin, object):
     def __init__(self, client, parentnode, name):
         super(PlaceHolderNodeHandler, self).__init__()
