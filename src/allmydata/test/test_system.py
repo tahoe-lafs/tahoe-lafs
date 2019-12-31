@@ -421,10 +421,10 @@ def _render_section_values(values):
 
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
-    def setUp(self):
-        if 'pypy' in sys.version.lower():
-            self.skip = "pypy can't run these, due to SSL errors (ee key too tiny)"
+    if 'pypy' in sys.version.lower():
+        skip = "pypy can't run these, due to SSL errors (ee key too tiny)"
 
+    def setUp(self):
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)
