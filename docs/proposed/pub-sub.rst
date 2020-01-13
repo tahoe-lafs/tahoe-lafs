@@ -181,10 +181,13 @@ TODO:
 
        meejah: a storage-server can learn which Slots a client is
        interested in, but it learns this information with the "polling"
-       mechanism too -- so i think the answer is, "to storage-server
+       mechanism too -- so i think the answer is, "the storage-server
        learns the same information as with the polling method"
 
  - do we want a more-structured response for errors, e.g. with
+   machine-readable "code" and a human-readable "message"?
+
+ - do we want a more-structured response for success too, e.g. a
    machine-readable "code" and a human-readable "message"?
 
 All subscriptions for a particular client shall be removed when that
@@ -194,10 +197,44 @@ The server will send a single message for each update:
 
     {
         "tahoe-mutable-notification-version": 1,
-        "update": "storage-index-1"
+        "updates": ["storage-index-1", ..]
     }
 
 **Note:** A client must track mappings of Storage Indexes to read-
 capabilities because only the client has the read-capability. There's
 no easy way to go from a Storage Index back to a read-capability (the
 Storage Index is just a hash from part of the read-capablity).
+
+
+Further Thoughts
+----------------
+
+One way that we intend for the "Magic Folder" feature to be used is
+for collaboration: two humans with a shared Magic Folder use it to
+work on some documents together. One can imagine at least two cases
+here: both humans are online and actively editing; only one human is
+online.
+
+If both humans are present, we'd like updates "as fast as
+possible". In case only one human is around, the speed of updates is
+less important (that is, the "offline" human will want to be updated
+as soon as they come online but we do not need real-time updates prior
+to then).
+
+Thus, it might make sense for a user-visible API to exist to toggle
+these modes. A users' UI (e.g. Tahoe WebAPI or GridSync) could use
+this API to further save bandwidth and improve user experience using
+three modes:
+
+ - "real-time": make the WebSocket connections and subscribe to updates;
+ - "poll": no WebSocket connections, but periodically poll (the UI
+   could decide how many minutes to wait between polling attempts)
+ - "manual": no polling, only updates when told to
+
+TODO:
+
+ - does "manual" make sense? or should it just be "off"? (The
+   difference I would see is that "manual" means the UI triggers
+   updates whenever it feels like it whereas "off" is just no updates,
+   and the UI should switch to "slow-update" when it wants "some"
+   updates but not real-time)
