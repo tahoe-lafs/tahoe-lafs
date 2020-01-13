@@ -146,14 +146,20 @@ Slots:
         "tahoe-mutable-notification-version": 1,
         "subscribe": [
             "storage-index-0",
-            "storage-index-1",
+            "storage-index-1"
+        ],
+        "options": {
+            "maximum-delay": 250
         }
     }
 
 ..where "storage-index-0" corresponds to an actual Storage Index of an
-existing mutable file. A client computes this from "R" (a read
-capability). The client must keep a mapping of `Storage Index ->
-read-capability` so it can match subsequent notifications.
+existing mutable file. The only proposed option is `maximum-delay`
+which is the most milliseconds the server can wait to coalesce updates
+for these subscriptions. A client computes the storage-indexes for
+subscriptions from "R" (a read capability). The client must keep a
+mapping of `Storage Index -> read-capability` so it can match
+subsequent notifications.
 
 The server replies with a message like:
 
