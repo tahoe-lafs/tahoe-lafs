@@ -173,20 +173,7 @@ class ShouldFailMixin(object):
 
 
 class TestMixin(SignalMixin):
-    def setUp(self, repeatable=False):
-        """
-        @param repeatable: install the repeatable_randomness hacks to attempt
-            to without access to real randomness and real time.time from the
-            code under test
-        """
-        self.repeatable = repeatable
-        if self.repeatable:
-            import repeatable_random
-            repeatable_random.force_repeatability()
-        if hasattr(time, 'realtime'):
-            self.teststarttime = time.realtime()
-        else:
-            self.teststarttime = time.time()
+    def setUp(self):
         return super(TestMixin, self).setUp()
 
     def tearDown(self):
