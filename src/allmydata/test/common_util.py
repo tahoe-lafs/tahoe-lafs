@@ -177,9 +177,6 @@ class TestMixin(SignalMixin):
         return super(TestMixin, self).setUp()
 
     def tearDown(self):
-        if self.repeatable:
-            import repeatable_random
-            repeatable_random.restore_non_repeatability()
         self.clean_pending(required_to_quiesce=True)
         return super(TestMixin, self).tearDown()
 
