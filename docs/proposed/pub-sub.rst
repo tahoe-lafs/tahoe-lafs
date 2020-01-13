@@ -136,7 +136,7 @@ Storage servers implement a new feature, based on WebSockets. See also
 :ref:`http-storage-node-protocol` with which this protocol aims to be
 compatible. A single WebSocket endpoint exists:
 
- - <server>/v1/mutable_updates
+ - <server>/v1/mutable-updates
 
 After connecting to this endpoint, a client may send any number of
 messages (encoded using JSON) asking for updates to mutable
