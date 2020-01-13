@@ -3,50 +3,50 @@
 version: 2
 workflows:
   version: 2
-  # ci:
-  #   jobs:
-  #     # Platforms
-  #     - "debian-9"
-  #     - "debian-8":
-  #         requires:
-  #           - "debian-9"
+  ci:
+    jobs:
+      # Platforms
+      - "debian-9"
+      - "debian-8":
+          requires:
+            - "debian-9"
 
-  #     - "ubuntu-18.04"
-  #     - "ubuntu-16.04":
-  #         requires:
-  #           - "ubuntu-18.04"
+      - "ubuntu-18.04"
+      - "ubuntu-16.04":
+          requires:
+            - "ubuntu-18.04"
 
-  #     - "fedora-29"
-  #     - "fedora-28":
-  #         requires:
-  #           - "fedora-29"
+      - "fedora-29"
+      - "fedora-28":
+          requires:
+            - "fedora-29"
 
-  #     - "centos-7"
+      - "centos-7"
 
-  #     - "slackware-14.2"
+      - "slackware-14.2"
 
-  #     - "nixos-19.09"
+      - "nixos-19.09"
 
-  #     # Test against PyPy 2.7/7.1.1
-  #     - "pypy2.7-7.1"
+      # Test against PyPy 2.7/7.1.1
+      - "pypy2.7-7.1"
 
-  #     # Other assorted tasks and configurations
-  #     - "lint"
-  #     - "pyinstaller"
-  #     - "deprecations"
-  #     - "c-locale"
-  #     # Any locale other than C or UTF-8.
-  #     - "another-locale"
+      # Other assorted tasks and configurations
+      - "lint"
+      - "pyinstaller"
+      - "deprecations"
+      - "c-locale"
+      # Any locale other than C or UTF-8.
+      - "another-locale"
 
-  #     - "integration":
-  #         requires:
-  #           # If the unit test suite doesn't pass, don't bother running the
-  #           # integration tests.
-  #           - "debian-9"
+      - "integration":
+          requires:
+            # If the unit test suite doesn't pass, don't bother running the
+            # integration tests.
+            - "debian-9"
 
-  #     # Generate the underlying data for a visualization to aid with Python 3
-  #     # porting.
-  #     - "build-porting-depgraph"
+      # Generate the underlying data for a visualization to aid with Python 3
+      # porting.
+      - "build-porting-depgraph"
 
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
@@ -70,19 +70,6 @@ workflows:
       - "build-image-centos-7"
       - "build-image-slackware-14.2"
       - "build-image-pypy-2.7-7.1.1-jessie"
-
-  testing-images:
-    jobs:
-      - "build-image-debian-8"
-      - "build-image-debian-9"
-      - "build-image-ubuntu-16.04"
-      - "build-image-ubuntu-18.04"
-      - "build-image-fedora-28"
-      - "build-image-fedora-29"
-      - "build-image-centos-7"
-      - "build-image-slackware-14.2"
-      - "build-image-pypy-2.7-7.1.1-jessie"
-
 
 
 jobs:
