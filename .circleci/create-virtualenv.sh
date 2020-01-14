@@ -43,7 +43,7 @@ export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
 # install setuptools properly.
 "${PIP}" install --upgrade pip
 
-# setuptools 45 is requires Python 3.5 or newer.  Even though we upgraded pip
+# setuptools 45 requires Python 3.5 or newer.  Even though we upgraded pip
 # above, it may still not be able to get us a compatible version unless we
 # explicitly ask for one.
 "${PIP}" install --upgrade setuptools==44.0.0 wheel
