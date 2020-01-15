@@ -8,10 +8,14 @@ from six.moves import StringIO
 from sys import getfilesystemencoding
 from twisted.trial import unittest
 from allmydata.scripts import runner
-from allmydata.scripts.tahoe_daemonize import identify_node_type
-from allmydata.scripts.tahoe_daemonize import DaemonizeTahoeNodePlugin
-from allmydata.scripts.tahoe_daemonize import DaemonizeOptions
-from allmydata.scripts.tahoe_daemonize import MyTwistdConfig
+from allmydata.scripts.run_common import (
+    identify_node_type,
+    DaemonizeTahoeNodePlugin,
+    MyTwistdConfig,
+)
+from allmydata.scripts.tahoe_daemonize import (
+    DaemonizeOptions,
+)
 
 
 class Util(unittest.TestCase):
