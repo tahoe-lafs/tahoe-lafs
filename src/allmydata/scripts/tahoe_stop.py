@@ -21,6 +21,7 @@ class StopOptions(BasedirOptions):
 
 
 def stop(config):
+    print("'tahoe stop' is deprecated; see 'tahoe run'")
     out = config.stdout
     err = config.stderr
     basedir = config['basedir']

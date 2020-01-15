@@ -12,4 +12,5 @@ class DaemonizeOptions(_RunOptions):
     subcommand_name = "daemonize"
 
 def daemonize(config):
+    print("'tahoe daemonize' is deprecated; see 'tahoe run'")
     return run(config)

@@ -60,7 +60,7 @@ def start(config):
     (e.g. "introducer started"). If that doesn't happen within a few
     seconds, an error is printed along with all collected logs.
     """
-
+    print("'tahoe start' is deprecated; see 'tahoe run'")
     out = config.stdout
     err = config.stderr
     basedir = config['basedir']
