@@ -122,7 +122,7 @@ class RunDaemonizeTests(unittest.TestCase):
         d = super(RunDaemonizeTests, self).setUp()
         self._reactor = patch('twisted.internet.reactor')
         self._reactor.stop = lambda: None
-        self._twistd = patch('allmydata.scripts.tahoe_daemonize.twistd')
+        self._twistd = patch('allmydata.scripts.run_common.twistd')
         self.node_dir = self.mktemp()
         os.mkdir(self.node_dir)
         for cm in [self._reactor, self._twistd]:
