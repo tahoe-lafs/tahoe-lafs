@@ -41,11 +41,11 @@ _control_node_dispatch = {
 }
 
 process_control_commands = [
-    ["daemonize", None, tahoe_daemonize.DaemonizeOptions, "run a node in the background"],
-    ["start", None, tahoe_start.StartOptions, "start a node in the background and confirm it started"],
     ["run", None, tahoe_run.RunOptions, "run a node without daemonizing"],
-    ["stop", None, tahoe_stop.StopOptions, "stop a node"],
-    ["restart", None, tahoe_restart.RestartOptions, "restart a node"],
+    ["daemonize", None, tahoe_daemonize.DaemonizeOptions, "(deprecated) run a node in the background"],
+    ["start", None, tahoe_start.StartOptions, "(deprecated) start a node in the background and confirm it started"],
+    ["stop", None, tahoe_stop.StopOptions, "(deprecated) stop a node"],
+    ["restart", None, tahoe_restart.RestartOptions, "(deprecated) restart a node"],
 ]
 
 

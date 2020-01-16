@@ -1346,8 +1346,8 @@ class Stop(unittest.TestCase):
 
 class Start(unittest.TestCase):
 
-    @patch('allmydata.scripts.tahoe_daemonize.os.chdir')
-    @patch('allmydata.scripts.tahoe_daemonize.twistd')
+    @patch('allmydata.scripts.run_common.os.chdir')
+    @patch('allmydata.scripts.run_common.twistd')
     def test_non_numeric_pid(self, mock_twistd, chdir):
         """
         If the pidfile exists but does not contain a numeric value, a complaint to

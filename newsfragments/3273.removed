@@ -1,0 +1,1 @@
+"tahoe start", "tahoe daemonize", "tahoe restart", and "tahoe stop" are now deprecated in favor of using "tahoe run", possibly with a third-party process manager.

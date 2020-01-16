@@ -8,10 +8,14 @@ from six.moves import StringIO
 from sys import getfilesystemencoding
 from twisted.trial import unittest
 from allmydata.scripts import runner
-from allmydata.scripts.tahoe_daemonize import identify_node_type
-from allmydata.scripts.tahoe_daemonize import DaemonizeTahoeNodePlugin
-from allmydata.scripts.tahoe_daemonize import DaemonizeOptions
-from allmydata.scripts.tahoe_daemonize import MyTwistdConfig
+from allmydata.scripts.run_common import (
+    identify_node_type,
+    DaemonizeTahoeNodePlugin,
+    MyTwistdConfig,
+)
+from allmydata.scripts.tahoe_daemonize import (
+    DaemonizeOptions,
+)
 
 
 class Util(unittest.TestCase):
@@ -118,7 +122,7 @@ class RunDaemonizeTests(unittest.TestCase):
         d = super(RunDaemonizeTests, self).setUp()
         self._reactor = patch('twisted.internet.reactor')
         self._reactor.stop = lambda: None
-        self._twistd = patch('allmydata.scripts.tahoe_daemonize.twistd')
+        self._twistd = patch('allmydata.scripts.run_common.twistd')
         self.node_dir = self.mktemp()
         os.mkdir(self.node_dir)
         for cm in [self._reactor, self._twistd]:

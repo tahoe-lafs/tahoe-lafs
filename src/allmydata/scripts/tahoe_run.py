@@ -1,10 +1,15 @@
-from .tahoe_daemonize import daemonize, DaemonizeOptions
+from .run_common import (
+    RunOptions as _RunOptions,
+    run,
+)
 
+__all__ = [
+    "RunOptions",
+    "run",
+]
 
-class RunOptions(DaemonizeOptions):
+class RunOptions(_RunOptions):
     subcommand_name = "run"
 
-
-def run(config):
-    config.twistd_args = config.twistd_args + ("--nodaemon",)
-    return daemonize(config)
+    def postOptions(self):
+        self.twistd_args += ("--nodaemon",)
