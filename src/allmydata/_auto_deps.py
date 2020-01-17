@@ -42,8 +42,6 @@ not_import_versionable = [
 # Dependencies reported by pkg_resources that we can safely ignore.
 ignorable = [
     'argparse',
-    'pyutil',
-    'zbase32',
     'distribute',
     'twisted-web',
     'twisted-core',
