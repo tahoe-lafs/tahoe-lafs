@@ -49,11 +49,6 @@ class MyRequest(appserver.NevowRequest, object):
             self.path, argstring = x
             self.args = parse_qs(argstring, 1)
 
-        # cache the client and server information, we'll need this later to be
-        # serialized and sent with the request so CGIs will work remotely
-        self.client = self.channel.transport.getPeer()
-        self.host = self.channel.transport.getHost()
-
         # Adding security headers. These will be sent for *all* HTTP requests.
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
         self.responseHeaders.setRawHeaders("X-Frame-Options", ["DENY"])

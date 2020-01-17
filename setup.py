@@ -88,6 +88,9 @@ install_requires = [
     #   bcrypt.  It is nice to avoid that if the user ends up with an older
     #   version of Twisted.  That's hard to express except by using the extra.
     #
+    # * Twisted 18.4.0 adds `client` and `host` attributes to `Request` in the
+    # * initializer, needed by logic in our custom `Request` subclass.
+    #
     #   In a perfect world, Twisted[conch] would be a dependency of an "sftp"
     #   extra.  However, pip fails to resolve the dependencies all
     #   dependencies when asked for Twisted[tls] *and* Twisted[conch].
@@ -97,7 +100,7 @@ install_requires = [
     #   `pip install tahoe-lafs[sftp]` would not install requirements
     #   specified by Twisted[conch].  Since this would be the *whole point* of
     #   an sftp extra in Tahoe-LAFS, there is no point in having one.
-    "Twisted[tls,conch] >= 16.6.0",
+    "Twisted[tls,conch] >= 18.4.0",
 
     # We need Nevow >= 0.11.1 which can be installed using pip.
     "Nevow >= 0.11.1",
