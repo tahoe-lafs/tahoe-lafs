@@ -1075,11 +1075,6 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
 
-class Rm(Unlink):
-    """Test that 'tahoe rm' behaves in the same way as 'tahoe unlink'."""
-    command = "rm"
-
-
 class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_empty_directory(self):
         self.basedir = "cli/Stats/empty_directory"
