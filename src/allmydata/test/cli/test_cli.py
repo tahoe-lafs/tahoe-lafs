@@ -570,10 +570,6 @@ class Help(unittest.TestCase):
         help = str(cli.UnlinkOptions())
         self.failUnlessIn("[options] REMOTE_FILE", help)
 
-    def test_rm(self):
-        help = str(cli.RmOptions())
-        self.failUnlessIn("[options] REMOTE_FILE", help)
-
     def test_mv(self):
         help = str(cli.MvOptions())
         self.failUnlessIn("[options] FROM TO", help)
