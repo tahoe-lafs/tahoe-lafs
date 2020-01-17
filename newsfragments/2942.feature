@@ -1,1 +1,0 @@
-Add a "tox -e draftnews" which runs towncrier in draft mode

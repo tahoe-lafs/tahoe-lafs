@@ -1,1 +1,0 @@
-End-to-end in-memory tests for websocket features
