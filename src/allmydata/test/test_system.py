@@ -2227,8 +2227,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             self.failUnlessEqual(data, "data to be uploaded: file1\n")
         d.addCallback(_check_outfile1)
 
-        d.addCallback(run, "rm", "tahoe-file0")
-        d.addCallback(run, "rm", "tahoe:file2")
+        d.addCallback(run, "unlink", "tahoe-file0")
+        d.addCallback(run, "unlink", "tahoe:file2")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, [], ["tahoe-file0", "file2"])
 
