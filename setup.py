@@ -350,7 +350,10 @@ setup(name="tahoe-lafs", # also set in __init__.py
       python_requires="<3.0",
       install_requires=install_requires,
       extras_require={
-          ':sys_platform=="win32"': ["pypiwin32"],
+          # Duplicate the Twisted pywin32 dependency here.  See
+          # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2392 for some
+          # discussion.
+          ':sys_platform=="win32"': ["pywin32 != 226"],
           ':sys_platform!="win32" and sys_platform!="linux2"': ["watchdog"],  # For magic-folder on "darwin" (macOS) and the BSDs
           "test": [
               # Pin a specific pyflakes so we don't have different folks
