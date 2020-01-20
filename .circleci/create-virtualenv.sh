@@ -38,5 +38,12 @@ export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
 "${PIP}" install certifi
 
 # Get a new, awesome version of pip and setuptools.  For example, the
-# distro-packaged virtualenv's pip may not know about wheels.
-"${PIP}" install --upgrade pip setuptools wheel
+# distro-packaged virtualenv's pip may not know about wheels.  Get the newer
+# version of pip *first* in case we have a really old one now which can't even
+# install setuptools properly.
+"${PIP}" install --upgrade pip
+
+# setuptools 45 requires Python 3.5 or newer.  Even though we upgraded pip
+# above, it may still not be able to get us a compatible version unless we
+# explicitly ask for one.
+"${PIP}" install --upgrade setuptools==44.0.0 wheel
