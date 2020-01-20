@@ -69,7 +69,7 @@ after_test:
     %PYTHON%\python.exe setup.py bdist_wheel
     %PYTHON%\python.exe -m pip wheel -w dist .
   - |
-    %PYTHON%\python.exe -m pip install codecov coverage
+    %PYTHON%\python.exe -m pip install codecov "coverage ~= 4.5"
     %PYTHON%\python.exe -m coverage xml -o coverage.xml -i
     %PYTHON%\python.exe -m codecov -X search -X gcov -f coverage.xml
 
