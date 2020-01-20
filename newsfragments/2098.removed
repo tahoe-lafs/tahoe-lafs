@@ -1,1 +1,1 @@
-The direct dependency on pyutil has been removed.
+The direct dependencies on pyutil and zbase32 have been removed.
