@@ -5,6 +5,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from foolscap.logging import log
 from allmydata import uri
+from allmydata.crypto import rsa
 from allmydata.interfaces import NotEnoughSharesError, SDMF_VERSION, MDMF_VERSION
 from allmydata.util import fileutil
 from allmydata.util.hashutil import ssk_writekey_hash, ssk_pubkey_fingerprint_hash
@@ -211,8 +212,8 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         def _got_key(keypair):
             (pubkey, privkey) = keypair
             nm.key_generator = SameKeyGenerator(pubkey, privkey)
-            pubkey_s = pubkey.serialize()
-            privkey_s = privkey.serialize()
+            pubkey_s = rsa.der_string_from_verifying_key(pubkey)
+            privkey_s = rsa.der_string_from_signing_key(privkey)
             u = uri.WriteableSSKFileURI(ssk_writekey_hash(privkey_s),
                                         ssk_pubkey_fingerprint_hash(pubkey_s))
             self._storage_index = u.get_storage_index()

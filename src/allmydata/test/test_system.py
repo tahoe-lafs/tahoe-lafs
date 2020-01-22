@@ -2227,8 +2227,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             self.failUnlessEqual(data, "data to be uploaded: file1\n")
         d.addCallback(_check_outfile1)
 
-        d.addCallback(run, "rm", "tahoe-file0")
-        d.addCallback(run, "rm", "tahoe:file2")
+        d.addCallback(run, "unlink", "tahoe-file0")
+        d.addCallback(run, "unlink", "tahoe:file2")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, [], ["tahoe-file0", "file2"])
 
@@ -2428,7 +2428,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         def _run_in_subprocess(ignored, verb, *args, **kwargs):
             stdin = kwargs.get("stdin")
-            env = kwargs.get("env")
+            env = kwargs.get("env", os.environ)
+            # Python warnings from the child process don't matter.
+            env["PYTHONWARNINGS"] = "ignore"
             newargs = ["--node-directory", self.getdir("client0"), verb] + list(args)
             return self.run_bintahoe(newargs, stdin=stdin, env=env)
 

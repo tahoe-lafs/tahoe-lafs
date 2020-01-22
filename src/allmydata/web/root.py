@@ -1,16 +1,26 @@
-import time, os, json
+import os
+import time
+import json
+import urllib
 
-from twisted.web import http
-from nevow import rend, url, tags as T
+from twisted.web import (
+    http,
+    resource,
+)
+from twisted.web.util import redirectTo
+
+from hyperlink import URL
+
+from nevow import rend, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
 
 import allmydata # to display import path
-from allmydata import get_package_versions_string
+from allmydata.version_checks import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
-from allmydata.web import filenode, directory, unlinked, status, operations
+from allmydata.web import filenode, directory, unlinked, status
 from allmydata.web import storage, magic_folder
 from allmydata.web.common import (
     abbreviate_size,
@@ -28,31 +38,53 @@ from allmydata.web.common import (
 from allmydata.web.private import (
     create_private_tree,
 )
+from allmydata import uri
 
-class URIHandler(RenderMixin, rend.Page):
-    # I live at /uri . There are several operations defined on /uri itself,
-    # mostly involved with creation of unlinked files and directories.
+class URIHandler(resource.Resource, object):
+    """
+    I live at /uri . There are several operations defined on /uri itself,
+    mostly involved with creation of unlinked files and directories.
+    """
 
     def __init__(self, client):
-        rend.Page.__init__(self, client)
+        super(URIHandler, self).__init__()
         self.client = client
 
-    def render_GET(self, ctx):
-        req = IRequest(ctx)
-        uri = get_arg(req, "uri", None)
-        if uri is None:
+    def render_GET(self, req):
+        """
+        Historically, accessing this via "GET /uri?uri=<capabilitiy>"
+        was/is a feature -- which simply redirects to the more-common
+        "GET /uri/<capability>" with any other query args
+        preserved. New code should use "/uri/<cap>"
+        """
+        uri_arg = req.args.get(b"uri", [None])[0]
+        if uri_arg is None:
             raise WebError("GET /uri requires uri=")
-        there = url.URL.fromContext(ctx)
-        there = there.clear("uri")
-        # I thought about escaping the childcap that we attach to the URL
-        # here, but it seems that nevow does that for us.
-        there = there.child(uri)
-        return there
 
-    def render_PUT(self, ctx):
-        req = IRequest(ctx)
-        # either "PUT /uri" to create an unlinked file, or
-        # "PUT /uri?t=mkdir" to create an unlinked directory
+        # shennanigans like putting "%2F" or just "/" itself, or ../
+        # etc in the <cap> might be a vector for weirdness so we
+        # validate that this is a valid capability before proceeding.
+        cap = uri.from_string(uri_arg)
+        if isinstance(cap, uri.UnknownURI):
+            raise WebError("Invalid capability")
+
+        # so, using URL.from_text(req.uri) isn't going to work because
+        # it seems Nevow was creating absolute URLs including
+        # host/port whereas req.uri is absolute (but lacks host/port)
+        redir_uri = URL.from_text(req.prePathURL().decode('utf8'))
+        redir_uri = redir_uri.child(urllib.quote(uri_arg).decode('utf8'))
+        # add back all the query args that AREN'T "?uri="
+        for k, values in req.args.items():
+            if k != b"uri":
+                for v in values:
+                    redir_uri = redir_uri.add(k.decode('utf8'), v.decode('utf8'))
+        return redirectTo(redir_uri.to_text().encode('utf8'), req)
+
+    def render_PUT(self, req):
+        """
+        either "PUT /uri" to create an unlinked file, or
+        "PUT /uri?t=mkdir" to create an unlinked directory
+        """
         t = get_arg(req, "t", "").strip()
         if t == "":
             file_format = get_format(req, "CHK")
@@ -63,15 +95,18 @@ class URIHandler(RenderMixin, rend.Page):
                 return unlinked.PUTUnlinkedCHK(req, self.client)
         if t == "mkdir":
             return unlinked.PUTUnlinkedCreateDirectory(req, self.client)
-        errmsg = ("/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, "
-                  "and POST?t=mkdir")
+        errmsg = (
+            "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, "
+            "and POST?t=mkdir"
+        )
         raise WebError(errmsg, http.BAD_REQUEST)
 
-    def render_POST(self, ctx):
-        # "POST /uri?t=upload&file=newfile" to upload an
-        # unlinked file or "POST /uri?t=mkdir" to create a
-        # new directory
-        req = IRequest(ctx)
+    def render_POST(self, req):
+        """
+        "POST /uri?t=upload&file=newfile" to upload an
+        unlinked file or "POST /uri?t=mkdir" to create a
+        new directory
+        """
         t = get_arg(req, "t", "").strip()
         if t in ("", "upload"):
             file_format = get_format(req)
@@ -92,14 +127,20 @@ class URIHandler(RenderMixin, rend.Page):
                   "and POST?t=mkdir")
         raise WebError(errmsg, http.BAD_REQUEST)
 
-    def childFactory(self, ctx, name):
-        # 'name' is expected to be a URI
+    def getChild(self, name, req):
+        """
+        Most requests look like /uri/<cap> so this fetches the capability
+        and creates and appropriate handler (depending on the kind of
+        capability it was passed).
+        """
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
         except (TypeError, AssertionError):
-            raise WebError("'%s' is not a valid file- or directory- cap"
-                           % name)
+            raise WebError(
+                "'{}' is not a valid file- or directory- cap".format(name)
+            )
+
 
 class FileHandler(rend.Page):
     # I handle /file/$FILECAP[/IGNORED] , which provides a URL from which a
@@ -154,50 +195,63 @@ class Root(MultiFormatPage):
     def __init__(self, client, clock=None, now_fn=None):
         rend.Page.__init__(self, client)
         self.client = client
-        # If set, clock is a twisted.internet.task.Clock that the tests
-        # use to test ophandle expiration.
-        self.child_operations = operations.OphandleTable(clock)
         self.now_fn = now_fn
-        try:
-            s = client.getServiceNamed("storage")
-        except KeyError:
-            s = None
-        self.child_storage = storage.StorageStatus(s, self.client.nickname)
 
-        self.child_uri = URIHandler(client)
-        self.child_cap = URIHandler(client)
+        self.putChild("uri", URIHandler(client))
+        self.putChild("cap", URIHandler(client))
 
         # handler for "/magic_folder" URIs
-        self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
+        self.putChild("magic_folder", magic_folder.MagicFolderWebApi(client))
 
         # Handler for everything beneath "/private", an area of the resource
         # hierarchy which is only accessible with the private per-node API
         # auth token.
-        self.child_private = create_private_tree(client.get_auth_token)
+        self.putChild("private", create_private_tree(client.get_auth_token))
 
-        self.child_file = FileHandler(client)
-        self.child_named = FileHandler(client)
-        self.child_status = status.Status(client.get_history())
-        self.child_statistics = status.Statistics(client.stats_provider)
+        self.putChild("file", FileHandler(client))
+        self.putChild("named", FileHandler(client))
+        self.putChild("status", status.Status(client.get_history()))
+        self.putChild("statistics", status.Statistics(client.stats_provider))
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
             self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
 
-    def child_helper_status(self, ctx):
-        # the Helper isn't attached until after the Tub starts, so this child
-        # needs to created on each request
-        return status.HelperStatus(self.client.helper)
+        self.putChild("report_incident", IncidentReporter())
 
-    child_report_incident = IncidentReporter()
-    #child_server # let's reserve this for storage-server-over-HTTP
+    # until we get rid of nevow.Page in favour of twisted.web.resource
+    # we can't use getChild() -- but we CAN use childFactory or
+    # override locatechild
+    def childFactory(self, ctx, name):
+        request = IRequest(ctx)
+        return self.getChild(name, request)
+
+
+    def getChild(self, path, request):
+        if path == "helper_status":
+            # the Helper isn't attached until after the Tub starts, so this child
+            # needs to created on each request
+            return status.HelperStatus(self.client.helper)
+        if path == "storage":
+            # Storage isn't initialized until after the web hierarchy is
+            # constructed so this child needs to be created later than
+            # `__init__`.
+            try:
+                storage_server = self.client.getServiceNamed("storage")
+            except KeyError:
+                storage_server = None
+            return storage.StorageStatus(storage_server, self.client.nickname)
+
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
         return render_time(time.time())
+
     def data_version(self, ctx, data):
         return get_package_versions_string()
+
     def data_import_path(self, ctx, data):
         return str(allmydata)
+
     def render_my_nodeid(self, ctx, data):
         tubid_s = "TubID: "+self.client.get_long_tubid()
         return T.td(title=tubid_s)[self.client.get_long_nodeid()]

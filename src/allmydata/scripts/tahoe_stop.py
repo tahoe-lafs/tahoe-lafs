@@ -6,7 +6,7 @@ import signal
 
 from allmydata.scripts.common import BasedirOptions
 from allmydata.util.encodingutil import quote_local_unicode_path
-from .tahoe_daemonize import get_pidfile, get_pid_from_pidfile
+from .run_common import get_pidfile, get_pid_from_pidfile
 
 COULD_NOT_STOP = 2
 
@@ -21,6 +21,7 @@ class StopOptions(BasedirOptions):
 
 
 def stop(config):
+    print("'tahoe stop' is deprecated; see 'tahoe run'")
     out = config.stdout
     err = config.stderr
     basedir = config['basedir']

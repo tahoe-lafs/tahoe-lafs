@@ -22,6 +22,10 @@ from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.server import storage_index_to_dir
 from allmydata.client import _Client
 
+from .common import (
+    EMPTY_CLIENT_CONFIG,
+)
+
 MiB = 1024*1024
 
 def extract_uri(results):
@@ -217,7 +221,11 @@ class FakeClient(object):
             ("%20d" % fakeid, FakeStorageServer(mode[fakeid], reactor=reactor))
             for fakeid in range(self.num_servers)
         ]
-        self.storage_broker = StorageFarmBroker(permute_peers=True, tub_maker=None)
+        self.storage_broker = StorageFarmBroker(
+            permute_peers=True,
+            tub_maker=None,
+            node_config=EMPTY_CLIENT_CONFIG,
+        )
         for (serverid, rref) in servers:
             ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(serverid),
                    "permutation-seed-base32": base32.b2a(serverid) }

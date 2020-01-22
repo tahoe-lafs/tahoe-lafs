@@ -10,7 +10,10 @@ from allmydata.util.hashutil import tagged_hash
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.mutable.layout import MDMFSlotReadProxy
 from allmydata.mutable.publish import MutableData
-from ..common import TEST_RSA_KEY_SIZE
+from ..common import (
+    TEST_RSA_KEY_SIZE,
+    EMPTY_CLIENT_CONFIG,
+)
 
 def eventuaaaaaly(res=None):
     d = fireEventually(res)
@@ -219,10 +222,12 @@ def make_peer(s, i):
 
     :rtype: ``Peer``
     """
-    peerid = tagged_hash("peerid", "%d" % i)[:20]
+    peerid = base32.b2a(tagged_hash("peerid", "%d" % i)[:20])
     fss = FakeStorageServer(peerid, s)
-    ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(peerid),
-           "permutation-seed-base32": base32.b2a(peerid) }
+    ann = {
+        "anonymous-storage-FURL": "pb://%s@nowhere/fake" % (peerid,),
+        "permutation-seed-base32": peerid,
+    }
     return Peer(peerid=peerid, storage_server=fss, announcement=ann)
 
 
@@ -252,7 +257,7 @@ def make_storagebroker_with_peers(peers):
     :param list peers: The storage servers to associate with the storage
         broker.
     """
-    storage_broker = StorageFarmBroker(True, None)
+    storage_broker = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
     for peer in peers:
         storage_broker.test_add_rref(
             peer.peerid,

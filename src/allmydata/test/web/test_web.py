@@ -5,6 +5,8 @@ import json
 import treq
 import mock
 
+from bs4 import BeautifulSoup
+
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -40,9 +42,19 @@ from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
 from allmydata.util.encodingutil import to_str
 from ...util.connection_status import ConnectionStatus
-from ..common import FakeCHKFileNode, FakeMutableFileNode, \
-     create_chk_filenode, WebErrorMixin, \
-     make_mutable_file_uri, create_mutable_filenode
+from ..common import (
+    EMPTY_CLIENT_CONFIG,
+    FakeCHKFileNode,
+    FakeMutableFileNode,
+    create_chk_filenode,
+    WebErrorMixin,
+    make_mutable_file_uri,
+    create_mutable_filenode,
+)
+from .common import (
+    assert_soup_has_favicon,
+    assert_soup_has_text,
+)
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
@@ -280,7 +292,11 @@ class FakeClient(_Client):
         self._secret_holder = SecretHolder("lease secret", "convergence secret")
         self.helper = None
         self.convergence = "some random string"
-        self.storage_broker = StorageFarmBroker(permute_peers=True, tub_maker=None)
+        self.storage_broker = StorageFarmBroker(
+            permute_peers=True,
+            tub_maker=None,
+            node_config=EMPTY_CLIENT_CONFIG,
+        )
         # fake knowledge of another server
         self.storage_broker.test_add_server("other_nodeid",
             FakeDisplayableServer(
@@ -2028,11 +2044,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return d
         d.addCallback(getman, None)
         def _got_html(manifest):
-            self.failUnlessIn("Manifest of SI=", manifest)
-            self.failUnlessIn("<td>sub</td>", manifest)
-            self.failUnlessIn(self._sub_uri, manifest)
-            self.failUnlessIn("<td>sub/baz.txt</td>", manifest)
-            self.failUnlessIn(FAVICON_MARKUP, manifest)
+            soup = BeautifulSoup(manifest, 'html5lib')
+            assert_soup_has_text(self, soup, "Manifest of SI=")
+            assert_soup_has_text(self, soup, "sub")
+            assert_soup_has_text(self, soup, self._sub_uri)
+            assert_soup_has_text(self, soup, "sub/baz.txt")
+            assert_soup_has_favicon(self, soup)
         d.addCallback(_got_html)
 
         # both t=status and unadorned GET should be identical
@@ -4521,7 +4538,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         res = yield self.GET("/operations/128?t=status&output=JSON")
         data = json.loads(res)
         self.failUnless("finished" in data, res)
-        monitor = self.ws.root.child_operations.handles["128"][0]
+        monitor = self.ws.getServiceNamed("operations").handles["128"][0]
 
         res = yield self.POST("/operations/128?t=cancel&output=JSON")
         data = json.loads(res)

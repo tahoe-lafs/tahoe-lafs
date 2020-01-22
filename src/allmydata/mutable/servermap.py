@@ -8,11 +8,12 @@ from twisted.internet import defer
 from twisted.python import failure
 from foolscap.api import DeadReferenceError, RemoteException, eventually, \
                          fireEventually
+from allmydata.crypto.error import BadSignature
+from allmydata.crypto import rsa
 from allmydata.util import base32, hashutil, log, deferredutil
 from allmydata.util.dictutil import DictOfSets
 from allmydata.storage.server import si_b2a
 from allmydata.interfaces import IServermapUpdaterStatus
-from pycryptopp.publickey import rsa
 
 from allmydata.mutable.common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, \
      MODE_READ, MODE_REPAIR, CorruptShareError
@@ -843,8 +844,9 @@ class ServermapUpdater(object):
             # This is a new version tuple, and we need to validate it
             # against the public key before keeping track of it.
             assert self._node.get_pubkey()
-            valid = self._node.get_pubkey().verify(prefix, signature[1])
-            if not valid:
+            try:
+                rsa.verify_signature(self._node.get_pubkey(), signature[1], prefix)
+            except BadSignature:
                 raise CorruptShareError(server, shnum,
                                         "signature is invalid")
 
@@ -913,11 +915,9 @@ class ServermapUpdater(object):
                                                               verinfo,
                                                               update_data)
 
-
     def _deserialize_pubkey(self, pubkey_s):
         verifier = rsa.create_verifying_key_from_string(pubkey_s)
         return verifier
-
 
     def _try_to_validate_privkey(self, enc_privkey, server, shnum, lp):
         """
@@ -937,7 +937,7 @@ class ServermapUpdater(object):
         self.log("got valid privkey from shnum %d on serverid %s" %
                  (shnum, server.get_name()),
                  parent=lp)
-        privkey = rsa.create_signing_key_from_string(alleged_privkey_s)
+        privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
         self._node._populate_encprivkey(enc_privkey)
         self._node._populate_privkey(privkey)
         self._need_privkey = False

@@ -1,9 +1,8 @@
-
 import os.path
 from six.moves import cStringIO as StringIO
 import urllib, sys
 import re
-from mock import patch
+from mock import patch, Mock
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
@@ -11,14 +10,14 @@ from twisted.internet import task
 from twisted.python.filepath import FilePath
 
 import allmydata
-from allmydata.util import fileutil, hashutil, base32, keyutil
+from allmydata.crypto import ed25519
+from allmydata.util import fileutil, hashutil, base32
 from allmydata.util.namespace import Namespace
 from allmydata import uri
 from allmydata.immutable import upload
 from allmydata.dirnode import normalize
 from allmydata.scripts.common_http import socket_error
 import allmydata.scripts.common_http
-from pycryptopp.publickey import ed25519
 
 # Test that the scripts can be imported.
 from allmydata.scripts import create_node, debug, tahoe_start, tahoe_restart, \
@@ -35,10 +34,10 @@ from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
      DefaultAliasMarker
 
 from allmydata.scripts import cli, debug, runner
-from ..common_util import (ReallyEqualMixin, skip_if_cannot_represent_filename,
-                           run_cli)
-from ..no_network import GridTestMixin
-from .common import CLITestMixin, parse_options
+from allmydata.test.common_util import (ReallyEqualMixin, skip_if_cannot_represent_filename,
+                                         run_cli)
+from allmydata.test.no_network import GridTestMixin
+from allmydata.test.cli.common import CLITestMixin, parse_options
 from twisted.python import usage
 
 from allmydata.util.encodingutil import listdir_unicode, get_io_encoding
@@ -526,7 +525,8 @@ class CLI(CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(exitcode, 1)
 
         def fake_react(f):
-            d = f("reactor")
+            reactor = Mock()
+            d = f(reactor)
             # normally this Deferred would be errbacked with SystemExit, but
             # since we mocked out sys.exit, it will be fired with None. So
             # it's safe to drop it on the floor.
@@ -568,10 +568,6 @@ class Help(unittest.TestCase):
 
     def test_unlink(self):
         help = str(cli.UnlinkOptions())
-        self.failUnlessIn("[options] REMOTE_FILE", help)
-
-    def test_rm(self):
-        help = str(cli.RmOptions())
         self.failUnlessIn("[options] REMOTE_FILE", help)
 
     def test_mv(self):
@@ -734,16 +730,20 @@ class Admin(unittest.TestCase):
             self.failUnlessEqual(pubkey_bits[0], vk_header, lines[1])
             self.failUnless(privkey_bits[1].startswith("priv-v0-"), lines[0])
             self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
-            sk_bytes = base32.a2b(keyutil.remove_prefix(privkey_bits[1], "priv-v0-"))
-            sk = ed25519.SigningKey(sk_bytes)
-            vk_bytes = base32.a2b(keyutil.remove_prefix(pubkey_bits[1], "pub-v0-"))
-            self.failUnlessEqual(sk.get_verifying_key_bytes(), vk_bytes)
+            sk, pk = ed25519.signing_keypair_from_string(privkey_bits[1])
+            vk_bytes = pubkey_bits[1]
+            self.assertEqual(
+                ed25519.string_from_verifying_key(pk),
+                vk_bytes,
+            )
         d.addCallback(_done)
         return d
 
     def test_derive_pubkey(self):
-        priv1,pub1 = keyutil.make_keypair()
-        d = run_cli("admin", "derive-pubkey", priv1)
+        priv_key, pub_key = ed25519.create_signing_keypair()
+        priv_key_str = ed25519.string_from_signing_key(priv_key)
+        pub_key_str = ed25519.string_from_verifying_key(pub_key)
+        d = run_cli("admin", "derive-pubkey", priv_key_str)
         def _done(args):
             (rc, stdout, stderr) = args
             lines = stdout.split("\n")
@@ -753,8 +753,8 @@ class Admin(unittest.TestCase):
             vk_header = "public: pub-v0-"
             self.failUnless(privkey_line.startswith(sk_header), privkey_line)
             self.failUnless(pubkey_line.startswith(vk_header), pubkey_line)
-            pub2 = pubkey_line[len(vk_header):]
-            self.failUnlessEqual("pub-v0-"+pub2, pub1)
+            pub_key_str2 = pubkey_line[len(vk_header):]
+            self.assertEqual("pub-v0-" + pub_key_str2, pub_key_str)
         d.addCallback(_done)
         return d
 
@@ -1071,11 +1071,6 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
 
-class Rm(Unlink):
-    """Test that 'tahoe rm' behaves in the same way as 'tahoe unlink'."""
-    command = "rm"
-
-
 class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_empty_directory(self):
         self.basedir = "cli/Stats/empty_directory"
@@ -1342,8 +1337,8 @@ class Stop(unittest.TestCase):
 
 class Start(unittest.TestCase):
 
-    @patch('allmydata.scripts.tahoe_daemonize.os.chdir')
-    @patch('allmydata.scripts.tahoe_daemonize.twistd')
+    @patch('allmydata.scripts.run_common.os.chdir')
+    @patch('allmydata.scripts.run_common.twistd')
     def test_non_numeric_pid(self, mock_twistd, chdir):
         """
         If the pidfile exists but does not contain a numeric value, a complaint to

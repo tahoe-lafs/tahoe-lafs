@@ -26,6 +26,8 @@ from errno import (
     EADDRINUSE,
 )
 
+import attr
+
 import treq
 
 from zope.interface import implementer
@@ -72,13 +74,208 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
 import allmydata.test.common_util as testutil
 from allmydata.immutable.upload import Uploader
+from allmydata.client import (
+    config_from_string,
+    create_client_from_config,
+)
 
+from ..crypto import (
+    ed25519,
+)
 from .eliotutil import (
     EliotLoggedRunTest,
 )
 
 
 TEST_RSA_KEY_SIZE = 522
+
+EMPTY_CLIENT_CONFIG = config_from_string(
+    b"/dev/null",
+    b"tub.port",
+    b""
+)
+
+
+@attr.s
+class MemoryIntroducerClient(object):
+    """
+    A model-only (no behavior) stand-in for ``IntroducerClient``.
+    """
+    tub = attr.ib()
+    introducer_furl = attr.ib()
+    nickname = attr.ib()
+    my_version = attr.ib()
+    oldest_supported = attr.ib()
+    app_versions = attr.ib()
+    sequencer = attr.ib()
+    cache_filepath = attr.ib()
+
+    subscribed_to = attr.ib(default=attr.Factory(list))
+    published_announcements = attr.ib(default=attr.Factory(list))
+
+
+    def setServiceParent(self, parent):
+        pass
+
+
+    def subscribe_to(self, service_name, cb, *args, **kwargs):
+        self.subscribed_to.append(Subscription(service_name, cb, args, kwargs))
+
+
+    def publish(self, service_name, ann, signing_key):
+        self.published_announcements.append(Announcement(
+            service_name,
+            ann,
+            ed25519.string_from_signing_key(signing_key),
+        ))
+
+
+@attr.s
+class Subscription(object):
+    """
+    A model of an introducer subscription.
+    """
+    service_name = attr.ib()
+    cb = attr.ib()
+    args = attr.ib()
+    kwargs = attr.ib()
+
+
+@attr.s
+class Announcement(object):
+    """
+    A model of an introducer announcement.
+    """
+    service_name = attr.ib()
+    ann = attr.ib()
+    signing_key_bytes = attr.ib(type=bytes)
+
+    @property
+    def signing_key(self):
+        return ed25519.signing_keypair_from_string(self.signing_key_bytes)[0]
+
+
+def get_published_announcements(client):
+    """
+    Get a flattened list of all announcements sent using all introducer
+    clients.
+    """
+    return list(
+        announcement
+        for introducer_client
+        in client.introducer_clients
+        for announcement
+        in introducer_client.published_announcements
+    )
+
+
+class UseTestPlugins(object):
+    """
+    A fixture which enables loading Twisted plugins from the Tahoe-LAFS test
+    suite.
+    """
+    def setUp(self):
+        """
+        Add the testing package ``plugins`` directory to the ``twisted.plugins``
+        aggregate package.
+        """
+        import twisted.plugins
+        testplugins = FilePath(__file__).sibling("plugins")
+        twisted.plugins.__path__.insert(0, testplugins.path)
+
+    def cleanUp(self):
+        """
+        Remove the testing package ``plugins`` directory from the
+        ``twisted.plugins`` aggregate package.
+        """
+        import twisted.plugins
+        testplugins = FilePath(__file__).sibling("plugins")
+        twisted.plugins.__path__.remove(testplugins.path)
+
+    def getDetails(self):
+        return {}
+
+
+@attr.s
+class UseNode(object):
+    """
+    A fixture which creates a client node.
+
+    :ivar dict[bytes, bytes] plugin_config: Configuration items to put in the
+        node's configuration.
+
+    :ivar bytes storage_plugin: The name of a storage plugin to enable.
+
+    :ivar FilePath basedir: The base directory of the node.
+
+    :ivar bytes introducer_furl: The introducer furl with which to
+        configure the client.
+
+    :ivar dict[bytes, bytes] node_config: Configuration items for the *node*
+        section of the configuration.
+
+    :ivar _Config config: The complete resulting configuration.
+    """
+    plugin_config = attr.ib()
+    storage_plugin = attr.ib()
+    basedir = attr.ib()
+    introducer_furl = attr.ib()
+    node_config = attr.ib(default=attr.Factory(dict))
+
+    config = attr.ib(default=None)
+
+    def setUp(self):
+        def format_config_items(config):
+            return b"\n".join(
+                b" = ".join((key, value))
+                for (key, value)
+                in config.items()
+            )
+
+        if self.plugin_config is None:
+            plugin_config_section = b""
+        else:
+            plugin_config_section = b"""
+[storageclient.plugins.{storage_plugin}]
+{config}
+""".format(
+    storage_plugin=self.storage_plugin,
+    config=format_config_items(self.plugin_config),
+)
+
+        self.config = config_from_string(
+            self.basedir.asTextMode().path,
+            u"tub.port",
+b"""
+[node]
+{node_config}
+
+[client]
+introducer.furl = {furl}
+storage.plugins = {storage_plugin}
+{plugin_config_section}
+""".format(
+    furl=self.introducer_furl,
+    storage_plugin=self.storage_plugin,
+    node_config=format_config_items(self.node_config),
+    plugin_config_section=plugin_config_section,
+)
+        )
+
+    def create_node(self):
+        return create_client_from_config(
+            self.config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+
+    def cleanUp(self):
+        pass
+
+
+    def getDetails(self):
+        return {}
+
+
 
 @implementer(IPlugin, IStreamServerEndpointStringParser)
 class AdoptedServerPort(object):
@@ -135,22 +332,16 @@ class SameProcessStreamEndpointAssigner(object):
     """
     def setUp(self):
         self._cleanups = []
+        # Make sure the `adopt-socket` endpoint is recognized.  We do this
+        # instead of providing a dropin because we don't want to make this
+        # endpoint available to random other applications.
+        f = UseTestPlugins()
+        f.setUp()
+        self._cleanups.append(f.cleanUp)
 
     def tearDown(self):
         for c in self._cleanups:
             c()
-
-    def _patch_plugins(self):
-        """
-        Add the testing package ``plugins`` directory to the ``twisted.plugins``
-        aggregate package.  Arrange for it to be removed again when the
-        fixture is torn down.
-        """
-        import twisted.plugins
-        testplugins = FilePath(__file__).sibling("plugins")
-        twisted.plugins.__path__.insert(0, testplugins.path)
-        self._cleanups.append(lambda: twisted.plugins.__path__.remove(testplugins.path))
-
 
     def assign(self, reactor):
         """
@@ -183,10 +374,6 @@ class SameProcessStreamEndpointAssigner(object):
             host, port = s.getsockname()
             location_hint = "tcp:%s:%d" % (host, port)
             port_endpoint = "adopt-socket:fd=%d" % (s.fileno(),)
-            # Make sure `adopt-socket` is recognized.  We do this instead of
-            # providing a dropin because we don't want to make this endpoint
-            # available to random other applications.
-            self._patch_plugins()
         else:
             # On other platforms, we blindly guess and hope we get lucky.
             portnum = iputil.allocate_tcp_port()

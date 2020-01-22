@@ -12,6 +12,20 @@ class ConnectionStatus(object):
         self.last_connection_time = last_connection_time
         self.last_received_time = last_received_time
 
+    @classmethod
+    def unstarted(cls):
+        """
+        Create a ``ConnectionStatus`` representing a connection for which no
+        attempts have yet been made.
+        """
+        return cls(
+            connected=False,
+            summary=u"unstarted",
+            non_connected_statuses=[],
+            last_connection_time=None,
+            last_received_time=None,
+        )
+
 def _hint_statuses(which, handlers, statuses):
     non_connected_statuses = {}
     for hint in which:
@@ -23,10 +37,12 @@ def _hint_statuses(which, handlers, statuses):
 
 def from_foolscap_reconnector(rc, last_received):
     ri = rc.getReconnectionInfo()
+    # See foolscap/reconnector.py, ReconnectionInfo, for details about
+    # possible states.
     state = ri.state
-    # the Reconnector shouldn't even be exposed until it is started, so we
-    # should never see "unstarted"
-    assert state in ("connected", "connecting", "waiting"), state
+    if state == "unstarted":
+        return ConnectionStatus.unstarted()
+
     ci = ri.connectionInfo
     connected = False
     last_connected = None

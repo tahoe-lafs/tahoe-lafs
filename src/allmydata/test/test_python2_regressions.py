@@ -1,31 +1,71 @@
 """
 Tests to check for Python2 regressions
 """
-from twisted.trial import unittest
+
+from inspect import isclass
+
 from twisted.python.modules import getModule
 
-class PythonTwoRegressions(unittest.TestCase):
-    """
-    A test class to hold Python2 regression tests.
-    """
+from testtools import (
+    TestCase,
+)
+from testtools.matchers import (
+    Equals,
+)
 
-    def is_new_style(self, cls):
-        """check for being a new-style class"""
-        # another test could be: issubclass(value, type)
-        has_class_attr = hasattr(cls, '__class__')
-        dict_or_slots = '__dict__' in dir(cls) or hasattr(cls, '__slots__')
-        return has_class_attr and dict_or_slots
+BLACKLIST = {
+    "allmydata.test.check_load",
+    "allmydata.watchdog._watchdog_541",
+    "allmydata.watchdog.inotify",
+    "allmydata.windows.inotify",
+    "allmydata.windows.registry",
+    "allmydata.windows.tahoesvc",
+}
 
-    def test_old_style_class(self):
+
+def is_new_style(cls):
+    """
+    :return bool: ``True`` if and only if the given class is "new style".
+    """
+    # All new-style classes are instances of type.  By definition.
+    return isinstance(cls, type)
+
+def defined_here(cls, where):
+    """
+    :return bool: ``True`` if and only if the given class was defined in a
+        module with the given name.
+
+    :note: Classes can lie about where they are defined.  Try not to do that.
+    """
+    return cls.__module__ == where
+
+class PythonTwoRegressions(TestCase):
+    """
+    Regression tests for Python 2 behaviors related to Python 3 porting.
+    """
+    def test_new_style_classes(self):
         """
-        Check if all classes are new-style classes
+        All classes in Tahoe-LAFS are new-style.
         """
+        newstyle = set()
+        classic = set()
         for mod in getModule("allmydata").walkModules():
+            if mod.name in BLACKLIST:
+                continue
+
+            # iterAttributes will only work on loaded modules.  So, load it.
+            mod.load()
+
             for attr in mod.iterAttributes():
                 value = attr.load()
-                if isinstance(value, str):
-                    # apparently strings are note a new-style class (in Python 2.7)
-                    # so we skip testing them
-                    return
-                self.assertTrue(self.is_new_style(value),
-                                "{} does not seem to be a new-style class".format(attr.name))
+                if isclass(value) and defined_here(value, mod.name):
+                    if is_new_style(value):
+                        newstyle.add(value)
+                    else:
+                        classic.add(value)
+
+        self.assertThat(
+            classic,
+            Equals(set()),
+            "Expected to find no classic classes.",
+        )

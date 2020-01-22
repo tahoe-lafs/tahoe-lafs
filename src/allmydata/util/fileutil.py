@@ -16,8 +16,7 @@ if sys.platform == "win32":
 
 from twisted.python import log
 
-from pycryptopp.cipher.aes import AES
-
+from allmydata.crypto import aes
 from allmydata.util.assertutil import _assert
 
 
@@ -110,9 +109,10 @@ class EncryptedTemporaryFile(object):
         offset_big = offset // 16
         offset_small = offset % 16
         iv = binascii.unhexlify("%032x" % offset_big)
-        cipher = AES(self.key, iv=iv)
-        cipher.process("\x00"*offset_small)
-        return cipher.process(data)
+        cipher = aes.create_encryptor(self.key, iv)
+        # this is just to advance the counter
+        aes.encrypt_data(cipher, b"\x00" * offset_small)
+        return aes.encrypt_data(cipher, data)
 
     def close(self):
         self.file.close()

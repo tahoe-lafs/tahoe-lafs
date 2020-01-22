@@ -30,18 +30,114 @@ def read_version_py(infname):
 VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
-# Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
-# the _auto_deps.install_requires list, which is used in the call to setup()
-# below.
-adglobals = {}
-auto_deps_fn = "src/allmydata/_auto_deps.py"
-if sys.version_info[0] >= 3:
-    exec(compile(open(auto_deps_fn, 'rb').read(), auto_deps_fn, "exec"),
-         adglobals, adglobals)
-else:
-    execfile(auto_deps_fn, adglobals)
-install_requires = adglobals['install_requires']
-setup_requires = adglobals['setup_requires']
+install_requires = [
+    # we don't need much out of setuptools but the version checking stuff
+    # needs pkg_resources and PEP 440 version specifiers.
+    "setuptools >= 28.8.0",
+
+    "zfec >= 1.1.0",
+
+    # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
+    # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
+    "zope.interface >= 3.6.0, != 3.6.3, != 3.6.4",
+
+    # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
+    #   transferring large mutable files of size N.
+    # * foolscap < 0.6 is incompatible with Twisted 10.2.0.
+    # * foolscap 0.6.1 quiets a DeprecationWarning.
+    # * foolscap < 0.6.3 is incompatible with Twisted 11.1.0 and newer.
+    # * foolscap 0.8.0 generates 2048-bit RSA-with-SHA-256 signatures,
+    #   rather than 1024-bit RSA-with-MD5. This also allows us to work
+    #   with a FIPS build of OpenSSL.
+    # * foolscap >= 0.12.3 provides tcp/tor/i2p connection handlers we need,
+    #   and allocate_tcp_port
+    # * foolscap >= 0.12.5 has ConnectionInfo and ReconnectionInfo
+    # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
+    # * foolscap 0.13.2 drops i2p support completely
+    "foolscap == 0.13.1",
+
+    # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
+    #   Twisted[conch] also depends on cryptography and Twisted[tls]
+    #   transitively depends on cryptography.  So it's anyone's guess what
+    #   version of cryptography will *really* be installed.
+    "cryptography >= 2.6",
+
+    # * On Linux we need at least Twisted 10.1.0 for inotify support
+    #   used by the drop-upload frontend.
+    # * We also need Twisted 10.1.0 for the FTP frontend in order for
+    #   Twisted's FTP server to support asynchronous close.
+    # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
+    #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
+    # * The FTP frontend depends on Twisted >= 11.1.0 for
+    #   filepath.Permissions
+    # * Nevow 0.11.1 depends on Twisted >= 13.0.0.
+    # * The SFTP frontend and manhole depend on the conch extra. However, we
+    #   can't explicitly declare that without an undesirable dependency on gmpy,
+    #   as explained in ticket #2740.
+    # * Due to a setuptools bug, we need to declare a dependency on the tls
+    #   extra even though we only depend on it via foolscap.
+    # * Twisted >= 15.1.0 is the first version that provided the [tls] extra.
+    # * Twisted-16.1.0 fixes https://twistedmatrix.com/trac/ticket/8223,
+    #   which otherwise causes test_system to fail (DirtyReactorError, due to
+    #   leftover timers)
+    # * Twisted-16.4.0 introduces `python -m twisted.trial` which is needed
+    #   for coverage testing
+    # * Twisted 16.6.0 drops the undesirable gmpy dependency from the conch
+    #   extra, letting us use that extra instead of trying to duplicate its
+    #   dependencies here.  Twisted[conch] >18.7 introduces a dependency on
+    #   bcrypt.  It is nice to avoid that if the user ends up with an older
+    #   version of Twisted.  That's hard to express except by using the extra.
+    #
+    # * Twisted 18.4.0 adds `client` and `host` attributes to `Request` in the
+    # * initializer, needed by logic in our custom `Request` subclass.
+    #
+    #   In a perfect world, Twisted[conch] would be a dependency of an "sftp"
+    #   extra.  However, pip fails to resolve the dependencies all
+    #   dependencies when asked for Twisted[tls] *and* Twisted[conch].
+    #   Specifically, "Twisted[conch]" (as the later requirement) is ignored.
+    #   If there were an Tahoe-LAFS sftp extra that dependended on
+    #   Twisted[conch] and install_requires only included Twisted[tls] then
+    #   `pip install tahoe-lafs[sftp]` would not install requirements
+    #   specified by Twisted[conch].  Since this would be the *whole point* of
+    #   an sftp extra in Tahoe-LAFS, there is no point in having one.
+    "Twisted[tls,conch] >= 18.4.0",
+
+    # We need Nevow >= 0.11.1 which can be installed using pip.
+    "Nevow >= 0.11.1",
+
+    "PyYAML >= 3.11",
+
+    "six >= 1.10.0",
+
+    # for 'tahoe invite' and 'tahoe join'
+    "magic-wormhole >= 0.10.2",
+
+    # Eliot is contemplating dropping Python 2 support.  Stick to a version we
+    # know works on Python 2.7.
+    "eliot ~= 1.7",
+
+    # A great way to define types of values.
+    "attrs >= 18.2.0",
+
+    # WebSocket library for twisted and asyncio
+    "autobahn >= 19.5.2",
+]
+
+setup_requires = [
+    'setuptools >= 28.8.0',  # for PEP-440 style versions
+]
+
+tor_requires = [
+    # This is exactly what `foolscap[tor]` means but pip resolves the pair of
+    # dependencies "foolscap[i2p] foolscap[tor]" to "foolscap[i2p]" so we lose
+    # this if we don't declare it ourselves!
+    "txtorcon >= 0.17.0",
+]
+
+i2p_requires = [
+    # See the comment in tor_requires.
+    "txi2p >= 0.3.2",
+]
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
     del sys.argv[1]
@@ -262,13 +358,12 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # this version from time to time, but we will do it
               # intentionally.
               "pyflakes == 2.1.0",
-              "coverage",
+              # coverage 5.0 breaks the integration tests in some opaque way.
+              # This probably needs to be addressed in a more permanent way
+              # eventually...
+              "coverage ~= 4.5",
               "mock",
               "tox",
-              "foolscap[tor] >= 0.12.5",
-              "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
-              "foolscap[i2p] >= 0.12.6",
-              "txi2p >= 0.3.2", # in case pip's resolver doesn't work
               "pytest",
               "pytest-twisted",
               "hypothesis >= 3.6.1",
@@ -276,22 +371,20 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "towncrier",
               "testtools",
               "fixtures",
-          ],
-          "tor": [
-              "foolscap[tor] >= 0.12.5",
-              "txtorcon >= 0.17.0", # in case pip's resolver doesn't work
-          ],
-          "i2p": [
-              "foolscap[i2p] >= 0.12.6",
-              "txi2p >= 0.3.2", # in case pip's resolver doesn't work
-          ],
+              "beautifulsoup4",
+              "html5lib",
+          ] + tor_requires + i2p_requires,
+          "tor": tor_requires,
+          "i2p": i2p_requires,
       },
       package_data={"allmydata.web": ["*.xhtml",
                                       "static/*.js", "static/*.png", "static/*.css",
                                       "static/img/*.png",
                                       "static/css/*.css",
-                                      ]
+                                      ],
+                    "allmydata": ["ported-modules.txt"],
                     },
+      include_package_data=True,
       setup_requires=setup_requires,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       **setup_args

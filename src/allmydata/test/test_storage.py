@@ -1,4 +1,3 @@
-
 import time, os.path, platform, stat, re, json, struct, shutil
 
 from twisted.trial import unittest
@@ -1369,6 +1368,81 @@ class MutableServer(unittest.TestCase):
         bucketdir = os.path.join(prefixdir, si)
         self.failUnless(os.path.exists(prefixdir), prefixdir)
         self.failIf(os.path.exists(bucketdir), bucketdir)
+
+    def test_writev_without_renew_lease(self):
+        """
+        The helper method ``slot_testv_and_readv_and_writev`` does not renew
+        leases if ``False`` is passed for the ``renew_leases`` parameter.
+        """
+        ss = self.create("test_writev_without_renew_lease")
+
+        storage_index = "si2"
+        secrets = (
+            self.write_enabler(storage_index),
+            self.renew_secret(storage_index),
+            self.cancel_secret(storage_index),
+        )
+
+        sharenum = 3
+        datav = [(0, b"Hello, world")]
+
+        ss.slot_testv_and_readv_and_writev(
+            storage_index=storage_index,
+            secrets=secrets,
+            test_and_write_vectors={
+                sharenum: ([], datav, None),
+            },
+            read_vector=[],
+            renew_leases=False,
+        )
+        leases = list(ss.get_slot_leases(storage_index))
+        self.assertEqual([], leases)
+
+    def test_get_slot_leases_empty_slot(self):
+        """
+        When ``get_slot_leases`` is called for a slot for which the server has no
+        shares, it returns an empty iterable.
+        """
+        ss = self.create(b"test_get_slot_leases_empty_slot")
+        self.assertEqual(
+            list(ss.get_slot_leases(b"si1")),
+            [],
+        )
+
+    def test_remove_non_present(self):
+        """
+        A write vector which would remove a share completely is applied as a no-op
+        by a server which does not have the share.
+        """
+        ss = self.create("test_remove_non_present")
+
+        storage_index = "si1"
+        secrets = (
+            self.write_enabler(storage_index),
+            self.renew_secret(storage_index),
+            self.cancel_secret(storage_index),
+        )
+
+        sharenum = 3
+        testv = []
+        datav = []
+        new_length = 0
+        read_vector = []
+
+        # We don't even need to create any shares to exercise this
+        # functionality.  Just go straight to sending a truncate-to-zero
+        # write.
+        testv_is_good, read_data = ss.remote_slot_testv_and_readv_and_writev(
+            storage_index=storage_index,
+            secrets=secrets,
+            test_and_write_vectors={
+                sharenum: (testv, datav, new_length),
+            },
+            read_vector=read_vector,
+        )
+
+        self.assertTrue(testv_is_good)
+        self.assertEqual({}, read_data)
 
 
 class MDMFProxies(unittest.TestCase, ShouldFailMixin):

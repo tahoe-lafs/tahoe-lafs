@@ -270,4 +270,3 @@ while True:
     f.write("directories-written: %d\n" % directories_written)
     f.close()
     os.rename(stats_out+".tmp", stats_out)
-

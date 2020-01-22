@@ -25,8 +25,14 @@ workflows:
 
       - "slackware-14.2"
 
+      - "nixos-19.09"
+
+      # Test against PyPy 2.7/7.1.1
+      - "pypy2.7-7.1"
+
       # Other assorted tasks and configurations
       - "lint"
+      - "pyinstaller"
       - "deprecations"
       - "c-locale"
       # Any locale other than C or UTF-8.
@@ -37,6 +43,10 @@ workflows:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
             - "debian-9"
+
+      # Generate the underlying data for a visualization to aid with Python 3
+      # porting.
+      - "build-porting-depgraph"
 
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
@@ -59,6 +69,7 @@ workflows:
       - "build-image-fedora-29"
       - "build-image-centos-7"
       - "build-image-slackware-14.2"
+      - "build-image-pypy-2.7-7.1.1-jessie"
 
 
 jobs:
@@ -79,19 +90,48 @@ jobs:
           command: |
             ~/.local/bin/tox -e codechecks
 
+  pyinstaller:
+    docker:
+      - image: "circleci/python:2"
+
+    steps:
+      - "checkout"
+
+      - run:
+          name: "Install tox"
+          command: |
+            pip install --user tox
+
+      - run:
+          name: "Make PyInstaller executable"
+          command: |
+            ~/.local/bin/tox -e pyinstaller
+
+      - run:
+          # To verify that the resultant PyInstaller-generated binary executes
+          # cleanly (i.e., that it terminates with an exit code of 0 and isn't
+          # failing due to import/packaging-related errors, etc.).
+          name: "Test PyInstaller executable"
+          command: |
+            dist/Tahoe-LAFS/tahoe --version
+
   debian-9: &DEBIAN
     docker:
       - image: "tahoelafsci/debian:9"
         user: "nobody"
 
     environment: &UTF_8_ENVIRONMENT
+      # In general, the test suite is not allowed to fail while the job
+      # succeeds.  But you can set this to "yes" if you want it to be
+      # otherwise.
+      ALLOWED_FAILURE: "no"
       # Tell Hypothesis which configuration we want it to use.
       TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
       # Tell the C runtime things about character encoding (mainly to do with
       # filenames and argv).
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "coverage"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py27-coverage"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
@@ -123,6 +163,7 @@ jobs:
             /tmp/project/.circleci/run-tests.sh \
                 "/tmp/venv" \
                 "/tmp/project" \
+                "${ALLOWED_FAILURE}" \
                 "${ARTIFACTS_OUTPUT_PATH}" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
@@ -155,6 +196,18 @@ jobs:
     docker:
       - image: "tahoelafsci/debian:8"
         user: "nobody"
+
+
+  pypy2.7-7.1:
+    <<: *DEBIAN
+    docker:
+      - image: "tahoelafsci/pypy:2.7-7.1.1-jessie"
+        user: "nobody"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27-coverage"
+      ALLOWED_FAILURE: "yes"
 
 
   c-locale:
@@ -270,6 +323,58 @@ jobs:
       - store_artifacts: *STORE_TEST_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
+
+  nixos-19.09:
+    docker:
+      # Run in a highly Nix-capable environment.
+      - image: "nixorg/nix:circleci"
+
+    environment:
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-19.09-small.tar.gz"
+
+    steps:
+      - "checkout"
+      - "run":
+          name: "Build and Test"
+          command: |
+            # CircleCI build environment looks like it has a zillion and a
+            # half cores.  Don't let Nix autodetect this high core count
+            # because it blows up memory usage and fails the test run.  Pick a
+            # number of cores that suites the build environment we're paying
+            # for (the free one!).
+            #
+            # Also, let it run more than one job at a time because we have to
+            # build a couple simple little dependencies that don't take
+            # advantage of multiple cores and we get a little speedup by doing
+            # them in parallel.
+            nix-build --cores 3 --max-jobs 2 nix/
+
+  # Generate up-to-date data for the dependency graph visualizer.
+  build-porting-depgraph:
+    # Get a system in which we can easily install Tahoe-LAFS and all its
+    # dependencies.  The dependency graph analyzer works by executing the code.
+    # It's Python, what do you expect?
+    <<: *DEBIAN
+
+    steps:
+      - "checkout"
+
+      - add_ssh_keys:
+          fingerprints:
+            # Jean-Paul Calderone <exarkun@twistedmatrix.com> (CircleCI depgraph key)
+            # This lets us push to tahoe-lafs/tahoe-depgraph in the next step.
+            - "86:38:18:a7:c0:97:42:43:18:46:55:d6:21:b0:5f:d4"
+
+      - run:
+          name: "Setup Python Environment"
+          command: |
+            /tmp/venv/bin/pip install -e /tmp/project
+
+      - run:
+          name: "Generate dependency graph data"
+          command: |
+            . /tmp/venv/bin/activate
+            ./misc/python3/depgraph.sh
 
   build-image: &BUILD_IMAGE
     # This is a template for a job to build a Docker image that has as much of
@@ -406,3 +511,11 @@ jobs:
     environment:
       DISTRO: "slackware"
       TAG: "14.2"
+
+
+  build-image-pypy-2.7-7.1.1-jessie:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "pypy"
+      TAG: "2.7-7.1.1-jessie"

@@ -9,6 +9,7 @@ Configuring a Tahoe-LAFS node
 #.  `Connection Management`_
 #.  `Client Configuration`_
 #.  `Storage Server Configuration`_
+#.  `Storage Server Plugin Configuration`_
 #.  `Frontend Configuration`_
 #.  `Running A Helper`_
 #.  `Running An Introducer`_
@@ -738,6 +739,17 @@ Storage Server Configuration
     for clients who do not wish to provide storage service. The default value
     is ``True``.
 
+``anonymous = (boolean, optional)``
+
+    If this is ``True``, the node will expose the storage server via Foolscap
+    without any additional authentication or authorization.  The capability to
+    use all storage services is conferred by knowledge of the Foolscap fURL
+    for the storage server which will be included in the storage server's
+    announcement.  If it is ``False``, the node will not expose this and
+    storage must be exposed using the storage server plugin system (see
+    `Storage Server Plugin Configuration`_ for details).  The default value is
+    ``True``.
+
 ``readonly = (boolean, optional)``
 
     If ``True``, the node will run a storage server but will not accept any
@@ -797,6 +809,33 @@ Storage Server Configuration
 
 In addition,
 see :doc:`accepting-donations` for a convention encouraging donations to storage server operators.
+
+
+Storage Server Plugin Configuration
+===================================
+
+In addition to the built-in storage server,
+it is also possible to load and configure storage server plugins into Tahoe-LAFS.
+
+Plugins to load are specified in the ``[storage]`` section.
+
+``plugins = (string, optional)``
+
+    This gives a comma-separated list of plugin names.
+    Plugins named here will be loaded and offered to clients.
+    The default is for no such plugins to be loaded.
+
+Each plugin can also be configured in a dedicated section.
+The section for each plugin is named after the plugin itself::
+
+  [storageserver.plugins.<plugin name>]
+
+For example,
+the configuration section for a plugin named ``acme-foo-v1`` is ``[storageserver.plugins.acme-foo-v1]``.
+
+The contents of such sections are defined by the plugins themselves.
+Refer to the documentation provided with those plugins.
+
 
 Running A Helper
 ================

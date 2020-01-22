@@ -11,7 +11,7 @@ from allmydata.scripts.common import BasedirOptions
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.encodingutil import quote_local_unicode_path
 
-from .tahoe_daemonize import MyTwistdConfig, identify_node_type
+from .run_common import MyTwistdConfig, identify_node_type
 
 
 class StartOptions(BasedirOptions):
@@ -60,7 +60,7 @@ def start(config):
     (e.g. "introducer started"). If that doesn't happen within a few
     seconds, an error is printed along with all collected logs.
     """
-
+    print("'tahoe start' is deprecated; see 'tahoe run'")
     out = config.stdout
     err = config.stderr
     basedir = config['basedir']

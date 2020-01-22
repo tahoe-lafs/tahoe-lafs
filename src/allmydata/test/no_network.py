@@ -280,6 +280,13 @@ class NoNetworkGrid(service.MultiService):
     def __init__(self, basedir, num_clients, num_servers,
                  client_config_hooks, port_assigner):
         service.MultiService.__init__(self)
+
+        # We really need to get rid of this pattern here (and
+        # everywhere) in Tahoe where "async work" is started in
+        # __init__ For now, we at least keep the errors so they can
+        # cause tests to fail less-improperly (see _check_clients)
+        self._setup_errors = []
+
         self.port_assigner = port_assigner
         self.basedir = basedir
         fileutil.make_dirs(basedir)
@@ -299,6 +306,20 @@ class NoNetworkGrid(service.MultiService):
         for i in range(num_clients):
             d = self.make_client(i)
             d.addCallback(lambda c: self.clients.append(c))
+
+            def _bad(f):
+                self._setup_errors.append(f)
+            d.addErrback(_bad)
+
+    def _check_clients(self):
+        """
+        The anti-pattern of doing async work in __init__ means we need to
+        check if that work completed successfully. This method either
+        returns nothing or raises an exception in case __init__ failed
+        to complete properly
+        """
+        if self._setup_errors:
+            raise self._setup_errors[0].value
 
     @defer.inlineCallbacks
     def make_client(self, i, write_config=True):
@@ -364,6 +385,7 @@ class NoNetworkGrid(service.MultiService):
         return self.proxies_by_id.keys()
 
     def rebuild_serverlist(self):
+        self._check_clients()
         self.all_servers = frozenset(self.proxies_by_id.values())
         for c in self.clients:
             c._servers = self.all_servers
@@ -440,12 +462,14 @@ class GridTestMixin(object):
         self._record_webports_and_baseurls()
 
     def _record_webports_and_baseurls(self):
+        self.g._check_clients()
         self.client_webports = [c.getServiceNamed("webish").getPortnum()
                                 for c in self.g.clients]
         self.client_baseurls = [c.getServiceNamed("webish").getURL()
                                 for c in self.g.clients]
 
     def get_client_config(self, i=0):
+        self.g._check_clients()
         return self.g.clients[i].config
 
     def get_clientdir(self, i=0):
@@ -454,9 +478,11 @@ class GridTestMixin(object):
         return self.get_client_config(i).get_config_path()
 
     def get_client(self, i=0):
+        self.g._check_clients()
         return self.g.clients[i]
 
     def restart_client(self, i=0):
+        self.g._check_clients()
         client = self.g.clients[i]
         d = defer.succeed(None)
         d.addCallback(lambda ign: self.g.removeService(client))

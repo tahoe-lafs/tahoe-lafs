@@ -1,5 +1,5 @@
-
 import time
+
 from itertools import count
 from zope.interface import implementer
 from twisted.internet import defer
@@ -8,6 +8,8 @@ from twisted.internet.interfaces import IPushProducer, IConsumer
 from foolscap.api import eventually, fireEventually, DeadReferenceError, \
      RemoteException
 
+from allmydata.crypto import aes
+from allmydata.crypto import rsa
 from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError, \
      DownloadStopped, MDMF_VERSION, SDMF_VERSION
 from allmydata.util.assertutil import _assert, precondition
@@ -15,8 +17,6 @@ from allmydata.util import hashutil, log, mathutil, deferredutil
 from allmydata.util.dictutil import DictOfSets
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
-from pycryptopp.cipher.aes import AES
-from pycryptopp.publickey import rsa
 
 from allmydata.mutable.common import CorruptShareError, BadShareError, \
      UncoordinatedWriteError
@@ -899,8 +899,8 @@ class Retrieve(object):
         self.log("decrypting segment %d" % self._current_segment)
         started = time.time()
         key = hashutil.ssk_readkey_data_hash(salt, self._node.get_readkey())
-        decryptor = AES(key)
-        plaintext = decryptor.process(segment)
+        decryptor = aes.create_decryptor(key)
+        plaintext = aes.decrypt_data(decryptor, segment)
         self._status.accumulate_decrypt_time(time.time() - started)
         return plaintext
 
@@ -935,12 +935,10 @@ class Retrieve(object):
         # it's good
         self.log("got valid privkey from shnum %d on reader %s" %
                  (reader.shnum, reader))
-        privkey = rsa.create_signing_key_from_string(alleged_privkey_s)
+        privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
         self._node._populate_encprivkey(enc_privkey)
         self._node._populate_privkey(privkey)
         self._need_privkey = False
-
-
 
     def _done(self):
         """
@@ -971,7 +969,6 @@ class Retrieve(object):
             ret = self._consumer
             self._consumer.unregisterProducer()
         eventually(self._done_deferred.callback, ret)
-
 
     def _raise_notenoughshareserror(self):
         """
