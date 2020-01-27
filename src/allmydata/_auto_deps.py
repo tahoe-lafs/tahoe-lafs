@@ -19,7 +19,6 @@ package_imports = [
     ('OpenSSL',          None),
     ('pyasn1',           'pyasn1'),
     ('service-identity', 'service_identity'),
-    ('characteristic',   'characteristic'),
     ('pyasn1-modules',   'pyasn1_modules'),
     ('cryptography',     'cryptography'),
     ('cffi',             'cffi'),
