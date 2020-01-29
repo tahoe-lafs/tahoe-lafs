@@ -1,5 +1,11 @@
 
-from Queue import PriorityQueue
+import itertools
+try:
+    from queue import PriorityQueue
+except ImportError:
+    from Queue import PriorityQueue
+
+from six.moves import xrange
 
 
 def augmenting_path_for(graph):
@@ -260,9 +266,9 @@ def _servermap_flow_graph(peers, shares, servermap):
     #print "share_to_index %s" % share_to_index
     #print "servermap %s" % servermap
     for peer in peers:
-        if servermap.has_key(peer):
+        if peer in servermap:
             for s in servermap[peer]:
-                if share_to_index.has_key(s):
+                if s in share_to_index:
                     indexedShares.append(share_to_index[s])
         graph.insert(peer_to_index[peer], indexedShares)
     for share in shares:
@@ -373,7 +379,11 @@ def share_placement(peers, readonly_peers, shares, peers_to_shares):
     new_mappings = _calculate_mappings(new_peers, new_shares)
     #print "new_peers %s" % new_peers
     #print "new_mappings %s" % new_mappings
-    mappings = dict(readonly_mappings.items() + existing_mappings.items() + new_mappings.items())
+    mappings = dict(itertools.chain(
+        readonly_mappings.items(),
+        existing_mappings.items(),
+        new_mappings.items(),
+    ))
     homeless_shares = set()
     for share in mappings:
         if mappings[share] is None:

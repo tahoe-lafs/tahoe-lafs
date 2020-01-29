@@ -4,6 +4,9 @@ reporting it in messages
 """
 
 from copy import deepcopy
+
+from six.moves import xrange
+
 from allmydata.immutable.happiness_upload import residual_network
 from allmydata.immutable.happiness_upload import augmenting_path_for
 
