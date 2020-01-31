@@ -55,8 +55,6 @@ from .common import (
     assert_soup_has_favicon,
     assert_soup_has_text,
     assert_soup_has_tag_with_attributes,
-    assert_soup_has_tag_with_content,
-    assert_soup_has_tag_with_attributes_and_content,
 )
 
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
