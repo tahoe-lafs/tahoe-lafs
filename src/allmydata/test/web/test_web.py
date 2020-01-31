@@ -8,7 +8,6 @@ import mock
 from bs4 import BeautifulSoup
 
 from twisted.application import service
-from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
 from twisted.internet.task import Clock
@@ -50,6 +49,7 @@ from ..common import (
     WebErrorMixin,
     make_mutable_file_uri,
     create_mutable_filenode,
+    TrialTestCase,
 )
 from .common import (
     assert_soup_has_favicon,
@@ -681,7 +681,7 @@ class WebMixin(testutil.TimezoneMixin):
 
 
 
-class MultiFormatPageTests(unittest.TestCase):
+class MultiFormatPageTests(TrialTestCase):
     """
     Tests for ``MultiFormatPage``.
     """
@@ -790,7 +790,7 @@ class MultiFormatPageTests(unittest.TestCase):
 
 
 
-class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, unittest.TestCase):
+class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, TrialTestCase):
     maxDiff = None
 
     def test_create(self):

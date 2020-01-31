@@ -28,9 +28,8 @@ def assert_soup_has_tag_with_attributes(testcase, soup, tag_name, attrs):
     for tag in tags:
         if all(v in tag.attrs.get(k, []) for k, v in attrs.items()):
             return  # we found every attr in this tag; done
-    # seems like exceptions can't support unicode text in python2??
     testcase.fail(
-        "No <{}> tags contain attributes: {}".format(tag_name, attrs)
+        u"No <{}> tags contain attributes: {}".format(tag_name, attrs)
     )
 
 
@@ -72,9 +71,8 @@ def assert_soup_has_tag_with_content(testcase, soup, tag_name, content):
 
         if content in _normalized_contents(tag):
             return
-    # seems like exceptions can't support unicode text in python2??
     testcase.fail(
-        "No <{}> tag contains the text '{}'".format(tag_name, content).encode('utf8')
+        u"No <{}> tag contains the text '{}'".format(tag_name, content)
     )
 
 

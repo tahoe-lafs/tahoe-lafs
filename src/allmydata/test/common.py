@@ -4,6 +4,7 @@ __all__ = [
     "SyncTestCase",
     "AsyncTestCase",
     "AsyncBrokenTestCase",
+    "TrialTestCase",
 
     "flush_logged_errors",
     "skip",
@@ -11,6 +12,7 @@ __all__ = [
 ]
 
 import os, random, struct
+import six
 import tempfile
 from tempfile import mktemp
 from functools import partial
@@ -57,6 +59,7 @@ from twisted.internet.interfaces import (
     IReactorSocket,
 )
 from twisted.internet.endpoints import AdoptedStreamServerEndpoint
+from twisted.trial.unittest import TestCase as _TrialTestCase
 
 from allmydata import uri
 from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
@@ -1242,3 +1245,29 @@ class AsyncBrokenTestCase(_TestCaseMixin, TestCase):
     run_tests_with = EliotLoggedRunTest.make_factory(
         AsynchronousDeferredRunTestForBrokenTwisted.make_factory(timeout=60.0),
     )
+
+
+class TrialTestCase(_TrialTestCase):
+    """
+    A twisted.trial.unittest.TestCaes with Tahoe required fixes
+    applied. Currently these are:
+
+      - ensure that .fail() passes a bytes msg on Python2
+    """
+
+    def fail(self, msg):
+        """
+        Ensure our msg is a native string on Python2. If it was Unicode,
+        we encode it as utf8 and hope for the best. On Python3 we take
+        no action.
+
+        This is necessary because Twisted passes the 'msg' argument
+        along to the constructor of an exception; on Python2,
+        Exception will accept a `unicode` instance but will fail if
+        you try to turn that Exception instance into a string.
+        """
+
+        if six.PY2:
+            if isinstance(msg, six.text_type):
+                return super(self, TrialTestCase).fail(msg.encode("utf8"))
+        return super(self, TrialTestCase).fail(msg)
