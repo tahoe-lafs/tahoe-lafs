@@ -883,9 +883,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 if imgs and imgs[0].attrs.get(u"src", u"") == u"img/connected-yes.png":
                     found_status = True
                     sib = div.find_next_siblings()[0]
-                    self.assert_(u"nickname" in sib.attrs[u"class"])
-                    self.assert_(u"other_nickname \u263B" in sib.contents)
-        self.assert_(found_status, "no status-indicator found")
+                    self.assertIn(u"nickname", sib.attrs[u"class"])
+                    self.assertIn(u"other_nickname \u263B", sib.contents)
+        self.assertTrue(found_status, "no status-indicator found")
 
         if self.have_working_tzset():
             assert_soup_has_tag_with_attributes_and_content(
@@ -906,9 +906,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                     if u"No introducers connected" in sib.contents:
                         continue
                     found_status = True
-                    self.assert_(u"nickname" in sib.attrs.get(u"class", []))
-                    self.assert_(u"disconnected_nickname \u263B" in sib.contents)
-        self.assert_(found_status, "no status-indicator found")
+                    self.assertIn(u"nickname", sib.attrs.get(u"class", []))
+                    self.assertIn(u"disconnected_nickname \u263B", sib.contents)
+        self.assertTrue(found_status, "no status-indicator found")
 
 
         assert_soup_has_tag_with_attributes_and_content(
