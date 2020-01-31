@@ -45,6 +45,15 @@ def assert_soup_has_tag_with_attributes_and_content(testcase, soup, tag_name, co
     assert_soup_has_tag_with_content(testcase, soup, tag_name, content)
 
 
+def _normalized_contents(tag):
+    """
+    :returns: all the text contents of the tag with whitespace
+        normalized: all newlines removed and at most one space between
+        words.
+    """
+    return u" ".join(tag.text.split())
+
+
 def assert_soup_has_tag_with_content(testcase, soup, tag_name, content):
     """
     Using a ``TestCase`` object ``testcase``, assert that the passed
@@ -55,10 +64,14 @@ def assert_soup_has_tag_with_content(testcase, soup, tag_name, content):
     for tag in tags:
         if content in tag.contents:
             return
-        # make this a "fuzzy" option?
+
+        # make these "fuzzy" options?
         for c in tag.contents:
             if content in c:
                 return
+
+        if content in _normalized_contents(tag):
+            return
     # seems like exceptions can't support unicode text in python2??
     testcase.fail(
         u"No <{}> tag contains the text '{}'".format(tag_name, content).encode('utf8')

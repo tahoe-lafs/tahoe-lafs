@@ -871,7 +871,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             u"other_nickname \u263B",
             {u"class": u"nickname"},
         )
-        # self.failUnlessIn(u'Connected to <span>1</span>\n              of <span>2</span> known storage servers', res_u)
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Connected to 1 of 2 known storage servers"
+        )
         divs = soup.find_all(u"div")
         found_status = False
         for div in divs:
