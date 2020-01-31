@@ -549,6 +549,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 self.assertEqual(a[u"rel"], [u"noreferrer"])
                 self.assertEqual(u"{}".format(len("one")), td.findNextSibling().findNextSibling().text)
                 found = True
+                break
             self.assertTrue(found)
 
             infos = list(
