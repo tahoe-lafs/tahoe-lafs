@@ -865,7 +865,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self, soup, u"input",
             {u"type": u"hidden", u"name": u"t", u"value": u"report-incident"},
         )
-        assert_soup_has_text(self, soup, "Page rendered at")
         assert_soup_has_tag_with_content(self, soup, u"td", u"fake_nickname \u263A")
         assert_soup_has_tag_with_attributes_and_content(
             self, soup, u"div",
@@ -926,7 +925,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.assertIn(u'1970-01-01 13:00:30', timestamps)
         self.assertIn(u'1970-01-01 13:00:35', timestamps)
 
-        assert_soup_has_text(self, soup, u"Tahoe-LAFS Software Foundation")
         assert_soup_has_tag_with_content(self, soup, u"h3", u"Available")
         assert_soup_has_text(self, soup, u"123.5kB")
 
