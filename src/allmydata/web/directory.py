@@ -673,10 +673,6 @@ class DirectoryAsHTML(Element):
             children = None
             self.dirnode_children_error = text
 
-        # XXX there was a big comment here about tail-recursion etc
-        # .. do we need to yield sometimes in this loop, or ..? (I'm
-        # not sure the former implementation actually did what the
-        # comment claimed, though..)
         self.dirnode_children = children
         defer.returnValue(self.dirnode_children)
 
