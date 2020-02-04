@@ -1,10 +1,6 @@
 
 import itertools
-try:
-    from queue import PriorityQueue
-except ImportError:
-    from Queue import PriorityQueue
-
+from six.moves.queue import PriorityQueue
 from six.moves import xrange
 
 
