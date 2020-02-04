@@ -1,4 +1,4 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
   <head>
     <title>Tahoe-LAFS - Storage Server Status</title>
     <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
@@ -7,19 +7,19 @@
   </head>
 <body>
 
-<div n:render="storage_running">
+<div t:render="storage_running">
 
   <h1>Storage Server Status</h1>
 
-  <table n:data="stats">
+  <table class="storage_status">
     <tr><td>Total disk space:</td>
-        <td><span n:render="abbrev_space" n:data="disk_total" /></td>
-        <td>(<span n:render="space" n:data="disk_total" />)</td>
+        <td><span t:render="disk_total_abbrev" /></td>
+        <td>(<span t:render="disk_total" />)</td>
         <td />
       </tr>
     <tr><td>Disk space used:</td>
-        <td>- <span n:render="abbrev_space" n:data="disk_used" /></td>
-        <td>(<span n:render="space" n:data="disk_used" />)</td>
+        <td>- <span t:render="disk_used_abbrev" /></td>
+        <td>(<span t:render="disk_used" />)</td>
         <td />
       </tr>
     <tr><td />
@@ -28,18 +28,18 @@
         <td />
       </tr>
     <tr><td>Disk space free (root):</td>
-        <td><span n:render="abbrev_space" n:data="disk_free_for_root"/></td>
-        <td>(<span n:render="space" n:data="disk_free_for_root"/>)</td>
+        <td><span t:render="disk_free_for_root_abbrev"/></td>
+        <td>(<span t:render="disk_free_for_root"/>)</td>
         <td>[see 1]</td>
         </tr>
     <tr><td>Disk space free (non-root):</td>
-        <td><span n:render="abbrev_space" n:data="disk_free_for_nonroot" /></td>
-        <td>(<span n:render="space" n:data="disk_free_for_nonroot" />)</td>
+        <td><span t:render="disk_free_for_nonroot_abbrev" /></td>
+        <td>(<span t:render="disk_free_for_nonroot" />)</td>
         <td>[see 2]</td>
         </tr>
     <tr><td>Reserved space:</td>
-        <td>- <span n:render="abbrev_space" n:data="reserved_space" /></td>
-        <td>(<span n:render="space" n:data="reserved_space" />)</td>
+        <td>- <span t:render="reserved_space_abbrev" /></td>
+        <td>(<span t:render="reserved_space" />)</td>
         <td />
       </tr>
     <tr><td />
@@ -48,23 +48,31 @@
         <td />
       </tr>
     <tr><td>Space Available to Tahoe:</td>
-        <td><span n:render="abbrev_space" n:data="disk_avail" /></td>
-        <td>(<span n:render="space" n:data="disk_avail" />)</td>
+        <td><span t:render="disk_avail_abbrev" /></td>
+        <td>(<span t:render="disk_avail" />)</td>
         <td />
       </tr>
   </table>
 
   <ul>
-    <li>Server Nickname: <span class="nickname mine" n:render="data" n:data="nickname" /></li>
-    <li>Server Nodeid: <span class="nodeid mine data-chars" n:render="string" n:data="nodeid" /></li>
-    <li n:data="stats">Accepting new shares:
-     <span n:render="bool" n:data="accepting_immutable_shares" /></li>
+    <li>Server Nickname:
+      <span class="nickname mine">
+        <span t:render="nickname" />
+      </span>
+    </li>
+    <li>Server Nodeid:
+      <span class="nodeid mine data-chars">
+        <span t:render="nodeid" />
+      </span>
+    </li>
+    <li t:data="stats">Accepting new shares:
+      <span t:render="accepting_immutable_shares" /></li>
     <li>Total buckets:
-       <span n:render="string" n:data="last_complete_bucket_count" />
+       <span t:render="last_complete_bucket_count" />
        (the number of files and directories for which this server is holding
         a share)
       <ul>
-        <li n:render="count_crawler_status" />
+        <li><span t:render="count_crawler_status" /></li>
       </ul>
     </li>
   </ul>
@@ -72,11 +80,11 @@
   <h2>Lease Expiration Crawler</h2>
 
   <ul>
-    <li>Expiration <span n:render="lease_expiration_enabled" /></li>
-    <li n:render="lease_expiration_mode" />
-    <li n:render="lease_current_cycle_progress" />
-    <li n:render="lease_current_cycle_results" />
-    <li n:render="lease_last_cycle_results" />
+    <li>Expiration <span t:render="lease_expiration_enabled" /></li>
+    <li t:render="lease_expiration_mode" />
+    <li t:render="lease_current_cycle_progress" />
+    <li t:render="lease_current_cycle_results" />
+    <li t:render="lease_last_cycle_results" />
   </ul>
 
   <hr />
