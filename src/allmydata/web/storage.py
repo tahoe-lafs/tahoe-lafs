@@ -1,7 +1,8 @@
 
 import time, json
 from twisted.python.filepath import FilePath
-from twisted.web.template import tags as T, renderer, Element, renderElement, XMLFile
+from twisted.web.template import tags as T, \
+    renderer, Element, renderElement, XMLFile
 from allmydata.web.common import (
     abbreviate_time,
     MultiFormatResource
@@ -303,3 +304,14 @@ class StorageStatus(MultiFormatResource):
              "lease-checker-progress": self.storage.lease_checker.get_progress(),
              }
         return json.dumps(d, indent=1) + "\n"
+
+    def renderSynchronously(self):
+        # to appease the test suite.
+        elem = StorageStatusElement(self.storage, self.nickname)
+        result = []
+        flattenString(None, elem).addCallback(result.append)
+        return result
+
+    def renderHTTP(self, ctx=None):
+        # to appease the test suite.
+        self.renderSynchronously()
