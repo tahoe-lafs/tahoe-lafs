@@ -310,7 +310,7 @@ class StorageStatus(MultiFormatResource):
         elem = StorageStatusElement(self.storage, self.nickname)
         result = []
         flattenString(None, elem).addCallback(result.append)
-        return result
+        return result[0]
 
     def renderHTTP(self, ctx=None):
         # to appease the test suite.
