@@ -5,7 +5,7 @@
     directory = "newsfragments"
     start_string = ".. towncrier start line"
     title_format = "Release {version} ({project_date})"
-    issue_format = "`#{issue} <https://github.com/tahoe-lafs/tahoe-lafs/issues/{issue}>`_"
+    issue_format = "`#{issue} <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/{issue}>`_"
     underlines = [
         "'",
         "-",
