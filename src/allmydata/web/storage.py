@@ -50,6 +50,16 @@ class StorageStatusElement(Element):
             return tag("?")
         return tag(abbreviate_space(val))
 
+    def render_abbrev_space(self, ctx, size):
+        if size is None:
+            return "?"
+        return abbreviate_space(size)
+
+    def render_space(self, ctx, size):
+        if size is None:
+            return "?"
+        return "%d" % size
+
     @renderer
     def disk_total(self, req, tag):
         return self.str(tag, self.get_stat("storage_server.disk_total"))
