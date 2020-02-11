@@ -30,8 +30,11 @@ from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent, ShouldFailMixin
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.test.no_network import NoNetworkServer
-from allmydata.web.storage import StorageStatus, StorageStatusElement, \
+from allmydata.web.storage import (
+    StorageStatus,
+    StorageStatusElement,
     remove_prefix
+)
 from allmydata.storage_client import (
     _StorageServer,
 )
