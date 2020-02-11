@@ -50,12 +50,12 @@ class StorageStatusElement(Element):
             return tag("?")
         return tag(abbreviate_space(val))
 
-    def render_abbrev_space(self, ctx, size):
+    def render_abbrev_space(self, size):
         if size is None:
             return "?"
         return abbreviate_space(size)
 
-    def render_space(self, ctx, size):
+    def render_space(self, size):
         if size is None:
             return "?"
         return "%d" % size

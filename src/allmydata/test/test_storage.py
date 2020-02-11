@@ -4210,9 +4210,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
     def test_util(self):
         w = StorageStatusElement(None, None)
-        self.failUnlessEqual(w.render_space(None, None), "?")
-        self.failUnlessEqual(w.render_space(None, 10e6), "10000000")
-        self.failUnlessEqual(w.render_abbrev_space(None, None), "?")
-        self.failUnlessEqual(w.render_abbrev_space(None, 10e6), "10.00 MB")
+        self.failUnlessEqual(w.render_space(None), "?")
+        self.failUnlessEqual(w.render_space(10e6), "10000000")
+        self.failUnlessEqual(w.render_abbrev_space(None), "?")
+        self.failUnlessEqual(w.render_abbrev_space(10e6), "10.00 MB")
         self.failUnlessEqual(remove_prefix("foo.bar", "foo."), "bar")
         self.failUnlessEqual(remove_prefix("foo.bar", "baz."), None)
