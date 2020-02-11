@@ -13,13 +13,13 @@
 
   <table class="storage_status">
     <tr><td>Total disk space:</td>
-        <td><span t:render="disk_total_abbrev" /></td>
-        <td>(<span t:render="disk_total" />)</td>
+        <td><t:transparent t:render="disk_total_abbrev" /></td>
+        <td>(<t:transparent t:render="disk_total" />)</td>
         <td />
       </tr>
     <tr><td>Disk space used:</td>
-        <td>- <span t:render="disk_used_abbrev" /></td>
-        <td>(<span t:render="disk_used" />)</td>
+        <td>- <t:transparent t:render="disk_used_abbrev" /></td>
+        <td>(<t:transparent t:render="disk_used" />)</td>
         <td />
       </tr>
     <tr><td />
@@ -28,18 +28,18 @@
         <td />
       </tr>
     <tr><td>Disk space free (root):</td>
-        <td><span t:render="disk_free_for_root_abbrev"/></td>
-        <td>(<span t:render="disk_free_for_root"/>)</td>
+        <td><t:transparent t:render="disk_free_for_root_abbrev"/></td>
+        <td>(<t:transparent t:render="disk_free_for_root"/>)</td>
         <td>[see 1]</td>
         </tr>
     <tr><td>Disk space free (non-root):</td>
-        <td><span t:render="disk_free_for_nonroot_abbrev" /></td>
-        <td>(<span t:render="disk_free_for_nonroot" />)</td>
+        <td><t:transparent t:render="disk_free_for_nonroot_abbrev" /></td>
+        <td>(<t:transparent t:render="disk_free_for_nonroot" />)</td>
         <td>[see 2]</td>
         </tr>
     <tr><td>Reserved space:</td>
-        <td>- <span t:render="reserved_space_abbrev" /></td>
-        <td>(<span t:render="reserved_space" />)</td>
+        <td>- <t:transparent t:render="reserved_space_abbrev" /></td>
+        <td>(<t:transparent t:render="reserved_space" />)</td>
         <td />
       </tr>
     <tr><td />
@@ -48,8 +48,8 @@
         <td />
       </tr>
     <tr><td>Space Available to Tahoe:</td>
-        <td><span t:render="disk_avail_abbrev" /></td>
-        <td>(<span t:render="disk_avail" />)</td>
+        <td><t:transparent t:render="disk_avail_abbrev" /></td>
+        <td>(<t:transparent t:render="disk_avail" />)</td>
         <td />
       </tr>
   </table>
