@@ -161,7 +161,7 @@ class StorageStatusElement(Element):
     def storage_running(self, req, tag):
         if self.storage:
             return tag
-        return tag("No Storage Server Running")
+        return T.h1("No Storage Server Running")
 
     @renderer
     def lease_expiration_enabled(self, req, tag):
