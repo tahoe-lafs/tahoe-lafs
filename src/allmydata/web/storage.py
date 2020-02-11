@@ -1,8 +1,14 @@
 
 import time, json
 from twisted.python.filepath import FilePath
-from twisted.web.template import tags as T, \
-    renderer, Element, renderElement, XMLFile, flattenString
+from twisted.web.template import (
+    Element,
+    XMLFile,
+    tags as T,
+    renderer,
+    renderElement,
+    flattenString
+)
 from allmydata.web.common import (
     abbreviate_time,
     MultiFormatResource
