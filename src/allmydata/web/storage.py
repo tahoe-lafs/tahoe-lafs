@@ -40,16 +40,6 @@ class StorageStatusElement(Element):
             return None
         return self.storage.get_stats().get(key)
 
-    def str(self, tag, val):
-        if val is None:
-            return tag("?")
-        return tag(str(val))
-
-    def abbr(self, tag, val):
-        if val is None:
-            return tag("?")
-        return tag(abbreviate_space(val))
-
     def render_abbrev_space(self, size):
         if size is None:
             return "?"
@@ -62,51 +52,63 @@ class StorageStatusElement(Element):
 
     @renderer
     def disk_total(self, req, tag):
-        return self.str(tag, self.get_stat("storage_server.disk_total"))
+        val = self.get_stat("storage_server.disk_total")
+        return tag(self.render_space(val))
 
     @renderer
     def disk_total_abbrev(self, req, tag):
-        return self.abbr(tag, self.get_stat("storage_server.disk_total"))
+        val = self.get_stat("storage_server.disk_total")
+        return tag(self.render_abbrev_space(val))
 
     @renderer
     def disk_used(self, req, tag):
-        return self.str(tag, self.get_stat("storage_server.disk_used"))
+        val = self.get_stat("storage_server.disk_used")
+        return tag(self.render_space(val))
 
     @renderer
     def disk_used_abbrev(self, req, tag):
-        return self.abbr(tag, self.get_stat("storage_server.disk_used"))
+        val = self.get_stat("storage_server.disk_used")
+        return tag(self.render_abbrev_space(val))
 
     @renderer
     def disk_free_for_root(self, req, tag):
-        return self.str(tag, self.get_stat("storage_server.disk_free_for_root"))
+        val = self.get_stat("storage_server.disk_free_for_root")
+        return tag(self.render_space(val))
 
     @renderer
     def disk_free_for_root_abbrev(self, req, tag):
-        return self.abbr(tag, self.get_stat("storage_server.disk_free_for_root"))
+        val = self.get_stat("storage_server.disk_free_for_root")
+        return tag(self.render_abbrev_space(val))
 
     @renderer
     def disk_free_for_nonroot(self, req, tag):
-        return self.str(tag, self.get_stat("storage_server.disk_free_for_nonroot"))
+        val = self.get_stat("storage_server.disk_free_for_nonroot")
+        return tag(self.render_space(val))
 
     @renderer
     def disk_free_for_nonroot_abbrev(self, req, tag):
-        return self.abbr(tag, self.get_stat("storage_server.disk_free_for_nonroot"))
+        val = self.get_stat("storage_server.disk_free_for_nonroot")
+        return tag(self.render_abbrev_space(val))
 
     @renderer
     def reserved_space(self, req, tag):
-        return self.str(tag, self.get_stat("storage_server.reserved_space"))
+        val = self.get_stat("storage_server.reserved_space")
+        return tag(self.render_space(val))
 
     @renderer
     def reserved_space_abbrev(self, req, tag):
-        return self.abbr(tag, self.get_stat("storage_server.reserved_space"))
+        val = self.get_stat("storage_server.reserved_space")
+        return tag(self.render_abbrev_space(val))
 
     @renderer
     def disk_avail(self, req, tag):
-        return self.str(tag, self.get_stat("storage_server.disk_avail"))
+        val = self.get_stat("storage_server.disk_avail")
+        return tag(self.render_space(val))
 
     @renderer
     def disk_avail_abbrev(self, req, tag):
-        return self.abbr(tag, self.get_stat("storage_server.disk_avail"))
+        val = self.get_stat("storage_server.disk_avail")
+        return tag(self.render_abbrev_space(val))
 
     @renderer
     def accepting_immutable_shares(self, req, tag):
