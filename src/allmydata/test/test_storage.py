@@ -38,7 +38,8 @@ from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent, ShouldFailMixin
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.test.no_network import NoNetworkServer
-from allmydata.web.storage import StorageStatus, remove_prefix
+from allmydata.web.storage import StorageStatus, StorageStatusElement, \
+    remove_prefix
 from allmydata.storage_client import (
     _StorageServer,
 )
@@ -4221,7 +4222,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
 
     def test_util(self):
-        w = StorageStatus(None)
+        w = StorageStatusElement(None, None)
         self.failUnlessEqual(w.render_space(None, None), "?")
         self.failUnlessEqual(w.render_space(None, 10e6), "10000000")
         self.failUnlessEqual(w.render_abbrev_space(None, None), "?")
