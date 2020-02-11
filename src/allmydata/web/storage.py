@@ -24,9 +24,15 @@ def remove_prefix(s, prefix):
 
 
 class StorageStatusElement(Element):
+    """Class to render a storage status page."""
+
     loader = XMLFile(FilePath(__file__).sibling("storage_status.xhtml"))
 
-    def __init__(self, storage, nickname):
+    def __init__(self, storage, nickname=""):
+        """
+        :param _StorageServer storage: data about storage.
+        :param string nickname: friendly name for storage.
+        """
         super(StorageStatusElement, self).__init__()
         self.storage = storage
         self.nick = nickname
