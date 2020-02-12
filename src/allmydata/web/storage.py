@@ -48,6 +48,30 @@ class StorageStatusElement(Element):
         return idlib.nodeid_b2a(self.storage.my_nodeid)
 
     def _get_storage_stat(self, key):
+        """Get storage server statistics.
+
+        Storage Server keeps a dict that contains various usage and
+        latency statistics.  The dict looks like this:
+
+          {
+            'storage_server.accepting_immutable_shares': 1,
+            'storage_server.allocated': 0,
+            'storage_server.disk_avail': 106539192320,
+            'storage_server.disk_free_for_nonroot': 106539192320,
+            'storage_server.disk_free_for_root': 154415284224,
+            'storage_server.disk_total': 941088460800,
+            'storage_server.disk_used': 786673176576,
+            'storage_server.latencies.add-lease.01_0_percentile': None,
+            'storage_server.latencies.add-lease.10_0_percentile': None,
+            ...
+          }
+
+        ``StorageServer.get_stats()`` returns the above dict.  Storage
+        status page uses a subset of the items in the dict, concerning
+        disk usage.
+
+        :param str key: storage server statistic we want to know.
+        """
         if not self.storage:
             return None
         return self.storage.get_stats().get(key)
