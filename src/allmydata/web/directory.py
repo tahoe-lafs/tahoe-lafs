@@ -126,7 +126,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         u = URL.from_text(unicode(req.path)).to_iri()
         assert name in u.path, "Can't find our child-name in the path"
         nonterminal = (u.path[-1] != name)
-        t = get_arg(req, "t", "").strip()  # XXX looking like MultiFormatResource..
+        t = get_arg(req, "t", "").strip()
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
             f.trap(NoSuchChildError)
