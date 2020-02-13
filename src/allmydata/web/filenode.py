@@ -154,17 +154,13 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
         if should_create_intermediate_directories(req):
                 return ErrorPage(
                     http.CONFLICT,
-                    u"Cannot create directory {}, because its "
-                    u"parent is a file, not a directory".format(
-                        quote_output(name, encoding='utf-8')
-                    ),
+                    u"Cannot create directory %s, because its parent is a file, "
+                    u"not a directory" % quote_output(name, encoding='utf-8'),
                     "no details"
                 )
         return ErrorPage(
             http.BAD_REQUEST,
-            u"Files have no children named {}".format(
-                quote_output(name, encoding='utf-8'),
-            ),
+            u"Files have no children named %s" % quote_output(name, encoding='utf-8'),
             "no details",
         )
 
