@@ -133,6 +133,9 @@ class URIHandler(resource.Resource, object):
         and creates and appropriate handler (depending on the kind of
         capability it was passed).
         """
+        # this is in case a URI like "/uri/?cap=<valid capability>" is
+        # passed; returning self causes our render_GET() to be called
+        # which does the right thing.
         if not name:
             return self
         try:
