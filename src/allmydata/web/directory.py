@@ -103,9 +103,9 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         name = name.decode('utf8')
         if not name:
             # replicating Nevow behavior that complains about "empty
-            # path segments" .. but twisted.web sends in "name=None"
+            # path segments" .. but twisted.web sends in "name=''"
             # for a URL like "/foo/bar/" as well as "/foo//bar"
-            # (i.e. a trailing slash means "name=None" as well)
+            # (i.e. a trailing slash means "name=''" as well)
             if b'//' in req.path:
                 raise EmptyPathnameComponentError(
                     u"The webapi does not allow empty pathname components, i.e. a double slash",
