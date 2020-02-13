@@ -42,8 +42,6 @@ class StorageStatusElement(Element):
 
     @renderer
     def nodeid(self, req, tag):
-        if self.storage is None:
-            return tag("No storage server running.")
         return idlib.nodeid_b2a(self.storage.my_nodeid)
 
     def _get_storage_stat(self, key):
@@ -71,8 +69,6 @@ class StorageStatusElement(Element):
 
         :param str key: storage server statistic we want to know.
         """
-        if not self.storage:
-            return None
         return self.storage.get_stats().get(key)
 
     def render_abbrev_space(self, size):
@@ -152,8 +148,6 @@ class StorageStatusElement(Element):
 
     @renderer
     def last_complete_bucket_count(self, req, tag):
-        if not self.storage:
-            return tag("No storage server running.")
         s = self.storage.bucket_counter.get_state()
         count = s.get("last-complete-bucket-count")
         if count is None:
@@ -162,8 +156,6 @@ class StorageStatusElement(Element):
 
     @renderer
     def count_crawler_status(self, req, tag):
-        if not self.storage:
-            return tag("No storage server running.")
         p = self.storage.bucket_counter.get_progress()
         return self.format_crawler_progress(p)
 
@@ -200,8 +192,6 @@ class StorageStatusElement(Element):
 
     @renderer
     def lease_expiration_enabled(self, req, tag):
-        if not self.storage:
-            return tag("No storage server running.")
         lc = self.storage.lease_checker
         if lc.expiration_enabled:
             return tag("Enabled: expired leases will be removed")
@@ -210,8 +200,6 @@ class StorageStatusElement(Element):
 
     @renderer
     def lease_expiration_mode(self, req, tag):
-        if not self.storage:
-            return tag("No storage server running.")
         lc = self.storage.lease_checker
         if lc.mode == "age":
             if lc.override_lease_duration is None:
@@ -235,16 +223,12 @@ class StorageStatusElement(Element):
 
     @renderer
     def lease_current_cycle_progress(self, req, tag):
-        if not self.storage:
-            return tag("No storage server running.")
         lc = self.storage.lease_checker
         p = lc.get_progress()
         return tag(self.format_crawler_progress(p))
 
     @renderer
     def lease_current_cycle_results(self, req, tag):
-        if not self.storage:
-            return tag("No storage server running.")
         lc = self.storage.lease_checker
         p = lc.get_progress()
         if not p["cycle-in-progress"]:
@@ -302,8 +286,6 @@ class StorageStatusElement(Element):
 
     @renderer
     def lease_last_cycle_results(self, req, tag):
-        if not self.storage:
-            return tag("No storage server running.")
         lc = self.storage.lease_checker
         h = lc.get_state()["history"]
         if not h:
