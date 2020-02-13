@@ -3,7 +3,6 @@ from __future__ import print_function
 import os.path, re, urllib, time, cgi
 import json
 import treq
-import mock
 
 from bs4 import BeautifulSoup
 
@@ -63,7 +62,6 @@ from ..common_web import (
 )
 from allmydata.client import _Client, SecretHolder
 from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
-from ..status import FakeStatus
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them

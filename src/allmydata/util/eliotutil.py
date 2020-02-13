@@ -42,8 +42,6 @@ from attr.validators import (
 from eliot import (
     ILogger,
     Message,
-    Field,
-    ActionType,
     FileDestination,
     add_destinations,
     remove_destination,

@@ -39,7 +39,7 @@ from testtools.twistedsupport import (
 import allmydata
 import allmydata.util.log
 
-from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, create_node_dir
+from allmydata.node import OldConfigError, UnescapedHashError, _Config, create_node_dir
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata.version_checks import (
     get_package_versions_string,
