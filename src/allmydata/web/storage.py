@@ -73,13 +73,13 @@ class StorageStatusElement(Element):
 
     def render_abbrev_space(self, size):
         if size is None:
-            return "?"
+            return u"?"
         return abbreviate_space(size)
 
     def render_space(self, size):
         if size is None:
-            return "?"
-        return "%d" % size
+            return u"?"
+        return u"%d" % size
 
     @renderer
     def disk_total(self, req, tag):
