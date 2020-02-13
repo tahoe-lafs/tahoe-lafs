@@ -4,6 +4,7 @@ from twisted.trial import unittest
 
 from twisted.internet import defer
 from twisted.application import service
+from twisted.web.template import flattenString
 from foolscap.api import fireEventually
 import itertools
 from allmydata import interfaces
@@ -2963,6 +2964,15 @@ def remove_tags(s):
     s = re.sub(r'\s+', ' ', s)
     return s
 
+def renderSynchronously(ss):
+    """
+    :param _StorageStatus ss: a StorageStatus instance.
+    """
+    elem = StorageStatusElement(ss.storage, ss.nickname)
+    result = []
+    flattenString(None, elem).addCallback(result.append)
+    return result[0]
+
 class MyBucketCountingCrawler(BucketCountingCrawler):
     def finished_prefix(self, cycle, prefix):
         BucketCountingCrawler.finished_prefix(self, cycle, prefix)
@@ -2999,7 +3009,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         w = StorageStatus(ss)
 
         # this sample is before the crawler has started doing anything
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: Yes", s)
@@ -3022,7 +3032,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(state["last-complete-prefix"],
                                  ss.bucket_counter.prefixes[0])
             ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
-            html = w.renderSynchronously()
+            html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn(" Current crawl ", s)
             self.failUnlessIn(" (next work in ", s)
@@ -3034,7 +3044,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         d.addCallback(lambda ignored: self.poll(_watch))
         def _check2(ignored):
             ss.bucket_counter.cpu_slice = orig_cpu_slice
-            html = w.renderSynchronously()
+            html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn("Total buckets: 0 (the number of", s)
             self.failUnless("Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
@@ -3096,20 +3106,20 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
 
         def _check_1(ignored):
             # no ETA is available yet
-            html = w.renderSynchronously()
+            html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn("complete (next work", s)
 
         def _check_2(ignored):
             # one prefix has finished, so an ETA based upon that elapsed time
             # should be available.
-            html = w.renderSynchronously()
+            html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn("complete (ETA ", s)
 
         def _check_3(ignored):
             # two prefixes have finished
-            html = w.renderSynchronously()
+            html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn("complete (ETA ", s)
             d.callback("done")
@@ -4064,7 +4074,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
     def test_no_server(self):
         w = StorageStatus(None)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>No Storage Server Running</h1>", html)
 
     def test_status(self):
@@ -4110,7 +4120,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: Yes", s)
@@ -4130,7 +4140,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: No", s)
@@ -4166,7 +4176,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
 
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
@@ -4184,7 +4194,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20, readonly_storage=True)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: No", s)
@@ -4195,7 +4205,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
@@ -4206,7 +4216,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)

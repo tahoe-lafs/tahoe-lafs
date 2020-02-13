@@ -6,8 +6,7 @@ from twisted.web.template import (
     XMLFile,
     tags as T,
     renderer,
-    renderElement,
-    flattenString
+    renderElement
 )
 from allmydata.web.common import (
     abbreviate_time,
@@ -370,13 +369,6 @@ class StorageStatus(MultiFormatResource):
              "lease-checker-progress": self.storage.lease_checker.get_progress(),
              }
         return json.dumps(d, indent=1) + "\n"
-
-    def renderSynchronously(self):
-        # to appease the test suite.
-        elem = StorageStatusElement(self.storage, self.nickname)
-        result = []
-        flattenString(None, elem).addCallback(result.append)
-        return result[0]
 
     # to appease the test suite
     def renderHTTP(self, ctx=None):
