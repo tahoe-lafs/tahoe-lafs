@@ -121,13 +121,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         whatever child was requested -- that is `node.get` has
         returned something (maybe an error).
         """
-        # we used to determine if a request was 'terminal' by
-        # examining req.postpath .. but that's a Nevow-ism, so we
-        # determine if this is a "terminal" request using only Twisted
-        # Web APIs, which means finding where "name" is in the path
-        u = URL.from_text(unicode(req.path)).to_iri()
-        assert name in u.path, "Can't find our child-name in the path"
-        nonterminal = (u.path[-1] != name)
+        nonterminal = len(req.postpath) > 1
+
         t = get_arg(req, "t", "").strip()
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
