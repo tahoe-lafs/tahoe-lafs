@@ -117,7 +117,9 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     def _got_child(self, node_or_failure, req, name):
         """
-        Callback when self.node.get has returned
+        Callback when self.node.get has returned, meaning we have received
+        whatever child was requested -- that is `node.get` has
+        returned something (maybe an error).
         """
         # we used to determine if a request was 'terminal' by
         # examining req.postpath .. but that's a Nevow-ism, so we
