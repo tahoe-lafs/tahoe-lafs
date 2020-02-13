@@ -44,7 +44,6 @@ from allmydata.web.common import (
     get_root,
     parse_replace_arg,
     should_create_intermediate_directories,
-    RenderMixin,
     humanize_failure,
     convert_children_json,
     get_format,
@@ -1444,7 +1443,7 @@ class DeepCheckStreamer(dirnode.DeepStats):
         return ""
 
 
-class UnknownNodeHandler(RenderMixin, Resource):
+class UnknownNodeHandler(Resource):
     def __init__(self, client, node, parentnode=None, name=None):
         super(UnknownNodeHandler, self).__init__()
         assert node

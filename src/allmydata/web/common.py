@@ -365,7 +365,9 @@ class NeedOperationHandleError(WebError):
     pass
 
 
-# XXX should be phased out by the nevow -> twisted.web port
+# XXX should be phased out by the nevow -> twisted.web port (that is,
+# this whole class should have no users and can be delted once the
+# port away from nevow is complete)
 class RenderMixin(object):
 
     def renderHTTP(self, ctx):
