@@ -19,9 +19,7 @@ Invites and Joins
 
 Inside Tahoe-LAFS we are using a channel created using `magic
 wormhole`_ to exchange configuration and the secret fURL of the
-Introducer with new clients. In the future, we would like to make the
-Magic Folder (:ref:`Magic Folder HOWTO <magic-folder-howto>`) invites and joins work this way
-as well.
+Introducer with new clients.
 
 This is a two-part process. Alice runs a grid and wishes to have her
 friend Bob use it as a client. She runs ``tahoe invite bob`` which
