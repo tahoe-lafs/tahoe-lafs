@@ -43,7 +43,7 @@ class StorageStatusElement(Element):
 
     @renderer
     def nodeid(self, req, tag):
-        if not self.storage:
+        if self.storage is None:
             return tag("No storage server running.")
         return idlib.nodeid_b2a(self.storage.my_nodeid)
 
