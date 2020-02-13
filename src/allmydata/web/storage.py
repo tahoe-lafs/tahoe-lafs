@@ -378,6 +378,18 @@ class StorageStatus(MultiFormatResource):
         flattenString(None, elem).addCallback(result.append)
         return result[0]
 
+    # to appease the test suite
     def renderHTTP(self, ctx=None):
-        # to appease the test suite.
-        self.renderSynchronously()
+        """Send HTML or JSON formatted data, based on request.
+
+        This function contains a bit of nevow-ism, but since this is
+        only called from the test suite, the nevow-ism should go away
+        as we update things.
+
+        :param _nevow.context.WovenContext ctx: context is passed on
+            from the test suite.  We get a request out of this
+            context, and use the request to render a result.
+
+        """
+        from nevow.inevow import IRequest
+        return self.render(IRequest(ctx))
