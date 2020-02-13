@@ -85,9 +85,6 @@ _client_config = configutil.ValidConfiguration(
             "stats_gatherer.furl",
             "storage.plugins",
         ),
-        "drop_upload": (  # deprecated already?
-            "enabled",
-        ),
         "ftpd": (
             "accounts.file",
             "accounts.url",
@@ -120,12 +117,6 @@ _client_config = configutil.ValidConfiguration(
         ),
         "helper": (
             "enabled",
-        ),
-        "magic_folder": (
-            "download.umask",
-            "enabled",
-            "local.directory",
-            "poll_interval",
         ),
     },
     is_valid_section=_is_valid_section,
@@ -681,7 +672,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
 
-        self._magic_folders = dict()
         self.started_timestamp = time.time()
         self.logSource = "Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
@@ -707,7 +697,6 @@ class _Client(node.Node, pollmixin.PollMixin):
             self.init_helper()
         self.init_ftp_server()
         self.init_sftp_server()
-        self.init_magic_folder()
 
         # If the node sees an exit_trigger file, it will poll every second to see
         # whether the file still exists, and what its mtime is. If the file does not
@@ -968,9 +957,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         This returns a local authentication token, which is just some
         random data in "api_auth_token" which must be echoed to API
         calls.
-
-        Currently only the URI '/magic' for magic-folder status; other
-        endpoints are invited to include this as well, as appropriate.
         """
         return self.config.get_private_config('api_auth_token')
 
@@ -1087,40 +1073,6 @@ class _Client(node.Node, pollmixin.PollMixin):
             s = sftpd.SFTPServer(self, accountfile, accounturl,
                                  sftp_portstr, pubkey_file, privkey_file)
             s.setServiceParent(self)
-
-    def init_magic_folder(self):
-        #print "init_magic_folder"
-        if self.config.get_config("drop_upload", "enabled", False, boolean=True):
-            raise node.OldConfigOptionError(
-                "The [drop_upload] section must be renamed to [magic_folder].\n"
-                "See docs/frontends/magic-folder.rst for more information."
-            )
-
-        if self.config.get_config("magic_folder", "enabled", False, boolean=True):
-            from allmydata.frontends import magic_folder
-
-            try:
-                magic_folders = magic_folder.load_magic_folders(self.config._basedir)
-            except Exception as e:
-                log.msg("Error loading magic-folder config: {}".format(e))
-                raise
-
-            # start processing the upload queue when we've connected to
-            # enough servers
-            threshold = min(self.encoding_params["k"],
-                            self.encoding_params["happy"] + 1)
-
-            for (name, mf_config) in magic_folders.items():
-                self.log("Starting magic_folder '{}'".format(name))
-                s = magic_folder.MagicFolder.from_config(self, name, mf_config)
-                self._magic_folders[name] = s
-                s.setServiceParent(self)
-
-                connected_d = self.storage_broker.when_connected_enough(threshold)
-                def connected_enough(ign, mf):
-                    mf.ready()  # returns a Deferred we ignore
-                    return None
-                connected_d.addCallback(connected_enough, s)
 
     def _check_exit_trigger(self, exit_trigger_file):
         if os.path.exists(exit_trigger_file):

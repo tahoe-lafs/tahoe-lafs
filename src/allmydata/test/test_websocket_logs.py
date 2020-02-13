@@ -40,7 +40,7 @@ class TestStreamingLogs(unittest.TestCase):
             messages.append(json.loads(msg))
         proto.on("message", got_message)
 
-        @log_call(action_type=u"test:cli:magic-folder:cleanup")
+        @log_call(action_type=u"test:cli:some-exciting-action")
         def do_a_thing():
             pass
 
