@@ -2969,9 +2969,8 @@ def renderSynchronously(ss):
     :param _StorageStatus ss: a StorageStatus instance.
     """
     elem = StorageStatusElement(ss.storage, ss.nickname)
-    result = []
-    flattenString(None, elem).addCallback(result.append)
-    return result[0]
+    deferred = flattenString(None, elem)
+    return unittest.TestCase().successResultOf(deferred)
 
 class MyBucketCountingCrawler(BucketCountingCrawler):
     def finished_prefix(self, cycle, prefix):
