@@ -1440,7 +1440,7 @@ class DeepCheckStreamer(dirnode.DeepStats):
         return ""
 
 
-class UnknownNodeHandler(Resource):
+class UnknownNodeHandler(Resource, object):
     def __init__(self, client, node, parentnode=None, name=None):
         super(UnknownNodeHandler, self).__init__()
         assert node
