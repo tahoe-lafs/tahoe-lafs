@@ -319,7 +319,8 @@ class StorageStatusElement(Element):
 
         return tag(p)
 
-    def format_recovered(self, sr, a):
+    @staticmethod
+    def format_recovered(sr, a):
         def maybe(d):
             if d is None:
                 return "?"
