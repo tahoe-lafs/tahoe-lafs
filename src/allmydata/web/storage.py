@@ -82,64 +82,30 @@ class StorageStatusElement(Element):
         return u"%d" % size
 
     @renderer
-    def disk_total(self, req, tag):
-        val = self._get_storage_stat("storage_server.disk_total")
-        return tag(self.render_space(val))
+    def storage_stats(self, req, tag):
+        # Render storage status table that appears near the top of the page.
+        total = self._get_storage_stat("storage_server.disk_total")
+        used = self._get_storage_stat("storage_server.disk_used")
+        free_root = self._get_storage_stat("storage_server.disk_free_for_root")
+        free_nonroot = self._get_storage_stat("storage_server.disk_free_for_nonroot")
+        reserved = self._get_storage_stat("storage_server.reserved_space")
+        available = self._get_storage_stat("storage_server.disk_avail")
 
-    @renderer
-    def disk_total_abbrev(self, req, tag):
-        val = self._get_storage_stat("storage_server.disk_total")
-        return tag(self.render_abbrev_space(val))
-
-    @renderer
-    def disk_used(self, req, tag):
-        val = self._get_storage_stat("storage_server.disk_used")
-        return tag(self.render_space(val))
-
-    @renderer
-    def disk_used_abbrev(self, req, tag):
-        val = self._get_storage_stat("storage_server.disk_used")
-        return tag(self.render_abbrev_space(val))
-
-    @renderer
-    def disk_free_for_root(self, req, tag):
-        val = self._get_storage_stat("storage_server.disk_free_for_root")
-        return tag(self.render_space(val))
-
-    @renderer
-    def disk_free_for_root_abbrev(self, req, tag):
-        val = self._get_storage_stat("storage_server.disk_free_for_root")
-        return tag(self.render_abbrev_space(val))
-
-    @renderer
-    def disk_free_for_nonroot(self, req, tag):
-        val = self._get_storage_stat("storage_server.disk_free_for_nonroot")
-        return tag(self.render_space(val))
-
-    @renderer
-    def disk_free_for_nonroot_abbrev(self, req, tag):
-        val = self._get_storage_stat("storage_server.disk_free_for_nonroot")
-        return tag(self.render_abbrev_space(val))
-
-    @renderer
-    def reserved_space(self, req, tag):
-        val = self._get_storage_stat("storage_server.reserved_space")
-        return tag(self.render_space(val))
-
-    @renderer
-    def reserved_space_abbrev(self, req, tag):
-        val = self._get_storage_stat("storage_server.reserved_space")
-        return tag(self.render_abbrev_space(val))
-
-    @renderer
-    def disk_avail(self, req, tag):
-        val = self._get_storage_stat("storage_server.disk_avail")
-        return tag(self.render_space(val))
-
-    @renderer
-    def disk_avail_abbrev(self, req, tag):
-        val = self._get_storage_stat("storage_server.disk_avail")
-        return tag(self.render_abbrev_space(val))
+        tag.fillSlots(
+            disk_total = self.render_space(total),
+            disk_total_abbrev = self.render_abbrev_space(total),
+            disk_used = self.render_space(used),
+            disk_used_abbrev = self.render_abbrev_space(used),
+            disk_free_for_root = self.render_space(free_root),
+            disk_free_for_root_abbrev = self.render_abbrev_space(free_root),
+            disk_free_for_nonroot = self.render_space(free_nonroot),
+            disk_free_for_nonroot_abbrev = self.render_abbrev_space(free_nonroot),
+            reserved_space = self.render_space(reserved),
+            reserved_space_abbrev = self.render_abbrev_space(reserved),
+            disk_avail = self.render_space(available),
+            disk_avail_abbrev = self.render_abbrev_space(available)
+        )
+        return tag
 
     @renderer
     def accepting_immutable_shares(self, req, tag):
