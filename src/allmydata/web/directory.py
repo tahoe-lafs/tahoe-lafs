@@ -119,7 +119,9 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         """
         Callback when self.node.get has returned, meaning we have received
         whatever child was requested -- that is `node.get` has
-        returned something (maybe an error).
+        returned something (maybe an error). This method then performs
+        the rest of the work of the Twisted API getChild(): returning
+        a suitable child resource to Twisted Web.
         """
         nonterminal = len(req.postpath) > 1
 
