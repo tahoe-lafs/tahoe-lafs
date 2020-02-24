@@ -21,7 +21,10 @@ from hyperlink import URL
 from twisted.python.filepath import FilePath
 
 from allmydata.util import base32
-from allmydata.util.encodingutil import to_str
+from allmydata.util.encodingutil import (
+    to_str,
+    quote_output,
+)
 from allmydata.uri import (
     from_string_dirnode,
     from_string,
@@ -192,7 +195,9 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                 # file in the way.
                 return ErrorPage(
                     http.CONFLICT,
-                    "Unable to create directory '{}': a file was in the way".format(name),
+                    "Unable to create directory {}: a file was in the way".format(
+                        quote_output(name)
+                    ),
                     "no details",
                 )
         return make_handler_for(node, self.client, self.node, name)
