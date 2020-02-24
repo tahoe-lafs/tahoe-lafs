@@ -134,10 +134,14 @@ class URIHandler(resource.Resource, object):
         capability it was passed).
         """
         # this is in case a URI like "/uri/?cap=<valid capability>" is
-        # passed; returning self causes our render_GET() to be called
-        # which does the right thing.
+        # passed -- we re-direct to the non-trailing-slash version so
+        # that there is just one valid URI for "uri" resource.
         if not name:
-            return self
+            u = URL.from_text(req.uri.decode('utf8'))
+            u = u.replace(
+                path=(s for s in u.path if s),  # remove empty segments
+            )
+            return redirectTo(u.to_uri().to_text().encode('utf8'), req)
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
