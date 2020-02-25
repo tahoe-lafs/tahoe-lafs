@@ -33,16 +33,16 @@ class StorageStatusElement(Element):
         :param string nickname: friendly name for storage.
         """
         super(StorageStatusElement, self).__init__()
-        self.storage = storage
-        self.nick = nickname
+        self._storage = storage
+        self._nickname = nickname
 
     @renderer
     def nickname(self, req, tag):
-        return self.nick
+        return self._nickname
 
     @renderer
     def nodeid(self, req, tag):
-        return idlib.nodeid_b2a(self.storage.my_nodeid)
+        return idlib.nodeid_b2a(self._storage.my_nodeid)
 
     def _get_storage_stat(self, key):
         """Get storage server statistics.
@@ -69,7 +69,7 @@ class StorageStatusElement(Element):
 
         :param str key: storage server statistic we want to know.
         """
-        return self.storage.get_stats().get(key)
+        return self._storage.get_stats().get(key)
 
     def render_abbrev_space(self, size):
         if size is None:
@@ -114,7 +114,7 @@ class StorageStatusElement(Element):
 
     @renderer
     def last_complete_bucket_count(self, req, tag):
-        s = self.storage.bucket_counter.get_state()
+        s = self._storage.bucket_counter.get_state()
         count = s.get("last-complete-bucket-count")
         if count is None:
             return "Not computed yet"
@@ -122,7 +122,7 @@ class StorageStatusElement(Element):
 
     @renderer
     def count_crawler_status(self, req, tag):
-        p = self.storage.bucket_counter.get_progress()
+        p = self._storage.bucket_counter.get_progress()
         return self.format_crawler_progress(p)
 
     def format_crawler_progress(self, p):
@@ -152,13 +152,13 @@ class StorageStatusElement(Element):
 
     @renderer
     def storage_running(self, req, tag):
-        if self.storage:
+        if self._storage:
             return tag
         return T.h1("No Storage Server Running")
 
     @renderer
     def lease_expiration_enabled(self, req, tag):
-        lc = self.storage.lease_checker
+        lc = self._storage.lease_checker
         if lc.expiration_enabled:
             return tag("Enabled: expired leases will be removed")
         else:
@@ -166,7 +166,7 @@ class StorageStatusElement(Element):
 
     @renderer
     def lease_expiration_mode(self, req, tag):
-        lc = self.storage.lease_checker
+        lc = self._storage.lease_checker
         if lc.mode == "age":
             if lc.override_lease_duration is None:
                 tag("Leases will expire naturally, probably 31 days after "
@@ -189,13 +189,13 @@ class StorageStatusElement(Element):
 
     @renderer
     def lease_current_cycle_progress(self, req, tag):
-        lc = self.storage.lease_checker
+        lc = self._storage.lease_checker
         p = lc.get_progress()
         return tag(self.format_crawler_progress(p))
 
     @renderer
     def lease_current_cycle_results(self, req, tag):
-        lc = self.storage.lease_checker
+        lc = self._storage.lease_checker
         p = lc.get_progress()
         if not p["cycle-in-progress"]:
             return ""
@@ -252,7 +252,7 @@ class StorageStatusElement(Element):
 
     @renderer
     def lease_last_cycle_results(self, req, tag):
-        lc = self.storage.lease_checker
+        lc = self._storage.lease_checker
         h = lc.get_state()["history"]
         if not h:
             return ""
@@ -304,18 +304,18 @@ class StorageStatusElement(Element):
 class StorageStatus(MultiFormatResource):
     def __init__(self, storage, nickname=""):
         super(StorageStatus, self).__init__()
-        self.storage = storage
-        self.nickname = nickname
+        self._storage = storage
+        self._nickname = nickname
 
     def render_HTML(self, req):
-        return renderElement(req, StorageStatusElement(self.storage, self.nickname))
+        return renderElement(req, StorageStatusElement(self._storage, self._nickname))
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
-        d = {"stats": self.storage.get_stats(),
-             "bucket-counter": self.storage.bucket_counter.get_state(),
-             "lease-checker": self.storage.lease_checker.get_state(),
-             "lease-checker-progress": self.storage.lease_checker.get_progress(),
+        d = {"stats": self._storage.get_stats(),
+             "bucket-counter": self._storage.bucket_counter.get_state(),
+             "lease-checker": self._storage.lease_checker.get_state(),
+             "lease-checker-progress": self._storage.lease_checker.get_progress(),
              }
         return json.dumps(d, indent=1) + "\n"
 
