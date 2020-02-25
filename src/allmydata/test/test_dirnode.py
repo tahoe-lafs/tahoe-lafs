@@ -28,6 +28,9 @@ from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
 import allmydata.test.common_util as testutil
 
+from hypothesis import given
+from hypothesis.strategies import text
+
 if six.PY3:
     long = int
 
@@ -1461,7 +1464,8 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
             kids[unicode(name)] = (nm.create_from_cap(caps[name]), {})
         return kids
 
-    def test_pack_unpack_unicode(self):
+    @given(text(min_size=1, max_size=20))
+    def test_pack_unpack_unicode_hypothesis(self, name):
         """
         pack -> unpack results in the same objects (with a unicode filename)
         """
@@ -1469,13 +1473,13 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         fn = MinimalFakeMutableFile()
 
         kids = {
-            u"n\u00e9wer.txt": (LiteralFileNode(uri.from_string(one_uri)), {}),
+            name: (LiteralFileNode(uri.from_string(one_uri)), {}),
         }
         packed = dirnode.pack_children(kids, fn.get_writekey(), deep_immutable=False)
         write_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
         filenode = nm.create_from_cap(write_uri)
         dn = dirnode.DirectoryNode(filenode, nm, None)
-        unkids = dn._unpack_contents(packed)  # why is this a member?
+        unkids = dn._unpack_contents(packed)
         assert kids == unkids
 
     def test_deep_immutable(self):
