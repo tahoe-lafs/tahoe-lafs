@@ -196,9 +196,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                 # file in the way.
                 return ErrorPage(
                     http.CONFLICT,
-                    "Unable to create directory {}: a file was in the way".format(
-                        quote_output(name)
-                    ),
+                    "Unable to create directory %s: a file was in the way" % quote_output(name),
                     "no details",
                 )
         return make_handler_for(node, self.client, self.node, name)
