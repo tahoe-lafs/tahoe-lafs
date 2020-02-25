@@ -2981,7 +2981,7 @@ def renderSynchronously(ss):
     """
     :param _StorageStatus ss: a StorageStatus instance.
     """
-    elem = StorageStatusElement(ss.storage, ss.nickname)
+    elem = StorageStatusElement(ss._storage, ss._nickname)
     deferred = flattenString(None, elem)
     return unittest.TestCase().successResultOf(deferred)
 
