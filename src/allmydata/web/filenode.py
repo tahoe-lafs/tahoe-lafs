@@ -146,8 +146,6 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
         self.parentnode = parentnode
         self.name = name
 
-    # XXX fixme, this was a childFactory override before, but it seems
-    # like it never does anything except raise errors? so .. why?
     def getChild(self, name, req):
         if isinstance(self.node, ProhibitedNode):
             raise FileProhibited(self.node.reason)
