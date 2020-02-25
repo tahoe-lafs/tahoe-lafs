@@ -126,7 +126,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         the rest of the work of the Twisted API getChild(): returning
         a suitable child resource to Twisted Web.
         """
-        nonterminal = len(req.postpath) > 1
+        terminal = (req.prepath + req.postpath)[-1].decode('utf8') == name
+        nonterminal = not terminal  #len(req.postpath) > 0
 
         t = get_arg(req, "t", "").strip()
         if isinstance(node_or_failure, Failure):
