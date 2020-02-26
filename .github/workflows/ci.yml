@@ -129,8 +129,8 @@ jobs:
         uses: actions/upload-artifact@v1
         if: failure()
         with:
-          name: eliot.log
-          path: eliot.log
+          name: integration.eliot.json
+          path: integration.eliot.json
 
   packaging:
     runs-on: ${{ matrix.os }}
