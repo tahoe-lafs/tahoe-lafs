@@ -28,7 +28,7 @@ jobs:
       # Get vcpython27 on Windows + Python 2.7, to build zfec
       # extension.  See https://chocolatey.org/packages/vcpython27 and
       # https://github.com/crazy-max/ghaction-chocolatey
-      - name: [Windows] Install MSVC 9.0 for Python 2.7
+      - name: Install MSVC 9.0 for Python 2.7 [Windows]
         if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
         uses: crazy-max/ghaction-chocolatey@v1
         with:
@@ -92,15 +92,15 @@ jobs:
 
     steps:
 
-      - name: [Ubuntu] Install Tor
+      - name: Install Tor [Ubuntu]
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt install tor
 
-      - name: [macOS] Install Tor
+      - name: Install Tor [macOS]
         if: matrix.os == 'macos-latest'
         run: brew install tor
 
-      - name: [Windows] Install Tor
+      - name: Install Tor [Windows]
         if: matrix.os == 'windows-latest'
         uses: crazy-max/ghaction-chocolatey@v1
         with:
@@ -158,7 +158,7 @@ jobs:
       # Get vcpython27 on Windows + Python 2.7, to build zfec
       # extension.  See https://chocolatey.org/packages/vcpython27 and
       # https://github.com/crazy-max/ghaction-chocolatey
-      - name: [Windows] Install MSVC 9.0 for Python 2.7
+      - name: Install MSVC 9.0 for Python 2.7 [Windows]
         if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
         uses: crazy-max/ghaction-chocolatey@v1
         with:
