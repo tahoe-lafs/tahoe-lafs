@@ -1480,7 +1480,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         filenode = nm.create_from_cap(write_uri)
         dn = dirnode.DirectoryNode(filenode, nm, None)
         unkids = dn._unpack_contents(packed)
-        assert kids == unkids
+        self.assertEqual(kids, unkids)
 
     def test_deep_immutable(self):
         nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None, None)
