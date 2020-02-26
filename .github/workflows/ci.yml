@@ -53,15 +53,6 @@ jobs:
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
-      # Codechecks errors out when running Towncrier within GitHub
-      # Actions.  See this issue:
-      # https://github.com/hawkowl/towncrier/issues/175.
-      #
-      # Run codechecks anyway, and continue on error, for now.
-      - name: Run "tox -e codechecks"
-        run: tox -e codechecks
-        continue-on-error: true
-
       - name: Run "tox -e coverage"
         run: tox -e coverage
 
