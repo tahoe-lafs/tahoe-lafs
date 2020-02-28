@@ -230,13 +230,13 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             )
 
         if t == "json":
-            return DirectoryJSONMetadata(req, self.node)
+            return _directory_json_metadata(req, self.node)
         if t == "info":
             return MoreInfo(self.node)
         if t == "uri":
-            return DirectoryURI(req, self.node)
+            return _directory_uri(req, self.node)
         if t == "readonly-uri":
-            return DirectoryReadonlyURI(req, self.node)
+            return _directory_readonly_uri(req, self.node)
         if t == 'rename-form':
             return renderElement(
                 req,
@@ -994,7 +994,7 @@ class DirectoryAsHTML(Element):
     def results(self, req, tag):
         return get_arg(req, "results", "")
 
-def DirectoryJSONMetadata(req, dirnode):
+def _directory_json_metadata(req, dirnode):
     d = dirnode.list()
     def _got(children):
         kids = {}
@@ -1046,10 +1046,10 @@ def DirectoryJSONMetadata(req, dirnode):
     return d
 
 
-def DirectoryURI(req, dirnode):
+def _directory_uri(req, dirnode):
     return text_plain(dirnode.get_uri(), req)
 
-def DirectoryReadonlyURI(req, dirnode):
+def _directory_readonly_uri(req, dirnode):
     return text_plain(dirnode.get_readonly_uri(), req)
 
 class RenameForm(Element, object):
