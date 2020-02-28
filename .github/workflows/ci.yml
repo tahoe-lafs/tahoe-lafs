@@ -59,12 +59,10 @@ jobs:
           name: eliot.log
           path: eliot.log
 
-      # Set Codecov token inside Project Settings > Secrets as
-      # CODECOV_TOKEN.
       - name: Upload coverage report
         uses: codecov/codecov-action@v1
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: abf679b6-e2e6-4b33-b7b5-6cfbd41ee691
           file: coverage.xml
 
   integration:
