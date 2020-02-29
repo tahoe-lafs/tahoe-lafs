@@ -1053,7 +1053,7 @@ def _directory_readonly_uri(req, dirnode):
     return text_plain(dirnode.get_readonly_uri(), req)
 
 class RenameForm(Element, object):
-    addSlash = True
+
     loader = XMLFile(FilePath(__file__).sibling("rename-form.xhtml"))
 
     def __init__(self, original):
