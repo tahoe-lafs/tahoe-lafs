@@ -209,14 +209,14 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
                     self.parentnode.get_metadata_for(self.name))
             else:
                 d.addCallback(lambda ignored: None)
-            d.addCallback(lambda md: FileJSONMetadata(req, self.node, md))
+            d.addCallback(lambda md: _file_json_metadata(req, self.node, md))
             return d
         if t == "info":
             return MoreInfo(self.node)
         if t == "uri":
-            return FileURI(req, self.node)
+            return _file_uri(req, self.node)
         if t == "readonly-uri":
-            return FileReadOnlyURI(req, self.node)
+            return _file_read_only_uri(req, self.node)
         raise WebError("GET file: bad t=%s" % t)
 
     def render_HEAD(self, req):
@@ -498,7 +498,7 @@ class FileDownloader(Resource, object):
         return req.deferred
 
 
-def FileJSONMetadata(req, filenode, edge_metadata):
+def _file_json_metadata(req, filenode, edge_metadata):
     rw_uri = filenode.get_write_uri()
     ro_uri = filenode.get_readonly_uri()
     data = ("filenode", get_filenode_metadata(filenode))
@@ -514,13 +514,16 @@ def FileJSONMetadata(req, filenode, edge_metadata):
 
     return text_plain(json.dumps(data, indent=1) + "\n", req)
 
-def FileURI(req, filenode):
+
+def _file_uri(req, filenode):
     return text_plain(filenode.get_uri(), req)
 
-def FileReadOnlyURI(req, filenode):
+
+def _file_read_only_uri(req, filenode):
     if filenode.is_readonly():
         return text_plain(filenode.get_uri(), req)
     return text_plain(filenode.get_readonly_uri(), req)
+
 
 class FileNodeDownloadHandler(FileNodeHandler):
     def getChild(self, name, req):
