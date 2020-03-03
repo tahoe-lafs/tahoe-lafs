@@ -658,8 +658,10 @@ class WebMixin(testutil.TimezoneMixin):
                                       (response_substring, res.value.response,
                                        which))
             else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
-                          (which, expected_failure, res))
+                self.fail(
+                    RuntimeError("%s was supposed to raise %s, not get '%s'" %
+                    (which, expected_failure, res))
+                )
         d.addBoth(done)
         return d
 
@@ -1940,7 +1942,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     @inlineCallbacks
     def test_GET_DIRURL_empty(self):
         # look at an empty directory
-        data = yield self.GET(self.public_url + "/foo/empty/")
+        data = yield self.GET(self.public_url + "/foo/empty")
         soup = BeautifulSoup(data, 'html5lib')
         self.failUnlessIn("directory is empty", data)
         mkdir_inputs = soup.find_all(u"input", {u"type": u"hidden", u"name": u"t", u"value": u"mkdir"})
@@ -1954,7 +1956,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_DIRURL_literal(self):
         # look at a literal directory
         tiny_litdir_uri = "URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm" # contains one child which is itself also LIT
-        data = yield self.GET("/uri/" + tiny_litdir_uri + "/", followRedirect=True)
+        data = yield self.GET("/uri/" + tiny_litdir_uri, followRedirect=True)
         soup = BeautifulSoup(data, 'html5lib')
         self.failUnlessIn('(immutable)', data)
         file_links = list(
@@ -2017,7 +2019,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_DIRURL_manifest(self):
         d = defer.succeed(None)
         def getman(ignored, output):
-            url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=125"
+            url = self.webish_url + self.public_url + "/foo?t=start-manifest&ophandle=125"
             d = do_http("post", url, allow_redirects=True,
                         browser_like_redirects=True)
             d.addCallback(self.wait_for_operation, "125")
@@ -2069,7 +2071,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_DIRURL_deepsize(self):
-        url = self.webish_url + self.public_url + "/foo/?t=start-deep-size&ophandle=126"
+        url = self.webish_url + self.public_url + "/foo?t=start-deep-size&ophandle=126"
         d = do_http("post", url, allow_redirects=True,
                     browser_like_redirects=True)
         d.addCallback(self.wait_for_operation, "126")
@@ -2098,7 +2100,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_DIRURL_deepstats(self):
-        url = self.webish_url + self.public_url + "/foo/?t=start-deep-stats&ophandle=127"
+        url = self.webish_url + self.public_url + "/foo?t=start-deep-stats&ophandle=127"
         d = do_http("post", url,
                     allow_redirects=True, browser_like_redirects=True)
         d.addCallback(self.wait_for_operation, "127")
@@ -2127,7 +2129,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_DIRURL_stream_manifest(self):
-        d = self.POST(self.public_url + "/foo/?t=stream-manifest")
+        d = self.POST(self.public_url + "/foo?t=stream-manifest")
         def _check(res):
             self.failUnless(res.endswith("\n"))
             units = [json.loads(t) for t in res[:-1].split("\n")]
@@ -2789,7 +2791,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # slightly differently
 
         d.addCallback(lambda res:
-                      self.GET(self.public_url + "/foo/",
+                      self.GET(self.public_url + "/foo",
                                followRedirect=True))
         def _check_page(res):
             # TODO: assert more about the contents
@@ -2807,7 +2809,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         # look at the JSON form of the enclosing directory
         d.addCallback(lambda res:
-                      self.GET(self.public_url + "/foo/?t=json",
+                      self.GET(self.public_url + "/foo?t=json",
                                followRedirect=True))
         def _check_page_json(res):
             parsed = json.loads(res)
@@ -3021,7 +3023,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_POST_DIRURL_check(self):
-        foo_url = self.public_url + "/foo/"
+        foo_url = self.public_url + "/foo"
         res = yield self.POST(foo_url, t="check")
         self.failUnlessIn("Healthy :", res)
 
@@ -3043,7 +3045,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_POST_DIRURL_check_and_repair(self):
-        foo_url = self.public_url + "/foo/"
+        foo_url = self.public_url + "/foo"
         res = yield self.POST(foo_url, t="check", repair="true")
         self.failUnlessIn("Healthy :", res)
 
@@ -4520,7 +4522,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_ophandle_cancel(self):
-        url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=128"
+        url = self.webish_url + self.public_url + "/foo?t=start-manifest&ophandle=128"
         yield do_http("post", url,
                       allow_redirects=True, browser_like_redirects=True)
         res = yield self.GET("/operations/128?t=status&output=JSON")
@@ -4539,7 +4541,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_ophandle_retainfor(self):
-        url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=129&retain-for=60"
+        url = self.webish_url + self.public_url + "/foo?t=start-manifest&ophandle=129&retain-for=60"
         yield do_http("post", url,
                       allow_redirects=True, browser_like_redirects=True)
         res = yield self.GET("/operations/129?t=status&output=JSON&retain-for=0")
@@ -4553,7 +4555,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_ophandle_release_after_complete(self):
-        url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=130"
+        url = self.webish_url + self.public_url + "/foo?t=start-manifest&ophandle=130"
         yield do_http("post", url,
                       allow_redirects=True, browser_like_redirects=True)
         yield self.wait_for_operation(None, "130")
@@ -4567,7 +4569,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # uncollected ophandles should expire after 4 days
         def _make_uncollected_ophandle(ophandle):
             url = (self.webish_url + self.public_url +
-                   "/foo/?t=start-manifest&ophandle=%d" % ophandle)
+                   "/foo?t=start-manifest&ophandle=%d" % ophandle)
             # When we start the operation, the webapi server will want to
             # redirect us to the page for the ophandle, so we get
             # confirmation that the operation has started. If the manifest
@@ -4605,7 +4607,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # collected ophandles should expire after 1 day
         def _make_collected_ophandle(ophandle):
             url = (self.webish_url + self.public_url +
-                   "/foo/?t=start-manifest&ophandle=%d" % ophandle)
+                   "/foo?t=start-manifest&ophandle=%d" % ophandle)
             # By following the initial redirect, we collect the ophandle
             # we've just created.
             return do_http("post", url,
