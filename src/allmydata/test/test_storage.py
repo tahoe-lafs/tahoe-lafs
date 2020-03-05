@@ -29,7 +29,6 @@ from allmydata.mutable.layout import MDMFSlotWriteProxy, MDMFSlotReadProxy, \
                                      SHARE_HASH_CHAIN_SIZE
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent, ShouldFailMixin
-from allmydata.test.common_web import WebRenderingMixin
 from nevow.testutil import FakeRequest
 from allmydata.test.no_network import NoNetworkServer
 from allmydata.web.storage import (
@@ -3185,7 +3184,7 @@ class InstrumentedStorageServer(StorageServer):
 class No_ST_BLOCKS_StorageServer(StorageServer):
     LeaseCheckerClass = No_ST_BLOCKS_LeaseCheckingCrawler
 
-class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
+class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
 
     def setUp(self):
         self.s = service.MultiService()
@@ -4087,7 +4086,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d = renderDeferred(page, args={"t": ["json"]})
         return d
 
-class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
+class WebStatus(unittest.TestCase, pollmixin.PollMixin):
 
     def setUp(self):
         self.s = service.MultiService()
