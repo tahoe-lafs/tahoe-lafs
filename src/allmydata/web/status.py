@@ -1150,7 +1150,27 @@ class HelperStatusElement(Element):
     loader = XMLFile(FilePath(__file__).sibling("helper.xhtml"))
 
     def __init__(self, helper):
+        """
+        :param _allmydata.immutable.offloaded.Helper helper
+        """
         super(HelperStatusElement, self).__init__()
+
+        # helper.get_stats() returns a dict of this form:
+        #
+        #   {'chk_upload_helper.active_uploads': 0,
+        #    'chk_upload_helper.encoded_bytes': 0,
+        #    'chk_upload_helper.encoding_count': 0,
+        #    'chk_upload_helper.encoding_size': 0,
+        #    'chk_upload_helper.encoding_size_old': 0,
+        #    'chk_upload_helper.fetched_bytes': 0,
+        #    'chk_upload_helper.incoming_count': 0,
+        #    'chk_upload_helper.incoming_size': 0,
+        #    'chk_upload_helper.incoming_size_old': 0,
+        #    'chk_upload_helper.resumes': 0,
+        #    'chk_upload_helper.upload_already_present': 0,
+        #    'chk_upload_helper.upload_need_upload': 0,
+        #    'chk_upload_helper.upload_requests': 0}
+        #
         self._data = helper.get_stats()
 
     @renderer
