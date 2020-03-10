@@ -6,22 +6,29 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   </head>
   <body>
-    <h1>Helper Status</h1>
-    <h2>Immutable Uploads</h2>
-    <ul t:data="helper_stats">
-      <li>Active: <span t:render="active_uploads" /></li>
-      <li>--</li>
-      <li>Bytes Fetched: <span t:render="upload_bytes_fetched" /></li>
-      <li>Incoming: <span t:render="incoming" /></li>
-      <li>Encoding: <span t:render="encoding" /></li>
-      <li>Bytes Encoded: <span t:render="upload_bytes_encoded" /></li>
-      <li>--</li>
-      <li>Total Requests: <span t:render="upload_requests" /></li>
-      <ul>
-        <li>Already Present: <span t:render="upload_already_present" /></li>
-        <li>Need Upload: <span t:render="upload_need_upload" /></li>
+
+    <div t:render="helper_running">
+      <h1>Helper Status</h1>
+
+      <h2>Immutable Uploads</h2>
+      <ul t:data="helper_stats">
+        <li>Active: <span t:render="active_uploads" /></li>
+        <li>--</li>
+        <li>Bytes Fetched: <span t:render="upload_bytes_fetched" /></li>
+        <li>Incoming: <span t:render="incoming" /></li>
+        <li>Encoding: <span t:render="encoding" /></li>
+        <li>Bytes Encoded: <span t:render="upload_bytes_encoded" /></li>
+        <li>--</li>
+        <li>Total Requests: <span t:render="upload_requests" /></li>
+        <ul>
+          <li>Already Present: <span t:render="upload_already_present" /></li>
+          <li>Need Upload: <span t:render="upload_need_upload" /></li>
+        </ul>
       </ul>
-    </ul>
+
+    </div>
+
     <div>Return to the <a href="/">Welcome Page</a></div>
+
   </body>
 </html>
