@@ -5,6 +5,115 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
+Release 1.13.0.post1475 (2020-03-11)
+''''''''''''''''''''''''''''''''''''
+
+Features
+--------
+
+- Magic-Folders are now supported on macOS. (`#1432 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1432>`_)
+- Add a "tox -e draftnews" which runs towncrier in draft mode (`#2942 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2942>`_)
+- Fedora 29 is now tested as part of the project's continuous integration system. (`#2955 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2955>`_)
+- The Magic-Folder frontend now emits structured, causal logs.  This makes it easier for developers to make sense of its behavior and for users to submit useful debugging information alongside problem reports. (`#2972 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2972>`_)
+- The `tahoe` CLI now accepts arguments for configuring structured logging messages which Tahoe-LAFS is being converted to emit.  This change does not introduce any new defaults for on-filesystem logging. (`#2975 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2975>`_)
+- The web API now publishes streaming Eliot logs via a token-protected WebSocket at /private/logs/v1. (`#3006 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3006>`_)
+- End-to-end in-memory tests for websocket features (`#3041 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3041>`_)
+- allmydata.interfaces.IFoolscapStoragePlugin has been introduced, an extension point for customizing the storage protocol. (`#3049 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3049>`_)
+- Static storage server "announcements" in ``private/servers.yaml`` are now individually logged and ignored if they cannot be interpreted. (`#3051 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3051>`_)
+- Storage servers can now be configured to load plugins for allmydata.interfaces.IFoolscapStoragePlugin and offer them to clients. (`#3053 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3053>`_)
+- Storage clients can now be configured to load plugins for allmydata.interfaces.IFoolscapStoragePlugin and use them to negotiate with servers. (`#3054 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3054>`_)
+- The [storage] configuration section now accepts a boolean *anonymous* item to enable or disable anonymous storage access.  The default behavior remains unchanged. (`#3184 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3184>`_)
+- Enable the helper when creating a node with `tahoe create-node --helper` (`#3235 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3235>`_)
+
+
+Bug Fixes
+---------
+
+- refactor initialization code to be more async-friendly (`#2870 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2870>`_)
+- Configuration-checking code wasn't being called due to indenting (`#2935 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2935>`_)
+- refactor configuration handling out of Node into _Config (`#2936 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2936>`_)
+- "tox -e codechecks" no longer dirties the working tree. (`#2941 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2941>`_)
+- Updated the Tor release key, used by the integration tests. (`#2944 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2944>`_)
+- `tahoe backup` no longer fails with an unhandled exception when it encounters a special file (device, fifo) in the backup source. (`#2950 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2950>`_)
+- Magic-Folders now creates spurious conflict files in fewer cases.  In particular, if files are added to the folder while a client is offline, that client will not create conflict files for all those new files when it starts up. (`#2965 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2965>`_)
+- The confusing and misplaced sub-command group headings in `tahoe --help` output have been removed. (`#2976 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2976>`_)
+- The Magic-Folder frontend is now more responsive to subtree changes on Windows. (`#2997 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2997>`_)
+- remove ancient bundled jquery and d3, and the "dowload timeline" feature they support (`#3228 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3228>`_)
+
+
+Dependency/Installation Changes
+-------------------------------
+
+- Tahoe-LAFS no longer makes start-up time assertions about the versions of its dependencies.  It is the responsibility of the administrator of the installation to ensure the correct version of dependencies are supplied. (`#2749 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2749>`_)
+- Tahoe-LAFS now depends on Twisted 16.6 or newer. (`#2957 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2957>`_)
+
+
+Removed Features
+----------------
+
+- "tahoe rm", an old alias for "tahoe unlink", has been removed. (`#1827 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1827>`_)
+- The direct dependencies on pyutil and zbase32 have been removed. (`#2098 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2098>`_)
+- Untested and unmaintained code for running Tahoe-LAFS as a Windows service has been removed. (`#2239 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2239>`_)
+- The redundant "pypywin32" dependency has been removed. (`#2392 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2392>`_)
+- Fedora 27 is no longer tested as part of the project's continuous integration system. (`#2955 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2955>`_)
+- "tahoe start", "tahoe daemonize", "tahoe restart", and "tahoe stop" are now deprecated in favor of using "tahoe run", possibly with a third-party process manager. (`#3273 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3273>`_)
+
+
+Other Changes
+-------------
+
+- Tahoe-LAFS now tests for PyPy compatibility on CI. (`#2479 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2479>`_)
+- Tahoe-LAFS now requires Twisted 18.4.0 or newer. (`#2771 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2771>`_)
+- Tahoe-LAFS now uses towncrier to maintain the NEWS file. (`#2908 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2908>`_)
+- The release process document has been updated. (`#2920 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2920>`_)
+- allmydata.test.test_system.SystemTest is now more reliable with respect to bound address collisions. (`#2933 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2933>`_)
+- The Tox configuration has been fixed to work around a problem on Windows CI. (`#2956 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2956>`_)
+- The PyInstaller CI job now works around a pip/pyinstaller incompatibility. (`#2958 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2958>`_)
+- Some CI jobs for integration tests have been moved from TravisCI to CircleCI. (`#2959 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2959>`_)
+- Several warnings from a new release of pyflakes have been fixed. (`#2960 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2960>`_)
+- Some Slackware 14.2 continuous integration problems have been resolved. (`#2961 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2961>`_)
+- Some macOS continuous integration failures have been fixed. (`#2962 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2962>`_)
+- The NoNetworkGrid implementation has been somewhat improved. (`#2966 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2966>`_)
+- A bug in the test suite for the create-alias command has been fixed. (`#2967 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2967>`_)
+- The integration test suite has been updated to use pytest-twisted instead of deprecated pytest APIs. (`#2968 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2968>`_)
+- The magic-folder integration test suite now performs more aggressive cleanup of the processes it launches. (`#2969 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2969>`_)
+- The integration tests now correctly document the `--keep-tempdir` option. (`#2970 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2970>`_)
+- A misuse of super() in the integration tests has been fixed. (`#2971 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2971>`_)
+- Several utilities to facilitate the use of the Eliot causal logging library have been introduced. (`#2973 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2973>`_)
+- The Windows CI configuration has been tweaked. (`#2974 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2974>`_)
+- The Magic-Folder frontend has had additional logging improvements. (`#2977 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2977>`_)
+-  (`#2981 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2981>`_, `#2982 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2982>`_)
+- Added a simple sytax checker so that once a file has reached python3 compatibility, it will not regress. (`#3001 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3001>`_)
+- Converted all uses of the print statement to the print function in the ./misc/ directory. (`#3002 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3002>`_)
+- The contributor guidelines are now linked from the GitHub pull request creation page. (`#3003 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3003>`_)
+- Updated the testing code to use the print function instead of the print statement. (`#3008 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3008>`_)
+- Replaced print statement with print fuction for all tahoe_* scripts. (`#3009 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3009>`_)
+- Replaced all remaining instances of the print statement with the print function. (`#3010 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3010>`_)
+- Replace StringIO imports with six.moves. (`#3011 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3011>`_)
+- Updated all Python files to use PEP-3110 exception syntax for Python3 compatibility. (`#3013 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3013>`_)
+- Update raise syntax for Python3 compatibility. (`#3014 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3014>`_)
+- Updated instances of octal literals to use the format 0o123 for Python3 compatibility. (`#3015 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3015>`_)
+- allmydata.test.no_network, allmydata.test.test_system, and allmydata.test.web.test_introducer are now more reliable with respect to bound address collisions. (`#3016 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3016>`_)
+- Removed tuple unpacking from function and lambda definitions for Python3 compatibility. (`#3019 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3019>`_)
+- Updated Python2 long numeric literals for Python3 compatibility. (`#3020 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3020>`_)
+- CircleCI jobs are now faster as a result of pre-building configured Docker images for the CI jobs. (`#3024 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3024>`_)
+- Removed used of backticks for "repr" for Python3 compatibility. (`#3027 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3027>`_)
+- Updated string literal syntax for Python3 compatibility. (`#3028 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3028>`_)
+- Updated CI to enforce Python3 syntax for entire repo. (`#3030 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3030>`_)
+- Replaced pycryptopp with cryptography. (`#3031 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3031>`_)
+- All old-style classes ported to new-style. (`#3042 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3042>`_)
+- Whitelisted "/bin/mv" as command for codechecks performed by tox. This fixes a current warning and prevents future errors (for tox 4). (`#3043 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3043>`_)
+- Progress towards Python 3 compatibility is now visible at <https://tahoe-lafs.github.io/tahoe-depgraph/>. (`#3152 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3152>`_)
+- Collect coverage information from integration tests (`#3234 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3234>`_)
+- NixOS is now a supported Tahoe-LAFS platform. (`#3266 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3266>`_)
+
+
+Misc/Other
+----------
+
+- `#1893 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1893>`_, `#2266 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2266>`_, `#2283 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2283>`_, `#2766 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2766>`_, `#2980 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2980>`_, `#2985 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2985>`_, `#2986 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2986>`_, `#2987 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2987>`_, `#2988 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2988>`_, `#2989 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2989>`_, `#2990 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2990>`_, `#2991 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2991>`_, `#2992 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2992>`_, `#2995 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2995>`_, `#3000 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3000>`_, `#3004 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3004>`_, `#3005 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3005>`_, `#3007 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3007>`_, `#3012 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3012>`_, `#3017 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3017>`_, `#3021 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3021>`_, `#3023 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3023>`_, `#3025 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3025>`_, `#3026 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3026>`_, `#3029 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3029>`_, `#3036 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3036>`_, `#3038 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3038>`_, `#3048 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3048>`_, `#3086 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3086>`_, `#3097 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3097>`_, `#3111 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3111>`_, `#3118 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3118>`_, `#3119 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3119>`_, `#3227 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3227>`_, `#3229 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3229>`_, `#3232 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3232>`_, `#3233 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3233>`_, `#3237 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3237>`_, `#3238 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3238>`_, `#3239 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3239>`_, `#3240 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3240>`_, `#3242 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3242>`_, `#3243 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3243>`_, `#3245 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3245>`_, `#3246 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3246>`_, `#3248 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3248>`_, `#3250 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3250>`_, `#3252 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3252>`_, `#3255 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3255>`_, `#3256 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3256>`_, `#3259 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3259>`_, `#3261 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3261>`_, `#3262 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3262>`_, `#3263 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3263>`_, `#3264 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3264>`_, `#3265 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3265>`_, `#3267 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3267>`_, `#3268 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3268>`_, `#3271 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3271>`_, `#3272 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3272>`_, `#3274 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3274>`_, `#3275 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3275>`_, `#3276 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3276>`_, `#3279 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3279>`_, `#3281 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3281>`_, `#3282 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3282>`_, `#3285 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3285>`_
+
+
 Release 1.13.0 (05-August-2018)
 '''''''''''''''''''''''''''''''
 

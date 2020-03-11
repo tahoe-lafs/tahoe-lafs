@@ -1,1 +1,0 @@
-Whitelisted "/bin/mv" as command for codechecks performed by tox. This fixes a current warning and prevents future errors (for tox 4).
