@@ -38,11 +38,11 @@ class StorageStatusElement(Element):
 
     @renderer
     def nickname(self, req, tag):
-        return self._nickname
+        return tag(self._nickname)
 
     @renderer
     def nodeid(self, req, tag):
-        return idlib.nodeid_b2a(self._storage.my_nodeid)
+        return tag(idlib.nodeid_b2a(self._storage.my_nodeid))
 
     def _get_storage_stat(self, key):
         """Get storage server statistics.
@@ -110,20 +110,20 @@ class StorageStatusElement(Element):
     @renderer
     def accepting_immutable_shares(self, req, tag):
         accepting = self._get_storage_stat("storage_server.accepting_immutable_shares")
-        return {True: "Yes", False: "No"}[bool(accepting)]
+        return tag({True: "Yes", False: "No"}[bool(accepting)])
 
     @renderer
     def last_complete_bucket_count(self, req, tag):
         s = self._storage.bucket_counter.get_state()
         count = s.get("last-complete-bucket-count")
         if count is None:
-            return "Not computed yet"
-        return str(count)
+            return tag("Not computed yet")
+        return tag(str(count))
 
     @renderer
     def count_crawler_status(self, req, tag):
         p = self._storage.bucket_counter.get_progress()
-        return self.format_crawler_progress(p)
+        return tag(self.format_crawler_progress(p))
 
     def format_crawler_progress(self, p):
         cycletime = p["estimated-time-per-cycle"]
