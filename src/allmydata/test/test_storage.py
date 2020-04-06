@@ -2992,9 +2992,7 @@ def renderSynchronously(ss):
 
     :param _StorageStatus ss: a StorageStatus instance.
     """
-    elem = StorageStatusElement(ss._storage, ss._nickname)
-    deferred = flattenString(None, elem)
-    return unittest.TestCase().successResultOf(deferred)
+    return unittest.TestCase().successResultOf(renderDeferred(ss))
 
 def renderDeferred(ss):
     """
