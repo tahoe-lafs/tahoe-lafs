@@ -2975,6 +2975,8 @@ def remove_tags(s):
 
 def renderSynchronously(ss):
     """
+    Return fully rendered HTML document.
+
     :param _StorageStatus ss: a StorageStatus instance.
     """
     elem = StorageStatusElement(ss._storage, ss._nickname)
@@ -2982,10 +2984,20 @@ def renderSynchronously(ss):
     return unittest.TestCase().successResultOf(deferred)
 
 def renderDeferred(ss):
+    """
+    Return a `Deferred` HTML renderer.
+
+    :param _StorageStatus ss: a StorageStatus instance.
+    """
     elem = StorageStatusElement(ss._storage, ss._nickname)
     return flattenString(None, elem)
 
 class JSONRequest(Request):
+    """
+    A Request with t=json argument added to it.
+
+    This is useful to invoke a Resouce.render_JSON() method.
+    """
     implements(IRequest)
 
     def __init__(self, **kwargs):
@@ -2994,6 +3006,11 @@ class JSONRequest(Request):
         self.fields = {}
 
 def renderJSON(resource):
+    """Exercise resouce.render_JSON()
+
+    :param _MultiFormatResource resouce: A `twisted.web.resouce.Resource`
+        that contains a render_JSON() method.
+    """
     return resource.render(JSONRequest())
 
 class MyBucketCountingCrawler(BucketCountingCrawler):
