@@ -3412,7 +3412,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
                               "(2 mutable / 2 immutable),", s)
             self.failUnlessIn("but expiration was not enabled", s)
         d.addCallback(_check_html)
-        d.addCallback(lambda ign: self.render_json(webstatus))
+        d.addCallback(lambda ign: renderJSON(webstatus))
         def _check_json(raw):
             data = json.loads(raw)
             self.failUnlessIn("lease-checker", data)
@@ -4049,7 +4049,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(so_far["corrupt-shares"], [(first_b32, 0)])
         d.addCallback(_after_first_bucket)
 
-        d.addCallback(lambda ign: self.render_json(w))
+        d.addCallback(lambda ign: renderJSON(w))
         def _check_json(raw):
             data = json.loads(raw)
             # grr. json turns all dict keys into strings.
@@ -4076,7 +4076,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(rec["examined-shares"], 3)
             self.failUnlessEqual(last["corrupt-shares"], [(first_b32, 0)])
         d.addCallback(_after_first_cycle)
-        d.addCallback(lambda ign: self.render_json(w))
+        d.addCallback(lambda ign: renderJSON(w))
         def _check_json_history(raw):
             data = json.loads(raw)
             last = data["lease-checker"]["history"]["0"]
@@ -4096,9 +4096,6 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         d.addBoth(_cleanup)
         return d
 
-    def render_json(self, page):
-        d = renderJSON(page)
-        return d
 
 class WebStatus(unittest.TestCase, pollmixin.PollMixin):
 
@@ -4129,7 +4126,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessIn("Accepting new shares: Yes", s)
             self.failUnlessIn("Reserved space: - 0 B (0)", s)
         d.addCallback(_check_html)
-        d.addCallback(lambda ign: self.render_json(w))
+        d.addCallback(lambda ign: renderJSON(w))
         def _check_json(raw):
             data = json.loads(raw)
             s = data["stats"]
@@ -4140,9 +4137,6 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         d.addCallback(_check_json)
         return d
 
-    def render_json(self, page):
-        d = renderJSON(page)
-        return d
 
     def test_status_no_disk_stats(self):
         def call_get_disk_stats(whichdir, reserved_space=0):
