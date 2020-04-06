@@ -13,6 +13,16 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.application import service
 from twisted.web.template import flattenString
+
+# We need to use `nevow.inevow.IRequest` for now for compatibility
+# with the code in web/common.py.  Once nevow bits are gone from
+# web/common.py, we can use `twisted.web.iweb.IRequest` here.
+from nevow.inevow import IRequest
+
+from twisted.web.server import Request
+from twisted.web.test.test_web import DummyChannel
+from zope.interface import implements
+
 from foolscap.api import fireEventually
 import itertools
 from allmydata import interfaces
@@ -37,7 +47,6 @@ from allmydata.mutable.layout import MDMFSlotWriteProxy, MDMFSlotReadProxy, \
                                      SHARE_HASH_CHAIN_SIZE
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent, ShouldFailMixin
-from nevow.testutil import FakeRequest
 from allmydata.test.no_network import NoNetworkServer
 from allmydata.web.storage import (
     StorageStatus,
@@ -2985,28 +2994,20 @@ def renderSynchronously(ss):
     deferred = flattenString(None, elem)
     return unittest.TestCase().successResultOf(deferred)
 
-def renderDeferred(resource, **kwargs):
-    """
-    Use this to exercise an overridden MultiFormatResource.render(),
-    usually for output=json or render_GET.  It returns a Deferred.
+def renderDeferred(ss):
+    elem = StorageStatusElement(ss._storage, ss._nickname)
+    return flattenString(None, elem)
 
-    :param _MultiFormatResource resource: an HTTP resource to be rendered.
+class JSONRequest(Request):
+    implements(IRequest)
 
-    """
-    # We should be using twisted.web's DummyRequest here instead of
-    # nevow's FakeRequest, but right now it is a bit of a problem: see
-    # web/common.py.  MultiFormatResource.render() makes a get_arg()
-    # call, which does a IRequest(ctx_or_req).  IRequest can handle
-    # FakeRequest, but it can't handle DummyRequest.
-    req = FakeRequest(**kwargs)
-    req.fields = None
-    d = defer.maybeDeferred(resource.render, req)
-    def _done(res):
-        if isinstance(res, str):
-            return res + req.v
-        return req.v
-    d.addCallback(_done)
-    return d
+    def __init__(self, **kwargs):
+        Request.__init__(self, DummyChannel(), **kwargs)
+        self.args = {"t": ["json"]}
+        self.fields = {}
+
+def renderJSON(resource):
+    return resource.render(JSONRequest())
 
 class MyBucketCountingCrawler(BucketCountingCrawler):
     def finished_prefix(self, cycle, prefix):
@@ -4096,7 +4097,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         return d
 
     def render_json(self, page):
-        d = renderDeferred(page, args={"t": ["json"]})
+        d = renderJSON(page)
         return d
 
 class WebStatus(unittest.TestCase, pollmixin.PollMixin):
@@ -4140,7 +4141,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         return d
 
     def render_json(self, page):
-        d = renderDeferred(page, args={"t": ["json"]})
+        d = renderJSON(page)
         return d
 
     def test_status_no_disk_stats(self):
