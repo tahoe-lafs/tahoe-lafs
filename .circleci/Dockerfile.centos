@@ -11,11 +11,11 @@ RUN yum install --assumeyes \
     git \
     sudo \
     make automake gcc gcc-c++ \
-    python \
-    python-devel \
+    python2 \
+    python2-devel \
     libffi-devel \
     openssl-devel \
-    libyaml-devel \
+    libyaml \
     /usr/bin/virtualenv \
     net-tools
 
