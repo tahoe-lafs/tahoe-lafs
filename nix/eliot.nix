@@ -17,7 +17,8 @@ buildPythonPackage rec {
 
     # Fails intermittently.
     substituteInPlace eliot/tests/test_validation.py \
-      --replace "def test_omitLoggerFromActionType" "def xtest_omitLoggerFromActionType"
+      --replace "def test_omitLoggerFromActionType" "def xtest_omitLoggerFromActionType" \
+      --replace "def test_logCallsDefaultLoggerWrite" "def xtest_logCallsDefaultLoggerWrite"
   '';
 
   checkInputs = [ testtools pytest hypothesis ];

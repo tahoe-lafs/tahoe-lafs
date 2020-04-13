@@ -21,7 +21,7 @@ workflows:
           requires:
             - "fedora-29"
 
-      - "centos-7"
+      - "centos-8"
 
       - "slackware-14.2"
 
@@ -67,7 +67,7 @@ workflows:
       - "build-image-ubuntu-18.04"
       - "build-image-fedora-28"
       - "build-image-fedora-29"
-      - "build-image-centos-7"
+      - "build-image-centos-8"
       - "build-image-slackware-14.2"
       - "build-image-pypy-2.7-7.1.1-jessie"
 
@@ -269,9 +269,9 @@ jobs:
         user: "nobody"
 
 
-  centos-7: &RHEL_DERIV
+  centos-8: &RHEL_DERIV
     docker:
-      - image: "tahoelafsci/centos:7"
+      - image: "tahoelafsci/centos:8"
         user: "nobody"
 
     environment: *UTF_8_ENVIRONMENT
@@ -481,12 +481,12 @@ jobs:
       TAG: "18.04"
 
 
-  build-image-centos-7:
+  build-image-centos-8:
     <<: *BUILD_IMAGE
 
     environment:
       DISTRO: "centos"
-      TAG: "7"
+      TAG: "8"
 
 
   build-image-fedora-28:
