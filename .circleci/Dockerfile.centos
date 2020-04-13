@@ -15,7 +15,7 @@ RUN yum install --assumeyes \
     python2-devel \
     libffi-devel \
     openssl-devel \
-    libyaml-devel \
+    libyaml \
     /usr/bin/virtualenv \
     net-tools
 
