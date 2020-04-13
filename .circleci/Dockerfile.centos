@@ -12,7 +12,7 @@ RUN yum install --assumeyes \
     sudo \
     make automake gcc gcc-c++ \
     python \
-    python-devel \
+    python2-devel \
     libffi-devel \
     openssl-devel \
     libyaml-devel \
