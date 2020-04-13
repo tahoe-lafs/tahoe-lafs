@@ -332,11 +332,6 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:alice", include_args=[], include_result=False)
 def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
-    try:
-        mkdir(join(temp_dir, 'magic-alice'))
-    except OSError:
-        pass
-
     process = pytest_twisted.blockon(
         _create_node(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
@@ -351,11 +346,6 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:bob", include_args=[], include_result=False)
 def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
-    try:
-        mkdir(join(temp_dir, 'magic-bob'))
-    except OSError:
-        pass
-
     process = pytest_twisted.blockon(
         _create_node(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "bob",
