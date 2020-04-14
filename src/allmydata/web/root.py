@@ -173,6 +173,9 @@ class IncidentReporter(MultiFormatResource):
     """Handler for /report_incident POST request"""
 
     def render(self, req):
+        if req.method != "POST":
+            raise WebError("/report_incident can only be used with POST")
+
         log.msg(format="User reports incident through web page: %(details)s",
                 details=get_arg(req, "details", ""),
                 level=log.WEIRD, umid="LkD9Pw")
