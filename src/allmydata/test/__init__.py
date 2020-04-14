@@ -52,6 +52,44 @@ def _configure_hypothesis():
     settings.load_profile(profile_name)
 _configure_hypothesis()
 
+def logging_for_pb_listener():
+    """
+    Make Foolscap listen error reports include Listener creation stack
+    information.
+    """
+    from traceback import extract_stack, format_list
+    from foolscap.pb import Listener
+    from twisted.python.log import err
+    from twisted.application import service
+
+    original__init__ = Listener.__init__
+    def _listener__init__(self, *a, **kw):
+        original__init__(self, *a, **kw)
+        # Capture the stack here, where Listener is instantiated.  This is
+        # likely to explain what code is responsible for this Listener, useful
+        # information to have when the Listener eventually fails to listen.
+        self._creation_stack = extract_stack()
+
+    # Override the Foolscap implementation with one that has an errback
+    def _listener_startService(self):
+        service.Service.startService(self)
+        d = self._ep.listen(self)
+        def _listening(lp):
+            self._lp = lp
+        d.addCallbacks(
+            _listening,
+            # Make sure that this listen failure is reported promptly and with
+            # the creation stack.
+            err,
+            errbackArgs=(
+                "Listener created at {}".format(
+                    "".join(format_list(self._creation_stack)),
+                ),
+            ),
+        )
+    Listener.__init__ = _listener__init__
+    Listener.startService = _listener_startService
+logging_for_pb_listener()
 
 import sys
 if sys.platform == "win32":
