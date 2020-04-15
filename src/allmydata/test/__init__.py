@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Tahoe-LAFS -- secure, distributed storage grid
 #
 # Copyright © 2020 The Tahoe-LAFS Software Foundation
