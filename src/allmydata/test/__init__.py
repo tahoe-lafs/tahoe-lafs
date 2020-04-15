@@ -1,3 +1,18 @@
+# Tahoe-LAFS -- secure, distributed storage grid
+#
+# Copyright © 2020 The Tahoe-LAFS Software Foundation
+#
+# This file is part of Tahoe-LAFS.
+#
+# See the docs/about.rst file for licensing information.
+
+"""
+Some setup that should apply across the entire test suite.
+
+Rather than defining interesting APIs for other code to use, this just causes
+some side-effects which make things better when the test suite runs.
+"""
+
 from traceback import extract_stack, format_list
 from foolscap.pb import Listener
 from twisted.python.log import err
