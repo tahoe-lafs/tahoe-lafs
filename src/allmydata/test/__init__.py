@@ -1,3 +1,8 @@
+from traceback import extract_stack, format_list
+from foolscap.pb import Listener
+from twisted.python.log import err
+from twisted.application import service
+
 
 from foolscap.logging.incident import IncidentQualifier
 class NonQualifier(IncidentQualifier, object):
@@ -57,11 +62,6 @@ def logging_for_pb_listener():
     Make Foolscap listen error reports include Listener creation stack
     information.
     """
-    from traceback import extract_stack, format_list
-    from foolscap.pb import Listener
-    from twisted.python.log import err
-    from twisted.application import service
-
     original__init__ = Listener.__init__
     def _listener__init__(self, *a, **kw):
         original__init__(self, *a, **kw)
