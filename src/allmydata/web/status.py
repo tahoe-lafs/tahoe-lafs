@@ -9,7 +9,6 @@ from twisted.web.template import (
     XMLFile,
     renderer,
     renderElement,
-    tags
 )
 from nevow import rend, tags as T
 from allmydata.util import base32, idlib
@@ -1175,6 +1174,11 @@ class HelperStatus(MultiFormatPage):
 
 # Render "/statistics" page.
 class Statistics(MultiFormatResource):
+    """Class that renders "/statistics" page.
+
+    :param _allmydata.stats.StatsProvider provider: node statistics
+           provider.
+    """
 
     def __init__(self, provider):
         super(Statistics, self).__init__()
@@ -1194,6 +1198,28 @@ class StatisticsElement(Element):
 
     def __init__(self, provider):
         super(StatisticsElement, self).__init__()
+        # provider.get_stats() returns a dict of the below form, for
+        # example (there's often more data than this):
+        #
+        #  {
+        #    'stats': {
+        #      'storage_server.disk_used': 809601609728,
+        #      'storage_server.accepting_immutable_shares': 1,
+        #      'storage_server.disk_free_for_root': 131486851072,
+        #      'storage_server.reserved_space': 1000000000,
+        #      'node.uptime': 0.16520118713378906,
+        #      'storage_server.disk_total': 941088460800,
+        #      'cpu_monitor.total': 0.004513999999999907,
+        #      'storage_server.disk_avail': 82610759168,
+        #      'storage_server.allocated': 0,
+        #      'storage_server.disk_free_for_nonroot': 83610759168 },
+        #    'counters': {
+        #      'uploader.files_uploaded': 0,
+        #      'uploader.bytes_uploaded': 0,
+        #       ... }
+        #  }
+        #
+        # Note that `counters` can be empty.
         self._stats = provider.get_stats()
 
     @renderer
