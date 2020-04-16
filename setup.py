@@ -98,7 +98,7 @@ install_requires = [
     #   `pip install tahoe-lafs[sftp]` would not install requirements
     #   specified by Twisted[conch].  Since this would be the *whole point* of
     #   an sftp extra in Tahoe-LAFS, there is no point in having one.
-    "Twisted[tls,conch] >= 18.4.0, < 20.0.0",
+    "Twisted[tls,conch] >= 18.4.0",
 
     # We need Nevow >= 0.11.1 which can be installed using pip.
     "Nevow >= 0.11.1",
