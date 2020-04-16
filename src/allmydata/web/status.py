@@ -1224,39 +1224,39 @@ class StatisticsElement(Element):
 
     @renderer
     def load_average(self, req, tag):
-        return str(self._stats["stats"].get("load_monitor.avg_load"))
+        return tag(str(self._stats["stats"].get("load_monitor.avg_load")))
 
     @renderer
     def peak_load(self, req, tag):
-        return str(self._stats["stats"].get("load_monitor.max_load"))
+        return tag(str(self._stats["stats"].get("load_monitor.max_load")))
 
     @renderer
     def uploads(self, req, tag):
         files = self._stats["counters"].get("uploader.files_uploaded", 0)
         bytes = self._stats["counters"].get("uploader.bytes_uploaded", 0)
-        return ("%s files / %s bytes (%s)" %
-                (files, bytes, abbreviate_size(bytes)))
+        return tag(("%s files / %s bytes (%s)" %
+                    (files, bytes, abbreviate_size(bytes))))
 
     @renderer
     def downloads(self, req, tag):
         files = self._stats["counters"].get("downloader.files_downloaded", 0)
         bytes = self._stats["counters"].get("downloader.bytes_downloaded", 0)
-        return ("%s files / %s bytes (%s)" %
-                (files, bytes, abbreviate_size(bytes)))
+        return tag("%s files / %s bytes (%s)" %
+                   (files, bytes, abbreviate_size(bytes)))
 
     @renderer
     def publishes(self, req, tag):
         files = self._stats["counters"].get("mutable.files_published", 0)
         bytes = self._stats["counters"].get("mutable.bytes_published", 0)
-        return "%s files / %s bytes (%s)" % (files, bytes,
-                                             abbreviate_size(bytes))
+        return tag("%s files / %s bytes (%s)" % (files, bytes,
+                                                 abbreviate_size(bytes)))
 
     @renderer
     def retrieves(self, req, tag):
         files = self._stats["counters"].get("mutable.files_retrieved", 0)
         bytes = self._stats["counters"].get("mutable.bytes_retrieved", 0)
-        return "%s files / %s bytes (%s)" % (files, bytes,
-                                             abbreviate_size(bytes))
+        return tag("%s files / %s bytes (%s)" % (files, bytes,
+                                                 abbreviate_size(bytes)))
 
     @renderer
     def raw(self, req, tag):
