@@ -498,7 +498,3 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
             tahoe,
         )
     )
-
-
-def magic_folder_cli(request, reactor, node_dir, *argv):
-    return cli(request, reactor, node_dir, "magic-folder", *argv)

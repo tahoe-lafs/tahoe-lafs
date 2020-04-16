@@ -1210,36 +1210,6 @@ class Statistics(MultiFormatPage):
         return "%s files / %s bytes (%s)" % (files, bytes,
                                              abbreviate_size(bytes))
 
-    def render_magic_uploader_monitored(self, ctx, data):
-        dirs = data["counters"].get("magic_folder.uploader.dirs_monitored", 0)
-        return "%s directories" % (dirs,)
-
-    def render_magic_uploader_succeeded(self, ctx, data):
-        # TODO: bytes uploaded
-        files = data["counters"].get("magic_folder.uploader.objects_succeeded", 0)
-        return "%s files" % (files,)
-
-    def render_magic_uploader_queued(self, ctx, data):
-        files = data["counters"].get("magic_folder.uploader.objects_queued", 0)
-        return "%s files" % (files,)
-
-    def render_magic_uploader_failed(self, ctx, data):
-        files = data["counters"].get("magic_folder.uploader.objects_failed", 0)
-        return "%s files" % (files,)
-
-    def render_magic_downloader_succeeded(self, ctx, data):
-        # TODO: bytes uploaded
-        files = data["counters"].get("magic_folder.downloader.objects_succeeded", 0)
-        return "%s files" % (files,)
-
-    def render_magic_downloader_queued(self, ctx, data):
-        files = data["counters"].get("magic_folder.downloader.objects_queued", 0)
-        return "%s files" % (files,)
-
-    def render_magic_downloader_failed(self, ctx, data):
-        files = data["counters"].get("magic_folder.downloader.objects_failed", 0)
-        return "%s files" % (files,)
-
     def render_raw(self, ctx, data):
         raw = pprint.pformat(data)
         return ctx.tag[raw]

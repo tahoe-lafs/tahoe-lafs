@@ -37,10 +37,9 @@ from testtools.twistedsupport import (
 )
 
 import allmydata
-import allmydata.frontends.magic_folder
 import allmydata.util.log
 
-from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, create_node_dir
+from allmydata.node import OldConfigError, UnescapedHashError, _Config, create_node_dir
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata.version_checks import (
     get_package_versions_string,
@@ -657,104 +656,6 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         yield _check("helper.furl = \n", None)
         yield _check("helper.furl = None", None)
         yield _check("helper.furl = pb://blah\n", "pb://blah")
-
-    @defer.inlineCallbacks
-    def test_create_magic_folder_service(self):
-        """
-        providing magic-folder options actually creates a MagicFolder service
-        """
-        boom = False
-        class Boom(Exception):
-            pass
-
-        class MockMagicFolder(allmydata.frontends.magic_folder.MagicFolder):
-            name = 'magic-folder'
-
-            def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask, name,
-                         inotify=None, uploader_delay=1.0, clock=None, downloader_delay=3):
-                if boom:
-                    raise Boom()
-
-                service.MultiService.__init__(self)
-                self.client = client
-                self._umask = umask
-                self.upload_dircap = upload_dircap
-                self.collective_dircap = collective_dircap
-                self.local_dir = local_path_u
-                self.dbfile = dbfile
-                self.inotify = inotify
-
-            def startService(self):
-                self.running = True
-
-            def stopService(self):
-                self.running = False
-
-            def ready(self):
-                pass
-
-        self.patch(allmydata.frontends.magic_folder, 'MagicFolder', MockMagicFolder)
-
-        upload_dircap = "URI:DIR2:blah"
-        local_dir_u = self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir")
-        local_dir_utf8 = local_dir_u.encode('utf-8')
-        config = (BASECONFIG +
-                  "[storage]\n" +
-                  "enabled = false\n" +
-                  "[magic_folder]\n" +
-                  "enabled = true\n")
-
-        basedir1 = "test_client.Basic.test_create_magic_folder_service1"
-        os.mkdir(basedir1)
-        os.mkdir(local_dir_u)
-
-        # which config-entry should be missing?
-        fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
-                       config + "local.directory = " + local_dir_utf8 + "\n")
-        with self.assertRaises(IOError):
-            yield client.create_client(basedir1)
-
-        # local.directory entry missing .. but that won't be an error
-        # now, it'll just assume there are not magic folders
-        # .. hrm...should we make that an error (if enabled=true but
-        # there's not yaml AND no local.directory?)
-        fileutil.write(os.path.join(basedir1, "tahoe.cfg"), config)
-        fileutil.write(os.path.join(basedir1, "private", "magic_folder_dircap"), "URI:DIR2:blah")
-        fileutil.write(os.path.join(basedir1, "private", "collective_dircap"), "URI:DIR2:meow")
-
-        fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
-                       config.replace("[magic_folder]\n", "[drop_upload]\n"))
-
-        with self.assertRaises(OldConfigOptionError):
-            yield client.create_client(basedir1)
-
-        fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
-                       config + "local.directory = " + local_dir_utf8 + "\n")
-        c1 = yield client.create_client(basedir1)
-        magicfolder = c1.getServiceNamed('magic-folder')
-        self.failUnless(isinstance(magicfolder, MockMagicFolder), magicfolder)
-        self.failUnlessReallyEqual(magicfolder.client, c1)
-        self.failUnlessReallyEqual(magicfolder.upload_dircap, upload_dircap)
-        self.failUnlessReallyEqual(os.path.basename(magicfolder.local_dir), local_dir_u)
-        self.failUnless(magicfolder.inotify is None, magicfolder.inotify)
-        # It doesn't start until the client starts.
-        self.assertFalse(magicfolder.running)
-
-        # See above.
-        boom = True
-
-        basedir2 = "test_client.Basic.test_create_magic_folder_service2"
-        os.mkdir(basedir2)
-        os.mkdir(os.path.join(basedir2, "private"))
-        fileutil.write(os.path.join(basedir2, "tahoe.cfg"),
-                       BASECONFIG +
-                       "[magic_folder]\n" +
-                       "enabled = true\n" +
-                       "local.directory = " + local_dir_utf8 + "\n")
-        fileutil.write(os.path.join(basedir2, "private", "magic_folder_dircap"), "URI:DIR2:blah")
-        fileutil.write(os.path.join(basedir2, "private", "collective_dircap"), "URI:DIR2:meow")
-        with self.assertRaises(Boom):
-            yield client.create_client(basedir2)
 
 
 def flush_but_dont_ignore(res):

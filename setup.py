@@ -62,9 +62,7 @@ install_requires = [
     #   version of cryptography will *really* be installed.
     "cryptography >= 2.6",
 
-    # * On Linux we need at least Twisted 10.1.0 for inotify support
-    #   used by the drop-upload frontend.
-    # * We also need Twisted 10.1.0 for the FTP frontend in order for
+    # * We need Twisted 10.1.0 for the FTP frontend in order for
     #   Twisted's FTP server to support asynchronous close.
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
@@ -354,7 +352,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
           # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2392 for some
           # discussion.
           ':sys_platform=="win32"': ["pywin32 != 226"],
-          ':sys_platform!="win32" and sys_platform!="linux2"': ["watchdog"],  # For magic-folder on "darwin" (macOS) and the BSDs
           "test": [
               # Pin a specific pyflakes so we don't have different folks
               # disagreeing on what is or is not a lint issue.  We can bump
