@@ -11,14 +11,14 @@
 
 <h2>General</h2>
 
-<ul>
-  <li>Load Average: <span t:render="load_average" /></li>
-  <li>Peak Load: <span t:render="peak_load" /></li>
-  <li>Files Uploaded (immutable): <span t:render="uploads" /></li>
-  <li>Files Downloaded (immutable): <span t:render="downloads" /></li>
-  <li>Files Published (mutable): <span t:render="publishes" /></li>
-  <li>Files Retrieved (mutable): <span t:render="retrieves" /></li>
-</ul>
+    <ul>
+      <li>Load Average: <t:transparent t:render="load_average" /></li>
+      <li>Peak Load: <t:transparent t:render="peak_load" /></li>
+      <li>Files Uploaded (immutable): <t:transparent t:render="uploads" /></li>
+      <li>Files Downloaded (immutable): <t:transparent t:render="downloads" /></li>
+      <li>Files Published (mutable): <t:transparent t:render="publishes" /></li>
+      <li>Files Retrieved (mutable): <t:transparent t:render="retrieves" /></li>
+    </ul>
 
 <h2>Raw Stats:</h2>
 <pre t:render="raw" />
