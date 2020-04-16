@@ -2,7 +2,15 @@
 import pprint, itertools, hashlib
 import json
 from twisted.internet import defer
+from twisted.python.filepath import FilePath
 from twisted.web.resource import Resource
+from twisted.web.template import (
+    Element,
+    XMLFile,
+    renderer,
+    renderElement,
+    tags
+)
 from nevow import rend, tags as T
 from allmydata.util import base32, idlib
 from allmydata.web.common import (
@@ -14,6 +22,7 @@ from allmydata.web.common import (
     compute_rate,
     render_time,
     MultiFormatPage,
+    MultiFormatResource,
 )
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus, IServermapUpdaterStatus
@@ -1164,52 +1173,66 @@ class HelperStatus(MultiFormatPage):
     def render_upload_bytes_encoded(self, ctx, data):
         return str(data["chk_upload_helper.encoded_bytes"])
 
-
-class Statistics(MultiFormatPage):
-    docFactory = getxmlfile("statistics.xhtml")
+# Render "/statistics" page.
+class Statistics(MultiFormatResource):
 
     def __init__(self, provider):
-        rend.Page.__init__(self, provider)
-        self.provider = provider
+        super(Statistics, self).__init__()
+        self._provider = provider
+
+    def render_HTML(self, req):
+        return renderElement(req, StatisticsElement(self._provider))
 
     def render_JSON(self, req):
-        stats = self.provider.get_stats()
+        stats = self._provider.get_stats()
         req.setHeader("content-type", "text/plain")
         return json.dumps(stats, indent=1) + "\n"
 
-    def data_get_stats(self, ctx, data):
-        return self.provider.get_stats()
+class StatisticsElement(Element):
 
-    def render_load_average(self, ctx, data):
-        return str(data["stats"].get("load_monitor.avg_load"))
+    loader = XMLFile(FilePath(__file__).sibling("statistics.xhtml"))
 
-    def render_peak_load(self, ctx, data):
-        return str(data["stats"].get("load_monitor.max_load"))
+    def __init__(self, provider):
+        super(StatisticsElement, self).__init__()
+        self._stats = provider.get_stats()
 
-    def render_uploads(self, ctx, data):
-        files = data["counters"].get("uploader.files_uploaded", 0)
-        bytes = data["counters"].get("uploader.bytes_uploaded", 0)
+    @renderer
+    def load_average(self, req, tag):
+        return str(self._stats["stats"].get("load_monitor.avg_load"))
+
+    @renderer
+    def peak_load(self, req, tag):
+        return str(self._stats["stats"].get("load_monitor.max_load"))
+
+    @renderer
+    def uploads(self, req, tag):
+        files = self._stats["counters"].get("uploader.files_uploaded", 0)
+        bytes = self._stats["counters"].get("uploader.bytes_uploaded", 0)
         return ("%s files / %s bytes (%s)" %
                 (files, bytes, abbreviate_size(bytes)))
 
-    def render_downloads(self, ctx, data):
-        files = data["counters"].get("downloader.files_downloaded", 0)
-        bytes = data["counters"].get("downloader.bytes_downloaded", 0)
+    @renderer
+    def downloads(self, req, tag):
+        files = self._stats["counters"].get("downloader.files_downloaded", 0)
+        bytes = self._stats["counters"].get("downloader.bytes_downloaded", 0)
         return ("%s files / %s bytes (%s)" %
                 (files, bytes, abbreviate_size(bytes)))
 
-    def render_publishes(self, ctx, data):
-        files = data["counters"].get("mutable.files_published", 0)
-        bytes = data["counters"].get("mutable.bytes_published", 0)
+    @renderer
+    def publishes(self, req, tag):
+        files = self._stats["counters"].get("mutable.files_published", 0)
+        bytes = self._stats["counters"].get("mutable.bytes_published", 0)
         return "%s files / %s bytes (%s)" % (files, bytes,
                                              abbreviate_size(bytes))
 
-    def render_retrieves(self, ctx, data):
-        files = data["counters"].get("mutable.files_retrieved", 0)
-        bytes = data["counters"].get("mutable.bytes_retrieved", 0)
+    @renderer
+    def retrieves(self, req, tag):
+        files = self._stats["counters"].get("mutable.files_retrieved", 0)
+        bytes = self._stats["counters"].get("mutable.bytes_retrieved", 0)
         return "%s files / %s bytes (%s)" % (files, bytes,
                                              abbreviate_size(bytes))
 
-    def render_raw(self, ctx, data):
-        raw = pprint.pformat(data)
-        return ctx.tag[raw]
+    @renderer
+    def raw(self, req, tag):
+        raw = pprint.pformat(self._stats)
+        return tag(raw)
