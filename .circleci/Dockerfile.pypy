@@ -1,4 +1,4 @@
-FROM pypy:2.7-7.1.1-jessie
+FROM pypy:2.7-buster
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
 ENV VIRTUALENV_PATH /tmp/venv
