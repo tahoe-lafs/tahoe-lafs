@@ -1476,6 +1476,9 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         # Hypothesis found that a name with "\x2000" does not make the
         # round-trip properly .. so for now we'll only give the packer
         # normalized names.
+        # See also:
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2606
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1076
         name = unicodedata.normalize('NFC', name)
 
         kids = {
