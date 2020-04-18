@@ -9,7 +9,7 @@ from twisted.web import (
 )
 from twisted.web.util import redirectTo
 
-from hyperlink import URL
+from hyperlink import DecodedURL, URL
 
 from nevow import rend, tags as T
 from nevow.inevow import IRequest
@@ -137,7 +137,7 @@ class URIHandler(resource.Resource, object):
         # passed -- we re-direct to the non-trailing-slash version so
         # that there is just one valid URI for "uri" resource.
         if not name:
-            u = URL.from_text(req.uri.decode('utf8'))
+            u = DecodedURL.from_text(req.uri.decode('utf8'))
             u = u.replace(
                 path=(s for s in u.path if s),  # remove empty segments
             )
