@@ -366,7 +366,7 @@ class NeedOperationHandleError(WebError):
 
 
 # XXX should be phased out by the nevow -> twisted.web port (that is,
-# this whole class should have no users and can be delted once the
+# this whole class should have no users and can be deleted once the
 # port away from nevow is complete)
 class RenderMixin(object):
 
