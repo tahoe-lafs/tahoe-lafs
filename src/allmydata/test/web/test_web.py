@@ -658,10 +658,8 @@ class WebMixin(testutil.TimezoneMixin):
                                       (response_substring, res.value.response,
                                        which))
             else:
-                self.fail(
-                    RuntimeError("%s was supposed to raise %s, not get '%s'" %
-                    (which, expected_failure, res))
-                )
+                self.fail("%s was supposed to raise %s, not get '%s'" %
+                          (which, expected_failure, res))
         d.addBoth(done)
         return d
 
