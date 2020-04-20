@@ -11,9 +11,8 @@ from twisted.web.template import flattenString
 # web/common.py, we can use `twisted.web.iweb.IRequest` here.
 from nevow.inevow import IRequest
 
-# from twisted.web.server import Request
-from twisted.web.test.test_web import DummyRequest
-from zope.interface import implements
+from twisted.web.test.requesthelper import DummyRequest
+from zope.interface import implementer
 
 from foolscap.api import fireEventually
 import itertools
@@ -2990,14 +2989,13 @@ def renderDeferred(ss):
     elem = StorageStatusElement(ss._storage, ss._nickname)
     return flattenString(None, elem)
 
+@implementer(IRequest)
 class JSONRequest(DummyRequest):
     """
     A Request with t=json argument added to it.
 
     This is useful to invoke a Resouce.render_JSON() method.
     """
-    implements(IRequest)
-
     def __init__(self, **kwargs):
         DummyRequest.__init__(self, b"/", **kwargs)
         self.args = {"t": ["json"]}
