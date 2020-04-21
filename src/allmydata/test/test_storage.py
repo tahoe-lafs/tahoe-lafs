@@ -11,7 +11,8 @@ from twisted.web.template import flattenString
 # web/common.py, we can use `twisted.web.iweb.IRequest` here.
 from nevow.inevow import IRequest
 
-from twisted.web.test.requesthelper import DummyRequest
+from twisted.web.server import Request
+from twisted.web.test.requesthelper import DummyChannel
 from zope.interface import implementer
 
 from foolscap.api import fireEventually
@@ -2989,24 +2990,20 @@ def renderDeferred(ss):
     elem = StorageStatusElement(ss._storage, ss._nickname)
     return flattenString(None, elem)
 
-@implementer(IRequest)
-class JSONRequest(DummyRequest):
-    """
-    A Request with t=json argument added to it.
-
-    This is useful to invoke a Resouce.render_JSON() method.
-    """
-    def __init__(self, **kwargs):
-        DummyRequest.__init__(self, b"/", **kwargs)
-        self.args = {"t": ["json"]}
-        self.fields = {}
-
 def renderJSON(resource):
-    """Exercise resouce.render_JSON()
+    """Render a JSON from the given resource."""
 
-    :param _MultiFormatResource resouce: A `twisted.web.resouce.Resource`
-        that contains a render_JSON() method.
-    """
+    @implementer(IRequest)
+    class JSONRequest(Request):
+        """
+        A Request with t=json argument added to it.  This is useful to
+        invoke a Resouce.render_JSON() method.
+        """
+        def __init__(self):
+            Request.__init__(self, DummyChannel())
+            self.args = {"t": ["json"]}
+            self.fields = {}
+
     return resource.render(JSONRequest())
 
 class MyBucketCountingCrawler(BucketCountingCrawler):
