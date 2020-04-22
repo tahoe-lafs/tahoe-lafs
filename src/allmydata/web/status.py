@@ -1187,33 +1187,33 @@ class HelperStatusElement(Element):
 
     @renderer
     def incoming(self, req, tag):
-        return "%d bytes in %d files" % (self._data["chk_upload_helper.incoming_size"],
-                                         self._data["chk_upload_helper.incoming_count"])
+        return tag("%d bytes in %d files" % (self._data["chk_upload_helper.incoming_size"],
+                                             self._data["chk_upload_helper.incoming_count"]))
 
     @renderer
     def encoding(self, req, tag):
-        return "%d bytes in %d files" % (self._data["chk_upload_helper.encoding_size"],
-                                         self._data["chk_upload_helper.encoding_count"])
+        return tag("%d bytes in %d files" % (self._data["chk_upload_helper.encoding_size"],
+                                             self._data["chk_upload_helper.encoding_count"]))
 
     @renderer
     def upload_requests(self, req, tag):
-        return str(self._data["chk_upload_helper.upload_requests"])
+        return tag(str(self._data["chk_upload_helper.upload_requests"]))
 
     @renderer
     def upload_already_present(self, req, tag):
-        return str(self._data["chk_upload_helper.upload_already_present"])
+        return tag(str(self._data["chk_upload_helper.upload_already_present"]))
 
     @renderer
     def upload_need_upload(self, req, tag):
-        return str(self._data["chk_upload_helper.upload_need_upload"])
+        return tag(str(self._data["chk_upload_helper.upload_need_upload"]))
 
     @renderer
     def upload_bytes_fetched(self, req, tag):
-        return str(self._data["chk_upload_helper.fetched_bytes"])
+        return tag(str(self._data["chk_upload_helper.fetched_bytes"]))
 
     @renderer
     def upload_bytes_encoded(self, req, tag):
-        return str(self._data["chk_upload_helper.encoded_bytes"])
+        return tag(str(self._data["chk_upload_helper.encoded_bytes"]))
 
 
 # Render "/statistics" page.
