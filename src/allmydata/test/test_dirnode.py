@@ -9,6 +9,7 @@ from twisted.internet.interfaces import IConsumer
 from allmydata import uri, dirnode
 from allmydata.client import _Client
 from allmydata.immutable import upload
+from allmydata.immutable.literal import LiteralFileNode
 from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, MustNotBeUnknownRWError, \
      MustBeDeepImmutableError, MustBeReadonlyError, \
@@ -26,6 +27,9 @@ from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
 import allmydata.test.common_util as testutil
+
+from hypothesis import given
+from hypothesis.strategies import text
 
 if six.PY3:
     long = int
@@ -1459,6 +1463,33 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         for name in which:
             kids[unicode(name)] = (nm.create_from_cap(caps[name]), {})
         return kids
+
+    @given(text(min_size=1, max_size=20))
+    def test_pack_unpack_unicode_hypothesis(self, name):
+        """
+        pack -> unpack results in the same objects (with a unicode name)
+        """
+        nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None, None)
+        fn = MinimalFakeMutableFile()
+
+        # FIXME TODO: we shouldn't have to do this out here, but
+        # Hypothesis found that a name with "\x2000" does not make the
+        # round-trip properly .. so for now we'll only give the packer
+        # normalized names.
+        # See also:
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2606
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1076
+        name = unicodedata.normalize('NFC', name)
+
+        kids = {
+            name: (LiteralFileNode(uri.from_string(one_uri)), {}),
+        }
+        packed = dirnode.pack_children(kids, fn.get_writekey(), deep_immutable=False)
+        write_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        filenode = nm.create_from_cap(write_uri)
+        dn = dirnode.DirectoryNode(filenode, nm, None)
+        unkids = dn._unpack_contents(packed)
+        self.assertEqual(kids, unkids)
 
     def test_deep_immutable(self):
         nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None, None)

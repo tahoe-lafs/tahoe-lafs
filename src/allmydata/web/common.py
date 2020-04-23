@@ -100,8 +100,7 @@ def parse_offset_arg(offset):
 
 def get_root(ctx_or_req):
     req = IRequest(ctx_or_req)
-    # the addSlash=True gives us one extra (empty) segment
-    depth = len(req.prepath) + len(req.postpath) - 1
+    depth = len(req.prepath) + len(req.postpath)
     link = "/".join([".."] * depth)
     return link
 
@@ -203,8 +202,7 @@ def plural(sequence_or_length):
         return ""
     return "s"
 
-def text_plain(text, ctx):
-    req = IRequest(ctx)
+def text_plain(text, req):
     req.setHeader("content-type", "text/plain")
     req.setHeader("content-length", b"%d" % len(text))
     return text
@@ -367,6 +365,9 @@ class NeedOperationHandleError(WebError):
     pass
 
 
+# XXX should be phased out by the nevow -> twisted.web port (that is,
+# this whole class should have no users and can be deleted once the
+# port away from nevow is complete)
 class RenderMixin(object):
 
     def renderHTTP(self, ctx):
@@ -524,6 +525,10 @@ class SlotsSequenceElement(template.Element):
     def __init__(self, tag, seq):
         self.loader = template.TagLoader(tag)
         self.seq = seq
+
+    @template.renderer
+    def header(self, request, tag):
+        return tag
 
     @template.renderer
     def item(self, request, tag):

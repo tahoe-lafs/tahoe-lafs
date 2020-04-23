@@ -9,7 +9,7 @@ from twisted.web import (
 )
 from twisted.web.util import redirectTo
 
-from hyperlink import URL
+from hyperlink import DecodedURL, URL
 
 from nevow import rend, tags as T
 from nevow.inevow import IRequest
@@ -133,6 +133,15 @@ class URIHandler(resource.Resource, object):
         and creates and appropriate handler (depending on the kind of
         capability it was passed).
         """
+        # this is in case a URI like "/uri/?cap=<valid capability>" is
+        # passed -- we re-direct to the non-trailing-slash version so
+        # that there is just one valid URI for "uri" resource.
+        if not name:
+            u = DecodedURL.from_text(req.uri.decode('utf8'))
+            u = u.replace(
+                path=(s for s in u.path if s),  # remove empty segments
+            )
+            return redirectTo(u.to_uri().to_text().encode('utf8'), req)
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
@@ -142,16 +151,15 @@ class URIHandler(resource.Resource, object):
             )
 
 
-class FileHandler(rend.Page):
+class FileHandler(resource.Resource, object):
     # I handle /file/$FILECAP[/IGNORED] , which provides a URL from which a
     # file can be downloaded correctly by tools like "wget".
 
     def __init__(self, client):
-        rend.Page.__init__(self, client)
+        super(FileHandler, self).__init__()
         self.client = client
 
-    def childFactory(self, ctx, name):
-        req = IRequest(ctx)
+    def getChild(self, name, req):
         if req.method not in ("GET", "HEAD"):
             raise WebError("/file can only be used with GET or HEAD")
         # 'name' must be a file URI
@@ -165,7 +173,7 @@ class FileHandler(rend.Page):
             raise WebError("'%s' is not a file-cap" % name)
         return filenode.FileNodeDownloadHandler(self.client, node)
 
-    def renderHTTP(self, ctx):
+    def render_GET(self, ctx):
         raise WebError("/file must be followed by a file-cap and a name",
                        http.NOT_FOUND)
 
