@@ -15,9 +15,6 @@ from testtools.matchers import (
 
 BLACKLIST = {
     "allmydata.test.check_load",
-    "allmydata.watchdog._watchdog_541",
-    "allmydata.watchdog.inotify",
-    "allmydata.windows.inotify",
     "allmydata.windows.registry",
 }
 

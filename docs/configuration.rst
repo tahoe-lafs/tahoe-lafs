@@ -82,7 +82,6 @@ Client/server nodes provide one or more of the following services:
 * web-API service
 * SFTP service
 * FTP service
-* Magic Folder service
 * helper service
 * storage service.
 
@@ -718,12 +717,6 @@ SFTP, FTP
     pair to a top-level Tahoe directory. See :doc:`frontends/FTP-and-SFTP`
     for instructions on configuring these services, and the ``[sftpd]`` and
     ``[ftpd]`` sections of ``tahoe.cfg``.
-
-Magic Folder
-
-    A node running on Linux or Windows can be configured to automatically
-    upload files that are created or changed in a specified local directory.
-    See :doc:`frontends/magic-folder` for details.
 
 
 Storage Server Configuration

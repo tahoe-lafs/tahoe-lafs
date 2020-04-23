@@ -9,7 +9,7 @@ from twisted.internet import defer, task, threads
 from allmydata.version_checks import get_package_versions_string
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
-    stats_gatherer, admin, magic_folder_cli, tahoe_daemonize, tahoe_start, \
+    stats_gatherer, admin, tahoe_daemonize, tahoe_start, \
     tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 from allmydata.util.eliotutil import (
@@ -61,7 +61,6 @@ class Options(usage.Options):
                     +   process_control_commands
                     +   debug.subCommands
                     +   cli.subCommands
-                    +   magic_folder_cli.subCommands
                     +   tahoe_invite.subCommands
                     )
 
@@ -153,10 +152,6 @@ def dispatch(config,
     elif command in cli.dispatch:
         # these are blocking, and must be run in a thread
         f0 = cli.dispatch[command]
-        f = lambda so: threads.deferToThread(f0, so)
-    elif command in magic_folder_cli.dispatch:
-        # same
-        f0 = magic_folder_cli.dispatch[command]
         f = lambda so: threads.deferToThread(f0, so)
     elif command in tahoe_invite.dispatch:
         f = tahoe_invite.dispatch[command]

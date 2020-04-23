@@ -3,7 +3,6 @@ from __future__ import print_function
 import os.path, re, urllib, time, cgi
 import json
 import treq
-import mock
 
 from bs4 import BeautifulSoup
 
@@ -34,7 +33,6 @@ from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
-from allmydata.frontends.magic_folder import QueuedItem
 from allmydata.web import status
 from allmydata.web.common import WebError, MultiFormatPage
 from allmydata.util import fileutil, base32, hashutil
@@ -66,7 +64,6 @@ from ..common_web import (
 )
 from allmydata.client import _Client, SecretHolder
 from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
-from ..status import FakeStatus
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -125,29 +122,6 @@ class FakeUploader(service.Service):
 
     def get_helper_info(self):
         return (self.helper_furl, self.helper_connected)
-
-
-def create_test_queued_item(relpath_u, history=[]):
-    progress = mock.Mock()
-    progress.progress = 100.0
-    item = QueuedItem(relpath_u, progress, 1234)
-    for the_status, timestamp in history:
-        item.set_status(the_status, current_time=timestamp)
-    return item
-
-
-class FakeMagicFolder(object):
-    def __init__(self):
-        self.uploader = FakeStatus()
-        self.downloader = FakeStatus()
-
-    def get_public_status(self):
-        return (
-            True,
-            [
-                'a magic-folder status message'
-            ],
-        )
 
 
 def build_one_ds():
@@ -284,7 +258,6 @@ class FakeClient(_Client):
         # don't upcall to Client.__init__, since we only want to initialize a
         # minimal subset
         service.MultiService.__init__(self)
-        self._magic_folders = dict()
         self.all_contents = {}
         self.nodeid = "fake_nodeid"
         self.nickname = u"fake_nickname \u263A"
@@ -940,79 +913,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn(u'<li>Server Nickname: <span class="nickname mine">fake_nickname \u263A</span></li>', res_u)
         d.addCallback(_check)
         return d
-
-    @defer.inlineCallbacks
-    def test_magicfolder_status_bad_token(self):
-        with self.assertRaises(Error):
-            yield self.POST(
-                '/magic_folder?t=json',
-                t='json',
-                name='default',
-                token='not the token you are looking for',
-            )
-
-    @defer.inlineCallbacks
-    def test_magicfolder_status_wrong_folder(self):
-        with self.assertRaises(Exception) as ctx:
-            yield self.POST(
-                '/magic_folder?t=json',
-                t='json',
-                name='a non-existent magic-folder',
-                token=self.s.get_auth_token(),
-            )
-        self.assertIn(
-            "Not Found",
-            str(ctx.exception)
-        )
-
-    @defer.inlineCallbacks
-    def test_magicfolder_status_success(self):
-        self.s._magic_folders['default'] = mf = FakeMagicFolder()
-        mf.uploader.status = [
-            create_test_queued_item(u"rel/uppath", [('done', 12345)])
-        ]
-        mf.downloader.status = [
-            create_test_queued_item(u"rel/downpath", [('done', 23456)])
-        ]
-        data = yield self.POST(
-            '/magic_folder?t=json',
-            t='json',
-            name='default',
-            token=self.s.get_auth_token(),
-        )
-        data = json.loads(data)
-        self.assertEqual(
-            data,
-            [
-                {
-                    "status": "done",
-                    "path": "rel/uppath",
-                    "kind": "upload",
-                    "percent_done": 100.0,
-                    "done_at": 12345,
-                    "size": 1234,
-                },
-                {
-                    "status": "done",
-                    "path": "rel/downpath",
-                    "kind": "download",
-                    "percent_done": 100.0,
-                    "done_at": 23456,
-                    "size": 1234,
-                },
-            ]
-        )
-
-    @defer.inlineCallbacks
-    def test_magicfolder_root_success(self):
-        self.s._magic_folders['default'] = mf = FakeMagicFolder()
-        mf.uploader.status = [
-            create_test_queued_item(u"rel/path", [('done', 12345)])
-        ]
-        data = yield self.GET(
-            '/',
-        )
-        del data
 
     def test_status(self):
         h = self.s.get_history()

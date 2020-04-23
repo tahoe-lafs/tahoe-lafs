@@ -21,7 +21,7 @@ from allmydata.version_checks import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status
-from allmydata.web import storage, magic_folder
+from allmydata.web import storage
 from allmydata.web.common import (
     abbreviate_size,
     getxmlfile,
@@ -208,9 +208,6 @@ class Root(MultiFormatPage):
         self.putChild("uri", URIHandler(client))
         self.putChild("cap", URIHandler(client))
 
-        # handler for "/magic_folder" URIs
-        self.putChild("magic_folder", magic_folder.MagicFolderWebApi(client))
-
         # Handler for everything beneath "/private", an area of the resource
         # hierarchy which is only accessible with the private per-node API
         # auth token.
@@ -306,30 +303,6 @@ class Root(MultiFormatPage):
 
         return description
 
-
-    def data_magic_folders(self, ctx, data):
-        return self.client._magic_folders.keys()
-
-    def render_magic_folder_row(self, ctx, data):
-        magic_folder = self.client._magic_folders[data]
-        (ok, messages) = magic_folder.get_public_status()
-        ctx.fillSlots("magic_folder_name", data)
-        if ok:
-            ctx.fillSlots("magic_folder_status", "yes")
-            ctx.fillSlots("magic_folder_status_alt", "working")
-        else:
-            ctx.fillSlots("magic_folder_status", "no")
-            ctx.fillSlots("magic_folder_status_alt", "not working")
-
-        status = T.ul(class_="magic-folder-status")
-        for msg in messages:
-            status[T.li[str(msg)]]
-        return ctx.tag[status]
-
-    def render_magic_folder(self, ctx, data):
-        if not self.client._magic_folders:
-            return T.p()
-        return ctx.tag
 
     def render_services(self, ctx, data):
         ul = T.ul()
