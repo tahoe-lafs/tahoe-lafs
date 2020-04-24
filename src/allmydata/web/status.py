@@ -1152,7 +1152,7 @@ class HelperStatusElement(Element):
 
     def __init__(self, helper):
         """
-        :param _allmydata.immutable.offloaded.Helper helper
+        :param _allmydata.immutable.offloaded.Helper helper: upload helper.
         """
         super(HelperStatusElement, self).__init__()
         self._helper = helper
