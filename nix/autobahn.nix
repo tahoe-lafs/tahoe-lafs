@@ -1,5 +1,5 @@
 { lib, buildPythonPackage, fetchPypi, isPy3k,
-  six, txaio, twisted, zope_interface, cffi, trollius, futures,
+  six, txaio, twisted, zope_interface, cffi, futures,
   mock, pytest, cryptography, pynacl
 }:
 buildPythonPackage rec {
@@ -12,7 +12,7 @@ buildPythonPackage rec {
   };
 
   propagatedBuildInputs = [ six txaio twisted zope_interface cffi cryptography pynacl ] ++
-    (lib.optionals (!isPy3k) [ trollius futures ]);
+    (lib.optionals (!isPy3k) [ futures ]);
 
   checkInputs = [ mock pytest ];
   checkPhase = ''
