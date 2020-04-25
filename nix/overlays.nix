@@ -8,8 +8,7 @@ self: super: {
       # slightly newer version.
       nevow = python-super.callPackage ./nevow.nix { };
       # NixOS autobahn package has trollius as a dependency, although
-      # it is optional. Trollius is no longer maintained and fails on
-      # CI.
+      # it is optional. Trollius is unmaintained and fails on CI.
       autobahn = python-super.callPackage ./autobahn.nix { };
     };
   };
