@@ -369,14 +369,15 @@ class RootElement(Element):
 
         return ctx.tag[ul]
 
-    def data_introducer_description(self, ctx, data):
-        connected_count = self.data_connected_introducers( ctx, data )
+    @renderer
+    def introducer_description(self, req, tag):
+        connected_count = self._connected_introducers()
         if connected_count == 0:
-            return "No introducers connected"
+            return tag("No introducers connected")
         elif connected_count == 1:
-            return "1 introducer connected"
+            return tag("1 introducer connected")
         else:
-            return "%s introducers connected" % (connected_count,)
+            return tag("%s introducers connected" % (connected_count,))
 
     def data_total_introducers(self, ctx, data):
         return len(self.client.introducer_connection_statuses())
