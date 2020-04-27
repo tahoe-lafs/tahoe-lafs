@@ -28,7 +28,7 @@ from allmydata.web.common import (
     WebError,
     get_arg,
     MultiFormatPage,
-    RenderMixin,
+    MultiFormatResource,
     get_format,
     get_mutable_type,
     render_time_delta,
@@ -177,14 +177,18 @@ class FileHandler(resource.Resource, object):
         raise WebError("/file must be followed by a file-cap and a name",
                        http.NOT_FOUND)
 
-class IncidentReporter(RenderMixin, rend.Page):
-    def render_POST(self, ctx):
-        req = IRequest(ctx)
+class IncidentReporter(MultiFormatResource):
+    """Handler for /report_incident POST request"""
+
+    def render(self, req):
+        if req.method != "POST":
+            raise WebError("/report_incident can only be used with POST")
+
         log.msg(format="User reports incident through web page: %(details)s",
                 details=get_arg(req, "details", ""),
                 level=log.WEIRD, umid="LkD9Pw")
-        req.setHeader("content-type", "text/plain")
-        return "An incident report has been saved to logs/incidents/ in the node directory."
+        req.setHeader("content-type", "text/plain; charset=UTF-8")
+        return b"An incident report has been saved to logs/incidents/ in the node directory."
 
 SPACE = u"\u00A0"*2
 
