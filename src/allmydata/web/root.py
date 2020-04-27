@@ -432,17 +432,18 @@ class RootElement(Element):
         self._render_connection_status(ctx, cs)
         return ctx.tag
 
-    def data_helper_furl_prefix(self, ctx, data):
+    @renderer
+    def helper_furl_prefix(self, req, tag):
         try:
-            uploader = self.client.getServiceNamed("uploader")
+            uploader = self._client.getServiceNamed("uploader")
         except KeyError:
-            return None
+            return tag("None")
         furl, connected = uploader.get_helper_info()
         if not furl:
-            return None
+            return tag("None")
         # trim off the secret swissnum
         (prefix, _, swissnum) = furl.rpartition("/")
-        return "%s/[censored]" % (prefix,)
+        return tag("%s/[censored]" % (prefix,))
 
     def _connected_to_helper(self):
         try:
