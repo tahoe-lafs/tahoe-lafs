@@ -16,6 +16,15 @@ from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
 
+from twisted.python.filepath import FilePath
+from twisted.web.template import (
+    Element,
+    XMLFile,
+    renderer,
+    renderElement,
+    tags
+)
+
 import allmydata # to display import path
 from allmydata.version_checks import get_package_versions_string
 from allmydata.util import log
@@ -193,10 +202,9 @@ class IncidentReporter(MultiFormatResource):
 SPACE = u"\u00A0"*2
 
 
-class Root(MultiFormatPage):
+class Root(MultiFormatResource):
 
     addSlash = True
-    docFactory = getxmlfile("welcome.xhtml")
 
     _connectedalts = {
         "not-configured": "Not Configured",
@@ -205,7 +213,7 @@ class Root(MultiFormatPage):
         }
 
     def __init__(self, client, clock=None, now_fn=None):
-        rend.Page.__init__(self, client)
+        super(Root, self).__init__()
         self.client = client
         self.now_fn = now_fn
 
@@ -261,13 +269,8 @@ class Root(MultiFormatPage):
     def data_import_path(self, ctx, data):
         return str(allmydata)
 
-    def render_my_nodeid(self, ctx, data):
-        tubid_s = "TubID: "+self.client.get_long_tubid()
-        return T.td(title=tubid_s)[self.client.get_long_nodeid()]
-
-    def data_my_nickname(self, ctx, data):
-        return self.client.nickname
-
+    def render_HTML(self, req):
+        return renderElement(req, RootElement(self.client))
 
     def render_JSON(self, req):
         req.setHeader("content-type", "application/json; charset=utf-8")
@@ -307,6 +310,22 @@ class Root(MultiFormatPage):
 
         return description
 
+class RootElement(Element):
+
+    loader = XMLFile(FilePath(__file__).sibling("welcome.xhtml"))
+
+    def __init__(self, client):
+        super(RootElement, self).__init__()
+        self._client = client
+
+    @renderer
+    def my_nodeid(self, req, tag):
+        tubid_s = "TubID: "+self._client.get_long_tubid()
+        return tags.td(self._client.get_long_nodeid(), title=tubid_s)
+
+    @renderer
+    def my_nickname(self, req, tag):
+        return tag(self._client.nickname)
 
     def render_services(self, ctx, data):
         ul = T.ul()
