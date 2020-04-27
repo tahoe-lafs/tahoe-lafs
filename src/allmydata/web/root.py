@@ -567,14 +567,18 @@ class RootElement(Element):
             ]]
         return T.div[form]
 
-    def render_incident_button(self, ctx, data):
+    @renderer
+    def incident_button(self, req, tag):
         # this button triggers a foolscap-logging "incident"
-        form = T.form(action="report_incident", method="post",
-                      enctype="multipart/form-data")[
-            T.fieldset[
-            T.input(type="hidden", name="t", value="report-incident"),
-            "What went wrong?"+SPACE,
-            T.input(type="text", name="details"), SPACE,
-            T.input(type="submit", value=u"Save \u00BB"),
-            ]]
-        return T.div[form]
+        form = tags.form(
+            tags.fieldset(
+                tags.input(type="hidden", name="t", value="report-incident"),
+                "What went wrong?"+SPACE,
+                tags.input(type="text", name="details"), SPACE,
+                tags.input(type="submit", value=u"Save \u00BB"),
+            ),
+            action="report_incident",
+            method="post",
+            enctype="multipart/form-data"
+        )
+        return tags.div(form)
