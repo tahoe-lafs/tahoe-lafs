@@ -344,10 +344,11 @@ class RootElement(Element):
         state = self.connected_to_at_least_one_introducer(req, tag)
         return self._connectedalts.get(state)
 
-    def render_services(self, ctx, data):
-        ul = T.ul()
+    @renderer
+    def services(self, req, tag):
+        ul = tags.ul()
         try:
-            ss = self.client.getServiceNamed("storage")
+            ss = self._client.getServiceNamed("storage")
             stats = ss.get_stats()
             if stats["storage_server.accepting_immutable_shares"]:
                 msg = "accepting new shares"
@@ -356,18 +357,18 @@ class RootElement(Element):
             available = stats.get("storage_server.disk_avail")
             if available is not None:
                 msg += ", %s available" % abbreviate_size(available)
-            ul[T.li[T.a(href="storage")["Storage Server"], ": ", msg]]
+            ul(tags.li(tags.a("Storage Server", ": ", msg, href="storage")))
         except KeyError:
-            ul[T.li["Not running storage server"]]
+            ul(tags.li("Not running storage server"))
 
-        if self.client.helper:
-            stats = self.client.helper.get_stats()
+        if self._client.helper:
+            stats = self._client.helper.get_stats()
             active_uploads = stats["chk_upload_helper.active_uploads"]
-            ul[T.li["Helper: %d active uploads" % (active_uploads,)]]
+            ul(tags.li("Helper: %d active uploads" % (active_uploads,)))
         else:
-            ul[T.li["Not running helper"]]
+            ul(tags.li("Not running helper"))
 
-        return ctx.tag[ul]
+        return tag(ul)
 
     @renderer
     def introducer_description(self, req, tag):
