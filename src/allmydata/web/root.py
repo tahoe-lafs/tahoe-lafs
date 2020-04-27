@@ -473,13 +473,15 @@ class RootElement(Element):
     def connected_to_helper_alt(self, req, tag):
         return tag(self._connectedalts.get(self._connected_to_helper()))
 
-    def data_known_storage_servers(self, ctx, data):
-        sb = self.client.get_storage_broker()
-        return len(sb.get_all_serverids())
+    @renderer
+    def known_storage_servers(self, req, tag):
+        sb = self._client.get_storage_broker()
+        return tag(str(len(sb.get_all_serverids())))
 
-    def data_connected_storage_servers(self, ctx, data):
-        sb = self.client.get_storage_broker()
-        return len(sb.get_connected_servers())
+    @renderer
+    def connected_storage_servers(self, req, tag):
+        sb = self._client.get_storage_broker()
+        return tag(str(len(sb.get_connected_servers())))
 
     def data_services(self, ctx, data):
         sb = self.client.get_storage_broker()
