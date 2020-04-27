@@ -444,10 +444,11 @@ class RootElement(Element):
         (prefix, _, swissnum) = furl.rpartition("/")
         return "%s/[censored]" % (prefix,)
 
-    def data_helper_description(self, ctx, data):
-        if self.data_connected_to_helper(ctx, data) == "no":
-            return "Helper not connected"
-        return "Helper"
+    @renderer
+    def helper_description(self, req, tag):
+        if self.connected_to_helper(req, tag) == "no":
+            return tag("Helper not connected")
+        return tag("Helper")
 
     @renderer
     def connected_to_helper(self, req, tag):
