@@ -13,7 +13,7 @@ from hyperlink import DecodedURL, URL
 
 from nevow import rend, tags as T
 from nevow.inevow import IRequest
-from nevow.static import File as nevow_File # TODO: merge with static.File?
+from twisted.web import static
 from nevow.util import resource_filename
 
 from twisted.python.filepath import FilePath
@@ -225,7 +225,7 @@ class Root(MultiFormatResource):
         self.putChild("statistics", status.Statistics(client.stats_provider))
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
-            self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
+            self.putChild(filen, static.File(os.path.join(static_dir, filen)))
 
         self.putChild("report_incident", IncidentReporter())
 
