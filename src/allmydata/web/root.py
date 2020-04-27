@@ -449,9 +449,10 @@ class RootElement(Element):
             return "Helper not connected"
         return "Helper"
 
-    def data_connected_to_helper(self, ctx, data):
+    @renderer
+    def connected_to_helper(self, req, tag):
         try:
-            uploader = self.client.getServiceNamed("uploader")
+            uploader = self._client.getServiceNamed("uploader")
         except KeyError:
             return "no" # we don't even have an Uploader
         furl, connected = uploader.get_helper_info()
@@ -462,8 +463,10 @@ class RootElement(Element):
             return "yes"
         return "no"
 
-    def data_connected_to_helper_alt(self, ctx, data):
-        return self._connectedalts[self.data_connected_to_helper(ctx, data)]
+    @renderer
+    def connected_to_helper_alt(self, req, tag):
+        state = self.connected_to_helper(req, tag)
+        return self._connectedalts.get(state)
 
     def data_known_storage_servers(self, ctx, data):
         sb = self.client.get_storage_broker()
