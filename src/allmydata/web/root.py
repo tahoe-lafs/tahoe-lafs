@@ -257,7 +257,9 @@ class Root(MultiFormatResource):
             except KeyError:
                 storage_server = None
             return storage.StorageStatus(storage_server, self.client.nickname)
-
+        if not path:
+            # Render "/" path.
+            return self
 
     # FIXME: This code is duplicated in root.py and introweb.py.
     def data_rendered_at(self, ctx, data):
