@@ -206,12 +206,6 @@ class Root(MultiFormatResource):
 
     addSlash = True
 
-    _connectedalts = {
-        "not-configured": "Not Configured",
-        "yes": "Connected",
-        "no": "Disconnected",
-        }
-
     def __init__(self, client, clock=None, now_fn=None):
         super(Root, self).__init__()
         self.client = client
@@ -320,6 +314,12 @@ class RootElement(Element):
         super(RootElement, self).__init__()
         self._client = client
 
+    _connectedalts = {
+        "not-configured": "Not Configured",
+        "yes": "Connected",
+        "no": "Disconnected",
+        }
+
     @renderer
     def my_nodeid(self, req, tag):
         tubid_s = "TubID: "+self._client.get_long_tubid()
@@ -328,6 +328,21 @@ class RootElement(Element):
     @renderer
     def my_nickname(self, req, tag):
         return tag(self._client.nickname)
+
+    def _connected_introducers(self):
+        return len([1 for cs in self._client.introducer_connection_statuses()
+                    if cs.connected])
+
+    @renderer
+    def connected_to_at_least_one_introducer(self, req, tag):
+        if self._connected_introducers():
+            return "yes"
+        return "no"
+
+    @renderer
+    def connected_to_at_least_one_introducer_alt(self, req, tag):
+        state = self.connected_to_at_least_one_introducer(req, tag)
+        return self._connectedalts.get(state)
 
     def render_services(self, ctx, data):
         ul = T.ul()
@@ -365,18 +380,6 @@ class RootElement(Element):
 
     def data_total_introducers(self, ctx, data):
         return len(self.client.introducer_connection_statuses())
-
-    def data_connected_introducers(self, ctx, data):
-        return len([1 for cs in self.client.introducer_connection_statuses()
-                    if cs.connected])
-
-    def data_connected_to_at_least_one_introducer(self, ctx, data):
-        if self.data_connected_introducers(ctx, data):
-            return "yes"
-        return "no"
-
-    def data_connected_to_at_least_one_introducer_alt(self, ctx, data):
-        return self._connectedalts[self.data_connected_to_at_least_one_introducer(ctx, data)]
 
     # In case we configure multiple introducers
     def data_introducers(self, ctx, data):
