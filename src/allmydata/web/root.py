@@ -444,14 +444,7 @@ class RootElement(Element):
         (prefix, _, swissnum) = furl.rpartition("/")
         return "%s/[censored]" % (prefix,)
 
-    @renderer
-    def helper_description(self, req, tag):
-        if self.connected_to_helper(req, tag) == "no":
-            return tag("Helper not connected")
-        return tag("Helper")
-
-    @renderer
-    def connected_to_helper(self, req, tag):
+    def _connected_to_helper(self):
         try:
             uploader = self._client.getServiceNamed("uploader")
         except KeyError:
@@ -465,9 +458,18 @@ class RootElement(Element):
         return "no"
 
     @renderer
+    def helper_description(self, req, tag):
+        if self._connected_to_helper() == "no":
+            return tag("Helper not connected")
+        return tag("Helper")
+
+    @renderer
+    def connected_to_helper(self, req, tag):
+        return tag(self._connected_to_helper())
+
+    @renderer
     def connected_to_helper_alt(self, req, tag):
-        state = self.connected_to_helper(req, tag)
-        return self._connectedalts.get(state)
+        return tag(self._connectedalts.get(self._connected_to_helper()))
 
     def data_known_storage_servers(self, ctx, data):
         sb = self.client.get_storage_broker()
