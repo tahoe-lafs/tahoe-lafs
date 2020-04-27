@@ -1,6 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0
-      Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html lang="en" xmlns:n="http://nevow.com/ns/nevow/0.1">
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
   <head>
     <meta charset="utf-8"/>
     <title>Tahoe-LAFS - Welcome</title>
@@ -25,11 +23,11 @@
           <table class="node-info pull-right">
             <tr>
               <th>Nickname:</th>
-              <td n:render="data" n:data="my_nickname" />
+              <td t:render="my_nickname" />
             </tr>
             <tr>
               <th>Node ID:</th>
-              <td n:render="my_nodeid" />
+              <td t:render="my_nodeid" />
             </tr>
           </table>
         </div>
@@ -124,7 +122,7 @@
             <div class="nav-header">
               <ul class="nav nav-list">
                 <li class="nav-header">Save incident report</li>
-                <li><div n:render="incident_button" /></li>
+                <li><div t:render="incident_button" /></li>
               </ul>
             </div>
           </div><!--/.well -->
@@ -138,22 +136,32 @@
               <div class="span6">
                 <div>
                   <h3>
-                    <div class="status-indicator"><img><n:attr name="src">img/connected-<n:invisible n:render="string" n:data="connected_to_at_least_one_introducer" />.png</n:attr><n:attr name="alt"><n:invisible n:render="string" n:data="connected_to_at_least_one_introducer_alt" /></n:attr></img></div>
-                    <div n:render="string" n:data="introducer_description" />
+                    <div class="status-indicator">
+                      <img>
+                        <t:attr name="src">img/connected-<t:invisible t:render="connected_to_at_least_one_introducer" />.png</t:attr>
+                        <t:attr name="alt"><t:invisible t:render="connected_to_at_least_one_introducer_alt" /></t:attr>
+                      </img>
+                    </div>
+                    <div t:render="introducer_description" />
                   </h3>
                 </div>
                 <div>
                   <h3>
-                    <div class="status-indicator"><img><n:attr name="src">img/connected-<n:invisible n:render="string" n:data="connected_to_helper" />.png</n:attr><n:attr name="alt"><n:invisible n:render="string" n:data="connected_to_helper_alt" /></n:attr></img></div>
-                    <div n:render="string" n:data="helper_description" />
+                    <div class="status-indicator">
+                      <img>
+                        <t:attr name="src">img/connected-<t:invisible t:render="connected_to_helper" />.png</t:attr>
+                        <t:attr name="alt"><t:invisible t:render="connected_to_helper_alt" /></t:attr>
+                      </img>
+                    </div>
+                    <div t:render="helper_description" />
                   </h3>
-                  <div class="furl" n:render="string" n:data="helper_furl_prefix" />
+                  <div class="furl" t:render="helper_furl_prefix" />
                 </div>
               </div><!--/span-->
               <div class="span6">
                 <div class="span4 services">
                   <h3>Services</h3>
-                  <div n:render="services" />
+                  <div t:render="services" />
                 </div><!--/span-->
               </div><!--/span-->
             </div><!--/row-->
@@ -161,61 +169,89 @@
 
           <div class="row-fluid">
             <h2>
-              Connected to <span n:render="string" n:data="connected_storage_servers" />
-              of <span n:render="string" n:data="known_storage_servers" /> known storage servers
+              Connected to <span t:render="connected_storage_servers" />
+              of <span t:render="known_storage_servers" /> known storage servers
             </h2>
           </div><!--/row-->
-          <table class="table table-striped table-bordered peer-status" n:render="sequence" n:data="services">
+          <table class="table table-striped table-bordered peer-status" t:render="sequence" t:data="services">
             <thead>
-              <tr n:pattern="header">
+              <tr t:pattern="header">
                 <td><h3>Nickname</h3></td>
                 <td><h3>Connection</h3></td>
-                <td><h3>Last&nbsp;RX</h3></td>
+                <td><h3>Last RX</h3></td>
                 <td><h3>Version</h3></td>
                 <td><h3>Available</h3></td>
               </tr>
             </thead>
-            <tr n:pattern="item" n:render="service_row">
+            <tr t:pattern="item" t:render="service_row">
               <td class="nickname-and-peerid">
-                <div class="status-indicator"><img><n:attr name="src">img/connected-<n:slot name="service_connection_status" />.png</n:attr><n:attr name="alt"><n:slot name="service_connection_status_alt" /></n:attr></img></div>
-                <div class="nickname"><n:slot name="nickname"/></div>
-                <div class="nodeid"><n:slot name="peerid"/></div>
+                <div class="status-indicator">
+                  <img>
+                    <t:attr name="src">img/connected-<t:slot name="service_connection_status" />.png</t:attr>
+                    <t:attr name="alt"><t:slot name="service_connection_status_alt" /></t:attr>
+                  </img>
+                </div>
+                <div class="nickname"><t:slot name="nickname"/></div>
+                <div class="nodeid"><t:slot name="peerid"/></div>
               </td>
 
               <td class="connection-status">
-                <n:attr name="title"><n:slot name="details"/></n:attr>
-                <n:slot name="summary"/>
+                <t:attr name="title"><t:slot name="details"/></t:attr>
+                <t:slot name="summary"/>
                 <a class="timestamp">
-                  <n:attr name="title"><n:slot name="service_connection_status_abs_time"/></n:attr>
-                  <n:slot name="service_connection_status_rel_time"/>
+                  <t:attr name="title"><t:slot name="service_connection_status_abs_time"/></t:attr>
+                  <t:slot name="service_connection_status_rel_time"/>
                 </a>
               </td>
 
-              <td class="service-last-received-data"><a class="timestamp"><n:attr name="title"><n:slot name="last_received_data_abs_time"/></n:attr><n:slot name="last_received_data_rel_time"/></a></td>
-              <td class="service-version"><n:slot name="version"/></td>
-              <td class="service-available-space"><n:slot name="available_space"/></td>
+              <td class="service-last-received-data">
+                <a class="timestamp">
+                  <t:attr name="title"><t:slot name="last_received_data_abs_time"/></t:attr>
+                  <t:slot name="last_received_data_rel_time"/>
+                </a>
+              </td>
+              <td class="service-version"><t:slot name="version"/></td>
+              <td class="service-available-space"><t:slot name="available_space"/></td>
             </tr>
-            <tr n:pattern="empty"><td colspan="5">You are not presently connected to any servers.</td></tr>
+            <tr t:pattern="empty"><td colspan="5">You are not presently connected to any servers.</td></tr>
           </table>
           <div class="row-fluid">
-            <h2>Connected to <span n:render="string" n:data="connected_introducers" /> of <span n:render="string" n:data="total_introducers" /> introducers</h2>
+            <h2>Connected to <span t:render="connected_introducers" /> of <span t:render="total_introducers" /> introducers</h2>
           </div>
-          <table class="table table-striped table-bordered peer-status" n:render="sequence" n:data="introducers">
+          <table class="table table-striped table-bordered peer-status" t:render="sequence" t:data="introducers">
             <thead>
-              <tr n:pattern="header">
+              <tr t:pattern="header">
                 <td><h3>Connection</h3></td>
-                <td><h3>Last&nbsp;RX</h3></td>
+                <td><h3>Last RX</h3></td>
               </tr>
             </thead>
-            <tr n:pattern="item" n:render="introducers_row">
+            <tr t:pattern="item" t:render="introducers_row">
               <td class="nickname-and-peerid">
-                <div class="status-indicator"><img><n:attr name="src">img/connected-<n:slot name="service_connection_status" />.png</n:attr><n:attr name="alt"><n:slot name="service_connection_status_alt" /></n:attr></img></div>
-                <a class="timestamp"><n:attr name="title"><n:slot name="service_connection_status_abs_time"/></n:attr><n:slot name="service_connection_status_rel_time"/></a>
-                <div class="connection-status"><n:attr name="title"><n:slot name="details"/></n:attr><n:slot name="summary"/></div>
+                <div class="status-indicator">
+                  <img>
+                    <t:attr name="src">img/connected-<t:slot name="service_connection_status" />.png</t:attr>
+                    <t:attr name="alt"><t:slot name="service_connection_status_alt" /></t:attr>
+                  </img>
+                </div>
+                <a class="timestamp">
+                  <t:attr name="title"><t:slot name="service_connection_status_abs_time"/></t:attr>
+                  <t:slot name="service_connection_status_rel_time"/>
+                </a>
+                <div class="connection-status">
+                  <t:attr name="title">
+                    <t:slot name="details"/>
+                  </t:attr>
+                  <t:slot name="summary"/>
+                </div>
               </td>
-              <td class="service-last-received-data"><a class="timestamp"><n:attr name="title"><n:slot name="last_received_data_abs_time"/></n:attr><n:slot name="last_received_data_rel_time"/></a></td>
+              <td class="service-last-received-data">
+                <a class="timestamp">
+                  <t:attr name="title"><t:slot name="last_received_data_abs_time"/></t:attr>
+                  <t:slot name="last_received_data_rel_time"/>
+                </a>
+              </td>
             </tr>
-            <tr n:pattern="empty"><td colspan="2">No introducers are configured.</td></tr>
+            <tr t:pattern="empty"><td colspan="2">No introducers are configured.</td></tr>
           </table>
         </div><!--/span-->
       </div><!--/row-->
@@ -224,9 +260,9 @@
 
       <footer>
         <p>&#169; <a href="https://tahoe-lafs.org/">Tahoe-LAFS Software Foundation 2013-2016</a></p>
-        <p class="minutia">Page rendered at <span n:render="data" n:data="rendered_at" /></p>
-        <p class="minutia" n:render="string" n:data="version"></p>
-        <p class="minutia">Tahoe-LAFS code imported from: <span n:render="data" n:data="import_path" /></p>
+        <p class="minutia">Page rendered at <span t:render="rendered_at" /></p>
+        <p class="minutia" t:render="version"></p>
+        <p class="minutia">Tahoe-LAFS code imported from: <span t:render="import_path" /></p>
       </footer>
 
     </div><!--/.fluid-container-->
