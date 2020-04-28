@@ -255,10 +255,6 @@ class Root(MultiFormatResource):
             # Render "/" path.
             return self
 
-    # FIXME: This code is duplicated in root.py and introweb.py.
-    def data_rendered_at(self, ctx, data):
-        return render_time(time.time())
-
     def data_version(self, ctx, data):
         return get_package_versions_string()
 
@@ -630,3 +626,7 @@ class RootElement(Element):
             enctype="multipart/form-data"
         )
         return tags.div(form)
+
+    @renderer
+    def rendered_at(self, req, tag):
+        return render_time(time.time())
