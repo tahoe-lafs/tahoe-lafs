@@ -401,26 +401,26 @@ class RootElement(Element):
 
     def _render_connection_status(self, tag, cs):
         connected = "yes" if cs.connected else "no"
-        tag.fillSlots("service_connection_status", connected)
-        tag.fillSlots("service_connection_status_alt",
+        tag.fillSlots(service_connection_status=connected)
+        tag.fillSlots(service_connection_status_alt=
                       self._connectedalts[connected])
 
         since = cs.last_connection_time
-        tag.fillSlots("service_connection_status_rel_time",
+        tag.fillSlots(service_connection_status_rel_time=
                       render_time_delta(since, self.now_fn())
                       if since is not None
                       else "N/A")
-        tag.fillSlots("service_connection_status_abs_time",
+        tag.fillSlots(service_connection_status_abs_time=
                       render_time_attr(since)
                       if since is not None
                       else "N/A")
 
         last_received_data_time = cs.last_received_time
-        tag.fillSlots("last_received_data_abs_time",
+        tag.fillSlots(last_received_data_abs_time=
                       render_time_attr(last_received_data_time)
                       if last_received_data_time is not None
                       else "N/A")
-        tag.fillSlots("last_received_data_rel_time",
+        tag.fillSlots(last_received_data_rel_time=
                       render_time_delta(last_received_data_time,
                                         self.now_fn())
                       if last_received_data_time is not None
@@ -428,19 +428,19 @@ class RootElement(Element):
 
         others = cs.non_connected_statuses
         if cs.connected:
-            tag.fillSlots("summary", cs.summary)
+            tag.fillSlots(summary=cs.summary)
             if others:
                 details = "\n".join(["* %s: %s\n" % (which, others[which])
                                      for which in sorted(others)])
-                tag.fillSlots("details", "Other hints:\n" + details)
+                tag.fillSlots(details="Other hints:\n" + details)
             else:
-                tag.fillSlots("details", "(no other hints)")
+                tag.fillSlots(details="(no other hints)")
         else:
             details = tags.ul()
             for which in sorted(others):
-                details[tags.li("%s: %s" % (which, others[which]))]
-            tag.fillSlots("summary", [cs.summary, details])
-            tag.fillSlots("details", "")
+                details(tags.li("%s: %s" % (which, others[which])))
+            tag.fillSlots(summary=[cs.summary, details])
+            tag.fillSlots(details="")
 
     @renderer
     def introducers_row(self, req, tag):
