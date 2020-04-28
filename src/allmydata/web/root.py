@@ -256,7 +256,7 @@ class Root(MultiFormatResource):
             return self
 
     def render_HTML(self, req):
-        return renderElement(req, RootElement(self.client))
+        return renderElement(req, RootElement(self.client, self.now_fn))
 
     def render_JSON(self, req):
         req.setHeader("content-type", "application/json; charset=utf-8")
@@ -300,9 +300,10 @@ class RootElement(Element):
 
     loader = XMLFile(FilePath(__file__).sibling("welcome.xhtml"))
 
-    def __init__(self, client):
+    def __init__(self, client, now_fn):
         super(RootElement, self).__init__()
         self._client = client
+        self._now_fn = now_fn
 
     _connectedalts = {
         "not-configured": "Not Configured",
@@ -397,7 +398,7 @@ class RootElement(Element):
 
         since = cs.last_connection_time
         tag.fillSlots(service_connection_status_rel_time=
-                      render_time_delta(since, self.now_fn())
+                      render_time_delta(since, self._now_fn())
                       if since is not None
                       else "N/A")
         tag.fillSlots(service_connection_status_abs_time=
@@ -412,7 +413,7 @@ class RootElement(Element):
                       else "N/A")
         tag.fillSlots(last_received_data_rel_time=
                       render_time_delta(last_received_data_time,
-                                        self.now_fn())
+                                        self._now_fn())
                       if last_received_data_time is not None
                       else "N/A")
 
