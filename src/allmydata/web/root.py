@@ -389,8 +389,15 @@ class RootElement(Element):
         return tag(str(len(self._client.introducer_connection_statuses())))
 
     # In case we configure multiple introducers
-    def data_introducers(self, ctx, data):
-        return self.client.introducer_connection_statuses()
+    @renderer
+    def introducers(self, req, tag):
+        ix = self._get_introducers()
+        if not ix:
+            return tag("No introducers")
+        return tag
+
+    def _get_introducers(self):
+        return self._client.introducer_connection_statuses()
 
     def _render_connection_status(self, tag, cs):
         connected = "yes" if cs.connected else "no"
