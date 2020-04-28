@@ -384,8 +384,9 @@ class RootElement(Element):
         else:
             return tag("%s introducers connected" % (connected_count,))
 
-    def data_total_introducers(self, ctx, data):
-        return len(self.client.introducer_connection_statuses())
+    @renderer
+    def total_introducers(self, req, tag):
+        return tag(str(self.client.introducer_connection_statuses()))
 
     # In case we configure multiple introducers
     def data_introducers(self, ctx, data):
