@@ -9,7 +9,7 @@ from ...storage_client import (
     NativeStorageServer,
     StorageFarmBroker,
 )
-from ...web.root import Root, RootElement
+from ...web.root import RootElement
 from ...util.connection_status import ConnectionStatus
 from allmydata.web.root import URIHandler
 from allmydata.web.common import WebError
@@ -22,21 +22,6 @@ from hypothesis.strategies import text
 from ..common import (
     EMPTY_CLIENT_CONFIG,
 )
-
-class FakeRoot(Root):
-    def __init__(self):
-        pass
-    def now_fn(self):
-        return 0
-
-
-class FakeContext(object):
-    def __init__(self):
-        self.slots = {}
-        self.tag = self
-    def fillSlots(self, slotname, contents):
-        self.slots[slotname] = contents
-
 
 class RenderSlashUri(unittest.TestCase):
     """
