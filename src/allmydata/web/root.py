@@ -442,9 +442,11 @@ class RootElement(Element):
             tag.fillSlots("summary", [cs.summary, details])
             tag.fillSlots("details", "")
 
-    def render_introducers_row(self, ctx, cs):
-        self._render_connection_status(ctx, cs)
-        return ctx.tag
+    @renderer
+    def introducers_row(self, req, tag):
+        for cs in self._get_introducers():
+            self._render_connection_status(tag, cs)
+        return tag
 
     @renderer
     def helper_furl_prefix(self, req, tag):
