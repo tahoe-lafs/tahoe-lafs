@@ -138,8 +138,8 @@
                   <h3>
                     <div class="status-indicator">
                       <img>
-                        <t:attr name="src">img/connected-<t:invisible t:render="connected_to_at_least_one_introducer" />.png</t:attr>
-                        <t:attr name="alt"><t:invisible t:render="connected_to_at_least_one_introducer_alt" /></t:attr>
+                        <t:attr name="src">img/connected-<t:transparent t:render="connected_to_at_least_one_introducer" />.png</t:attr>
+                        <t:attr name="alt"><t:transparent t:render="connected_to_at_least_one_introducer_alt" /></t:attr>
                       </img>
                     </div>
                     <div t:render="introducer_description" />
@@ -149,8 +149,8 @@
                   <h3>
                     <div class="status-indicator">
                       <img>
-                        <t:attr name="src">img/connected-<t:invisible t:render="connected_to_helper" />.png</t:attr>
-                        <t:attr name="alt"><t:invisible t:render="connected_to_helper_alt" /></t:attr>
+                        <t:attr name="src">img/connected-<t:transparent t:render="connected_to_helper" />.png</t:attr>
+                        <t:attr name="alt"><t:transparent t:render="connected_to_helper_alt" /></t:attr>
                       </img>
                     </div>
                     <div t:render="helper_description" />
