@@ -386,7 +386,7 @@ class RootElement(Element):
 
     @renderer
     def total_introducers(self, req, tag):
-        return tag(str(len(self._client.introducer_connection_statuses())))
+        return tag(str(len(self._get_introducers())))
 
     # In case we configure multiple introducers
     @renderer
