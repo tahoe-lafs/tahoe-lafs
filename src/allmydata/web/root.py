@@ -334,6 +334,10 @@ class RootElement(Element):
                     if cs.connected])
 
     @renderer
+    def connected_introducers(self, req, tag):
+        return tag(str(self._connected_introducers()))
+
+    @renderer
     def connected_to_at_least_one_introducer(self, req, tag):
         if self._connected_introducers():
             return "yes"
