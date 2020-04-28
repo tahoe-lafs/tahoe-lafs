@@ -255,9 +255,6 @@ class Root(MultiFormatResource):
             # Render "/" path.
             return self
 
-    def data_import_path(self, ctx, data):
-        return str(allmydata)
-
     def render_HTML(self, req):
         return renderElement(req, RootElement(self.client))
 
@@ -632,3 +629,6 @@ class RootElement(Element):
     def version(self, req, tag):
         return get_package_versions_string()
 
+    @renderer
+    def import_path(self, req, tag):
+        return str(allmydata)
