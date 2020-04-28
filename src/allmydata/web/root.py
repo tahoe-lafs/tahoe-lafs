@@ -387,47 +387,48 @@ class RootElement(Element):
     def data_introducers(self, ctx, data):
         return self.client.introducer_connection_statuses()
 
-    def _render_connection_status(self, ctx, cs):
+    def _render_connection_status(self, tag, cs):
         connected = "yes" if cs.connected else "no"
-        ctx.fillSlots("service_connection_status", connected)
-        ctx.fillSlots("service_connection_status_alt",
+        tag.fillSlots("service_connection_status", connected)
+        tag.fillSlots("service_connection_status_alt",
                       self._connectedalts[connected])
 
         since = cs.last_connection_time
-        ctx.fillSlots("service_connection_status_rel_time",
+        tag.fillSlots("service_connection_status_rel_time",
                       render_time_delta(since, self.now_fn())
                       if since is not None
                       else "N/A")
-        ctx.fillSlots("service_connection_status_abs_time",
+        tag.fillSlots("service_connection_status_abs_time",
                       render_time_attr(since)
                       if since is not None
                       else "N/A")
 
         last_received_data_time = cs.last_received_time
-        ctx.fillSlots("last_received_data_abs_time",
+        tag.fillSlots("last_received_data_abs_time",
                       render_time_attr(last_received_data_time)
                       if last_received_data_time is not None
                       else "N/A")
-        ctx.fillSlots("last_received_data_rel_time",
-                      render_time_delta(last_received_data_time, self.now_fn())
+        tag.fillSlots("last_received_data_rel_time",
+                      render_time_delta(last_received_data_time,
+                                        self.now_fn())
                       if last_received_data_time is not None
                       else "N/A")
 
         others = cs.non_connected_statuses
         if cs.connected:
-            ctx.fillSlots("summary", cs.summary)
+            tag.fillSlots("summary", cs.summary)
             if others:
                 details = "\n".join(["* %s: %s\n" % (which, others[which])
                                      for which in sorted(others)])
-                ctx.fillSlots("details", "Other hints:\n" + details)
+                tag.fillSlots("details", "Other hints:\n" + details)
             else:
-                ctx.fillSlots("details", "(no other hints)")
+                tag.fillSlots("details", "(no other hints)")
         else:
-            details = T.ul()
+            details = tags.ul()
             for which in sorted(others):
-                details[T.li["%s: %s" % (which, others[which])]]
-            ctx.fillSlots("summary", [cs.summary, details])
-            ctx.fillSlots("details", "")
+                details[tags.li("%s: %s" % (which, others[which]))]
+            tag.fillSlots("summary", [cs.summary, details])
+            tag.fillSlots("details", "")
 
     def render_introducers_row(self, ctx, cs):
         self._render_connection_status(ctx, cs)
@@ -483,28 +484,47 @@ class RootElement(Element):
         sb = self._client.get_storage_broker()
         return tag(str(len(sb.get_connected_servers())))
 
-    def data_services(self, ctx, data):
-        sb = self.client.get_storage_broker()
+    def _services(self):
+        sb = self._client.get_storage_broker()
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
-    def render_service_row(self, ctx, server):
-        cs = server.get_connection_status()
-        self._render_connection_status(ctx, cs)
+    @renderer
+    def service_row(self, req, tag):
+        servers = self._services()
 
-        ctx.fillSlots("peerid", server.get_longname())
-        ctx.fillSlots("nickname", server.get_nickname())
+        # FIXME: handle empty list of servers in a better manner.
+        if not servers:
+            tag.fillSlots(peerid="",
+                          nickname="",
+                          service_connection_status="",
+                          service_connection_status_alt="",
+                          details="",
+                          summary="",
+                          service_connection_status_abs_time="",
+                          service_connection_status_rel_time="",
+                          last_received_data_abs_time="",
+                          last_received_data_rel_time="",
+                          version="",
+                          available_space="")
 
-        announcement = server.get_announcement()
-        version = announcement.get("my-version", "")
-        available_space = server.get_available_space()
-        if available_space is None:
-            available_space = "N/A"
-        else:
-            available_space = abbreviate_size(available_space)
-        ctx.fillSlots("version", version)
-        ctx.fillSlots("available_space", available_space)
+        for server in servers:
+            cs = server.get_connection_status()
+            self._render_connection_status(tag, cs)
 
-        return ctx.tag
+            tag.fillSlots("peerid", server.get_longname())
+            tag.fillSlots("nickname", server.get_nickname())
+
+            announcement = server.get_announcement()
+            version = announcement.get("my-version", "")
+            available_space = server.get_available_space()
+            if available_space is None:
+                available_space = "N/A"
+            else:
+                available_space = abbreviate_size(available_space)
+                tag.fillSlots("version", version)
+                tag.fillSlots("available_space", available_space)
+
+        return tag
 
     def render_download_form(self, ctx, data):
         # this is a form where users can download files by URI
