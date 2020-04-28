@@ -1,13 +1,19 @@
 from mock import Mock
 
 from twisted.trial import unittest
+from twisted.web.template import Tag
 from twisted.web.test.requesthelper import DummyRequest
+from twisted.application import service
 
-from ...storage_client import NativeStorageServer
-from ...web.root import Root
+from ...storage_client import (
+    NativeStorageServer,
+    StorageFarmBroker,
+)
+from ...web.root import Root, RootElement
 from ...util.connection_status import ConnectionStatus
 from allmydata.web.root import URIHandler
 from allmydata.web.common import WebError
+from allmydata.client import _Client
 
 from hypothesis import given
 from hypothesis.strategies import text
@@ -94,9 +100,23 @@ class RenderServiceRow(unittest.TestCase):
         cs = ConnectionStatus(False, "summary", {}, 0, 0)
         s.get_connection_status = lambda: cs
 
-        r = FakeRoot()
-        ctx = FakeContext()
-        res = r.render_service_row(ctx, s)
-        self.assertIdentical(res, ctx)
-        self.assertEqual(ctx.slots["version"], "")
-        self.assertEqual(ctx.slots["nickname"], "")
+        class FakeClient(_Client):
+            def __init__(self):
+                service.MultiService.__init__(self)
+                self.storage_broker = StorageFarmBroker(
+                    permute_peers=True,
+                    tub_maker=None,
+                    node_config=EMPTY_CLIENT_CONFIG,
+                )
+                self.addService(s)
+
+        client = FakeClient()
+        root = RootElement(client, None)
+        req = DummyRequest(b"")
+        tag = Tag("")
+
+        res = root.service_row(req, tag)
+
+        self.assertIdentical(res, tag)
+        self.assertEqual(tag.slotData.get("version"), "")
+        self.assertEqual(tag.slotData.get("nickname"), "")
