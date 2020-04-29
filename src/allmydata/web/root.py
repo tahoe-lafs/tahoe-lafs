@@ -516,8 +516,8 @@ class RootElement(Element):
             cs = server.get_connection_status()
             self._render_connection_status(tag, cs)
 
-            tag.fillSlots("peerid", server.get_longname())
-            tag.fillSlots("nickname", server.get_nickname())
+            tag.fillSlots(peerid=server.get_longname(),
+                          nickname=server.get_nickname())
 
             announcement = server.get_announcement()
             version = announcement.get("my-version", "")
@@ -526,8 +526,8 @@ class RootElement(Element):
                 available_space = "N/A"
             else:
                 available_space = abbreviate_size(available_space)
-                tag.fillSlots("version", version)
-                tag.fillSlots("available_space", available_space)
+            tag.fillSlots(version=version,
+                          available_space=available_space)
 
         return tag
 
