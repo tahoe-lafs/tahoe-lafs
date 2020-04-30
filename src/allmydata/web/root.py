@@ -228,6 +228,9 @@ class Root(MultiFormatResource):
         self.putChild("report_incident", IncidentReporter())
 
     def getChild(self, path, request):
+        if not path:
+            # Render "/" path.
+            return self
         if path == "helper_status":
             # the Helper isn't attached until after the Tub starts, so this child
             # needs to created on each request
@@ -241,9 +244,6 @@ class Root(MultiFormatResource):
             except KeyError:
                 storage_server = None
             return storage.StorageStatus(storage_server, self.client.nickname)
-        if not path:
-            # Render "/" path.
-            return self
 
     def render_HTML(self, req):
         return renderElement(req, RootElement(self.client, self.now_fn))
