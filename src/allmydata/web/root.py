@@ -11,8 +11,6 @@ from twisted.web.util import redirectTo
 
 from hyperlink import DecodedURL, URL
 
-from nevow import rend, tags as T
-from nevow.inevow import IRequest
 from twisted.web import static
 from nevow.util import resource_filename
 
@@ -228,14 +226,6 @@ class Root(MultiFormatResource):
             self.putChild(filen, static.File(os.path.join(static_dir, filen)))
 
         self.putChild("report_incident", IncidentReporter())
-
-    # until we get rid of nevow.Page in favour of twisted.web.resource
-    # we can't use getChild() -- but we CAN use childFactory or
-    # override locatechild
-    def childFactory(self, ctx, name):
-        request = IRequest(ctx)
-        return self.getChild(name, request)
-
 
     def getChild(self, path, request):
         if path == "helper_status":
