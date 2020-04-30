@@ -53,6 +53,8 @@ from .common import (
     assert_soup_has_favicon,
     assert_soup_has_text,
     assert_soup_has_tag_with_attributes,
+    assert_soup_has_tag_with_content,
+    assert_soup_has_tag_with_attributes_and_content,
 )
 
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
@@ -832,10 +834,16 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_introducer_not_connected_unguessable)
         def _check_introducer_not_connected_unguessable(res):
-            html = res.replace('\n', ' ')
-            self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<img (alt="Disconnected" |src="img/connected-no.png" ){2}/></div>[ ]*<div>No introducers connected</div>', html), res)
-
+            soup = BeautifulSoup(res, 'html5lib')
+            self.failIfIn('pb://someIntroducer/secret', res)
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                {u"alt": u"Disconnected", u"src": u"img/connected-no.png"}
+            )
+            assert_soup_has_tag_with_content(
+                self, soup, u"div",
+                u"No introducers connected"
+            )
         d.addCallback(_check_introducer_not_connected_unguessable)
 
         # introducer connected, unguessable furl
@@ -845,10 +853,21 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_introducer_connected_unguessable)
         def _check_introducer_connected_unguessable(res):
-            html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="connection-status" title="(no other hints)">summary</div>', html)
-            self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"div",
+                u"summary",
+                { u"class": u"connection-status", u"title": u"(no other hints)" }
+            )
+            self.failIfIn('pb://someIntroducer/secret', res)
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"alt": u"Connected", u"src": u"img/connected-yes.png" }
+            )
+            assert_soup_has_tag_with_content(
+                self, soup, u"div",
+                u"1 introducer connected"
+            )
         d.addCallback(_check_introducer_connected_unguessable)
 
         # introducer connected, guessable furl
@@ -858,9 +877,21 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_introducer_connected_guessable)
         def _check_introducer_connected_guessable(res):
+            soup = BeautifulSoup(res, 'html5lib')
             html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="connection-status" title="(no other hints)">summary</div>', html)
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"div",
+                u"summary",
+                { u"class": u"connection-status", u"title": u"(no other hints)" }
+            )
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"src": u"img/connected-yes.png", u"alt": u"Connected" }
+            )
+            assert_soup_has_tag_with_content(
+                self, soup, u"div",
+                u"1 introducer connected"
+            )
         d.addCallback(_check_introducer_connected_guessable)
         return d
 
@@ -873,8 +904,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_no_helper)
         def _check_no_helper(res):
-            html = res.replace('\n', ' ')
-            self.failUnless(re.search('<img (src="img/connected-not-configured.png" |alt="Not Configured" ){2}/>', html), res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"src": u"img/connected-not-configured.png", u"alt": u"Not Configured" }
+            )
         d.addCallback(_check_no_helper)
 
         # enable helper, not connected
@@ -884,10 +918,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_helper_not_connected)
         def _check_helper_not_connected(res):
-            html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="furl">pb://someHelper/[censored]</div>', html)
-            self.failIfIn('pb://someHelper/secret', html)
-            self.failUnless(re.search('<img (src="img/connected-no.png" |alt="Disconnected" ){2}/>', html), res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"div",
+                u"pb://someHelper/[censored]",
+                { u"class": u"furl" }
+            )
+            self.failIfIn('pb://someHelper/secret', res)
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"src": u"img/connected-no.png", u"alt": u"Disconnected" }
+            )
         d.addCallback(_check_helper_not_connected)
 
         # enable helper, connected
@@ -897,10 +938,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_helper_connected)
         def _check_helper_connected(res):
-            html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="furl">pb://someHelper/[censored]</div>', html)
-            self.failIfIn('pb://someHelper/secret', html)
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/>', html), res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"div",
+                u"pb://someHelper/[censored]",
+                { u"class": u"furl" }
+            )
+            self.failIfIn('pb://someHelper/secret', res)
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"src": u"img/connected-yes.png", "alt": u"Connected" }
+            )
         d.addCallback(_check_helper_connected)
         return d
 
