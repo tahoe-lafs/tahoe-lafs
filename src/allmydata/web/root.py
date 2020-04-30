@@ -12,7 +12,7 @@ from twisted.web.util import redirectTo
 from hyperlink import DecodedURL, URL
 
 from twisted.web import static
-from nevow.util import resource_filename
+from pkg_resources import resource_filename
 
 from twisted.python.filepath import FilePath
 from twisted.web.template import (
