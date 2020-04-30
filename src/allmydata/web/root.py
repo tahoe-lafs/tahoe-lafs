@@ -3,17 +3,14 @@ import time
 import json
 import urllib
 
+from hyperlink import DecodedURL, URL
+from pkg_resources import resource_filename
 from twisted.web import (
     http,
     resource,
+    static,
 )
 from twisted.web.util import redirectTo
-
-from hyperlink import DecodedURL, URL
-
-from twisted.web import static
-from pkg_resources import resource_filename
-
 from twisted.python.filepath import FilePath
 from twisted.web.template import (
     Element,
@@ -27,7 +24,12 @@ import allmydata # to display import path
 from allmydata.version_checks import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
-from allmydata.web import filenode, directory, unlinked, status
+from allmydata.web import (
+    filenode,
+    directory,
+    unlinked,
+    status,
+)
 from allmydata.web import storage
 from allmydata.web.common import (
     abbreviate_size,
