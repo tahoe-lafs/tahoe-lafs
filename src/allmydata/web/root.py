@@ -449,7 +449,8 @@ class RootElement(Element):
         sb = self._client.get_storage_broker()
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
-    def _describe_server(self, server):
+    @staticmethod
+    def _describe_server(server):
         """Return a dict containing server stats."""
         peerid = server.get_longname()
         nickname =  server.get_nickname()
