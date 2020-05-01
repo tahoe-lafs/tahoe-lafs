@@ -435,7 +435,8 @@ class RootElement(Element):
 
     @renderer
     def services_table(self, req, tag):
-        rows = [ self._describe_server(server) for server in self._services() ]
+        rows = [ self._describe_server_and_connection(server)
+                 for server in self._services() ]
         return SlotsSequenceElement(tag, rows)
 
     @renderer
@@ -449,6 +450,7 @@ class RootElement(Element):
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
     def _describe_server(self, server):
+        """Return a dict containing server stats."""
         peerid = server.get_longname()
         nickname =  server.get_nickname()
         version = server.get_announcement().get("my-version", "")
@@ -459,19 +461,22 @@ class RootElement(Element):
         else:
             available_space = "N/A"
 
-        srvstat = {
+        return {
             "peerid": peerid,
             "nickname": nickname,
             "version": version,
             "available_space": available_space,
         }
 
+    def _describe_server_and_connection(self, server):
+        """Return a dict containing both server and connection stats."""
+        srvstat = self._describe_server(server)
         cs = server.get_connection_status()
         constat = self._describe_connection_status(cs)
-
         return dict(srvstat.items() + constat.items())
 
     def _describe_connection_status(self, cs):
+        """Return a dict containing some connection stats."""
         others = cs.non_connected_statuses
 
         if cs.connected:
