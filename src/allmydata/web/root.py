@@ -581,12 +581,12 @@ class RootElement(Element):
 
     @renderer
     def rendered_at(self, req, tag):
-        return render_time(time.time())
+        return tag(render_time(time.time()))
 
     @renderer
     def version(self, req, tag):
-        return get_package_versions_string()
+        return tag(get_package_versions_string())
 
     @renderer
     def import_path(self, req, tag):
-        return str(allmydata)
+        return tag(str(allmydata))
