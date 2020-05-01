@@ -427,12 +427,6 @@ class RootElement(Element):
             tag.fillSlots(details="")
 
     @renderer
-    def introducers_row(self, req, tag):
-        for cs in self._get_introducers():
-            self._render_connection_status(tag, cs)
-        return tag
-
-    @renderer
     def helper_furl_prefix(self, req, tag):
         try:
             uploader = self._client.getServiceNamed("uploader")
@@ -487,6 +481,12 @@ class RootElement(Element):
         rows = [ self._describe_server(server) for server in self._services() ]
         return SlotsSequenceElement(tag, rows)
 
+    @renderer
+    def introducers_table(self, req, tag):
+        rows = [ self._describe_connection_status(cs)
+                 for cs in self._get_introducers() ]
+        return SlotsSequenceElement(tag, rows)
+
     def _services(self):
         sb = self._client.get_storage_broker()
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
@@ -502,7 +502,19 @@ class RootElement(Element):
         else:
             available_space = "N/A"
 
+        srvstat = {
+            "peerid": peerid,
+            "nickname": nickname,
+            "version": version,
+            "available_space": available_space,
+        }
+
         cs = server.get_connection_status()
+        constat = self._describe_connection_status(cs)
+
+        return dict(srvstat.items() + constat.items())
+
+    def _describe_connection_status(self, cs):
         others = cs.non_connected_statuses
 
         if cs.connected:
@@ -541,10 +553,6 @@ class RootElement(Element):
             last_received_data_rel_time = "N/A"
 
         return {
-            "peerid": peerid,
-            "nickname": nickname,
-            "version": version,
-            "available_space": available_space,
             "summary": summary,
             "details": details,
             "service_connection_status": connected,
