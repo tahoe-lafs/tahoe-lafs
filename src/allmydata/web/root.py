@@ -38,6 +38,7 @@ from allmydata.web.common import (
     get_arg,
     MultiFormatPage,
     MultiFormatResource,
+    SlotsSequenceElement,
     get_format,
     get_mutable_type,
     render_time_delta,
@@ -481,47 +482,78 @@ class RootElement(Element):
         sb = self._client.get_storage_broker()
         return tag(str(len(sb.get_connected_servers())))
 
+    @renderer
+    def services_table(self, req, tag):
+        rows = [ self._describe_server(server) for server in self._services() ]
+        return SlotsSequenceElement(tag, rows)
+
     def _services(self):
         sb = self._client.get_storage_broker()
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
-    @renderer
-    def service_row(self, req, tag):
-        servers = self._services()
+    def _describe_server(self, server):
+        peerid = server.get_longname()
+        nickname =  server.get_nickname()
+        version = server.get_announcement().get("my-version", "")
 
-        # FIXME: handle empty list of servers in a better manner.
-        if not servers:
-            tag.fillSlots(peerid="",
-                          nickname="",
-                          service_connection_status="",
-                          service_connection_status_alt="",
-                          details="",
-                          summary="",
-                          service_connection_status_abs_time="",
-                          service_connection_status_rel_time="",
-                          last_received_data_abs_time="",
-                          last_received_data_rel_time="",
-                          version="",
-                          available_space="")
+        space = server.get_available_space()
+        if space is not None:
+            available_space = abbreviate_size(space)
+        else:
+            available_space = "N/A"
 
-        for server in servers:
-            cs = server.get_connection_status()
-            self._render_connection_status(tag, cs)
+        cs = server.get_connection_status()
+        others = cs.non_connected_statuses
 
-            tag.fillSlots(peerid=server.get_longname(),
-                          nickname=server.get_nickname())
-
-            announcement = server.get_announcement()
-            version = announcement.get("my-version", "")
-            available_space = server.get_available_space()
-            if available_space is None:
-                available_space = "N/A"
+        if cs.connected:
+            summary = cs.summary
+            if others:
+                hints = "\n".join(["* %s: %s\n" % (which, others[which])
+                                for which in sorted(others)])
+                details = "Other hints:\n" + hints
             else:
-                available_space = abbreviate_size(available_space)
-            tag.fillSlots(version=version,
-                          available_space=available_space)
+                details = "(no other hints)"
+        else:
+            details = tags.ul()
+            for which in sorted(others):
+                details(tags.li("%s: %s" % (which, others[which])))
+            summary = [cs.summary, details]
 
-        return tag
+        connected = "yes" if cs.connected else "no"
+        connected_alt = self._connectedalts[connected]
+
+        since = cs.last_connection_time
+
+        if since is not None:
+            service_connection_status_rel_time = render_time_delta(since, self._now_fn())
+            service_connection_status_abs_time = render_time_attr(since)
+        else:
+            service_connection_status_rel_time = "N/A"
+            service_connection_status_abs_time = "N/A"
+
+        last_received_data_time = cs.last_received_time
+
+        if last_received_data_time is not None:
+            last_received_data_abs_time = render_time_attr(last_received_data_time)
+            last_received_data_rel_time = render_time_delta(last_received_data_time, self._now_fn())
+        else:
+            last_received_data_abs_time = "N/A"
+            last_received_data_rel_time = "N/A"
+
+        return {
+            "peerid": peerid,
+            "nickname": nickname,
+            "version": version,
+            "available_space": available_space,
+            "summary": summary,
+            "details": details,
+            "service_connection_status": connected,
+            "service_connection_status_alt": connected_alt,
+            "service_connection_status_abs_time": service_connection_status_abs_time,
+            "service_connection_status_rel_time": service_connection_status_rel_time,
+            "last_received_data_abs_time": last_received_data_abs_time,
+            "last_received_data_rel_time": last_received_data_rel_time,
+        }
 
     @renderer
     def incident_button(self, req, tag):

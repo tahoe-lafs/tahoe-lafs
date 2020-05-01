@@ -173,9 +173,11 @@
               of <span t:render="known_storage_servers" /> known storage servers
             </h2>
           </div><!--/row-->
-          <table class="table table-striped table-bordered peer-status" t:render="services">
+
+          <!-- table with storage service connection status -->
+          <table class="table table-striped table-bordered peer-status" t:render="services_table">
             <thead>
-              <tr t:pattern="header">
+              <tr t:render="header">
                 <td><h3>Nickname</h3></td>
                 <td><h3>Connection</h3></td>
                 <td><h3>Last RX</h3></td>
@@ -183,7 +185,8 @@
                 <td><h3>Available</h3></td>
               </tr>
             </thead>
-            <tr t:pattern="item" t:render="service_row">
+            <tr t:render="item">
+              <!-- Nickname -->
               <td class="nickname-and-peerid">
                 <div class="status-indicator">
                   <img>
@@ -194,7 +197,7 @@
                 <div class="nickname"><t:slot name="nickname"/></div>
                 <div class="nodeid"><t:slot name="peerid"/></div>
               </td>
-
+              <!-- Connection -->
               <td class="connection-status">
                 <t:attr name="title"><t:slot name="details"/></t:attr>
                 <t:slot name="summary"/>
@@ -203,18 +206,28 @@
                   <t:slot name="service_connection_status_rel_time"/>
                 </a>
               </td>
-
+              <!-- Last RX -->
               <td class="service-last-received-data">
                 <a class="timestamp">
                   <t:attr name="title"><t:slot name="last_received_data_abs_time"/></t:attr>
                   <t:slot name="last_received_data_rel_time"/>
                 </a>
               </td>
-              <td class="service-version"><t:slot name="version"/></td>
-              <td class="service-available-space"><t:slot name="available_space"/></td>
+              <!-- Version -->
+              <td class="service-version">
+                <t:slot name="version"/>
+              </td>
+              <!-- Available -->
+              <td class="service-available-space">
+                <t:slot name="available_space"/>
+              </td>
             </tr>
-            <tr t:pattern="empty"><td colspan="5">You are not presently connected to any servers.</td></tr>
+            <tr t:render="empty">
+              <td colspan="5">You are not presently connected to any servers.</td>
+            </tr>
           </table>
+
+
           <div class="row-fluid">
             <h2>Connected to <span t:render="connected_introducers" /> of <span t:render="total_introducers" /> introducers</h2>
           </div>
