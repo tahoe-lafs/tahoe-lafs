@@ -209,8 +209,8 @@ class Root(MultiFormatResource):
 
     def __init__(self, client, clock=None, now_fn=None):
         super(Root, self).__init__()
-        self.client = client
-        self.now_fn = now_fn
+        self._client = client
+        self._now_fn = now_fn
 
         self.putChild("uri", URIHandler(client))
         self.putChild("cap", URIHandler(client))
@@ -237,24 +237,24 @@ class Root(MultiFormatResource):
         if path == "helper_status":
             # the Helper isn't attached until after the Tub starts, so this child
             # needs to created on each request
-            return status.HelperStatus(self.client.helper)
+            return status.HelperStatus(self._client.helper)
         if path == "storage":
             # Storage isn't initialized until after the web hierarchy is
             # constructed so this child needs to be created later than
             # `__init__`.
             try:
-                storage_server = self.client.getServiceNamed("storage")
+                storage_server = self._client.getServiceNamed("storage")
             except KeyError:
                 storage_server = None
-            return storage.StorageStatus(storage_server, self.client.nickname)
+            return storage.StorageStatus(storage_server, self._client.nickname)
 
     def render_HTML(self, req):
-        return renderElement(req, RootElement(self.client, self.now_fn))
+        return renderElement(req, RootElement(self._client, self._now_fn))
 
     def render_JSON(self, req):
         req.setHeader("content-type", "application/json; charset=utf-8")
-        intro_summaries = [s.summary for s in self.client.introducer_connection_statuses()]
-        sb = self.client.get_storage_broker()
+        intro_summaries = [s.summary for s in self._client.introducer_connection_statuses()]
+        sb = self._client.get_storage_broker()
         servers = self._describe_known_servers(sb)
         result = {
             "introducers": {
