@@ -206,6 +206,14 @@ class Root(MultiFormatResource):
     addSlash = True
 
     def __init__(self, client, clock=None, now_fn=None):
+        """
+        Render root page ("/") of the URI.
+
+        :client allmydata.client._Client: a stats provider.
+        :clock: unused here.
+        :now_fn: a function that returns current time.
+
+        """
         super(Root, self).__init__()
         self._client = client
         self._now_fn = now_fn
