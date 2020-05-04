@@ -1,1 +1,0 @@
-Storage servers can now be configured to load plugins for allmydata.interfaces.IFoolscapStoragePlugin and offer them to clients.

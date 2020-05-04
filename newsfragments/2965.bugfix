@@ -1,1 +1,0 @@
-Magic-Folders now creates spurious conflict files in fewer cases.  In particular, if files are added to the folder while a client is offline, that client will not create conflict files for all those new files when it starts up.
