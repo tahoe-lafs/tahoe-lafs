@@ -33,10 +33,8 @@ from allmydata.web import (
 from allmydata.web import storage
 from allmydata.web.common import (
     abbreviate_size,
-    getxmlfile,
     WebError,
     get_arg,
-    MultiFormatPage,
     MultiFormatResource,
     SlotsSequenceElement,
     get_format,
