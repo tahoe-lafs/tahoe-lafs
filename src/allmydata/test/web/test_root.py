@@ -1,5 +1,7 @@
 from mock import Mock
 
+import time
+
 from twisted.trial import unittest
 from twisted.web.template import Tag
 from twisted.web.test.requesthelper import DummyRequest
@@ -81,9 +83,8 @@ class RenderServiceRow(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        s = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
-        cs = ConnectionStatus(False, "summary", {}, 0, 0)
-        s.get_connection_status = lambda: cs
+        srv = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        srv.get_connection_status = lambda: ConnectionStatus(False, "summary", {}, 0, 0)
 
         class FakeClient(_Client):
             def __init__(self):
@@ -93,15 +94,17 @@ class RenderServiceRow(unittest.TestCase):
                     tub_maker=None,
                     node_config=EMPTY_CLIENT_CONFIG,
                 )
-                self.addService(s)
+                self.storage_broker.test_add_server("test-srv", srv)
 
-        client = FakeClient()
-        root = RootElement(client, None)
+        root = RootElement(FakeClient(), time.time)
         req = DummyRequest(b"")
-        tag = Tag("")
+        tag = Tag(b"")
 
-        res = root.service_row(req, tag)
+        # Pick all items from services table.
+        items = root.services_table(req, tag).item(req, tag)
 
-        self.assertIdentical(res, tag)
-        self.assertEqual(tag.slotData.get("version"), "")
-        self.assertEqual(tag.slotData.get("nickname"), "")
+        # Coerce `items` to list and pick the first item from it.
+        item = list(items)[0]
+
+        self.assertEqual(item.slotData.get("version"), "")
+        self.assertEqual(item.slotData.get("nickname"), "")
