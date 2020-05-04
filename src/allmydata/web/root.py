@@ -472,7 +472,7 @@ class RootElement(Element):
         srvstat = self._describe_server(server)
         cs = server.get_connection_status()
         constat = self._describe_connection_status(cs)
-        return dict(srvstat.items() + constat.items())
+        return dict(list(srvstat.items()) + list(constat.items()))
 
     def _describe_connection_status(self, cs):
         """Return a dict containing some connection stats."""
