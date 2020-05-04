@@ -878,7 +878,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_introducer_connected_guessable)
         def _check_introducer_connected_guessable(res):
             soup = BeautifulSoup(res, 'html5lib')
-            html = res.replace('\n', ' ')
             assert_soup_has_tag_with_attributes_and_content(
                 self, soup, u"div",
                 u"summary",
