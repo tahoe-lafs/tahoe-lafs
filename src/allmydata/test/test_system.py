@@ -3,6 +3,8 @@ from __future__ import print_function
 import os, re, sys, time, json
 from functools import partial
 
+from bs4 import BeautifulSoup
+
 from twisted.internet import reactor
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -38,6 +40,9 @@ from .common import (
     SameProcessStreamEndpointAssigner,
 )
 from .common_web import do_http, Error
+from .web.common import (
+    assert_soup_has_tag_with_attributes
+)
 
 # TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
@@ -1771,8 +1776,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # get the welcome page from the node that uses the helper too
         d.addCallback(lambda res: do_http("get", self.helper_webish_url))
         def _got_welcome_helper(page):
-            html = page.replace('\n', ' ')
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/>', html), page)
+            soup = BeautifulSoup(page, 'html5lib')
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"alt": u"Connected", u"src": u"img/connected-yes.png" }
+            )
             self.failUnlessIn("Not running helper", page)
         d.addCallback(_got_welcome_helper)
 
