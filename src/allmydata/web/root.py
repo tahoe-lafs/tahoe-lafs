@@ -351,7 +351,7 @@ class RootElement(Element):
             available = stats.get("storage_server.disk_avail")
             if available is not None:
                 msg += ", %s available" % abbreviate_size(available)
-            ul(tags.li(tags.a("Storage Server", href="storage"), ": ", msg, ))
+            ul(tags.li(tags.a("Storage Server", href="storage"), ": ", msg))
         except KeyError:
             ul(tags.li("Not running storage server"))
 
