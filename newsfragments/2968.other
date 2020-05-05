@@ -1,1 +1,0 @@
-The integration test suite has been updated to use pytest-twisted instead of deprecated pytest APIs.

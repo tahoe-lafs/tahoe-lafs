@@ -1,1 +1,0 @@
-"tox -e codechecks" no longer dirties the working tree.
