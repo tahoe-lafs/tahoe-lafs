@@ -9,7 +9,7 @@ from twisted.web.template import (
     XMLFile,
     renderer,
     renderElement,
-    tags
+    tags,
 )
 from nevow import rend, tags as T
 from allmydata.util import base32, idlib
@@ -868,73 +868,109 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
             l[T.li["[%s]: %s" % (server.get_name(), times_s)]]
         return T.li["Per-Server Response Times: ", l]
 
-class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
-    docFactory = getxmlfile("map-update-status.xhtml")
 
-    def __init__(self, data):
-        rend.Page.__init__(self, data)
-        self.update_status = data
+class MapupdateStatusPage(MultiFormatResource):
 
-    def render_started(self, ctx, data):
-        started_s = render_time(data.get_started())
-        return started_s
+    def __init__(self, update_status):
+        super(MapupdateStatusPage, self).__init__()
+        self._update_status = update_status
 
-    def render_finished(self, ctx, data):
-        when = data.get_finished()
+    def render_HTML(self, req):
+        elem = MapupdateStatusElement(self._update_status);
+        return renderElement(req, elem)
+
+
+class MapupdateStatusElement(RateAndTimeMixin, Element):
+
+    loader = XMLFile(FilePath(__file__).sibling("map-update-status.xhtml"))
+
+    def __init__(self, update_status):
+        super(MapupdateStatusElement, self).__init__()
+        self._update_status = update_status
+
+    @renderer
+    def started(self, req, tag):
+        started_s = render_time(self._update_status.get_started())
+        return tag(started_s)
+
+    @renderer
+    def finished(self, req, tag):
+        when = self._update_status.get_finished()
         if not when:
-            return "not yet"
-        started_s = render_time(data.get_finished())
-        return started_s
+            return tag("not yet")
+        started_s = render_time(self._update_status.get_finished())
+        return tag(started_s)
 
-    def render_si(self, ctx, data):
-        si_s = base32.b2a_or_none(data.get_storage_index())
+    @renderer
+    def si(self, req, tag):
+        si_s = base32.b2a_or_none(self._update_status.get_storage_index())
         if si_s is None:
             si_s = "(None)"
-        return si_s
+        return tag(si_s)
 
-    def render_helper(self, ctx, data):
-        return {True: "Yes",
-                False: "No"}[data.using_helper()]
+    @renderer
+    def helper(self, req, tag):
+        return tag({True: "Yes",
+                    False: "No"}[self._update_status.using_helper()])
 
-    def render_progress(self, ctx, data):
-        progress = data.get_progress()
+    @renderer
+    def progress(self, req, tag):
+        progress = self._update_status.get_progress()
         # TODO: make an ascii-art bar
-        return "%.1f%%" % (100.0 * progress)
+        return tag("%.1f%%" % (100.0 * progress))
 
-    def render_status(self, ctx, data):
-        return data.get_status()
+    @renderer
+    def status(self, req, tag):
+        return tag(self._update_status.get_status())
 
-    def render_problems(self, ctx, data):
-        problems = data.problems
+    @renderer
+    def problems(self, req, tag):
+        problems = self._update_status.problems
         if not problems:
-            return ""
-        l = T.ul()
+            return tag("")
+        l = tags.ul()
         for peerid in sorted(problems.keys()):
             peerid_s = idlib.shortnodeid_b2a(peerid)
-            l[T.li["[%s]: %s" % (peerid_s, problems[peerid])]]
-        return ctx.tag["Server Problems:", l]
+            l(tags.li("[%s]: %s" % (peerid_s, problems[peerid])))
+        return tag("Server Problems:", l)
 
-    def render_privkey_from(self, ctx, data):
-        server = data.get_privkey_from()
+    @renderer
+    def privkey_from(self, req, tag):
+        server = self._update_status.get_privkey_from()
         if server:
-            return ctx.tag["Got privkey from: [%s]" % server.get_name()]
+            return tag("Got privkey from: [%s]" % server.get_name())
         else:
-            return ""
+            return tag("")
 
-    def data_time_total(self, ctx, data):
-        return self.update_status.timings.get("total")
+    # Helper to query update status timings.
+    #
+    # Querying `update_status.timings` can yield `None` or a numeric
+    # value, but twisted.web has trouble flattening the element tree
+    # when a node contains numeric values.  Stringifying them helps.
+    def _get_update_status_timing(self, name, tag):
+        res = self._update_status.timings.get(name)
+        if not res:
+            return tag("")
+        return tag(str(res))
 
-    def data_time_initial_queries(self, ctx, data):
-        return self.update_status.timings.get("initial_queries")
+    @renderer
+    def time_total(self, req, tag):
+        return self._get_update_status_timing("total", tag)
 
-    def data_time_cumulative_verify(self, ctx, data):
-        return self.update_status.timings.get("cumulative_verify")
+    @renderer
+    def time_initial_queries(self, req, tag):
+        return self._get_update_status_timing("initial_queries", tag)
 
-    def render_server_timings(self, ctx, data):
-        per_server = self.update_status.timings.get("per_server")
+    @renderer
+    def time_cumulative_verify(self, req, tag):
+        return self._get_update_status_timing("cumulative_verify", tag)
+
+    @renderer
+    def server_timings(self, req, tag):
+        per_server = self._update_status.timings.get("per_server")
         if not per_server:
-            return ""
-        l = T.ul()
+            return tag("")
+        l = tags.ul()
         for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
             times = []
             for op,started,t in per_server[server]:
@@ -943,14 +979,14 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
                 #                              self.render_time(None, started - self.update_status.get_started()),
                 #                              self.render_time(None,t)))
                 if op == "query":
-                    times.append( self.render_time(None, t) )
+                    times.append(self.render_time(None, t))
                 elif op == "late":
-                    times.append( "late(" + self.render_time(None, t) + ")" )
+                    times.append("late(" + self.render_time(None, t) + ")")
                 else:
-                    times.append( "privkey(" + self.render_time(None, t) + ")" )
+                    times.append("privkey(" + self.render_time(None, t) + ")")
             times_s = ", ".join(times)
-            l[T.li["[%s]: %s" % (server.get_name(), times_s)]]
-        return T.li["Per-Server Response Times: ", l]
+            l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
+        return tags.li("Per-Server Response Times: ", l)
 
 
 def marshal_json(s):

@@ -1,35 +1,39 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
   <head>
     <title>Tahoe-LAFS - Mutable File Servermap Update Status</title>
     <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
     <link href="/icon.png" rel="shortcut icon" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   </head>
+
   <body>
 
-<h1>Mutable File Servermap Update Status</h1>
+    <h1>Mutable File Servermap Update Status</h1>
 
-<ul>
-  <li>Started: <span n:render="started"/></li>
-  <li>Finished: <span n:render="finished"/></li>
-  <li>Storage Index: <span n:render="si"/></li>
-  <li>Helper?: <span n:render="helper"/></li>
-  <li>Progress: <span n:render="progress"/></li>
-  <li>Status: <span n:render="status"/></li>
-</ul>
+    <ul>
+      <li>Started: <span t:render="started"/></li>
+      <li>Finished: <span t:render="finished"/></li>
+      <li>Storage Index: <span t:render="si"/></li>
+      <li>Helper?: <span t:render="helper"/></li>
+      <li>Progress: <span t:render="progress"/></li>
+      <li>Status: <span t:render="status"/></li>
+    </ul>
 
-<h2>Update Results</h2>
-<ul>
-  <li n:render="problems" />
-  <li>Total: <span n:render="time" n:data="time_total" /></li>
-  <ul>
-    <li>Initial Queries: <span n:render="time" n:data="time_initial_queries" /></li>
-    <li n:render="privkey_from" />
-    <li>Cumulative Verify: <span n:render="time" n:data="time_cumulative_verify" /></li>
-  </ul>
-  <li n:render="server_timings" />
-</ul>
+    <h2>Update Results</h2>
 
-<div>Return to the <a href="/">Welcome Page</a></div>
+    <ul>
+      <li t:render="problems" />
+      <li>Total: <span t:render="time_total" /></li>
+      <ul>
+        <li>Initial Queries: <span t:render="time_initial_queries" /></li>
+        <li t:render="privkey_from" />
+        <li>Cumulative Verify: <span t:render="time_cumulative_verify" /></li>
+      </ul>
+      <li t:render="server_timings" />
+    </ul>
 
-</body></html>
+
+    <div>Return to the <a href="/">Welcome Page</a></div>
+
+  </body>
+</html>
