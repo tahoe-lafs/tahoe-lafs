@@ -17,7 +17,7 @@ from twisted.web.template import (
     XMLFile,
     renderer,
     renderElement,
-    tags
+    tags,
 )
 
 import allmydata # to display import path
