@@ -1,4 +1,5 @@
 import os, re, struct, time
+import weakref
 import six
 
 from foolscap.api import Referenceable
@@ -67,7 +68,7 @@ class StorageServer(service.MultiService, Referenceable):
         self.incomingdir = os.path.join(sharedir, 'incoming')
         self._clean_incomplete()
         fileutil.make_dirs(self.incomingdir)
-        self._active_writers = set()
+        self._active_writers = weakref.WeakKeyDictionary()
         log.msg("StorageServer created", facility="tahoe.storage")
 
         if reserved_space:
@@ -302,7 +303,7 @@ class StorageServer(service.MultiService, Referenceable):
                 if self.no_storage:
                     bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
-                self._active_writers.add(bw)
+                self._active_writers[bw] = 1
                 if limited:
                     remaining_space -= max_space_per_bucket
             else:
@@ -358,7 +359,7 @@ class StorageServer(service.MultiService, Referenceable):
     def bucket_writer_closed(self, bw, consumed_size):
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_added', consumed_size)
-        self._active_writers.remove(bw)
+        del self._active_writers[bw]
 
     def _get_bucket_shares(self, storage_index):
         """Return a list of (shnum, pathname) tuples for files that hold
