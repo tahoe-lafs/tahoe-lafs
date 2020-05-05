@@ -28,7 +28,7 @@ DIR_HTML_TAG = '<html lang="en">'
 class CompletelyUnhandledError(Exception):
     pass
 
-class ErrorBoom(resource.Resource):
+class ErrorBoom(object, resource.Resource):
     def render(self, req):
         raise CompletelyUnhandledError("whoops")
 
