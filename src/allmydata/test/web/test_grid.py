@@ -6,7 +6,7 @@ from six.moves import StringIO
 
 from bs4 import BeautifulSoup
 
-from nevow import rend
+from twisted.web import resource
 from twisted.trial import unittest
 from allmydata import uri, dirnode
 from allmydata.util import base32
@@ -27,8 +27,9 @@ DIR_HTML_TAG = '<html lang="en">'
 
 class CompletelyUnhandledError(Exception):
     pass
-class ErrorBoom(rend.Page):
-    def beforeRender(self, ctx):
+
+class ErrorBoom(resource.Resource):
+    def render(self, req):
         raise CompletelyUnhandledError("whoops")
 
 class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
