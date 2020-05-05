@@ -6,6 +6,7 @@ import re
 import json
 import struct
 import shutil
+import gc
 
 from twisted.trial import unittest
 
@@ -561,8 +562,10 @@ class Server(unittest.TestCase):
         # we abandon the first set, so their provisional allocation should be
         # returned
 
-        for x in writers.values():
-            x.remote_close()
+        del already
+        del writers
+        gc.collect()
+
         self.failUnlessEqual(len(ss._active_writers), 1)
         # now we have a provisional allocation of 1001 bytes
 
@@ -586,8 +589,10 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(ss._active_writers), 39)
 
-        for x in writers3.values():
-            x._disconnected()
+        del already3
+        del writers3
+        gc.collect()
+
         self.failUnlessEqual(len(ss._active_writers), 0)
         ss.disownServiceParent()
         del ss
