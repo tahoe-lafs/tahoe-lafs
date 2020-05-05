@@ -1,4 +1,11 @@
-import time, os.path, platform, stat, re, json, struct, shutil
+import time
+import os.path
+import platform
+import stat
+import re
+import json
+import struct
+import shutil
 
 from twisted.trial import unittest
 
