@@ -26,7 +26,7 @@
       <li>Total: <span t:render="time_total" /></li>
       <ul>
         <li>Initial Queries: <span t:render="time_initial_queries" /></li>
-        <li t:render="privkey_from" />
+        <t:transparent t:render="privkey_from" />
         <li>Cumulative Verify: <span t:render="time_cumulative_verify" /></li>
       </ul>
       <li t:render="server_timings" />
