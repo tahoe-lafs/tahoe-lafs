@@ -20,7 +20,7 @@ def get_memory_usage():
     stats = {}
     try:
         with open("/proc/self/status", "r") as f:
-            for line in f.readlines():
+            for line in f:
                 name, right = line.split(":",2)
                 if name in stat_names:
                     assert right.endswith(" kB\n")

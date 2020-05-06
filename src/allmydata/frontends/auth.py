@@ -32,7 +32,7 @@ class AccountFileChecker(object):
         self.pubkeys = {}
         self.rootcaps = {}
         with open(abspath_expanduser_unicode(accountfile), "r") as f:
-            for line in f.readlines():
+            for line in f:
                 line = line.strip()
                 if line.startswith("#") or not line:
                     continue

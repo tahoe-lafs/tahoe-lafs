@@ -139,7 +139,7 @@ def get_aliases(nodedir):
         pass
     try:
         with codecs.open(aliasfile, "r", "utf-8") as f:
-            for line in f.readlines():
+            for line in f:
                 line = line.strip()
                 if line.startswith("#") or not line:
                     continue
