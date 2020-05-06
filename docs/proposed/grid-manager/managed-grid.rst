@@ -20,7 +20,7 @@ the grid; clients of this grid don't want their uploads to go to
 "unmanaged" storage if some other client decides to provide storage.
 
 One way to limit which storage servers a client connects to is via the
-"server list" (:ref:`server_list`) (aka "Introducer-less"
+"server list" (:ref:`server_list`) (aka "Introducerless"
 mode). Clients are given static lists of storage-servers, and connect
 only to those. This means manually updating these lists if the storage
 servers change, however.
