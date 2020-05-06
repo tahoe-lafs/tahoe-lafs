@@ -869,9 +869,13 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
         return T.li["Per-Server Response Times: ", l]
 
 
+# Renders "/status/mapupdate-%d"
 class MapupdateStatusPage(MultiFormatResource):
 
     def __init__(self, update_status):
+        """
+        :update_status servermap.UpdateStatus: server map stats provider.
+        """
         super(MapupdateStatusPage, self).__init__()
         self._update_status = update_status
 
